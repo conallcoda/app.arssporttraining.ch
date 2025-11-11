@@ -16,16 +16,24 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use UnitEnum;
 
 class ExerciseResource extends Resource
 {
     protected static ?string $model = Exercise::class;
 
-    protected static ?string $cluster = ExercisesCluster::class;
+    protected static UnitEnum|string|null $navigationGroup = 'Exercises';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedFire;
 
+    protected static ?string $breadcrumb = 'Exercises';
+
     protected static ?int $navigationSort = 1;
+
+    public static function getNavigationBadge(): ?string
+    {
+        return static::getModel()::count();
+    }
 
     public static function form(Schema $schema): Schema
     {

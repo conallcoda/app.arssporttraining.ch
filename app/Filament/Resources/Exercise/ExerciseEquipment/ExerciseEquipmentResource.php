@@ -16,12 +16,13 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use UnitEnum;
 
 class ExerciseEquipmentResource extends Resource
 {
     protected static ?string $model = ExerciseEquipment::class;
 
-    protected static ?string $cluster = ExercisesCluster::class;
+    protected static UnitEnum|string|null $navigationGroup = 'Exercises';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedWrenchScrewdriver;
 
@@ -31,7 +32,14 @@ class ExerciseEquipmentResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Equipment';
 
+    protected static ?string $breadcrumb = 'Equipment';
+
     protected static ?int $navigationSort = 2;
+
+    public static function getNavigationBadge(): ?string
+    {
+        return static::getModel()::count();
+    }
 
     public static function form(Schema $schema): Schema
     {

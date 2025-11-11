@@ -2,26 +2,21 @@
 
 namespace App\Filament\Resources\Exercise\Exercises\Tables;
 
+use App\Filament\Tables\AbstractTable;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\Level;
 use App\Models\Exercise\Mechanic;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\EditAction;
-use Filament\Actions\ForceDeleteBulkAction;
-use Filament\Actions\RestoreBulkAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Awcodes\BadgeableColumn\Components\BadgeableColumn;
 
-
-class ExercisesTable
+class ExercisesTable extends AbstractTable
 {
     public static function configure(Table $table): Table
     {
-        return $table
+        return static::applyDefaults($table)
             ->columns([
 
                 BadgeableColumn::make('name')
@@ -88,16 +83,6 @@ class ExercisesTable
                     ->multiple()
                     ->native(false),
                 TrashedFilter::make(),
-            ])
-            ->recordActions([
-                EditAction::make(),
-            ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                    ForceDeleteBulkAction::make(),
-                    RestoreBulkAction::make(),
-                ]),
             ])
             ->defaultSort('name');
     }
