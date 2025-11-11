@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('exercise_equipment', function (Blueprint $table) {
-            $table->string('id')->primary();
+            $table->id();
             $table->string('name')->unique();
             $table->timestamps();
             $table->softDeletes();

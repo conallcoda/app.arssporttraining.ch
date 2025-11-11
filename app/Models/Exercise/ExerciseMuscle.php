@@ -11,12 +11,7 @@ class ExerciseMuscle extends Model
 
     protected $table = 'exercise_muscles';
 
-    protected $keyType = 'string';
-
-    public $incrementing = false;
-
     protected $fillable = [
-        'id',
         'name',
     ];
 

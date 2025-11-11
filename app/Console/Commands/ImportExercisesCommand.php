@@ -3,12 +3,14 @@
 namespace App\Console\Commands;
 
 use App\Models\Exercise\Exercise;
-use App\Models\Exercise\ExerciseCategory;
 use App\Models\Exercise\ExerciseEquipment;
 use App\Models\Exercise\ExerciseMuscle;
-use App\Models\Exercise\Force;
 use App\Models\Exercise\Level;
 use App\Models\Exercise\Mechanic;
+use App\Models\Exercise\Types\StrengthExercise;
+use App\Models\Exercise\Types\PlyometricExercise;
+use App\Models\Exercise\Types\StretchingExercise;
+use App\Models\Exercise\Types\CardioExercise;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
@@ -22,7 +24,6 @@ class ImportExercisesCommand extends Command
     private array $stats = [
         'equipment' => ['created' => 0, 'existing' => 0],
         'muscles' => ['created' => 0, 'existing' => 0],
-        'categories' => ['created' => 0, 'existing' => 0],
         'exercises' => ['created' => 0, 'updated' => 0, 'skipped' => 0],
     ];
 
@@ -71,23 +72,22 @@ class ImportExercisesCommand extends Command
         }
 
         // Import related entities first
-        $equipmentId = $this->importEquipment($data['equipment'] ?? null);
-        $categoryId = $this->importCategory($data['category'] ?? null);
+        $equipmentIds = $this->importEquipment($data['equipment'] ?? null);
         $primaryMuscleIds = $this->importMuscles($data['primaryMuscles'] ?? []);
         $secondaryMuscleIds = $this->importMuscles($data['secondaryMuscles'] ?? []);
+
+        // Determine exercise type/class
+        $exerciseClass = $this->getExerciseClass($data['category'] ?? null);
 
         // Create or update exercise
         $slug = Str::slug($data['name'] ?? $data['id']);
 
-        $exercise = Exercise::updateOrCreate(
+        $exercise = $exerciseClass::updateOrCreate(
             ['slug' => $slug],
             [
                 'name' => $data['name'] ?? $data['id'],
-                'force' => $this->getEnumValue(Force::class, $data['force'] ?? null),
                 'level' => $this->getEnumValue(Level::class, $data['level'] ?? null),
                 'mechanic' => $this->getEnumValue(Mechanic::class, $data['mechanic'] ?? null),
-                'exercise_equipment_id' => $equipmentId,
-                'exercise_category_id' => $categoryId,
                 'instructions' => $data['instructions'] ?? null,
             ]
         );
@@ -96,6 +96,11 @@ class ImportExercisesCommand extends Command
             $this->stats['exercises']['created']++;
         } else {
             $this->stats['exercises']['updated']++;
+        }
+
+        // Sync equipment relationships
+        if (!empty($equipmentIds)) {
+            $exercise->equipment()->sync($equipmentIds);
         }
 
         // Sync muscle relationships
@@ -108,48 +113,35 @@ class ImportExercisesCommand extends Command
         }
     }
 
-    private function importEquipment(?string $equipment): ?string
+    private function importEquipment(string|array|null $equipment): array
     {
         if (!$equipment) {
-            return null;
+            return [];
         }
 
-        $id = Str::slug($equipment);
+        // Handle both string (single equipment) and array (multiple equipment)
+        $equipmentList = is_array($equipment) ? $equipment : [$equipment];
+        $ids = [];
 
-        $model = ExerciseEquipment::firstOrCreate(
-            ['id' => $id],
-            ['name' => $equipment]
-        );
+        foreach ($equipmentList as $equipmentName) {
+            if (empty($equipmentName)) {
+                continue;
+            }
 
-        if ($model->wasRecentlyCreated) {
-            $this->stats['equipment']['created']++;
-        } else {
-            $this->stats['equipment']['existing']++;
+            $model = ExerciseEquipment::firstOrCreate(
+                ['name' => $equipmentName]
+            );
+
+            if ($model->wasRecentlyCreated) {
+                $this->stats['equipment']['created']++;
+            } else {
+                $this->stats['equipment']['existing']++;
+            }
+
+            $ids[] = $model->id;
         }
 
-        return $id;
-    }
-
-    private function importCategory(?string $category): ?string
-    {
-        if (!$category) {
-            return null;
-        }
-
-        $id = Str::slug($category);
-
-        $model = ExerciseCategory::firstOrCreate(
-            ['id' => $id],
-            ['name' => $category]
-        );
-
-        if ($model->wasRecentlyCreated) {
-            $this->stats['categories']['created']++;
-        } else {
-            $this->stats['categories']['existing']++;
-        }
-
-        return $id;
+        return $ids;
     }
 
     private function importMuscles(array $muscles): array
@@ -161,10 +153,7 @@ class ImportExercisesCommand extends Command
                 continue;
             }
 
-            $id = Str::slug($muscle);
-
             $model = ExerciseMuscle::firstOrCreate(
-                ['id' => $id],
                 ['name' => $muscle]
             );
 
@@ -174,10 +163,32 @@ class ImportExercisesCommand extends Command
                 $this->stats['muscles']['existing']++;
             }
 
-            $ids[] = $id;
+            $ids[] = $model->id;
         }
 
         return $ids;
+    }
+
+    private function getExerciseClass(?string $category): string
+    {
+        if (!$category) {
+            return StrengthExercise::class;
+        }
+
+        // Map category strings to exercise classes
+        $categoryMap = [
+            'strength' => StrengthExercise::class,
+            'plyometrics' => PlyometricExercise::class,
+            'stretching' => StretchingExercise::class,
+            'cardio' => CardioExercise::class,
+            'powerlifting' => StrengthExercise::class,
+            'strongman' => StrengthExercise::class,
+            'olympic weightlifting' => StrengthExercise::class,
+        ];
+
+        $categoryLower = strtolower($category);
+
+        return $categoryMap[$categoryLower] ?? StrengthExercise::class;
     }
 
     private function getEnumValue(string $enumClass, ?string $value): ?string
@@ -211,11 +222,6 @@ class ImportExercisesCommand extends Command
         $this->line('Muscles:');
         $this->line("  Created: {$this->stats['muscles']['created']}");
         $this->line("  Existing: {$this->stats['muscles']['existing']}");
-        $this->newLine();
-
-        $this->line('Categories:');
-        $this->line("  Created: {$this->stats['categories']['created']}");
-        $this->line("  Existing: {$this->stats['categories']['existing']}");
         $this->newLine();
 
         $this->line('Exercises:');

@@ -11,10 +11,9 @@ return new class extends Migration
         Schema::create('exercise_secondary_muscles', function (Blueprint $table) {
             $table->id();
             $table->foreignId('exercise_id')->constrained('exercises')->cascadeOnDelete();
-            $table->string('exercise_muscle_id');
+            $table->foreignId('exercise_muscle_id')->constrained('exercise_muscles')->cascadeOnDelete();
             $table->timestamps();
 
-            $table->foreign('exercise_muscle_id')->references('id')->on('exercise_muscles')->cascadeOnDelete();
             $table->unique(['exercise_id', 'exercise_muscle_id'], 'exercise_secondary_muscle_unique');
         });
     }

@@ -10,20 +10,15 @@ return new class extends Migration
     {
         Schema::create('exercises', function (Blueprint $table) {
             $table->id();
+            $table->string('type');
             $table->string('name');
             $table->string('slug')->unique();
-            $table->string('force')->nullable();
             $table->string('level')->nullable();
             $table->string('mechanic')->nullable();
-            $table->string('exercise_equipment_id')->nullable();
-            $table->string('exercise_category_id')->nullable();
             $table->json('instructions')->nullable();
             $table->schemalessAttributes('extra');
             $table->timestamps();
             $table->softDeletes();
-
-            $table->foreign('exercise_equipment_id')->references('id')->on('exercise_equipment')->nullOnDelete();
-            $table->foreign('exercise_category_id')->references('id')->on('exercise_categories')->nullOnDelete();
         });
     }
 

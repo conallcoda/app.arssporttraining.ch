@@ -11,12 +11,7 @@ class ExerciseEquipment extends Model
 
     protected $table = 'exercise_equipment';
 
-    protected $keyType = 'string';
-
-    public $incrementing = false;
-
     protected $fillable = [
-        'id',
         'name',
     ];
 

@@ -7,16 +7,20 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "awcodes/filament-badgeable-column": "^3.0",
         "filament/filament": "^4.0",
+        "filament/spatie-laravel-media-library-plugin": "^4.2",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1",
         "livewire/volt": "^1.7.0",
+        "mallardduck/blade-lucide-icons": "^1.23",
         "spatie/laravel-data": "^4.18",
         "spatie/laravel-medialibrary": "^11.17",
         "spatie/laravel-schemaless-attributes": "^2.5",
         "symfony/expression-language": "^7.3",
         "symfony/http-client": "^7.3",
-        "symfony/mailgun-mailer": "^7.3"
+        "symfony/mailgun-mailer": "^7.3",
+        "tightenco/parental": "^1.4"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

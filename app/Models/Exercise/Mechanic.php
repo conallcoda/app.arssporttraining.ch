@@ -2,8 +2,15 @@
 
 namespace App\Models\Exercise;
 
-enum Mechanic: string
+use Filament\Support\Contracts\HasLabel;
+
+enum Mechanic: string implements HasLabel
 {
     case COMPOUND = 'compound';
     case ISOLATION = 'isolation';
+
+    public function getLabel(): string
+    {
+        return $this->value;
+    }
 }
