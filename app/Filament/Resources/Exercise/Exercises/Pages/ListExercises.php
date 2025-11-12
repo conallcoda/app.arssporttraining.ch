@@ -15,12 +15,7 @@ class ListExercises extends AbstractListRecords
 {
     protected static string $resource = ExerciseResource::class;
 
-    public function getBreadcrumbs(): array
-    {
-        return [
-            ExerciseResource::getUrl() => 'Exercises',
-        ];
-    }
+
 
     public function getTabs(): array
     {

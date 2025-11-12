@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "4aa9ff81174080d78b0a8ddbd4ef71b4",
+    "content-hash": "81e225daec1a3a31fa88dbecfe2e7ef5",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -144,6 +144,76 @@
                 }
             ],
             "time": "2025-08-12T14:34:30+00:00"
+        },
+        {
+            "name": "awcodes/filament-sticky-header",
+            "version": "v3.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/awcodes/filament-sticky-header.git",
+                "reference": "67bea9946a66c476c832d0c43cd12bf0b38cc8d4"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/awcodes/filament-sticky-header/zipball/67bea9946a66c476c832d0c43cd12bf0b38cc8d4",
+                "reference": "67bea9946a66c476c832d0c43cd12bf0b38cc8d4",
+                "shasum": ""
+            },
+            "require": {
+                "filament/filament": "^4.0",
+                "php": "^8.2",
+                "spatie/laravel-package-tools": "^1.15.0"
+            },
+            "require-dev": {
+                "laravel/pint": "^1.0",
+                "orchestra/testbench": "^9.0|^10.0",
+                "pestphp/pest": "^3.7",
+                "pestphp/pest-plugin-laravel": "^3.0",
+                "pestphp/pest-plugin-livewire": "^3.0",
+                "rector/rector": "^2.0",
+                "spatie/laravel-ray": "^1.26"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Awcodes\\StickyHeader\\StickyHeaderServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Awcodes\\StickyHeader\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Adam Weston",
+                    "email": "awcodes1@gmail.com",
+                    "role": "Developer"
+                }
+            ],
+            "description": "A Filament Panel plugin to make page headers sticky when scrolling.",
+            "keywords": [
+                "filament",
+                "framework",
+                "laravel"
+            ],
+            "support": {
+                "issues": "https://github.com/awcodes/filament-sticky-header/issues",
+                "source": "https://github.com/awcodes/filament-sticky-header/tree/v3.0.0"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/awcodes",
+                    "type": "github"
+                }
+            ],
+            "time": "2025-08-12T14:42:14+00:00"
         },
         {
             "name": "blade-ui-kit/blade-heroicons",

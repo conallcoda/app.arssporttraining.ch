@@ -31,19 +31,12 @@ class ExerciseForm
                             ])
                             ->required()
                             ->inline()
-                            ->default('strength'),
+                            ->default('strength')
+                            ->columnSpanFull(),
                         TextInput::make('name')
                             ->required()
                             ->maxLength(255)
-                            ->live(onBlur: true)
-                            ->afterStateUpdated(
-                                fn(string $operation, $state, callable $set) =>
-                                $operation === 'create' ? $set('slug', Str::slug($state)) : null
-                            ),
-                        TextInput::make('slug')
-                            ->required()
-                            ->unique(ignoreRecord: true)
-                            ->maxLength(255),
+                            ->columnSpanFull(),
                     ])
                     ->columns(2),
 

@@ -12,7 +12,6 @@ use App\Models\Exercise\Exercise;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
@@ -24,7 +23,7 @@ class ExerciseResource extends Resource
 
     protected static UnitEnum|string|null $navigationGroup = 'Exercises';
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedFire;
+    protected static string|BackedEnum|null $navigationIcon = 'lucide-dumbbell';
 
     protected static ?string $breadcrumb = 'Exercises';
 

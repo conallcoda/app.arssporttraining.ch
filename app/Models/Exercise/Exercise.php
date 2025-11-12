@@ -39,7 +39,6 @@ class Exercise extends Model implements HasMedia
 
     protected $fillable = [
         'name',
-        'slug',
         'level',
         'mechanic',
         'instructions',

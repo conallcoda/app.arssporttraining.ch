@@ -8,6 +8,7 @@
     "require": {
         "php": "^8.2",
         "awcodes/filament-badgeable-column": "^3.0",
+        "awcodes/filament-sticky-header": "^3.0",
         "filament/filament": "^4.0",
         "filament/spatie-laravel-media-library-plugin": "^4.2",
         "laravel/framework": "^12.0",

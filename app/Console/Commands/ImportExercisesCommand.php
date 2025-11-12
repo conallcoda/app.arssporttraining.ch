@@ -80,12 +80,11 @@ class ImportExercisesCommand extends Command
         $exerciseClass = $this->getExerciseClass($data['category'] ?? null);
 
         // Create or update exercise
-        $slug = Str::slug($data['name'] ?? $data['id']);
+        $name = $data['name'] ?? $data['id'];
 
         $exercise = $exerciseClass::updateOrCreate(
-            ['slug' => $slug],
+            ['name' => $name],
             [
-                'name' => $data['name'] ?? $data['id'],
                 'level' => $this->getEnumValue(Level::class, $data['level'] ?? null),
                 'mechanic' => $this->getEnumValue(Mechanic::class, $data['mechanic'] ?? null),
                 'instructions' => $data['instructions'] ?? null,

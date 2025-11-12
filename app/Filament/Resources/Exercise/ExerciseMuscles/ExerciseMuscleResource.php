@@ -12,7 +12,6 @@ use App\Models\Exercise\ExerciseMuscle;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
@@ -24,7 +23,7 @@ class ExerciseMuscleResource extends Resource
 
     protected static UnitEnum|string|null $navigationGroup = 'Exercises';
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBolt;
+    protected static string|BackedEnum|null $navigationIcon = 'lucide-biceps-flexed';
 
     protected static ?string $navigationLabel = 'Muscle Groups';
 

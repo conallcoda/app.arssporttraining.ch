@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Exercise\ExerciseMuscles\Tables;
 
 use App\Filament\Tables\AbstractTable;
+use Filament\Actions\DeleteAction;
 use Filament\Tables\Columns\TextInputColumn;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
@@ -21,6 +22,8 @@ class ExerciseMusclesTable extends AbstractTable
                 TrashedFilter::make(),
             ])
             ->defaultSort('name')
-            ->recordActions([]);
+            ->recordActions([
+                DeleteAction::make(),
+            ]);
     }
 }

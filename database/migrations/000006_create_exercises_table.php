@@ -12,7 +12,6 @@ return new class extends Migration
             $table->id();
             $table->string('type');
             $table->string('name');
-            $table->string('slug')->unique();
             $table->string('level')->nullable();
             $table->string('mechanic')->nullable();
             $table->json('instructions')->nullable();
