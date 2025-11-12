@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Filament\Resources\Exercise\Exercises;
+namespace App\Filament\Resources\Exercises;
 
 use App\Filament\Clusters\Exercises\ExercisesCluster;
-use App\Filament\Resources\Exercise\Exercises\Pages\CreateExercise;
-use App\Filament\Resources\Exercise\Exercises\Pages\EditExercise;
-use App\Filament\Resources\Exercise\Exercises\Pages\ListExercises;
-use App\Filament\Resources\Exercise\Exercises\Schemas\ExerciseForm;
-use App\Filament\Resources\Exercise\Exercises\Tables\ExercisesTable;
+use App\Filament\Resources\Exercises\Pages\CreateExercise;
+use App\Filament\Resources\Exercises\Pages\EditExercise;
+use App\Filament\Resources\Exercises\Pages\ListExercises;
+use App\Filament\Resources\Exercises\Schemas\ExerciseForm;
+use App\Filament\Resources\Exercises\Tables\ExercisesTable;
 use App\Models\Exercise\Exercise;
 use BackedEnum;
 use Filament\Resources\Resource;

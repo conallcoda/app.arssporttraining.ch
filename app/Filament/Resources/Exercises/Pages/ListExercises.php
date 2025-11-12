@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Filament\Resources\Exercise\Exercises\Pages;
+namespace App\Filament\Resources\Exercises\Pages;
 
 use App\Filament\Pages\AbstractListRecords;
-use App\Filament\Resources\Exercise\Exercises\ExerciseResource;
+use App\Filament\Resources\Exercises\ExerciseResource;
 use App\Models\Exercise\Types\StrengthExercise;
 use App\Models\Exercise\Types\PlyometricExercise;
 use App\Models\Exercise\Types\StretchingExercise;

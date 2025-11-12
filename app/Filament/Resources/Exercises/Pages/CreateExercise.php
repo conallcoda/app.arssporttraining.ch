@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Filament\Resources\Exercise\Exercises\Pages;
+namespace App\Filament\Resources\Exercises\Pages;
 
 use App\Filament\Pages\AbstractCreateRecord;
-use App\Filament\Resources\Exercise\Exercises\ExerciseResource;
+use App\Filament\Resources\Exercises\ExerciseResource;
 use App\Models\Exercise\Exercise;
 
 class CreateExercise extends AbstractCreateRecord

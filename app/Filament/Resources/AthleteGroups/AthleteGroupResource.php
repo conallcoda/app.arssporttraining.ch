@@ -5,6 +5,7 @@ namespace App\Filament\Resources\AthleteGroups;
 use App\Filament\Resources\AthleteGroups\Pages\CreateAthleteGroup;
 use App\Filament\Resources\AthleteGroups\Pages\EditAthleteGroup;
 use App\Filament\Resources\AthleteGroups\Pages\ListAthleteGroups;
+use App\Filament\Resources\AthleteGroups\RelationManagers\AthletesRelationManager;
 use App\Filament\Resources\AthleteGroups\Schemas\AthleteGroupForm;
 use App\Filament\Resources\AthleteGroups\Tables\AthleteGroupsTable;
 use App\Models\Users\Groups\AthleteGroup;
@@ -46,13 +47,6 @@ class AthleteGroupResource extends Resource
     public static function table(Table $table): Table
     {
         return AthleteGroupsTable::configure($table);
-    }
-
-    public static function getRelations(): array
-    {
-        return [
-            //
-        ];
     }
 
     public static function getPages(): array

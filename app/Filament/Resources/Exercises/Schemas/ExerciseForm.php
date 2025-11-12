@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Resources\Exercise\Exercises\Schemas;
+namespace App\Filament\Resources\Exercises\Schemas;
 
 use App\Models\Exercise\Level;
 use App\Models\Exercise\Mechanic;

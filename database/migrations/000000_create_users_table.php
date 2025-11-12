@@ -39,6 +39,8 @@ return new class extends Migration
             $table->integer('last_activity')->index();
         });
 
+
+
         Schema::create('user_groups', function (Blueprint $table) {
             $table->id();
             $table->string('type');
@@ -46,16 +48,26 @@ return new class extends Migration
             $table->schemalessAttributes('extra');
             $table->timestamps();
         });
+        Schema::create('user_group_memberships', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')
+                ->constrained('users')
+                ->cascadeOnDelete();
+            $table->foreignId('user_group_id')
+                ->constrained('user_groups')
+                ->cascadeOnDelete();
+            $table->timestamps();
+
+            $table->unique(['user_id', 'user_group_id']);
+        });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('users');
         Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
         Schema::dropIfExists('user_groups');
+        Schema::dropIfExists('user_group_memberships');
     }
 };

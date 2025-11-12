@@ -16,6 +16,13 @@ class AthleteGroupsTable extends AbstractTable
                     ->searchable()
                     ->sortable(),
 
+                TextColumn::make('members')
+                    ->label('Members')
+                    ->getStateUsing(fn($record) => $record->members->pluck('name')->toArray())
+                    ->badge()
+                    ->separator(',')
+                    ->wrap(),
+
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()

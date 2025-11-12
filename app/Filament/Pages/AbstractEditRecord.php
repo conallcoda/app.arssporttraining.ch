@@ -10,12 +10,24 @@ use Filament\Resources\Pages\EditRecord;
 
 abstract class AbstractEditRecord extends EditRecord
 {
+
     protected function getHeaderActions(): array
     {
         return [
-            DeleteAction::make(),
+            $this->getCancelFormAction()->formId('form'),
+            $this->getSaveFormAction()->formId('form'),
+        ];
+    }
+
+    protected function getFormActions(): array
+    {
+        return [
+            DeleteAction::make()
+                ->extraAttributes(['class' => 'ml-auto']),
             ForceDeleteAction::make(),
             RestoreAction::make(),
+            $this->getCancelFormAction()->formId('form'),
+            $this->getSaveFormAction()->formId('form'),
         ];
     }
 }

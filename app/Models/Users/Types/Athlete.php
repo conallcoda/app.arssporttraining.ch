@@ -11,6 +11,11 @@ class Athlete extends User
 {
     use HasParent;
 
+    public function allowedGroupTypes(): array
+    {
+        return ['athlete'];
+    }
+
     public static function getExtraConfig(?Model $model = null): array
     {
         return [

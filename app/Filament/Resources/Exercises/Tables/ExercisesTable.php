@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Resources\Exercise\Exercises\Tables;
+namespace App\Filament\Resources\Exercises\Tables;
 
 use App\Filament\Tables\AbstractTable;
 use App\Models\Exercise\Exercise;

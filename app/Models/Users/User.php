@@ -16,6 +16,7 @@ use App\Models\Users\Types\Athlete;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class User extends Authenticatable implements FilamentUser
 {
@@ -45,7 +46,6 @@ class User extends Authenticatable implements FilamentUser
         'password',
         'extra',
     ];
-
 
     protected $hidden = [
         'password',
@@ -91,5 +91,25 @@ class User extends Authenticatable implements FilamentUser
     public static function getExtraConfig(?Model $model = null): array
     {
         return [];
+    }
+
+    public function groups(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            UserGroup::class,
+            'user_group_memberships',
+            'user_id',
+            'user_group_id'
+        );
+    }
+
+    public function allowedGroupTypes(): array
+    {
+        return [];
+    }
+
+    public function canJoinGroup(UserGroup $group): bool
+    {
+        return in_array($group->type, $this->allowedGroupTypes());
     }
 }
