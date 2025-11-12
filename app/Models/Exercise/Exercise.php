@@ -7,8 +7,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
-use Spatie\SchemalessAttributes\Casts\SchemalessAttributes;
-use Illuminate\Database\Eloquent\Builder;
 use Parental\HasChildren;
 use App\Models\Exercise\Types\StrengthExercise;
 use App\Models\Exercise\Types\PlyometricExercise;
@@ -17,12 +15,14 @@ use App\Models\Exercise\Types\CardioExercise;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Awcodes\BadgeableColumn\Components\Badge;
 use Filament\Support\Colors\Color;
+use App\Models\Concerns\HasExtraData;
 
 class Exercise extends Model implements HasMedia
 {
     use SoftDeletes;
     use InteractsWithMedia;
     use HasChildren;
+    use HasExtraData;
 
     protected $childTypes = [
         'strength' => StrengthExercise::class,
@@ -47,8 +47,7 @@ class Exercise extends Model implements HasMedia
     protected $casts = [
         'level' => Level::class,
         'mechanic' => Mechanic::class,
-        'instructions' => 'array',
-        'extra' => SchemalessAttributes::class,
+        'instructions' => 'array'
     ];
 
     protected function exerciseType(): Attribute
@@ -138,8 +137,8 @@ class Exercise extends Model implements HasMedia
         );
     }
 
-    public function scopeWithExtra(): Builder
+    public static function getExtraConfig(?Model $model = null): array
     {
-        return $this->extra->modelScope();
+        return [];
     }
 }
