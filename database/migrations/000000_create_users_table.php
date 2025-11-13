@@ -64,10 +64,10 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('users');
-        Schema::dropIfExists('password_reset_tokens');
-        Schema::dropIfExists('sessions');
-        Schema::dropIfExists('user_groups');
         Schema::dropIfExists('user_group_memberships');
+        Schema::dropIfExists('user_groups');
+        Schema::dropIfExists('sessions');
+        Schema::dropIfExists('password_reset_tokens');
+        Schema::dropIfExists('users');
     }
 };

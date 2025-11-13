@@ -2,6 +2,6 @@
 
 use Illuminate\Support\Facades\Route;
 
-use App\Livewire\Home;
+use App\Livewire\TrainingPlanner;
 
-Route::get('/', Home::class);
+Route::get('/', TrainingPlanner::class);
