@@ -88,6 +88,17 @@ abstract class ConfigurableResource extends Resource
             ->withoutGlobalScopes([SoftDeletingScope::class]);
     }
 
+    public static function getNavigationItemActiveRoutePattern(): string | array
+    {
+        $baseRoute = static::getRouteBaseName();
+
+        return [
+            "{$baseRoute}.index",
+            "{$baseRoute}.create",
+            "{$baseRoute}.edit",
+        ];
+    }
+
     public static function form(Schema $schema): Schema
     {
         $form = static::configure()['form'] ?? null;

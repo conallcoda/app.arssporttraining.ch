@@ -20,7 +20,7 @@ class ExerciseEquipmentResource extends ConfigurableResource
             'modelLabel' => 'Equipment',
             'pluralModelLabel' => 'Equipment',
             'breadcrumb' => 'Equipment',
-            'navigationSort' => 2,x
+            'navigationSort' => 2,
             'pages' => [
                 'index' => [],
                 'create' => true,
