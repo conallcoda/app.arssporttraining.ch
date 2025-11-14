@@ -24,7 +24,7 @@ class Exercise extends Model implements HasMedia
     use HasChildren;
     use HasExtraData;
 
-    protected $childTypes = [
+    protected array $childTypes = [
         'strength' => StrengthExercise::class,
         'plyometric' => PlyometricExercise::class,
         'stretching' => StretchingExercise::class,
@@ -36,9 +36,9 @@ class Exercise extends Model implements HasMedia
         return $this->childTypes;
     }
 
-
     protected $fillable = [
         'name',
+        'type',
         'level',
         'mechanic',
         'instructions',
