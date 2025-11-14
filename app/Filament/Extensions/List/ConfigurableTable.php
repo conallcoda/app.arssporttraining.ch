@@ -8,7 +8,9 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 class ConfigurableTable
@@ -18,7 +20,10 @@ class ConfigurableTable
         $table = static::applyDefaults($table, $config);
 
         if (isset($config['columns'])) {
-            $table->columns(static::buildComponents($config['columns']));
+            $columns = $config['columns'];
+            $modelClass = $config['model'] ?? null;
+            $columns = static::addTimestampColumns($columns, $modelClass);
+            $table->columns(static::buildComponents($columns));
         }
 
         if (isset($config['filters'])) {
@@ -35,6 +40,41 @@ class ConfigurableTable
         }
 
         return $table;
+    }
+
+    protected static function addTimestampColumns(array $columns, ?string $modelClass = null): array
+    {
+        $timestampColumns = [
+            'created_at' => [
+                'type' => TextColumn::class,
+                'date_time' => true,
+                'sortable' => true,
+                'toggleable' => ['isToggledHiddenByDefault' => true],
+            ],
+            'updated_at' => [
+                'type' => TextColumn::class,
+                'date_time' => true,
+                'sortable' => true,
+                'toggleable' => ['isToggledHiddenByDefault' => true],
+            ],
+        ];
+
+        if ($modelClass && in_array(SoftDeletes::class, class_uses_recursive($modelClass))) {
+            $timestampColumns['deleted_at'] = [
+                'type' => TextColumn::class,
+                'date_time' => true,
+                'sortable' => true,
+                'toggleable' => ['isToggledHiddenByDefault' => true],
+            ];
+        }
+
+        foreach ($timestampColumns as $columnName => $columnConfig) {
+            if (!isset($columns[$columnName])) {
+                $columns[$columnName] = $columnConfig;
+            }
+        }
+
+        return $columns;
     }
 
     protected static function applyDefaults(Table $table, array $config): Table
@@ -78,7 +118,7 @@ class ConfigurableTable
                 } elseif ($key === 'suffix_badges') {
                     $component->suffixBadges($value);
                 } elseif ($key === 'toggleable' && is_array($value)) {
-                    $component->toggleable($value['isToggledHiddenByDefault'] ?? false);
+                    $component->toggleable(true, $value['isToggledHiddenByDefault'] ?? false);
                 } elseif (method_exists($component, $method)) {
                     if (is_bool($value)) {
                         if ($value === true) {

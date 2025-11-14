@@ -124,6 +124,7 @@ abstract class ConfigurableResource extends Resource
         $tableConfig = static::tableConfig();
 
         if ($tableConfig) {
+            $tableConfig['model'] = static::getModel();
             return ConfigurableTable::buildFromConfig($table, $tableConfig);
         }
 
@@ -135,12 +136,22 @@ abstract class ConfigurableResource extends Resource
         $pagesConfig = static::configure()['pages'] ?? [];
         $pages = [];
 
+        $hasCreateAndEdit = ($pagesConfig['create'] ?? false) || ($pagesConfig['edit'] ?? false);
+
         if (isset($pagesConfig['index'])) {
             $indexConfig = is_array($pagesConfig['index']) ? $pagesConfig['index'] : [];
-            $pages['index'] = ConfigurableListRecords::configure([
-                'resource' => static::class,
-                ...$indexConfig,
-            ])::route('/');
+
+            if ($hasCreateAndEdit) {
+                $pages['index'] = ConfigurableListRecords::configure([
+                    'resource' => static::class,
+                    ...$indexConfig,
+                ])::route('/');
+            } else {
+                $pages['index'] = ConfigurableManageRecords::configure([
+                    'resource' => static::class,
+                    ...$indexConfig,
+                ])::route('/');
+            }
         }
 
         if ($pagesConfig['create'] ?? false) {

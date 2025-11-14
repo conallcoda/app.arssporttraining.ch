@@ -176,24 +176,6 @@ class ExerciseResource extends ConfigurableResource
                     'searchable' => true,
                     'sortable' => true,
                 ],
-                'created_at' => [
-                    'type' => Columns\TextColumn::class,
-                    'date_time' => true,
-                    'sortable' => true,
-                    'toggleable' => ['isToggledHiddenByDefault' => true],
-                ],
-                'updated_at' => [
-                    'type' => Columns\TextColumn::class,
-                    'date_time' => true,
-                    'sortable' => true,
-                    'toggleable' => ['isToggledHiddenByDefault' => true],
-                ],
-                'deleted_at' => [
-                    'type' => Columns\TextColumn::class,
-                    'date_time' => true,
-                    'sortable' => true,
-                    'toggleable' => ['isToggledHiddenByDefault' => true],
-                ],
             ],
             'filters' => [
                 'type' => [
