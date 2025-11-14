@@ -17,10 +17,11 @@ use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class User extends Authenticatable implements FilamentUser
 {
-    use HasFactory, Notifiable, HasExtraData, HasChildren;
+    use HasFactory, Notifiable, HasExtraData, HasChildren, SoftDeletes;
 
     protected $childTypes = [
         'admin' => Admin::class,
@@ -28,10 +29,6 @@ class User extends Authenticatable implements FilamentUser
         'athlete' => Athlete::class,
     ];
 
-    public function getChildTypes(): array
-    {
-        return $this->childTypes;
-    }
 
     protected static function newFactory(): UserFactory
     {
@@ -51,6 +48,11 @@ class User extends Authenticatable implements FilamentUser
         'password',
         'remember_token',
     ];
+
+    public static function getMetricTypes(): bool|array
+    {
+        return false;
+    }
 
     public function update(array $attributes = [], array $options = []): bool
     {

@@ -53,6 +53,7 @@ class ExerciseResource extends Resource
 
     public static function getPages(): array
     {
+
         return [
             'index' => ListExercises::route('/'),
             'create' => CreateExercise::route('/create'),

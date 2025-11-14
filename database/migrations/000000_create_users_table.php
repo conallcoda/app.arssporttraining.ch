@@ -22,6 +22,7 @@ return new class extends Migration
             $table->schemalessAttributes('extra');
             $table->rememberToken();
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
@@ -47,6 +48,7 @@ return new class extends Migration
             $table->string('name');
             $table->schemalessAttributes('extra');
             $table->timestamps();
+            $table->softDeletes();
         });
         Schema::create('user_group_memberships', function (Blueprint $table) {
             $table->id();

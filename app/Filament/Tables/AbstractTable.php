@@ -8,6 +8,7 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Tables\Table;
+use App\Filament\Actions\DeleteAction;
 
 abstract class AbstractTable
 {
@@ -17,6 +18,7 @@ abstract class AbstractTable
     {
         return [
             EditAction::make(),
+            DeleteAction::make()
         ];
     }
 

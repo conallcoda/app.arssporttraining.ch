@@ -25,8 +25,6 @@ class TrainingSeeder extends Seeder
                 'sequence' => $index,
             ]);
 
-            $this->command->info("Creating season: {$planData['name']} ({$planData['format']})");
-
             for ($blockNum = 0; $blockNum < $numBlocks; $blockNum++) {
                 $block = new TrainingBlock([
                     'sequence' => $blockNum,
@@ -39,11 +37,7 @@ class TrainingSeeder extends Seeder
                     ]);
                     $week->appendToNode($block)->save();
                 }
-
-                $this->command->info("  Created Block {$blockNum} with {$numWeeks} weeks");
             }
-
-            $this->command->info("✓ Training hierarchy created successfully!");
         }
     }
 

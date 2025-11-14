@@ -1,5 +1,2 @@
-import Alpine from 'alpinejs';
-
-window.Alpine = Alpine;
-
-Alpine.start();
+// Alpine.js is already included with Livewire/Flux
+// No need to import it separately

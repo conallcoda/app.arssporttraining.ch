@@ -3,42 +3,59 @@
 namespace App\Models\Metrics;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use App\Models\Concerns\HasExtraData;
-use Parental\HasChildren;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\SchemalessAttributes\SchemalessAttributes;
+use Illuminate\Database\Eloquent\Builder;
 
 class Metric extends Model
 {
-    use HasFactory, HasExtraData, HasChildren, SoftDeletes;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'type',
+        'metric_type_id',
         'metricable_type',
         'metricable_id',
         'value',
-        'unit',
-        'recorded_at',
-        'notes',
-        'extra',
     ];
 
-    protected $casts = [
-        'value' => 'decimal:2',
-        'recorded_at' => 'date',
-    ];
+    public function initializeHasExtraData()
+    {
+        $this->casts['value'] = SchemalessAttributes::class;
+    }
 
-    /**
-     * Get the parent metricable model (User, Exercise, TrainingExercise, etc.)
-     */
+    public function scopeWithExtraAttributes(): Builder
+    {
+        return $this->extra->modelScope();
+    }
+
     public function metricable(): MorphTo
     {
         return $this->morphTo();
     }
 
+    public function metricType(): BelongsTo
+    {
+        return $this->belongsTo(MetricType::class);
+    }
+
     public static function getExtraConfig(?Model $model = null): array
     {
         return [];
+    }
+
+    public static function genericsAnd(array $additionalTypes): array
+    {
+        $generics = [
+            'boolean',
+            'duration',
+            'number',
+            'percentage'
+        ];
+        $extended = array_unique(array_merge($generics, $additionalTypes));
+        sort($extended);
+        return $extended;
     }
 }

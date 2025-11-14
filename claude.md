@@ -1,5 +1,9 @@
 # Athlete Training Platform - Software Stack
 
+## Important
+
+Never add comments inline or to methods or classes
+
 ## Overview
 This is an athlete training management application built with Laravel and Filament, focusing on exercise management, equipment tracking, and muscle group categorization.
 

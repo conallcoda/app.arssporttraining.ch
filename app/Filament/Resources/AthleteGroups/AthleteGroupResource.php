@@ -5,7 +5,6 @@ namespace App\Filament\Resources\AthleteGroups;
 use App\Filament\Resources\AthleteGroups\Pages\CreateAthleteGroup;
 use App\Filament\Resources\AthleteGroups\Pages\EditAthleteGroup;
 use App\Filament\Resources\AthleteGroups\Pages\ListAthleteGroups;
-use App\Filament\Resources\AthleteGroups\RelationManagers\AthletesRelationManager;
 use App\Filament\Resources\AthleteGroups\Schemas\AthleteGroupForm;
 use App\Filament\Resources\AthleteGroups\Tables\AthleteGroupsTable;
 use App\Models\Users\Groups\AthleteGroup;
@@ -14,6 +13,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use UnitEnum;
 
 class AthleteGroupResource extends Resource
@@ -57,10 +57,11 @@ class AthleteGroupResource extends Resource
             'edit' => EditAthleteGroup::route('/{record}/edit'),
         ];
     }
-
     public static function getRecordRouteBindingEloquentQuery(): Builder
     {
         return parent::getRecordRouteBindingEloquentQuery()
-            ->where('type', 'athlete');
+            ->withoutGlobalScopes([
+                SoftDeletingScope::class,
+            ]);
     }
 }
