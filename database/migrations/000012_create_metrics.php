@@ -13,16 +13,15 @@ return new class extends Migration
     {
         Schema::create('metric_types', function (Blueprint $table) {
             $table->id();
-            $table->string('model_base');
-            $table->string('model_sub');
+            $table->string('scope');
             $table->string('type');
             $table->string('name');
-            $table->json('extra')->nullable();
+            $table->string('label');
+            $table->json('config')->nullable();
             $table->timestamps();
             $table->softDeletes();
 
-            // Index for efficient lookups
-            $table->index(['model_base', 'model_sub', 'type']);
+            $table->unique(['scope', 'type', 'name']);
         });
 
         Schema::create('metrics', function (Blueprint $table) {

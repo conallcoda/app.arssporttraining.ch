@@ -2,7 +2,7 @@
 
 namespace App\Data\MetricTypes\Athlete;
 
-use App\Models\Metrics\Types\Weight;
+use App\Data\MetricTypes\Generic\Weight;
 
 class OneRepMax extends Weight
 {

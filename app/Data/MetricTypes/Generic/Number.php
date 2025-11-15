@@ -7,7 +7,7 @@ use App\Data\MetricTypes\AbstractMetricType;
 class Number extends AbstractMetricType
 {
 
-    public function __construct(public ?int $step = null)
+    public function __construct(public ?float $step = null)
     {
         $this->step = $step ?? self::defaults()['step'];
     }

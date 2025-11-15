@@ -3,9 +3,13 @@
 namespace App\Filament\Resources\Athletes\Tables;
 
 use App\Filament\Extensions\AbstractTable;
+use App\Models\Metrics\MetricType;
+use Awcodes\BadgeableColumn\Components\Badge;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
+use Awcodes\BadgeableColumn\Components\BadgeableColumn;
+use Filament\Support\Colors\Color;
 
 class AthleteMetricsTable extends AbstractTable
 {
@@ -13,7 +17,11 @@ class AthleteMetricsTable extends AbstractTable
     {
         return static::applyDefaults($table)
             ->columns([
-                TextColumn::make('name')
+                BadgeableColumn::make('label')
+                    ->suffixBadges([Badge::make('type')
+                        ->label(fn(MetricType $record) => $record->name)
+                        ->color(Color::Red)])
+                    ->separator(false)
                     ->searchable()
                     ->sortable(),
 

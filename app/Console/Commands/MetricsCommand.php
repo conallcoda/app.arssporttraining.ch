@@ -1,28 +1,23 @@
 <?php
 
-namespace Database\Seeders;
+namespace App\Console\Commands;
 
-use Illuminate\Database\Seeder;
+use Illuminate\Console\Command;
 use App\Models\Metrics\MetricType;
 
-class MetricSeeder extends Seeder
+class MetricsCommand extends Command
 {
-    /**
-     * Seed the user database.
-     */
-    public function run(): void
+    protected $signature = 'metrics';
+
+
+    public function handle()
     {
         $types = [
             'athlete' => [
-                'Weight' => ['weight', [0.1]],
-                'Body Fat Percentage' => ['percentage', [0.1]],
-                'Body Mass Index' => ['number', [0.1]],
-                '1RM Back Squat' => ['one_rep_max', [1]],
-                '1RM Front Squat' => ['one_rep_max', [1]],
-                '1RM Deadlift' => ['one_rep_max', [1]],
-                '1RM Row' => ['one_rep_max', [1]],
+                'Weight' => ['weight', ['step' => 0.1]],
             ],
         ];
+
 
         foreach ($types as $scope => $metrics) {
             foreach ($metrics as $name => [$type, $config]) {
@@ -36,5 +31,6 @@ class MetricSeeder extends Seeder
                 ]);
             }
         }
+        return 0;
     }
 }
