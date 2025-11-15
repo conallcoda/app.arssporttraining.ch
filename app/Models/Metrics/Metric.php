@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\SchemalessAttributes\SchemalessAttributes;
 use Illuminate\Database\Eloquent\Builder;
+use Filament\Schemas\Schema;
 
 class Metric extends Model
 {
@@ -45,6 +46,8 @@ class Metric extends Model
     {
         return [];
     }
+
+    public static function createForm() {}
 
     public static function genericsAnd(array $additionalTypes): array
     {

@@ -31,6 +31,7 @@ class MetricType extends Model
         'model_sub',
         'type',
         'name',
+        'extra',
     ];
 
     protected $childTypes = [
