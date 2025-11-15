@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\Athletes\Tables;
 
-use App\Filament\Tables\AbstractTable;
+use App\Filament\Extensions\AbstractTable;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 

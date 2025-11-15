@@ -2,20 +2,12 @@
 
 namespace App\Filament\Extensions;
 
-use Filament\Resources\Pages\CreateRecord;
-
-class ConfigurableCreateRecord extends CreateRecord
+class ConfigurableCreateRecord extends AbstractCreateRecord
 {
-    protected static ?string $title = 'Create';
 
     protected static string $resource = '';
 
     private static array $resourceMap = [];
-
-    public function getHeading(): string
-    {
-        return 'Create';
-    }
 
     public static function configure(array $options): string
     {

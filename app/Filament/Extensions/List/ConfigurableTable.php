@@ -2,7 +2,7 @@
 
 namespace App\Filament\Extensions\List;
 
-use App\Filament\Actions\DeleteAction;
+use App\Filament\Extensions\Actions\DeleteAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;

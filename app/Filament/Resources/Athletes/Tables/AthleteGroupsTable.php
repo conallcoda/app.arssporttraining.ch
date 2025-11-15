@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Filament\Resources\AthleteGroups\Tables;
+namespace App\Filament\Resources\Athletes\Tables;
 
-use App\Filament\Tables\AbstractTable;
+use App\Filament\Extensions\AbstractTable;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -22,16 +22,6 @@ class AthleteGroupsTable extends AbstractTable
                     ->badge()
                     ->separator(',')
                     ->wrap(),
-
-                TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-
-                TextColumn::make('updated_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 // Add filters as needed

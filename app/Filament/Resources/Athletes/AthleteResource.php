@@ -2,65 +2,62 @@
 
 namespace App\Filament\Resources\Athletes;
 
-use App\Filament\Resources\Athletes\Pages\CreateAthlete;
-use App\Filament\Resources\Athletes\Pages\EditAthlete;
-use App\Filament\Resources\Athletes\Pages\ListAthletes;
+use App\Filament\Extensions\ConfigurableResource;
 use App\Filament\Resources\Athletes\Schemas\AthleteForm;
-use App\Filament\Resources\Athletes\Tables\AthletesTable;
 use App\Models\Users\Types\Athlete;
-use BackedEnum;
-use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use UnitEnum;
 
-class AthleteResource extends Resource
+class AthleteResource extends ConfigurableResource
 {
-    protected static ?string $model = Athlete::class;
-
-    protected static UnitEnum|string|null $navigationGroup = 'Athletes';
-
-    protected static string|BackedEnum|null $navigationIcon = 'lucide-user';
-
-    protected static ?string $navigationLabel = 'Athletes';
-
-    protected static ?string $modelLabel = 'Athlete';
-
-    protected static ?string $pluralModelLabel = 'Athletes';
-
-    protected static ?string $breadcrumb = 'Athletes';
-
-    protected static ?int $navigationSort = 1;
-
-    public static function getNavigationBadge(): ?string
-    {
-        return static::getModel()::count();
-    }
-
-    public static function form(Schema $schema): Schema
-    {
-        return AthleteForm::configure($schema);
-    }
-
-    public static function table(Table $table): Table
-    {
-        return AthletesTable::configure($table);
-    }
-
-    public static function getRelations(): array
+    protected static function configure(): array
     {
         return [
-            //
+            'model' => Athlete::class,
+            'navigationGroup' => 'Athletes',
+            'navigationIcon' => 'lucide-user',
+            'navigationLabel' => 'Athletes',
+            'modelLabel' => 'Athlete',
+            'pluralModelLabel' => 'Athletes',
+            'breadcrumb' => 'Athletes',
+            'navigationSort' => 1,
+            'form' => AthleteForm::class,
+            'pages' => [
+                'index' => [],
+                'create' => true,
+                'edit' => true,
+            ],
         ];
     }
 
-    public static function getPages(): array
+    protected static function tableConfig(): ?array
     {
         return [
-            'index' => ListAthletes::route('/'),
-            'create' => CreateAthlete::route('/create'),
-            'edit' => EditAthlete::route('/{record}/edit'),
+            'columns' => [
+                'forename' => [
+                    'type' => \Filament\Tables\Columns\TextColumn::class,
+                    'searchable' => true,
+                    'sortable' => true,
+                ],
+                'surname' => [
+                    'type' => \Filament\Tables\Columns\TextColumn::class,
+                    'searchable' => true,
+                    'sortable' => true,
+                ],
+                'email' => [
+                    'type' => \Filament\Tables\Columns\TextColumn::class,
+                    'searchable' => true,
+                    'sortable' => true,
+                    'copyable' => true,
+                ],
+                'phone' => [
+                    'type' => \Filament\Tables\Columns\TextColumn::class,
+                    'searchable' => true,
+                    'sortable' => true,
+                    'toggleable' => true,
+                    'copyable' => true,
+                ],
+            ],
+            'default_sort' => 'surname',
         ];
     }
 }

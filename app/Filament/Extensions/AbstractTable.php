@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Tables;
+namespace App\Filament\Extensions;
 
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -8,7 +8,7 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Tables\Table;
-use App\Filament\Actions\DeleteAction;
+use App\Filament\Extensions\Actions\DeleteAction;
 
 abstract class AbstractTable
 {

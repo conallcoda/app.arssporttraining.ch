@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Resources\AthleteGroups\Schemas;
+namespace App\Filament\Resources\Athletes\Schemas;
 
 use App\Models\Users\Types\Athlete;
 use Filament\Forms\Components\Select;

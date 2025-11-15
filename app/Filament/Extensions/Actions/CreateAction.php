@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Actions;
+namespace App\Filament\Extensions\Actions;
 
 use Filament\Actions\CreateAction as BaseCreateAction;
 

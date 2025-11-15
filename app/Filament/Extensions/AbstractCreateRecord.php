@@ -1,7 +1,7 @@
 <?php
 
 
-namespace App\Filament\Pages;
+namespace App\Filament\Extensions;
 
 use Filament\Resources\Pages\CreateRecord;
 

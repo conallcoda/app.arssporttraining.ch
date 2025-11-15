@@ -3,10 +3,9 @@
 namespace App\Filament\Resources\Exercises;
 
 use App\Filament\Extensions\ConfigurableResource;
+use App\Filament\Resources\Exercises\Schemas\ExerciseEquipmentForm;
+use App\Filament\Resources\Exercises\Tables\ExerciseEquipmentTable;
 use App\Models\Exercise\ExerciseEquipment;
-use Filament\Forms\Components;
-use Filament\Tables\Columns;
-use Filament\Tables\Filters;
 
 class ExerciseEquipmentResource extends ConfigurableResource
 {
@@ -21,47 +20,13 @@ class ExerciseEquipmentResource extends ConfigurableResource
             'pluralModelLabel' => 'Equipment',
             'breadcrumb' => 'Equipment',
             'navigationSort' => 2,
+            'form' => ExerciseEquipmentForm::class,
+            'table' => ExerciseEquipmentTable::class,
             'pages' => [
                 'index' => [],
                 'create' => true,
                 'edit' => true,
             ],
-        ];
-    }
-
-    protected static function formConfig(): ?array
-    {
-        return [
-            'sections' => [
-                'Equipment Information' => [
-                    'fields' => [
-                        'name' => [
-                            'type' => Components\TextInput::class,
-                            'required' => true,
-                            'max_length' => 255,
-                        ],
-                    ],
-                ],
-            ],
-        ];
-    }
-
-    protected static function tableConfig(): ?array
-    {
-        return [
-            'columns' => [
-                'name' => [
-                    'type' => Columns\TextColumn::class,
-                    'searchable' => true,
-                    'sortable' => true,
-                ],
-            ],
-            'filters' => [
-                'trashed' => [
-                    'type' => Filters\TrashedFilter::class,
-                ],
-            ],
-            'default_sort' => 'name',
         ];
     }
 }

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Actions;
+namespace App\Filament\Extensions\Actions;
 
 use Filament\Actions\DeleteAction as BaseDeleteAction;
 use Illuminate\Database\Eloquent\Model;

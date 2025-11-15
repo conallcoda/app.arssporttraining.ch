@@ -2,25 +2,17 @@
 
 namespace App\Filament\Extensions;
 
-use App\Filament\Actions\CreateAction;
-use Filament\Resources\Pages\ListRecords;
+
 use Filament\Schemas\Components\Tabs\Tab;
 use Illuminate\Database\Eloquent\Builder;
 
-class ConfigurableListRecords extends ListRecords
+class ConfigurableListRecords extends AbstractListRecords
 {
     protected static string $resource = '';
 
     private static array $resourceMap = [];
 
     protected static array $config = [];
-
-    protected function getHeaderActions(): array
-    {
-        return [
-            CreateAction::make(),
-        ];
-    }
 
     public function getTabs(): array
     {
