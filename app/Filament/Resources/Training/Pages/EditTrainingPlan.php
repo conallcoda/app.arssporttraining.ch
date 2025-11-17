@@ -2,21 +2,29 @@
 
 namespace App\Filament\Resources\Training\Pages;
 
-use Filament\Resources\Pages\EditRecord;
-use Filament\Schemas\Components\Section;
-use Filament\Schemas\Schema;
+use Filament\Resources\Pages\Page;
+use App\Models\Training\Periods\TrainingSeason;
 
-class EditTrainingPlan extends EditRecord
+class EditTrainingPlan extends Page
 {
     protected static string $resource = \App\Filament\Resources\Training\TrainingPlanResource::class;
 
-    public function content(Schema $schema): Schema
+    public TrainingSeason $record;
+
+    public function mount(int | string | TrainingSeason $record): void
     {
-        return $schema
-            ->components([
-                Section::make('Hello World')
-                    ->description('This is a custom edit page for training plans')
-                    ->schema([]),
-            ]);
+        $this->record = $record instanceof TrainingSeason
+            ? $record
+            : TrainingSeason::findOrFail($record);
+    }
+
+    public function getTitle(): string
+    {
+        return $this->record->name;
+    }
+
+    public function getView(): string
+    {
+        return 'filament.resources.training.pages.edit-training-plan';
     }
 }

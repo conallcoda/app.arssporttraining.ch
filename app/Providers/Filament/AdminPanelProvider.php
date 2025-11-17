@@ -60,6 +60,10 @@ class AdminPanelProvider extends PanelProvider
                 Authenticate::class,
             ])
             ->viteTheme('resources/css/filament/admin/theme.css')
+            ->renderHook(
+                'panels::body.end',
+                fn (): string => \Blade::render('@fluxScripts')
+            )
             ->plugins([
                 StickyHeaderPlugin::make()
             ]);
