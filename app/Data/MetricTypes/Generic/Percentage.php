@@ -8,7 +8,7 @@ class Percentage extends Number
     public static function defaults(): array
     {
         return [
-            'step' => 0.1,
+            'step' => 5,
         ];
     }
 

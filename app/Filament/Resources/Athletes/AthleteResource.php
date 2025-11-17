@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Athletes;
 
 use App\Filament\Extensions\ConfigurableResource;
+use App\Filament\Resources\Athletes\RelationManagers\MetricsRelationManager;
 use App\Filament\Resources\Athletes\Schemas\AthleteForm;
 use App\Models\Users\Types\Athlete;
 use Filament\Schemas\Schema;
@@ -58,6 +59,13 @@ class AthleteResource extends ConfigurableResource
                 ],
             ],
             'default_sort' => 'surname',
+        ];
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            MetricsRelationManager::class,
         ];
     }
 }

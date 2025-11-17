@@ -32,11 +32,10 @@ class Number extends AbstractMetricType
                 ->default(0)
                 ->numeric()
                 ->required()
-
         ];
     }
 
-    public static function rules(): array
+    public static function rules(array $actual = []): array
     {
         $step = static::defaults()['step'];
 
@@ -60,7 +59,7 @@ class Number extends AbstractMetricType
                 $scaledStep = round($step * $multiplier);
 
                 if ($scaledStep == 0 || fmod($scaledValue, $scaledStep) != 0) {
-                    $fail("The {$attribute} must be a multiple of {$step}.");
+                    $fail("Must be a multiple of {$step}.");
                 }
             },
         ];

@@ -2,6 +2,7 @@
 
 namespace App\Models\Metrics;
 
+use App\Data\MetricTypes\MetricType as MetricTypeData;
 use App\Models\Exercise\Exercise;
 use App\Models\Users\Types\Athlete;
 use Database\Factories\MetricTypeFactory;
@@ -49,6 +50,7 @@ class MetricType extends Model
         ];
     }
 
+
     public static function normalizedScoeps()
     {
         $mapScope = function ($modelClass) {
@@ -73,6 +75,13 @@ class MetricType extends Model
         }
 
         return app($scopes[$scope])::getMetricTypeModel($type);
+    }
+
+    public function getModel(): string|MetricTypeData
+    {
+        $modelClass = self::getMetricTypeModel($this->scope, $this->type);
+        $dto = $modelClass::from($this->config->toArray());
+        return $dto;
     }
 
     public function metrics(): HasMany

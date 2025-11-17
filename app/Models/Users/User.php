@@ -17,6 +17,7 @@ use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class User extends Authenticatable implements FilamentUser
@@ -113,5 +114,10 @@ class User extends Authenticatable implements FilamentUser
     public function canJoinGroup(UserGroup $group): bool
     {
         return in_array($group->type, $this->allowedGroupTypes());
+    }
+
+    public function metrics(): MorphMany
+    {
+        return $this->morphMany(\App\Models\Metrics\Metric::class, 'metricable');
     }
 }
