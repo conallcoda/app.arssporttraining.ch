@@ -11,8 +11,36 @@ class TrainingPlanner extends Component
 
     public function mount()
     {
-        $this->season = TrainingSeason::with('children.children.children')
-            ->first();
+        $radomNumber = random_int(500, 10000);
+        $dto = TrainingSeason::from(
+            [
+                'name' => 'fish' . $radomNumber,
+                'children' => [
+                    [
+                        'name' => 'block 1',
+                        'children' => [
+                            [
+                                'children' => [],
+                            ],
+                            [
+                                'children' => [],
+                            ],
+                        ],
+                    ],
+                    [
+                        'name' => 'block 2',
+                        'children' => [
+                            [
+                                'children' => [],
+                            ],
+                            [
+                                'children' => [],
+                            ],
+                        ],
+                    ],
+                ],
+            ]
+        );
     }
 
     public function render()

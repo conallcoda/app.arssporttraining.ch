@@ -3,28 +3,47 @@
 namespace App\Models\Training\Periods;
 
 use App\Models\Training\TrainingPeriod;
-use Parental\HasParent;
-use App\Models\Training\Periods\Contracts\HasChildren;
+use App\Models\Training\TrainingPeriodData;
+use Spatie\LaravelData\Attributes\DataCollectionOf;
+use App\Data\Model\ModelIdentity;
 
-class TrainingSeason extends TrainingPeriod implements HasChildren
+class TrainingSeason extends TrainingPeriodData
 {
-    use HasParent;
+    public function __construct(
+        public ?ModelIdentity $identity,
+        public string $name,
+        #[DataCollectionOf(TrainingBlock::class)]
+        public array $children = [],
+    ) {}
 
-    public static function addChildForm(): array
+    public function name(): string
     {
-        return [
-            'allowed_types' => [TrainingBlock::class],
-            'fields' => [
-                'num_weeks' => [
-                    'type' => 'number',
-                    'label' => 'Number of Weeks',
-                    'default' => 4,
-                    'attributes' => [
-                        'min' => 1,
-                        'step' => 1,
-                    ],
-                ],
-            ],
+        return $this->name;
+    }
+
+    public static function fromModel(TrainingPeriod $model)
+    {
+        static::guardAgainstInvalidType($model, 'season');
+        return new static(
+            identity: static::identityFromModel($model),
+            name: $model->name,
+        );
+    }
+
+    public function persist()
+    {
+        $data = [
+            'name' => $this->name,
+            'type' => 'season',
         ];
+        if ($this->identity) {
+            $model = TrainingPeriod::findOrFail($this->identity->id);
+            $model->fill($data);
+        } else {
+            $model = TrainingPeriod::make($data);
+        }
+
+        $model->save();
+        $this->identity = static::identityFromModel($model);
     }
 }

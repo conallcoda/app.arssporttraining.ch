@@ -2,30 +2,23 @@
 
 namespace App\Models\Training\Periods;
 
-use App\Models\Training\TrainingPeriod;
-use Parental\HasParent;
-use App\Models\Training\Periods\Contracts\HasChildren;
+use App\Data\Model\ModelIdentity;
+use App\Models\Training\TrainingPeriodData;
+use Spatie\LaravelData\Attributes\DataCollectionOf;
 
-class TrainingWeek extends TrainingPeriod implements HasChildren
+
+class TrainingWeek extends TrainingPeriodData
 {
-    use HasParent;
+    public function __construct(
+        public ?ModelIdentity $identity,
+        public TrainingSession $parent,
+        public int $sequence,
+        #[DataCollectionOf(TrainingSession::class)]
+        public array $children = [],
+    ) {}
 
-    public static function addChildForm(): array
+    public function name(): string
     {
-        return [
-            'allowed_types' => [TrainingSession::class],
-            'fields' => [
-                'name' => [
-                    'type' => 'select',
-                    'label' => 'Name',
-                    'options' => [
-                        'core' => 'Core',
-                        'coordination' => 'Coordination',
-                        'jump' => 'Jump',
-                        'strength' => 'Strength',
-                    ]
-                ],
-            ],
-        ];
+        return "Week {$this->sequence}";
     }
 }

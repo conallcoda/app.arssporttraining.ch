@@ -3,18 +3,16 @@
 namespace App\Models\Training;
 
 use Illuminate\Database\Eloquent\Model;
-use Parental\HasChildren;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\Concerns\HasExtraData;
 use App\Models\Training\Periods;
 
 class TrainingPeriod extends Model
 {
-    use HasChildren;
     use SoftDeletes;
     use HasExtraData;
 
-    protected $childTypes = [
+    protected $types = [
         'season' => Periods\TrainingSeason::class,
         'block' => Periods\TrainingBlock::class,
         'week' => Periods\TrainingWeek::class,
@@ -24,6 +22,7 @@ class TrainingPeriod extends Model
 
     protected $fillable = [
         'name',
+        'type',
         'sequence',
         'parent_id',
     ];
