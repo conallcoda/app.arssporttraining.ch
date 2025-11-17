@@ -12,4 +12,9 @@ class OneRepMax extends Weight
             'step' => 1,
         ];
     }
+
+    public static function createFields(): array
+    {
+        return [];
+    }
 }

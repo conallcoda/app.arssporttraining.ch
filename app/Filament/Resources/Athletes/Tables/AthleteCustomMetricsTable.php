@@ -11,7 +11,7 @@ use Filament\Tables\Table;
 use Awcodes\BadgeableColumn\Components\BadgeableColumn;
 use Filament\Support\Colors\Color;
 
-class AthleteMetricsTable extends AbstractTable
+class AthleteCustomMetricsTable extends AbstractTable
 {
     public static function configure(Table $table): Table
     {

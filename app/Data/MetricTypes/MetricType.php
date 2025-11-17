@@ -9,4 +9,8 @@ interface MetricType
     public static function unit($short = true): ?string;
 
     public static function rules(): array;
+
+    public static function createFields(): array;
+
+    public static function recordFields(): array;
 }

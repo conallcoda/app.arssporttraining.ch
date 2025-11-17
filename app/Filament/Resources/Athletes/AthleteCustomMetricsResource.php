@@ -3,11 +3,11 @@
 namespace App\Filament\Resources\Athletes;
 
 use App\Filament\Extensions\ConfigurableResource;
-use App\Filament\Resources\Athletes\Schemas\AthleteMetricForm;
-use App\Filament\Resources\Athletes\Tables\AthleteMetricsTable;
+use App\Filament\Resources\Athletes\Schemas\AthleteCustomMetricsForm;
+use App\Filament\Resources\Athletes\Tables\AthleteCustomMetricsTable;
 use App\Models\Metrics\MetricType;
 
-class AthleteMetricResource extends ConfigurableResource
+class AthleteCustomMetricsResource extends ConfigurableResource
 {
     protected static function configure(): array
     {
@@ -15,13 +15,13 @@ class AthleteMetricResource extends ConfigurableResource
             'model' => MetricType::class,
             'navigationGroup' => 'Athletes',
             'navigationIcon' => 'lucide-ruler',
-            'navigationLabel' => 'Metrics',
-            'modelLabel' => 'Metric',
-            'pluralModelLabel' => 'Metrics',
-            'breadcrumb' => 'Athlete Metrics',
+            'navigationLabel' => 'Custom Metrics',
+            'modelLabel' => 'Custom Metric',
+            'pluralModelLabel' => 'Custom Metrics',
+            'breadcrumb' => 'Athlete Custom Metrics',
             'navigationSort' => 3,
-            'form' => AthleteMetricForm::class,
-            'table' => AthleteMetricsTable::class,
+            'form' => AthleteCustomMetricsForm::class,
+            'table' => AthleteCustomMetricsTable::class,
             'pages' => [
                 'index' => [],
                 'create' => true,

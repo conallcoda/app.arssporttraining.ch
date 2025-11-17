@@ -3,6 +3,7 @@
 namespace App\Data\MetricTypes\Generic;
 
 use App\Data\MetricTypes\AbstractMetricType;
+use Filament\Forms\Components\TextInput;
 
 class Number extends AbstractMetricType
 {
@@ -22,6 +23,17 @@ class Number extends AbstractMetricType
     public static function unit($short = true): ?string
     {
         return null;
+    }
+
+    public static function createFields(): array
+    {
+        return [
+            TextInput::make('config.step')
+                ->default(0)
+                ->numeric()
+                ->required()
+
+        ];
     }
 
     public static function rules(): array

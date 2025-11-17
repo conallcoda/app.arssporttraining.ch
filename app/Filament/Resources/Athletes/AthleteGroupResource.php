@@ -18,7 +18,7 @@ class AthleteGroupResource extends ConfigurableResource
             'navigationLabel' => 'Groups',
             'modelLabel' => 'Group',
             'pluralModelLabel' => 'Groups',
-            'breadcrumb' => 'Groups',
+            'breadcrumb' => 'Athlete Groups',
             'navigationSort' => 2,
             'form' => AthleteGroupForm::class,
             'table' => AthleteGroupsTable::class,
