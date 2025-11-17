@@ -30,4 +30,25 @@ class EditTrainingPlan extends Page
     {
         return 'filament.resources.training.pages.edit-training-plan';
     }
+
+    public function getNodes(): array
+    {
+        return [$this->buildTreeNode($this->record)];
+    }
+
+    protected function buildTreeNode($period): array
+    {
+        $node = [
+            'id' => $period->id,
+            'label' => $period->name ?? $period->type,
+        ];
+
+        if ($period->children && $period->children->count() > 0) {
+            $node['children'] = $period->children->map(function ($child) {
+                return $this->buildTreeNode($child);
+            })->toArray();
+        }
+
+        return $node;
+    }
 }

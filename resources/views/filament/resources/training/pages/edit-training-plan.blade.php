@@ -1,25 +1,14 @@
 <x-filament-panels::page>
-    <div>
-        <flux:card>
-            <livewire:training.training-season :season="$this->record" />
-        </flux:card>
-
-        <flux:modal name="example-modal" class="md:w-96" variant="flyout">
-            <div class="space-y-6">
-                <div>
-                    <flux:heading size="lg">Example Modal</flux:heading>
-                    <flux:subheading class="mt-2">
-                        This is a Flux UI modal for {{ $this->record->name }}
-                    </flux:subheading>
-                </div>
-
-                <flux:input label="Example Input" placeholder="Type something..." />
-
-                <div class="flex">
-                    <flux:spacer />
-                    <flux:button variant="primary">Save Changes</flux:button>
-                </div>
-            </div>
-        </flux:modal>
+    <div class="grid grid-cols-12 gap-4">
+        <div class="col-span-3">
+            <flux:card>
+                <livewire:training.training-tree :nodes="$this->getNodes()" />
+            </flux:card>
+        </div>
+        <div class="col-span-9">
+            <flux:card>
+                <livewire:training.training-season :season="$this->record" />
+            </flux:card>
+        </div>
     </div>
 </x-filament-panels::page>
