@@ -4,4 +4,5 @@
 
 @source '../../../../app/Filament/**/*';
 @source '../../../../resources/views/filament/**/*';
+@source '../../../../resources/views/livewire/**/*';
 @source '../../../../vendor/awcodes/filament-badgeable-column/resources/**/*.blade.php';

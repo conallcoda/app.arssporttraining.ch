@@ -13,9 +13,12 @@ class EditTrainingPlan extends Page
 
     public function mount(int | string | TrainingSeason $record): void
     {
-        $this->record = $record instanceof TrainingSeason
-            ? $record
-            : TrainingSeason::findOrFail($record);
+        if ($record instanceof TrainingSeason) {
+            $this->record = $record->load('children.children.children');
+        } else {
+            $this->record = TrainingSeason::with('children.children.children')
+                ->findOrFail($record);
+        }
     }
 
     public function getTitle(): string

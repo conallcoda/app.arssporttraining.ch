@@ -26,16 +26,16 @@ class TrainingSeeder extends Seeder
             ]);
 
             for ($blockNum = 0; $blockNum < $numBlocks; $blockNum++) {
-                $block = new TrainingBlock([
+                $block = TrainingBlock::create([
+                    'parent_id' => $season->id,
                     'sequence' => $blockNum,
                 ]);
-                $block->appendToNode($season)->save();
 
                 for ($weekNum = 0; $weekNum < $numWeeks; $weekNum++) {
-                    $week = new TrainingWeek([
+                    TrainingWeek::create([
+                        'parent_id' => $block->id,
                         'sequence' => $weekNum,
                     ]);
-                    $week->appendToNode($block)->save();
                 }
             }
         }

@@ -2,7 +2,7 @@
 
 namespace App\Livewire;
 
-use App\Models\Training\TrainingPeriod;
+use App\Models\Training\Periods\TrainingSeason;
 use Livewire\Component;
 
 class TrainingPlanner extends Component
@@ -11,11 +11,8 @@ class TrainingPlanner extends Component
 
     public function mount()
     {
-        $tree = TrainingPeriod::get()->toTree();
-
-        if ($tree->isNotEmpty()) {
-            $this->season = $tree->first();
-        }
+        $this->season = TrainingSeason::with('children.children.children')
+            ->first();
     }
 
     public function render()
