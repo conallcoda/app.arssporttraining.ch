@@ -29,6 +29,7 @@ return new class extends Migration
             $table->foreignId('metric_type_id')->constrained('metric_types')->cascadeOnDelete();
             $table->morphs('metricable');
             $table->json('value');
+            $table->json('extra')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

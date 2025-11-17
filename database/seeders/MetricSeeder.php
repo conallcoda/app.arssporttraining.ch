@@ -14,13 +14,14 @@ class MetricSeeder extends Seeder
     {
         $types = [
             'athlete' => [
-                'Weight' => ['weight', [0.1]],
-                'Body Fat Percentage' => ['percentage', [0.1]],
-                'Body Mass Index' => ['number', [0.1]],
-                '1RM Back Squat' => ['one_rep_max', [1]],
-                '1RM Front Squat' => ['one_rep_max', [1]],
-                '1RM Deadlift' => ['one_rep_max', [1]],
-                '1RM Row' => ['one_rep_max', [1]],
+                'Weight' => ['weight', ['step' => 0.1]],
+                'Body Fat Percentage' => ['percentage', ['step' => 0.1]],
+                'Body Mass Index' => ['number', ['step' => 0.1]],
+                '1RM Back Squat' => ['one_rep_max', ['multiplier' => 1]],
+                '1RM Front Squat' => ['one_rep_max', ['multiplier' => 0.85]],
+                '1RM Deadlift Wide' => ['one_rep_max', ['multiplier' => 0.85]],
+                '1RM Deadlift Narrow' => ['one_rep_max', ['multiplier' => 0.85]],
+                '1RM Row' => ['one_rep_max', ['multiplier' => 1]],
             ],
         ];
 

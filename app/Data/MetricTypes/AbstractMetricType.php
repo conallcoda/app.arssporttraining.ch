@@ -13,10 +13,12 @@ abstract class AbstractMetricType extends AbstractData implements MetricType
         return [];
     }
 
-    public static function recordFields(): array
+    public function recordFields($get = null): array
     {
+
+
         return [
-            Forms\Components\TextInput::make('value')
+            Forms\Components\TextInput::make('value.value')
                 ->label('Value')
                 ->required()
                 ->columnSpanFull()

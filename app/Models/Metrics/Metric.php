@@ -7,35 +7,33 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Spatie\SchemalessAttributes\SchemalessAttributes;
-use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms;
-use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Fieldset;
 use Filament\Schemas\Schema;
 use Filament\Schemas\Components\Utilities\Get;
-use Filament\Schemas\Components\Section;
-use Filament\Schemas\Components\Group;
-use Filament\Schemas\Components\View;
-use Filament\Schemas\Components\Flex;
+use Illuminate\Database\Eloquent\Builder;
+use Spatie\SchemalessAttributes\SchemalessAttributes;
+use Spatie\SchemalessAttributes\SchemalessAttributesTrait;
+
 
 class Metric extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, SchemalessAttributesTrait;
 
     protected $fillable = [
         'metric_type_id',
         'metricable_type',
         'metricable_id',
         'value',
+        'extra'
     ];
 
-    public function initializeHasExtraData()
-    {
-        $this->casts['value'] = SchemalessAttributes::class;
-    }
+    public $schemalessAttributes = [
+        'value',
+        'extra',
+    ];
 
-    public function scopeWithExtraAttributes(): Builder
+    public function scopeWithExtra(): Builder
     {
         return $this->extra->modelScope();
     }
@@ -68,7 +66,23 @@ class Metric extends Model
             ->required()
             ->columnSpanFull()
             ->searchable()
-            ->live();
+            ->live()
+            ->afterStateUpdated(function ($state, $set, $get) {
+                if (!$state) {
+                    return;
+                }
+
+                $metricType = MetricType::find($state);
+                if ($metricType) {
+                    $dto = $metricType->getModel();
+                    $fields = $dto->recordFields($get);
+
+                    foreach ($fields as $field) {
+                        $fieldName = $field->getName();
+                        $set($fieldName, null);
+                    }
+                }
+            });
 
         $getSchema = function (Get $get) use ($scope, $typeField) {
             $metricTypeId = $get('metric_type_id');
@@ -76,7 +90,7 @@ class Metric extends Model
             $additionalFields = [];
             if ($metricType) {
                 $dto = $metricType->getModel();
-                $additionalFields = $dto->recordFields();
+                $additionalFields = $dto->recordFields($get);
             }
 
             $defaultFields =  [

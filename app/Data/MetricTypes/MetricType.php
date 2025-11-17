@@ -12,5 +12,5 @@ interface MetricType
 
     public static function createFields(): array;
 
-    public static function recordFields(): array;
+    public  function recordFields(): array;
 }

@@ -37,6 +37,10 @@ class MetricsRelationManager extends RelationManager
                         if (!$record->metricType) {
                             return $state;
                         }
+
+
+                        $value = $state->value;
+
                         $metricTypeModel = MetricType::getMetricTypeModel(
                             $record->metricType->scope,
                             $record->metricType->type
@@ -44,7 +48,7 @@ class MetricsRelationManager extends RelationManager
 
                         $unit = $metricTypeModel::unit(true);
 
-                        return $unit ? "{$state} {$unit}" : $state;
+                        return $unit ? "{$value} {$unit}" : $value;
                     })
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')

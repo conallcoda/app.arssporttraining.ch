@@ -13,6 +13,11 @@ class Number extends AbstractMetricType
         $this->step = $step ?? self::defaults()['step'];
     }
 
+    public static function unit($short = true): ?string
+    {
+        return null;
+    }
+
     public static function defaults(): array
     {
         return [
@@ -20,10 +25,6 @@ class Number extends AbstractMetricType
         ];
     }
 
-    public static function unit($short = true): ?string
-    {
-        return null;
-    }
 
     public static function createFields(): array
     {

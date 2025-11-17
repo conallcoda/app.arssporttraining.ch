@@ -11,6 +11,8 @@
         "awcodes/filament-sticky-header": "^3.0",
         "filament/filament": "^4.0",
         "filament/spatie-laravel-media-library-plugin": "^4.2",
+        "icetalker/filament-table-repeater": "^2.0",
+        "inerba/filament-db-config": "^1.2",
         "kalnoy/nestedset": "^6.0",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1",

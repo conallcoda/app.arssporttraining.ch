@@ -16,7 +16,7 @@ class TrainingPeriod extends Model
     use SoftDeletes;
     use HasExtraData;
 
-    protected $childTypes = [
+    protected $types = [
         'season' => Periods\TrainingSeason::class,
         'block' => Periods\TrainingBlock::class,
         'week' => Periods\TrainingWeek::class,
