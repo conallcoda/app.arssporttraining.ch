@@ -39,6 +39,8 @@
                 <flux:menu>
                     <flux:menu.item wire:click="addWeek('{{ $nodeUuid }}')" icon="list-plus">Add Week</flux:menu.item>
                     <flux:menu.separator />
+                    <flux:menu.item wire:click="duplicatePeriod('{{ $nodeUuid }}')" icon="copy-plus">Duplicate</flux:menu.item>
+                    <flux:menu.separator />
                     <flux:menu.item wire:click="moveUp('{{ $nodeUuid }}')" icon="arrow-up" :disabled="$isFirst">Move Up</flux:menu.item>
                     <flux:menu.item wire:click="moveDown('{{ $nodeUuid }}')" icon="arrow-down" :disabled="$isLast">Move Down</flux:menu.item>
                     <flux:menu.separator />
@@ -49,6 +51,8 @@
             <flux:dropdown position="bottom" align="end">
                 <flux:button size="xs" variant="ghost" icon="ellipsis-vertical" inset="top bottom" class="ml-2" />
                 <flux:menu>
+                    <flux:menu.item wire:click="duplicatePeriod('{{ $nodeUuid }}')" icon="copy-plus">Duplicate</flux:menu.item>
+                    <flux:menu.separator />
                     <flux:menu.item wire:click="moveUp('{{ $nodeUuid }}')" icon="arrow-up" :disabled="$isFirst">Move Up</flux:menu.item>
                     <flux:menu.item wire:click="moveDown('{{ $nodeUuid }}')" icon="arrow-down" :disabled="$isLast">Move Down</flux:menu.item>
                     <flux:menu.separator />

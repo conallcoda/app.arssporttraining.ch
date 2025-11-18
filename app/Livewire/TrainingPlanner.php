@@ -167,7 +167,55 @@ class TrainingPlanner extends Component
 
     public function addWeek($blockUuid)
     {
+        $wasEmpty = $this->isNodeEmpty($this->season, $blockUuid);
         $this->addChildToNode($this->season, $blockUuid, new WeekData());
+
+        if ($wasEmpty) {
+            $nodeIdentifier = $this->getNodeIdentifier($this->season, $blockUuid);
+            if ($nodeIdentifier) {
+                $this->expanded[$nodeIdentifier] = true;
+            }
+        }
+    }
+
+    protected function isNodeEmpty(?TrainingNode $node, string $uuid): bool
+    {
+        if (!$node) {
+            return false;
+        }
+
+        if ($node->uuid === $uuid) {
+            return empty($node->children);
+        }
+
+        foreach ($node->children as $child) {
+            $result = $this->isNodeEmpty($child, $uuid);
+            if ($result !== false || $child->uuid === $uuid) {
+                return $result;
+            }
+        }
+
+        return false;
+    }
+
+    protected function getNodeIdentifier(?TrainingNode $node, string $uuid): ?string
+    {
+        if (!$node) {
+            return null;
+        }
+
+        if ($node->uuid === $uuid) {
+            return $node->id ? (string)$node->id : 'temp-' . spl_object_id($node);
+        }
+
+        foreach ($node->children as $child) {
+            $identifier = $this->getNodeIdentifier($child, $uuid);
+            if ($identifier !== null) {
+                return $identifier;
+            }
+        }
+
+        return null;
     }
 
     protected function addChildToNode(?TrainingNode $node, string $parentUuid, $data): bool
@@ -205,6 +253,49 @@ class TrainingPlanner extends Component
 
         $this->deletedNodes[] = $uuid;
         $this->removeNodeFromTree($this->season, $uuid);
+    }
+
+    public function duplicatePeriod($uuid)
+    {
+        $this->duplicateNodeInTree($this->season, $uuid);
+    }
+
+    protected function duplicateNodeInTree(?TrainingNode $node, string $uuid): bool
+    {
+        if (!$node || empty($node->children)) {
+            return false;
+        }
+
+        foreach ($node->children as $index => $child) {
+            if ($child->uuid === $uuid) {
+                $duplicate = $this->deepCloneNode($child);
+
+                array_splice($node->children, $index + 1, 0, [$duplicate]);
+                $this->renumberChildren($node->children);
+
+                return true;
+            }
+
+            if ($this->duplicateNodeInTree($child, $uuid)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function deepCloneNode(TrainingNode $node): TrainingNode
+    {
+        $clonedChildren = [];
+        foreach ($node->children as $child) {
+            $clonedChildren[] = $this->deepCloneNode($child);
+        }
+
+        return TrainingNode::fromData(
+            data: $node->data,
+            sequence: $node->sequence,
+            parentUuid: $node->parent
+        );
     }
 
     protected function renumberChildren(array &$children): void
