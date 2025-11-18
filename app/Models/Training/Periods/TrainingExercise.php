@@ -3,14 +3,14 @@
 namespace App\Models\Training\Periods;
 
 use App\Models\Training\TrainingPeriodData;
-use App\Data\Model\ModelIdentity;
+use App\Models\Training\Periods\Data\TrainingPeriodIdentity;
 use App\Models\Training\Periods\Data\ExerciseData;
 use App\Models\Training\TrainingPeriod;
 
 class TrainingExercise extends TrainingPeriodData
 {
     public function __construct(
-        public ?ModelIdentity $identity = null,
+        public TrainingPeriodIdentity $identity,
         public int $sequence = 0,
         public ?ExerciseData $exercise = null,
     ) {}
@@ -19,7 +19,7 @@ class TrainingExercise extends TrainingPeriodData
     {
         static::guardAgainstInvalidType($model);
         $instance = new static(
-            identity: ModelIdentity::fromModel($model),
+            identity: static::createIdentity($model),
             sequence: $extra['sequence'],
             exercise: ExerciseData::from($model->extra['exercise']),
         );
@@ -29,7 +29,7 @@ class TrainingExercise extends TrainingPeriodData
     public static function fromConfig(array $data)
     {
         return new static(
-            identity: $data['identity'] ?? null,
+            identity: static::createIdentity(),
             exercise: ExerciseData::from($data['exercise']),
             sequence: $data['sequence'],
         );

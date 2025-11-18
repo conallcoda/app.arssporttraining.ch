@@ -2,7 +2,7 @@
 
 namespace App\Models\Training\Periods;
 
-use App\Data\Model\ModelIdentity;
+use App\Models\Training\Periods\Data\TrainingPeriodIdentity;
 use App\Models\Training\TrainingPeriod;
 use App\Models\Training\TrainingPeriodData;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
@@ -10,7 +10,7 @@ use Spatie\LaravelData\Attributes\DataCollectionOf;
 class TrainingWeek extends TrainingPeriodData
 {
     public function __construct(
-        public ?ModelIdentity $identity = null,
+        public TrainingPeriodIdentity $identity,
         public int $sequence = 0,
         #[DataCollectionOf(TrainingSession::class)]
         public array $children = [],
@@ -25,7 +25,7 @@ class TrainingWeek extends TrainingPeriodData
     {
         static::guardAgainstInvalidType($model);
         $instance = new static(
-            identity: ModelIdentity::fromModel($model),
+            identity: static::createIdentity($model),
             sequence: $extra['sequence'],
         );
         return static::passParentAndSequence($instance, $model);
@@ -35,7 +35,7 @@ class TrainingWeek extends TrainingPeriodData
     {
         $instance = new static(
             sequence: $data['sequence'],
-            identity: $data['identity'] ?? null,
+            identity: static::createIdentity(),
         );
         return static::passParentAndSequence($instance, $data);
     }

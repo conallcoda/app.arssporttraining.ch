@@ -3,7 +3,6 @@
 namespace App\Models\Training;
 
 use App\Data\AbstractData;
-use App\Data\Model\ModelIdentity;
 use App\Models\Training\Periods\Data\TrainingPeriodIdentity;
 use App\Models\Training\Periods\TrainingExercise;
 
@@ -62,7 +61,7 @@ abstract class TrainingPeriodData extends AbstractData
         return [];
     }
 
-    public function getIdentity(): ?ModelIdentity
+    public function getIdentity(): ?TrainingPeriodIdentity
     {
         return $this->identity ?? null;
     }
@@ -81,11 +80,16 @@ abstract class TrainingPeriodData extends AbstractData
         $data = array_merge($data, [
             'type' => static::getModelType(),
             'parent_id' => $parentId,
+            'uuid' => $this->identity->uuid,
         ]);
 
         if ($identity = $this->getIdentity()) {
-            $model = $modelClass::findOrFail($identity->id);
-            $model->fill($data);
+            if ($identity->id) {
+                $model = $modelClass::findOrFail($identity->id);
+                $model->fill($data);
+            } else {
+                $model = $modelClass::make($data);
+            }
         } else {
             $model = $modelClass::make($data);
         }
@@ -93,7 +97,7 @@ abstract class TrainingPeriodData extends AbstractData
         $model->save();
 
         if (property_exists($this, 'identity')) {
-            $this->{'identity'} = ModelIdentity::from($model);
+            $this->{'identity'} = TrainingPeriodIdentity::fromModel($model);
         }
 
         foreach ($this->getChildren() as $child) {

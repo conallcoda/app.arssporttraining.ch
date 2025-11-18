@@ -2,11 +2,11 @@
 
 namespace App\Livewire;
 
-use App\Models\Training\Periods\TrainingBlock;
 use App\Models\Training\Periods\TrainingSeason;
-use App\Models\Training\Periods\TrainingWeek;
 use App\Models\Training\TrainingPeriod;
+use App\Models\Training\TrainingPeriodManager;
 use Livewire\Component;
+use Illuminate\Database\Eloquent\Builder;
 
 class TrainingPlanner extends Component
 {
@@ -17,11 +17,8 @@ class TrainingPlanner extends Component
     public function mount($maxDepth = 2)
     {
         $this->maxDepth = $maxDepth;
-
-        $model = TrainingPeriod::where('type', 'season')->first();
-        if ($model) {
-            $this->expandInitialNodes($model, 0);
-        }
+        $manager = new TrainingPeriodManager(1);
+        dd($manager);
     }
 
     protected function expandInitialNodes($model, $depth)

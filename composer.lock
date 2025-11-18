@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "65a467b5f19ec3247eda138e240c648a",
+    "content-hash": "8b8ca799173aacdf6c59cb6b6e9c5d93",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -7111,6 +7111,178 @@
             "time": "2025-01-13T13:04:43+00:00"
         },
         {
+            "name": "staudenmeir/eloquent-has-many-deep-contracts",
+            "version": "v1.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/staudenmeir/eloquent-has-many-deep-contracts.git",
+                "reference": "37ce351e4db919b3af606bc8ca0e62e2e4939cde"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/staudenmeir/eloquent-has-many-deep-contracts/zipball/37ce351e4db919b3af606bc8ca0e62e2e4939cde",
+                "reference": "37ce351e4db919b3af606bc8ca0e62e2e4939cde",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/database": "^12.0",
+                "php": "^8.2"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Staudenmeir\\EloquentHasManyDeepContracts\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Jonas Staudenmeir",
+                    "email": "mail@jonas-staudenmeir.de"
+                }
+            ],
+            "description": "Contracts for staudenmeir/eloquent-has-many-deep",
+            "support": {
+                "issues": "https://github.com/staudenmeir/eloquent-has-many-deep-contracts/issues",
+                "source": "https://github.com/staudenmeir/eloquent-has-many-deep-contracts/tree/v1.3"
+            },
+            "time": "2025-02-15T17:11:01+00:00"
+        },
+        {
+            "name": "staudenmeir/laravel-adjacency-list",
+            "version": "v1.25.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/staudenmeir/laravel-adjacency-list.git",
+                "reference": "a54c5ff70d2d417251f33dfda5646e84d1c6d55e"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/staudenmeir/laravel-adjacency-list/zipball/a54c5ff70d2d417251f33dfda5646e84d1c6d55e",
+                "reference": "a54c5ff70d2d417251f33dfda5646e84d1c6d55e",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/database": "^12.0",
+                "php": "^8.2",
+                "staudenmeir/eloquent-has-many-deep-contracts": "^1.3",
+                "staudenmeir/laravel-cte": "^1.12.1"
+            },
+            "require-dev": {
+                "barryvdh/laravel-ide-helper": "^3.0",
+                "larastan/larastan": "^3.0",
+                "laravel/framework": "^12.0",
+                "mockery/mockery": "^1.5.1",
+                "orchestra/testbench-core": "^10.0",
+                "phpunit/phpunit": "^11.0",
+                "singlestoredb/singlestoredb-laravel": "^2.0",
+                "staudenmeir/eloquent-has-many-deep": "^1.21"
+            },
+            "suggest": {
+                "barryvdh/laravel-ide-helper": "Provide type hints for attributes and relations."
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Staudenmeir\\LaravelAdjacencyList\\IdeHelperServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Staudenmeir\\LaravelAdjacencyList\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Jonas Staudenmeir",
+                    "email": "mail@jonas-staudenmeir.de"
+                }
+            ],
+            "description": "Recursive Laravel Eloquent relationships with CTEs",
+            "support": {
+                "issues": "https://github.com/staudenmeir/laravel-adjacency-list/issues",
+                "source": "https://github.com/staudenmeir/laravel-adjacency-list/tree/v1.25.2"
+            },
+            "funding": [
+                {
+                    "url": "https://paypal.me/JonasStaudenmeir",
+                    "type": "custom"
+                }
+            ],
+            "time": "2025-07-27T18:15:05+00:00"
+        },
+        {
+            "name": "staudenmeir/laravel-cte",
+            "version": "v1.12.4",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/staudenmeir/laravel-cte.git",
+                "reference": "48cdb4d22bbf3dc1bce3314650659f17fd0e223f"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/staudenmeir/laravel-cte/zipball/48cdb4d22bbf3dc1bce3314650659f17fd0e223f",
+                "reference": "48cdb4d22bbf3dc1bce3314650659f17fd0e223f",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/database": "^12.0",
+                "php": "^8.2"
+            },
+            "require-dev": {
+                "laravel/framework": "^12.0",
+                "orchestra/testbench-core": "^10.0",
+                "phpstan/phpstan": "^2.0",
+                "phpunit/phpunit": "^11.0",
+                "singlestoredb/singlestoredb-laravel": "^2.0",
+                "yajra/laravel-oci8": "^12.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Staudenmeir\\LaravelCte\\DatabaseServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Staudenmeir\\LaravelCte\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Jonas Staudenmeir",
+                    "email": "mail@jonas-staudenmeir.de"
+                }
+            ],
+            "description": "Laravel queries with common table expressions",
+            "support": {
+                "issues": "https://github.com/staudenmeir/laravel-cte/issues",
+                "source": "https://github.com/staudenmeir/laravel-cte/tree/v1.12.4"
+            },
+            "funding": [
+                {
+                    "url": "https://paypal.me/JonasStaudenmeir",
+                    "type": "custom"
+                }
+            ],
+            "time": "2025-10-21T07:12:06+00:00"
+        },
+        {
             "name": "symfony/cache",
             "version": "v7.3.5",
             "source": {
@@ -10638,6 +10810,91 @@
     ],
     "packages-dev": [
         {
+            "name": "barryvdh/laravel-debugbar",
+            "version": "v3.16.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/barryvdh/laravel-debugbar.git",
+                "reference": "f265cf5e38577d42311f1a90d619bcd3740bea23"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/barryvdh/laravel-debugbar/zipball/f265cf5e38577d42311f1a90d619bcd3740bea23",
+                "reference": "f265cf5e38577d42311f1a90d619bcd3740bea23",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/routing": "^9|^10|^11|^12",
+                "illuminate/session": "^9|^10|^11|^12",
+                "illuminate/support": "^9|^10|^11|^12",
+                "php": "^8.1",
+                "php-debugbar/php-debugbar": "~2.2.0",
+                "symfony/finder": "^6|^7"
+            },
+            "require-dev": {
+                "mockery/mockery": "^1.3.3",
+                "orchestra/testbench-dusk": "^7|^8|^9|^10",
+                "phpunit/phpunit": "^9.5.10|^10|^11",
+                "squizlabs/php_codesniffer": "^3.5"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "aliases": {
+                        "Debugbar": "Barryvdh\\Debugbar\\Facades\\Debugbar"
+                    },
+                    "providers": [
+                        "Barryvdh\\Debugbar\\ServiceProvider"
+                    ]
+                },
+                "branch-alias": {
+                    "dev-master": "3.16-dev"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "src/helpers.php"
+                ],
+                "psr-4": {
+                    "Barryvdh\\Debugbar\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Barry vd. Heuvel",
+                    "email": "barryvdh@gmail.com"
+                }
+            ],
+            "description": "PHP Debugbar integration for Laravel",
+            "keywords": [
+                "debug",
+                "debugbar",
+                "dev",
+                "laravel",
+                "profiler",
+                "webprofiler"
+            ],
+            "support": {
+                "issues": "https://github.com/barryvdh/laravel-debugbar/issues",
+                "source": "https://github.com/barryvdh/laravel-debugbar/tree/v3.16.0"
+            },
+            "funding": [
+                {
+                    "url": "https://fruitcake.nl",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/barryvdh",
+                    "type": "github"
+                }
+            ],
+            "time": "2025-07-14T11:56:43+00:00"
+        },
+        {
             "name": "brianium/paratest",
             "version": "v7.14.2",
             "source": {
@@ -12065,6 +12322,79 @@
                 "source": "https://github.com/phar-io/version/tree/3.2.1"
             },
             "time": "2022-02-21T01:04:05+00:00"
+        },
+        {
+            "name": "php-debugbar/php-debugbar",
+            "version": "v2.2.4",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-debugbar/php-debugbar.git",
+                "reference": "3146d04671f51f69ffec2a4207ac3bdcf13a9f35"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-debugbar/php-debugbar/zipball/3146d04671f51f69ffec2a4207ac3bdcf13a9f35",
+                "reference": "3146d04671f51f69ffec2a4207ac3bdcf13a9f35",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8",
+                "psr/log": "^1|^2|^3",
+                "symfony/var-dumper": "^4|^5|^6|^7"
+            },
+            "replace": {
+                "maximebf/debugbar": "self.version"
+            },
+            "require-dev": {
+                "dbrekelmans/bdi": "^1",
+                "phpunit/phpunit": "^8|^9",
+                "symfony/panther": "^1|^2.1",
+                "twig/twig": "^1.38|^2.7|^3.0"
+            },
+            "suggest": {
+                "kriswallsmith/assetic": "The best way to manage assets",
+                "monolog/monolog": "Log using Monolog",
+                "predis/predis": "Redis storage"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "2.1-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "DebugBar\\": "src/DebugBar/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Maxime Bouroumeau-Fuseau",
+                    "email": "maxime.bouroumeau@gmail.com",
+                    "homepage": "http://maximebf.com"
+                },
+                {
+                    "name": "Barry vd. Heuvel",
+                    "email": "barryvdh@gmail.com"
+                }
+            ],
+            "description": "Debug bar in the browser for php application",
+            "homepage": "https://github.com/php-debugbar/php-debugbar",
+            "keywords": [
+                "debug",
+                "debug bar",
+                "debugbar",
+                "dev"
+            ],
+            "support": {
+                "issues": "https://github.com/php-debugbar/php-debugbar/issues",
+                "source": "https://github.com/php-debugbar/php-debugbar/tree/v2.2.4"
+            },
+            "time": "2025-07-22T14:01:30+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",

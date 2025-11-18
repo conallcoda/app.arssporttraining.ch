@@ -7,12 +7,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\Concerns\HasExtraData;
 use App\Models\Training\Periods;
+use Staudenmeir\LaravelAdjacencyList\Eloquent\HasRecursiveRelationships;
 
 class TrainingPeriod extends Model
 {
     use SoftDeletes;
     use HasExtraData;
     use HasUuids;
+    use HasRecursiveRelationships;
 
     protected $types = [
         'season' => Periods\TrainingSeason::class,
@@ -34,6 +36,16 @@ class TrainingPeriod extends Model
     protected $casts = [
         'sequence' => 'integer',
     ];
+
+
+    public function toData()
+    {
+        $dataClass = $this->types[$this->type] ?? null;
+        if (!$dataClass) {
+            throw new \InvalidArgumentException("Unknown type: {$this->type}");
+        }
+        return $dataClass::fromModel($this, ['sequence' => $this->sequence]);
+    }
 
     public function uniqueIds(): array
     {
