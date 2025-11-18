@@ -11,35 +11,26 @@ abstract class TrainingPeriodData extends AbstractData
 
     abstract public function name(): string;
 
-
-
-    public static function passParent($parent, array $data): static
+    public static function passParentAndSequence($parent, array|TrainingPeriod $data): static
     {
-        if (empty($data['children']) || is_null(static::getChildClass())) {
+        if (is_null(static::getChildClass())) {
             return $parent;
         }
-
-        $children = collect($data['children'] ?? [])
-            ->map(function ($childData) use ($parent) {
-                return static::getChildClass()::from(array_merge($childData, ['parent' => $parent]));
-            })
-            ->all();
-
-        $parent->children = $children;
-        return $parent;
-    }
-
-    public static function passParentAndSquence($parent, array $data): static
-    {
-        if (empty($data['children']) || is_null(static::getChildClass())) {
-            return $parent;
+        if ($data instanceof TrainingPeriod) {
+            $mapper = function ($model, $index = 0) use ($parent) {
+                $extra = ['sequence' => $index, 'parent' => $parent];
+                return static::getChildClass()::fromModel($model, $extra);
+            };
+            $children =  $data->children()->get();
+        } else {
+            $mapper =  function ($childData, $index  = 0) use ($parent) {
+                $extra = ['sequence' => $index, 'parent' => $parent];
+                return static::getChildClass()::fromConfig(array_merge($childData, $extra));
+            };
+            $children = $data['children'] ?? [];
         }
-
-
-        $children = collect($data['children'] ?? [])
-            ->map(function ($childData, $index) use ($parent) {
-                return static::getChildClass()::from(array_merge($childData, ['sequence' => $index, 'parent' => $parent]));
-            })
+        $children = collect($children)
+            ->map($mapper)
             ->all();
 
         $parent->children = $children;
@@ -75,12 +66,23 @@ abstract class TrainingPeriodData extends AbstractData
 
     abstract public static function getModelType(): string;
 
+    public function getChildren(): array
+    {
+        return property_exists($this, 'children') ? $this->{'children'} : [];
+    }
+
+    public function getParent(): ?TrainingPeriodData
+    {
+        return property_exists($this, 'parent') ? $this->{'parent'} : null;
+    }
+
     public function persist()
     {
         $modelClass = static::getModelClass();
         $data = $this->getModelData();
         $data = array_merge($data, [
             'type' => static::getModelType(),
+            'parent_id' => $this->getParent()?->getIdentity()?->id,
         ]);
 
         if ($identity = $this->getIdentity()) {
@@ -91,6 +93,15 @@ abstract class TrainingPeriodData extends AbstractData
         }
 
         $model->save();
-        $this->identity = ModelIdentity::from($model);
+
+        if (property_exists($this, 'identity')) {
+            $this->{'identity'} = ModelIdentity::from($model);
+        }
+
+        foreach ($this->getChildren() as $child) {
+            if ($child instanceof TrainingPeriodData) {
+                $child->persist();
+            }
+        }
     }
 }

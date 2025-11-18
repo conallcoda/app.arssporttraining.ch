@@ -3,51 +3,69 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use App\Models\Exercise\Exercise;
 use App\Models\Training\Periods\TrainingSeason;
-use App\Models\Training\Periods\TrainingBlock;
-use App\Models\Training\Periods\TrainingWeek;
+use App\Models\Training\TrainingSessionCategory;
+use Illuminate\Support\Str;
+
 
 class TrainingSeeder extends Seeder
 {
     public function run(): void
     {
-
-        $plans = [
-            [
-                'name' => 'Example Training Plan',
-                'format' => '2x5',
-            ]
+        $categories = [
+            ['name' => 'Gym', 'text_color' => 'white', 'background_color' => 'blue'],
+            ['name' => 'Jump', 'text_color' => 'white', 'background_color' => 'red'],
+            ['name' => 'Core', 'text_color' => 'black', 'background_color' => 'yellow'],
+            ['name' => 'Coordination', 'text_color' => 'white', 'background_color' => 'green'],
         ];
 
-        foreach ($plans as $index => $planData) {
-            [$numBlocks, $numWeeks] = $this->parseFormat($planData['format']);
-            $season = TrainingSeason::create([
-                'name' => $planData['name'],
-                'sequence' => $index,
-            ]);
-
-            for ($blockNum = 0; $blockNum < $numBlocks; $blockNum++) {
-                $block = TrainingBlock::create([
-                    'parent_id' => $season->id,
-                    'sequence' => $blockNum,
-                ]);
-
-                for ($weekNum = 0; $weekNum < $numWeeks; $weekNum++) {
-                    TrainingWeek::create([
-                        'parent_id' => $block->id,
-                        'sequence' => $weekNum,
-                    ]);
-                }
-            }
-        }
-    }
-
-    private function parseFormat(string $format): array
-    {
-        if (!preg_match('/^(\d+)x(\d+)$/', $format, $matches)) {
-            throw new \InvalidArgumentException("Invalid format: {$format}. Expected format like '2x5'");
+        $categoryModels = [];
+        foreach ($categories as $category) {
+            $created = TrainingSessionCategory::create($category);
+            $categoryModels[$created->slug] = $created;
         }
 
-        return [(int) $matches[1], (int) $matches[2]];
+        $e1 = Exercise::find(61);
+        $e2 = Exercise::find(62);
+        $e3 = Exercise::find(63);
+        $e4 = Exercise::find(64);
+
+        $dto = TrainingSeason::from([
+            'name' => 'Example Training Plan',
+            'children' => [
+                [
+                    'children' => [
+                        [
+                            'children' => [
+                                [
+                                    'category' => $categoryModels['gym'],
+                                    'period' => [
+                                        'day' => 0,
+                                        'sequence' => 1,
+                                    ],
+                                    'children' => [
+                                        [
+                                            'exercise' => $e1,
+                                        ],
+                                        [
+                                            'exercise' => $e2,
+                                        ],
+                                    ]
+                                ]
+                            ]
+                        ],
+                        [],
+                    ],
+                ],
+                [
+                    'children' => [
+                        [],
+                        []
+                    ],
+                ],
+            ],
+        ]);
+        $dto->persist();
     }
 }

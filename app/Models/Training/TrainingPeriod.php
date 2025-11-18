@@ -21,6 +21,7 @@ class TrainingPeriod extends Model
     ];
 
     protected $fillable = [
+        'extra',
         'name',
         'type',
         'sequence',

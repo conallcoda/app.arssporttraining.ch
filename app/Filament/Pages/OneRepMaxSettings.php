@@ -8,36 +8,28 @@ use Filament\Schemas\Components;
 use Filament\Schemas\Schema;
 use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
 use Filament\Forms\Components\TextInput;
+use UnitEnum;
 
-class MetricSettings extends AbstractPageSettings
+class OneRepMaxSettings extends AbstractPageSettings
 {
-    /**
-     * @var array<string, mixed> | null
-     */
     public ?array $data = [];
 
-    protected static ?string $title = 'Metrics';
+    protected static ?string $title = 'One Rep Max';
 
     protected static ?int $navigationSort = 100;
 
-    // protected static string | BackedEnum | null $navigationIcon = 'heroicon-o-wrench-screwdriver'; // Uncomment if you want to set a custom navigation icon
-
-    // protected ?string $subheading = ''; // Uncomment if you want to set a custom subheading
-
-    // protected static ?string $slug = 'metrics-settings'; // Uncomment if you want to set a custom slug
-
     protected string $view = 'filament.pages.metrics-settings';
+
+    public static function getNavigationGroup(): ?string
+    {
+        return 'Training';
+    }
 
     protected function settingName(): string
     {
         return 'metrics';
     }
 
-    /**
-     * Provide default values.
-     *
-     * @return array<string, mixed>
-     */
     public function getDefaultData(): array
     {
         $conversionTable = [

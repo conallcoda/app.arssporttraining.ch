@@ -5,14 +5,13 @@ namespace App\Models\Training\Periods;
 use App\Models\Training\TrainingPeriod;
 use App\Models\Training\TrainingPeriodData;
 use App\Data\Model\ModelIdentity;
-use PhpParser\Node\Expr\AssignOp\Mod;
 
 class TrainingSeason extends TrainingPeriodData
 {
     public function __construct(
         public ?ModelIdentity $identity = null,
         public string $name = '',
-        public array $children = [],
+        public array $children = []
     ) {}
 
     public function name(): string
@@ -23,20 +22,21 @@ class TrainingSeason extends TrainingPeriodData
     public static function fromModel(TrainingPeriod $model)
     {
         static::guardAgainstInvalidType($model);
-        return new static(
-            identity: ModelIdentity::fromModel($model),
+        $instance = new static(
             name: $model->name,
+            identity: ModelIdentity::fromModel($model),
         );
+        return static::passParentAndSequence($instance, $model);
     }
 
     public static function fromConfig(array $data)
     {
-        $model = new static(
+        $instance = new static(
             name: $data['name'] ?? '',
             identity: $data['identity'] ?? null,
         );
 
-        return static::passParentAndSquence($model, $data);
+        return static::passParentAndSequence($instance, $data);
     }
 
     public static function getChildClass(): ?string

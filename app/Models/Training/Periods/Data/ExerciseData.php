@@ -20,4 +20,9 @@ class ExerciseData extends AbstractData
             name: $model->name,
         );
     }
+
+    public static function fromId(int $id)
+    {
+        return static::fromModel(Exercise::findOrFail($id));
+    }
 }

@@ -5,6 +5,7 @@ namespace App\Models\Training\Periods;
 use App\Models\Training\TrainingPeriodData;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 use App\Data\Model\ModelIdentity;
+use App\Models\Training\TrainingPeriod;
 
 class TrainingBlock extends TrainingPeriodData
 {
@@ -23,14 +24,32 @@ class TrainingBlock extends TrainingPeriodData
         return "Block " . ($this->sequence + 1);
     }
 
+    public static function fromModel(TrainingPeriod $model, array $extra = [])
+    {
+        static::guardAgainstInvalidType($model);
+        $instance = new static(
+            parent: $extra['parent'],
+            identity: ModelIdentity::fromModel($model),
+            sequence: $extra['sequence'],
+        );
+        return static::passParentAndSequence($instance, $model);
+    }
+
     public static function fromConfig(array $data)
     {
-        $model = new static(
+        $instance = new static(
             parent: $data['parent'],
             sequence: $data['sequence'],
             identity: $data['identity'] ?? null,
         );
-        return static::passParentAndSquence($model, $data);
+        return static::passParentAndSequence($instance, $data);
+    }
+
+    public function getModelData(): array
+    {
+        return [
+            'sequence' => $this->sequence,
+        ];
     }
 
     public static function getModelType(): string

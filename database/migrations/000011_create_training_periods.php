@@ -10,11 +10,22 @@ return new class extends Migration
     {
         Schema::create('training_periods', function (Blueprint $table) {
             $table->id();
-            $table->string('type'); // Required for Parental (single-table inheritance)
+            $table->unsignedBigInteger('parent_id')->nullable();
+            $table->string('type');
             $table->string('name')->nullable();
             $table->integer('sequence')->default(0);
             $table->schemalessAttributes('extra');
-            $table->nestedSet();
+            $table->timestamps();
+            $table->softDeletes();
+            $table->foreign('parent_id')->references('id')->on('training_periods')->cascadeOnDelete();
+        });
+
+        Schema::create('training_session_categories', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('slug')->unique();
+            $table->string('text_color')->nullable();
+            $table->string('background_color')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });
@@ -22,6 +33,7 @@ return new class extends Migration
 
     public function down(): void
     {
+        Schema::dropIfExists('training_session_categories');
         Schema::dropIfExists('training_periods');
     }
 };

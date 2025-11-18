@@ -2,27 +2,29 @@
 
 namespace App\Filament\Resources\Training\Schemas;
 
+use App\Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
-class TrainingPlanForm
+class TrainingSessionCategoryForm
 {
     public static function configure(Schema $schema): Schema
     {
         return $schema
             ->components([
-                Section::make('Training Plan Details')
+                Section::make('Category Information')
                     ->schema([
                         TextInput::make('name')
                             ->required()
                             ->maxLength(255),
-                        TextInput::make('sequence')
-                            ->numeric()
-                            ->default(0)
-                            ->minValue(0),
-                    ])
-                    ->columns(2),
+
+                        ColorPicker::make('text_color')
+                            ->label('Text Color'),
+
+                        ColorPicker::make('background_color')
+                            ->label('Background Color'),
+                    ]),
             ]);
     }
 }
