@@ -8,9 +8,9 @@ use App\Data\Model\ModelIdentity;
 class TrainingSessionCategory extends AbstractData
 {
     public function __construct(
-        public ModelIdentity $identity,
+        public ?ModelIdentity $identity,
         public string $name,
-        public string $backgroundColor,
-        public string $textColor
+        public ?string $backgroundColor = '#000000',
+        public ?string $textColor = '#FFFFFF'
     ) {}
 }

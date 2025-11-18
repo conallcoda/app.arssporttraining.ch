@@ -11,6 +11,7 @@ class TrainingSeeder extends Seeder
 {
     public function run(): void
     {
+
         $plans = [
             [
                 'name' => 'Example Training Plan',
