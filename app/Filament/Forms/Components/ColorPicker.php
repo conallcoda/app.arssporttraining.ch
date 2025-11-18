@@ -52,7 +52,7 @@ class ColorPicker extends Select
         ];
     }
 
-    protected static function getColorValue(string $colorName): string
+    public static function getColorValue(string $colorName): string
     {
         if ($colorName === 'black') {
             return '#000000';
@@ -89,5 +89,10 @@ class ColorPicker extends Select
 
         $palette = $colorMap[$colorName] ?? Color::Gray;
         return $palette[500] ?? $palette[array_key_first($palette)];
+    }
+
+    public static function getColorConstant(string $colorName): string
+    {
+        return static::getColorValue($colorName);
     }
 }

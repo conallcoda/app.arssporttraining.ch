@@ -4,12 +4,12 @@ namespace App\Models\Training\Periods;
 
 use App\Models\Training\TrainingPeriod;
 use App\Models\Training\TrainingPeriodData;
-use App\Data\Model\ModelIdentity;
+use App\Models\Training\Periods\Data\TrainingPeriodIdentity;
 
 class TrainingSeason extends TrainingPeriodData
 {
     public function __construct(
-        public ?ModelIdentity $identity = null,
+        public TrainingPeriodIdentity $identity,
         public string $name = '',
         public array $children = []
     ) {}
@@ -24,16 +24,17 @@ class TrainingSeason extends TrainingPeriodData
         static::guardAgainstInvalidType($model);
         $instance = new static(
             name: $model->name,
-            identity: ModelIdentity::fromModel($model),
+            identity: static::createIdentity($model)
         );
         return static::passParentAndSequence($instance, $model);
     }
+
 
     public static function fromConfig(array $data)
     {
         $instance = new static(
             name: $data['name'] ?? '',
-            identity: $data['identity'] ?? null,
+            identity: static::createIdentity()
         );
 
         return static::passParentAndSequence($instance, $data);

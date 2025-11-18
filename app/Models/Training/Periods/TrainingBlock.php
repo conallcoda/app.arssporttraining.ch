@@ -12,7 +12,6 @@ class TrainingBlock extends TrainingPeriodData
     public static string $type = 'block';
 
     public function __construct(
-        public TrainingSeason $parent,
         public ?ModelIdentity $identity = null,
         public int $sequence = 0,
         #[DataCollectionOf(TrainingWeek::class)]
@@ -28,7 +27,6 @@ class TrainingBlock extends TrainingPeriodData
     {
         static::guardAgainstInvalidType($model);
         $instance = new static(
-            parent: $extra['parent'],
             identity: ModelIdentity::fromModel($model),
             sequence: $extra['sequence'],
         );
@@ -38,7 +36,6 @@ class TrainingBlock extends TrainingPeriodData
     public static function fromConfig(array $data)
     {
         $instance = new static(
-            parent: $data['parent'],
             sequence: $data['sequence'],
             identity: $data['identity'] ?? null,
         );

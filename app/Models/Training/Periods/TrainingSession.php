@@ -14,24 +14,22 @@ class TrainingSession extends TrainingPeriodData
     public static string $type = 'session';
 
     public function __construct(
-        public TrainingWeek $parent,
         public ?ModelIdentity $identity = null,
-        public TrainingSessionPeriod $period,
-        public ?TrainingSessionCategoryData $category,
+        public ?TrainingSessionPeriod $period = null,
+        public ?TrainingSessionCategoryData $category = null,
         #[DataCollectionOf(TrainingExercise::class)]
         public array $children = [],
     ) {}
 
     public function name(): string
     {
-        return $this->period->label();
+        return $this->period?->label() ?? 'Session';
     }
 
     public static function fromModel(TrainingPeriod $model, array $extra = [])
     {
         static::guardAgainstInvalidType($model);
         $instance = new static(
-            parent: $extra['parent'],
             identity: ModelIdentity::fromModel($model),
             period: TrainingSessionPeriod::from($model->extra['period']),
             category: TrainingSessionCategoryData::from($model->extra['category'] ?? null),
@@ -42,7 +40,6 @@ class TrainingSession extends TrainingPeriodData
     public static function fromConfig(array $data)
     {
         $model = new static(
-            parent: $data['parent'],
             identity: $data['identity'] ?? null,
             period: TrainingSessionPeriod::from($data['period']),
             category: TrainingSessionCategoryData::from($data['category']),

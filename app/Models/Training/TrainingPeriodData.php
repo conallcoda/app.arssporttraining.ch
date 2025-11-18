@@ -4,6 +4,7 @@ namespace App\Models\Training;
 
 use App\Data\AbstractData;
 use App\Data\Model\ModelIdentity;
+use App\Models\Training\Periods\Data\TrainingPeriodIdentity;
 use App\Models\Training\Periods\TrainingExercise;
 
 abstract class TrainingPeriodData extends AbstractData
@@ -11,36 +12,38 @@ abstract class TrainingPeriodData extends AbstractData
 
     abstract public function name(): string;
 
-    public static function passParentAndSequence($parent, array|TrainingPeriod $data): static
+    public static function passParentAndSequence($instance, array|TrainingPeriod $data): static
     {
         if (is_null(static::getChildClass())) {
-            return $parent;
+            return $instance;
         }
-        if ($data instanceof TrainingPeriod) {
-            $mapper = function ($model, $index = 0) use ($parent) {
-                $extra = ['sequence' => $index, 'parent' => $parent];
-                return static::getChildClass()::fromModel($model, $extra);
-            };
-            $children =  $data->children()->get();
-        } else {
-            $mapper =  function ($childData, $index  = 0) use ($parent) {
-                $extra = ['sequence' => $index, 'parent' => $parent];
-                return static::getChildClass()::fromConfig(array_merge($childData, $extra));
-            };
-            $children = $data['children'] ?? [];
-        }
-        $children = collect($children)
-            ->map($mapper)
-            ->all();
 
-        $parent->children = $children;
-        return $parent;
+        if ($data instanceof TrainingPeriod) {
+            $children = $data->children()->get()->map(function ($model, $index) {
+                return static::getChildClass()::fromModel($model, ['sequence' => $index]);
+            })->all();
+        } else {
+            $children = collect($data['children'] ?? [])->map(function ($childData, $index) {
+                return static::getChildClass()::fromConfig(array_merge($childData, ['sequence' => $index]));
+            })->all();
+        }
+
+        $instance->children = $children;
+        return $instance;
     }
 
     public static function getChildClass(): ?string
     {
         return null;
     }
+
+    public static function createIdentity(?TrainingPeriod $model = null)
+    {
+        return isset($model) ?
+            TrainingPeriodIdentity::fromModel($model) :
+            TrainingPeriodIdentity::fromType(static::getModelType());
+    }
+
 
     public static function guardAgainstInvalidType(TrainingPeriod $model)
     {
@@ -71,18 +74,13 @@ abstract class TrainingPeriodData extends AbstractData
         return property_exists($this, 'children') ? $this->{'children'} : [];
     }
 
-    public function getParent(): ?TrainingPeriodData
-    {
-        return property_exists($this, 'parent') ? $this->{'parent'} : null;
-    }
-
-    public function persist()
+    public function persist(?int $parentId = null)
     {
         $modelClass = static::getModelClass();
         $data = $this->getModelData();
         $data = array_merge($data, [
             'type' => static::getModelType(),
-            'parent_id' => $this->getParent()?->getIdentity()?->id,
+            'parent_id' => $parentId,
         ]);
 
         if ($identity = $this->getIdentity()) {
@@ -100,7 +98,7 @@ abstract class TrainingPeriodData extends AbstractData
 
         foreach ($this->getChildren() as $child) {
             if ($child instanceof TrainingPeriodData) {
-                $child->persist();
+                $child->persist($model->id);
             }
         }
     }

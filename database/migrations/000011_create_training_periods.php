@@ -10,6 +10,7 @@ return new class extends Migration
     {
         Schema::create('training_periods', function (Blueprint $table) {
             $table->id();
+            $table->uuid()->unique();
             $table->unsignedBigInteger('parent_id')->nullable();
             $table->string('type');
             $table->string('name')->nullable();

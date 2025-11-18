@@ -10,18 +10,15 @@ use App\Models\Training\TrainingPeriod;
 class TrainingExercise extends TrainingPeriodData
 {
     public function __construct(
-        public TrainingSession $parent,
         public ?ModelIdentity $identity = null,
         public int $sequence = 0,
-        public ExerciseData $exercise,
-
+        public ?ExerciseData $exercise = null,
     ) {}
 
     public static function fromModel(TrainingPeriod $model, array $extra = [])
     {
         static::guardAgainstInvalidType($model);
         $instance = new static(
-            parent: $extra['parent'],
             identity: ModelIdentity::fromModel($model),
             sequence: $extra['sequence'],
             exercise: ExerciseData::from($model->extra['exercise']),
@@ -32,7 +29,6 @@ class TrainingExercise extends TrainingPeriodData
     public static function fromConfig(array $data)
     {
         return new static(
-            parent: $data['parent'],
             identity: $data['identity'] ?? null,
             exercise: ExerciseData::from($data['exercise']),
             sequence: $data['sequence'],

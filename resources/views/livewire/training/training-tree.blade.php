@@ -1,10 +1,22 @@
 <div class="training-tree">
     @foreach($nodes as $node)
+        @php
+            $nodeId = $node instanceof \App\Models\Training\TrainingPeriodData
+                ? ($node->getIdentity()?->id ?? 'temp-' . spl_object_id($node))
+                : ($node['id'] ?? 'temp-' . uniqid());
+            $nodeLabel = $node instanceof \App\Models\Training\TrainingPeriodData
+                ? $node->name()
+                : ($node['label'] ?? '');
+            $nodeChildren = $node instanceof \App\Models\Training\TrainingPeriodData
+                ? $node->getChildren()
+                : ($node['children'] ?? []);
+        @endphp
+
         <div class="tree-node">
-            <div class="node-header" wire:click="toggle('{{ $node['id'] }}')">
+            <div class="node-header" wire:click="toggle('{{ $nodeId }}')">
                 <span class="toggle-icon">
-                    @if(isset($node['children']) && count($node['children']) > 0)
-                        @if(isset($expanded[$node['id']]))
+                    @if(count($nodeChildren) > 0)
+                        @if(isset($expanded[$nodeId]))
                             <x-lucide-chevron-down class="w-4 h-4" />
                         @else
                             <x-lucide-chevron-right class="w-4 h-4" />
@@ -13,15 +25,15 @@
                         <span class="w-4 h-4 opacity-0"></span>
                     @endif
                 </span>
-                <span class="node-label">{{ $node['label'] }}</span>
+                <span class="node-label">{{ $nodeLabel }}</span>
             </div>
 
-            @if(isset($expanded[$node['id']]) && isset($node['children']))
+            @if(isset($expanded[$nodeId]) && count($nodeChildren) > 0)
                 <div class="node-children" style="margin-left: 1.5rem;">
                     <livewire:training.training-tree
-                        :nodes="$node['children']"
+                        :nodes="$nodeChildren"
                         :depth="$depth + 1"
-                        :key="'tree-' . $node['id']"
+                        :key="'tree-' . $nodeId"
                     />
                 </div>
             @endif

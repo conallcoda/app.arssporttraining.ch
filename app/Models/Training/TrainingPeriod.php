@@ -2,6 +2,7 @@
 
 namespace App\Models\Training;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\Concerns\HasExtraData;
@@ -11,6 +12,7 @@ class TrainingPeriod extends Model
 {
     use SoftDeletes;
     use HasExtraData;
+    use HasUuids;
 
     protected $types = [
         'season' => Periods\TrainingSeason::class,
@@ -21,6 +23,7 @@ class TrainingPeriod extends Model
     ];
 
     protected $fillable = [
+        'uuid',
         'extra',
         'name',
         'type',
@@ -32,6 +35,11 @@ class TrainingPeriod extends Model
         'sequence' => 'integer',
     ];
 
+    public function uniqueIds(): array
+    {
+        return ['uuid'];
+    }
+
     public function parent()
     {
         return $this->belongsTo(TrainingPeriod::class, 'parent_id');
@@ -40,6 +48,16 @@ class TrainingPeriod extends Model
     public function children()
     {
         return $this->hasMany(TrainingPeriod::class, 'parent_id')->orderBy('sequence');
+    }
+
+    public function newUniqueId(): string
+    {
+        return static::createUuid();
+    }
+
+    public static function createUuid()
+    {
+        return (string) \Illuminate\Support\Str::uuid7();
     }
 
     public static function getExtraConfig(?Model $model = null): array

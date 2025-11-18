@@ -10,7 +10,6 @@ use Spatie\LaravelData\Attributes\DataCollectionOf;
 class TrainingWeek extends TrainingPeriodData
 {
     public function __construct(
-        public TrainingBlock $parent,
         public ?ModelIdentity $identity = null,
         public int $sequence = 0,
         #[DataCollectionOf(TrainingSession::class)]
@@ -26,7 +25,6 @@ class TrainingWeek extends TrainingPeriodData
     {
         static::guardAgainstInvalidType($model);
         $instance = new static(
-            parent: $extra['parent'],
             identity: ModelIdentity::fromModel($model),
             sequence: $extra['sequence'],
         );
@@ -36,7 +34,6 @@ class TrainingWeek extends TrainingPeriodData
     public static function fromConfig(array $data)
     {
         $instance = new static(
-            parent: $data['parent'],
             sequence: $data['sequence'],
             identity: $data['identity'] ?? null,
         );

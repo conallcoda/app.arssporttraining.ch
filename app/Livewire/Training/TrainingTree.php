@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Training;
 
+use App\Models\Training\TrainingPeriodData;
 use Livewire\Component;
 
 class TrainingTree extends Component
@@ -17,9 +18,18 @@ class TrainingTree extends Component
 
         if ($this->depth < 2) {
             foreach ($this->nodes as $node) {
-                $this->expanded[$node['id']] = true;
+                $nodeId = $this->getNodeId($node);
+                $this->expanded[$nodeId] = true;
             }
         }
+    }
+
+    protected function getNodeId($node)
+    {
+        if ($node instanceof TrainingPeriodData) {
+            return $node->getIdentity()?->id ?? 'temp-' . spl_object_id($node);
+        }
+        return $node['id'] ?? 'temp-' . uniqid();
     }
 
     public function toggle($nodeId)
