@@ -5,19 +5,16 @@ namespace App\Models\Training;
 use App\Data\AbstractData;
 use App\Models\Training\Data\TrainingData;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
-use Spatie\LaravelData\Attributes\Computed;
 
 class TrainingNode extends AbstractData
 {
-;
-
     public function __construct(
         public string $uuid,
         public ?int $id = null,
         public ?string $name,
         public int $sequence = 0,
         public string $type,
-        TrainingData $data,
+        public TrainingData $data,
         #[DataCollectionOf(TrainingNode::class)]
         public array $children = [],
     ) {}
@@ -52,7 +49,7 @@ class TrainingNode extends AbstractData
             }
         }
 
-        $node = new static(
+        return new static(
             uuid: TrainingPeriod::createUuid(),
             id: null,
             type: $data->getModelType(),
@@ -61,27 +58,17 @@ class TrainingNode extends AbstractData
             sequence: $sequence,
             children: $children,
         );
-
-        $node->_additional['data'] = $data;
-
-        return $node;
     }
 
-    public function save(?int $parentId = null): TrainingPeriod
+    public function save(?int $parentId = null): void
     {
-        $data = $this->_additional['data'] ?? null;
-
-        if (!$data instanceof TrainingData) {
-            throw new \InvalidArgumentException("TrainingNode must have associated TrainingData to save");
-        }
-
         $period = TrainingPeriod::create([
             'uuid' => $this->uuid,
-            'name' => $this->name ?? $data->name($this),
-            'type' => $data->getModelType(),
+            'name' => $this->name ?? null,
+            'type' => $this->type,
             'sequence' => $this->sequence,
             'parent_id' => $parentId,
-            'extra' => $data->toArray(),
+            'extra' => $this->data->toArray(),
         ]);
 
         $this->id = $period->id;
@@ -89,7 +76,5 @@ class TrainingNode extends AbstractData
         foreach ($this->children as $child) {
             $child->save($period->id);
         }
-
-        return $period;
     }
 }

@@ -3,10 +3,8 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\Exercise\Exercise;
-use App\Models\Training\Periods\TrainingSeason;
 use App\Models\Training\TrainingSessionCategory;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Artisan;
 
 
 class TrainingSeeder extends Seeder
@@ -26,52 +24,6 @@ class TrainingSeeder extends Seeder
             $categoryModels[$created->slug] = $created;
         }
 
-        $e1 = Exercise::find(61);
-        $e2 = Exercise::find(62);
-        $e3 = Exercise::find(63);
-        $e4 = Exercise::find(64);
-
-        for ($i = 0; $i < 2; $i++) {
-
-
-
-
-            $dto = TrainingSeason::from([
-                'name' => 'Example Training Plan',
-                'children' => [
-                    [
-                        'children' => [
-                            [
-                                'children' => [
-                                    [
-                                        'category' => $categoryModels['gym'],
-                                        'period' => [
-                                            'day' => 0,
-                                            'sequence' => 1,
-                                        ],
-                                        'children' => [
-                                            [
-                                                'exercise' => $e1,
-                                            ],
-                                            [
-                                                'exercise' => $e2,
-                                            ],
-                                        ]
-                                    ]
-                                ]
-                            ],
-                            [],
-                        ],
-                    ],
-                    [
-                        'children' => [
-                            [],
-                            []
-                        ],
-                    ],
-                ],
-            ]);
-            $dto->persist();
-        }
+        Artisan::call('training:import');
     }
 }

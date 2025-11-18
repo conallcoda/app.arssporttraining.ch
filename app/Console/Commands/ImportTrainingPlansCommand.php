@@ -9,12 +9,12 @@ use Illuminate\Console\Command;
 use App\Models\Training\Data;
 use App\Models\Training\TrainingNode;
 
-class CreateTrainingPlan extends Command
+class ImportTrainingPlansCommand extends Command
 {
-    protected $signature = 'training';
+    protected $signature = 'training:import';
 
 
-    public function handle()
+    public static function getTemplate()
     {
         $e1 = Exercise::find(61);
         $e2 = Exercise::find(62);
@@ -23,7 +23,7 @@ class CreateTrainingPlan extends Command
 
         $gym = TrainingSessionCategory::where('slug', 'gym')->first();
 
-        $season =  Data\SeasonData::from()
+        $template =  Data\SeasonData::from()
             ->withChildren([
                 Data\BlockData::from()
                     ->withChildren([
@@ -45,8 +45,16 @@ class CreateTrainingPlan extends Command
                     ]),
             ]);
 
-        $tree = TrainingNode::fromData($season);
+        return $template;
+    }
+
+    public function handle()
+    {
+        $template = self::getTemplate();
+        $tree = TrainingNode::fromData($template);
         $tree->name = 'Example Training Plan';
+
         $tree->save();
+        return 0;
     }
 }
