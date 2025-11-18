@@ -53,6 +53,7 @@ class ImportTrainingPlansCommand extends Command
         $template = self::getTemplate();
         $tree = TrainingNode::fromData($template);
         $tree->name = 'Example Training Plan';
+        dd($tree);
 
         $tree->save();
         return 0;

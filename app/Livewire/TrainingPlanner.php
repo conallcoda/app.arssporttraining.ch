@@ -4,7 +4,6 @@ namespace App\Livewire;
 
 use App\Models\Training\Periods\TrainingSeason;
 use App\Models\Training\TrainingPeriod;
-use App\Livewire\Training\TrainingTree;
 use App\Models\Training\TrainingNode;
 use Livewire\Component;
 
@@ -16,15 +15,16 @@ class TrainingPlanner extends Component
     public $selectedWeekId = null;
 
     public array $flat;
-    public TrainingTree $tree;
+    public TrainingNode $root;
 
     public function mount($maxDepth = 2)
     {
         $this->maxDepth = $maxDepth;
         $periods = TrainingPeriod::find(1)->tree()->get();
         foreach ($periods as $period) {
-            $this->flat[$period->uuid] = TrainingNode::from($period);
+            $this->flat[$period->uuid] = TrainingNode::fromModel($period);
         }
+        $this->root = $this->flat[array_key_first($this->flat)];
     }
 
     protected function expandInitialNodes($model, $depth)
