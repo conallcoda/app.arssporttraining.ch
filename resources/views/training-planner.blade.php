@@ -1,7 +1,17 @@
-<div>
+<div x-data
+     @keydown.window.prevent.meta.s="$wire.saveChanges()"
+     @keydown.window.prevent.ctrl.s="$wire.saveChanges()">
     <div class="p-6">
-        <div class="mb-6">
+        <div class="mb-6 flex items-center justify-between">
             <h1 class="text-2xl font-bold">Training Planner</h1>
+            <div class="flex gap-2">
+                <flux:button wire:click="revertChanges" variant="ghost" :disabled="!$this->hasChanges">
+                    Revert Changes
+                </flux:button>
+                <flux:button wire:click="saveChanges" :disabled="!$this->hasChanges">
+                    Save Changes
+                </flux:button>
+            </div>
         </div>
 
         @if($season)

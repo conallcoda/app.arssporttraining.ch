@@ -4,7 +4,10 @@ namespace App\Livewire;
 
 use App\Models\Training\TrainingPeriod;
 use App\Models\Training\TrainingNode;
+use App\Models\Training\Data\BlockData;
+use App\Models\Training\Data\WeekData;
 use Livewire\Component;
+use Livewire\Attributes\Computed;
 
 
 class TrainingPlanner extends Component
@@ -13,6 +16,8 @@ class TrainingPlanner extends Component
     public $maxDepth = 2;
     public $selectedPeriodUuid = null;
     public ?TrainingNode $season = null;
+    public ?TrainingNode $originalSeason = null;
+    public $deletedNodes = [];
 
     public function mount($maxDepth = 2)
     {
@@ -33,7 +38,9 @@ class TrainingPlanner extends Component
                 $this->expandInitialNodes($seasonModel, 0);
 
                 $this->season = TrainingNode::fromModel($seasonModel);
-                if (!empty($this->season->children)) {
+                $this->originalSeason = clone $this->season;
+
+                if (!$this->selectedPeriodUuid && !empty($this->season->children)) {
                     $firstBlock = $this->season->children[0];
                     if (!empty($firstBlock->children)) {
                         $firstWeek = $firstBlock->children[0];
@@ -69,6 +76,212 @@ class TrainingPlanner extends Component
     public function selectPeriod($uuid)
     {
         $this->selectedPeriodUuid = $uuid;
+    }
+
+    #[Computed]
+    public function hasChanges(): bool
+    {
+        if (!empty($this->deletedNodes)) {
+            return true;
+        }
+
+        return $this->treeHasChanges($this->season, $this->originalSeason);
+    }
+
+    protected function treeHasChanges(?TrainingNode $current, ?TrainingNode $original): bool
+    {
+        if (!$current && !$original) {
+            return false;
+        }
+
+        if (!$current || !$original) {
+            return true;
+        }
+
+        if ($current->sequence !== $original->sequence) {
+            return true;
+        }
+
+        if (count($current->children) !== count($original->children)) {
+            return true;
+        }
+
+        $currentUuids = array_map(fn($child) => $child->uuid, $current->children);
+        $originalUuids = array_map(fn($child) => $child->uuid, $original->children);
+
+        if ($currentUuids !== $originalUuids) {
+            return true;
+        }
+
+        foreach ($current->children as $index => $child) {
+            if ($this->treeHasChanges($child, $original->children[$index])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function saveChanges()
+    {
+        if (!$this->hasChanges()) {
+            return;
+        }
+
+        foreach ($this->deletedNodes as $uuid) {
+            $period = TrainingPeriod::where('uuid', $uuid)->first();
+            if ($period) {
+                $period->delete();
+            }
+        }
+
+        if ($this->season) {
+            $this->season->save();
+        }
+
+        $this->deletedNodes = [];
+        $this->mount($this->maxDepth);
+    }
+
+    public function revertChanges()
+    {
+        $this->deletedNodes = [];
+        $this->mount($this->maxDepth);
+    }
+
+    public function addBlock($seasonUuid)
+    {
+        if ($this->season && $this->season->uuid === $seasonUuid) {
+            $newSequence = count($this->season->children);
+            $blockData = new BlockData();
+
+            $newBlock = TrainingNode::fromData(
+                data: $blockData,
+                sequence: $newSequence,
+                parentUuid: null
+            );
+
+            $this->season->children[] = $newBlock;
+        }
+    }
+
+    public function addWeek($blockUuid)
+    {
+        $this->addChildToNode($this->season, $blockUuid, new WeekData());
+    }
+
+    protected function addChildToNode(?TrainingNode $node, string $parentUuid, $data): bool
+    {
+        if (!$node) {
+            return false;
+        }
+
+        if ($node->uuid === $parentUuid) {
+            $newSequence = count($node->children);
+            $newChild = TrainingNode::fromData(
+                data: $data,
+                sequence: $newSequence,
+                parentUuid: null
+            );
+
+            $node->children[] = $newChild;
+            return true;
+        }
+
+        foreach ($node->children as $child) {
+            if ($this->addChildToNode($child, $parentUuid, $data)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function deletePeriod($uuid)
+    {
+        if ($this->selectedPeriodUuid === $uuid) {
+            $this->selectedPeriodUuid = null;
+        }
+
+        $this->deletedNodes[] = $uuid;
+        $this->removeNodeFromTree($this->season, $uuid);
+    }
+
+    protected function renumberChildren(array &$children): void
+    {
+        foreach ($children as $index => $child) {
+            $child->sequence = $index;
+        }
+    }
+
+    public function moveUp($uuid)
+    {
+        $this->moveNode($uuid, -1);
+    }
+
+    public function moveDown($uuid)
+    {
+        $this->moveNode($uuid, 1);
+    }
+
+    protected function moveNode(string $uuid, int $direction): void
+    {
+        $this->swapNodeInTree($this->season, $uuid, $direction);
+    }
+
+    protected function swapNodeInTree(?TrainingNode $node, string $uuid, int $direction): bool
+    {
+        if (!$node || empty($node->children)) {
+            return false;
+        }
+
+        foreach ($node->children as $index => $child) {
+            if ($child->uuid === $uuid) {
+                $targetIndex = $index + $direction;
+
+                if ($targetIndex >= 0 && $targetIndex < count($node->children)) {
+                    $currentNode = $node->children[$index];
+                    $targetNode = $node->children[$targetIndex];
+
+                    $tempSequence = $currentNode->sequence;
+                    $currentNode->sequence = $targetNode->sequence;
+                    $targetNode->sequence = $tempSequence;
+
+                    $node->children[$index] = $targetNode;
+                    $node->children[$targetIndex] = $currentNode;
+
+                    return true;
+                }
+                return false;
+            }
+
+            if ($this->swapNodeInTree($child, $uuid, $direction)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function removeNodeFromTree(?TrainingNode $node, string $uuid): bool
+    {
+        if (!$node || empty($node->children)) {
+            return false;
+        }
+
+        foreach ($node->children as $index => $child) {
+            if ($child->uuid === $uuid) {
+                array_splice($node->children, $index, 1);
+                $this->renumberChildren($node->children);
+                return true;
+            }
+
+            if ($this->removeNodeFromTree($child, $uuid)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     protected function buildFlatList(TrainingNode $node, array &$flat): void

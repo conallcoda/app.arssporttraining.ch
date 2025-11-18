@@ -3,6 +3,9 @@
     $nodeChildren = $depth < $maxDepth ? $node->getChildren() : [];
     $nodeUuid = $node->uuid;
     $isSelected = $selectedPeriodUuid === $nodeUuid;
+    $nodeType = $node->type;
+    $isFirst = $isFirst ?? false;
+    $isLast = $isLast ?? false;
 @endphp
 
 <div class="my-1 text-sm">
@@ -23,12 +26,47 @@
               wire:click.stop="selectPeriod('{{ $nodeUuid }}')">
             {{ $node->name() }}
         </span>
+        @if($nodeType === 'season')
+            <flux:dropdown position="bottom" align="end">
+                <flux:button size="xs" variant="ghost" icon="ellipsis-vertical" inset="top bottom" class="ml-2" />
+                <flux:menu>
+                    <flux:menu.item wire:click="addBlock('{{ $nodeUuid }}')" icon="list-plus">Add Block</flux:menu.item>
+                </flux:menu>
+            </flux:dropdown>
+        @elseif($nodeType === 'block')
+            <flux:dropdown position="bottom" align="end">
+                <flux:button size="xs" variant="ghost" icon="ellipsis-vertical" inset="top bottom" class="ml-2" />
+                <flux:menu>
+                    <flux:menu.item wire:click="addWeek('{{ $nodeUuid }}')" icon="list-plus">Add Week</flux:menu.item>
+                    <flux:menu.separator />
+                    <flux:menu.item wire:click="moveUp('{{ $nodeUuid }}')" icon="arrow-up" :disabled="$isFirst">Move Up</flux:menu.item>
+                    <flux:menu.item wire:click="moveDown('{{ $nodeUuid }}')" icon="arrow-down" :disabled="$isLast">Move Down</flux:menu.item>
+                    <flux:menu.separator />
+                    <flux:menu.item wire:click="deletePeriod('{{ $nodeUuid }}')" icon="trash" variant="danger">Delete</flux:menu.item>
+                </flux:menu>
+            </flux:dropdown>
+        @elseif($nodeType === 'week')
+            <flux:dropdown position="bottom" align="end">
+                <flux:button size="xs" variant="ghost" icon="ellipsis-vertical" inset="top bottom" class="ml-2" />
+                <flux:menu>
+                    <flux:menu.item wire:click="moveUp('{{ $nodeUuid }}')" icon="arrow-up" :disabled="$isFirst">Move Up</flux:menu.item>
+                    <flux:menu.item wire:click="moveDown('{{ $nodeUuid }}')" icon="arrow-down" :disabled="$isLast">Move Down</flux:menu.item>
+                    <flux:menu.separator />
+                    <flux:menu.item wire:click="deletePeriod('{{ $nodeUuid }}')" icon="trash" variant="danger">Delete</flux:menu.item>
+                </flux:menu>
+            </flux:dropdown>
+        @endif
     </div>
 
     @if(isset($expanded[$nodeId]) && count($nodeChildren) > 0)
         <div class="ml-6">
-            @foreach($nodeChildren as $child)
-                @include('training-planner.tree-node', ['node' => $child, 'depth' => $depth + 1])
+            @foreach($nodeChildren as $index => $child)
+                @include('training-planner.tree-node', [
+                    'node' => $child,
+                    'depth' => $depth + 1,
+                    'isFirst' => $index === 0,
+                    'isLast' => $index === count($nodeChildren) - 1
+                ])
             @endforeach
         </div>
     @endif
