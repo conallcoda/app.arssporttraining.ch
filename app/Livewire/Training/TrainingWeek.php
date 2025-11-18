@@ -101,6 +101,8 @@ class TrainingWeek extends Component
             weekUuid: $this->week->uuid,
             sessionUuid: $sessionUuid
         );
+
+        $this->closeSessionModal();
     }
 
     protected function findSession(string $uuid): ?TrainingNode

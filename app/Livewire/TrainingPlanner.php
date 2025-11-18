@@ -25,6 +25,8 @@ class TrainingPlanner extends Component
     public ?TrainingNode $originalSeason = null;
     public $deletedNodes = [];
     public int $lastChangeTimestamp;
+    public array $history = [];
+    public int $historyIndex = -1;
 
     public function mount($maxDepth = 2)
     {
@@ -47,6 +49,9 @@ class TrainingPlanner extends Component
 
                 $this->season = TrainingNode::fromModel($seasonModel);
                 $this->originalSeason = clone $this->season;
+
+                $this->history = [$this->deepCloneTree($this->season)];
+                $this->historyIndex = 0;
 
                 if (!$this->selectedPeriodUuid && !empty($this->season->children)) {
                     $firstBlock = $this->season->children[0];
@@ -285,7 +290,7 @@ class TrainingPlanner extends Component
 
         foreach ($node->children as $index => $child) {
             if ($child->uuid === $uuid) {
-                $duplicate = $this->deepCloneNode($child);
+                $duplicate = $this->deepCloneNode($child, generateNewUuid: true);
 
                 array_splice($node->children, $index + 1, 0, [$duplicate]);
                 $this->renumberChildren($node->children);
@@ -301,18 +306,36 @@ class TrainingPlanner extends Component
         return false;
     }
 
-    protected function deepCloneNode(TrainingNode $node): TrainingNode
+    protected function deepCloneNode(TrainingNode $node, bool $generateNewUuid = false): TrainingNode
     {
         $clonedChildren = [];
         foreach ($node->children as $child) {
-            $clonedChildren[] = $this->deepCloneNode($child);
+            $clonedChildren[] = $this->deepCloneNode($child, $generateNewUuid);
         }
 
-        return TrainingNode::fromData(
-            data: $node->data,
+        $clonedData = $node->data::from($node->data->toArray());
+
+        $cloned = new TrainingNode(
+            uuid: $generateNewUuid ? TrainingPeriod::createUuid() : $node->uuid,
+            id: $generateNewUuid ? null : $node->id,
+            parent: $node->parent,
+            name: $node->name,
             sequence: $node->sequence,
-            parentUuid: $node->parent
+            type: $node->type,
+            data: $clonedData,
+            children: $clonedChildren
         );
+
+        return $cloned;
+    }
+
+    protected function deepCloneTree(?TrainingNode $node): ?TrainingNode
+    {
+        if (!$node) {
+            return null;
+        }
+
+        return $this->deepCloneNode($node);
     }
 
     protected function renumberChildren(array &$children): void
@@ -405,6 +428,45 @@ class TrainingPlanner extends Component
     protected function markChanged(): void
     {
         $this->lastChangeTimestamp = time();
+
+        if ($this->historyIndex < count($this->history) - 1) {
+            $this->history = array_slice($this->history, 0, $this->historyIndex + 1);
+        }
+
+        $this->history[] = $this->deepCloneTree($this->season);
+        $this->historyIndex = count($this->history) - 1;
+    }
+
+    public function undo(): void
+    {
+        if ($this->historyIndex > 0) {
+            $this->historyIndex--;
+            $this->season = $this->deepCloneTree($this->history[$this->historyIndex]);
+            $this->deletedNodes = [];
+            $this->lastChangeTimestamp = time();
+        }
+    }
+
+    public function redo(): void
+    {
+        if ($this->historyIndex < count($this->history) - 1) {
+            $this->historyIndex++;
+            $this->season = $this->deepCloneTree($this->history[$this->historyIndex]);
+            $this->deletedNodes = [];
+            $this->lastChangeTimestamp = time();
+        }
+    }
+
+    #[Computed]
+    public function canUndo(): bool
+    {
+        return $this->historyIndex > 0;
+    }
+
+    #[Computed]
+    public function canRedo(): bool
+    {
+        return $this->historyIndex < count($this->history) - 1;
     }
 
     #[On('addSession')]
@@ -444,6 +506,11 @@ class TrainingPlanner extends Component
     #[On('deleteSession')]
     public function deleteSession(string $weekUuid, string $sessionUuid)
     {
+        $session = $this->findSessionInTree($this->season, $sessionUuid);
+        if ($session && $session->id) {
+            $this->deletedNodes[] = $sessionUuid;
+        }
+
         $this->deleteSessionFromWeek($this->season, $weekUuid, $sessionUuid);
         $this->markChanged();
     }
@@ -455,6 +522,16 @@ class TrainingPlanner extends Component
         }
 
         if ($node->uuid === $weekUuid) {
+            foreach ($node->children as $index => $session) {
+                if ($session->data->day === $sessionData->day && $session->data->slot === $sessionData->slot) {
+                    if ($session->id) {
+                        $this->deletedNodes[] = $session->uuid;
+                    }
+                    array_splice($node->children, $index, 1);
+                    break;
+                }
+            }
+
             $newSession = TrainingNode::fromData(
                 data: $sessionData,
                 sequence: count($node->children),
@@ -505,6 +582,16 @@ class TrainingPlanner extends Component
         }
 
         if ($node->uuid === $weekUuid) {
+            foreach ($node->children as $index => $existingSession) {
+                if ($existingSession->data->day === $newDay && $existingSession->data->slot === $newSlot && $existingSession->uuid !== $sessionUuid) {
+                    if ($existingSession->id) {
+                        $this->deletedNodes[] = $existingSession->uuid;
+                    }
+                    array_splice($node->children, $index, 1);
+                    break;
+                }
+            }
+
             foreach ($node->children as $session) {
                 if ($session->uuid === $sessionUuid) {
                     $session->data->day = $newDay;
@@ -587,6 +674,26 @@ class TrainingPlanner extends Component
         }
 
         return false;
+    }
+
+    protected function findSessionInTree(?TrainingNode $node, string $sessionUuid): ?TrainingNode
+    {
+        if (!$node) {
+            return null;
+        }
+
+        if ($node->uuid === $sessionUuid) {
+            return $node;
+        }
+
+        foreach ($node->children as $child) {
+            $found = $this->findSessionInTree($child, $sessionUuid);
+            if ($found) {
+                return $found;
+            }
+        }
+
+        return null;
     }
 
     public function render()
