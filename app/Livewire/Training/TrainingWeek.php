@@ -76,6 +76,33 @@ class TrainingWeek extends Component
         $this->closeSessionModal();
     }
 
+    public function moveSession(string $sessionUuid, int $newDay, int $newSlot)
+    {
+        $this->dispatch('moveSession',
+            weekUuid: $this->week->uuid,
+            sessionUuid: $sessionUuid,
+            newDay: $newDay,
+            newSlot: $newSlot
+        );
+    }
+
+    public function swapSessions(string $sessionUuid1, string $sessionUuid2)
+    {
+        $this->dispatch('swapSessions',
+            weekUuid: $this->week->uuid,
+            sessionUuid1: $sessionUuid1,
+            sessionUuid2: $sessionUuid2
+        );
+    }
+
+    public function deleteSession(string $sessionUuid)
+    {
+        $this->dispatch('deleteSession',
+            weekUuid: $this->week->uuid,
+            sessionUuid: $sessionUuid
+        );
+    }
+
     protected function findSession(string $uuid): ?TrainingNode
     {
         foreach ($this->week->children as $session) {

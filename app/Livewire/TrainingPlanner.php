@@ -10,13 +10,17 @@ use App\Models\Training\Data\SessionData;
 use Livewire\Component;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
+use Livewire\Attributes\Url;
 
 
 class TrainingPlanner extends Component
 {
     public $expanded = [];
     public $maxDepth = 2;
+
+    #[Url(as: 'period')]
     public $selectedPeriodUuid = null;
+
     public ?TrainingNode $season = null;
     public ?TrainingNode $originalSeason = null;
     public $deletedNodes = [];
@@ -423,6 +427,27 @@ class TrainingPlanner extends Component
         $this->markChanged();
     }
 
+    #[On('moveSession')]
+    public function moveSession(string $weekUuid, string $sessionUuid, int $newDay, int $newSlot)
+    {
+        $this->moveSessionInWeek($this->season, $weekUuid, $sessionUuid, $newDay, $newSlot);
+        $this->markChanged();
+    }
+
+    #[On('swapSessions')]
+    public function swapSessions(string $weekUuid, string $sessionUuid1, string $sessionUuid2)
+    {
+        $this->swapSessionsInWeek($this->season, $weekUuid, $sessionUuid1, $sessionUuid2);
+        $this->markChanged();
+    }
+
+    #[On('deleteSession')]
+    public function deleteSession(string $weekUuid, string $sessionUuid)
+    {
+        $this->deleteSessionFromWeek($this->season, $weekUuid, $sessionUuid);
+        $this->markChanged();
+    }
+
     protected function addSessionToWeek(?TrainingNode $node, string $weekUuid, SessionData $sessionData): bool
     {
         if (!$node) {
@@ -466,6 +491,97 @@ class TrainingPlanner extends Component
 
         foreach ($node->children as $child) {
             if ($this->updateSessionInWeek($child, $weekUuid, $sessionUuid, $category)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function moveSessionInWeek(?TrainingNode $node, string $weekUuid, string $sessionUuid, int $newDay, int $newSlot): bool
+    {
+        if (!$node) {
+            return false;
+        }
+
+        if ($node->uuid === $weekUuid) {
+            foreach ($node->children as $session) {
+                if ($session->uuid === $sessionUuid) {
+                    $session->data->day = $newDay;
+                    $session->data->slot = $newSlot;
+                    return true;
+                }
+            }
+        }
+
+        foreach ($node->children as $child) {
+            if ($this->moveSessionInWeek($child, $weekUuid, $sessionUuid, $newDay, $newSlot)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function swapSessionsInWeek(?TrainingNode $node, string $weekUuid, string $sessionUuid1, string $sessionUuid2): bool
+    {
+        if (!$node) {
+            return false;
+        }
+
+        if ($node->uuid === $weekUuid) {
+            $session1 = null;
+            $session2 = null;
+
+            foreach ($node->children as $session) {
+                if ($session->uuid === $sessionUuid1) {
+                    $session1 = $session;
+                }
+                if ($session->uuid === $sessionUuid2) {
+                    $session2 = $session;
+                }
+            }
+
+            if ($session1 && $session2) {
+                $tempDay = $session1->data->day;
+                $tempSlot = $session1->data->slot;
+
+                $session1->data->day = $session2->data->day;
+                $session1->data->slot = $session2->data->slot;
+
+                $session2->data->day = $tempDay;
+                $session2->data->slot = $tempSlot;
+
+                return true;
+            }
+        }
+
+        foreach ($node->children as $child) {
+            if ($this->swapSessionsInWeek($child, $weekUuid, $sessionUuid1, $sessionUuid2)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function deleteSessionFromWeek(?TrainingNode $node, string $weekUuid, string $sessionUuid): bool
+    {
+        if (!$node) {
+            return false;
+        }
+
+        if ($node->uuid === $weekUuid) {
+            foreach ($node->children as $index => $session) {
+                if ($session->uuid === $sessionUuid) {
+                    array_splice($node->children, $index, 1);
+                    return true;
+                }
+            }
+        }
+
+        foreach ($node->children as $child) {
+            if ($this->deleteSessionFromWeek($child, $weekUuid, $sessionUuid)) {
                 return true;
             }
         }

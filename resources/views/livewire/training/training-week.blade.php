@@ -1,4 +1,38 @@
-<div class="space-y-4">
+<div class="space-y-4"
+     x-data="{
+        draggedSessionUuid: null,
+        draggedFromDay: null,
+        draggedFromSlot: null,
+        isDraggingOver: null,
+
+        startDrag(sessionUuid, day, slot) {
+            this.draggedSessionUuid = sessionUuid;
+            this.draggedFromDay = day;
+            this.draggedFromSlot = slot;
+        },
+
+        dragOver(day, slot) {
+            this.isDraggingOver = day + '-' + slot;
+        },
+
+        dragLeave() {
+            this.isDraggingOver = null;
+        },
+
+        drop(targetSessionUuid, targetDay, targetSlot) {
+            if (this.draggedSessionUuid && (this.draggedFromDay !== targetDay || this.draggedFromSlot !== targetSlot)) {
+                if (targetSessionUuid) {
+                    $wire.swapSessions(this.draggedSessionUuid, targetSessionUuid);
+                } else {
+                    $wire.moveSession(this.draggedSessionUuid, targetDay, targetSlot);
+                }
+            }
+            this.draggedSessionUuid = null;
+            this.draggedFromDay = null;
+            this.draggedFromSlot = null;
+            this.isDraggingOver = null;
+        }
+     }">
     @php
         $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
         $timePeriods = ['Morning', 'Afternoon'];
@@ -20,7 +54,7 @@
 
     {{-- Week Grid --}}
     <div class="overflow-x-auto">
-        <table class="w-full border-collapse">
+        <table class="w-full border-collapse table-fixed">
             <thead>
                 <tr>
                     <th
@@ -29,7 +63,8 @@
                     </th>
                     @foreach ($days as $day)
                         <th
-                            class="border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 p-2 text-center text-sm font-semibold">
+                            class="border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 p-2 text-center text-sm font-semibold"
+                            style="width: calc((100% - 6rem) / 7);">
                             {{ $day }}
                         </th>
                     @endforeach
@@ -46,18 +81,29 @@
                             @php
                                 $session = $sessionsByDayAndSequence[$dayIndex][$sequenceIndex] ?? null;
                                 $sessionCategory = $session && $session->data->category ? ($categoriesById[$session->data->category] ?? null) : null;
+                                $cellKey = $dayIndex . '-' . $sequenceIndex;
                             @endphp
                             <td
-                                class="border border-zinc-200 dark:border-zinc-700 p-2 h-24 align-top hover:bg-zinc-50 dark:hover:bg-zinc-800/50 cursor-pointer transition-colors"
-                                wire:click="openSessionModal('{{ $session?->uuid }}', {{ $dayIndex }}, {{ $sequenceIndex }})">
+                                class="border border-zinc-200 dark:border-zinc-700 p-2 h-24 align-top transition-all duration-200"
+                                :class="isDraggingOver === '{{ $cellKey }}' ? 'bg-blue-100 dark:bg-blue-900/30 scale-105' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/50'"
+                                @dragover.prevent="dragOver({{ $dayIndex }}, {{ $sequenceIndex }})"
+                                @dragleave="dragLeave()"
+                                @drop.prevent="drop('{{ $session?->uuid }}', {{ $dayIndex }}, {{ $sequenceIndex }})">
 
                                 @if($sessionCategory)
-                                    <div class="h-full flex items-center justify-center rounded px-2 py-1"
-                                         style="background-color: {{ $this->getColorValue($sessionCategory->background_color) }}; color: {{ $this->getColorValue($sessionCategory->text_color) }};">
+                                    <div class="h-full flex items-center justify-center rounded px-2 py-1 cursor-move group relative transition-transform duration-200"
+                                         :class="draggedSessionUuid === '{{ $session->uuid }}' ? 'opacity-50 scale-95' : ''"
+                                         style="background-color: {{ $this->getColorValue($sessionCategory->background_color) }}; color: {{ $this->getColorValue($sessionCategory->text_color) }};"
+                                         draggable="true"
+                                         @dragstart="startDrag('{{ $session->uuid }}', {{ $dayIndex }}, {{ $sequenceIndex }})"
+                                         @dragend="draggedSessionUuid = null; isDraggingOver = null"
+                                         @dblclick="$wire.openSessionModal('{{ $session->uuid }}', {{ $dayIndex }}, {{ $sequenceIndex }})">
                                         <span class="text-sm font-medium">{{ $sessionCategory->name }}</span>
+                                        <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded transition-colors pointer-events-none"></div>
                                     </div>
                                 @else
-                                    <div class="h-full flex items-center justify-center text-zinc-400 dark:text-zinc-600">
+                                    <div class="h-full flex items-center justify-center text-zinc-400 dark:text-zinc-600 cursor-pointer"
+                                         wire:click="openSessionModal(null, {{ $dayIndex }}, {{ $sequenceIndex }})">
                                         <x-lucide-plus class="w-5 h-5" />
                                     </div>
                                 @endif
@@ -99,9 +145,16 @@
                 <flux:error name="sessionCategory" />
             </flux:field>
 
-            <div class="flex gap-2 justify-end">
-                <flux:button type="button" variant="ghost" wire:click="closeSessionModal">Cancel</flux:button>
-                <flux:button type="submit" variant="primary">Save Session</flux:button>
+            <div class="flex gap-2 justify-between">
+                <div>
+                    @if($editingSessionUuid)
+                        <flux:button type="button" variant="danger" wire:click="deleteSession('{{ $editingSessionUuid }}')" icon="trash">Delete</flux:button>
+                    @endif
+                </div>
+                <div class="flex gap-2">
+                    <flux:button type="button" variant="ghost" wire:click="closeSessionModal">Cancel</flux:button>
+                    <flux:button type="submit" variant="primary">Save Session</flux:button>
+                </div>
             </div>
         </form>
     </flux:modal>
