@@ -22,6 +22,16 @@ class SessionData extends TrainingData
         return 'session';
     }
 
+    public function toArray(): array
+    {
+        return [
+            'day' => $this->day,
+            'slot' => $this->slot,
+            'category' => $this->category,
+        ];
+    }
+
+
     public static function fromModel(TrainingPeriod $model)
     {
         static::guardAgainstInvalidType($model);

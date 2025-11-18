@@ -22,27 +22,51 @@ class ImportTrainingPlansCommand extends Command
         $e4 = Exercise::find(64);
 
         $gym = TrainingSessionCategory::where('slug', 'gym')->first();
+        $jump = TrainingSessionCategory::where('slug', 'jump')->first();
 
+        $createWeek = function () use ($gym, $jump, $e1, $e2, $e3, $e4) {
+            return  Data\WeekData::from()
+                ->withChildren([
+                    Data\SessionData::from(
+                        [
+                            'category' => $gym->id,
+                            'day' => 0,
+                            'slot' => 1,
+                        ]
+                    )
+                        ->withChildren([
+                            Data\ExerciseData::from(['exercise' => $e1->id]),
+                            Data\ExerciseData::from(['exercise' => $e2->id]),
+                        ]),
+                    Data\SessionData::from(
+                        [
+                            'category' => $jump->id,
+                            'day' => 2,
+                            'slot' => 0,
+                        ]
+                    )
+                        ->withChildren([
+                            Data\ExerciseData::from(['exercise' => $e3->id]),
+                            Data\ExerciseData::from(['exercise' => $e4->id]),
+                        ]),
+                ]);
+        };
+
+
+        $createBlock = function () use ($createWeek) {
+            return  Data\BlockData::from()
+                ->withChildren([
+                    $createWeek(),
+                    $createWeek(),
+                    $createWeek(),
+                    $createWeek(),
+                    $createWeek(),
+                ]);
+        };
         $template =  Data\SeasonData::from()
             ->withChildren([
-                Data\BlockData::from()
-                    ->withChildren([
-                        Data\WeekData::from()
-                            ->withChildren([
-                                Data\SessionData::from(
-                                    [
-                                        'category' => $gym->id,
-                                        'day' => 0,
-                                        'slot' => 1,
-                                    ]
-                                )
-                                    ->withChildren([
-                                        Data\ExerciseData::from(['exercise' => $e1->id]),
-                                        Data\ExerciseData::from(['exercise' => $e2->id]),
-                                    ])
-
-                            ]),
-                    ]),
+                $createBlock(),
+                $createBlock(),
             ]);
 
         return $template;
@@ -53,7 +77,7 @@ class ImportTrainingPlansCommand extends Command
         $template = self::getTemplate();
         $tree = TrainingNode::fromData($template);
         $tree->name = 'Example Training Plan';
-        dd($tree);
+
 
         $tree->save();
         return 0;

@@ -16,6 +16,11 @@ class BlockData extends TrainingData
         return 'block';
     }
 
+    public function toArray(): array
+    {
+        return [];
+    }
+
     public static function fromModel(TrainingPeriod $model)
     {
         static::guardAgainstInvalidType($model);

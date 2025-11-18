@@ -3,8 +3,14 @@
 namespace App\Models\Training;
 
 use App\Data\AbstractData;
+use App\Models\Training\Data\BlockData;
+use App\Models\Training\Data\ExerciseData;
+use App\Models\Training\Data\SeasonData;
+use App\Models\Training\Data\SessionData;
 use App\Models\Training\Data\TrainingData;
+use App\Models\Training\Data\WeekData;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
+
 
 class TrainingNode extends AbstractData
 {
@@ -21,6 +27,26 @@ class TrainingNode extends AbstractData
         #[DataCollectionOf(TrainingNode::class)]
         public array $children = [],
     ) {}
+
+    public static function prepareForPipeline(array $properties): array
+    {
+        if (isset($properties['data']) && is_array($properties['data']) && isset($properties['type'])) {
+            $typeMap = [
+                'season' => SeasonData::class,
+                'block' => BlockData::class,
+                'week' => WeekData::class,
+                'session' => SessionData::class,
+                'exercise' => ExerciseData::class,
+            ];
+
+            if (isset($typeMap[$properties['type']])) {
+                $dataClass = $typeMap[$properties['type']];
+                $properties['data'] = $dataClass::from($properties['data']);
+            }
+        }
+
+        return $properties;
+    }
 
     public static function fromModel(TrainingPeriod $model): self
     {
@@ -84,6 +110,8 @@ class TrainingNode extends AbstractData
 
     public function save(?int $parentId = null): void
     {
+        $extraData = $this->data->toArray();
+        $extraData = empty($extraData) ? null : $extraData;
         if ($this->id !== null) {
             $period = TrainingPeriod::findOrFail($this->id);
             $period->update([
@@ -91,7 +119,7 @@ class TrainingNode extends AbstractData
                 'type' => $this->type,
                 'sequence' => $this->sequence,
                 'parent_id' => $parentId,
-                'extra' => $this->data->toArray(),
+                'extra' => $extraData,
             ]);
         } else {
             $period = TrainingPeriod::create([
@@ -100,7 +128,7 @@ class TrainingNode extends AbstractData
                 'type' => $this->type,
                 'sequence' => $this->sequence,
                 'parent_id' => $parentId,
-                'extra' => $this->data->toArray(),
+                'extra' => $extraData,
             ]);
 
             $this->id = $period->id;

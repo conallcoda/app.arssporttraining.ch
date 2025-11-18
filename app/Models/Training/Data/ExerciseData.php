@@ -20,6 +20,11 @@ class ExerciseData extends TrainingData
         return 'exercise';
     }
 
+    public function toArray(): array
+    {
+        return ['exercise' => $this->exercise];
+    }
+
     public static function fromModel(TrainingPeriod $model)
     {
         static::guardAgainstInvalidType($model);

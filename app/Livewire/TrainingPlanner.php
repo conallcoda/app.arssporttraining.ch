@@ -11,7 +11,8 @@ class TrainingPlanner extends Component
 {
     public $expanded = [];
     public $maxDepth = 2;
-    public $selectedWeekId = null;
+    public $selectedPeriodUuid = null;
+    public array $flat = [];
 
     public function mount($maxDepth = 2)
     {
@@ -45,9 +46,17 @@ class TrainingPlanner extends Component
         }
     }
 
-    public function selectWeek($weekId)
+    public function selectPeriod($uuid)
     {
-        $this->selectedWeekId = $weekId;
+        $this->selectedPeriodUuid = $uuid;
+    }
+
+    protected function buildFlatList(TrainingNode $node): void
+    {
+        $this->flat[$node->uuid] = $node;
+        foreach ($node->children as $child) {
+            $this->buildFlatList($child);
+        }
     }
 
     public function render()
@@ -55,21 +64,22 @@ class TrainingPlanner extends Component
         $model = TrainingPeriod::where('type', 'season')->first();
         $season = $model ? TrainingNode::fromModel($model) : null;
 
-        $selectedWeek = null;
-        if ($this->selectedWeekId && $season) {
-            foreach ($season->children as $block) {
-                foreach ($block->children as $week) {
-                    if ($week->getIdentity()?->id == $this->selectedWeekId) {
-                        $selectedWeek = $week;
-                        break 2;
-                    }
-                }
-            }
+        $this->flat = [];
+        if ($season) {
+            $this->buildFlatList($season);
+        }
+
+        $selectedPeriod = null;
+        $selectedPeriodType = null;
+        if ($this->selectedPeriodUuid && isset($this->flat[$this->selectedPeriodUuid])) {
+            $selectedPeriod = $this->flat[$this->selectedPeriodUuid];
+            $selectedPeriodType = $selectedPeriod->type;
         }
 
         return view('training-planner', [
             'season' => $season,
-            'selectedWeek' => $selectedWeek,
+            'selectedPeriod' => $selectedPeriod,
+            'selectedPeriodType' => $selectedPeriodType,
         ]);
     }
 }

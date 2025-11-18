@@ -16,6 +16,12 @@ class WeekData extends TrainingData
         return 'week';
     }
 
+    public function toArray(): array
+    {
+        return [];
+    }
+
+
     public static function fromModel(TrainingPeriod $model)
     {
         static::guardAgainstInvalidType($model);
