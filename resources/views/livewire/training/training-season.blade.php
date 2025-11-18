@@ -1,17 +1,17 @@
 <div class="space-y-6">
     {{-- Season Header --}}
     <div class="mb-8">
-        <flux:heading size="xl" class="mb-2">{{ $season->name }}</flux:heading>
+        <flux:heading size="xl" class="mb-2">{{ $season->name() }}</flux:heading>
         <flux:subheading>
-            {{ $season->children->count() }} blocks •
-            {{ $season->children->sum(fn($block) => $block->children->count()) }} weeks total
+            {{ count($season->children) }} blocks •
+            {{ collect($season->children)->sum(fn($block) => count($block->children)) }} weeks total
         </flux:subheading>
     </div>
 
     {{-- Training Blocks --}}
     <div class="grid gap-6">
         @foreach ($season->children as $block)
-            <livewire:training.training-block :block="$block" :key="'block-'.$block->id" />
+            <livewire:training.training-block :block="$block" :key="'block-'.($block->id ?? uniqid())" />
         @endforeach
 
         {{-- Add Block Card --}}

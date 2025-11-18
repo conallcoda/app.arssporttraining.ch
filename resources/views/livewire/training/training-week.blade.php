@@ -4,11 +4,17 @@
         $timePeriods = ['Morning', 'Afternoon'];
 
         $sessionsByDayAndSequence = [];
+        $categoryIds = [];
         foreach ($week->children as $session) {
-            $day = $session->period->day;
-            $sequence = $session->period->sequence;
-            $sessionsByDayAndSequence[$day][$sequence] = $session;
+            $day = $session->data->day;
+            $slot = $session->data->slot;
+            $sessionsByDayAndSequence[$day][$slot] = $session;
+            if ($session->data->category) {
+                $categoryIds[] = $session->data->category;
+            }
         }
+
+        $categories = \App\Models\Training\TrainingSessionCategory::whereIn('id', array_unique($categoryIds))->get()->keyBy('id');
     @endphp
 
     {{-- Week Title --}}
@@ -45,12 +51,13 @@
                                 class="border border-zinc-200 dark:border-zinc-700 p-2 h-24 align-top hover:bg-zinc-50 dark:hover:bg-zinc-800/50 cursor-pointer transition-colors">
                                 @php
                                     $session = $sessionsByDayAndSequence[$dayIndex][$sequenceIndex] ?? null;
+                                    $category = $session && $session->data->category ? ($categories[$session->data->category] ?? null) : null;
                                 @endphp
 
-                                @if($session && $session->category)
+                                @if($category)
                                     <div class="h-full flex items-center justify-center rounded px-2 py-1"
-                                         style="background-color: {{ $this->getColorValue($session->category->background_color) }}; color: {{ $this->getColorValue($session->category->text_color) }};">
-                                        <span class="text-sm font-medium">{{ $session->category->name }}</span>
+                                         style="background-color: {{ $this->getColorValue($category->background_color) }}; color: {{ $this->getColorValue($category->text_color) }};">
+                                        <span class="text-sm font-medium">{{ $category->name }}</span>
                                     </div>
                                 @else
                                     <div class="h-full flex items-center justify-center text-zinc-400 dark:text-zinc-600">

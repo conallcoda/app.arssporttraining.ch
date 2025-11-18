@@ -2,12 +2,12 @@
 
 namespace App\Livewire\Training;
 
-use App\Models\Training\Periods\TrainingBlock as TrainingBlockModel;
+use App\Models\Training\TrainingNode;
 use Livewire\Component;
 
 class TrainingBlock extends Component
 {
-    public TrainingBlockModel $block;
+    public TrainingNode $block;
 
     public function render()
     {

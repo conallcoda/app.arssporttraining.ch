@@ -3,12 +3,12 @@
 namespace App\Livewire\Training;
 
 use App\Filament\Forms\Components\ColorPicker;
-use App\Models\Training\Periods\TrainingWeek as TrainingWeekDTO;
+use App\Models\Training\TrainingNode;
 use Livewire\Component;
 
 class TrainingWeek extends Component
 {
-    public TrainingWeekDTO $week;
+    public TrainingNode $week;
 
     public function render()
     {

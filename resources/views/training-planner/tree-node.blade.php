@@ -1,7 +1,7 @@
 @php
     $nodeId = $node->getIdentity()?->id ?? 'temp-' . spl_object_id($node);
     $nodeChildren = $depth < $maxDepth ? $node->getChildren() : [];
-    $nodeType = $node::getModelType();
+    $nodeType = $node->type;
     $isWeek = $nodeType === 'week';
 @endphp
 

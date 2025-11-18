@@ -5,7 +5,7 @@
             <div>
                 <flux:heading size="lg">Block {{ $block->sequence + 1 }}</flux:heading>
                 <flux:subheading class="mt-1">
-                    {{ $block->children->count() }} weeks
+                    {{ count($block->children) }} weeks
                 </flux:subheading>
             </div>
             <div class="flex gap-2">
@@ -18,7 +18,7 @@
     {{-- Weeks List --}}
     <div class="p-6 space-y-6">
         @forelse ($block->children as $week)
-            <livewire:training.training-week :week="$week" :key="'week-'.$week->id" />
+            <livewire:training.training-week :week="$week" :key="'week-'.($week->id ?? uniqid())" />
         @empty
             <p class="text-zinc-500">No weeks in this block</p>
         @endforelse

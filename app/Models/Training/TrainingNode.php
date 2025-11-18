@@ -110,4 +110,20 @@ class TrainingNode extends AbstractData
             $child->save($period->id);
         }
     }
+
+    public function getIdentity(): ?object
+    {
+        return $this->id ? (object)['id' => $this->id] : null;
+    }
+
+    public function getChildren(): array
+    {
+        return $this->children;
+    }
+
+
+    public function name(): string
+    {
+        return $this->data->name($this);
+    }
 }

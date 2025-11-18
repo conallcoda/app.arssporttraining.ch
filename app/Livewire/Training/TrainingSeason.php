@@ -2,12 +2,12 @@
 
 namespace App\Livewire\Training;
 
-use App\Models\Training\Periods\TrainingSeason as TrainingSeasonModel;
+use App\Models\Training\TrainingNode;
 use Livewire\Component;
 
 class TrainingSeason extends Component
 {
-    public TrainingSeasonModel $season;
+    public TrainingNode $season;
 
     public function render()
     {
