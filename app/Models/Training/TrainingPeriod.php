@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\Concerns\HasExtraData;
-use App\Models\Training\Periods;
+use App\Models\Training\Data;
 use Staudenmeir\LaravelAdjacencyList\Eloquent\HasRecursiveRelationships;
 
 class TrainingPeriod extends Model
@@ -17,11 +17,11 @@ class TrainingPeriod extends Model
     use HasRecursiveRelationships;
 
     protected $types = [
-        'season' => Periods\TrainingSeason::class,
-        'block' => Periods\TrainingBlock::class,
-        'week' => Periods\TrainingWeek::class,
-        'session' => Periods\TrainingSession::class,
-        'exercise' => Periods\TrainingExercise::class,
+        'season' => Data\SeasonData::class,
+        'block' => Data\BlockData::class,
+        'week' => Data\WeekData::class,
+        'session' => Data\SessionData::class,
+        'exercise' => Data\ExerciseData::class,
     ];
 
     protected $fillable = [
@@ -36,7 +36,6 @@ class TrainingPeriod extends Model
     protected $casts = [
         'sequence' => 'integer',
     ];
-
 
     public function toData()
     {
