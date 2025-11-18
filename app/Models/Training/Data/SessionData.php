@@ -10,7 +10,7 @@ class SessionData extends TrainingData
     public function __construct(
         public int $day,
         public int $slot,
-        public int $category,
+        public ?int $category,
     ) {}
 
     public function name(TrainingNode $node): string

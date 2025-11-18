@@ -6,8 +6,10 @@ use App\Models\Training\TrainingPeriod;
 use App\Models\Training\TrainingNode;
 use App\Models\Training\Data\BlockData;
 use App\Models\Training\Data\WeekData;
+use App\Models\Training\Data\SessionData;
 use Livewire\Component;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\On;
 
 
 class TrainingPlanner extends Component
@@ -18,15 +20,17 @@ class TrainingPlanner extends Component
     public ?TrainingNode $season = null;
     public ?TrainingNode $originalSeason = null;
     public $deletedNodes = [];
+    public int $lastChangeTimestamp;
 
     public function mount($maxDepth = 2)
     {
         $this->maxDepth = $maxDepth;
+        $this->lastChangeTimestamp = time();
 
         $seasonModel = TrainingPeriod::where('type', 'season')->first();
 
         if ($seasonModel) {
-            $tree = TrainingPeriod::withMaxDepth($maxDepth + 1, function() use ($seasonModel) {
+            $tree = TrainingPeriod::withMaxDepth(PHP_INT_MAX, function() use ($seasonModel) {
                 return $seasonModel->descendantsAndSelf()
                     ->orderBy('sequence')
                     ->get()
@@ -102,6 +106,10 @@ class TrainingPlanner extends Component
             return true;
         }
 
+        if ($current->data->toArray() !== $original->data->toArray()) {
+            return true;
+        }
+
         if (count($current->children) !== count($original->children)) {
             return true;
         }
@@ -162,6 +170,7 @@ class TrainingPlanner extends Component
             );
 
             $this->season->children[] = $newBlock;
+            $this->markChanged();
         }
     }
 
@@ -176,6 +185,8 @@ class TrainingPlanner extends Component
                 $this->expanded[$nodeIdentifier] = true;
             }
         }
+
+        $this->markChanged();
     }
 
     protected function isNodeEmpty(?TrainingNode $node, string $uuid): bool
@@ -253,11 +264,13 @@ class TrainingPlanner extends Component
 
         $this->deletedNodes[] = $uuid;
         $this->removeNodeFromTree($this->season, $uuid);
+        $this->markChanged();
     }
 
     public function duplicatePeriod($uuid)
     {
         $this->duplicateNodeInTree($this->season, $uuid);
+        $this->markChanged();
     }
 
     protected function duplicateNodeInTree(?TrainingNode $node, string $uuid): bool
@@ -308,11 +321,13 @@ class TrainingPlanner extends Component
     public function moveUp($uuid)
     {
         $this->moveNode($uuid, -1);
+        $this->markChanged();
     }
 
     public function moveDown($uuid)
     {
         $this->moveNode($uuid, 1);
+        $this->markChanged();
     }
 
     protected function moveNode(string $uuid, int $direction): void
@@ -381,6 +396,81 @@ class TrainingPlanner extends Component
         foreach ($node->children as $child) {
             $this->buildFlatList($child, $flat);
         }
+    }
+
+    protected function markChanged(): void
+    {
+        $this->lastChangeTimestamp = time();
+    }
+
+    #[On('addSession')]
+    public function addSession(string $weekUuid, int $day, int $slot, int $category)
+    {
+        $sessionData = new SessionData(
+            day: $day,
+            slot: $slot,
+            category: $category
+        );
+
+        $this->addSessionToWeek($this->season, $weekUuid, $sessionData);
+        $this->markChanged();
+    }
+
+    #[On('updateSession')]
+    public function updateSession(string $weekUuid, string $sessionUuid, int $category)
+    {
+        $this->updateSessionInWeek($this->season, $weekUuid, $sessionUuid, $category);
+        $this->markChanged();
+    }
+
+    protected function addSessionToWeek(?TrainingNode $node, string $weekUuid, SessionData $sessionData): bool
+    {
+        if (!$node) {
+            return false;
+        }
+
+        if ($node->uuid === $weekUuid) {
+            $newSession = TrainingNode::fromData(
+                data: $sessionData,
+                sequence: count($node->children),
+                parentUuid: $node->uuid
+            );
+
+            $node->children[] = $newSession;
+            return true;
+        }
+
+        foreach ($node->children as $child) {
+            if ($this->addSessionToWeek($child, $weekUuid, $sessionData)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function updateSessionInWeek(?TrainingNode $node, string $weekUuid, string $sessionUuid, int $category): bool
+    {
+        if (!$node) {
+            return false;
+        }
+
+        if ($node->uuid === $weekUuid) {
+            foreach ($node->children as $session) {
+                if ($session->uuid === $sessionUuid) {
+                    $session->data->category = $category;
+                    return true;
+                }
+            }
+        }
+
+        foreach ($node->children as $child) {
+            if ($this->updateSessionInWeek($child, $weekUuid, $sessionUuid, $category)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function render()

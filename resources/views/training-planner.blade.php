@@ -26,11 +26,11 @@
                     @if($selectedPeriod && $selectedPeriodType)
                         <div class="bg-white rounded-lg shadow p-6">
                             @if($selectedPeriodType === 'season')
-                                <livewire:training.training-season :season="$selectedPeriod" :key="'season-'.($selectedPeriod->uuid)" />
+                                <livewire:training.training-season :season="$selectedPeriod" :key="'season-'.($selectedPeriod->uuid).'-'.$lastChangeTimestamp" />
                             @elseif($selectedPeriodType === 'block')
-                                <livewire:training.training-block :block="$selectedPeriod" :key="'block-'.($selectedPeriod->uuid)" />
+                                <livewire:training.training-block :block="$selectedPeriod" :key="'block-'.($selectedPeriod->uuid).'-'.$lastChangeTimestamp" />
                             @elseif($selectedPeriodType === 'week')
-                                <livewire:training.training-week :week="$selectedPeriod" :key="'week-'.($selectedPeriod->uuid)" />
+                                <livewire:training.training-week :week="$selectedPeriod" :key="'week-'.($selectedPeriod->uuid).'-'.$lastChangeTimestamp" />
                             @endif
                         </div>
                     @else

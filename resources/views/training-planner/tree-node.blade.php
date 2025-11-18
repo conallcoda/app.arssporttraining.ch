@@ -25,6 +25,11 @@
         <span class="select-none cursor-pointer flex-1 {{ $isSelected ? 'font-semibold text-blue-700 dark:text-blue-300' : '' }}"
               wire:click.stop="selectPeriod('{{ $nodeUuid }}')">
             {{ $node->name() }}
+            @if($nodeType === 'week' && count($node->children) > 0)
+                <span class="ml-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-medium rounded-full bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300">
+                    {{ count($node->children) }}
+                </span>
+            @endif
         </span>
         @if($nodeType === 'season')
             <flux:dropdown position="bottom" align="end">
