@@ -17,6 +17,7 @@ class TrainingPlanner extends Component
 {
     public $expanded = [];
     public $maxDepth = 2;
+    public bool $undoRedoEnabled = false;
 
     #[Url(as: 'period')]
     public $selectedPeriodUuid = null;
@@ -36,7 +37,7 @@ class TrainingPlanner extends Component
         $seasonModel = TrainingPeriod::where('type', 'season')->first();
 
         if ($seasonModel) {
-            $tree = TrainingPeriod::withMaxDepth(PHP_INT_MAX, function() use ($seasonModel) {
+            $tree = TrainingPeriod::withMaxDepth(PHP_INT_MAX, function () use ($seasonModel) {
                 return $seasonModel->descendantsAndSelf()
                     ->orderBy('sequence')
                     ->get()
@@ -439,6 +440,10 @@ class TrainingPlanner extends Component
 
     public function undo(): void
     {
+        if (!$this->undoRedoEnabled) {
+            return;
+        }
+
         if ($this->historyIndex > 0) {
             $this->historyIndex--;
             $this->season = $this->deepCloneTree($this->history[$this->historyIndex]);
@@ -449,6 +454,10 @@ class TrainingPlanner extends Component
 
     public function redo(): void
     {
+        if (!$this->undoRedoEnabled) {
+            return;
+        }
+
         if ($this->historyIndex < count($this->history) - 1) {
             $this->historyIndex++;
             $this->season = $this->deepCloneTree($this->history[$this->historyIndex]);

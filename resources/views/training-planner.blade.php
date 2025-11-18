@@ -1,14 +1,15 @@
-<div x-data
+<div x-data="{ undoRedoEnabled: @js($undoRedoEnabled) }"
      @keydown.window.prevent.meta.s="$wire.saveChanges()"
      @keydown.window.prevent.ctrl.s="$wire.saveChanges()"
-     @keydown.window.prevent.meta.z="$wire.undo()"
-     @keydown.window.prevent.ctrl.z="$wire.undo()"
-     @keydown.window.prevent.meta.shift.z="$wire.redo()"
-     @keydown.window.prevent.ctrl.shift.z="$wire.redo()">
+     @keydown.window.prevent.meta.z="undoRedoEnabled && $wire.undo()"
+     @keydown.window.prevent.ctrl.z="undoRedoEnabled && $wire.undo()"
+     @keydown.window.prevent.meta.shift.z="undoRedoEnabled && $wire.redo()"
+     @keydown.window.prevent.ctrl.shift.z="undoRedoEnabled && $wire.redo()"
     <div class="p-6">
         <div class="mb-6 flex items-center justify-between">
             <h1 class="text-2xl font-bold">Training Planner</h1>
             <div class="flex gap-2">
+                @if($undoRedoEnabled)
                 <flux:button wire:click="undo" variant="ghost" icon="arrow-uturn-left" :disabled="!$this->canUndo">
                     Undo
                 </flux:button>
@@ -16,6 +17,7 @@
                     Redo
                 </flux:button>
                 <flux:separator variant="subtle" vertical />
+                @endif
                 <flux:button wire:click="revertChanges" variant="ghost" :disabled="!$this->hasChanges">
                     Revert Changes
                 </flux:button>
