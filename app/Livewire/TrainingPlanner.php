@@ -12,15 +12,35 @@ class TrainingPlanner extends Component
     public $expanded = [];
     public $maxDepth = 2;
     public $selectedPeriodUuid = null;
-    public array $flat = [];
+    public ?TrainingNode $season = null;
 
     public function mount($maxDepth = 2)
     {
         $this->maxDepth = $maxDepth;
 
         $seasonModel = TrainingPeriod::where('type', 'season')->first();
+
         if ($seasonModel) {
-            $this->expandInitialNodes($seasonModel, 0);
+            $tree = TrainingPeriod::withMaxDepth($maxDepth + 1, function() use ($seasonModel) {
+                return $seasonModel->descendantsAndSelf()
+                    ->orderBy('sequence')
+                    ->get()
+                    ->toTree();
+            });
+
+            if ($tree->isNotEmpty()) {
+                $seasonModel = $tree->first();
+                $this->expandInitialNodes($seasonModel, 0);
+
+                $this->season = TrainingNode::fromModel($seasonModel);
+                if (!empty($this->season->children)) {
+                    $firstBlock = $this->season->children[0];
+                    if (!empty($firstBlock->children)) {
+                        $firstWeek = $firstBlock->children[0];
+                        $this->selectedPeriodUuid = $firstWeek->uuid;
+                    }
+                }
+            }
         }
     }
 
@@ -51,33 +71,30 @@ class TrainingPlanner extends Component
         $this->selectedPeriodUuid = $uuid;
     }
 
-    protected function buildFlatList(TrainingNode $node): void
+    protected function buildFlatList(TrainingNode $node, array &$flat): void
     {
-        $this->flat[$node->uuid] = $node;
+        $flat[$node->uuid] = $node;
         foreach ($node->children as $child) {
-            $this->buildFlatList($child);
+            $this->buildFlatList($child, $flat);
         }
     }
 
     public function render()
     {
-        $model = TrainingPeriod::where('type', 'season')->first();
-        $season = $model ? TrainingNode::fromModel($model) : null;
-
-        $this->flat = [];
-        if ($season) {
-            $this->buildFlatList($season);
+        $flat = [];
+        if ($this->season) {
+            $this->buildFlatList($this->season, $flat);
         }
 
         $selectedPeriod = null;
         $selectedPeriodType = null;
-        if ($this->selectedPeriodUuid && isset($this->flat[$this->selectedPeriodUuid])) {
-            $selectedPeriod = $this->flat[$this->selectedPeriodUuid];
+        if ($this->selectedPeriodUuid && isset($flat[$this->selectedPeriodUuid])) {
+            $selectedPeriod = $flat[$this->selectedPeriodUuid];
             $selectedPeriodType = $selectedPeriod->type;
         }
 
         return view('training-planner', [
-            'season' => $season,
+            'season' => $this->season,
             'selectedPeriod' => $selectedPeriod,
             'selectedPeriodType' => $selectedPeriodType,
         ]);

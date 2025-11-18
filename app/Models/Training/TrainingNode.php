@@ -48,26 +48,22 @@ class TrainingNode extends AbstractData
         return $properties;
     }
 
-    public static function fromModel(TrainingPeriod $model): self
+    public static function fromModel(TrainingPeriod $model, ?string $parentUuid = null): self
     {
         if (isset(self::$registry[$model->uuid])) {
             return self::$registry[$model->uuid];
         }
 
         $children = [];
+        $childParentUuid = in_array($model->type, ['season']) ? null : $model->uuid;
         foreach ($model->children as $child) {
-            $children[] = static::fromModel($child);
-        }
-
-        $parent = null;
-        if ($model->parent && !in_array($model->type, ['season'])) {
-            $parent = $model->parent->uuid;
+            $children[] = static::fromModel($child, $childParentUuid);
         }
 
         $instance = new static(
             uuid: $model->uuid,
             id: $model->id,
-            parent: $parent,
+            parent: $parentUuid,
             type: $model->type,
             data: $model->toData(),
             name: $model->name,
