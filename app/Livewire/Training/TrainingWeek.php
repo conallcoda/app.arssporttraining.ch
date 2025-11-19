@@ -15,6 +15,7 @@ class TrainingWeek extends Component
     public ?int $sessionCategory = null;
     public ?int $sessionDay = null;
     public ?int $sessionSlot = null;
+    public array $sessionExercises = [];
     public $categories;
 
     public function mount()
@@ -34,9 +35,11 @@ class TrainingWeek extends Component
             $session = $this->findSession($sessionUuid);
             if ($session) {
                 $this->sessionCategory = $session->data->category;
+                $this->sessionExercises = $session->data->exercises ?? [];
             }
         } else {
             $this->sessionCategory = $this->categories->first()?->id;
+            $this->sessionExercises = [];
         }
 
         $this->showSessionModal = true;
@@ -50,26 +53,61 @@ class TrainingWeek extends Component
         $this->sessionCategory = null;
         $this->sessionDay = null;
         $this->sessionSlot = null;
+        $this->sessionExercises = [];
+    }
+
+    public function addExercise()
+    {
+        $this->sessionExercises[] = null;
+    }
+
+    public function removeExercise(int $index)
+    {
+        unset($this->sessionExercises[$index]);
+        $this->sessionExercises = array_values($this->sessionExercises);
+    }
+
+    public function moveExerciseUp(int $index)
+    {
+        if ($index > 0 && isset($this->sessionExercises[$index]) && isset($this->sessionExercises[$index - 1])) {
+            $temp = $this->sessionExercises[$index - 1];
+            $this->sessionExercises[$index - 1] = $this->sessionExercises[$index];
+            $this->sessionExercises[$index] = $temp;
+        }
+    }
+
+    public function moveExerciseDown(int $index)
+    {
+        if ($index < count($this->sessionExercises) - 1 && isset($this->sessionExercises[$index]) && isset($this->sessionExercises[$index + 1])) {
+            $temp = $this->sessionExercises[$index + 1];
+            $this->sessionExercises[$index + 1] = $this->sessionExercises[$index];
+            $this->sessionExercises[$index] = $temp;
+        }
     }
 
     public function saveSession()
     {
         $this->validate([
             'sessionCategory' => 'required|integer',
+            'sessionExercises.*' => 'nullable|integer|exists:exercises,id',
         ]);
+
+        $exercises = array_filter($this->sessionExercises, fn($id) => $id !== null);
 
         if ($this->editingSessionUuid) {
             $this->dispatch('updateSession',
                 weekUuid: $this->week->uuid,
                 sessionUuid: $this->editingSessionUuid,
-                category: $this->sessionCategory
+                category: $this->sessionCategory,
+                exercises: array_values($exercises)
             );
         } else {
             $this->dispatch('addSession',
                 weekUuid: $this->week->uuid,
                 day: $this->sessionDay,
                 slot: $this->sessionSlot,
-                category: $this->sessionCategory
+                category: $this->sessionCategory,
+                exercises: array_values($exercises)
             );
         }
 

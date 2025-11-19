@@ -11,6 +11,7 @@ class SessionData extends TrainingData
         public int $day,
         public int $slot,
         public ?int $category,
+        public array $exercises = [],
     ) {}
 
     public function name(TrainingNode $node): string
@@ -28,6 +29,7 @@ class SessionData extends TrainingData
             'day' => $this->day,
             'slot' => $this->slot,
             'category' => $this->category,
+            'exercises' => $this->exercises,
         ];
     }
 
@@ -38,7 +40,8 @@ class SessionData extends TrainingData
         $instance = new static(
             day: $model->extra->day,
             slot: $model->extra->slot,
-            category: $model->extra->category
+            category: $model->extra->category,
+            exercises: $model->extra->exercises ?? []
         );
         return $instance;
     }

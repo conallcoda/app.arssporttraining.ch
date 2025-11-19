@@ -479,12 +479,13 @@ class TrainingPlanner extends Component
     }
 
     #[On('addSession')]
-    public function addSession(string $weekUuid, int $day, int $slot, int $category)
+    public function addSession(string $weekUuid, int $day, int $slot, int $category, array $exercises = [])
     {
         $sessionData = new SessionData(
             day: $day,
             slot: $slot,
-            category: $category
+            category: $category,
+            exercises: $exercises
         );
 
         $this->addSessionToWeek($this->season, $weekUuid, $sessionData);
@@ -492,9 +493,9 @@ class TrainingPlanner extends Component
     }
 
     #[On('updateSession')]
-    public function updateSession(string $weekUuid, string $sessionUuid, int $category)
+    public function updateSession(string $weekUuid, string $sessionUuid, int $category, array $exercises = [])
     {
-        $this->updateSessionInWeek($this->season, $weekUuid, $sessionUuid, $category);
+        $this->updateSessionInWeek($this->season, $weekUuid, $sessionUuid, $category, $exercises);
         $this->markChanged();
     }
 
@@ -560,7 +561,7 @@ class TrainingPlanner extends Component
         return false;
     }
 
-    protected function updateSessionInWeek(?TrainingNode $node, string $weekUuid, string $sessionUuid, int $category): bool
+    protected function updateSessionInWeek(?TrainingNode $node, string $weekUuid, string $sessionUuid, int $category, array $exercises = []): bool
     {
         if (!$node) {
             return false;
@@ -570,13 +571,14 @@ class TrainingPlanner extends Component
             foreach ($node->children as $session) {
                 if ($session->uuid === $sessionUuid) {
                     $session->data->category = $category;
+                    $session->data->exercises = $exercises;
                     return true;
                 }
             }
         }
 
         foreach ($node->children as $child) {
-            if ($this->updateSessionInWeek($child, $weekUuid, $sessionUuid, $category)) {
+            if ($this->updateSessionInWeek($child, $weekUuid, $sessionUuid, $category, $exercises)) {
                 return true;
             }
         }

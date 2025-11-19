@@ -145,6 +145,62 @@
                 <flux:error name="sessionCategory" />
             </flux:field>
 
+            <flux:field>
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <flux:label>Exercises</flux:label>
+                        <flux:button type="button" size="sm" variant="ghost" icon="plus" wire:click="addExercise">Add Exercise</flux:button>
+                    </div>
+
+                    @if(count($sessionExercises) > 0)
+                        <div class="space-y-2">
+                            @foreach($sessionExercises as $index => $exerciseId)
+                                @php
+                                    $isFirst = $index === 0;
+                                    $isLast = $index === count($sessionExercises) - 1;
+                                @endphp
+                                <div class="flex items-center gap-2" wire:key="exercise-{{ $index }}">
+                                    <div class="flex-1">
+                                        <flux:select
+                                            wire:model="sessionExercises.{{ $index }}"
+                                            placeholder="Select an exercise"
+                                            searchable>
+                                            <option value="">Select an exercise</option>
+                                            @foreach(\App\Models\Exercise\Exercise::orderBy('name')->get() as $exercise)
+                                                <option value="{{ $exercise->id }}">{{ $exercise->name }}</option>
+                                            @endforeach
+                                        </flux:select>
+                                    </div>
+                                    <div class="flex gap-1">
+                                        <button
+                                            type="button"
+                                            wire:click="moveExerciseUp({{ $index }})"
+                                            {{ $isFirst ? 'disabled' : '' }}
+                                            class="inline-flex items-center justify-center gap-2 px-2 py-1.5 text-sm font-medium rounded transition-colors {{ $isFirst ? 'opacity-40 cursor-not-allowed text-zinc-400' : 'text-zinc-700 hover:bg-zinc-100' }}">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                                            </svg>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            wire:click="moveExerciseDown({{ $index }})"
+                                            {{ $isLast ? 'disabled' : '' }}
+                                            class="inline-flex items-center justify-center gap-2 px-2 py-1.5 text-sm font-medium rounded transition-colors {{ $isLast ? 'opacity-40 cursor-not-allowed text-zinc-400' : 'text-zinc-700 hover:bg-zinc-100' }}">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </button>
+                                        <flux:button type="button" size="sm" variant="ghost" icon="trash" wire:click="removeExercise({{ $index }})" />
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <p class="text-sm text-zinc-500">No exercises added yet.</p>
+                    @endif
+                </div>
+            </flux:field>
+
             <div class="flex gap-2 justify-between">
                 <div>
                     @if($editingSessionUuid)
