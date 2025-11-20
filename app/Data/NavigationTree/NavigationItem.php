@@ -7,10 +7,9 @@ use App\Data\AbstractData;
 class NavigationItem extends AbstractData
 {
     public function __construct(
-        public string $uuid,
-        public string $title,
+        public string $name,
+        public string $text,
         public ?string $icon = null,
-        public array $children = [],
-        public string $type = 'item',
+        public bool $separator = false,
     ) {}
 }

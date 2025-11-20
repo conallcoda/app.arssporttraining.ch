@@ -361,53 +361,6 @@ class TrainingPlanner extends Component
     protected function markChanged(): void
     {
         $this->lastChangeTimestamp = time();
-
-        if ($this->historyIndex < count($this->history) - 1) {
-            $this->history = array_slice($this->history, 0, $this->historyIndex + 1);
-        }
-
-        $this->history[] = $this->deepCloneTree($this->season);
-        $this->historyIndex = count($this->history) - 1;
-    }
-
-    public function undo(): void
-    {
-        if (!$this->undoRedoEnabled) {
-            return;
-        }
-
-        if ($this->historyIndex > 0) {
-            $this->historyIndex--;
-            $this->season = $this->deepCloneTree($this->history[$this->historyIndex]);
-            $this->deletedNodes = [];
-            $this->lastChangeTimestamp = time();
-        }
-    }
-
-    public function redo(): void
-    {
-        if (!$this->undoRedoEnabled) {
-            return;
-        }
-
-        if ($this->historyIndex < count($this->history) - 1) {
-            $this->historyIndex++;
-            $this->season = $this->deepCloneTree($this->history[$this->historyIndex]);
-            $this->deletedNodes = [];
-            $this->lastChangeTimestamp = time();
-        }
-    }
-
-    #[Computed]
-    public function canUndo(): bool
-    {
-        return $this->historyIndex > 0;
-    }
-
-    #[Computed]
-    public function canRedo(): bool
-    {
-        return $this->historyIndex < count($this->history) - 1;
     }
 
     #[On('addSession')]
