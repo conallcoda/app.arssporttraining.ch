@@ -6,26 +6,46 @@ use App\Data\AbstractData;
 use App\Models\Training\Data\BlockData;
 use App\Models\Training\Data\SessionData;
 use App\Models\Training\Data\WeekData;
-use App\Models\Training\Data\TrainingData;
+
 
 class TrainingTree extends AbstractData
 {
 
     public ?TrainingNode $originalRoot = null;
 
-    public array $nodeRegistry = [];
-
     public function __construct(
-        public ?TrainingNode $root = null,
+        public TrainingNode $root,
         public array $deletedNodes = [],
         public int $lastChangeTimestamp = 0
     ) {
         if ($this->lastChangeTimestamp === 0) {
             $this->lastChangeTimestamp = time();
         }
-
         $this->originalRoot = $this->root ? self::deepCloneNode($this->root) : null;
-        $this->rebuildRegistry();
+    }
+
+    public function getNode(string $uuid): ?TrainingNode
+    {
+        return $this->searchForNode($this->root, $uuid);
+    }
+
+    protected function searchForNode(?TrainingNode $node, string $uuid): ?TrainingNode
+    {
+        if (!$node) {
+            return null;
+        }
+
+        if ($node->uuid === $uuid) {
+            return $node;
+        }
+
+        foreach ($node->children as $child) {
+            $found = $this->searchForNode($child, $uuid);
+            if ($found) {
+                return $found;
+            }
+        }
+        return null;
     }
 
 
@@ -109,29 +129,6 @@ class TrainingTree extends AbstractData
         $this->deletedNodes = [];
         $this->root = $this->originalRoot ? self::deepCloneNode($this->originalRoot) : null;
         $this->markChanged();
-        $this->rebuildRegistry();
-    }
-
-
-    protected function rebuildRegistry(): void
-    {
-        $this->nodeRegistry = [];
-        if ($this->root) {
-            $this->addNodeToRegistry($this->root);
-        }
-    }
-
-    protected function addNodeToRegistry(TrainingNode $node): void
-    {
-        $this->nodeRegistry[$node->uuid] = $node;
-        foreach ($node->children as $child) {
-            $this->addNodeToRegistry($child);
-        }
-    }
-
-    public function getNode(string $uuid): ?TrainingNode
-    {
-        return $this->nodeRegistry[$uuid] ?? null;
     }
 
     protected function findParentNode(string $childUuid): ?TrainingNode
@@ -170,7 +167,6 @@ class TrainingTree extends AbstractData
             );
 
             $this->root->children[] = $newBlock;
-            $this->nodeRegistry[$newBlock->uuid] = $newBlock;
             $this->markChanged();
         }
     }
@@ -187,7 +183,6 @@ class TrainingTree extends AbstractData
                 parentUuid: null
             );
             $parentNode->children[] = $newChild;
-            $this->nodeRegistry[$newChild->uuid] = $newChild;
             $this->markChanged();
         }
     }
@@ -200,7 +195,6 @@ class TrainingTree extends AbstractData
         if ($parentNode) {
             foreach ($parentNode->children as $index => $child) {
                 if ($child->uuid === $uuid) {
-                    $this->removeNodeFromRegistry($child);
                     array_splice($parentNode->children, $index, 1);
                     $this->renumberChildren($parentNode->children);
                     break;
@@ -209,14 +203,6 @@ class TrainingTree extends AbstractData
         }
 
         $this->markChanged();
-    }
-
-    protected function removeNodeFromRegistry(TrainingNode $node): void
-    {
-        unset($this->nodeRegistry[$node->uuid]);
-        foreach ($node->children as $child) {
-            $this->removeNodeFromRegistry($child);
-        }
     }
 
     public function duplicatePeriod(string $uuid): void
@@ -229,7 +215,6 @@ class TrainingTree extends AbstractData
         foreach ($parentNode->children as $index => $child) {
             if ($child->uuid === $uuid) {
                 $duplicate = self::deepCloneNode($child, generateNewUuid: true);
-                $this->addNodeToRegistry($duplicate);
                 array_splice($parentNode->children, $index + 1, 0, [$duplicate]);
                 $this->renumberChildren($parentNode->children);
                 break;
@@ -298,7 +283,6 @@ class TrainingTree extends AbstractData
                 if ($session->id) {
                     $this->deletedNodes[] = $session->uuid;
                 }
-                unset($this->nodeRegistry[$session->uuid]);
                 array_splice($weekNode->children, $index, 1);
                 break;
             }
@@ -318,7 +302,6 @@ class TrainingTree extends AbstractData
         );
 
         $weekNode->children[] = $newSession;
-        $this->nodeRegistry[$newSession->uuid] = $newSession;
 
         $this->markChanged();
     }
@@ -345,7 +328,6 @@ class TrainingTree extends AbstractData
                 if ($existingSession->id) {
                     $this->deletedNodes[] = $existingSession->uuid;
                 }
-                unset($this->nodeRegistry[$existingSession->uuid]);
                 array_splice($weekNode->children, $index, 1);
                 break;
             }
@@ -390,7 +372,6 @@ class TrainingTree extends AbstractData
         if ($weekNode) {
             foreach ($weekNode->children as $index => $session) {
                 if ($session->uuid === $sessionUuid) {
-                    unset($this->nodeRegistry[$session->uuid]);
                     array_splice($weekNode->children, $index, 1);
                     break;
                 }
@@ -431,7 +412,8 @@ class TrainingTree extends AbstractData
             sequence: $node->sequence,
             type: $node->type,
             data: $clonedData,
-            children: $clonedChildren
+            children: $clonedChildren,
+            path: $node->path
         );
 
         return $cloned;

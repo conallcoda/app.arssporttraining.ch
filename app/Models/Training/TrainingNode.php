@@ -26,6 +26,7 @@ class TrainingNode extends AbstractData
         public TrainingData $data,
         #[DataCollectionOf(TrainingNode::class)]
         public array $children = [],
+        public ?array $path = null,
     ) {}
 
     public static function prepareForPipeline(array $properties): array
@@ -48,7 +49,7 @@ class TrainingNode extends AbstractData
         return $properties;
     }
 
-    public static function fromModel(TrainingPeriod $model, ?string $parentUuid = null): self
+    public static function fromModel(TrainingPeriod $model, ?string $parentUuid = null, array $path = []): self
     {
         if (isset(self::$registry[$model->uuid])) {
             return self::$registry[$model->uuid];
@@ -56,8 +57,9 @@ class TrainingNode extends AbstractData
 
         $children = [];
         $childParentUuid = in_array($model->type, ['season']) ? null : $model->uuid;
+        $childPath = in_array($model->type, ['season']) ? [$model->uuid] : array_merge($path, [$model->uuid]);
         foreach ($model->children as $child) {
-            $children[] = static::fromModel($child, $childParentUuid);
+            $children[] = static::fromModel($child, $childParentUuid, $childPath);
         }
 
         $instance = new static(
@@ -69,6 +71,7 @@ class TrainingNode extends AbstractData
             name: $model->name,
             sequence: $model->sequence,
             children: $children,
+            path: $model->type === 'season' ? null : $path,
         );
 
         self::$registry[$model->uuid] = $instance;
@@ -77,7 +80,7 @@ class TrainingNode extends AbstractData
     }
 
 
-    public static function fromData(TrainingData $data, int $sequence = 0, ?string $parentUuid = null): self
+    public static function fromData(TrainingData $data, int $sequence = 0, ?string $parentUuid = null, array $path = []): self
     {
         $uuid = TrainingPeriod::createUuid();
         $type = $data->getModelType();
@@ -85,9 +88,10 @@ class TrainingNode extends AbstractData
 
         if (isset($data->_additional['children']) && is_array($data->_additional['children'])) {
             $childParentUuid = in_array($type, ['season']) ? null : $uuid;
+            $childPath = in_array($type, ['season']) ? [$uuid] : array_merge($path, [$uuid]);
             foreach ($data->_additional['children'] as $i => $childData) {
                 if ($childData instanceof TrainingData) {
-                    $children[] = static::fromData($childData, $i, $childParentUuid);
+                    $children[] = static::fromData($childData, $i, $childParentUuid, $childPath);
                 }
             }
         }
@@ -101,6 +105,7 @@ class TrainingNode extends AbstractData
             name: null,
             sequence: $sequence,
             children: $children,
+            path: $type === 'season' ? null : $path,
         );
     }
 
