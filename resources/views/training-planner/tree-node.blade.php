@@ -1,5 +1,4 @@
 @php
-    $nodeId = $node->getIdentity()?->id ?? 'temp-' . spl_object_id($node);
     $nodeChildren = $depth < $maxDepth ? $node->getChildren() : [];
     $nodeUuid = $node->uuid;
     $isSelected = $selectedPeriodUuid === $nodeUuid;
@@ -11,9 +10,9 @@
 <div class="my-1 text-sm">
     <div class="flex items-center py-1 px-2 rounded transition-colors select-none {{ $isSelected ? 'bg-blue-100 dark:bg-blue-900' : 'hover:bg-black/5' }}">
         <span class="inline-flex items-center mr-2 select-none cursor-pointer"
-              wire:click.stop="toggle('{{ $nodeId }}')">
+              wire:click.stop="toggle('{{ $nodeUuid }}')">
             @if(count($nodeChildren) > 0)
-                @if(isset($expanded[$nodeId]))
+                @if(isset($expanded[$nodeUuid]))
                     <x-lucide-chevron-down class="w-4 h-4" />
                 @else
                     <x-lucide-chevron-right class="w-4 h-4" />
@@ -67,7 +66,7 @@
         @endif
     </div>
 
-    @if(isset($expanded[$nodeId]) && count($nodeChildren) > 0)
+    @if(isset($expanded[$nodeUuid]) && count($nodeChildren) > 0)
         <div class="ml-6">
             @foreach($nodeChildren as $index => $child)
                 @include('training-planner.tree-node', [

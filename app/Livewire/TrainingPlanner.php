@@ -9,6 +9,7 @@ use App\Models\Training\Data\WeekData;
 use App\Models\Training\Data\SessionData;
 use Livewire\Component;
 use Livewire\Attributes\Computed;
+use 
 use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
 
@@ -34,56 +35,61 @@ class TrainingPlanner extends Component
         $this->maxDepth = $maxDepth;
         $this->lastChangeTimestamp = time();
 
-        $seasonModel = TrainingPeriod::where('type', 'season')->first();
+        $this->setSeason();
 
-        if ($seasonModel) {
-            $tree = TrainingPeriod::withMaxDepth(PHP_INT_MAX, function () use ($seasonModel) {
-                return $seasonModel->descendantsAndSelf()
+        if (!isset($this->season)) {
+            return;
+        }
+
+        $this->expandInitialNodes($this->season, 0);
+
+        $this->history = [$this->deepCloneTree($this->season)];
+        $this->historyIndex = 0;
+
+        if (!$this->selectedPeriodUuid && !empty($this->season->children)) {
+            $firstBlock = $this->season->children[0];
+            if (!empty($firstBlock->children)) {
+                $firstWeek = $firstBlock->children[0];
+                $this->selectedPeriodUuid = $firstWeek->uuid;
+            }
+        }
+    }
+
+    protected function setSeason()
+    {
+        if (true) {
+            $model = TrainingPeriod::where('type', 'season')->first();
+            $modelTree = TrainingPeriod::withMaxDepth(PHP_INT_MAX, function () use ($model) {
+                return $model->descendantsAndSelf()
                     ->orderBy('sequence')
                     ->get()
                     ->toTree();
             });
-
-            if ($tree->isNotEmpty()) {
-                $seasonModel = $tree->first();
-                $this->expandInitialNodes($seasonModel, 0);
-
-                $this->season = TrainingNode::fromModel($seasonModel);
+            if ($modelTree->isNotEmpty()) {
+                $model = $modelTree->first();
+                $this->season = TrainingNode::fromModel($model);
                 $this->originalSeason = clone $this->season;
-
-                $this->history = [$this->deepCloneTree($this->season)];
-                $this->historyIndex = 0;
-
-                if (!$this->selectedPeriodUuid && !empty($this->season->children)) {
-                    $firstBlock = $this->season->children[0];
-                    if (!empty($firstBlock->children)) {
-                        $firstWeek = $firstBlock->children[0];
-                        $this->selectedPeriodUuid = $firstWeek->uuid;
-                    }
-                }
             }
         }
     }
 
-    protected function expandInitialNodes($model, $depth)
+    protected function expandInitialNodes(TrainingNode $node, int $depth): void
     {
         if ($depth < $this->maxDepth) {
-            $this->expanded[$model->id] = true;
+            $this->expanded[$node->uuid] = true;
 
-            if ($depth + 1 < $this->maxDepth) {
-                foreach ($model->children as $child) {
-                    $this->expandInitialNodes($child, $depth + 1);
-                }
+            foreach ($node->children as $child) {
+                $this->expandInitialNodes($child, $depth + 1);
             }
         }
     }
 
-    public function toggle($nodeId)
+    public function toggle(string $uuid): void
     {
-        if (isset($this->expanded[$nodeId])) {
-            unset($this->expanded[$nodeId]);
+        if (isset($this->expanded[$uuid])) {
+            unset($this->expanded[$uuid]);
         } else {
-            $this->expanded[$nodeId] = true;
+            $this->expanded[$uuid] = true;
         }
     }
 
@@ -190,10 +196,7 @@ class TrainingPlanner extends Component
         $this->addChildToNode($this->season, $blockUuid, new WeekData());
 
         if ($wasEmpty) {
-            $nodeIdentifier = $this->getNodeIdentifier($this->season, $blockUuid);
-            if ($nodeIdentifier) {
-                $this->expanded[$nodeIdentifier] = true;
-            }
+            $this->expanded[$blockUuid] = true;
         }
 
         $this->markChanged();
@@ -217,26 +220,6 @@ class TrainingPlanner extends Component
         }
 
         return false;
-    }
-
-    protected function getNodeIdentifier(?TrainingNode $node, string $uuid): ?string
-    {
-        if (!$node) {
-            return null;
-        }
-
-        if ($node->uuid === $uuid) {
-            return $node->id ? (string)$node->id : 'temp-' . spl_object_id($node);
-        }
-
-        foreach ($node->children as $child) {
-            $identifier = $this->getNodeIdentifier($child, $uuid);
-            if ($identifier !== null) {
-                return $identifier;
-            }
-        }
-
-        return null;
     }
 
     protected function addChildToNode(?TrainingNode $node, string $parentUuid, $data): bool

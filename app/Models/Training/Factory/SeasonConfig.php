@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models\Training;
+namespace App\Models\Training\Factory;
 
 use App\Data\AbstractData;
 
