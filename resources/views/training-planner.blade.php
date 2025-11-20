@@ -1,23 +1,9 @@
-<div x-data="{ undoRedoEnabled: @js($undoRedoEnabled) }"
-     @keydown.window.prevent.meta.s="$wire.saveChanges()"
-     @keydown.window.prevent.ctrl.s="$wire.saveChanges()"
-     @keydown.window.prevent.meta.z="undoRedoEnabled && $wire.undo()"
-     @keydown.window.prevent.ctrl.z="undoRedoEnabled && $wire.undo()"
-     @keydown.window.prevent.meta.shift.z="undoRedoEnabled && $wire.redo()"
-     @keydown.window.prevent.ctrl.shift.z="undoRedoEnabled && $wire.redo()"
+<div @keydown.window.prevent.meta.s="$wire.saveChanges()"
+     @keydown.window.prevent.ctrl.s="$wire.saveChanges()">
     <div class="p-6">
         <div class="mb-6 flex items-center justify-between">
             <h1 class="text-2xl font-bold">Training Planner</h1>
             <div class="flex gap-2">
-                @if($undoRedoEnabled)
-                <flux:button wire:click="undo" variant="ghost" icon="arrow-uturn-left" :disabled="!$this->canUndo">
-                    Undo
-                </flux:button>
-                <flux:button wire:click="redo" variant="ghost" icon="arrow-uturn-right" :disabled="!$this->canRedo">
-                    Redo
-                </flux:button>
-                <flux:separator variant="subtle" vertical />
-                @endif
                 <flux:button wire:click="revertChanges" variant="ghost" :disabled="!$this->hasChanges">
                     Revert Changes
                 </flux:button>
@@ -30,7 +16,7 @@
         @if($season)
             <div class="grid grid-cols-12 gap-6">
                 <div class="col-span-3">
-                    <div class="bg-white rounded-lg shadow p-6">
+                    <div class="bg-white rounded-lg shadow p-6" x-data="treeExpansion()">
                         @include('training-planner.tree-node', ['node' => $season])
                     </div>
                 </div>
@@ -60,3 +46,27 @@
         @endif
     </div>
 </div>
+
+<script>
+function treeExpansion() {
+    return {
+        expanded: {},
+
+        isExpanded(uuid) {
+            return this.expanded[uuid] !== false;
+        },
+
+        toggle(uuid) {
+            this.expanded[uuid] = !this.isExpanded(uuid);
+        },
+
+        expandAll() {
+            this.expanded = {};
+        },
+
+        collapseAll() {
+            this.expanded = { preventAll: true };
+        }
+    }
+}
+</script>

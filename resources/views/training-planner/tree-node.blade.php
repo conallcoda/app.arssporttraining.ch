@@ -9,9 +9,12 @@
 
 <div class="my-1 text-sm">
     <div class="flex items-center py-1 px-2 rounded transition-colors select-none {{ $isSelected ? 'bg-blue-100 dark:bg-blue-900' : 'hover:bg-black/5' }}">
-        <span class="inline-flex items-center mr-2 select-none">
+        <span class="inline-flex items-center mr-2 select-none cursor-pointer"
+              @if(count($nodeChildren) > 0)
+                  @click="toggle('{{ $nodeUuid }}')"
+              @endif>
             @if(count($nodeChildren) > 0)
-                <x-lucide-chevron-down class="w-4 h-4" />
+                <x-lucide-chevron-down class="w-4 h-4 transition-transform" ::class="{ '-rotate-90': !isExpanded('{{ $nodeUuid }}') }" />
             @else
                 <span class="w-4 h-4 opacity-0"></span>
             @endif
@@ -62,7 +65,7 @@
     </div>
 
     @if(count($nodeChildren) > 0)
-        <div class="ml-6">
+        <div class="ml-6" x-show="isExpanded('{{ $nodeUuid }}')" x-collapse>
             @foreach($nodeChildren as $index => $child)
                 @include('training-planner.tree-node', [
                     'node' => $child,

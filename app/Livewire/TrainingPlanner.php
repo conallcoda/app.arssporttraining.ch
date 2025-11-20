@@ -16,8 +16,6 @@ use Livewire\Attributes\Url;
 
 class TrainingPlanner extends Component
 {
-    public bool $undoRedoEnabled = false;
-
     #[Url(as: 'period')]
     public $selectedPeriodUuid = null;
 
@@ -25,8 +23,6 @@ class TrainingPlanner extends Component
     public ?TrainingNode $originalSeason = null;
     public $deletedNodes = [];
     public int $lastChangeTimestamp;
-    public array $history = [];
-    public int $historyIndex = -1;
 
     public function mount()
     {
@@ -37,9 +33,6 @@ class TrainingPlanner extends Component
         if (!isset($this->season)) {
             return;
         }
-
-        $this->history = [$this->deepCloneTree($this->season)];
-        $this->historyIndex = 0;
 
         if (!$this->selectedPeriodUuid && !empty($this->season->children)) {
             $firstBlock = $this->season->children[0];
