@@ -5,19 +5,16 @@ namespace App\Models\Training\Actions\Season;
 use App\Models\Training\Data\BlockData;
 use App\Models\Training\Actions\Action;
 use App\Models\Training\TrainingNode;
-use App\Models\Training\TrainingTree;
 
-class AddBlock extends Action
+class RemoveBlock extends Action
 {
     public function __construct(
         public string $parentId,
         public string $id,
     ) {}
 
-    public function execute(TrainingTree $root): self
+    public function execute(TrainingNode $parent): self
     {
-
-        $parent = $root->getNode($this->parentId);
         $node = TrainingNode::fromData(new BlockData());
         $parent->children[] = $node;
         return $this;

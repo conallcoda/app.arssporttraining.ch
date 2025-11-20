@@ -1,8 +1,8 @@
-<div @keydown.window.prevent.meta.s="$wire.saveChanges()"
-     @keydown.window.prevent.ctrl.s="$wire.saveChanges()">
+<div @keydown.window.prevent.meta.s="$wire.saveChanges()" @keydown.window.prevent.ctrl.s="$wire.saveChanges()">
     <div class="p-6">
         <div class="mb-6 flex items-center justify-between">
             <h1 class="text-2xl font-bold">Training Planner</h1>
+            <div> {{ $lastChangeTimestamp }} </div>
             <div class="flex gap-2">
                 <flux:button wire:click="revertChanges" variant="ghost" :disabled="!$this->hasChanges">
                     Revert Changes
@@ -13,30 +13,30 @@
             </div>
         </div>
 
-        @if($season)
+        @if ($root)
             <div class="grid grid-cols-12 gap-6">
                 <div class="col-span-3">
                     <div class="bg-white rounded-lg shadow p-6" x-data="navigation_tree">
-                        @if($this->navigationTree)
+                        @if ($this->navigationTree)
                             @include('components.tree-node', [
                                 'node' => $this->navigationTree,
                                 'level' => 0,
                                 'selectedUuid' => $selectedPeriodUuid,
-                                'actions' => $this->navigationActions
+                                'actions' => $this->navigationActions,
                             ])
                         @endif
                     </div>
                 </div>
 
                 <div class="col-span-9">
-                    @if($selectedPeriod && $selectedPeriodType)
+                    @if ($selectedPeriod && $selectedPeriodType)
                         <div class="bg-white rounded-lg shadow p-6">
-                            @if($selectedPeriodType === 'season')
-                                <livewire:training.training-season :season="$selectedPeriod" :key="'season-'.($selectedPeriod->uuid).'-'.$lastChangeTimestamp" />
+                            @if ($selectedPeriodType === 'season')
+                                <livewire:training.training-season :season="$selectedPeriod" :key="'season-' . $selectedPeriod->uuid . '-' . $lastChangeTimestamp" />
                             @elseif($selectedPeriodType === 'block')
-                                <livewire:training.training-block :block="$selectedPeriod" :key="'block-'.($selectedPeriod->uuid).'-'.$lastChangeTimestamp" />
+                                <livewire:training.training-block :block="$selectedPeriod" :key="'block-' . $selectedPeriod->uuid . '-' . $lastChangeTimestamp" />
                             @elseif($selectedPeriodType === 'week')
-                                <livewire:training.training-week :week="$selectedPeriod" :key="'week-'.($selectedPeriod->uuid).'-'.$lastChangeTimestamp" />
+                                <livewire:training.training-week :week="$selectedPeriod" :key="'week-' . $selectedPeriod->uuid . '-' . $lastChangeTimestamp" />
                             @endif
                         </div>
                     @else
@@ -48,7 +48,7 @@
             </div>
         @else
             <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <p class="text-yellow-800">No training season found. Please create one first.</p>
+                <p class="text-yellow-800">No training root found. Please create one first.</p>
             </div>
         @endif
     </div>
