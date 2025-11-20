@@ -9,7 +9,6 @@ use Livewire\Component;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
-use Livewire\Attributes\Session;
 
 use App\Models\Training\TrainingNode;
 use App\Models\Training\TrainingPeriod;
@@ -30,7 +29,7 @@ class TrainingPlanner extends Component
         $this->transformer = new TrainingNodeTransformer();
     }
 
-    protected function createRootNode($db = true)
+    protected function createRootNode($db = false)
     {
         if ($db) {
             $model = TrainingPeriod::where('type', 'season')->first();
@@ -46,8 +45,8 @@ class TrainingPlanner extends Component
             }
         } else {
             $seasonConfig = new SeasonConfig(
-                numberOfBlocks: 2,
-                weeksPerBlock: 5
+                numberOfBlocks: 1,
+                weeksPerBlock: 1
             );
             return SeasonFactory::create($seasonConfig);
         }
@@ -166,7 +165,6 @@ class TrainingPlanner extends Component
     public function addSession(string $weekUuid, int $day, int $slot, int $category, array $exercises = [])
     {
         $this->tree->addSession($weekUuid, $day, $slot, $category, $exercises);
-        $this->tree = TrainingTree::from($this->tree->toArray());
     }
 
     #[On('updateSession')]
