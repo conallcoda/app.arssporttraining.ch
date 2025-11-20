@@ -9,7 +9,7 @@ use App\Models\Training\Data\WeekData;
 use App\Models\Training\Data\SessionData;
 use Livewire\Component;
 use Livewire\Attributes\Computed;
-use 
+use App\Models\Training\Factory\SeasonFactory;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
 
@@ -57,7 +57,7 @@ class TrainingPlanner extends Component
 
     protected function setSeason()
     {
-        if (true) {
+        if (false) {
             $model = TrainingPeriod::where('type', 'season')->first();
             $modelTree = TrainingPeriod::withMaxDepth(PHP_INT_MAX, function () use ($model) {
                 return $model->descendantsAndSelf()
@@ -70,6 +70,13 @@ class TrainingPlanner extends Component
                 $this->season = TrainingNode::fromModel($model);
                 $this->originalSeason = clone $this->season;
             }
+        } else {
+            $seasonConfig = new \App\Models\Training\Factory\SeasonConfig(
+                numberOfBlocks: 2,
+                weeksPerBlock: 5
+            );
+            $this->season = SeasonFactory::create($seasonConfig);
+            $this->originalSeason = $this->deepCloneTree($this->season);
         }
     }
 
