@@ -16,8 +16,15 @@
         @if($season)
             <div class="grid grid-cols-12 gap-6">
                 <div class="col-span-3">
-                    <div class="bg-white rounded-lg shadow p-6" x-data="treeExpansion()">
-                        @include('training-planner.tree-node', ['node' => $season])
+                    <div class="bg-white rounded-lg shadow p-6" x-data="navigation_tree">
+                        @if($this->navigationTree)
+                            @include('components.tree-node', [
+                                'node' => $this->navigationTree,
+                                'level' => 0,
+                                'selectedUuid' => $selectedPeriodUuid,
+                                'actions' => $this->navigationActions
+                            ])
+                        @endif
                     </div>
                 </div>
 
@@ -46,27 +53,3 @@
         @endif
     </div>
 </div>
-
-<script>
-function treeExpansion() {
-    return {
-        expanded: {},
-
-        isExpanded(uuid) {
-            return this.expanded[uuid] !== false;
-        },
-
-        toggle(uuid) {
-            this.expanded[uuid] = !this.isExpanded(uuid);
-        },
-
-        expandAll() {
-            this.expanded = {};
-        },
-
-        collapseAll() {
-            this.expanded = { preventAll: true };
-        }
-    }
-}
-</script>

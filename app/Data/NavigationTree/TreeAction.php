@@ -4,12 +4,14 @@ namespace App\Data\NavigationTree;
 
 use App\Data\AbstractData;
 
-class NavigationItem extends AbstractData
+class TreeAction extends AbstractData
 {
     public function __construct(
         public string $name,
-        public string $text,
+        public string $label,
         public ?string $icon = null,
+        public ?string $variant = null,
         public bool $separator = false,
+        public bool $disabled = false,
     ) {}
 }

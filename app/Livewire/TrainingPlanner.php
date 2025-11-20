@@ -2,11 +2,13 @@
 
 namespace App\Livewire;
 
+use App\Data\NavigationTree\TreeNode;
 use App\Models\Training\TrainingPeriod;
 use App\Models\Training\TrainingNode;
 use App\Models\Training\Data\BlockData;
 use App\Models\Training\Data\WeekData;
 use App\Models\Training\Data\SessionData;
+use App\Services\TrainingNodeTransformer;
 use Livewire\Component;
 use Livewire\Attributes\Computed;
 use App\Models\Training\Factory\SeasonFactory;
@@ -23,6 +25,13 @@ class TrainingPlanner extends Component
     public ?TrainingNode $originalSeason = null;
     public $deletedNodes = [];
     public int $lastChangeTimestamp;
+
+    protected TrainingNodeTransformer $transformer;
+
+    public function boot()
+    {
+        $this->transformer = new TrainingNodeTransformer();
+    }
 
     public function mount()
     {
@@ -71,6 +80,60 @@ class TrainingPlanner extends Component
     public function selectPeriod($uuid)
     {
         $this->selectedPeriodUuid = $uuid;
+    }
+
+    public function selectNode($uuid)
+    {
+        $this->selectPeriod($uuid);
+    }
+
+    public function triggerAction(string $nodeUuid, string $actionName): void
+    {
+        match ($actionName) {
+            'add_block' => $this->addBlock($nodeUuid),
+            'add_week' => $this->addWeek($nodeUuid),
+            'add_session' => $this->dispatch('show-add-session-modal', weekUuid: $nodeUuid),
+            'duplicate' => $this->duplicatePeriod($nodeUuid),
+            'move_up' => $this->moveUp($nodeUuid),
+            'move_down' => $this->moveDown($nodeUuid),
+            'delete' => $this->deletePeriod($nodeUuid),
+            default => null,
+        };
+    }
+
+    #[Computed]
+    public function navigationTree(): ?TreeNode
+    {
+        if (!$this->season) {
+            return null;
+        }
+
+        return $this->transformer->toNavigationTree($this->season);
+    }
+
+    #[Computed]
+    public function navigationActions(): array
+    {
+        $navTree = $this->navigationTree();
+        if (!$navTree) {
+            return [];
+        }
+
+        $actions = [];
+        $this->collectNodeActions($navTree, $actions);
+        return $actions;
+    }
+
+    protected function collectNodeActions(TreeNode $node, array &$actions): void
+    {
+        $navTree = $this->navigationTree();
+        if ($navTree) {
+            $actions[$node->uuid] = $this->transformer->getActionsForNode($navTree, $node->uuid);
+        }
+
+        foreach ($node->children as $child) {
+            $this->collectNodeActions($child, $actions);
+        }
     }
 
     #[Computed]
