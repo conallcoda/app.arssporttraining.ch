@@ -31,7 +31,7 @@
             <div class="grid grid-cols-12 gap-6">
                 <div class="col-span-3">
                     <div class="bg-white rounded-lg shadow p-6">
-                        @include('training-planner.tree-node', ['node' => $season, 'depth' => 0])
+                        @include('training-planner.tree-node', ['node' => $season])
                     </div>
                 </div>
 
