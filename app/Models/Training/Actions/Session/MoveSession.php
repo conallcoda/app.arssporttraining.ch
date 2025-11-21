@@ -21,6 +21,8 @@ class MoveSession extends Action
             throw new \Exception("Session node not found");
         }
 
+        $parent = $tree->findParentNode($this->sessionId);
+
         $oldDay = $session->data->day;
         $oldSlot = $session->data->slot;
 
@@ -28,6 +30,7 @@ class MoveSession extends Action
         $session->data->slot = $this->newSlot;
 
         return SessionMovedEvent::from([
+            'parent' => $parent,
             'session' => $session,
             'oldDay' => $oldDay,
             'oldSlot' => $oldSlot,

@@ -34,6 +34,6 @@ class SessionsSwappedEvent extends Action
 
     public function label()
     {
-        return "Swapped Sessions {$this->session1->name} and {$this->session2->name}";
+        return "Swapped Sessions {$this->session1->name()} and {$this->session2->name()}";
     }
 }

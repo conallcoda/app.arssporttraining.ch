@@ -38,7 +38,7 @@ class NodeDeletedEvent extends Action
 
     public function label()
     {
-        $parentName = $this->parent ? $this->parent->name : 'root';
-        return "Deleted {$this->node->name} from {$parentName}";
+        $parentName = $this->parent ? $this->parent->name() : 'root';
+        return "Deleted {$this->node->name()} from {$parentName}";
     }
 }

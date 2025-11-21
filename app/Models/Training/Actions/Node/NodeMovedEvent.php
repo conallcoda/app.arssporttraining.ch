@@ -89,6 +89,6 @@ class NodeMovedEvent extends Action
     public function label()
     {
         $direction = $this->direction > 0 ? 'down' : 'up';
-        return "Moved {$this->node->name} {$direction} in {$this->parent->name}";
+        return "Moved {$this->node->name()} {$direction} in {$this->parent->name()}";
     }
 }

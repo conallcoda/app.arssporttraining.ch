@@ -21,6 +21,8 @@ class UpdateSession extends Action
             throw new \Exception("Session node not found");
         }
 
+        $parent = $tree->findParentNode($this->sessionId);
+
         $oldCategory = $session->data->category;
         $oldExercises = $session->data->exercises;
 
@@ -28,6 +30,7 @@ class UpdateSession extends Action
         $session->data->exercises = $this->exercises;
 
         return SessionUpdatedEvent::from([
+            'parent' => $parent,
             'session' => $session,
             'oldCategory' => $oldCategory,
             'oldExercises' => $oldExercises,

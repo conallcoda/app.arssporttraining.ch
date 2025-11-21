@@ -37,6 +37,6 @@ class SessionDeletedEvent extends Action
 
     public function label()
     {
-        return "Deleted Session from {$this->parent->name}";
+        return "Deleted Session from {$this->parent->name()}";
     }
 }

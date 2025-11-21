@@ -42,6 +42,6 @@ class NodeDuplicatedEvent extends Action
 
     public function label()
     {
-        return "Duplicated {$this->original->name} in {$this->parent->name}";
+        return "Duplicated {$this->original->name()} in {$this->parent->name()}";
     }
 }

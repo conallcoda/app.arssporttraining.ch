@@ -22,6 +22,8 @@ class TrainingPlanner extends Component
     #[Url(as: 'period')]
     public $selectedPeriodUuid = null;
 
+    public bool $showHistoryModal = false;
+
     public TrainingTree $tree;
     protected TrainingNodeTransformer $transformer;
 
@@ -138,6 +140,16 @@ class TrainingPlanner extends Component
     {
         $this->tree->revert();
         $this->mount();
+    }
+
+    public function openHistoryModal()
+    {
+        $this->showHistoryModal = true;
+    }
+
+    public function closeHistoryModal()
+    {
+        $this->showHistoryModal = false;
     }
 
     #[On('action')]

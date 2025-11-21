@@ -27,6 +27,6 @@ class BlockAddedEvent extends Action
 
     public function label()
     {
-        return "Added Block to {$this->parent->name}";
+        return "Added {$this->child->name()} to {$this->parent->name()}";
     }
 }

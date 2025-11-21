@@ -9,6 +9,7 @@ use App\Models\Training\TrainingNode;
 class SessionUpdatedEvent extends Action
 {
     public function __construct(
+        public TrainingNode $parent,
         public TrainingNode $session,
         public int $oldCategory,
         public array $oldExercises,
@@ -32,6 +33,6 @@ class SessionUpdatedEvent extends Action
 
     public function label()
     {
-        return "Updated Session in {$this->session->name}";
+        return "Updated Session in {$this->parent->name()}";
     }
 }

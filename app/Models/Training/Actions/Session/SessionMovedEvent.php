@@ -9,6 +9,7 @@ use App\Models\Training\TrainingNode;
 class SessionMovedEvent extends Action
 {
     public function __construct(
+        public TrainingNode $parent,
         public TrainingNode $session,
         public int $oldDay,
         public int $oldSlot,
@@ -32,6 +33,14 @@ class SessionMovedEvent extends Action
 
     public function label()
     {
-        return "Moved Session from Day {$this->oldDay} Slot {$this->oldSlot} to Day {$this->newDay} Slot {$this->newSlot}";
+        $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        $slots = ['Morning', 'Afternoon'];
+
+        $oldDayName = $days[$this->oldDay] ?? "Day {$this->oldDay}";
+        $newDayName = $days[$this->newDay] ?? "Day {$this->newDay}";
+        $oldSlotName = $slots[$this->oldSlot] ?? "Slot {$this->oldSlot}";
+        $newSlotName = $slots[$this->newSlot] ?? "Slot {$this->newSlot}";
+
+        return "Moved Session in {$this->parent->name()} from {$oldDayName} {$oldSlotName} to {$newDayName} {$newSlotName}";
     }
 }

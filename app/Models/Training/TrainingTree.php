@@ -45,7 +45,8 @@ class TrainingTree extends AbstractData
     public function __construct(
         public TrainingNode $root,
         public array $deletedNodes = [],
-        public int $lastChangeTimestamp = 0
+        public int $lastChangeTimestamp = 0,
+        public array $events = []
     ) {
         if ($this->lastChangeTimestamp === 0) {
             $this->lastChangeTimestamp = time();
@@ -65,6 +66,7 @@ class TrainingTree extends AbstractData
         $action = $actionClass::from($params);
 
         $event = $action->execute($this);
+        $this->events[] = $event;
         $this->markChanged();
 
         return $event;
@@ -265,6 +267,16 @@ class TrainingTree extends AbstractData
     public function markChanged(): void
     {
         $this->lastChangeTimestamp = time();
+    }
+
+    public function getEvents(): array
+    {
+        return $this->events;
+    }
+
+    public function clearEvents(): void
+    {
+        $this->events = [];
     }
 
     public static function deepCloneNode(TrainingNode $node, bool $generateNewUuid = false): TrainingNode

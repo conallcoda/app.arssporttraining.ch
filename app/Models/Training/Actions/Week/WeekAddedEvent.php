@@ -27,6 +27,6 @@ class WeekAddedEvent extends Action
 
     public function label()
     {
-        return "Added Week to {$this->parent->name}";
+        return "Added {$this->child->name()} to {$this->parent->name()}";
     }
 }
