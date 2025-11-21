@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models\Training\Actions\Season;
+namespace App\Models\Training\Actions\Block;
 
 use App\Models\Training\TrainingTree;
 use App\Models\Training\Actions\Action;
@@ -23,5 +23,10 @@ class BlockAddedEvent extends Action
     {
         $parent = $tree->getNode($this->parent->uuid);
         $tree->removeChild($parent, $this->child->uuid);
+    }
+
+    public function label()
+    {
+        return "Added Block to {$this->parent->name}";
     }
 }

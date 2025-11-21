@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models\Training\Actions\Season;
+namespace App\Models\Training\Actions\Block;
 
 use App\Models\Training\Data\BlockData;
 use App\Models\Training\Actions\Action;

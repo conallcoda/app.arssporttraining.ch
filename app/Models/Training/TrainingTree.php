@@ -8,7 +8,7 @@ use App\Models\Training\Data\SessionData;
 use App\Models\Training\Data\TrainingData;
 use App\Models\Training\Data\WeekData;
 
-use App\Models\Training\Actions\Season\AddBlock;
+use App\Models\Training\Actions\Block\AddBlock;
 
 
 class TrainingTree extends AbstractData
