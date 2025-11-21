@@ -21,7 +21,7 @@ class AddBlock extends Action
 
         $parent = $tree->getNode($this->parentId);
         $node = $tree->addChild($parent, new BlockData());
-        return BlockAddedEvent::from($parent, $node);
+        return BlockAddedEvent::from(['parent' => $parent, 'child' => $node]);
     }
 
     public static function fromParentId(string $parentId): self

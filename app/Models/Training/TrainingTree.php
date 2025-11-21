@@ -9,6 +9,15 @@ use App\Models\Training\Data\TrainingData;
 use App\Models\Training\Data\WeekData;
 
 use App\Models\Training\Actions\Block\AddBlock;
+use App\Models\Training\Actions\Week\AddWeek;
+use App\Models\Training\Actions\Session\AddSession;
+use App\Models\Training\Actions\Session\UpdateSession;
+use App\Models\Training\Actions\Session\MoveSession;
+use App\Models\Training\Actions\Session\SwapSessions;
+use App\Models\Training\Actions\Session\DeleteSession;
+use App\Models\Training\Actions\Node\DeleteNode;
+use App\Models\Training\Actions\Node\DuplicateNode;
+use App\Models\Training\Actions\Node\MoveNode;
 
 
 class TrainingTree extends AbstractData
@@ -135,7 +144,7 @@ class TrainingTree extends AbstractData
         $this->markChanged();
     }
 
-    protected function findParentNode(string $childUuid): ?TrainingNode
+    public function findParentNode(string $childUuid): ?TrainingNode
     {
         if (!$this->root) {
             return null;
@@ -165,80 +174,34 @@ class TrainingTree extends AbstractData
 
     public function addWeek(string $blockUuid): void
     {
-        $this->addChild($blockUuid, new WeekData());
+        $event = AddWeek::fromParentId($blockUuid)->execute($this);
     }
 
     public function deletePeriod(string $uuid): void
     {
-        $this->deletedNodes[] = $uuid;
-
-        $parentNode = $this->findParentNode($uuid);
-        if ($parentNode) {
-            $this->removeChild($parentNode->uuid, $uuid);
-        } else {
-            $this->markChanged();
-        }
+        $event = DeleteNode::fromNodeId($uuid)->execute($this);
+        $this->markChanged();
     }
 
     public function duplicatePeriod(string $uuid): void
     {
-        $parentNode = $this->findParentNode($uuid);
-        if (!$parentNode) {
-            return;
-        }
-
-        foreach ($parentNode->children as $index => $child) {
-            if ($child->uuid === $uuid) {
-                $duplicate = self::deepCloneNode($child, generateNewUuid: true);
-                array_splice($parentNode->children, $index + 1, 0, [$duplicate]);
-                $this->renumberChildren($parentNode->children);
-                break;
-            }
-        }
-
+        $event = DuplicateNode::fromNodeId($uuid)->execute($this);
         $this->markChanged();
     }
 
     public function moveUp(string $uuid): void
     {
-        $this->moveNode($uuid, -1);
+        $event = MoveNode::fromNodeId($uuid, -1)->execute($this);
         $this->markChanged();
     }
 
     public function moveDown(string $uuid): void
     {
-        $this->moveNode($uuid, 1);
+        $event = MoveNode::fromNodeId($uuid, 1)->execute($this);
         $this->markChanged();
     }
 
-    protected function moveNode(string $uuid, int $direction): void
-    {
-        $parentNode = $this->findParentNode($uuid);
-        if (!$parentNode || empty($parentNode->children)) {
-            return;
-        }
-
-        foreach ($parentNode->children as $index => $child) {
-            if ($child->uuid === $uuid) {
-                $targetIndex = $index + $direction;
-
-                if ($targetIndex >= 0 && $targetIndex < count($parentNode->children)) {
-                    $currentNode = $parentNode->children[$index];
-                    $targetNode = $parentNode->children[$targetIndex];
-
-                    $tempSequence = $currentNode->sequence;
-                    $currentNode->sequence = $targetNode->sequence;
-                    $targetNode->sequence = $tempSequence;
-
-                    $parentNode->children[$index] = $targetNode;
-                    $parentNode->children[$targetIndex] = $currentNode;
-                }
-                break;
-            }
-        }
-    }
-
-    protected function renumberChildren(array &$children): void
+    public function renumberChildren(array &$children): void
     {
         foreach ($children as $index => $child) {
             $child->sequence = $index;
@@ -301,74 +264,40 @@ class TrainingTree extends AbstractData
 
     public function addSession(string $weekUuid, int $day, int $slot, int $category, array $exercises = []): void
     {
-
-        $sessionData = new SessionData(
-            day: $day,
-            slot: $slot,
-            category: $category,
-            exercises: $exercises
-        );
-
-        $this->addChild($weekUuid, $sessionData);
+        $event = AddSession::fromParentId($weekUuid, $day, $slot, $category, $exercises)->execute($this);
     }
 
     public function updateSession(string $weekUuid, string $sessionUuid, int $category, array $exercises = []): void
     {
-        $this->updateNodeData($sessionUuid, function ($session) use ($category, $exercises) {
-            $session->data->category = $category;
-            $session->data->exercises = $exercises;
-        });
+        $event = UpdateSession::fromSessionId($sessionUuid, $category, $exercises)->execute($this);
+        $this->markChanged();
     }
 
     public function moveSession(string $weekUuid, string $sessionUuid, int $newDay, int $newSlot): void
     {
-
-        $this->updateNodeData($sessionUuid, function ($session) use ($newDay, $newSlot) {
-            $session->data->day = $newDay;
-            $session->data->slot = $newSlot;
-        });
+        $event = MoveSession::fromSessionId($sessionUuid, $newDay, $newSlot)->execute($this);
+        $this->markChanged();
     }
 
     public function swapSessions(string $weekUuid, string $sessionUuid1, string $sessionUuid2): void
     {
-        $session1 = $this->getNode($sessionUuid1);
-        $session2 = $this->getNode($sessionUuid2);
-
-        if ($session1 && $session2) {
-            $tempDay = $session1->data->day;
-            $tempSlot = $session1->data->slot;
-            $newDay = $session2->data->day;
-            $newSlot = $session2->data->slot;
-
-            $this->updateNodeData($sessionUuid1, function ($session) use ($newDay, $newSlot) {
-                $session->data->day = $newDay;
-                $session->data->slot = $newSlot;
-            });
-
-            $this->updateNodeData($sessionUuid2, function ($session) use ($tempDay, $tempSlot) {
-                $session->data->day = $tempDay;
-                $session->data->slot = $tempSlot;
-            });
-        }
+        $event = SwapSessions::fromSessionIds($sessionUuid1, $sessionUuid2)->execute($this);
+        $this->markChanged();
     }
 
     public function deleteSession(string $weekUuid, string $sessionUuid): void
     {
-        $session = $this->getNode($sessionUuid);
-        if ($session && $session->id) {
-            $this->deletedNodes[] = $sessionUuid;
-        }
-
-        $this->removeChild($weekUuid, $sessionUuid);
+        $event = DeleteSession::fromIds($weekUuid, $sessionUuid)->execute($this);
+        $this->markChanged();
     }
 
 
-    protected function markChanged(): void
+    public function markChanged(): void
     {
         $this->lastChangeTimestamp = time();
     }
 
-    protected static function deepCloneNode(TrainingNode $node, bool $generateNewUuid = false): TrainingNode
+    public static function deepCloneNode(TrainingNode $node, bool $generateNewUuid = false): TrainingNode
     {
         $clonedChildren = [];
         foreach ($node->children as $child) {
