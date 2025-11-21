@@ -150,6 +150,16 @@ class TrainingNode extends AbstractData
         return $this->children;
     }
 
+    public function findChild($uuid): ?TrainingNode
+    {
+        foreach ($this->children as $child) {
+            if ($child->uuid === $uuid) {
+                return $child;
+            }
+        }
+        return null;
+    }
+
 
     public function name(): string
     {

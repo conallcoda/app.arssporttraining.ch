@@ -5,13 +5,14 @@ namespace App\Models\Training;
 use App\Data\AbstractData;
 use App\Models\Training\Data\BlockData;
 use App\Models\Training\Data\SessionData;
+use App\Models\Training\Data\TrainingData;
 use App\Models\Training\Data\WeekData;
 
 
 class TrainingTree extends AbstractData
 {
-
     public ?TrainingNode $originalRoot = null;
+    public array $registry = [];
 
     public function __construct(
         public TrainingNode $root,
@@ -47,8 +48,6 @@ class TrainingTree extends AbstractData
         }
         return null;
     }
-
-
 
     public static function fromTrainingNode(TrainingNode $root): static
     {
@@ -157,34 +156,13 @@ class TrainingTree extends AbstractData
     public function addBlock(string $rootUuid): void
     {
         if ($this->root && $this->root->uuid === $rootUuid) {
-            $newSequence = count($this->root->children);
-            $blockData = new BlockData();
-
-            $newBlock = TrainingNode::fromData(
-                data: $blockData,
-                sequence: $newSequence,
-                parentUuid: null
-            );
-
-            $this->root->children[] = $newBlock;
-            $this->markChanged();
+            $this->addChild($rootUuid, new BlockData());
         }
     }
 
     public function addWeek(string $blockUuid): void
     {
-        $parentNode = $this->getNode($blockUuid);
-        if ($parentNode) {
-
-            $newSequence = count($parentNode->children);
-            $newChild = TrainingNode::fromData(
-                data: new WeekData(),
-                sequence: $newSequence,
-                parentUuid: null
-            );
-            $parentNode->children[] = $newChild;
-            $this->markChanged();
-        }
+        $this->addChild($blockUuid, new WeekData());
     }
 
     public function deletePeriod(string $uuid): void
@@ -193,16 +171,10 @@ class TrainingTree extends AbstractData
 
         $parentNode = $this->findParentNode($uuid);
         if ($parentNode) {
-            foreach ($parentNode->children as $index => $child) {
-                if ($child->uuid === $uuid) {
-                    array_splice($parentNode->children, $index, 1);
-                    $this->renumberChildren($parentNode->children);
-                    break;
-                }
-            }
+            $this->removeChild($parentNode->uuid, $uuid);
+        } else {
+            $this->markChanged();
         }
-
-        $this->markChanged();
     }
 
     public function duplicatePeriod(string $uuid): void
@@ -270,23 +242,88 @@ class TrainingTree extends AbstractData
         }
     }
 
-    public function addSession(string $weekUuid, int $day, int $slot, int $category, array $exercises = []): void
+    protected function addChild(string $parentUuid, TrainingData $data): ?TrainingNode
+    {
+        $parentNode = $this->getNode($parentUuid);
+        if (!$parentNode) {
+            return null;
+        }
+
+        $newSequence = count($parentNode->children);
+        $newChild = TrainingNode::fromData(
+            data: $data,
+            sequence: $newSequence,
+            parentUuid: null
+        );
+
+        $parentNode->children[] = $newChild;
+        $this->markChanged();
+
+        return $newChild;
+    }
+
+    protected function removeChild(string $parentUuid, string $childUuid): bool
+    {
+        $parentNode = $this->getNode($parentUuid);
+        if (!$parentNode) {
+            return false;
+        }
+
+        foreach ($parentNode->children as $index => $child) {
+            if ($child->uuid === $childUuid) {
+                array_splice($parentNode->children, $index, 1);
+                $this->renumberChildren($parentNode->children);
+                $this->markChanged();
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function updateNodeData(string $uuid, callable $updater): bool
+    {
+        $node = $this->getNode($uuid);
+        if (!$node) {
+            return false;
+        }
+
+        $updater($node);
+        $this->markChanged();
+        return true;
+    }
+
+    protected function findConflictingSession(TrainingNode $weekNode, int $day, int $slot, ?string $excludeUuid = null): ?TrainingNode
+    {
+        foreach ($weekNode->children as $session) {
+            if ($session->data->day === $day &&
+                $session->data->slot === $slot &&
+                $session->uuid !== $excludeUuid) {
+                return $session;
+            }
+        }
+        return null;
+    }
+
+    protected function removeConflictingSession(string $weekUuid, int $day, int $slot, ?string $excludeUuid = null): void
     {
         $weekNode = $this->getNode($weekUuid);
-
         if (!$weekNode) {
             return;
         }
 
-        foreach ($weekNode->children as $index => $session) {
-            if ($session->data->day === $day && $session->data->slot === $slot) {
-                if ($session->id) {
-                    $this->deletedNodes[] = $session->uuid;
-                }
-                array_splice($weekNode->children, $index, 1);
-                break;
+        $conflicting = $this->findConflictingSession($weekNode, $day, $slot, $excludeUuid);
+        if ($conflicting) {
+            if ($conflicting->id) {
+                $this->deletedNodes[] = $conflicting->uuid;
             }
+            $this->removeChild($weekUuid, $conflicting->uuid);
         }
+    }
+
+    public function addSession(string $weekUuid, int $day, int $slot, int $category, array $exercises = []): void
+    {
+        $this->removeConflictingSession($weekUuid, $day, $slot);
 
         $sessionData = new SessionData(
             day: $day,
@@ -295,51 +332,25 @@ class TrainingTree extends AbstractData
             exercises: $exercises
         );
 
-        $newSession = TrainingNode::fromData(
-            data: $sessionData,
-            sequence: count($weekNode->children),
-            parentUuid: $weekNode->uuid
-        );
-
-        $weekNode->children[] = $newSession;
-
-        $this->markChanged();
+        $this->addChild($weekUuid, $sessionData);
     }
 
     public function updateSession(string $weekUuid, string $sessionUuid, int $category, array $exercises = []): void
     {
-        $session = $this->getNode($sessionUuid);
-        if ($session) {
+        $this->updateNodeData($sessionUuid, function($session) use ($category, $exercises) {
             $session->data->category = $category;
             $session->data->exercises = $exercises;
-        }
-        $this->markChanged();
+        });
     }
 
     public function moveSession(string $weekUuid, string $sessionUuid, int $newDay, int $newSlot): void
     {
-        $weekNode = $this->getNode($weekUuid);
-        if (!$weekNode) {
-            return;
-        }
+        $this->removeConflictingSession($weekUuid, $newDay, $newSlot, $sessionUuid);
 
-        foreach ($weekNode->children as $index => $existingSession) {
-            if ($existingSession->data->day === $newDay && $existingSession->data->slot === $newSlot && $existingSession->uuid !== $sessionUuid) {
-                if ($existingSession->id) {
-                    $this->deletedNodes[] = $existingSession->uuid;
-                }
-                array_splice($weekNode->children, $index, 1);
-                break;
-            }
-        }
-
-        $session = $this->getNode($sessionUuid);
-        if ($session) {
+        $this->updateNodeData($sessionUuid, function($session) use ($newDay, $newSlot) {
             $session->data->day = $newDay;
             $session->data->slot = $newSlot;
-        }
-
-        $this->markChanged();
+        });
     }
 
     public function swapSessions(string $weekUuid, string $sessionUuid1, string $sessionUuid2): void
@@ -350,15 +361,19 @@ class TrainingTree extends AbstractData
         if ($session1 && $session2) {
             $tempDay = $session1->data->day;
             $tempSlot = $session1->data->slot;
+            $newDay = $session2->data->day;
+            $newSlot = $session2->data->slot;
 
-            $session1->data->day = $session2->data->day;
-            $session1->data->slot = $session2->data->slot;
+            $this->updateNodeData($sessionUuid1, function($session) use ($newDay, $newSlot) {
+                $session->data->day = $newDay;
+                $session->data->slot = $newSlot;
+            });
 
-            $session2->data->day = $tempDay;
-            $session2->data->slot = $tempSlot;
+            $this->updateNodeData($sessionUuid2, function($session) use ($tempDay, $tempSlot) {
+                $session->data->day = $tempDay;
+                $session->data->slot = $tempSlot;
+            });
         }
-
-        $this->markChanged();
     }
 
     public function deleteSession(string $weekUuid, string $sessionUuid): void
@@ -368,27 +383,9 @@ class TrainingTree extends AbstractData
             $this->deletedNodes[] = $sessionUuid;
         }
 
-        $weekNode = $this->getNode($weekUuid);
-        if ($weekNode) {
-            foreach ($weekNode->children as $index => $session) {
-                if ($session->uuid === $sessionUuid) {
-                    array_splice($weekNode->children, $index, 1);
-                    break;
-                }
-            }
-        }
-
-        $this->markChanged();
+        $this->removeChild($weekUuid, $sessionUuid);
     }
 
-
-    public function buildFlatList(TrainingNode $node, array &$flat): void
-    {
-        $flat[$node->uuid] = $node;
-        foreach ($node->children as $child) {
-            $this->buildFlatList($child, $flat);
-        }
-    }
 
     protected function markChanged(): void
     {

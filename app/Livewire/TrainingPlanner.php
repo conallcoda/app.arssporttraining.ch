@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Data\NavigationTree\TreeNode;
+use App\Models\Training\Factory\LargeSeasonFactory;
 use App\Models\Training\TrainingTree;
 use App\Services\TrainingNodeTransformer;
 use Livewire\Component;
@@ -45,10 +46,10 @@ class TrainingPlanner extends Component
             }
         } else {
             $seasonConfig = new SeasonConfig(
-                numberOfBlocks: 1,
-                weeksPerBlock: 1
+                numberOfBlocks: 2,
+                weeksPerBlock: 6
             );
-            return SeasonFactory::create($seasonConfig);
+            return LargeSeasonFactory::create($seasonConfig);
         }
     }
 
