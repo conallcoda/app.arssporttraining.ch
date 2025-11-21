@@ -293,37 +293,8 @@ class TrainingTree extends AbstractData
         return true;
     }
 
-    protected function findConflictingSession(TrainingNode $weekNode, int $day, int $slot, ?string $excludeUuid = null): ?TrainingNode
-    {
-        foreach ($weekNode->children as $session) {
-            if ($session->data->day === $day &&
-                $session->data->slot === $slot &&
-                $session->uuid !== $excludeUuid) {
-                return $session;
-            }
-        }
-        return null;
-    }
-
-    protected function removeConflictingSession(string $weekUuid, int $day, int $slot, ?string $excludeUuid = null): void
-    {
-        $weekNode = $this->getNode($weekUuid);
-        if (!$weekNode) {
-            return;
-        }
-
-        $conflicting = $this->findConflictingSession($weekNode, $day, $slot, $excludeUuid);
-        if ($conflicting) {
-            if ($conflicting->id) {
-                $this->deletedNodes[] = $conflicting->uuid;
-            }
-            $this->removeChild($weekUuid, $conflicting->uuid);
-        }
-    }
-
     public function addSession(string $weekUuid, int $day, int $slot, int $category, array $exercises = []): void
     {
-        $this->removeConflictingSession($weekUuid, $day, $slot);
 
         $sessionData = new SessionData(
             day: $day,
@@ -337,7 +308,7 @@ class TrainingTree extends AbstractData
 
     public function updateSession(string $weekUuid, string $sessionUuid, int $category, array $exercises = []): void
     {
-        $this->updateNodeData($sessionUuid, function($session) use ($category, $exercises) {
+        $this->updateNodeData($sessionUuid, function ($session) use ($category, $exercises) {
             $session->data->category = $category;
             $session->data->exercises = $exercises;
         });
@@ -345,9 +316,8 @@ class TrainingTree extends AbstractData
 
     public function moveSession(string $weekUuid, string $sessionUuid, int $newDay, int $newSlot): void
     {
-        $this->removeConflictingSession($weekUuid, $newDay, $newSlot, $sessionUuid);
 
-        $this->updateNodeData($sessionUuid, function($session) use ($newDay, $newSlot) {
+        $this->updateNodeData($sessionUuid, function ($session) use ($newDay, $newSlot) {
             $session->data->day = $newDay;
             $session->data->slot = $newSlot;
         });
@@ -364,12 +334,12 @@ class TrainingTree extends AbstractData
             $newDay = $session2->data->day;
             $newSlot = $session2->data->slot;
 
-            $this->updateNodeData($sessionUuid1, function($session) use ($newDay, $newSlot) {
+            $this->updateNodeData($sessionUuid1, function ($session) use ($newDay, $newSlot) {
                 $session->data->day = $newDay;
                 $session->data->slot = $newSlot;
             });
 
-            $this->updateNodeData($sessionUuid2, function($session) use ($tempDay, $tempSlot) {
+            $this->updateNodeData($sessionUuid2, function ($session) use ($tempDay, $tempSlot) {
                 $session->data->day = $tempDay;
                 $session->data->slot = $tempSlot;
             });

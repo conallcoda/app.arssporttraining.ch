@@ -46,10 +46,10 @@ class TrainingPlanner extends Component
             }
         } else {
             $seasonConfig = new SeasonConfig(
-                numberOfBlocks: 2,
-                weeksPerBlock: 6
+                numberOfBlocks: 1,
+                weeksPerBlock: 2
             );
-            return LargeSeasonFactory::create($seasonConfig);
+            return SeasonFactory::create($seasonConfig);
         }
     }
 
