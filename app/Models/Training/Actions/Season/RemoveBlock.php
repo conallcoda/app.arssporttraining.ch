@@ -19,6 +19,4 @@ class RemoveBlock extends Action
         $parent->children[] = $node;
         return $this;
     }
-
-    public function unexecute() {}
 }

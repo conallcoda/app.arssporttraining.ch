@@ -4,24 +4,28 @@ namespace App\Models\Training\Actions\Season;
 
 use App\Models\Training\Data\BlockData;
 use App\Models\Training\Actions\Action;
-use App\Models\Training\TrainingNode;
 use App\Models\Training\TrainingTree;
 
 class AddBlock extends Action
 {
     public function __construct(
         public string $parentId,
-        public string $id,
+        public ?string $id = null,
     ) {}
 
-    public function execute(TrainingTree $root): self
+    public function execute(TrainingTree $tree): BlockAddedEvent
     {
+        if (!$this->parentId = $tree->root->uuid) {
+            throw new \Exception("Parent node not found");
+        }
 
-        $parent = $root->getNode($this->parentId);
-        $node = TrainingNode::fromData(new BlockData());
-        $parent->children[] = $node;
-        return $this;
+        $parent = $tree->getNode($this->parentId);
+        $node = $tree->addChild($parent, new BlockData());
+        return BlockAddedEvent::from($parent, $node);
     }
 
-    public function unexecute() {}
+    public static function fromParentId(string $parentId): self
+    {
+        return new self(parentId: $parentId);
+    }
 }

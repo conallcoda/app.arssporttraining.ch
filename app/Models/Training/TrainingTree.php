@@ -8,6 +8,8 @@ use App\Models\Training\Data\SessionData;
 use App\Models\Training\Data\TrainingData;
 use App\Models\Training\Data\WeekData;
 
+use App\Models\Training\Actions\Season\AddBlock;
+
 
 class TrainingTree extends AbstractData
 {
@@ -25,8 +27,11 @@ class TrainingTree extends AbstractData
         $this->originalRoot = $this->root ? self::deepCloneNode($this->root) : null;
     }
 
-    public function getNode(string $uuid): ?TrainingNode
+    public function getNode(string|TrainingNode $uuid): ?TrainingNode
     {
+        if ($uuid instanceof TrainingNode) {
+            return $uuid;
+        }
         return $this->searchForNode($this->root, $uuid);
     }
 
@@ -155,9 +160,7 @@ class TrainingTree extends AbstractData
 
     public function addBlock(string $rootUuid): void
     {
-        if ($this->root && $this->root->uuid === $rootUuid) {
-            $this->addChild($rootUuid, new BlockData());
-        }
+        $event = AddBlock::from($rootUuid)->execute($this);
     }
 
     public function addWeek(string $blockUuid): void
@@ -242,19 +245,22 @@ class TrainingTree extends AbstractData
         }
     }
 
-    protected function addChild(string $parentUuid, TrainingData $data): ?TrainingNode
+    public function addChild(string|TrainingNode $parent, TrainingData|TrainingNode $data): ?TrainingNode
     {
-        $parentNode = $this->getNode($parentUuid);
+        $parentNode = $this->getNode($parent);
         if (!$parentNode) {
             return null;
         }
 
         $newSequence = count($parentNode->children);
-        $newChild = TrainingNode::fromData(
-            data: $data,
-            sequence: $newSequence,
-            parentUuid: null
-        );
+
+        $newChild = $data instanceof TrainingNode
+            ? $data
+            : TrainingNode::fromData(
+                data: $data,
+                sequence: $newSequence,
+                parentUuid: $parentNode->uuid
+            );
 
         $parentNode->children[] = $newChild;
         $this->markChanged();
@@ -262,9 +268,9 @@ class TrainingTree extends AbstractData
         return $newChild;
     }
 
-    protected function removeChild(string $parentUuid, string $childUuid): bool
+    public function removeChild(string|TrainingNode $parent, string $childUuid): bool
     {
-        $parentNode = $this->getNode($parentUuid);
+        $parentNode = $this->getNode($parent);
         if (!$parentNode) {
             return false;
         }
