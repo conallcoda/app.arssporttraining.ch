@@ -3,10 +3,6 @@
 namespace App\Models\Training;
 
 use App\Data\AbstractData;
-use App\Models\Training\Data\BlockData;
-use App\Models\Training\Data\SessionData;
-use App\Models\Training\Data\TrainingData;
-use App\Models\Training\Data\WeekData;
 
 use App\Models\Training\Actions\Block\AddBlock;
 use App\Models\Training\Actions\Week\AddWeek;
@@ -18,12 +14,33 @@ use App\Models\Training\Actions\Session\DeleteSession;
 use App\Models\Training\Actions\Node\DeleteNode;
 use App\Models\Training\Actions\Node\DuplicateNode;
 use App\Models\Training\Actions\Node\MoveNode;
-
+use App\Models\Training\Data\TrainingData;
 
 class TrainingTree extends AbstractData
 {
+    public array $actions = [
+        'block' => [
+            'add' => AddBlock::class,
+            'delete' => DeleteNode::class,
+            'duplicate' => DuplicateNode::class,
+            'move' => MoveNode::class,
+        ],
+        'week' => [
+            'add' => AddWeek::class,
+            'delete' => DeleteNode::class,
+            'duplicate' => DuplicateNode::class,
+            'move' => MoveNode::class,
+        ],
+        'session' => [
+            'add' => AddSession::class,
+            'update' => UpdateSession::class,
+            'move' => MoveSession::class,
+            'swap' => SwapSessions::class,
+            'delete' => DeleteSession::class,
+        ],
+    ];
+
     public ?TrainingNode $originalRoot = null;
-    public array $registry = [];
 
     public function __construct(
         public TrainingNode $root,
@@ -34,6 +51,23 @@ class TrainingTree extends AbstractData
             $this->lastChangeTimestamp = time();
         }
         $this->originalRoot = $this->root ? self::deepCloneNode($this->root) : null;
+    }
+
+    public function executeAction(string $actionPath, array $params = []): mixed
+    {
+        [$nodeType, $actionName] = explode('.', $actionPath);
+
+        if (!isset($this->actions[$nodeType][$actionName])) {
+            throw new \Exception("Action {$actionPath} not found");
+        }
+
+        $actionClass = $this->actions[$nodeType][$actionName];
+        $action = $actionClass::from($params);
+
+        $event = $action->execute($this);
+        $this->markChanged();
+
+        return $event;
     }
 
     public function getNode(string|TrainingNode $uuid): ?TrainingNode
@@ -167,40 +201,6 @@ class TrainingTree extends AbstractData
         return null;
     }
 
-    public function addBlock(string $rootUuid): void
-    {
-        $event = AddBlock::from($rootUuid)->execute($this);
-    }
-
-    public function addWeek(string $blockUuid): void
-    {
-        $event = AddWeek::fromParentId($blockUuid)->execute($this);
-    }
-
-    public function deletePeriod(string $uuid): void
-    {
-        $event = DeleteNode::fromNodeId($uuid)->execute($this);
-        $this->markChanged();
-    }
-
-    public function duplicatePeriod(string $uuid): void
-    {
-        $event = DuplicateNode::fromNodeId($uuid)->execute($this);
-        $this->markChanged();
-    }
-
-    public function moveUp(string $uuid): void
-    {
-        $event = MoveNode::fromNodeId($uuid, -1)->execute($this);
-        $this->markChanged();
-    }
-
-    public function moveDown(string $uuid): void
-    {
-        $event = MoveNode::fromNodeId($uuid, 1)->execute($this);
-        $this->markChanged();
-    }
-
     public function renumberChildren(array &$children): void
     {
         foreach ($children as $index => $child) {
@@ -261,36 +261,6 @@ class TrainingTree extends AbstractData
         $this->markChanged();
         return true;
     }
-
-    public function addSession(string $weekUuid, int $day, int $slot, int $category, array $exercises = []): void
-    {
-        $event = AddSession::fromParentId($weekUuid, $day, $slot, $category, $exercises)->execute($this);
-    }
-
-    public function updateSession(string $weekUuid, string $sessionUuid, int $category, array $exercises = []): void
-    {
-        $event = UpdateSession::fromSessionId($sessionUuid, $category, $exercises)->execute($this);
-        $this->markChanged();
-    }
-
-    public function moveSession(string $weekUuid, string $sessionUuid, int $newDay, int $newSlot): void
-    {
-        $event = MoveSession::fromSessionId($sessionUuid, $newDay, $newSlot)->execute($this);
-        $this->markChanged();
-    }
-
-    public function swapSessions(string $weekUuid, string $sessionUuid1, string $sessionUuid2): void
-    {
-        $event = SwapSessions::fromSessionIds($sessionUuid1, $sessionUuid2)->execute($this);
-        $this->markChanged();
-    }
-
-    public function deleteSession(string $weekUuid, string $sessionUuid): void
-    {
-        $event = DeleteSession::fromIds($weekUuid, $sessionUuid)->execute($this);
-        $this->markChanged();
-    }
-
 
     public function markChanged(): void
     {

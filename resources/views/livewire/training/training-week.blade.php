@@ -21,9 +21,16 @@
     drop(targetSessionUuid, targetDay, targetSlot) {
         if (this.draggedSessionUuid && (this.draggedFromDay !== targetDay || this.draggedFromSlot !== targetSlot)) {
             if (targetSessionUuid) {
-                $wire.swapSessions(this.draggedSessionUuid, targetSessionUuid);
+                $wire.call('action', 'session', 'swap', {
+                    session1Id: this.draggedSessionUuid,
+                    session2Id: targetSessionUuid
+                });
             } else {
-                $wire.moveSession(this.draggedSessionUuid, targetDay, targetSlot);
+                $wire.call('action', 'session', 'move', {
+                    sessionId: this.draggedSessionUuid,
+                    newDay: targetDay,
+                    newSlot: targetSlot
+                });
             }
         }
         this.draggedSessionUuid = null;

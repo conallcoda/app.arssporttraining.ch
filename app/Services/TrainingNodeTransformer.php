@@ -64,7 +64,7 @@ class TrainingNodeTransformer
     {
         return [
             new TreeAction(
-                name: 'add_block',
+                name: 'block.add',
                 label: 'Add Block',
                 icon: 'list-plus',
             ),
@@ -75,29 +75,31 @@ class TrainingNodeTransformer
     {
         return [
             new TreeAction(
-                name: 'add_week',
+                name: 'week.add',
                 label: 'Add Week',
                 icon: 'list-plus',
             ),
             new TreeAction(
-                name: 'duplicate',
+                name: 'block.duplicate',
                 label: 'Duplicate',
                 icon: 'copy-plus',
             ),
             new TreeAction(
-                name: 'move_up',
+                name: 'block.move',
                 label: 'Move Up',
                 icon: 'arrow-up',
                 disabled: $position['isFirst'],
+                metadata: ['direction' => -1],
             ),
             new TreeAction(
-                name: 'move_down',
+                name: 'block.move',
                 label: 'Move Down',
                 icon: 'arrow-down',
                 disabled: $position['isLast'],
+                metadata: ['direction' => 1],
             ),
             new TreeAction(
-                name: 'delete',
+                name: 'block.delete',
                 label: 'Delete',
                 icon: 'trash',
                 variant: 'danger',
@@ -110,29 +112,31 @@ class TrainingNodeTransformer
     {
         return [
             new TreeAction(
-                name: 'add_session',
+                name: 'session.add',
                 label: 'Add Session',
                 icon: 'list-plus',
             ),
             new TreeAction(
-                name: 'duplicate',
+                name: 'week.duplicate',
                 label: 'Duplicate',
                 icon: 'copy-plus',
             ),
             new TreeAction(
-                name: 'move_up',
+                name: 'week.move',
                 label: 'Move Up',
                 icon: 'arrow-up',
                 disabled: $position['isFirst'],
+                metadata: ['direction' => -1],
             ),
             new TreeAction(
-                name: 'move_down',
+                name: 'week.move',
                 label: 'Move Down',
                 icon: 'arrow-down',
                 disabled: $position['isLast'],
+                metadata: ['direction' => 1],
             ),
             new TreeAction(
-                name: 'delete',
+                name: 'week.delete',
                 label: 'Delete',
                 icon: 'trash',
                 variant: 'danger',

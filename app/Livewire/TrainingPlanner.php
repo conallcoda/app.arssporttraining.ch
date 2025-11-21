@@ -80,19 +80,6 @@ class TrainingPlanner extends Component
         $this->selectPeriod($uuid);
     }
 
-    public function triggerAction(string $nodeUuid, string $actionName): void
-    {
-        match ($actionName) {
-            'add_block' => $this->tree->addBlock($nodeUuid),
-            'add_week' => $this->tree->addWeek($nodeUuid),
-            'add_session' => $this->dispatch('show-add-session-modal', weekUuid: $nodeUuid),
-            'duplicate' => $this->tree->duplicatePeriod($nodeUuid),
-            'move_up' => $this->tree->moveUp($nodeUuid),
-            'move_down' => $this->tree->moveDown($nodeUuid),
-            'delete' => $this->deletePeriod($nodeUuid),
-            default => null,
-        };
-    }
 
     #[Computed]
     public function navigationTree(): ?TreeNode
@@ -153,44 +140,33 @@ class TrainingPlanner extends Component
         $this->mount();
     }
 
-    public function deletePeriod($uuid)
+    #[On('action')]
+    public function action($type, $action, $params = [])
     {
-        if ($this->selectedPeriodUuid === $uuid) {
-            $this->selectedPeriodUuid = null;
+        if ($type === 'session' && $action === 'add' && !isset($params['day'])) {
+            $this->dispatch('show-add-session-modal', weekUuid: $params['nodeId'] ?? null);
+            return;
         }
 
-        $this->tree->deletePeriod($uuid);
+        if ($action === 'delete') {
+            $nodeId = $params['nodeId'] ?? null;
+            if ($this->selectedPeriodUuid === $nodeId) {
+                $this->selectedPeriodUuid = null;
+            }
+        }
+
+        if ($action === 'add') {
+            $params['parentId'] = $params['nodeId'] ?? $params['parentId'] ?? null;
+            unset($params['nodeId']);
+        }
+
+        if ($action === 'move' || $action === 'duplicate') {
+            $params['nodeId'] = $params['nodeId'] ?? null;
+        }
+
+        $this->tree->executeAction("$type.$action", $params);
     }
 
-    #[On('addSession')]
-    public function addSession(string $weekUuid, int $day, int $slot, int $category, array $exercises = [])
-    {
-        $this->tree->addSession($weekUuid, $day, $slot, $category, $exercises);
-    }
-
-    #[On('updateSession')]
-    public function updateSession(string $weekUuid, string $sessionUuid, int $category, array $exercises = [])
-    {
-        $this->tree->updateSession($weekUuid, $sessionUuid, $category, $exercises);
-    }
-
-    #[On('moveSession')]
-    public function moveSession(string $weekUuid, string $sessionUuid, int $newDay, int $newSlot)
-    {
-        $this->tree->moveSession($weekUuid, $sessionUuid, $newDay, $newSlot);
-    }
-
-    #[On('swapSessions')]
-    public function swapSessions(string $weekUuid, string $sessionUuid1, string $sessionUuid2)
-    {
-        $this->tree->swapSessions($weekUuid, $sessionUuid1, $sessionUuid2);
-    }
-
-    #[On('deleteSession')]
-    public function deleteSession(string $weekUuid, string $sessionUuid)
-    {
-        $this->tree->deleteSession($weekUuid, $sessionUuid);
-    }
 
     public function render()
     {

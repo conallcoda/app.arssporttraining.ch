@@ -95,19 +95,26 @@ class TrainingWeek extends Component
         $exercises = array_filter($this->sessionExercises, fn($id) => $id !== null);
 
         if ($this->editingSessionUuid) {
-            $this->dispatch('updateSession',
-                weekUuid: $this->week->uuid,
-                sessionUuid: $this->editingSessionUuid,
-                category: $this->sessionCategory,
-                exercises: array_values($exercises)
+            $this->dispatch('action',
+                type: 'session',
+                action: 'update',
+                params: [
+                    'sessionId' => $this->editingSessionUuid,
+                    'category' => $this->sessionCategory,
+                    'exercises' => array_values($exercises)
+                ]
             );
         } else {
-            $this->dispatch('addSession',
-                weekUuid: $this->week->uuid,
-                day: $this->sessionDay,
-                slot: $this->sessionSlot,
-                category: $this->sessionCategory,
-                exercises: array_values($exercises)
+            $this->dispatch('action',
+                type: 'session',
+                action: 'add',
+                params: [
+                    'parentId' => $this->week->uuid,
+                    'day' => $this->sessionDay,
+                    'slot' => $this->sessionSlot,
+                    'category' => $this->sessionCategory,
+                    'exercises' => array_values($exercises)
+                ]
             );
         }
 
@@ -116,28 +123,38 @@ class TrainingWeek extends Component
 
     public function moveSession(string $sessionUuid, int $newDay, int $newSlot)
     {
-        $this->dispatch('moveSession',
-            weekUuid: $this->week->uuid,
-            sessionUuid: $sessionUuid,
-            newDay: $newDay,
-            newSlot: $newSlot
+        $this->dispatch('action',
+            type: 'session',
+            action: 'move',
+            params: [
+                'sessionId' => $sessionUuid,
+                'newDay' => $newDay,
+                'newSlot' => $newSlot
+            ]
         );
     }
 
     public function swapSessions(string $sessionUuid1, string $sessionUuid2)
     {
-        $this->dispatch('swapSessions',
-            weekUuid: $this->week->uuid,
-            sessionUuid1: $sessionUuid1,
-            sessionUuid2: $sessionUuid2
+        $this->dispatch('action',
+            type: 'session',
+            action: 'swap',
+            params: [
+                'session1Id' => $sessionUuid1,
+                'session2Id' => $sessionUuid2
+            ]
         );
     }
 
     public function deleteSession(string $sessionUuid)
     {
-        $this->dispatch('deleteSession',
-            weekUuid: $this->week->uuid,
-            sessionUuid: $sessionUuid
+        $this->dispatch('action',
+            type: 'session',
+            action: 'delete',
+            params: [
+                'parentId' => $this->week->uuid,
+                'sessionId' => $sessionUuid
+            ]
         );
 
         $this->closeSessionModal();

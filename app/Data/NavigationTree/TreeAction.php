@@ -13,5 +13,16 @@ class TreeAction extends AbstractData
         public ?string $variant = null,
         public bool $separator = false,
         public bool $disabled = false,
+        public array $metadata = [],
     ) {}
+
+    public function type(): string
+    {
+        return explode('.', $this->name)[0];
+    }
+
+    public function action(): string
+    {
+        return explode('.', $this->name)[1];
+    }
 }

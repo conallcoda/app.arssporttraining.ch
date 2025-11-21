@@ -37,7 +37,7 @@
                             <flux:menu.separator />
                         @endif
                         <flux:menu.item
-                            wire:click="triggerAction('{{ $nodeUuid }}', '{{ $action->name }}')"
+                            wire:click="action('{{ $action->type() }}', '{{ $action->action() }}', {{ json_encode(array_merge(['nodeId' => $nodeUuid], $action->metadata)) }})"
                             :icon="$action->icon ?? ''"
                             :variant="$action->variant ?? 'default'"
                             :disabled="$action->disabled">
