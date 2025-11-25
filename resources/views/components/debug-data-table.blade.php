@@ -1,6 +1,16 @@
-@props(['title', 'rows' => [], 'setCount' => 0, 'rowColor' => 'bg-blue-50'])
+@props(['title', 'rows' => [], 'setCount' => 0, 'rowColor' => 'bg-blue-50', 'grid' => true])
 
-<div class="text-sm" x-data="data_grid" tabindex="0" @click.outside="clearSelection()">
+<div class="text-sm outline-none"
+    @if ($grid) x-data="data_grid"
+        tabindex="0"
+        @click.outside="clearSelection()"
+        @mousedown="$el.focus()"
+        @keydown.ctrl.c.prevent="copy()"
+        @keydown.meta.c.prevent="copy()"
+        @keydown.ctrl.v.prevent="paste()"
+        @keydown.meta.v.prevent="paste()"
+        @keydown.escape="cancelEdit()"
+        @keydown.enter="commitEdit()" @endif>
     <flux:heading size="sm" class="mb-2">{{ $title }}</flux:heading>
     <table class="border-collapse border border-zinc-300 dark:border-zinc-600">
         <thead>
@@ -21,22 +31,32 @@
                     <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold" rowspan="2">
                         {{ $row['week'] }}.{{ $row['session'] }}</td>
                     @foreach ($row['reps'] as $colIndex => $rep)
-                        <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center cursor-pointer select-none"
-                            :class="getBorderClasses({{ $repsRowIndex }}, {{ $colIndex }})"
-                            @mousedown.prevent="startSelection({{ $repsRowIndex }}, {{ $colIndex }})"
-                            @mouseenter="extendSelection({{ $repsRowIndex }}, {{ $colIndex }})"
-                            @dblclick.prevent="startEdit({{ $repsRowIndex }}, {{ $colIndex }})"
-                            x-init="registerCell({{ $repsRowIndex }}, {{ $colIndex }}, $el)">{{ $rep }}</td>
+                        @if ($grid)
+                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center cursor-pointer select-none"
+                                :class="getBorderClasses({{ $repsRowIndex }}, {{ $colIndex }})"
+                                @mousedown.prevent="startSelection({{ $repsRowIndex }}, {{ $colIndex }}, $event)"
+                                @mouseenter="extendSelection({{ $repsRowIndex }}, {{ $colIndex }}, $event)"
+                                @dblclick.prevent="startEdit({{ $repsRowIndex }}, {{ $colIndex }})"
+                                x-init="registerCell({{ $repsRowIndex }}, {{ $colIndex }}, $el)">{{ $rep }}</td>
+                        @else
+                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center">
+                                {{ $rep }}</td>
+                        @endif
                     @endforeach
                 </tr>
                 <tr>
                     @foreach ($row['weights'] as $colIndex => $weight)
-                        <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center cursor-pointer select-none"
-                            :class="getBorderClasses({{ $weightsRowIndex }}, {{ $colIndex }})"
-                            @mousedown.prevent="startSelection({{ $weightsRowIndex }}, {{ $colIndex }})"
-                            @mouseenter="extendSelection({{ $weightsRowIndex }}, {{ $colIndex }})"
-                            @dblclick.prevent="startEdit({{ $weightsRowIndex }}, {{ $colIndex }})"
-                            x-init="registerCell({{ $weightsRowIndex }}, {{ $colIndex }}, $el)">{{ $weight }}</td>
+                        @if ($grid)
+                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center cursor-pointer select-none"
+                                :class="getBorderClasses({{ $weightsRowIndex }}, {{ $colIndex }})"
+                                @mousedown.prevent="startSelection({{ $weightsRowIndex }}, {{ $colIndex }}, $event)"
+                                @mouseenter="extendSelection({{ $weightsRowIndex }}, {{ $colIndex }}, $event)"
+                                @dblclick.prevent="startEdit({{ $weightsRowIndex }}, {{ $colIndex }})"
+                                x-init="registerCell({{ $weightsRowIndex }}, {{ $colIndex }}, $el)">{{ $weight }}</td>
+                        @else
+                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center">
+                                {{ $weight }}</td>
+                        @endif
                     @endforeach
                 </tr>
             @endforeach

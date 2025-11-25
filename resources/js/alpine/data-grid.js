@@ -11,26 +11,6 @@ document.addEventListener('alpine:init', () => {
             document.addEventListener('mouseup', () => {
                 this.isDragging = false;
             });
-
-            this.$el.addEventListener('keydown', (e) => {
-                if (this.editingCell) {
-                    if (e.key === 'Escape') {
-                        this.cancelEdit();
-                    } else if (e.key === 'Enter') {
-                        this.commitEdit();
-                    }
-                    return;
-                }
-
-                if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
-                    e.preventDefault();
-                    this.copy();
-                }
-                if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
-                    e.preventDefault();
-                    this.paste();
-                }
-            });
         },
 
         registerCell(rowIndex, colIndex, el) {
@@ -87,26 +67,38 @@ document.addEventListener('alpine:init', () => {
             const clipboardRows = this.clipboard.length;
             const clipboardCols = this.clipboard[0].length;
 
-            for (let row = bounds.minRow; row <= bounds.maxRow; row++) {
-                for (let col = bounds.minCol; col <= bounds.maxCol; col++) {
-                    const clipRow = (row - bounds.minRow) % clipboardRows;
-                    const clipCol = (col - bounds.minCol) % clipboardCols;
-                    this.setCellValue(row, col, this.clipboard[clipRow][clipCol]);
+            const startRow = bounds.minRow;
+            const startCol = bounds.minCol;
+
+            for (let clipRow = 0; clipRow < clipboardRows; clipRow++) {
+                for (let clipCol = 0; clipCol < clipboardCols; clipCol++) {
+                    const targetRow = startRow + clipRow;
+                    const targetCol = startCol + clipCol;
+                    const key = `${targetRow}-${targetCol}`;
+                    if (this.cells[key]) {
+                        this.setCellValue(targetRow, targetCol, this.clipboard[clipRow][clipCol]);
+                    }
                 }
             }
         },
 
-        startSelection(rowIndex, colIndex) {
-            this.$el.focus();
+        startSelection(rowIndex, colIndex, event) {
+            if (event.button !== 0) return;
             this.isDragging = true;
             this.startCell = { row: rowIndex, col: colIndex };
             this.endCell = { row: rowIndex, col: colIndex };
+            this.$nextTick(() => {
+                this.$el.focus();
+            });
         },
 
-        extendSelection(rowIndex, colIndex) {
-            if (this.isDragging) {
-                this.endCell = { row: rowIndex, col: colIndex };
+        extendSelection(rowIndex, colIndex, event) {
+            if (!this.isDragging) return;
+            if (event.buttons !== 1) return;
+            if (this.endCell?.row === rowIndex && this.endCell?.col === colIndex) {
+                return;
             }
+            this.endCell = { row: rowIndex, col: colIndex };
         },
 
         isSelected(rowIndex, colIndex) {

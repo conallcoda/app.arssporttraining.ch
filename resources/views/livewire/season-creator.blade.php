@@ -60,7 +60,8 @@
 
                                     <div class="flex gap-8">
                                         <x-debug-data-table title="Initial Data (Block {{ $activeBlock }})"
-                                            :rows="$this->getInitialData($exercise->id)" :set-count="$this->setCount" row-color="bg-green-50" />
+                                            :grid="false" :rows="$this->getInitialData($exercise->id)" :set-count="$this->setCount"
+                                            row-color="bg-green-50" />
 
                                         <x-debug-data-table title="Current Data (Block {{ $activeBlock }})"
                                             :rows="$this->getCurrentDataRows($exercise->id)" :set-count="$this->setCount" row-color="bg-blue-50" />
