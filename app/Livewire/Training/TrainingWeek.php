@@ -18,6 +18,8 @@ class TrainingWeek extends Component
     public array $sessionExercises = [];
     public $categories;
 
+    public ?string $selectedSessionUuid = null;
+
     public function mount()
     {
         $this->categories = TrainingSessionCategory::all();
@@ -160,6 +162,83 @@ class TrainingWeek extends Component
         $this->closeSessionModal();
     }
 
+    public function selectSession(?string $sessionUuid)
+    {
+        $this->selectedSessionUuid = $sessionUuid;
+    }
+
+    public function addExerciseToSession(string $sessionUuid, int $exerciseId)
+    {
+        $this->dispatch('action',
+            type: 'exercise',
+            action: 'add',
+            params: [
+                'parentId' => $sessionUuid,
+                'exercise' => $exerciseId,
+            ]
+        );
+    }
+
+    public function updateExerciseNode(string $exerciseUuid, int $exerciseId)
+    {
+        $this->dispatch('action',
+            type: 'exercise',
+            action: 'update',
+            params: [
+                'exerciseId' => $exerciseUuid,
+                'exercise' => $exerciseId,
+            ]
+        );
+    }
+
+    public function deleteExerciseNode(string $exerciseUuid)
+    {
+        $this->dispatch('action',
+            type: 'exercise',
+            action: 'delete',
+            params: [
+                'nodeId' => $exerciseUuid,
+            ]
+        );
+    }
+
+    public function addSetToExercise(string $exerciseUuid, int $reps = 10, float $weight = 0)
+    {
+        $this->dispatch('action',
+            type: 'set',
+            action: 'add',
+            params: [
+                'parentId' => $exerciseUuid,
+                'reps' => $reps,
+                'weight' => $weight,
+            ]
+        );
+    }
+
+    public function updateSet(string $setUuid, int $reps, float $weight)
+    {
+        $this->dispatch('action',
+            type: 'set',
+            action: 'update',
+            params: [
+                'setId' => $setUuid,
+                'reps' => $reps,
+                'weight' => $weight,
+            ]
+        );
+    }
+
+    public function deleteSet(string $setUuid)
+    {
+        $this->dispatch('action',
+            type: 'set',
+            action: 'delete',
+            params: [
+                'nodeId' => $setUuid,
+            ]
+        );
+    }
+
     protected function findSession(string $uuid): ?TrainingNode
     {
         foreach ($this->week->children as $session) {
@@ -170,9 +249,19 @@ class TrainingWeek extends Component
         return null;
     }
 
+    public function getSelectedSession(): ?TrainingNode
+    {
+        if (!$this->selectedSessionUuid) {
+            return null;
+        }
+        return $this->findSession($this->selectedSessionUuid);
+    }
+
     public function render()
     {
-        return view('livewire.training.training-week');
+        return view('livewire.training.training-week', [
+            'selectedSession' => $this->getSelectedSession(),
+        ]);
     }
 
     public function getColorValue(?string $colorName): string

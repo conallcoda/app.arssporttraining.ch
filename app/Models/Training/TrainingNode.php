@@ -7,6 +7,7 @@ use App\Models\Training\Data\BlockData;
 use App\Models\Training\Data\ExerciseData;
 use App\Models\Training\Data\SeasonData;
 use App\Models\Training\Data\SessionData;
+use App\Models\Training\Data\SetData;
 use App\Models\Training\Data\TrainingData;
 use App\Models\Training\Data\WeekData;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
@@ -38,6 +39,7 @@ class TrainingNode extends AbstractData
                 'week' => WeekData::class,
                 'session' => SessionData::class,
                 'exercise' => ExerciseData::class,
+                'set' => SetData::class,
             ];
 
             if (isset($typeMap[$properties['type']])) {

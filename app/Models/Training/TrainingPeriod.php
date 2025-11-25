@@ -22,6 +22,7 @@ class TrainingPeriod extends Model
         'week' => Data\WeekData::class,
         'session' => Data\SessionData::class,
         'exercise' => Data\ExerciseData::class,
+        'set' => Data\SetData::class,
     ];
 
     protected $fillable = [

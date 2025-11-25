@@ -118,12 +118,13 @@
                                 @drop.prevent="drop('{{ $session?->uuid }}', {{ $dayIndex }}, {{ $sequenceIndex }})">
 
                                 @if ($sessionCategory)
-                                    <div class="h-full flex items-center justify-center rounded px-2 py-1 cursor-move group relative transition-transform duration-200"
+                                    <div class="h-full flex items-center justify-center rounded px-2 py-1 cursor-move group relative transition-transform duration-200 {{ $selectedSessionUuid === $session->uuid ? 'ring-2 ring-blue-500' : '' }}"
                                         :class="draggedSessionUuid === '{{ $session->uuid }}' ? 'opacity-50 scale-95' : ''"
                                         style="background-color: {{ $this->getColorValue($sessionCategory->background_color) }}; color: {{ $this->getColorValue($sessionCategory->text_color) }};"
                                         draggable="true"
                                         @dragstart="startDrag('{{ $session->uuid }}', {{ $dayIndex }}, {{ $sequenceIndex }})"
                                         @dragend="draggedSessionUuid = null; isDraggingOver = null"
+                                        @click="$wire.selectSession('{{ $session->uuid }}')"
                                         @dblclick="$wire.openSessionModal('{{ $session->uuid }}', {{ $dayIndex }}, {{ $sequenceIndex }})">
                                         <span class="text-sm font-medium">{{ $sessionCategory->name }}</span>
                                         <div
@@ -143,6 +144,147 @@
             </tbody>
         </table>
     </div>
+
+    @if ($selectedSession)
+        @php
+            $selectedCategory = $selectedSession->data->category
+                ? $categoriesById[$selectedSession->data->category] ?? null
+                : null;
+            $exercisesById = \App\Models\Exercise\Exercise::all()->keyBy('id');
+        @endphp
+        <div class="mt-6 border border-zinc-200 dark:border-zinc-700 rounded-lg">
+            <div class="p-4 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    @if ($selectedCategory)
+                        <div class="w-4 h-4 rounded"
+                            style="background-color: {{ $this->getColorValue($selectedCategory->background_color) }};">
+                        </div>
+                    @endif
+                    <flux:heading size="sm">{{ $selectedCategory?->name ?? 'Session' }} - {{ $days[$selectedSession->data->day] }} {{ $timePeriods[$selectedSession->data->slot] }}</flux:heading>
+                </div>
+                <flux:button size="sm" variant="ghost" wire:click="selectSession(null)">
+                    <x-lucide-x class="w-4 h-4" />
+                </flux:button>
+            </div>
+
+            <div class="p-4 space-y-4">
+                <div class="flex items-center justify-between">
+                    <flux:heading size="xs">Exercises</flux:heading>
+                    <div x-data="{ showAddExercise: false, newExerciseId: null }">
+                        <flux:button x-show="!showAddExercise" @click="showAddExercise = true" size="sm" variant="ghost" class="inline-flex items-center gap-1">
+                            <x-lucide-plus class="w-4 h-4" />
+                            <span>Add Exercise</span>
+                        </flux:button>
+                        <div x-show="showAddExercise" class="flex items-center gap-2">
+                            <select x-model="newExerciseId" class="text-sm border-zinc-300 rounded-md">
+                                <option value="">Select exercise...</option>
+                                @foreach ($exercisesById as $exercise)
+                                    <option value="{{ $exercise->id }}">{{ $exercise->name }}</option>
+                                @endforeach
+                            </select>
+                            <flux:button size="sm" variant="primary"
+                                @click="if(newExerciseId) { $wire.addExerciseToSession('{{ $selectedSession->uuid }}', parseInt(newExerciseId)); showAddExercise = false; newExerciseId = null; }">
+                                Add
+                            </flux:button>
+                            <flux:button size="sm" variant="ghost" @click="showAddExercise = false; newExerciseId = null">
+                                Cancel
+                            </flux:button>
+                        </div>
+                    </div>
+                </div>
+
+                @if (count($selectedSession->children) > 0)
+                    <div class="space-y-3">
+                        @foreach ($selectedSession->children as $exerciseIndex => $exerciseNode)
+                            @php
+                                $exerciseModel = $exercisesById[$exerciseNode->data->exercise] ?? null;
+                            @endphp
+                            <div class="border border-zinc-200 dark:border-zinc-700 rounded-lg" wire:key="exercise-node-{{ $exerciseNode->uuid }}">
+                                <div class="p-3 bg-zinc-50 dark:bg-zinc-800 flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-semibold text-zinc-500 bg-zinc-200 dark:bg-zinc-700 px-2 py-0.5 rounded">
+                                            {{ $exerciseIndex + 1 }}
+                                        </span>
+                                        <span class="font-medium text-sm">
+                                            {{ $exerciseModel?->name ?? 'Unknown Exercise' }}
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <flux:button size="xs" variant="ghost"
+                                            wire:click="deleteExerciseNode('{{ $exerciseNode->uuid }}')"
+                                            wire:confirm="Are you sure you want to delete this exercise and all its sets?">
+                                            <x-lucide-trash-2 class="w-4 h-4" />
+                                        </flux:button>
+                                    </div>
+                                </div>
+
+                                <div class="p-3">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-xs font-medium text-zinc-500">Sets</span>
+                                        <flux:button size="xs" variant="ghost" class="inline-flex items-center gap-1"
+                                            wire:click="addSetToExercise('{{ $exerciseNode->uuid }}')">
+                                            <x-lucide-plus class="w-3 h-3" />
+                                            <span>Add Set</span>
+                                        </flux:button>
+                                    </div>
+
+                                    @if (count($exerciseNode->children) > 0)
+                                        <div class="space-y-2">
+                                            @foreach ($exerciseNode->children as $setIndex => $setNode)
+                                                <div class="flex items-center gap-3 p-2 bg-zinc-50 dark:bg-zinc-800 rounded" wire:key="set-node-{{ $setNode->uuid }}"
+                                                    x-data="{ editing: false, reps: {{ $setNode->data->reps }}, weight: {{ $setNode->data->weight }} }">
+                                                    <span class="text-xs text-zinc-400 w-6">{{ $setIndex + 1 }}</span>
+
+                                                    <template x-if="!editing">
+                                                        <div class="flex items-center gap-4 flex-1" @dblclick="editing = true">
+                                                            <span class="text-sm">
+                                                                <span class="font-medium">{{ $setNode->data->reps }}</span>
+                                                                <span class="text-zinc-500">reps</span>
+                                                            </span>
+                                                            <span class="text-zinc-300">x</span>
+                                                            <span class="text-sm">
+                                                                <span class="font-medium">{{ $setNode->data->weight }}</span>
+                                                                <span class="text-zinc-500">kg</span>
+                                                            </span>
+                                                        </div>
+                                                    </template>
+
+                                                    <template x-if="editing">
+                                                        <div class="flex items-center gap-2 flex-1">
+                                                            <input type="number" x-model="reps" class="w-16 text-sm border-zinc-300 rounded px-2 py-1" min="1">
+                                                            <span class="text-zinc-500 text-sm">reps x</span>
+                                                            <input type="number" x-model="weight" step="0.5" class="w-20 text-sm border-zinc-300 rounded px-2 py-1" min="0">
+                                                            <span class="text-zinc-500 text-sm">kg</span>
+                                                            <flux:button size="xs" variant="primary"
+                                                                @click="$wire.updateSet('{{ $setNode->uuid }}', parseInt(reps), parseFloat(weight)); editing = false">
+                                                                Save
+                                                            </flux:button>
+                                                            <flux:button size="xs" variant="ghost" @click="editing = false; reps = {{ $setNode->data->reps }}; weight = {{ $setNode->data->weight }}">
+                                                                Cancel
+                                                            </flux:button>
+                                                        </div>
+                                                    </template>
+
+                                                    <flux:button x-show="!editing" size="xs" variant="ghost"
+                                                        wire:click="deleteSet('{{ $setNode->uuid }}')">
+                                                        <x-lucide-trash-2 class="w-3 h-3" />
+                                                    </flux:button>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <p class="text-xs text-zinc-400">No sets added yet. Click "Add Set" to add one.</p>
+                                    @endif
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <p class="text-sm text-zinc-500">No exercises in this session. Click "Add Exercise" to add one.</p>
+                @endif
+            </div>
+        </div>
+    @endif
 
     <flux:modal name="session-modal" wire:model="showSessionModal" class="min-w-md">
         <form wire:submit="saveSession" class="space-y-6">
@@ -178,8 +320,11 @@
                 <div class="space-y-3">
                     <div class="flex items-center justify-between">
                         <flux:label>Exercises</flux:label>
-                        <flux:button type="button" size="sm" variant="ghost" icon="plus"
-                            wire:click="addExercise">Add Exercise</flux:button>
+                        <flux:button type="button" size="sm" variant="ghost" class="inline-flex items-center gap-1"
+                            wire:click="addExercise">
+                            <x-lucide-plus class="w-4 h-4" />
+                            <span>Add Exercise</span>
+                        </flux:button>
                     </div>
 
                     @if (count($sessionExercises) > 0)
@@ -218,8 +363,10 @@
                                                     d="M19 9l-7 7-7-7" />
                                             </svg>
                                         </button>
-                                        <flux:button type="button" size="sm" variant="ghost" icon="trash"
-                                            wire:click="removeExercise({{ $index }})" />
+                                        <flux:button type="button" size="sm" variant="ghost"
+                                            wire:click="removeExercise({{ $index }})">
+                                            <x-lucide-trash-2 class="w-4 h-4" />
+                                        </flux:button>
                                     </div>
                                 </div>
                             @endforeach
@@ -233,8 +380,11 @@
             <div class="flex gap-2 justify-between">
                 <div>
                     @if ($editingSessionUuid)
-                        <flux:button type="button" variant="danger"
-                            wire:click="deleteSession('{{ $editingSessionUuid }}')" icon="trash">Delete</flux:button>
+                        <flux:button type="button" variant="danger" class="inline-flex items-center gap-1"
+                            wire:click="deleteSession('{{ $editingSessionUuid }}')">
+                            <x-lucide-trash-2 class="w-4 h-4" />
+                            <span>Delete</span>
+                        </flux:button>
                     @endif
                 </div>
                 <div class="flex gap-2">

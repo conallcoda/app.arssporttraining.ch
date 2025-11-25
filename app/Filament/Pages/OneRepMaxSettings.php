@@ -2,13 +2,11 @@
 
 namespace App\Filament\Pages;
 
-use BackedEnum;
 use Inerba\DbConfig\AbstractPageSettings;
 use Filament\Schemas\Components;
 use Filament\Schemas\Schema;
 use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
 use Filament\Forms\Components\TextInput;
-use UnitEnum;
 
 class OneRepMaxSettings extends AbstractPageSettings
 {

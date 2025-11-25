@@ -11,6 +11,7 @@ class TrainingSeeder extends Seeder
 {
     public function run(): void
     {
+
         $categories = [
             ['name' => 'Gym', 'text_color' => 'white', 'background_color' => 'blue'],
             ['name' => 'Jump', 'text_color' => 'white', 'background_color' => 'red'],
@@ -23,6 +24,7 @@ class TrainingSeeder extends Seeder
             $created = TrainingSessionCategory::create($category);
             $categoryModels[$created->slug] = $created;
         }
+        return;
 
         Artisan::call('training:import');
     }
