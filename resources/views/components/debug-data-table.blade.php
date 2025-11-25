@@ -30,6 +30,7 @@
                             :class="getBorderClasses({{ $repsRowIndex }}, {{ $colIndex }})"
                             @mousedown.prevent="startSelection({{ $repsRowIndex }}, {{ $colIndex }})"
                             @mouseenter="extendSelection({{ $repsRowIndex }}, {{ $colIndex }})"
+                            @dblclick.prevent="startEdit({{ $repsRowIndex }}, {{ $colIndex }})"
                             x-init="registerCell({{ $repsRowIndex }}, {{ $colIndex }}, $el)"
                         >{{ $rep }}</td>
                     @endforeach
@@ -41,6 +42,7 @@
                             :class="getBorderClasses({{ $weightsRowIndex }}, {{ $colIndex }})"
                             @mousedown.prevent="startSelection({{ $weightsRowIndex }}, {{ $colIndex }})"
                             @mouseenter="extendSelection({{ $weightsRowIndex }}, {{ $colIndex }})"
+                            @dblclick.prevent="startEdit({{ $weightsRowIndex }}, {{ $colIndex }})"
                             x-init="registerCell({{ $weightsRowIndex }}, {{ $colIndex }}, $el)"
                         >{{ $weight }}</td>
                     @endforeach

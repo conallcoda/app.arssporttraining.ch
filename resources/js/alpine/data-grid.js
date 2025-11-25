@@ -5,6 +5,7 @@ document.addEventListener('alpine:init', () => {
         endCell: null,
         clipboard: null,
         cells: {},
+        editingCell: null,
 
         init() {
             document.addEventListener('mouseup', () => {
@@ -12,11 +13,18 @@ document.addEventListener('alpine:init', () => {
             });
 
             this.$el.addEventListener('keydown', (e) => {
-                console.log(11111, e);
+                if (this.editingCell) {
+                    if (e.key === 'Escape') {
+                        this.cancelEdit();
+                    } else if (e.key === 'Enter') {
+                        this.commitEdit();
+                    }
+                    return;
+                }
+
                 if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
                     e.preventDefault();
                     this.copy();
-                    console.log(1111);
                 }
                 if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
                     e.preventDefault();
@@ -133,6 +141,66 @@ document.addEventListener('alpine:init', () => {
         clearSelection() {
             this.startCell = null;
             this.endCell = null;
+        },
+
+        startEdit(rowIndex, colIndex) {
+            const key = `${rowIndex}-${colIndex}`;
+            const el = this.cells[key];
+            if (!el) return;
+
+            this.editingCell = { row: rowIndex, col: colIndex };
+            const currentValue = el.textContent.trim();
+
+            el.style.position = 'relative';
+            el.dataset.originalValue = currentValue;
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentValue;
+            input.style.cssText = 'position: absolute; inset: 0; width: 100%; height: 100%; text-align: center; border: none; outline: none; background: white; padding: 0; margin: 0; font-size: inherit; font-family: inherit;';
+
+            el.textContent = '';
+            el.appendChild(input);
+            input.focus();
+            input.select();
+
+            input.addEventListener('blur', () => {
+                this.commitEdit();
+            });
+        },
+
+        isEditing(rowIndex, colIndex) {
+            return this.editingCell?.row === rowIndex && this.editingCell?.col === colIndex;
+        },
+
+        commitEdit() {
+            if (!this.editingCell) return;
+
+            const key = `${this.editingCell.row}-${this.editingCell.col}`;
+            const el = this.cells[key];
+            if (!el) return;
+
+            const input = el.querySelector('input');
+            const value = input ? input.value : '';
+
+            el.textContent = value;
+            el.style.position = '';
+            delete el.dataset.originalValue;
+            this.editingCell = null;
+        },
+
+        cancelEdit() {
+            if (!this.editingCell) return;
+
+            const key = `${this.editingCell.row}-${this.editingCell.col}`;
+            const el = this.cells[key];
+            if (!el) return;
+
+            const originalValue = el.dataset.originalValue || '';
+            el.textContent = originalValue;
+            el.style.position = '';
+            delete el.dataset.originalValue;
+            this.editingCell = null;
         }
     }));
 });

@@ -59,13 +59,6 @@
                                     </div>
 
                                     <div class="flex gap-8">
-                                        <div wire:ignore x-data="exercise_spreadsheet"
-                                            data-config="{{ base64_encode(json_encode($this->getSpreadsheetConfig($exercise->id))) }}"
-                                            class="min-h-[200px] transition-opacity duration-150"
-                                            wire:loading.class="opacity-50">
-                                            <div x-ref="spreadsheet"></div>
-                                        </div>
-
                                         <x-debug-data-table title="Initial Data (Block {{ $activeBlock }})"
                                             :rows="$this->getInitialData($exercise->id)" :set-count="$this->setCount" row-color="bg-green-50" />
 
