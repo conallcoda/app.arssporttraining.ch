@@ -1,0 +1,1 @@
+document.addEventListener("alpine:init",()=>{Alpine.data("navigation_tree",()=>({expanded:{},isExpanded(e){return this.expanded[e]!==!1},toggle(e){this.expanded[e]=!this.isExpanded(e)},expandAll(){this.expanded={}},collapseAll(){this.expanded={preventAll:!0}}}))});
