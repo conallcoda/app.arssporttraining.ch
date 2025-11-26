@@ -18,7 +18,7 @@
         "laravel/tinker": "^2.10.1",
         "livewire/flux": "^2.6",
         "livewire/flux-pro": "^2.6",
-        "livewire/volt": "^1.7.0",
+        "livewire/volt": "^1.10",
         "mallardduck/blade-lucide-icons": "^1.23",
         "spatie/laravel-data": "^4.18",
         "spatie/laravel-medialibrary": "^11.17",

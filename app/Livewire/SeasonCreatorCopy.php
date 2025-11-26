@@ -222,6 +222,25 @@ class SeasonCreatorCopy extends Component
     public function getInitialData(int $exerciseId): array
     {
         $configKey = "{$this->activeCategory}.{$exerciseId}.{$this->activeBlock}";
+        $configHash = md5("{$this->weeksPerBlock}-{$this->sessionsPerWeek}-{$this->defaultSets}-{$this->weightPerExercise}");
+
+        if (!isset($this->lastConfigHash[$configKey]) || $this->lastConfigHash[$configKey] !== $configHash) {
+            $rows = [];
+            for ($week = 1; $week <= ($this->weeksPerBlock ?? 0); $week++) {
+                for ($session = 1; $session <= ($this->sessionsPerWeek ?? 0); $session++) {
+                    $data = $this->getExerciseData($exerciseId, $this->activeBlock, $week, $session);
+                    $rows[] = [
+                        'week' => $week,
+                        'session' => $session,
+                        'reps' => $data['reps'],
+                        'weights' => $data['weights'],
+                    ];
+                }
+            }
+            $this->initialData[$configKey] = $rows;
+            $this->lastConfigHash[$configKey] = $configHash;
+        }
+
         return $this->initialData[$configKey] ?? [];
     }
 

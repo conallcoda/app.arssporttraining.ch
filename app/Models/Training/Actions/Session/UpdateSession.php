@@ -11,6 +11,7 @@ class UpdateSession extends Action
         public string $sessionId,
         public int $category,
         public array $exercises = [],
+        public ?string $name = null,
     ) {}
 
     public function execute(TrainingTree $tree): SessionUpdatedEvent
@@ -23,28 +24,33 @@ class UpdateSession extends Action
 
         $parent = $tree->findParentNode($this->sessionId);
 
+        $oldName = $session->data->name;
         $oldCategory = $session->data->category;
         $oldExercises = $session->data->exercises;
 
+        $session->data->name = $this->name;
         $session->data->category = $this->category;
         $session->data->exercises = $this->exercises;
 
         return SessionUpdatedEvent::from([
             'parent' => $parent,
             'session' => $session,
+            'oldName' => $oldName,
             'oldCategory' => $oldCategory,
             'oldExercises' => $oldExercises,
+            'newName' => $this->name,
             'newCategory' => $this->category,
             'newExercises' => $this->exercises
         ]);
     }
 
-    public static function fromSessionId(string $sessionId, int $category, array $exercises = []): self
+    public static function fromSessionId(string $sessionId, int $category, array $exercises = [], ?string $name = null): self
     {
         return new self(
             sessionId: $sessionId,
             category: $category,
-            exercises: $exercises
+            exercises: $exercises,
+            name: $name
         );
     }
 }

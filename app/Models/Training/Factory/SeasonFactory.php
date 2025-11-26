@@ -50,6 +50,7 @@ class SeasonFactory extends AbstractData
                 $exercises = self::createExercises($config, $sessionIndex);
 
                 $sessions[] = (new SessionData(
+                    name: null,
                     day: $day,
                     slot: $slot,
                     category: $config->defaultCategoryId,

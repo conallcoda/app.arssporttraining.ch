@@ -14,6 +14,7 @@ class AddSession extends Action
         public int $slot,
         public int $category,
         public array $exercises = [],
+        public ?string $name = null,
         public ?string $id = null,
     ) {}
 
@@ -26,6 +27,7 @@ class AddSession extends Action
         }
 
         $sessionData = new SessionData(
+            name: $this->name,
             day: $this->day,
             slot: $this->slot,
             category: $this->category,
@@ -36,14 +38,15 @@ class AddSession extends Action
         return SessionAddedEvent::from(['parent' => $parent, 'child' => $node]);
     }
 
-    public static function fromParentId(string $parentId, int $day, int $slot, int $category, array $exercises = []): self
+    public static function fromParentId(string $parentId, int $day, int $slot, int $category, array $exercises = [], ?string $name = null): self
     {
         return new self(
             parentId: $parentId,
             day: $day,
             slot: $slot,
             category: $category,
-            exercises: $exercises
+            exercises: $exercises,
+            name: $name
         );
     }
 }

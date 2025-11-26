@@ -45,6 +45,7 @@ class LargeSeasonFactory extends AbstractData
                         }
 
                         $sessions[] = new SessionData(
+                            name: null,
                             day: $day,
                             slot: $slot,
                             category: $randomCategory,

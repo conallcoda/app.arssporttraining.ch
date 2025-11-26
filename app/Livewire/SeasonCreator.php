@@ -3,6 +3,13 @@
 namespace App\Livewire;
 
 use App\Models\Exercise\Exercise;
+use App\Models\Training\Data\BlockData;
+use App\Models\Training\Data\ExerciseData;
+use App\Models\Training\Data\SeasonData;
+use App\Models\Training\Data\SessionData;
+use App\Models\Training\Data\SetData;
+use App\Models\Training\Data\WeekData;
+use App\Models\Training\TrainingNode;
 use App\Models\Training\TrainingSessionCategory;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
@@ -19,9 +26,11 @@ class SeasonCreator extends Component
     public int $activeBlock = 1;
 
     public array $categoryExercises = [];
-    public array $exerciseData = [];
-    public array $initialData = [];
-    public array $lastConfigHash = [];
+
+    public ?array $seasonTree = null;
+
+    public array $flatData = [];
+    public array $initialFlatData = [];
 
     public function mount()
     {
@@ -31,22 +40,119 @@ class SeasonCreator extends Component
 
         $this->activeCategory = 1;
         $this->categoryExercises[1][] = 3;
-        $this->initializeExerciseDataForCategory(1, 3);
+
+        $this->rebuildTree();
     }
 
-    protected function initializeExerciseDataForCategory(int $categoryId, int $exerciseId)
+    protected function rebuildTree(): void
     {
-        $sets = $this->parseSets();
-        $weights = array_fill(0, count($sets), $this->weightPerExercise ?? 0);
+        $blocks = [];
 
-        for ($block = 1; $block <= ($this->numberOfBlocks ?? 0); $block++) {
-            for ($week = 1; $week <= ($this->weeksPerBlock ?? 0); $week++) {
-                for ($session = 1; $session <= ($this->sessionsPerWeek ?? 0); $session++) {
-                    $key = "{$categoryId}.{$exerciseId}.{$block}.{$week}.{$session}";
-                    $this->exerciseData[$key] = [
-                        'reps' => $sets,
-                        'weights' => $weights,
-                    ];
+        for ($blockIndex = 0; $blockIndex < ($this->numberOfBlocks ?? 0); $blockIndex++) {
+            $weeks = [];
+
+            for ($weekIndex = 0; $weekIndex < ($this->weeksPerBlock ?? 0); $weekIndex++) {
+                $sessions = $this->createSessionsForWeek();
+                $weeks[] = (new WeekData())->withChildren($sessions);
+            }
+
+            $blocks[] = (new BlockData())->withChildren($weeks);
+        }
+
+        $seasonData = (new SeasonData())->withChildren($blocks);
+        $seasonNode = TrainingNode::fromData($seasonData);
+        $seasonNode->name = 'New Season';
+
+        $this->seasonTree = $seasonNode->toArray();
+
+        $this->computeFlatData();
+
+        $this->initialFlatData = $this->flatData;
+    }
+
+    protected function createSessionsForWeek(): array
+    {
+        $sessions = [];
+        $sessionIndex = 0;
+
+        for ($day = 0; $day < 7 && $sessionIndex < ($this->sessionsPerWeek ?? 0); $day++) {
+            for ($slot = 0; $slot < 2 && $sessionIndex < ($this->sessionsPerWeek ?? 0); $slot++) {
+                $exercises = $this->createExercisesForSession();
+
+                $sessions[] = (new SessionData(
+                    name: null,
+                    day: $day,
+                    slot: $slot,
+                    category: $this->activeCategory,
+                    exercises: []
+                ))->withChildren($exercises);
+
+                $sessionIndex++;
+            }
+        }
+
+        return $sessions;
+    }
+
+    protected function createExercisesForSession(): array
+    {
+        $exercises = [];
+        $exerciseIds = $this->categoryExercises[$this->activeCategory] ?? [];
+        $sets = $this->parseSets();
+
+        foreach ($exerciseIds as $exerciseId) {
+            $setNodes = [];
+            foreach ($sets as $reps) {
+                $setNodes[] = new SetData(
+                    reps: $reps,
+                    weight: $this->weightPerExercise ?? 0
+                );
+            }
+
+            $exercises[] = (new ExerciseData(
+                exercise: $exerciseId
+            ))->withChildren($setNodes);
+        }
+
+        return $exercises;
+    }
+
+    protected function computeFlatData(): void
+    {
+        $this->flatData = [];
+
+        if (!$this->seasonTree) {
+            return;
+        }
+
+        $seasonNode = TrainingNode::from($this->seasonTree);
+
+        foreach ($seasonNode->children as $blockIndex => $block) {
+            foreach ($block->children as $weekIndex => $week) {
+                foreach ($week->children as $sessionIndex => $session) {
+                    foreach ($session->children as $exerciseIndex => $exercise) {
+                        $exerciseId = $exercise->data->exercise;
+                        $categoryId = $session->data->category ?? $this->activeCategory;
+
+                        $reps = [];
+                        $weights = [];
+
+                        foreach ($exercise->children as $set) {
+                            $reps[] = $set->data->reps;
+                            $weights[] = $set->data->weight;
+                        }
+
+                        $key = "{$categoryId}.{$exerciseId}." . ($blockIndex + 1) . "." . ($weekIndex + 1) . "." . ($sessionIndex + 1);
+
+                        $this->flatData[$key] = [
+                            'blockUuid' => $block->uuid,
+                            'weekUuid' => $week->uuid,
+                            'sessionUuid' => $session->uuid,
+                            'exerciseUuid' => $exercise->uuid,
+                            'reps' => $reps,
+                            'weights' => $weights,
+                        ];
+                    }
                 }
             }
         }
@@ -63,22 +169,49 @@ class SeasonCreator extends Component
         $this->activeBlock = $block;
     }
 
+    public function updatedNumberOfBlocks()
+    {
+        $this->rebuildTree();
+    }
+
+    public function updatedWeeksPerBlock()
+    {
+        $this->rebuildTree();
+    }
+
+    public function updatedSessionsPerWeek()
+    {
+        $this->rebuildTree();
+    }
+
     public function updatedWeightPerExercise($value)
     {
-        $weight = $value ?? 0;
-        foreach ($this->exerciseData as $key => $data) {
-            $this->exerciseData[$key]['weights'] = array_fill(0, count($data['weights']), $weight);
+        $weight = (float) ($value ?? 0);
+
+        if (!$this->seasonTree) {
+            return;
+        }
+
+        $seasonNode = TrainingNode::from($this->seasonTree);
+        $this->updateAllSetWeights($seasonNode, $weight);
+        $this->seasonTree = $seasonNode->toArray();
+        $this->computeFlatData();
+    }
+
+    protected function updateAllSetWeights(TrainingNode $node, float $weight): void
+    {
+        if ($node->type === 'set') {
+            $node->data->weight = $weight;
+        }
+
+        foreach ($node->children as $child) {
+            $this->updateAllSetWeights($child, $weight);
         }
     }
 
     public function updatedDefaultSets($value)
     {
-        $sets = $this->parseSets();
-        $weight = $this->weightPerExercise ?? 0;
-        foreach ($this->exerciseData as $key => $data) {
-            $this->exerciseData[$key]['reps'] = $sets;
-            $this->exerciseData[$key]['weights'] = array_fill(0, count($sets), $weight);
-        }
+        $this->rebuildTree();
     }
 
     public function addExercise(int $exerciseId)
@@ -89,26 +222,50 @@ class SeasonCreator extends Component
 
         if (!in_array($exerciseId, $this->categoryExercises[$this->activeCategory])) {
             $this->categoryExercises[$this->activeCategory][] = $exerciseId;
-            $this->initializeExerciseData($exerciseId);
+            $this->addExerciseToTree($exerciseId);
         }
     }
 
-    protected function initializeExerciseData(int $exerciseId)
+    protected function addExerciseToTree(int $exerciseId): void
     {
-        $sets = $this->parseSets();
-        $weights = array_fill(0, count($sets), $this->weightPerExercise ?? 0);
+        if (!$this->seasonTree) {
+            return;
+        }
 
-        for ($block = 1; $block <= ($this->numberOfBlocks ?? 0); $block++) {
-            for ($week = 1; $week <= ($this->weeksPerBlock ?? 0); $week++) {
-                for ($session = 1; $session <= ($this->sessionsPerWeek ?? 0); $session++) {
-                    $key = "{$this->activeCategory}.{$exerciseId}.{$block}.{$week}.{$session}";
-                    $this->exerciseData[$key] = [
-                        'reps' => $sets,
-                        'weights' => $weights,
-                    ];
+        $seasonNode = TrainingNode::from($this->seasonTree);
+        $sets = $this->parseSets();
+
+        foreach ($seasonNode->children as $block) {
+            foreach ($block->children as $week) {
+                foreach ($week->children as $session) {
+                    if ($session->data->category === $this->activeCategory) {
+                        $setNodes = [];
+                        foreach ($sets as $reps) {
+                            $setNodes[] = new SetData(
+                                reps: $reps,
+                                weight: $this->weightPerExercise ?? 0
+                            );
+                        }
+
+                        $exerciseData = (new ExerciseData(
+                            exercise: $exerciseId
+                        ))->withChildren($setNodes);
+
+                        $exerciseNode = TrainingNode::fromData(
+                            $exerciseData,
+                            count($session->children),
+                            $session->uuid,
+                            $session->path ? array_merge($session->path, [$session->uuid]) : [$session->uuid]
+                        );
+
+                        $session->children[] = $exerciseNode;
+                    }
                 }
             }
         }
+
+        $this->seasonTree = $seasonNode->toArray();
+        $this->computeFlatData();
     }
 
     public function removeExercise(int $exerciseId)
@@ -124,11 +281,34 @@ class SeasonCreator extends Component
             )
         );
 
-        foreach (array_keys($this->exerciseData) as $key) {
-            if (str_starts_with($key, "{$this->activeCategory}.{$exerciseId}.")) {
-                unset($this->exerciseData[$key]);
+        $this->removeExerciseFromTree($exerciseId);
+    }
+
+    protected function removeExerciseFromTree(int $exerciseId): void
+    {
+        if (!$this->seasonTree) {
+            return;
+        }
+
+        $seasonNode = TrainingNode::from($this->seasonTree);
+
+        foreach ($seasonNode->children as $block) {
+            foreach ($block->children as $week) {
+                foreach ($week->children as $session) {
+                    $session->children = array_values(array_filter(
+                        $session->children,
+                        fn($exercise) => $exercise->data->exercise !== $exerciseId
+                    ));
+
+                    foreach ($session->children as $index => $exercise) {
+                        $exercise->sequence = $index;
+                    }
+                }
             }
         }
+
+        $this->seasonTree = $seasonNode->toArray();
+        $this->computeFlatData();
     }
 
     public function parseSets(): array
@@ -140,23 +320,58 @@ class SeasonCreator extends Component
     {
         $key = "{$this->activeCategory}.{$exerciseId}.{$block}.{$week}.{$session}";
         $sets = $this->parseSets();
-        return $this->exerciseData[$key] ?? [
+
+        return $this->flatData[$key] ?? [
             'reps' => $sets,
             'weights' => array_fill(0, count($sets), $this->weightPerExercise ?? 0),
         ];
     }
 
-    public function updateCell(int $exerciseId, int $block, int $week, int $session, string $type, int $setIndex, int $value)
+    public function updateCell(int $exerciseId, int $block, int $week, int $session, string $type, int $setIndex, $value)
     {
         $key = "{$this->activeCategory}.{$exerciseId}.{$block}.{$week}.{$session}";
-        $sets = $this->parseSets();
-        if (!isset($this->exerciseData[$key])) {
-            $this->exerciseData[$key] = [
-                'reps' => $sets,
-                'weights' => array_fill(0, count($sets), $this->weightPerExercise ?? 0),
-            ];
+
+        if (!isset($this->flatData[$key])) {
+            return;
         }
-        $this->exerciseData[$key][$type][$setIndex] = $value;
+
+        $data = $this->flatData[$key];
+        $exerciseUuid = $data['exerciseUuid'];
+
+        if (!$this->seasonTree) {
+            return;
+        }
+
+        $seasonNode = TrainingNode::from($this->seasonTree);
+        $exerciseNode = $this->findNodeByUuid($seasonNode, $exerciseUuid);
+
+        if ($exerciseNode && isset($exerciseNode->children[$setIndex])) {
+            $setNode = $exerciseNode->children[$setIndex];
+            if ($type === 'reps') {
+                $setNode->data->reps = (int) $value;
+            } else {
+                $setNode->data->weight = (float) $value;
+            }
+        }
+
+        $this->seasonTree = $seasonNode->toArray();
+        $this->computeFlatData();
+    }
+
+    protected function findNodeByUuid(TrainingNode $node, string $uuid): ?TrainingNode
+    {
+        if ($node->uuid === $uuid) {
+            return $node;
+        }
+
+        foreach ($node->children as $child) {
+            $found = $this->findNodeByUuid($child, $uuid);
+            if ($found) {
+                return $found;
+            }
+        }
+
+        return null;
     }
 
     #[Computed]
@@ -187,61 +402,35 @@ class SeasonCreator extends Component
         return count($this->parseSets());
     }
 
-    public function getSpreadsheetConfig(int $exerciseId): array
+    public function getInitialData(int $exerciseId): array
     {
         $rows = [];
 
         for ($week = 1; $week <= ($this->weeksPerBlock ?? 0); $week++) {
             for ($session = 1; $session <= ($this->sessionsPerWeek ?? 0); $session++) {
-                $data = $this->getExerciseData($exerciseId, $this->activeBlock, $week, $session);
-                $rows[] = [
-                    'week' => $week,
-                    'session' => $session,
-                    'reps' => $data['reps'],
-                    'weights' => $data['weights'],
-                ];
-            }
-        }
+                $key = "{$this->activeCategory}.{$exerciseId}.{$this->activeBlock}.{$week}.{$session}";
+                $data = $this->initialFlatData[$key] ?? null;
 
-        $configKey = "{$this->activeCategory}.{$exerciseId}.{$this->activeBlock}";
-        $configHash = md5("{$this->weeksPerBlock}-{$this->sessionsPerWeek}-{$this->defaultSets}-{$this->weightPerExercise}");
-
-        if (!isset($this->lastConfigHash[$configKey]) || $this->lastConfigHash[$configKey] !== $configHash) {
-            $this->initialData[$configKey] = $rows;
-            $this->lastConfigHash[$configKey] = $configHash;
-        }
-
-        return [
-            'exerciseId' => $exerciseId,
-            'block' => $this->activeBlock,
-            'setCount' => $this->setCount(),
-            'rows' => $rows,
-        ];
-    }
-
-    public function getInitialData(int $exerciseId): array
-    {
-        $configKey = "{$this->activeCategory}.{$exerciseId}.{$this->activeBlock}";
-        $configHash = md5("{$this->weeksPerBlock}-{$this->sessionsPerWeek}-{$this->defaultSets}-{$this->weightPerExercise}");
-
-        if (!isset($this->lastConfigHash[$configKey]) || $this->lastConfigHash[$configKey] !== $configHash) {
-            $rows = [];
-            for ($week = 1; $week <= ($this->weeksPerBlock ?? 0); $week++) {
-                for ($session = 1; $session <= ($this->sessionsPerWeek ?? 0); $session++) {
-                    $data = $this->getExerciseData($exerciseId, $this->activeBlock, $week, $session);
+                if ($data) {
                     $rows[] = [
                         'week' => $week,
                         'session' => $session,
                         'reps' => $data['reps'],
                         'weights' => $data['weights'],
                     ];
+                } else {
+                    $sets = $this->parseSets();
+                    $rows[] = [
+                        'week' => $week,
+                        'session' => $session,
+                        'reps' => $sets,
+                        'weights' => array_fill(0, count($sets), $this->weightPerExercise ?? 0),
+                    ];
                 }
             }
-            $this->initialData[$configKey] = $rows;
-            $this->lastConfigHash[$configKey] = $configHash;
         }
 
-        return $this->initialData[$configKey] ?? [];
+        return $rows;
     }
 
     public function getCurrentDataRows(int $exerciseId): array
