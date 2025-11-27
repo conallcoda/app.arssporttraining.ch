@@ -317,7 +317,7 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
                                 @if ($slotIndex === 0)
                                     <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-medium bg-zinc-50 dark:bg-zinc-800/50 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50"
                                         rowspan="2"
-                                        wire:click="openWeekModal('{{ $week->uuid }}', {{ $weekIndex }})">
+                                        wire:dblclick="openWeekModal('{{ $week->uuid }}', {{ $weekIndex }})">
                                         <div class="flex items-center gap-1">
                                             Week {{ $weekIndex + 1 }}
                                             @if ($week->isLinked())
