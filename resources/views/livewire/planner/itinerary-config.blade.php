@@ -26,10 +26,10 @@ mount(fn () => $this->dispatchState());
 
 ?>
 
-<flux:card>
+<flux:card wire:key="itinerary-config-card">
     <flux:heading size="lg">Config</flux:heading>
     <div class="mt-6 space-y-4">
-        <flux:input wire:model.live="numberOfBlocks" label="Number of Blocks" type="number" min="1" max="12" />
-        <flux:input wire:model.live="weeksPerBlock" label="Weeks per Block" type="number" min="1" max="12" />
+        <flux:input wire:key="input-blocks" wire:model.live="numberOfBlocks" label="Number of Blocks" type="number" min="1" max="12" />
+        <flux:input wire:key="input-weeks" wire:model.live="weeksPerBlock" label="Weeks per Block" type="number" min="1" max="12" />
     </div>
 </flux:card>

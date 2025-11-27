@@ -2,13 +2,10 @@
 
 namespace App\Livewire;
 
-use App\Filament\Forms\Components\ColorPicker;
-use App\Models\Exercise\Exercise;
 use App\Models\Training\Data\BlockData;
 use App\Models\Training\Data\SeasonData;
 use App\Models\Training\Data\WeekData;
 use App\Models\Training\TrainingNode;
-use App\Models\Training\TrainingSessionCategory;
 use App\Models\Training\TrainingTree;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
@@ -20,16 +17,7 @@ class ItinerarySeasonCreator extends Component
 
     public TrainingTree $tree;
 
-    public bool $showSessionModal = false;
-    public ?string $editingWeekUuid = null;
-    public ?string $editingSessionUuid = null;
-    public ?int $editingDay = null;
-    public ?int $editingSlot = null;
-    public ?int $sessionCategory = null;
-    public array $sessionExercises = [];
-    public ?string $sessionName = null;
-
-
+    public int $activeBlockIndex = 0;
 
     public function mount()
     {
@@ -56,6 +44,24 @@ class ItinerarySeasonCreator extends Component
         $seasonNode->name = 'New Season';
 
         $this->tree = TrainingTree::fromTrainingNode($seasonNode);
+        $this->activeBlockIndex = 0;
+    }
+
+    #[Computed]
+    public function activeBlock(): ?TrainingNode
+    {
+        return $this->tree->root->children[$this->activeBlockIndex] ?? null;
+    }
+
+    #[Computed]
+    public function blocks(): array
+    {
+        return $this->tree->root->children;
+    }
+
+    public function setActiveBlock(int $index): void
+    {
+        $this->activeBlockIndex = $index;
     }
 
     #[On('itinerary-config-changed')]
@@ -65,264 +71,74 @@ class ItinerarySeasonCreator extends Component
         $this->rebuildTree();
     }
 
-    public function openSessionModal(string $weekUuid, int $slot, int $day)
+    #[On('itinerary-action')]
+    public function onItineraryAction(string $action, array $params)
     {
-        $this->editingWeekUuid = $weekUuid;
-        $this->editingDay = $day;
-        $this->editingSlot = $slot;
+        logger()->info('Received itinerary-action', ['action' => $action, 'params' => $params]);
 
-        $existingSession = $this->getSessionAtPosition($weekUuid, $slot, $day);
-
-        if ($existingSession) {
-            $this->editingSessionUuid = $existingSession->uuid;
-            $this->sessionCategory = $existingSession->data->category;
-            $this->sessionExercises = $existingSession->data->exercises ?? [];
-            $this->sessionName = $existingSession->data->name;
-        } else {
-            $this->editingSessionUuid = null;
-            $this->sessionCategory = $this->categories->first()?->id;
-            $this->sessionExercises = [];
-            $this->sessionName = null;
-        }
-
-        $this->showSessionModal = true;
+        match ($action) {
+            'session.add' => $this->addSession($params),
+            'session.update' => $this->updateSession($params),
+            'session.delete' => $this->deleteSession($params),
+            default => null,
+        };
     }
 
-    public function closeSessionModal()
+    protected function addSession(array $params): void
     {
-        $this->showSessionModal = false;
-        $this->editingWeekUuid = null;
-        $this->editingSessionUuid = null;
-        $this->editingDay = null;
-        $this->editingSlot = null;
-        $this->sessionCategory = null;
-        $this->sessionExercises = [];
-        $this->sessionName = null;
-    }
+        $week = $this->activeBlock->children[$params['weekIndex']] ?? null;
+        logger()->info('Adding session', ['weekIndex' => $params['weekIndex'], 'week' => $week?->uuid, 'activeBlock' => $this->activeBlock?->uuid]);
 
-    public function addExercise()
-    {
-        $this->sessionExercises[] = null;
-    }
-
-    public function removeExercise(int $index)
-    {
-        unset($this->sessionExercises[$index]);
-        $this->sessionExercises = array_values($this->sessionExercises);
-    }
-
-    public function moveExerciseUp(int $index)
-    {
-        if ($index > 0 && isset($this->sessionExercises[$index]) && isset($this->sessionExercises[$index - 1])) {
-            $temp = $this->sessionExercises[$index - 1];
-            $this->sessionExercises[$index - 1] = $this->sessionExercises[$index];
-            $this->sessionExercises[$index] = $temp;
-        }
-    }
-
-    public function moveExerciseDown(int $index)
-    {
-        if ($index < count($this->sessionExercises) - 1 && isset($this->sessionExercises[$index]) && isset($this->sessionExercises[$index + 1])) {
-            $temp = $this->sessionExercises[$index + 1];
-            $this->sessionExercises[$index + 1] = $this->sessionExercises[$index];
-            $this->sessionExercises[$index] = $temp;
-        }
-    }
-
-    public function saveSession()
-    {
-        $this->validate([
-            'sessionCategory' => 'required|integer',
-            'sessionExercises.*' => 'nullable|integer|exists:exercises,id',
-            'sessionName' => 'nullable|string|max:255',
-        ]);
-
-        $exercises = array_values(array_filter($this->sessionExercises, fn($id) => $id !== null));
-
-        if ($this->editingSessionUuid) {
-            $this->tree->executeAction('session.update', [
-                'sessionId' => $this->editingSessionUuid,
-                'category' => $this->sessionCategory,
-                'exercises' => $exercises,
-                'name' => $this->sessionName,
+        if ($week) {
+            $this->tree->executeAction('session.add', [
+                'parentId' => $week->uuid,
+                'day' => $params['day'],
+                'slot' => $params['slot'],
+                'category' => $params['category'],
+                'exercises' => $params['exercises'],
+                'name' => $params['name'],
             ]);
-
-            $this->syncSessionAcrossBlocks($this->editingWeekUuid, $this->editingSlot, $this->editingDay);
-        } else {
-            foreach ($this->tree->root->children as $block) {
-                $week = $this->getWeekAtIndex($block, $this->getWeekIndex($this->editingWeekUuid));
-                if ($week) {
-                    $this->tree->executeAction('session.add', [
-                        'parentId' => $week->uuid,
-                        'day' => $this->editingDay,
-                        'slot' => $this->editingSlot,
-                        'category' => $this->sessionCategory,
-                        'exercises' => $exercises,
-                        'name' => $this->sessionName,
-                    ]);
-                }
-            }
+            logger()->info('Session added', ['weekChildren' => count($week->children)]);
+            $this->dispatch('grid-refresh', block: $this->activeBlock);
         }
-
-        $this->closeSessionModal();
     }
 
-    public function deleteSession()
+    protected function updateSession(array $params): void
     {
-        if ($this->editingSessionUuid && $this->editingWeekUuid) {
-            foreach ($this->tree->root->children as $block) {
-                $weekIndex = $this->getWeekIndex($this->editingWeekUuid);
-                $week = $this->getWeekAtIndex($block, $weekIndex);
-
-                if ($week) {
-                    $session = $this->getSessionAtPosition($week->uuid, $this->editingSlot, $this->editingDay);
-                    if ($session) {
-                        $this->tree->executeAction('session.delete', [
-                            'parentId' => $week->uuid,
-                            'sessionId' => $session->uuid,
-                        ]);
-                    }
-                }
-            }
-        }
-        $this->closeSessionModal();
+        $this->tree->executeAction('session.update', [
+            'sessionId' => $params['sessionId'],
+            'category' => $params['category'],
+            'exercises' => $params['exercises'],
+            'name' => $params['name'],
+        ]);
+        $this->dispatch('grid-refresh', block: $this->activeBlock);
     }
 
-    protected function syncSessionAcrossBlocks(string $sourceWeekUuid, int $slot, int $day): void
+    protected function deleteSession(array $params): void
     {
-        $sourceSession = $this->getSessionAtPosition($sourceWeekUuid, $slot, $day);
-        if (!$sourceSession) {
+        $week = $this->activeBlock->children[$params['weekIndex']] ?? null;
+        if (!$week) {
             return;
         }
 
-        $weekIndex = $this->getWeekIndex($sourceWeekUuid);
-
-        foreach ($this->tree->root->children as $block) {
-            $week = $this->getWeekAtIndex($block, $weekIndex);
-            if (!$week || $week->uuid === $sourceWeekUuid) {
-                continue;
-            }
-
-            $existingSession = $this->getSessionAtPosition($week->uuid, $slot, $day);
-            if ($existingSession) {
-                $this->tree->executeAction('session.update', [
-                    'sessionId' => $existingSession->uuid,
-                    'category' => $sourceSession->data->category,
-                    'exercises' => $sourceSession->data->exercises,
-                    'name' => $sourceSession->data->name,
-                ]);
-            } else {
-                $this->tree->executeAction('session.add', [
-                    'parentId' => $week->uuid,
-                    'day' => $day,
-                    'slot' => $slot,
-                    'category' => $sourceSession->data->category,
-                    'exercises' => $sourceSession->data->exercises,
-                    'name' => $sourceSession->data->name,
-                ]);
-            }
+        $session = $this->getSessionAtPosition($week, $params['slot'], $params['day']);
+        if ($session) {
+            $this->tree->executeAction('session.delete', [
+                'parentId' => $week->uuid,
+                'sessionId' => $session->uuid,
+            ]);
+            $this->dispatch('grid-refresh', block: $this->activeBlock);
         }
     }
 
-    protected function getWeekIndex(string $weekUuid): int
+    protected function getSessionAtPosition(TrainingNode $week, int $slot, int $day): ?TrainingNode
     {
-        foreach ($this->tree->root->children as $block) {
-            foreach ($block->children as $index => $week) {
-                if ($week->uuid === $weekUuid) {
-                    return $index;
-                }
-            }
-        }
-        return 0;
-    }
-
-    protected function getWeekAtIndex(TrainingNode $block, int $index): ?TrainingNode
-    {
-        return $block->children[$index] ?? null;
-    }
-
-    protected function getSessionAtPosition(string $weekUuid, int $slot, int $day): ?TrainingNode
-    {
-        $week = $this->tree->getNode($weekUuid);
-        if (!$week) {
-            return null;
-        }
-
         foreach ($week->children as $session) {
             if ($session->data->day === $day && $session->data->slot === $slot) {
                 return $session;
             }
         }
-
         return null;
-    }
-
-    public function getItinerary(string $weekUuid, int $slot, int $day): ?int
-    {
-        $session = $this->getSessionAtPosition($weekUuid, $slot, $day);
-        return $session?->data->category;
-    }
-
-    public function getSessionName(string $weekUuid, int $slot, int $day): ?string
-    {
-        $session = $this->getSessionAtPosition($weekUuid, $slot, $day);
-        return $session?->data->name;
-    }
-
-    #[On('action')]
-    public function action($type, $action, $params = [])
-    {
-        $this->tree->executeAction("$type.$action", $params);
-    }
-
-    public function getColorValue(?string $colorName): string
-    {
-        if (!$colorName) {
-            return '#000000';
-        }
-        return ColorPicker::getColorValue($colorName);
-    }
-
-    #[Computed]
-    public function categories()
-    {
-        return TrainingSessionCategory::all();
-    }
-
-    #[Computed]
-    public function categoriesById()
-    {
-        return $this->categories->keyBy('id');
-    }
-
-    #[Computed]
-    public function exercises()
-    {
-        return Exercise::orderBy('name')->get();
-    }
-
-    #[Computed]
-    public function days(): array
-    {
-        return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    }
-
-    #[Computed]
-    public function daysFull(): array
-    {
-        return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    }
-
-    #[Computed]
-    public function slots(): array
-    {
-        return ['Morning', 'Afternoon'];
-    }
-
-    #[Computed]
-    public function firstBlock(): ?TrainingNode
-    {
-        return $this->tree->root->children[0] ?? null;
     }
 
     public function render()
