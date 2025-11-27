@@ -85,17 +85,24 @@ $moveExerciseDown = function (int $index) {
 
 $save = function () {
     if ($this->mode === 'link') {
-        if (empty($this->linkedSessionUuid)) {
-            $this->addError('linkedSessionUuid', 'Please select a session to link.');
-            return;
-        }
+        if ($this->sessionUuid) {
+            $this->dispatch('session-link-updated', [
+                'sessionUuid' => $this->sessionUuid,
+                'linkedTo' => $this->linkedSessionUuid ?: null,
+            ]);
+        } else {
+            if (empty($this->linkedSessionUuid)) {
+                $this->addError('linkedSessionUuid', 'Please select a session to link.');
+                return;
+            }
 
-        $this->dispatch('session-linked', [
-            'weekUuid' => $this->weekUuid,
-            'day' => $this->day,
-            'slot' => $this->slot,
-            'linkedSessionUuid' => $this->linkedSessionUuid,
-        ]);
+            $this->dispatch('session-linked', [
+                'weekUuid' => $this->weekUuid,
+                'day' => $this->day,
+                'slot' => $this->slot,
+                'linkedSessionUuid' => $this->linkedSessionUuid,
+            ]);
+        }
     } else {
         $this->validate([
             'category' => 'required|integer',
@@ -168,16 +175,19 @@ $delete = function () {
 
             @if ($mode === 'link')
                 <flux:field>
-                    <flux:label>{{ $sessionUuid ? 'Linked To' : 'Select Session to Link' }}</flux:label>
-                    <select wire:model="linkedSessionUuid" class="w-full rounded-lg border border-zinc-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm" {{ $sessionUuid ? 'disabled' : '' }}>
+                    <flux:label>Linked To</flux:label>
+                    <select wire:model.live="linkedSessionUuid" class="w-full rounded-lg border border-zinc-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm">
+                        <option value="" @selected($linkedSessionUuid === null || $linkedSessionUuid === '')>Unlinked</option>
                         @foreach ($availableSessions as $session)
-                            <option value="{{ $session['uuid'] }}">
+                            <option value="{{ $session['uuid'] }}" @selected($linkedSessionUuid === $session['uuid'])>
                                 {{ $session['name'] ?? 'Unnamed Session' }}
                             </option>
                         @endforeach
                     </select>
-                    @if ($sessionUuid)
-                        <flux:description>This session is linked and inherits its content from the source session.</flux:description>
+                    @if ($sessionUuid && $linkedSessionUuid)
+                        <flux:description>This session inherits its content from the source session. Select "Unlinked" to copy the current values and make it independent.</flux:description>
+                    @elseif ($sessionUuid && !$linkedSessionUuid)
+                        <flux:description>This session will become independent with its own values.</flux:description>
                     @endif
                     <flux:error name="linkedSessionUuid" />
                 </flux:field>
@@ -265,12 +275,8 @@ $delete = function () {
                     @endif
                 </div>
                 <div class="flex gap-2">
-                    @if ($sessionUuid && $mode === 'link')
-                        <flux:button type="button" variant="ghost" wire:click="close">Close</flux:button>
-                    @else
-                        <flux:button type="button" variant="ghost" wire:click="close">Cancel</flux:button>
-                        <flux:button type="submit" variant="primary">Save</flux:button>
-                    @endif
+                    <flux:button type="button" variant="ghost" wire:click="close">Cancel</flux:button>
+                    <flux:button type="submit" variant="primary">Save</flux:button>
                 </div>
             </div>
         </form>

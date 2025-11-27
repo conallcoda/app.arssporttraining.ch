@@ -150,6 +150,7 @@ class ItinerarySeasonCreator extends Component
             'session.update' => $this->updateSession($params),
             'session.delete' => $this->deleteSession($params),
             'session.link' => $this->linkSession($params),
+            'session.updateLink' => $this->updateSessionLink($params),
             'session.move' => $this->moveSession($params),
             'session.swap' => $this->swapSessions($params),
             'week.link' => $this->linkWeek($params),
@@ -216,6 +217,16 @@ class ItinerarySeasonCreator extends Component
             'day' => $params['day'],
             'slot' => $params['slot'],
             'linkId' => $params['linkedSessionUuid'],
+        ]);
+
+        $this->dispatch('grid-refresh', block: $this->activeBlock);
+    }
+
+    protected function updateSessionLink(array $params): void
+    {
+        $this->tree->executeAction('session.link', [
+            'sessionId' => $params['sessionId'],
+            'linkedTo' => $params['linkedTo'],
         ]);
 
         $this->dispatch('grid-refresh', block: $this->activeBlock);

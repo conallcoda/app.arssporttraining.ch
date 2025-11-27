@@ -64,15 +64,15 @@ $save = function () {
             </div>
 
             <flux:field>
-                <flux:label>Link to Week</flux:label>
+                <flux:label>Linked To</flux:label>
                 <select
-                    wire:model="linkedTo"
+                    wire:model.live="linkedTo"
                     class="w-full rounded-lg border border-zinc-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
                     {{ $this->isFirstWeek ? 'disabled' : '' }}
                 >
-                    <option value="">No link (independent week)</option>
+                    <option value="" @selected($linkedTo === null || $linkedTo === '')>Unlinked</option>
                     @foreach ($availableWeeks as $week)
-                        <option value="{{ $week['uuid'] }}">
+                        <option value="{{ $week['uuid'] }}" @selected($linkedTo === $week['uuid'])>
                             Block {{ $week['blockIndex'] + 1 }} Week {{ $week['weekIndex'] + 1 }}
                         </option>
                     @endforeach

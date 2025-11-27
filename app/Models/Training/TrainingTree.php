@@ -12,6 +12,7 @@ use App\Models\Training\Actions\Session\UpdateSession;
 use App\Models\Training\Actions\Session\MoveSession;
 use App\Models\Training\Actions\Session\SwapSessions;
 use App\Models\Training\Actions\Session\DeleteSession;
+use App\Models\Training\Actions\Session\LinkSession;
 use App\Models\Training\Actions\Exercise\AddExercise;
 use App\Models\Training\Actions\Exercise\UpdateExercise;
 use App\Models\Training\Actions\Set\AddSet;
@@ -40,6 +41,7 @@ class TrainingTree extends AbstractData
         'session' => [
             'add' => AddSession::class,
             'update' => UpdateSession::class,
+            'link' => LinkSession::class,
             'move' => MoveSession::class,
             'swap' => SwapSessions::class,
             'delete' => DeleteSession::class,

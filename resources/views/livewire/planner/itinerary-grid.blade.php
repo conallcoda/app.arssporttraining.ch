@@ -179,6 +179,13 @@ on(['session-linked' => function (array $data) {
     ]);
 }]);
 
+on(['session-link-updated' => function (array $data) {
+    $this->dispatch('itinerary-action', action: 'session.updateLink', params: [
+        'sessionId' => $data['sessionUuid'],
+        'linkedTo' => $data['linkedTo'],
+    ]);
+}]);
+
 on(['session-deleted' => function (array $data) {
     $weekIndex = $this->getWeekIndex($data['weekUuid']);
 
