@@ -21,6 +21,13 @@ class SwapSessions extends Action
             throw new \Exception("One or both session nodes not found");
         }
 
+        if ($this->areLinkedToEachOther($session1, $session2)) {
+            return SessionsSwappedEvent::from([
+                'session1' => $session1,
+                'session2' => $session2
+            ]);
+        }
+
         $temp1Day = $session1->data->day;
         $temp1Slot = $session1->data->slot;
         $temp2Day = $session2->data->day;
@@ -43,5 +50,18 @@ class SwapSessions extends Action
             session1Id: $session1Id,
             session2Id: $session2Id
         );
+    }
+
+    protected function areLinkedToEachOther($session1, $session2): bool
+    {
+        if ($session1->linked_to === $session2->uuid || $session2->linked_to === $session1->uuid) {
+            return true;
+        }
+
+        if ($session1->linked_to !== null && $session1->linked_to === $session2->linked_to) {
+            return true;
+        }
+
+        return false;
     }
 }

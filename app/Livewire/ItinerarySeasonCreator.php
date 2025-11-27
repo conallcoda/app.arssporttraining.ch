@@ -72,7 +72,6 @@ class ItinerarySeasonCreator extends Component
         }
 
         $firstWeek = $firstBlock->children[0] ?? null;
-        $secondWeek = $firstBlock->children[1] ?? null;
 
         if ($firstWeek) {
             $event = $this->tree->executeAction('session.add', [
@@ -83,6 +82,16 @@ class ItinerarySeasonCreator extends Component
                 'exercises' => [1, 2, 3],
                 'name' => 'Gym 1A',
             ]);
+
+            $sourceSession = $event->child ?? null;
+            if ($sourceSession) {
+                $this->tree->executeAction('session.add', [
+                    'parentId' => $firstWeek->uuid,
+                    'day' => 2,
+                    'slot' => 0,
+                    'linkId' => $sourceSession->uuid,
+                ]);
+            }
         }
     }
 
@@ -141,6 +150,8 @@ class ItinerarySeasonCreator extends Component
             'session.update' => $this->updateSession($params),
             'session.delete' => $this->deleteSession($params),
             'session.link' => $this->linkSession($params),
+            'session.move' => $this->moveSession($params),
+            'session.swap' => $this->swapSessions($params),
             default => null,
         };
     }
@@ -204,6 +215,27 @@ class ItinerarySeasonCreator extends Component
             'day' => $params['day'],
             'slot' => $params['slot'],
             'linkId' => $params['linkedSessionUuid'],
+        ]);
+
+        $this->dispatch('grid-refresh', block: $this->activeBlock);
+    }
+
+    protected function moveSession(array $params): void
+    {
+        $this->tree->executeAction('session.move', [
+            'sessionId' => $params['sessionId'],
+            'newDay' => $params['newDay'],
+            'newSlot' => $params['newSlot'],
+        ]);
+
+        $this->dispatch('grid-refresh', block: $this->activeBlock);
+    }
+
+    protected function swapSessions(array $params): void
+    {
+        $this->tree->executeAction('session.swap', [
+            'session1Id' => $params['session1Id'],
+            'session2Id' => $params['session2Id'],
         ]);
 
         $this->dispatch('grid-refresh', block: $this->activeBlock);
