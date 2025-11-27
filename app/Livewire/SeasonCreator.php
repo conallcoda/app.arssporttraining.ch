@@ -127,19 +127,19 @@ class SeasonCreator extends Component
 
         $seasonNode = TrainingNode::from($this->seasonTree);
 
-        foreach ($seasonNode->children as $blockIndex => $block) {
-            foreach ($block->children as $weekIndex => $week) {
-                foreach ($week->children as $sessionIndex => $session) {
-                    foreach ($session->children as $exerciseIndex => $exercise) {
-                        $exerciseId = $exercise->data->exercise;
-                        $categoryId = $session->data->category ?? $this->activeCategory;
+        foreach ($seasonNode->getChildren() as $blockIndex => $block) {
+            foreach ($block->getChildren() as $weekIndex => $week) {
+                foreach ($week->getChildren() as $sessionIndex => $session) {
+                    foreach ($session->getChildren() as $exerciseIndex => $exercise) {
+                        $exerciseId = $exercise->getData()->exercise;
+                        $categoryId = $session->getData()->category ?? $this->activeCategory;
 
                         $reps = [];
                         $weights = [];
 
-                        foreach ($exercise->children as $set) {
-                            $reps[] = $set->data->reps;
-                            $weights[] = $set->data->weight;
+                        foreach ($exercise->getChildren() as $set) {
+                            $reps[] = $set->getData()->reps;
+                            $weights[] = $set->getData()->weight;
                         }
 
                         $key = "{$categoryId}.{$exerciseId}." . ($blockIndex + 1) . "." . ($weekIndex + 1) . "." . ($sessionIndex + 1);
@@ -204,7 +204,7 @@ class SeasonCreator extends Component
             $node->data->weight = $weight;
         }
 
-        foreach ($node->children as $child) {
+        foreach ($node->getChildren() as $child) {
             $this->updateAllSetWeights($child, $weight);
         }
     }
@@ -235,10 +235,10 @@ class SeasonCreator extends Component
         $seasonNode = TrainingNode::from($this->seasonTree);
         $sets = $this->parseSets();
 
-        foreach ($seasonNode->children as $block) {
-            foreach ($block->children as $week) {
-                foreach ($week->children as $session) {
-                    if ($session->data->category === $this->activeCategory) {
+        foreach ($seasonNode->getChildren() as $block) {
+            foreach ($block->getChildren() as $week) {
+                foreach ($week->getChildren() as $session) {
+                    if ($session->getData()->category === $this->activeCategory) {
                         $setNodes = [];
                         foreach ($sets as $reps) {
                             $setNodes[] = new SetData(
@@ -292,12 +292,12 @@ class SeasonCreator extends Component
 
         $seasonNode = TrainingNode::from($this->seasonTree);
 
-        foreach ($seasonNode->children as $block) {
-            foreach ($block->children as $week) {
-                foreach ($week->children as $session) {
+        foreach ($seasonNode->getChildren() as $block) {
+            foreach ($block->getChildren() as $week) {
+                foreach ($week->getChildren() as $session) {
                     $session->children = array_values(array_filter(
                         $session->children,
-                        fn($exercise) => $exercise->data->exercise !== $exerciseId
+                        fn($exercise) => $exercise->getData()->exercise !== $exerciseId
                     ));
 
                     foreach ($session->children as $index => $exercise) {
@@ -364,7 +364,7 @@ class SeasonCreator extends Component
             return $node;
         }
 
-        foreach ($node->children as $child) {
+        foreach ($node->getChildren() as $child) {
             $found = $this->findNodeByUuid($child, $uuid);
             if ($found) {
                 return $found;

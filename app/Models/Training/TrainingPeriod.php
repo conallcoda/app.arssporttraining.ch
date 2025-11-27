@@ -32,6 +32,7 @@ class TrainingPeriod extends Model
         'type',
         'sequence',
         'parent_id',
+        'linked_to',
     ];
 
     protected $casts = [
@@ -60,6 +61,11 @@ class TrainingPeriod extends Model
     public function children()
     {
         return $this->hasMany(TrainingPeriod::class, 'parent_id')->orderBy('sequence');
+    }
+
+    public function linkedSource()
+    {
+        return $this->belongsTo(TrainingPeriod::class, 'linked_to', 'uuid');
     }
 
     public function newUniqueId(): string

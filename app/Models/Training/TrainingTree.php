@@ -93,7 +93,13 @@ class TrainingTree extends AbstractData
         if ($uuid instanceof TrainingNode) {
             return $uuid;
         }
-        return $this->searchForNode($this->root, $uuid);
+
+        $found = $this->searchForNode($this->root, $uuid);
+        if ($found) {
+            return $found;
+        }
+
+        return TrainingNode::getFromRegistry($uuid);
     }
 
     protected function searchForNode(?TrainingNode $node, string $uuid): ?TrainingNode
@@ -106,7 +112,7 @@ class TrainingTree extends AbstractData
             return $node;
         }
 
-        foreach ($node->children as $child) {
+        foreach ($node->getChildren() as $child) {
             $found = $this->searchForNode($child, $uuid);
             if ($found) {
                 return $found;
@@ -207,7 +213,7 @@ class TrainingTree extends AbstractData
 
     protected function searchForParent(TrainingNode $node, string $childUuid): ?TrainingNode
     {
-        foreach ($node->children as $child) {
+        foreach ($node->getChildren() as $child) {
             if ($child->uuid === $childUuid) {
                 return $node;
             }
@@ -295,8 +301,12 @@ class TrainingTree extends AbstractData
         $this->events = [];
     }
 
-    public static function deepCloneNode(TrainingNode $node, bool $generateNewUuid = false): TrainingNode
+    public static function deepCloneNode(TrainingNode $node, bool $generateNewUuid = false, bool $asLinked = false): TrainingNode
     {
+        if ($asLinked) {
+            return $node->createLinkedClone($node->parent, $node->sequence);
+        }
+
         $clonedChildren = [];
         foreach ($node->children as $child) {
             $clonedChildren[] = self::deepCloneNode($child, $generateNewUuid);
@@ -313,7 +323,8 @@ class TrainingTree extends AbstractData
             type: $node->type,
             data: $clonedData,
             children: $clonedChildren,
-            path: $node->path
+            path: $node->path,
+            linked_to: $node->linked_to,
         );
 
         return $cloned;

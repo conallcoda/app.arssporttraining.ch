@@ -28,7 +28,10 @@ class TrainingNode extends AbstractData
         #[DataCollectionOf(TrainingNode::class)]
         public array $children = [],
         public ?array $path = null,
-    ) {}
+        public ?string $linked_to = null,
+    ) {
+        self::$registry[$this->uuid] = $this;
+    }
 
     public static function prepareForPipeline(array $properties): array
     {
@@ -74,6 +77,7 @@ class TrainingNode extends AbstractData
             sequence: $model->sequence,
             children: $children,
             path: $model->type === 'season' ? null : $path,
+            linked_to: $model->linked_to,
         );
 
         self::$registry[$model->uuid] = $instance;
@@ -98,7 +102,7 @@ class TrainingNode extends AbstractData
             }
         }
 
-        return new static(
+        $instance = new static(
             uuid: $uuid,
             id: null,
             parent: $parentUuid,
@@ -109,12 +113,17 @@ class TrainingNode extends AbstractData
             children: $children,
             path: $type === 'season' ? null : $path,
         );
+
+        self::$registry[$uuid] = $instance;
+
+        return $instance;
     }
 
     public function save(?int $parentId = null): void
     {
-        $extraData = $this->data->toArray();
+        $extraData = $this->isLinked() ? null : $this->data->toArray();
         $extraData = empty($extraData) ? null : $extraData;
+
         if ($this->id !== null) {
             $period = TrainingPeriod::findOrFail($this->id);
             $period->update([
@@ -123,6 +132,7 @@ class TrainingNode extends AbstractData
                 'sequence' => $this->sequence,
                 'parent_id' => $parentId,
                 'extra' => $extraData,
+                'linked_to' => $this->linked_to,
             ]);
         } else {
             $period = TrainingPeriod::create([
@@ -132,13 +142,16 @@ class TrainingNode extends AbstractData
                 'sequence' => $this->sequence,
                 'parent_id' => $parentId,
                 'extra' => $extraData,
+                'linked_to' => $this->linked_to,
             ]);
 
             $this->id = $period->id;
         }
 
-        foreach ($this->children as $child) {
-            $child->save($period->id);
+        if (!$this->isLinked()) {
+            foreach ($this->children as $child) {
+                $child->save($period->id);
+            }
         }
     }
 
@@ -149,7 +162,43 @@ class TrainingNode extends AbstractData
 
     public function getChildren(): array
     {
+        if ($this->linked_to !== null) {
+            $source = $this->getLinkedSource();
+            if ($source !== null) {
+                return $source->children;
+            }
+        }
         return $this->children;
+    }
+
+    public function getData(): TrainingData
+    {
+        if ($this->linked_to !== null) {
+            $source = $this->getLinkedSource();
+            if ($source !== null) {
+                if ($this->type === 'session') {
+                    $sourceData = $source->data->toArray();
+                    $sourceData['day'] = $this->data->day;
+                    $sourceData['slot'] = $this->data->slot;
+                    return SessionData::from($sourceData);
+                }
+                return $source->data;
+            }
+        }
+        return $this->data;
+    }
+
+    public function getLinkedSource(): ?TrainingNode
+    {
+        if ($this->linked_to === null) {
+            return null;
+        }
+        return self::$registry[$this->linked_to] ?? null;
+    }
+
+    public function isLinked(): bool
+    {
+        return $this->linked_to !== null;
     }
 
     public function findChild($uuid): ?TrainingNode
@@ -162,6 +211,35 @@ class TrainingNode extends AbstractData
         return null;
     }
 
+    public function createLinkedClone(?string $parentUuid = null, int $sequence = 0): TrainingNode
+    {
+        $clone = new static(
+            uuid: TrainingPeriod::createUuid(),
+            id: null,
+            parent: $parentUuid,
+            type: $this->type,
+            data: $this->data::from($this->data->toArray()),
+            name: $this->name,
+            sequence: $sequence,
+            children: [],
+            path: $this->path,
+            linked_to: $this->uuid,
+        );
+
+        self::$registry[$clone->uuid] = $clone;
+
+        return $clone;
+    }
+
+    public static function clearRegistry(): void
+    {
+        self::$registry = [];
+    }
+
+    public static function getFromRegistry(string $uuid): ?TrainingNode
+    {
+        return self::$registry[$uuid] ?? null;
+    }
 
     public function name(): string
     {

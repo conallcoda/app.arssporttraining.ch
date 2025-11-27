@@ -36,6 +36,10 @@ class SessionData extends TrainingData
     }
 
 
+
+
+
+
     public static function fromModel(TrainingPeriod $model)
     {
         static::guardAgainstInvalidType($model);

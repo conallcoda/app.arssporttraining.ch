@@ -12,10 +12,11 @@ class AddSession extends Action
         public string $parentId,
         public int $day,
         public int $slot,
-        public int $category,
+        public ?int $category = null,
         public array $exercises = [],
         public ?string $name = null,
         public ?string $id = null,
+        public ?string $linkId = null,
     ) {}
 
     public function execute(TrainingTree $tree): SessionAddedEvent
@@ -24,6 +25,21 @@ class AddSession extends Action
 
         if (!$parent) {
             throw new \Exception("Parent node not found");
+        }
+
+        if ($this->linkId) {
+            $sourceNode = $tree->getNode($this->linkId);
+            if (!$sourceNode) {
+                throw new \Exception("Source node for linking not found");
+            }
+
+            $linkedNode = $sourceNode->createLinkedClone($parent->uuid, count($parent->children));
+            $linkedNode->data->day = $this->day;
+            $linkedNode->data->slot = $this->slot;
+
+            $tree->addChild($parent, $linkedNode);
+
+            return SessionAddedEvent::from(['parent' => $parent, 'child' => $linkedNode]);
         }
 
         $sessionData = new SessionData(

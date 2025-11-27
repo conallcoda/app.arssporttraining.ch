@@ -54,18 +54,18 @@
         $sessionsByDayAndSequence = [];
         logger()->info('Building session grid', [
             'weekUuid' => $week->uuid,
-            'childrenCount' => count($week->children),
+            'childrenCount' => count($week->getChildren()),
             'children' => array_map(fn($s) => [
                 'uuid' => $s->uuid,
-                'day' => $s->data->day ?? 'null',
-                'slot' => $s->data->slot ?? 'null',
+                'day' => $s->getData()->day ?? 'null',
+                'slot' => $s->getData()->slot ?? 'null',
                 'type' => $s->type
-            ], $week->children)
+            ], $week->getChildren())
         ]);
 
-        foreach ($week->children as $session) {
-            $day = $session->data->day;
-            $slot = $session->data->slot;
+        foreach ($week->getChildren() as $session) {
+            $day = $session->getData()->day;
+            $slot = $session->getData()->slot;
             $sessionsByDayAndSequence[$day][$slot] = $session;
         }
 
@@ -105,8 +105,8 @@
                             @php
                                 $session = $sessionsByDayAndSequence[$dayIndex][$sequenceIndex] ?? null;
                                 $sessionCategory =
-                                    $session && $session->data->category
-                                        ? $categoriesById[$session->data->category] ?? null
+                                    $session && $session->getData()->category
+                                        ? $categoriesById[$session->getData()->category] ?? null
                                         : null;
                                 $cellKey = $dayIndex . '-' . $sequenceIndex;
                             @endphp
@@ -147,8 +147,8 @@
 
     @if ($selectedSession)
         @php
-            $selectedCategory = $selectedSession->data->category
-                ? $categoriesById[$selectedSession->data->category] ?? null
+            $selectedCategory = $selectedSession->getData()->category
+                ? $categoriesById[$selectedSession->getData()->category] ?? null
                 : null;
             $exercisesById = \App\Models\Exercise\Exercise::all()->keyBy('id');
         @endphp
@@ -160,7 +160,7 @@
                             style="background-color: {{ $this->getColorValue($selectedCategory->background_color) }};">
                         </div>
                     @endif
-                    <flux:heading size="sm">{{ $selectedCategory?->name ?? 'Session' }} - {{ $days[$selectedSession->data->day] }} {{ $timePeriods[$selectedSession->data->slot] }}</flux:heading>
+                    <flux:heading size="sm">{{ $selectedCategory?->name ?? 'Session' }} - {{ $days[$selectedSession->getData()->day] }} {{ $timePeriods[$selectedSession->getData()->slot] }}</flux:heading>
                 </div>
                 <flux:button size="sm" variant="ghost" wire:click="selectSession(null)">
                     <x-lucide-x class="w-4 h-4" />
@@ -193,11 +193,11 @@
                     </div>
                 </div>
 
-                @if (count($selectedSession->children) > 0)
+                @if (count($selectedSession->getChildren()) > 0)
                     <div class="space-y-3">
-                        @foreach ($selectedSession->children as $exerciseIndex => $exerciseNode)
+                        @foreach ($selectedSession->getChildren() as $exerciseIndex => $exerciseNode)
                             @php
-                                $exerciseModel = $exercisesById[$exerciseNode->data->exercise] ?? null;
+                                $exerciseModel = $exercisesById[$exerciseNode->getData()->exercise] ?? null;
                             @endphp
                             <div class="border border-zinc-200 dark:border-zinc-700 rounded-lg" wire:key="exercise-node-{{ $exerciseNode->uuid }}">
                                 <div class="p-3 bg-zinc-50 dark:bg-zinc-800 flex items-center justify-between">
@@ -228,22 +228,22 @@
                                         </flux:button>
                                     </div>
 
-                                    @if (count($exerciseNode->children) > 0)
+                                    @if (count($exerciseNode->getChildren()) > 0)
                                         <div class="space-y-2">
-                                            @foreach ($exerciseNode->children as $setIndex => $setNode)
+                                            @foreach ($exerciseNode->getChildren() as $setIndex => $setNode)
                                                 <div class="flex items-center gap-3 p-2 bg-zinc-50 dark:bg-zinc-800 rounded" wire:key="set-node-{{ $setNode->uuid }}"
-                                                    x-data="{ editing: false, reps: {{ $setNode->data->reps }}, weight: {{ $setNode->data->weight }} }">
+                                                    x-data="{ editing: false, reps: {{ $setNode->getData()->reps }}, weight: {{ $setNode->getData()->weight }} }">
                                                     <span class="text-xs text-zinc-400 w-6">{{ $setIndex + 1 }}</span>
 
                                                     <template x-if="!editing">
                                                         <div class="flex items-center gap-4 flex-1" @dblclick="editing = true">
                                                             <span class="text-sm">
-                                                                <span class="font-medium">{{ $setNode->data->reps }}</span>
+                                                                <span class="font-medium">{{ $setNode->getData()->reps }}</span>
                                                                 <span class="text-zinc-500">reps</span>
                                                             </span>
                                                             <span class="text-zinc-300">x</span>
                                                             <span class="text-sm">
-                                                                <span class="font-medium">{{ $setNode->data->weight }}</span>
+                                                                <span class="font-medium">{{ $setNode->getData()->weight }}</span>
                                                                 <span class="text-zinc-500">kg</span>
                                                             </span>
                                                         </div>
@@ -259,7 +259,7 @@
                                                                 @click="$wire.updateSet('{{ $setNode->uuid }}', parseInt(reps), parseFloat(weight)); editing = false">
                                                                 Save
                                                             </flux:button>
-                                                            <flux:button size="xs" variant="ghost" @click="editing = false; reps = {{ $setNode->data->reps }}; weight = {{ $setNode->data->weight }}">
+                                                            <flux:button size="xs" variant="ghost" @click="editing = false; reps = {{ $setNode->getData()->reps }}; weight = {{ $setNode->getData()->weight }}">
                                                                 Cancel
                                                             </flux:button>
                                                         </div>

@@ -4,14 +4,14 @@
             <div>
                 <flux:heading size="lg">Block {{ $block->sequence + 1 }}</flux:heading>
                 <flux:subheading class="mt-1">
-                    {{ count($block->children) }} weeks
+                    {{ count($block->getChildren()) }} weeks
                 </flux:subheading>
             </div>
         </div>
     </div>
 
     <div class="p-6 space-y-6">
-        @forelse ($block->children as $week)
+        @forelse ($block->getChildren() as $week)
             <livewire:training.training-week :week="$week" :key="'week-'.($week->uuid)" />
         @empty
             <p class="text-zinc-500">No weeks in this block</p>

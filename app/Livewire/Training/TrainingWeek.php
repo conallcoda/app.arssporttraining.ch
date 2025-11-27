@@ -36,8 +36,8 @@ class TrainingWeek extends Component
         if ($sessionUuid) {
             $session = $this->findSession($sessionUuid);
             if ($session) {
-                $this->sessionCategory = $session->data->category;
-                $this->sessionExercises = $session->data->exercises ?? [];
+                $this->sessionCategory = $session->getData()->category;
+                $this->sessionExercises = $session->getData()->exercises ?? [];
             }
         } else {
             $this->sessionCategory = $this->categories->first()?->id;
@@ -241,7 +241,7 @@ class TrainingWeek extends Component
 
     protected function findSession(string $uuid): ?TrainingNode
     {
-        foreach ($this->week->children as $session) {
+        foreach ($this->week->getChildren() as $session) {
             if ($session->uuid === $uuid) {
                 return $session;
             }

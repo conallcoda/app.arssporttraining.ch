@@ -15,6 +15,9 @@ state([
     'name' => null,
     'category' => null,
     'exercises' => [],
+    'mode' => 'new',
+    'availableSessions' => [],
+    'linkedSessionUuid' => null,
 ]);
 
 $categories = computed(fn() => TrainingSessionCategory::all());
@@ -34,6 +37,9 @@ on([
         $this->name = $data['name'] ?? null;
         $this->category = $data['category'] ?? $this->categories->first()?->id;
         $this->exercises = $data['exercises'] ?? [];
+        $this->availableSessions = $data['availableSessions'] ?? [];
+        $this->linkedSessionUuid = $data['linkedTo'] ?? ($this->availableSessions[0]['uuid'] ?? null);
+        $this->mode = ($data['linkedTo'] ?? null) ? 'link' : 'new';
         $this->showSessionModal = true;
     },
 ]);
@@ -47,6 +53,9 @@ $close = function () {
     $this->name = null;
     $this->category = null;
     $this->exercises = [];
+    $this->mode = 'new';
+    $this->availableSessions = [];
+    $this->linkedSessionUuid = null;
 };
 
 $addExercise = function () {
@@ -75,23 +84,37 @@ $moveExerciseDown = function (int $index) {
 };
 
 $save = function () {
-    $this->validate([
-        'category' => 'required|integer',
-        'exercises.*' => 'nullable|integer|exists:exercises,id',
-        'name' => 'nullable|string|max:255',
-    ]);
+    if ($this->mode === 'link') {
+        if (empty($this->linkedSessionUuid)) {
+            $this->addError('linkedSessionUuid', 'Please select a session to link.');
+            return;
+        }
 
-    $filteredExercises = array_values(array_filter($this->exercises, fn($id) => $id !== null));
+        $this->dispatch('session-linked', [
+            'weekUuid' => $this->weekUuid,
+            'day' => $this->day,
+            'slot' => $this->slot,
+            'linkedSessionUuid' => $this->linkedSessionUuid,
+        ]);
+    } else {
+        $this->validate([
+            'category' => 'required|integer',
+            'exercises.*' => 'nullable|integer|exists:exercises,id',
+            'name' => 'nullable|string|max:255',
+        ]);
 
-    $this->dispatch('session-saved', [
-        'weekUuid' => $this->weekUuid,
-        'sessionUuid' => $this->sessionUuid,
-        'day' => $this->day,
-        'slot' => $this->slot,
-        'name' => $this->name,
-        'category' => (int) $this->category,
-        'exercises' => $filteredExercises,
-    ]);
+        $filteredExercises = array_values(array_filter($this->exercises, fn($id) => $id !== null));
+
+        $this->dispatch('session-saved', [
+            'weekUuid' => $this->weekUuid,
+            'sessionUuid' => $this->sessionUuid,
+            'day' => $this->day,
+            'slot' => $this->slot,
+            'name' => $this->name,
+            'category' => (int) $this->category,
+            'exercises' => $filteredExercises,
+        ]);
+    }
 
     $this->close();
 };
@@ -122,7 +145,44 @@ $delete = function () {
                 </flux:subheading>
             </div>
 
-            <flux:input wire:model="name" label="Session Name" />
+            @if (!$sessionUuid && count($availableSessions) > 0)
+                <flux:button.group class="w-full">
+                    <flux:button
+                        type="button"
+                        wire:click="$set('mode', 'new')"
+                        :variant="$mode === 'new' ? 'primary' : 'ghost'"
+                        class="flex-1"
+                    >
+                        New Session
+                    </flux:button>
+                    <flux:button
+                        type="button"
+                        wire:click="$set('mode', 'link')"
+                        :variant="$mode === 'link' ? 'primary' : 'ghost'"
+                        class="flex-1"
+                    >
+                        Link Session
+                    </flux:button>
+                </flux:button.group>
+            @endif
+
+            @if ($mode === 'link')
+                <flux:field>
+                    <flux:label>{{ $sessionUuid ? 'Linked To' : 'Select Session to Link' }}</flux:label>
+                    <select wire:model="linkedSessionUuid" class="w-full rounded-lg border border-zinc-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm" {{ $sessionUuid ? 'disabled' : '' }}>
+                        @foreach ($availableSessions as $session)
+                            <option value="{{ $session['uuid'] }}">
+                                {{ $session['name'] ?? 'Unnamed Session' }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @if ($sessionUuid)
+                        <flux:description>This session is linked and inherits its content from the source session.</flux:description>
+                    @endif
+                    <flux:error name="linkedSessionUuid" />
+                </flux:field>
+            @else
+                <flux:input wire:model="name" label="Session Name" />
 
             <flux:field>
                 <flux:label>Session Category</flux:label>
@@ -193,6 +253,7 @@ $delete = function () {
                     @endif
                 </div>
             </flux:field>
+            @endif
 
             <div class="flex gap-2 justify-between pt-4">
                 <div>
@@ -204,8 +265,12 @@ $delete = function () {
                     @endif
                 </div>
                 <div class="flex gap-2">
-                    <flux:button type="button" variant="ghost" wire:click="close">Cancel</flux:button>
-                    <flux:button type="submit" variant="primary">Save</flux:button>
+                    @if ($sessionUuid && $mode === 'link')
+                        <flux:button type="button" variant="ghost" wire:click="close">Close</flux:button>
+                    @else
+                        <flux:button type="button" variant="ghost" wire:click="close">Cancel</flux:button>
+                        <flux:button type="submit" variant="primary">Save</flux:button>
+                    @endif
                 </div>
             </div>
         </form>
