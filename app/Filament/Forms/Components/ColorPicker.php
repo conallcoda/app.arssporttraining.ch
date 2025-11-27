@@ -52,7 +52,7 @@ class ColorPicker extends Select
         ];
     }
 
-    public static function getColorValue(string $colorName): string
+    public static function getColorValue(string $colorName, int $shade = 500): string
     {
         if ($colorName === 'black') {
             return '#000000';
@@ -62,6 +62,13 @@ class ColorPicker extends Select
             return '#FFFFFF';
         }
 
+        $palette = static::getColorPalette($colorName);
+
+        return $palette[$shade] ?? $palette[500] ?? $palette[array_key_first($palette)];
+    }
+
+    public static function getColorPalette(string $colorName): array
+    {
         $colorMap = [
             'slate' => Color::Slate,
             'gray' => Color::Gray,
@@ -87,8 +94,7 @@ class ColorPicker extends Select
             'rose' => Color::Rose,
         ];
 
-        $palette = $colorMap[$colorName] ?? Color::Gray;
-        return $palette[500] ?? $palette[array_key_first($palette)];
+        return $colorMap[$colorName] ?? Color::Gray;
     }
 
     public static function getColorConstant(string $colorName): string

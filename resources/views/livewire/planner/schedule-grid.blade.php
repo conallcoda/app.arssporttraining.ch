@@ -32,11 +32,11 @@ on(['compact-mode-changed' => function (bool $compact) {
     $this->compact = $compact;
 }]);
 
-$getColorValue = function (?string $colorName): string {
+$getColorValue = function (?string $colorName, int $shade = 500): string {
     if (!$colorName) {
         return '#000000';
     }
-    return ColorPicker::getColorValue($colorName);
+    return ColorPicker::getColorValue($colorName, $shade);
 };
 
 $getSessionAtPosition = function (string $weekUuid, int $slot, int $day): ?TrainingNode {
@@ -371,7 +371,7 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
                 <tbody>
                     @foreach ($block->getChildren() as $weekIndex => $week)
                         @foreach ($this->slots as $slotIndex => $slotName)
-                            <tr class="{{ $week->isLinked() ? 'opacity-50' : '' }}">
+                            <tr class="{{ $week->isLinked() ? 'bg-zinc-50 dark:bg-zinc-900/50' : '' }}">
                                 @if ($slotIndex === 0)
                                     <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-2 font-medium bg-zinc-50 dark:bg-zinc-800/50 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-all duration-300 whitespace-nowrap"
                                         rowspan="2"
@@ -380,12 +380,12 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
                                         <div class="flex flex-col items-center gap-0.5">
                                             <span>{{ $this->getWeekLabel($weekIndex) }}</span>
                                             @if ($week->isLinked())
-                                                <x-lucide-link class="w-3 h-3 opacity-70" />
+                                                <x-lucide-lock class="w-3 h-3 opacity-70" />
                                             @endif
                                         </div>
                                     </td>
                                 @endif
-                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 transition-all duration-300 whitespace-nowrap"
+                                <td class="border border-zinc-300 dark:border-zinc-600 {{ $compact ? 'px-1' : 'px-3' }} py-2 text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 transition-all duration-300 whitespace-nowrap text-center"
                                     wire:key="slot-label-{{ $weekIndex }}-{{ $slotIndex }}">
                                     {{ $slotName }}
                                 </td>
@@ -412,12 +412,17 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
                                             @drop.prevent="drop('{{ $session?->uuid }}', '{{ $sessionLinkedTo }}', {{ $day }}, {{ $slotIndex }})"
                                         @endif>
                                         @if ($category)
-                                            <div class="h-full flex items-center justify-center gap-1 rounded px-2 py-1 {{ !$week->isLinked() ? 'cursor-move' : '' }} transition-transform duration-200"
+                                            @php
+                                                $bgColor = $this->getColorValue($category->background_color);
+                                                $lightBgColor = $this->getColorValue($category->background_color, 200);
+                                                $borderColor = $this->getColorValue($category->background_color, 400);
+                                            @endphp
+                                            <div class="h-full flex items-center justify-center gap-1 rounded px-2 py-1 transition-transform duration-200 {{ !$week->isLinked() ? 'cursor-move' : 'border-2 border-dashed' }}"
                                                 :class="{
                                                     'opacity-50 scale-95': draggedSessionUuid === '{{ $session->uuid }}',
                                                     'cursor-not-allowed': isDraggingOver === '{{ $cellKey }}' && isDropDisallowed
                                                 }"
-                                                style="background-color: {{ $this->getColorValue($category->background_color) }}; color: {{ $this->getColorValue($category->text_color) }};"
+                                                style="background-color: {{ $week->isLinked() ? $lightBgColor : $bgColor }}; color: {{ $this->getColorValue($category->text_color) }}; {{ $week->isLinked() ? 'border-color: ' . $borderColor . ';' : '' }}"
                                                 @if(!$week->isLinked())
                                                     draggable="true"
                                                     @dragstart="startDrag($event, '{{ $session->uuid }}', '{{ $sessionLinkedTo }}', {{ $day }}, {{ $slotIndex }})"
@@ -425,7 +430,7 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
                                                     wire:dblclick="openSessionModal('{{ $week->uuid }}', {{ $slotIndex }}, {{ $day }})"
                                                 @endif>
                                                 <span class="text-xs font-medium">{{ $sessionName ?? $category->name }}</span>
-                                                @if ($sessionIsLinked || $week->isLinked())
+                                                @if ($sessionIsLinked && !$week->isLinked())
                                                     <x-lucide-link class="w-3 h-3 opacity-70" />
                                                 @endif
                                             </div>
