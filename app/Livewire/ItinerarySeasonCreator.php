@@ -152,6 +152,7 @@ class ItinerarySeasonCreator extends Component
             'session.link' => $this->linkSession($params),
             'session.move' => $this->moveSession($params),
             'session.swap' => $this->swapSessions($params),
+            'week.link' => $this->linkWeek($params),
             default => null,
         };
     }
@@ -236,6 +237,21 @@ class ItinerarySeasonCreator extends Component
         $this->tree->executeAction('session.swap', [
             'session1Id' => $params['session1Id'],
             'session2Id' => $params['session2Id'],
+        ]);
+
+        $this->dispatch('grid-refresh', block: $this->activeBlock);
+    }
+
+    protected function linkWeek(array $params): void
+    {
+        $week = $this->activeBlock->getChildren()[$params['weekIndex']] ?? null;
+        if (!$week) {
+            return;
+        }
+
+        $this->tree->executeAction('week.link', [
+            'weekId' => $week->uuid,
+            'linkedTo' => $params['linkedTo'],
         ]);
 
         $this->dispatch('grid-refresh', block: $this->activeBlock);

@@ -105,6 +105,45 @@ $openSessionModal = function (string $weekUuid, int $slot, int $day) {
     ]);
 };
 
+$getAvailableWeeksForLinking = function (string $currentWeekUuid): array {
+    $weeks = [];
+    $blockIndex = 0;
+
+    foreach ($this->block->getChildren() as $weekIndex => $week) {
+        if ($week->uuid === $currentWeekUuid) {
+            continue;
+        }
+        if ($week->linked_to !== null) {
+            continue;
+        }
+        $weeks[] = [
+            'uuid' => $week->uuid,
+            'blockIndex' => $blockIndex,
+            'weekIndex' => $weekIndex,
+        ];
+    }
+
+    return $weeks;
+};
+
+$openWeekModal = function (string $weekUuid, int $weekIndex) {
+    $week = null;
+    foreach ($this->block->getChildren() as $w) {
+        if ($w->uuid === $weekUuid) {
+            $week = $w;
+            break;
+        }
+    }
+
+    $this->dispatch('open-week-modal', [
+        'weekUuid' => $weekUuid,
+        'weekIndex' => $weekIndex,
+        'blockIndex' => 0,
+        'linkedTo' => $week?->linked_to,
+        'availableWeeks' => $this->getAvailableWeeksForLinking($weekUuid),
+    ]);
+};
+
 on(['session-saved' => function (array $data) {
     $weekIndex = $this->getWeekIndex($data['weekUuid']);
 
@@ -147,6 +186,14 @@ on(['session-deleted' => function (array $data) {
         'weekIndex' => $weekIndex,
         'slot' => $data['slot'],
         'day' => $data['day'],
+    ]);
+}]);
+
+on(['week-linked' => function (array $data) {
+    $this->dispatch('itinerary-action', action: 'week.link', params: [
+        'weekUuid' => $data['weekUuid'],
+        'weekIndex' => $data['weekIndex'],
+        'linkedTo' => $data['linkedTo'],
     ]);
 }]);
 
@@ -261,8 +308,9 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
                         @foreach ($this->slots as $slotIndex => $slotName)
                             <tr class="{{ $week->isLinked() ? 'opacity-50' : '' }}">
                                 @if ($slotIndex === 0)
-                                    <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-medium bg-zinc-50 dark:bg-zinc-800/50"
-                                        rowspan="2">
+                                    <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-medium bg-zinc-50 dark:bg-zinc-800/50 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50"
+                                        rowspan="2"
+                                        wire:click="openWeekModal('{{ $week->uuid }}', {{ $weekIndex }})">
                                         <div class="flex items-center gap-1">
                                             Week {{ $weekIndex + 1 }}
                                             @if ($week->isLinked())
@@ -332,4 +380,5 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
     @endif
 
     <livewire:planner.session-modal />
+    <livewire:planner.week-modal />
 </div>

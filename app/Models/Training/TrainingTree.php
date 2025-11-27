@@ -6,6 +6,7 @@ use App\Data\AbstractData;
 
 use App\Models\Training\Actions\Block\AddBlock;
 use App\Models\Training\Actions\Week\AddWeek;
+use App\Models\Training\Actions\Week\LinkWeek;
 use App\Models\Training\Actions\Session\AddSession;
 use App\Models\Training\Actions\Session\UpdateSession;
 use App\Models\Training\Actions\Session\MoveSession;
@@ -31,6 +32,7 @@ class TrainingTree extends AbstractData
         ],
         'week' => [
             'add' => AddWeek::class,
+            'link' => LinkWeek::class,
             'delete' => DeleteNode::class,
             'duplicate' => DuplicateNode::class,
             'move' => MoveNode::class,
