@@ -3,7 +3,6 @@
 namespace App\Livewire;
 
 use App\Models\Training\Data\BlockData;
-use App\Models\Training\Data\SeasonData;
 use App\Models\Training\Data\WeekData;
 use App\Models\Training\TrainingNode;
 use App\Models\Training\TrainingTree;
@@ -11,67 +10,49 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
-class ItinerarySeasonCreator extends Component
+class BlockCreator extends Component
 {
-    public ItineraryConfig $config;
-
     public TrainingTree $tree;
 
-    public int $activeBlockIndex = 0;
+    protected int $defaultWeeks = 5;
 
     public function mount()
     {
-        $this->config = new ItineraryConfig();
-        $this->rebuildTree();
+        $this->initializeTree();
     }
 
-    protected function rebuildTree(): void
+    protected function initializeTree(): void
     {
-        $blocks = [];
-        $firstWeekNode = null;
+        $weeks = [];
 
-        for ($blockIndex = 0; $blockIndex < $this->config->numberOfBlocks; $blockIndex++) {
-            $weeks = [];
-
-            for ($weekIndex = 0; $weekIndex < $this->config->weeksPerBlock; $weekIndex++) {
-                $weeks[] = new WeekData();
-            }
-
-            $blocks[] = (new BlockData())->withChildren($weeks);
+        for ($weekIndex = 0; $weekIndex < $this->defaultWeeks; $weekIndex++) {
+            $weeks[] = new WeekData();
         }
 
-        $seasonData = (new SeasonData())->withChildren($blocks);
-        $seasonNode = TrainingNode::fromData($seasonData);
-        $seasonNode->name = 'New Season';
+        $blockData = (new BlockData())->withChildren($weeks);
+        $blockNode = TrainingNode::fromData($blockData);
+        $blockNode->name = 'New Block';
 
-        $firstWeekNode = $seasonNode->children[0]->children[0] ?? null;
+        $firstWeekNode = $blockNode->children[0] ?? null;
 
         if ($firstWeekNode) {
-            foreach ($seasonNode->children as $blockIndex => $block) {
-                foreach ($block->children as $weekIndex => $_) {
-                    if ($blockIndex === 0 && $weekIndex === 0) {
-                        continue;
-                    }
-                    $block->children[$weekIndex] = $firstWeekNode->createLinkedClone($block->uuid, $weekIndex);
+            foreach ($blockNode->children as $weekIndex => $_) {
+                if ($weekIndex === 0) {
+                    continue;
                 }
+                $blockNode->children[$weekIndex] = $firstWeekNode->createLinkedClone($blockNode->uuid, $weekIndex);
             }
         }
 
-        $this->tree = TrainingTree::fromTrainingNode($seasonNode);
-        $this->activeBlockIndex = 0;
+        $this->tree = TrainingTree::fromTrainingNode($blockNode);
 
         $this->addDefaultSession();
-        $this->dispatch('grid-refresh', block: $this->activeBlock);
+        $this->dispatch('grid-refresh', block: $this->tree->root);
     }
 
     protected function addDefaultSession(): void
     {
-        $firstBlock = $this->tree->root->children[0] ?? null;
-        if (!$firstBlock) {
-            return;
-        }
-
-        $firstWeek = $firstBlock->children[0] ?? null;
+        $firstWeek = $this->tree->root->children[0] ?? null;
 
         if ($firstWeek) {
             $event = $this->tree->executeAction('session.add', [
@@ -96,22 +77,10 @@ class ItinerarySeasonCreator extends Component
     }
 
     #[Computed]
-    public function activeBlock(): ?TrainingNode
-    {
-        return $this->tree->root->getChildren()[$this->activeBlockIndex] ?? null;
-    }
-
-    #[Computed]
-    public function blocks(): array
-    {
-        return $this->tree->root->getChildren();
-    }
-
-    #[Computed]
     public function nonLinkedSessions(): array
     {
         $sessions = [];
-        $firstWeek = $this->tree->root->children[0]->children[0] ?? null;
+        $firstWeek = $this->tree->root->children[0] ?? null;
 
         if ($firstWeek) {
             foreach ($firstWeek->getChildren() as $session) {
@@ -128,22 +97,10 @@ class ItinerarySeasonCreator extends Component
         return $sessions;
     }
 
-    public function setActiveBlock(int $index): void
+    #[On('schedule-action')]
+    public function onScheduleAction(string $action, array $params)
     {
-        $this->activeBlockIndex = $index;
-    }
-
-    #[On('itinerary-config-changed')]
-    public function onSeasonConfigChanged(array $config)
-    {
-        $this->config = ItineraryConfig::from($config);
-        $this->rebuildTree();
-    }
-
-    #[On('itinerary-action')]
-    public function onItineraryAction(string $action, array $params)
-    {
-        logger()->info('Received itinerary-action', ['action' => $action, 'params' => $params]);
+        logger()->info('Received schedule-action', ['action' => $action, 'params' => $params]);
 
         match ($action) {
             'session.add' => $this->addSession($params),
@@ -153,15 +110,17 @@ class ItinerarySeasonCreator extends Component
             'session.updateLink' => $this->updateSessionLink($params),
             'session.move' => $this->moveSession($params),
             'session.swap' => $this->swapSessions($params),
+            'week.add' => $this->addWeek($params),
             'week.link' => $this->linkWeek($params),
+            'week.delete' => $this->deleteWeek($params),
             default => null,
         };
     }
 
     protected function addSession(array $params): void
     {
-        $week = $this->activeBlock->getChildren()[$params['weekIndex']] ?? null;
-        logger()->info('Adding session', ['weekIndex' => $params['weekIndex'], 'week' => $week?->uuid, 'activeBlock' => $this->activeBlock?->uuid]);
+        $week = $this->tree->root->getChildren()[$params['weekIndex']] ?? null;
+        logger()->info('Adding session', ['weekIndex' => $params['weekIndex'], 'week' => $week?->uuid]);
 
         if ($week) {
             $this->tree->executeAction('session.add', [
@@ -173,7 +132,7 @@ class ItinerarySeasonCreator extends Component
                 'name' => $params['name'],
             ]);
             logger()->info('Session added', ['weekChildren' => count($week->getChildren())]);
-            $this->dispatch('grid-refresh', block: $this->activeBlock);
+            $this->dispatch('grid-refresh', block: $this->tree->root);
         }
     }
 
@@ -185,12 +144,12 @@ class ItinerarySeasonCreator extends Component
             'exercises' => $params['exercises'],
             'name' => $params['name'],
         ]);
-        $this->dispatch('grid-refresh', block: $this->activeBlock);
+        $this->dispatch('grid-refresh', block: $this->tree->root);
     }
 
     protected function deleteSession(array $params): void
     {
-        $week = $this->activeBlock->getChildren()[$params['weekIndex']] ?? null;
+        $week = $this->tree->root->getChildren()[$params['weekIndex']] ?? null;
         if (!$week) {
             return;
         }
@@ -201,13 +160,13 @@ class ItinerarySeasonCreator extends Component
                 'parentId' => $week->uuid,
                 'sessionId' => $session->uuid,
             ]);
-            $this->dispatch('grid-refresh', block: $this->activeBlock);
+            $this->dispatch('grid-refresh', block: $this->tree->root);
         }
     }
 
     protected function linkSession(array $params): void
     {
-        $week = $this->activeBlock->getChildren()[$params['weekIndex']] ?? null;
+        $week = $this->tree->root->getChildren()[$params['weekIndex']] ?? null;
         if (!$week) {
             return;
         }
@@ -219,7 +178,7 @@ class ItinerarySeasonCreator extends Component
             'linkId' => $params['linkedSessionUuid'],
         ]);
 
-        $this->dispatch('grid-refresh', block: $this->activeBlock);
+        $this->dispatch('grid-refresh', block: $this->tree->root);
     }
 
     protected function updateSessionLink(array $params): void
@@ -229,7 +188,7 @@ class ItinerarySeasonCreator extends Component
             'linkedTo' => $params['linkedTo'],
         ]);
 
-        $this->dispatch('grid-refresh', block: $this->activeBlock);
+        $this->dispatch('grid-refresh', block: $this->tree->root);
     }
 
     protected function moveSession(array $params): void
@@ -240,7 +199,7 @@ class ItinerarySeasonCreator extends Component
             'newSlot' => $params['newSlot'],
         ]);
 
-        $this->dispatch('grid-refresh', block: $this->activeBlock);
+        $this->dispatch('grid-refresh', block: $this->tree->root);
     }
 
     protected function swapSessions(array $params): void
@@ -250,12 +209,30 @@ class ItinerarySeasonCreator extends Component
             'session2Id' => $params['session2Id'],
         ]);
 
-        $this->dispatch('grid-refresh', block: $this->activeBlock);
+        $this->dispatch('grid-refresh', block: $this->tree->root);
+    }
+
+    protected function addWeek(array $params): void
+    {
+        $event = $this->tree->executeAction('week.add', [
+            'parentId' => $this->tree->root->uuid,
+        ]);
+
+        $newWeek = $event->child ?? null;
+
+        if ($newWeek && !empty($params['linkedTo'])) {
+            $this->tree->executeAction('week.link', [
+                'weekId' => $newWeek->uuid,
+                'linkedTo' => $params['linkedTo'],
+            ]);
+        }
+
+        $this->dispatch('grid-refresh', block: $this->tree->root);
     }
 
     protected function linkWeek(array $params): void
     {
-        $week = $this->activeBlock->getChildren()[$params['weekIndex']] ?? null;
+        $week = $this->tree->root->getChildren()[$params['weekIndex']] ?? null;
         if (!$week) {
             return;
         }
@@ -265,7 +242,21 @@ class ItinerarySeasonCreator extends Component
             'linkedTo' => $params['linkedTo'],
         ]);
 
-        $this->dispatch('grid-refresh', block: $this->activeBlock);
+        $this->dispatch('grid-refresh', block: $this->tree->root);
+    }
+
+    protected function deleteWeek(array $params): void
+    {
+        $week = $this->tree->root->getChildren()[$params['weekIndex']] ?? null;
+        if (!$week || $params['weekIndex'] === 0) {
+            return;
+        }
+
+        $this->tree->executeAction('week.delete', [
+            'nodeId' => $week->uuid,
+        ]);
+
+        $this->dispatch('grid-refresh', block: $this->tree->root);
     }
 
     protected function getSessionAtPosition(TrainingNode $week, int $slot, int $day): ?TrainingNode
@@ -280,6 +271,6 @@ class ItinerarySeasonCreator extends Component
 
     public function render()
     {
-        return view('livewire.itinerary-season-creator');
+        return view('livewire.block-creator');
     }
 }

@@ -7,15 +7,30 @@ use function Livewire\Volt\{state, computed, on};
 
 state([
     'block' => null,
+    'compact' => false,
 ]);
 
 $categories = computed(fn() => TrainingSessionCategory::all());
 
 $categoriesById = computed(fn() => $this->categories->keyBy('id'));
 
-$days = computed(fn() => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']);
+$days = computed(fn() => $this->compact
+    ? ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+    : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+);
 
-$slots = computed(fn() => ['Morning', 'Afternoon']);
+$slots = computed(fn() => $this->compact
+    ? ['AM', 'PM']
+    : ['Morning', 'Afternoon']
+);
+
+$getWeekLabel = function (int $weekIndex): string {
+    return $this->compact ? 'W' . ($weekIndex + 1) : 'Week ' . ($weekIndex + 1);
+};
+
+on(['compact-mode-changed' => function (bool $compact) {
+    $this->compact = $compact;
+}]);
 
 $getColorValue = function (?string $colorName): string {
     if (!$colorName) {
@@ -37,7 +52,7 @@ $getSessionAtPosition = function (string $weekUuid, int $slot, int $day): ?Train
     return null;
 };
 
-$getItinerary = function (string $weekUuid, int $slot, int $day): ?int {
+$getScheduleCategory = function (string $weekUuid, int $slot, int $day): ?int {
     $session = $this->getSessionAtPosition($weekUuid, $slot, $day);
     return $session?->getData()->category;
 };
@@ -107,7 +122,6 @@ $openSessionModal = function (string $weekUuid, int $slot, int $day) {
 
 $getAvailableWeeksForLinking = function (string $currentWeekUuid): array {
     $weeks = [];
-    $blockIndex = 0;
 
     foreach ($this->block->getChildren() as $weekIndex => $week) {
         if ($week->uuid === $currentWeekUuid) {
@@ -118,7 +132,6 @@ $getAvailableWeeksForLinking = function (string $currentWeekUuid): array {
         }
         $weeks[] = [
             'uuid' => $week->uuid,
-            'blockIndex' => $blockIndex,
             'weekIndex' => $weekIndex,
         ];
     }
@@ -138,9 +151,37 @@ $openWeekModal = function (string $weekUuid, int $weekIndex) {
     $this->dispatch('open-week-modal', [
         'weekUuid' => $weekUuid,
         'weekIndex' => $weekIndex,
-        'blockIndex' => 0,
         'linkedTo' => $week?->linked_to,
         'availableWeeks' => $this->getAvailableWeeksForLinking($weekUuid),
+        'isAddMode' => false,
+    ]);
+};
+
+$getAvailableWeeksForNewWeekLinking = function (): array {
+    $weeks = [];
+
+    foreach ($this->block->getChildren() as $weekIndex => $week) {
+        if ($week->linked_to !== null) {
+            continue;
+        }
+        $weeks[] = [
+            'uuid' => $week->uuid,
+            'weekIndex' => $weekIndex,
+        ];
+    }
+
+    return $weeks;
+};
+
+$openAddWeekModal = function () {
+    $nextWeekIndex = count($this->block->getChildren());
+
+    $this->dispatch('open-week-modal', [
+        'weekUuid' => null,
+        'weekIndex' => $nextWeekIndex,
+        'linkedTo' => null,
+        'availableWeeks' => $this->getAvailableWeeksForNewWeekLinking(),
+        'isAddMode' => true,
     ]);
 };
 
@@ -148,7 +189,7 @@ on(['session-saved' => function (array $data) {
     $weekIndex = $this->getWeekIndex($data['weekUuid']);
 
     if ($data['sessionUuid']) {
-        $this->dispatch('itinerary-action', action: 'session.update', params: [
+        $this->dispatch('schedule-action', action: 'session.update', params: [
             'sessionId' => $data['sessionUuid'],
             'name' => $data['name'],
             'day' => $data['day'],
@@ -157,7 +198,7 @@ on(['session-saved' => function (array $data) {
             'exercises' => $data['exercises'],
         ]);
     } else {
-        $this->dispatch('itinerary-action', action: 'session.add', params: [
+        $this->dispatch('schedule-action', action: 'session.add', params: [
             'weekIndex' => $weekIndex,
             'name' => $data['name'],
             'day' => $data['day'],
@@ -171,7 +212,7 @@ on(['session-saved' => function (array $data) {
 on(['session-linked' => function (array $data) {
     $weekIndex = $this->getWeekIndex($data['weekUuid']);
 
-    $this->dispatch('itinerary-action', action: 'session.link', params: [
+    $this->dispatch('schedule-action', action: 'session.link', params: [
         'weekIndex' => $weekIndex,
         'day' => $data['day'],
         'slot' => $data['slot'],
@@ -180,7 +221,7 @@ on(['session-linked' => function (array $data) {
 }]);
 
 on(['session-link-updated' => function (array $data) {
-    $this->dispatch('itinerary-action', action: 'session.updateLink', params: [
+    $this->dispatch('schedule-action', action: 'session.updateLink', params: [
         'sessionId' => $data['sessionUuid'],
         'linkedTo' => $data['linkedTo'],
     ]);
@@ -189,7 +230,7 @@ on(['session-link-updated' => function (array $data) {
 on(['session-deleted' => function (array $data) {
     $weekIndex = $this->getWeekIndex($data['weekUuid']);
 
-    $this->dispatch('itinerary-action', action: 'session.delete', params: [
+    $this->dispatch('schedule-action', action: 'session.delete', params: [
         'weekIndex' => $weekIndex,
         'slot' => $data['slot'],
         'day' => $data['day'],
@@ -197,9 +238,22 @@ on(['session-deleted' => function (array $data) {
 }]);
 
 on(['week-linked' => function (array $data) {
-    $this->dispatch('itinerary-action', action: 'week.link', params: [
+    $this->dispatch('schedule-action', action: 'week.link', params: [
         'weekUuid' => $data['weekUuid'],
         'weekIndex' => $data['weekIndex'],
+        'linkedTo' => $data['linkedTo'],
+    ]);
+}]);
+
+on(['week-deleted' => function (array $data) {
+    $this->dispatch('schedule-action', action: 'week.delete', params: [
+        'weekUuid' => $data['weekUuid'],
+        'weekIndex' => $data['weekIndex'],
+    ]);
+}]);
+
+on(['week-added' => function (array $data) {
+    $this->dispatch('schedule-action', action: 'week.add', params: [
         'linkedTo' => $data['linkedTo'],
     ]);
 }]);
@@ -209,7 +263,7 @@ on(['grid-refresh' => function ($block) {
 }]);
 
 on(['session-move' => function (string $sessionId, int $newDay, int $newSlot) {
-    $this->dispatch('itinerary-action', action: 'session.move', params: [
+    $this->dispatch('schedule-action', action: 'session.move', params: [
         'sessionId' => $sessionId,
         'newDay' => $newDay,
         'newSlot' => $newSlot,
@@ -217,7 +271,7 @@ on(['session-move' => function (string $sessionId, int $newDay, int $newSlot) {
 }]);
 
 on(['session-swap' => function (string $session1Id, string $session2Id) {
-    $this->dispatch('itinerary-action', action: 'session.swap', params: [
+    $this->dispatch('schedule-action', action: 'session.swap', params: [
         'session1Id' => $session1Id,
         'session2Id' => $session2Id,
     ]);
@@ -299,12 +353,16 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
              x-transition:enter-start="opacity-0"
              x-transition:enter-end="opacity-100"
              class="overflow-x-auto">
-            <table class="border-collapse border border-zinc-300 dark:border-zinc-600 text-sm w-full">
+            <table class="border-collapse border border-zinc-300 dark:border-zinc-600 text-sm w-full table-fixed">
+                <colgroup>
+                    <col class="{{ $compact ? 'w-10' : 'w-20' }}">
+                    <col class="{{ $compact ? 'w-10' : 'w-28' }}">
+                </colgroup>
                 <thead>
                     <tr class="bg-zinc-100 dark:bg-zinc-800">
                         <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2" colspan="2"></th>
-                        @foreach ($this->days as $day)
-                            <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 min-w-[80px]">
+                        @foreach ($this->days as $dayIndex => $day)
+                            <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 transition-all duration-300" wire:key="day-header-{{ $dayIndex }}">
                                 {{ $day }}
                             </th>
                         @endforeach
@@ -315,19 +373,20 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
                         @foreach ($this->slots as $slotIndex => $slotName)
                             <tr class="{{ $week->isLinked() ? 'opacity-50' : '' }}">
                                 @if ($slotIndex === 0)
-                                    <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-medium bg-zinc-50 dark:bg-zinc-800/50 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50"
+                                    <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-2 font-medium bg-zinc-50 dark:bg-zinc-800/50 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-all duration-300 whitespace-nowrap"
                                         rowspan="2"
+                                        wire:key="week-label-{{ $weekIndex }}"
                                         wire:dblclick="openWeekModal('{{ $week->uuid }}', {{ $weekIndex }})">
-                                        <div class="flex items-center gap-1">
-                                            Week {{ $weekIndex + 1 }}
+                                        <div class="flex flex-col items-center gap-0.5">
+                                            <span>{{ $this->getWeekLabel($weekIndex) }}</span>
                                             @if ($week->isLinked())
                                                 <x-lucide-link class="w-3 h-3 opacity-70" />
                                             @endif
                                         </div>
                                     </td>
                                 @endif
-                                <td
-                                    class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50">
+                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 transition-all duration-300 whitespace-nowrap"
+                                    wire:key="slot-label-{{ $weekIndex }}-{{ $slotIndex }}">
                                     {{ $slotName }}
                                 </td>
                                 @for ($day = 0; $day < 7; $day++)
@@ -381,6 +440,16 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
                             </tr>
                         @endforeach
                     @endforeach
+                    <tr>
+                        <td class="border border-zinc-300 dark:border-zinc-600 border-dashed px-3 py-4 bg-zinc-50/50 dark:bg-zinc-800/30 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-colors"
+                            colspan="9"
+                            wire:click="openAddWeekModal">
+                            <div class="flex items-center justify-center gap-2 text-zinc-400 dark:text-zinc-500">
+                                <x-lucide-plus class="w-4 h-4" />
+                                <span class="text-sm font-medium">Add Week</span>
+                            </div>
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </div>
