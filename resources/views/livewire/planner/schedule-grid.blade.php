@@ -76,6 +76,25 @@ $getWeekIndex = function (string $weekUuid): int {
     return 0;
 };
 
+$getWeekLinkInfo = function (string $weekUuid): ?array {
+    foreach ($this->block->getChildren() as $weekIndex => $week) {
+        if ($week->uuid === $weekUuid && $week->isLinked()) {
+            $linkedToIndex = null;
+            foreach ($this->block->getChildren() as $i => $w) {
+                if ($w->uuid === $week->linked_to) {
+                    $linkedToIndex = $i + 1;
+                    break;
+                }
+            }
+            return [
+                'weekIndex' => $weekIndex + 1,
+                'linkedToIndex' => $linkedToIndex,
+            ];
+        }
+    }
+    return null;
+};
+
 $getNonLinkedSessions = function (): array {
     $sessions = [];
     $firstBlock = $this->block;
@@ -285,14 +304,16 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
     draggedSessionLinkedTo: null,
     draggedFromDay: null,
     draggedFromSlot: null,
+    draggedWeekLinkInfo: null,
     isDraggingOver: null,
     isDropDisallowed: false,
 
-    startDrag(event, sessionUuid, linkedTo, day, slot) {
+    startDrag(event, sessionUuid, linkedTo, day, slot, weekLinkInfo) {
         this.draggedSessionUuid = sessionUuid;
         this.draggedSessionLinkedTo = linkedTo;
         this.draggedFromDay = day;
         this.draggedFromSlot = slot;
+        this.draggedWeekLinkInfo = weekLinkInfo;
         event.dataTransfer.effectAllowed = 'move';
     },
 
@@ -316,35 +337,57 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
 
     drop(targetSessionUuid, targetLinkedTo, targetDay, targetSlot) {
         if (this.areLinkedToEachOther(targetSessionUuid, targetLinkedTo)) {
-            this.draggedSessionUuid = null;
-            this.draggedSessionLinkedTo = null;
-            this.draggedFromDay = null;
-            this.draggedFromSlot = null;
-            this.isDraggingOver = null;
-            this.isDropDisallowed = false;
+            this.resetDragState();
             return;
         }
 
         if (this.draggedSessionUuid && (this.draggedFromDay !== targetDay || this.draggedFromSlot !== targetSlot)) {
-            if (targetSessionUuid) {
-                $wire.dispatch('session-swap', {
-                    session1Id: this.draggedSessionUuid,
-                    session2Id: targetSessionUuid
-                });
+            const doMove = () => {
+                if (targetSessionUuid) {
+                    $wire.dispatch('session-swap', {
+                        session1Id: this.draggedSessionUuid,
+                        session2Id: targetSessionUuid
+                    });
+                } else {
+                    $wire.dispatch('session-move', {
+                        sessionId: this.draggedSessionUuid,
+                        newDay: targetDay,
+                        newSlot: targetSlot
+                    });
+                }
+            };
+
+            if (this.draggedWeekLinkInfo) {
+                const message = `This action will unlink Week ${this.draggedWeekLinkInfo.weekIndex} from Week ${this.draggedWeekLinkInfo.linkedToIndex}`;
+                if (confirm(message)) {
+                    doMove();
+                }
             } else {
-                $wire.dispatch('session-move', {
-                    sessionId: this.draggedSessionUuid,
-                    newDay: targetDay,
-                    newSlot: targetSlot
-                });
+                doMove();
             }
         }
+        this.resetDragState();
+    },
+
+    resetDragState() {
         this.draggedSessionUuid = null;
         this.draggedSessionLinkedTo = null;
         this.draggedFromDay = null;
         this.draggedFromSlot = null;
+        this.draggedWeekLinkInfo = null;
         this.isDraggingOver = null;
         this.isDropDisallowed = false;
+    },
+
+    confirmUnlinkAndAction(weekLinkInfo, action) {
+        if (!weekLinkInfo) {
+            action();
+            return;
+        }
+        const message = `This action will unlink Week ${weekLinkInfo.weekIndex} from Week ${weekLinkInfo.linkedToIndex}`;
+        if (confirm(message)) {
+            action();
+        }
     }
 }" x-init="$nextTick(() => show = true)">
     @if ($block)
@@ -401,42 +444,43 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
                                         $sessionLinkedTo = $session?->linked_to;
                                         $cellKey = $day . '-' . $slotIndex;
                                     @endphp
-                                    <td class="border border-zinc-300 dark:border-zinc-600 p-1 h-12 {{ $week->isLinked() ? 'pointer-events-none' : '' }} {{ $sessionIsLinked && !$week->isLinked() ? 'opacity-50' : '' }} transition-all duration-200"
+                                    <td class="border border-zinc-300 dark:border-zinc-600 p-1 h-12 transition-all duration-200"
                                         :class="{
                                             'bg-blue-100 dark:bg-blue-900/30': isDraggingOver === '{{ $cellKey }}' && !isDropDisallowed,
                                             'bg-red-100 dark:bg-red-900/30 cursor-not-allowed': isDraggingOver === '{{ $cellKey }}' && isDropDisallowed
                                         }"
-                                        @if(!$week->isLinked())
-                                            @dragover.prevent="dragOver($event, {{ $day }}, {{ $slotIndex }}, '{{ $session?->uuid }}', '{{ $sessionLinkedTo }}')"
-                                            @dragleave="dragLeave()"
-                                            @drop.prevent="drop('{{ $session?->uuid }}', '{{ $sessionLinkedTo }}', {{ $day }}, {{ $slotIndex }})"
-                                        @endif>
+                                        @dragover.prevent="dragOver($event, {{ $day }}, {{ $slotIndex }}, '{{ $session?->uuid }}', '{{ $sessionLinkedTo }}')"
+                                        @dragleave="dragLeave()"
+                                        @drop.prevent="drop('{{ $session?->uuid }}', '{{ $sessionLinkedTo }}', {{ $day }}, {{ $slotIndex }})">
                                         @if ($category)
                                             @php
                                                 $bgColor = $this->getColorValue($category->background_color);
                                                 $lightBgColor = $this->getColorValue($category->background_color, 200);
                                                 $borderColor = $this->getColorValue($category->background_color, 400);
+                                                $isLinkedStyle = $week->isLinked() || $sessionIsLinked;
+                                                $weekLinkInfo = $this->getWeekLinkInfo($week->uuid);
+                                                $weekLinkInfoJson = $weekLinkInfo ? json_encode($weekLinkInfo) : 'null';
                                             @endphp
-                                            <div class="h-full flex items-center justify-center gap-1 rounded px-2 py-1 transition-transform duration-200 {{ !$week->isLinked() ? 'cursor-move' : 'border-2 border-dashed' }}"
+                                            <div class="h-full flex items-center justify-center gap-1 rounded px-2 py-1 transition-transform duration-200 cursor-move {{ $isLinkedStyle ? 'border-2 border-dashed' : '' }} cursor-pointer"
                                                 :class="{
                                                     'opacity-50 scale-95': draggedSessionUuid === '{{ $session->uuid }}',
                                                     'cursor-not-allowed': isDraggingOver === '{{ $cellKey }}' && isDropDisallowed
                                                 }"
-                                                style="background-color: {{ $week->isLinked() ? $lightBgColor : $bgColor }}; color: {{ $this->getColorValue($category->text_color) }}; {{ $week->isLinked() ? 'border-color: ' . $borderColor . ';' : '' }}"
-                                                @if(!$week->isLinked())
-                                                    draggable="true"
-                                                    @dragstart="startDrag($event, '{{ $session->uuid }}', '{{ $sessionLinkedTo }}', {{ $day }}, {{ $slotIndex }})"
-                                                    @dragend="draggedSessionUuid = null; draggedSessionLinkedTo = null; isDraggingOver = null; isDropDisallowed = false"
-                                                    wire:dblclick="openSessionModal('{{ $week->uuid }}', {{ $slotIndex }}, {{ $day }})"
-                                                @endif>
+                                                style="background-color: {{ $isLinkedStyle ? $lightBgColor : $bgColor }}; color: {{ $this->getColorValue($category->text_color) }}; {{ $isLinkedStyle ? 'border-color: ' . $borderColor . ';' : '' }}"
+                                                draggable="true"
+                                                @dragstart="startDrag($event, '{{ $session->uuid }}', '{{ $sessionLinkedTo }}', {{ $day }}, {{ $slotIndex }}, {{ $weekLinkInfoJson }})"
+                                                @dragend="resetDragState()"
+                                                @dblclick="confirmUnlinkAndAction({{ $weekLinkInfoJson }}, () => $wire.openSessionModal('{{ $week->uuid }}', {{ $slotIndex }}, {{ $day }}))"
+                                                wire:click="$dispatch('progression-category-changed', { categoryId: {{ $categoryId }} })">
                                                 <span class="text-xs font-medium">{{ $sessionName ?? $category->name }}</span>
-                                                @if ($sessionIsLinked && !$week->isLinked())
-                                                    <x-lucide-link class="w-3 h-3 opacity-70" />
-                                                @endif
                                             </div>
                                         @else
+                                            @php
+                                                $weekLinkInfo = $this->getWeekLinkInfo($week->uuid);
+                                                $weekLinkInfoJson = $weekLinkInfo ? json_encode($weekLinkInfo) : 'null';
+                                            @endphp
                                             <div class="h-full flex items-center justify-center text-zinc-400 dark:text-zinc-600 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50 rounded"
-                                                @if(!$week->isLinked()) wire:click="openSessionModal('{{ $week->uuid }}', {{ $slotIndex }}, {{ $day }})" @endif>
+                                                @click="confirmUnlinkAndAction({{ $weekLinkInfoJson }}, () => $wire.openSessionModal('{{ $week->uuid }}', {{ $slotIndex }}, {{ $day }}))">
                                                 <x-lucide-plus class="w-4 h-4" />
                                             </div>
                                         @endif

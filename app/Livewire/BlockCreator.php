@@ -16,7 +16,22 @@ class BlockCreator extends Component
 
     protected int $defaultWeeks = 5;
 
+    protected string $storageKey = 'block-creator-tree';
+
     public function mount()
+    {
+        $this->initializeTree();
+    }
+
+    public function loadFromStorage(array $treeData)
+    {
+        TrainingNode::clearRegistry();
+        $root = TrainingNode::from($treeData);
+        $this->tree = TrainingTree::fromTrainingNode($root);
+        $this->dispatch('grid-refresh', block: $this->tree->root);
+    }
+
+    public function clearStorage()
     {
         $this->initializeTree();
     }
@@ -115,6 +130,25 @@ class BlockCreator extends Component
             'week.delete' => $this->deleteWeek($params),
             default => null,
         };
+    }
+
+    #[On('progression-action')]
+    public function onProgressionAction(string $action, array $params)
+    {
+        match ($action) {
+            'set.update' => $this->updateSet($params),
+            default => null,
+        };
+    }
+
+    protected function updateSet(array $params): void
+    {
+        $this->tree->executeAction('set.update', [
+            'setId' => $params['setId'],
+            'reps' => (int) $params['reps'],
+            'weight' => (float) $params['weight'],
+        ]);
+        $this->dispatch('grid-refresh', block: $this->tree->root);
     }
 
     protected function addSession(array $params): void
