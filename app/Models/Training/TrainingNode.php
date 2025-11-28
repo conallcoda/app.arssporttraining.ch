@@ -182,6 +182,9 @@ class TrainingNode extends AbstractData
                     $sourceData['slot'] = $this->data->slot;
                     return SessionData::from($sourceData);
                 }
+                if ($this->type === 'week') {
+                    return $this->data;
+                }
                 return $source->data;
             }
         }

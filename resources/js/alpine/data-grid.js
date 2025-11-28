@@ -5,6 +5,7 @@ document.addEventListener('alpine:init', () => {
         endCell: null,
         clipboard: null,
         cells: {},
+        cellMeta: {},
         editingCell: null,
 
         init() {
@@ -13,9 +14,12 @@ document.addEventListener('alpine:init', () => {
             });
         },
 
-        registerCell(rowIndex, colIndex, el) {
+        registerCell(rowIndex, colIndex, el, meta = null) {
             const key = `${rowIndex}-${colIndex}`;
             this.cells[key] = el;
+            if (meta) {
+                this.cellMeta[key] = meta;
+            }
         },
 
         getCellValue(rowIndex, colIndex) {
@@ -24,11 +28,50 @@ document.addEventListener('alpine:init', () => {
             return el ? el.textContent.trim() : '';
         },
 
-        setCellValue(rowIndex, colIndex, value) {
+        setCellValue(rowIndex, colIndex, value, dispatchEvent = true) {
             const key = `${rowIndex}-${colIndex}`;
             const el = this.cells[key];
             if (el) {
                 el.textContent = value;
+                if (dispatchEvent) {
+                    this.dispatchCellChange(rowIndex, colIndex, value);
+                }
+            }
+        },
+
+        dispatchCellChange(rowIndex, colIndex, value) {
+            const key = `${rowIndex}-${colIndex}`;
+            const meta = this.cellMeta[key];
+            if (meta) {
+                const el = this.cells[key];
+                if (el) {
+                    this.applyOverrideStyle(el, meta.field);
+                }
+
+                if (value === null) {
+                    const pairedRowIndex = meta.field === 'reps' ? rowIndex + 1 : rowIndex - 1;
+                    const pairedKey = `${pairedRowIndex}-${colIndex}`;
+                    const pairedEl = this.cells[pairedKey];
+                    if (pairedEl) {
+                        pairedEl.textContent = '-';
+                        this.applyOverrideStyle(pairedEl, meta.field === 'reps' ? 'weight' : 'reps');
+                    }
+                }
+
+                this.$dispatch('cell-changed', {
+                    rowIndex,
+                    colIndex,
+                    value,
+                    ...meta
+                });
+            }
+        },
+
+        applyOverrideStyle(el, field) {
+            if (field === 'reps') {
+                el.classList.add('bg-blue-100', 'dark:bg-blue-800/50');
+            } else if (field === 'weight') {
+                el.classList.add('bg-green-100', 'dark:bg-green-800/50');
             }
         },
 
@@ -82,14 +125,34 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
-        startSelection(rowIndex, colIndex, event) {
+        handleCellMousedown(rowIndex, colIndex, event) {
             if (event.button !== 0) return;
+
+            if (event.shiftKey && this.startCell) {
+                this.endCell = { row: rowIndex, col: colIndex };
+                return;
+            }
+
+            if (event.metaKey || event.ctrlKey) {
+                this.isDragging = true;
+                if (this.startCell) {
+                    this.endCell = { row: rowIndex, col: colIndex };
+                } else {
+                    this.startCell = { row: rowIndex, col: colIndex };
+                    this.endCell = { row: rowIndex, col: colIndex };
+                }
+                return;
+            }
+
             this.isDragging = true;
             this.startCell = { row: rowIndex, col: colIndex };
             this.endCell = { row: rowIndex, col: colIndex };
-            this.$nextTick(() => {
-                this.$el.focus();
-            });
+        },
+
+        handleCellDblClick(rowIndex, colIndex, event) {
+            if (event.button !== 0) return;
+            this.clearSelection();
+            this.startEdit(rowIndex, colIndex);
         },
 
         extendSelection(rowIndex, colIndex, event) {
@@ -148,13 +211,25 @@ document.addEventListener('alpine:init', () => {
 
             const input = document.createElement('input');
             input.type = 'text';
-            input.value = currentValue;
+            input.value = currentValue === '-' ? '' : currentValue;
             input.style.cssText = 'position: absolute; inset: 0; width: 100%; height: 100%; text-align: center; border: none; outline: none; background: white; padding: 0; margin: 0; font-size: inherit; font-family: inherit;';
+
+            input.addEventListener('input', (e) => {
+                e.target.value = e.target.value.replace(/[^0-9]/g, '');
+            });
 
             el.textContent = '';
             el.appendChild(input);
             input.focus();
             input.select();
+
+            input.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+            });
+
+            input.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+            });
 
             input.addEventListener('blur', () => {
                 this.commitEdit();
@@ -173,11 +248,19 @@ document.addEventListener('alpine:init', () => {
             if (!el) return;
 
             const input = el.querySelector('input');
-            const value = input ? input.value : '';
+            const value = input ? input.value.trim() : '';
+            const originalValue = el.dataset.originalValue;
+            const displayValue = value === '' ? '-' : value;
 
-            el.textContent = value;
+            el.textContent = displayValue;
             el.style.position = '';
             delete el.dataset.originalValue;
+
+            const normalizedOriginal = originalValue === '-' ? '' : originalValue;
+            if (value !== normalizedOriginal) {
+                this.dispatchCellChange(this.editingCell.row, this.editingCell.col, value === '' ? null : value);
+            }
+
             this.editingCell = null;
         },
 

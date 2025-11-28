@@ -304,16 +304,14 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
     draggedSessionLinkedTo: null,
     draggedFromDay: null,
     draggedFromSlot: null,
-    draggedWeekLinkInfo: null,
     isDraggingOver: null,
     isDropDisallowed: false,
 
-    startDrag(event, sessionUuid, linkedTo, day, slot, weekLinkInfo) {
+    startDrag(event, sessionUuid, linkedTo, day, slot) {
         this.draggedSessionUuid = sessionUuid;
         this.draggedSessionLinkedTo = linkedTo;
         this.draggedFromDay = day;
         this.draggedFromSlot = slot;
-        this.draggedWeekLinkInfo = weekLinkInfo;
         event.dataTransfer.effectAllowed = 'move';
     },
 
@@ -337,44 +335,33 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
 
     drop(targetSessionUuid, targetLinkedTo, targetDay, targetSlot) {
         if (this.areLinkedToEachOther(targetSessionUuid, targetLinkedTo)) {
-            this.resetDragState();
+            this.draggedSessionUuid = null;
+            this.draggedSessionLinkedTo = null;
+            this.draggedFromDay = null;
+            this.draggedFromSlot = null;
+            this.isDraggingOver = null;
+            this.isDropDisallowed = false;
             return;
         }
 
         if (this.draggedSessionUuid && (this.draggedFromDay !== targetDay || this.draggedFromSlot !== targetSlot)) {
-            const doMove = () => {
-                if (targetSessionUuid) {
-                    $wire.dispatch('session-swap', {
-                        session1Id: this.draggedSessionUuid,
-                        session2Id: targetSessionUuid
-                    });
-                } else {
-                    $wire.dispatch('session-move', {
-                        sessionId: this.draggedSessionUuid,
-                        newDay: targetDay,
-                        newSlot: targetSlot
-                    });
-                }
-            };
-
-            if (this.draggedWeekLinkInfo) {
-                const message = `This action will unlink Week ${this.draggedWeekLinkInfo.weekIndex} from Week ${this.draggedWeekLinkInfo.linkedToIndex}`;
-                if (confirm(message)) {
-                    doMove();
-                }
+            if (targetSessionUuid) {
+                $wire.dispatch('session-swap', {
+                    session1Id: this.draggedSessionUuid,
+                    session2Id: targetSessionUuid
+                });
             } else {
-                doMove();
+                $wire.dispatch('session-move', {
+                    sessionId: this.draggedSessionUuid,
+                    newDay: targetDay,
+                    newSlot: targetSlot
+                });
             }
         }
-        this.resetDragState();
-    },
-
-    resetDragState() {
         this.draggedSessionUuid = null;
         this.draggedSessionLinkedTo = null;
         this.draggedFromDay = null;
         this.draggedFromSlot = null;
-        this.draggedWeekLinkInfo = null;
         this.isDraggingOver = null;
         this.isDropDisallowed = false;
     },
@@ -416,7 +403,7 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
                         @foreach ($this->slots as $slotIndex => $slotName)
                             <tr class="{{ $week->isLinked() ? 'bg-zinc-50 dark:bg-zinc-900/50' : '' }}">
                                 @if ($slotIndex === 0)
-                                    <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-2 font-medium bg-zinc-50 dark:bg-zinc-800/50 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-all duration-300 whitespace-nowrap"
+                                    <td class="border {{ $week->isLinked() ? 'border-dashed border-zinc-400 dark:border-zinc-500' : 'border-zinc-300 dark:border-zinc-600' }} px-2 py-2 font-medium bg-zinc-50 dark:bg-zinc-800/50 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-all duration-300 whitespace-nowrap"
                                         rowspan="2"
                                         wire:key="week-label-{{ $weekIndex }}"
                                         wire:dblclick="openWeekModal('{{ $week->uuid }}', {{ $weekIndex }})">
@@ -428,7 +415,7 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
                                         </div>
                                     </td>
                                 @endif
-                                <td class="border border-zinc-300 dark:border-zinc-600 {{ $compact ? 'px-1' : 'px-3' }} py-2 text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 transition-all duration-300 whitespace-nowrap text-center"
+                                <td class="border {{ $week->isLinked() ? 'border-dashed border-zinc-400 dark:border-zinc-500' : 'border-zinc-300 dark:border-zinc-600' }} {{ $compact ? 'px-1' : 'px-3' }} py-2 text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 transition-all duration-300 whitespace-nowrap text-center"
                                     wire:key="slot-label-{{ $weekIndex }}-{{ $slotIndex }}">
                                     {{ $slotName }}
                                 </td>
@@ -444,7 +431,7 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
                                         $sessionLinkedTo = $session?->linked_to;
                                         $cellKey = $day . '-' . $slotIndex;
                                     @endphp
-                                    <td class="border border-zinc-300 dark:border-zinc-600 p-1 h-12 transition-all duration-200"
+                                    <td class="border {{ $week->isLinked() ? 'border-dashed border-zinc-400 dark:border-zinc-500' : 'border-zinc-300 dark:border-zinc-600' }} p-1 h-12 transition-all duration-200"
                                         :class="{
                                             'bg-blue-100 dark:bg-blue-900/30': isDraggingOver === '{{ $cellKey }}' && !isDropDisallowed,
                                             'bg-red-100 dark:bg-red-900/30 cursor-not-allowed': isDraggingOver === '{{ $cellKey }}' && isDropDisallowed
@@ -468,8 +455,8 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
                                                 }"
                                                 style="background-color: {{ $isLinkedStyle ? $lightBgColor : $bgColor }}; color: {{ $this->getColorValue($category->text_color) }}; {{ $isLinkedStyle ? 'border-color: ' . $borderColor . ';' : '' }}"
                                                 draggable="true"
-                                                @dragstart="startDrag($event, '{{ $session->uuid }}', '{{ $sessionLinkedTo }}', {{ $day }}, {{ $slotIndex }}, {{ $weekLinkInfoJson }})"
-                                                @dragend="resetDragState()"
+                                                @dragstart="startDrag($event, '{{ $session->uuid }}', '{{ $sessionLinkedTo }}', {{ $day }}, {{ $slotIndex }})"
+                                                @dragend="draggedSessionUuid = null; draggedSessionLinkedTo = null; isDraggingOver = null; isDropDisallowed = false"
                                                 @dblclick="confirmUnlinkAndAction({{ $weekLinkInfoJson }}, () => $wire.openSessionModal('{{ $week->uuid }}', {{ $slotIndex }}, {{ $day }}))"
                                                 wire:click="$dispatch('progression-category-changed', { categoryId: {{ $categoryId }} })">
                                                 <span class="text-xs font-medium">{{ $sessionName ?? $category->name }}</span>

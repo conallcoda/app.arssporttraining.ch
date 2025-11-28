@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\Training\Data\BlockData;
 use App\Models\Training\Data\WeekData;
+use App\Models\Training\ProgressionRules\Anchored\AnchoredProgression;
 use App\Models\Training\TrainingNode;
 use App\Models\Training\TrainingTree;
 use Livewire\Attributes\Computed;
@@ -12,23 +13,23 @@ use Livewire\Component;
 
 class BlockCreator extends Component
 {
-    public TrainingTree $tree;
+    public ?TrainingTree $tree = null;
 
     protected int $defaultWeeks = 5;
 
     protected string $storageKey = 'block-creator-tree';
-
-    public function mount()
-    {
-        $this->initializeTree();
-    }
 
     public function loadFromStorage(array $treeData)
     {
         TrainingNode::clearRegistry();
         $root = TrainingNode::from($treeData);
         $this->tree = TrainingTree::fromTrainingNode($root);
-        $this->dispatch('grid-refresh', block: $this->tree->root);
+        $this->refreshGrid();
+    }
+
+    public function initializeWithDefaults()
+    {
+        $this->initializeTree();
     }
 
     public function clearStorage()
@@ -62,7 +63,7 @@ class BlockCreator extends Component
         $this->tree = TrainingTree::fromTrainingNode($blockNode);
 
         $this->addDefaultSession();
-        $this->dispatch('grid-refresh', block: $this->tree->root);
+        $this->refreshGrid();
     }
 
     protected function addDefaultSession(): void
@@ -125,6 +126,7 @@ class BlockCreator extends Component
             'session.updateLink' => $this->updateSessionLink($params),
             'session.move' => $this->moveSession($params),
             'session.swap' => $this->swapSessions($params),
+            'session.updateProgressionOverride' => $this->updateProgressionOverride($params),
             'week.add' => $this->addWeek($params),
             'week.link' => $this->linkWeek($params),
             'week.delete' => $this->deleteWeek($params),
@@ -148,7 +150,7 @@ class BlockCreator extends Component
             'reps' => (int) $params['reps'],
             'weight' => (float) $params['weight'],
         ]);
-        $this->dispatch('grid-refresh', block: $this->tree->root);
+        $this->refreshGrid();
     }
 
     protected function addSession(array $params): void
@@ -166,7 +168,7 @@ class BlockCreator extends Component
                 'name' => $params['name'],
             ]);
             logger()->info('Session added', ['weekChildren' => count($week->getChildren())]);
-            $this->dispatch('grid-refresh', block: $this->tree->root);
+            $this->refreshGrid();
         }
     }
 
@@ -178,7 +180,7 @@ class BlockCreator extends Component
             'exercises' => $params['exercises'],
             'name' => $params['name'],
         ]);
-        $this->dispatch('grid-refresh', block: $this->tree->root);
+        $this->refreshGrid();
     }
 
     protected function deleteSession(array $params): void
@@ -194,7 +196,7 @@ class BlockCreator extends Component
                 'parentId' => $week->uuid,
                 'sessionId' => $session->uuid,
             ]);
-            $this->dispatch('grid-refresh', block: $this->tree->root);
+            $this->refreshGrid();
         }
     }
 
@@ -212,7 +214,7 @@ class BlockCreator extends Component
             'linkId' => $params['linkedSessionUuid'],
         ]);
 
-        $this->dispatch('grid-refresh', block: $this->tree->root);
+        $this->refreshGrid();
     }
 
     protected function updateSessionLink(array $params): void
@@ -222,7 +224,7 @@ class BlockCreator extends Component
             'linkedTo' => $params['linkedTo'],
         ]);
 
-        $this->dispatch('grid-refresh', block: $this->tree->root);
+        $this->refreshGrid();
     }
 
     protected function moveSession(array $params): void
@@ -233,7 +235,7 @@ class BlockCreator extends Component
             'newSlot' => $params['newSlot'],
         ]);
 
-        $this->dispatch('grid-refresh', block: $this->tree->root);
+        $this->refreshGrid();
     }
 
     protected function swapSessions(array $params): void
@@ -243,7 +245,7 @@ class BlockCreator extends Component
             'session2Id' => $params['session2Id'],
         ]);
 
-        $this->dispatch('grid-refresh', block: $this->tree->root);
+        $this->refreshGrid();
     }
 
     protected function addWeek(array $params): void
@@ -261,7 +263,7 @@ class BlockCreator extends Component
             ]);
         }
 
-        $this->dispatch('grid-refresh', block: $this->tree->root);
+        $this->refreshGrid();
     }
 
     protected function linkWeek(array $params): void
@@ -276,7 +278,7 @@ class BlockCreator extends Component
             'linkedTo' => $params['linkedTo'],
         ]);
 
-        $this->dispatch('grid-refresh', block: $this->tree->root);
+        $this->refreshGrid();
     }
 
     protected function deleteWeek(array $params): void
@@ -290,7 +292,7 @@ class BlockCreator extends Component
             'nodeId' => $week->uuid,
         ]);
 
-        $this->dispatch('grid-refresh', block: $this->tree->root);
+        $this->refreshGrid();
     }
 
     protected function getSessionAtPosition(TrainingNode $week, int $slot, int $day): ?TrainingNode
@@ -301,6 +303,67 @@ class BlockCreator extends Component
             }
         }
         return null;
+    }
+
+    protected function updateProgressionOverride(array $params): void
+    {
+        $weekUuid = $params['weekUuid'];
+        $sessionDay = (int) $params['sessionDay'];
+        $sessionSlot = (int) $params['sessionSlot'];
+        $exerciseId = (int) $params['exerciseId'];
+        $setIndex = (int) $params['setIndex'];
+        $field = $params['field'];
+        $value = $params['value'];
+
+        $week = null;
+        foreach ($this->tree->root->getChildren() as $w) {
+            if ($w->uuid === $weekUuid) {
+                $week = $w;
+                break;
+            }
+        }
+
+        if (!$week) {
+            return;
+        }
+
+        $sessionKey = $sessionDay . '-' . $sessionSlot;
+
+        $data = $week->getData();
+        $overrides = $data->progressionOverrides;
+
+        if (!isset($overrides[$sessionKey])) {
+            $overrides[$sessionKey] = [];
+        }
+        if (!isset($overrides[$sessionKey][$exerciseId])) {
+            $overrides[$sessionKey][$exerciseId] = [];
+        }
+        if (!isset($overrides[$sessionKey][$exerciseId][$setIndex])) {
+            $overrides[$sessionKey][$exerciseId][$setIndex] = [];
+        }
+
+        if ($value === null || $value === '' || $value === 0 || $value === '0') {
+            $overrides[$sessionKey][$exerciseId][$setIndex]['reps'] = null;
+            $overrides[$sessionKey][$exerciseId][$setIndex]['weight'] = null;
+        } else {
+            $overrides[$sessionKey][$exerciseId][$setIndex][$field] = $field === 'reps' ? (int) $value : (float) $value;
+        }
+
+        $data->progressionOverrides = $overrides;
+
+        $this->refreshGrid();
+    }
+
+    protected function refreshGrid(): void
+    {
+        $this->applyProgressions();
+        $this->dispatch('grid-refresh', block: $this->tree->root);
+    }
+
+    protected function applyProgressions(): void
+    {
+        $progression = new AnchoredProgression(start: 50, increase: 7.5, increaseStep: 0.5);
+        $progression->apply($this->tree);
     }
 
     public function render()

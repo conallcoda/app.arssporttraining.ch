@@ -194,11 +194,34 @@ $getExerciseRows = function (int $exerciseId): array {
                 }
             }
 
+            $weekOverrides = $week->getData()->progressionOverrides;
+            $sessionKey = $session->getData()->day . '-' . $session->getData()->slot;
+            $overrides = $weekOverrides[$sessionKey][$exerciseId] ?? [];
+
+            $repsOverridden = [];
+            $weightsOverridden = [];
+
+            foreach ($overrides as $setIndex => $override) {
+                if (array_key_exists('reps', $override)) {
+                    $reps[$setIndex] = $override['reps'] ?? '-';
+                    $repsOverridden[$setIndex] = true;
+                }
+                if (array_key_exists('weight', $override)) {
+                    $weights[$setIndex] = $override['weight'] ?? '-';
+                    $weightsOverridden[$setIndex] = true;
+                }
+            }
+
             $rows[] = [
                 'week' => $weekIndex + 1,
+                'weekUuid' => $week->uuid,
                 'session' => $sessionNumber,
+                'sessionDay' => $session->getData()->day,
+                'sessionSlot' => $session->getData()->slot,
                 'reps' => $reps,
                 'weights' => $weights,
+                'repsOverridden' => $repsOverridden,
+                'weightsOverridden' => $weightsOverridden,
             ];
         }
     }
@@ -222,8 +245,41 @@ $findSessionByUuid = function (string $uuid): ?TrainingNode {
     return null;
 };
 
+$findSessionInWeek = function (string $weekUuid, int $day, int $slot): ?TrainingNode {
+    if (!$this->block) {
+        return null;
+    }
+
+    foreach ($this->block->getChildren() as $week) {
+        if ($week->uuid !== $weekUuid) {
+            continue;
+        }
+        foreach ($week->getChildren() as $session) {
+            $sessionData = $session->getData();
+            if ($sessionData->day === $day && $sessionData->slot === $slot) {
+                return $session;
+            }
+        }
+    }
+
+    return null;
+};
+
 $setActiveCategory = function (int $categoryId) {
     $this->activeCategory = $categoryId;
+};
+
+$updateProgressionOverride = function (array $data) {
+    $this->dispatch('schedule-action', action: 'session.updateProgressionOverride', params: [
+        'weekUuid' => $data['weekUuid'],
+        'sessionDay' => $data['sessionDay'],
+        'sessionSlot' => $data['sessionSlot'],
+        'exerciseId' => $data['exerciseId'],
+        'setIndex' => $data['setIndex'],
+        'field' => $data['field'],
+        'value' => $data['value'],
+    ]);
+    $this->skipRender();
 };
 
 on([
@@ -243,15 +299,17 @@ on([
 
 ?>
 
-<div>
+<div @cell-changed.window="$wire.updateProgressionOverride($event.detail)">
     @if ($block && $activeCategory)
         <div class="flex flex-wrap gap-4">
             @forelse ($this->exercisesForCategory as $exercise)
                 <div wire:key="exercise-{{ $exercise->id }}" class="flex-shrink-0">
-                    <x-debug-data-table :title="$exercise->name .
-                        ' (' .
-                        (collect($exercise->sessions)->pluck('name')->filter()->join(', ') ?: 'No sessions') .
-                        ')'" :rows="$this->getExerciseRows($exercise->id)" :set-count="$this->setCount" row-color="bg-blue-50" />
+                    <x-debug-data-table
+                        :title="$exercise->name . ' (' . (collect($exercise->sessions)->pluck('name')->filter()->join(', ') ?: 'No sessions') . ')'"
+                        :rows="$this->getExerciseRows($exercise->id)"
+                        :set-count="$this->setCount"
+                        :exercise-id="$exercise->id"
+                        row-color="bg-blue-50" />
                 </div>
             @empty
                 <div class="text-center py-8 text-zinc-500">

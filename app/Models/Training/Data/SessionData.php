@@ -19,6 +19,7 @@ class SessionData extends TrainingData
     {
         return $this->name ?? "Session " . ($node->sequence + 1);
     }
+
     static public function getModelType(): string
     {
         return 'session';
@@ -34,9 +35,6 @@ class SessionData extends TrainingData
             'exercises' => $this->exercises,
         ];
     }
-
-
-
 
 
 
