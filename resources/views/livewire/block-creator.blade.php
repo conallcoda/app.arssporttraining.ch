@@ -26,7 +26,10 @@
 
                 <x-resizable-card title="Training Progression" storage-key="block-creator-progression">
                     <x-slot:titleActions>
-                        <livewire:planner.training-progression-category-selector />
+                        <div class="flex items-center gap-2">
+                            <livewire:planner.training-progression-category-selector />
+                            <livewire:planner.training-progression-type-selector />
+                        </div>
                     </x-slot:titleActions>
                     <livewire:planner.training-progression :block="$this->tree->root" :key="'block-progression'" />
                 </x-resizable-card>

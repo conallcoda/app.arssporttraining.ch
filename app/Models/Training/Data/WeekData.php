@@ -9,14 +9,15 @@ class WeekData extends TrainingData
 {
     public function __construct(
         public array $progressionOverrides = [],
+        public array $manualOverrides = [],
     ) {}
 
     public function name(TrainingNode $node): string
     {
-        return "Week " . ($node->sequence + 1);
+        return 'Week '.($node->sequence + 1);
     }
 
-    static public function getModelType(): string
+    public static function getModelType(): string
     {
         return 'week';
     }
@@ -25,6 +26,7 @@ class WeekData extends TrainingData
     {
         return [
             'progressionOverrides' => $this->progressionOverrides,
+            'manualOverrides' => $this->manualOverrides,
         ];
     }
 
@@ -33,7 +35,9 @@ class WeekData extends TrainingData
         static::guardAgainstInvalidType($model);
         $instance = new static(
             progressionOverrides: (array) ($model->extra->progressionOverrides ?? []),
+            manualOverrides: (array) ($model->extra->manualOverrides ?? []),
         );
+
         return $instance;
     }
 }

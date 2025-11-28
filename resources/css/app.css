@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@plugin '@tailwindcss/typography';
 @import '../../vendor/livewire/flux/dist/flux.css';
 @import 'jsuites/dist/jsuites.css';
 @import 'jspreadsheet-ce/dist/jspreadsheet.css';
@@ -25,4 +26,8 @@
     font-weight: bold !important;
     text-align: center !important;
     vertical-align: middle !important;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+    display: none;
 }
