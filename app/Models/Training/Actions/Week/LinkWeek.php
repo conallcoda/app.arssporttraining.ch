@@ -16,8 +16,8 @@ class LinkWeek extends Action
     {
         $week = $tree->getNode($this->weekId);
 
-        if (!$week) {
-            throw new \Exception("Week node not found");
+        if (! $week) {
+            throw new \Exception('Week node not found');
         }
 
         $oldLinkedTo = $week->linked_to;
@@ -25,19 +25,22 @@ class LinkWeek extends Action
 
         if ($isUnlinking) {
             $sourceWeek = $tree->getNode($oldLinkedTo);
-            if ($sourceWeek) {
-                $sourceSessions = $sourceWeek->children;
 
-                foreach ($sourceSessions as $sourceSession) {
-                    $originalSource = $sourceSession->linked_to !== null
-                        ? $sourceSession->linked_to
-                        : $sourceSession->uuid;
+            if (! $sourceWeek) {
+                throw new \InvalidArgumentException('Source week no longer exists');
+            }
 
-                    $linkedClone = $sourceSession->createLinkedClone($week->uuid, count($week->children));
-                    $linkedClone->linked_to = $originalSource;
+            $sourceSessions = $sourceWeek->children;
 
-                    $week->children[] = $linkedClone;
-                }
+            foreach ($sourceSessions as $sourceSession) {
+                $originalSource = $sourceSession->linked_to !== null
+                    ? $sourceSession->linked_to
+                    : $sourceSession->uuid;
+
+                $linkedClone = $sourceSession->createLinkedClone($week->uuid, count($week->children));
+                $linkedClone->linked_to = $originalSource;
+
+                $week->children[] = $linkedClone;
             }
         }
 

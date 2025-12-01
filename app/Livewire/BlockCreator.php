@@ -3,7 +3,6 @@
 namespace App\Livewire;
 
 use App\Models\Training\Data\BlockData;
-use App\Models\Training\Data\WeekData;
 use App\Models\Training\TrainingNode;
 use App\Models\Training\TrainingTree;
 use Livewire\Attributes\Computed;
@@ -127,7 +126,6 @@ class BlockCreator extends Component
             'session.updateLink' => $this->updateSessionLink($params),
             'session.move' => $this->moveSession($params),
             'session.swap' => $this->swapSessions($params),
-            'session.updateProgressionOverride' => $this->updateProgressionOverride($params),
             'week.add' => $this->addWeek($params),
             'week.link' => $this->linkWeek($params),
             'week.delete' => $this->deleteWeek($params),
@@ -314,115 +312,9 @@ class BlockCreator extends Component
         return null;
     }
 
-    protected function updateProgressionOverride(array $params): void
-    {
-        $weekUuid = $params['weekUuid'];
-        $sessionDay = (int) $params['sessionDay'];
-        $sessionSlot = (int) $params['sessionSlot'];
-        $exerciseId = (int) $params['exerciseId'];
-        $setIndex = (int) $params['setIndex'];
-        $field = $params['field'];
-        $value = $params['value'];
-
-        $week = null;
-        foreach ($this->tree->root->getChildren() as $w) {
-            if ($w->uuid === $weekUuid) {
-                $week = $w;
-                break;
-            }
-        }
-
-        if (! $week) {
-            return;
-        }
-
-        $sessionKey = $sessionDay.'-'.$sessionSlot;
-
-        $data = $week->getData();
-        $manualOverrides = $data->manualOverrides;
-
-        if (! isset($manualOverrides[$sessionKey])) {
-            $manualOverrides[$sessionKey] = [];
-        }
-        if (! isset($manualOverrides[$sessionKey][$exerciseId])) {
-            $manualOverrides[$sessionKey][$exerciseId] = [];
-        }
-        if (! isset($manualOverrides[$sessionKey][$exerciseId][$setIndex])) {
-            $manualOverrides[$sessionKey][$exerciseId][$setIndex] = [];
-        }
-
-        if ($value === null || $value === '' || $value === 0 || $value === '0') {
-            unset($manualOverrides[$sessionKey][$exerciseId][$setIndex][$field]);
-            if (empty($manualOverrides[$sessionKey][$exerciseId][$setIndex])) {
-                unset($manualOverrides[$sessionKey][$exerciseId][$setIndex]);
-            }
-        } else {
-            $manualOverrides[$sessionKey][$exerciseId][$setIndex][$field] = $field === 'reps' ? (int) $value : (float) $value;
-        }
-
-        $week->data = WeekData::from([
-            'progressionOverrides' => $data->progressionOverrides,
-            'manualOverrides' => $manualOverrides,
-        ]);
-
-        $this->refreshGrid();
-    }
-
     protected function refreshGrid(): void
     {
-        $this->applyProgressions();
         $this->dispatch('grid-refresh', block: $this->tree->root);
-    }
-
-    protected function applyProgressions(): void
-    {
-        $this->clearProgressionOverrides();
-        $this->mergeManualOverrides();
-    }
-
-    protected function clearProgressionOverrides(): void
-    {
-        foreach ($this->tree->root->getChildren() as $week) {
-            $data = $week->getData();
-            $week->data = WeekData::from([
-                'progressionOverrides' => [],
-                'manualOverrides' => $data->manualOverrides,
-            ]);
-        }
-    }
-
-    protected function mergeManualOverrides(): void
-    {
-        foreach ($this->tree->root->getChildren() as $week) {
-            $data = $week->getData();
-            $progressionOverrides = $data->progressionOverrides;
-            $manualOverrides = $data->manualOverrides;
-
-            foreach ($manualOverrides as $sessionKey => $exercises) {
-                foreach ($exercises as $exerciseId => $sets) {
-                    foreach ($sets as $setIndex => $fields) {
-                        if (! isset($progressionOverrides[$sessionKey])) {
-                            $progressionOverrides[$sessionKey] = [];
-                        }
-                        if (! isset($progressionOverrides[$sessionKey][$exerciseId])) {
-                            $progressionOverrides[$sessionKey][$exerciseId] = [];
-                        }
-                        if (! isset($progressionOverrides[$sessionKey][$exerciseId][$setIndex])) {
-                            $progressionOverrides[$sessionKey][$exerciseId][$setIndex] = [];
-                        }
-
-                        foreach ($fields as $field => $value) {
-                            $progressionOverrides[$sessionKey][$exerciseId][$setIndex][$field] = $value;
-                        }
-                    }
-                }
-            }
-
-            $week->data = WeekData::from([
-                'progressionOverrides' => $progressionOverrides,
-                'manualOverrides' => $manualOverrides,
-            ]);
-        }
     }
 
     public function render()

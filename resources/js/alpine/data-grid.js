@@ -7,11 +7,19 @@ document.addEventListener('alpine:init', () => {
         cells: {},
         cellMeta: {},
         editingCell: null,
+        _mouseupHandler: null,
 
         init() {
-            document.addEventListener('mouseup', () => {
+            this._mouseupHandler = () => {
                 this.isDragging = false;
-            });
+            };
+            document.addEventListener('mouseup', this._mouseupHandler);
+        },
+
+        destroy() {
+            if (this._mouseupHandler) {
+                document.removeEventListener('mouseup', this._mouseupHandler);
+            }
         },
 
         registerCell(rowIndex, colIndex, el, meta = null) {
@@ -98,7 +106,6 @@ document.addEventListener('alpine:init', () => {
                 data.push(rowData);
             }
             this.clipboard = data;
-            console.log('Copied data:', data);
         },
 
         paste() {

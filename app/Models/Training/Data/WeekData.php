@@ -7,10 +7,7 @@ use App\Models\Training\TrainingPeriod;
 
 class WeekData extends TrainingData
 {
-    public function __construct(
-        public array $progressionOverrides = [],
-        public array $manualOverrides = [],
-    ) {}
+    public function __construct() {}
 
     public function name(TrainingNode $node): string
     {
@@ -24,20 +21,13 @@ class WeekData extends TrainingData
 
     public function toArray(): array
     {
-        return [
-            'progressionOverrides' => $this->progressionOverrides,
-            'manualOverrides' => $this->manualOverrides,
-        ];
+        return [];
     }
 
     public static function fromModel(TrainingPeriod $model)
     {
         static::guardAgainstInvalidType($model);
-        $instance = new static(
-            progressionOverrides: (array) ($model->extra->progressionOverrides ?? []),
-            manualOverrides: (array) ($model->extra->manualOverrides ?? []),
-        );
 
-        return $instance;
+        return new static;
     }
 }

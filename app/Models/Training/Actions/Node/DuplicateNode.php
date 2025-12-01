@@ -16,17 +16,11 @@ class DuplicateNode extends Action
         $parent = $tree->findParentNode($this->nodeId);
         $node = $tree->getNode($this->nodeId);
 
-        if (!$parent || !$node) {
-            throw new \Exception("Parent or node not found");
+        if (! $parent || ! $node) {
+            throw new \Exception('Parent or node not found');
         }
 
-        $index = null;
-        foreach ($parent->children as $i => $child) {
-            if ($child->uuid === $this->nodeId) {
-                $index = $i;
-                break;
-            }
-        }
+        $index = $tree->findChildIndex($parent, $this->nodeId);
 
         if ($index === null) {
             throw new \Exception("Node not found in parent's children");
@@ -40,7 +34,7 @@ class DuplicateNode extends Action
             'parent' => $parent,
             'original' => $node,
             'duplicate' => $duplicate,
-            'index' => $index
+            'index' => $index,
         ]);
     }
 

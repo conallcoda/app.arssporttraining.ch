@@ -24,12 +24,14 @@ on([
 ]);
 
 $close = function () {
-    $this->showWeekModal = false;
-    $this->weekUuid = null;
-    $this->weekIndex = 0;
-    $this->linkedTo = null;
-    $this->availableWeeks = [];
-    $this->isAddMode = false;
+    $this->reset([
+        'showWeekModal',
+        'weekUuid',
+        'weekIndex',
+        'linkedTo',
+        'availableWeeks',
+        'isAddMode',
+    ]);
 };
 
 $isFirstWeek = computed(fn() => $this->weekIndex === 0);

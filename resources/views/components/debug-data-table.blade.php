@@ -40,17 +40,16 @@
                         @php
                             $repsMeta = array_merge($cellMeta, ['field' => 'reps', 'setIndex' => $colIndex]);
                             $repsMetaJson = json_encode($repsMeta);
-                            $isRepsOverridden = ($row['repsOverridden'][$colIndex] ?? false);
                         @endphp
                         @if ($grid)
-                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center cursor-pointer select-none {{ $isRepsOverridden ? 'bg-blue-100 dark:bg-blue-800/50' : '' }}"
+                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center cursor-pointer select-none"
                                 :class="getBorderClasses({{ $repsRowIndex }}, {{ $colIndex }})"
                                 @mousedown="handleCellMousedown({{ $repsRowIndex }}, {{ $colIndex }}, $event)"
                                 @dblclick="handleCellDblClick({{ $repsRowIndex }}, {{ $colIndex }}, $event)"
                                 @mouseenter="extendSelection({{ $repsRowIndex }}, {{ $colIndex }}, $event)"
                                 x-init="registerCell({{ $repsRowIndex }}, {{ $colIndex }}, $el, {{ $repsMetaJson }})">{{ $rep }}</td>
                         @else
-                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $isRepsOverridden ? 'bg-blue-100 dark:bg-blue-800/50' : '' }}">
+                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center">
                                 {{ $rep }}</td>
                         @endif
                     @endforeach
@@ -60,17 +59,16 @@
                         @php
                             $weightsMeta = array_merge($cellMeta, ['field' => 'weight', 'setIndex' => $colIndex]);
                             $weightsMetaJson = json_encode($weightsMeta);
-                            $isWeightsOverridden = ($row['weightsOverridden'][$colIndex] ?? false);
                         @endphp
                         @if ($grid)
-                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center cursor-pointer select-none {{ $isWeightsOverridden ? 'bg-green-100 dark:bg-green-800/50' : '' }}"
+                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center cursor-pointer select-none"
                                 :class="getBorderClasses({{ $weightsRowIndex }}, {{ $colIndex }})"
                                 @mousedown="handleCellMousedown({{ $weightsRowIndex }}, {{ $colIndex }}, $event)"
                                 @dblclick="handleCellDblClick({{ $weightsRowIndex }}, {{ $colIndex }}, $event)"
                                 @mouseenter="extendSelection({{ $weightsRowIndex }}, {{ $colIndex }}, $event)"
                                 x-init="registerCell({{ $weightsRowIndex }}, {{ $colIndex }}, $el, {{ $weightsMetaJson }})">{{ $weight }}</td>
                         @else
-                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $isWeightsOverridden ? 'bg-green-100 dark:bg-green-800/50' : '' }}">
+                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center">
                                 {{ $weight }}</td>
                         @endif
                     @endforeach

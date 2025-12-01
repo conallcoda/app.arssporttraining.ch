@@ -2,9 +2,9 @@
 
 namespace App\Models\Training\Actions\Node;
 
-use App\Models\Training\TrainingTree;
 use App\Models\Training\Actions\Action;
 use App\Models\Training\TrainingNode;
+use App\Models\Training\TrainingTree;
 
 class NodeMovedEvent extends Action
 {
@@ -18,40 +18,15 @@ class NodeMovedEvent extends Action
 
     public function redo(TrainingTree $tree)
     {
-        $parent = $tree->getNode($this->parent->uuid);
-
-        if (empty($parent->children)) {
-            return;
-        }
-
-        $currentIndex = null;
-        foreach ($parent->children as $i => $child) {
-            if ($child->uuid === $this->node->uuid) {
-                $currentIndex = $i;
-                break;
-            }
-        }
-
-        if ($currentIndex === null) {
-            return;
-        }
-
-        $targetIndex = $currentIndex + $this->direction;
-
-        if ($targetIndex >= 0 && $targetIndex < count($parent->children)) {
-            $currentNode = $parent->children[$currentIndex];
-            $targetNode = $parent->children[$targetIndex];
-
-            $tempSequence = $currentNode->sequence;
-            $currentNode->sequence = $targetNode->sequence;
-            $targetNode->sequence = $tempSequence;
-
-            $parent->children[$currentIndex] = $targetNode;
-            $parent->children[$targetIndex] = $currentNode;
-        }
+        $this->moveNode($tree, $this->direction);
     }
 
     public function undo(TrainingTree $tree)
+    {
+        $this->moveNode($tree, $this->direction * -1);
+    }
+
+    protected function moveNode(TrainingTree $tree, int $direction): void
     {
         $parent = $tree->getNode($this->parent->uuid);
 
@@ -59,19 +34,13 @@ class NodeMovedEvent extends Action
             return;
         }
 
-        $currentIndex = null;
-        foreach ($parent->children as $i => $child) {
-            if ($child->uuid === $this->node->uuid) {
-                $currentIndex = $i;
-                break;
-            }
-        }
+        $currentIndex = $tree->findChildIndex($parent, $this->node->uuid);
 
         if ($currentIndex === null) {
             return;
         }
 
-        $targetIndex = $currentIndex + ($this->direction * -1);
+        $targetIndex = $currentIndex + $direction;
 
         if ($targetIndex >= 0 && $targetIndex < count($parent->children)) {
             $currentNode = $parent->children[$currentIndex];
@@ -89,6 +58,7 @@ class NodeMovedEvent extends Action
     public function label()
     {
         $direction = $this->direction > 0 ? 'down' : 'up';
+
         return "Moved {$this->node->name()} {$direction} in {$this->parent->name()}";
     }
 }

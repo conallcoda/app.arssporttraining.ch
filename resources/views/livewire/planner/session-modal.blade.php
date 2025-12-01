@@ -45,17 +45,19 @@ on([
 ]);
 
 $close = function () {
-    $this->showSessionModal = false;
-    $this->weekUuid = null;
-    $this->sessionUuid = null;
-    $this->day = 0;
-    $this->slot = 0;
-    $this->name = null;
-    $this->category = null;
-    $this->exercises = [];
-    $this->mode = 'new';
-    $this->availableSessions = [];
-    $this->linkedSessionUuid = null;
+    $this->reset([
+        'showSessionModal',
+        'weekUuid',
+        'sessionUuid',
+        'day',
+        'slot',
+        'name',
+        'category',
+        'exercises',
+        'mode',
+        'availableSessions',
+        'linkedSessionUuid',
+    ]);
 };
 
 $addExercise = function () {
@@ -67,21 +69,20 @@ $removeExercise = function (int $index) {
     $this->exercises = array_values($this->exercises);
 };
 
-$moveExerciseUp = function (int $index) {
-    if ($index > 0 && isset($this->exercises[$index]) && isset($this->exercises[$index - 1])) {
-        $temp = $this->exercises[$index - 1];
-        $this->exercises[$index - 1] = $this->exercises[$index];
-        $this->exercises[$index] = $temp;
+$moveExercise = function (int $index, int $direction) {
+    $newIndex = $index + $direction;
+    if ($newIndex < 0 || $newIndex >= count($this->exercises)) {
+        return;
     }
+    if (!isset($this->exercises[$index]) || !isset($this->exercises[$newIndex])) {
+        return;
+    }
+    [$this->exercises[$index], $this->exercises[$newIndex]] = [$this->exercises[$newIndex], $this->exercises[$index]];
 };
 
-$moveExerciseDown = function (int $index) {
-    if ($index < count($this->exercises) - 1 && isset($this->exercises[$index]) && isset($this->exercises[$index + 1])) {
-        $temp = $this->exercises[$index + 1];
-        $this->exercises[$index + 1] = $this->exercises[$index];
-        $this->exercises[$index] = $temp;
-    }
-};
+$moveExerciseUp = fn(int $index) => $this->moveExercise($index, -1);
+
+$moveExerciseDown = fn(int $index) => $this->moveExercise($index, 1);
 
 $save = function () {
     if ($this->mode === 'link') {

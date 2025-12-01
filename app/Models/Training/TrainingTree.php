@@ -3,23 +3,22 @@
 namespace App\Models\Training;
 
 use App\Data\AbstractData;
-
 use App\Models\Training\Actions\Block\AddBlock;
-use App\Models\Training\Actions\Week\AddWeek;
-use App\Models\Training\Actions\Week\LinkWeek;
-use App\Models\Training\Actions\Session\AddSession;
-use App\Models\Training\Actions\Session\UpdateSession;
-use App\Models\Training\Actions\Session\MoveSession;
-use App\Models\Training\Actions\Session\SwapSessions;
-use App\Models\Training\Actions\Session\DeleteSession;
-use App\Models\Training\Actions\Session\LinkSession;
 use App\Models\Training\Actions\Exercise\AddExercise;
 use App\Models\Training\Actions\Exercise\UpdateExercise;
-use App\Models\Training\Actions\Set\AddSet;
-use App\Models\Training\Actions\Set\UpdateSet;
 use App\Models\Training\Actions\Node\DeleteNode;
 use App\Models\Training\Actions\Node\DuplicateNode;
 use App\Models\Training\Actions\Node\MoveNode;
+use App\Models\Training\Actions\Session\AddSession;
+use App\Models\Training\Actions\Session\DeleteSession;
+use App\Models\Training\Actions\Session\LinkSession;
+use App\Models\Training\Actions\Session\MoveSession;
+use App\Models\Training\Actions\Session\SwapSessions;
+use App\Models\Training\Actions\Session\UpdateSession;
+use App\Models\Training\Actions\Set\AddSet;
+use App\Models\Training\Actions\Set\UpdateSet;
+use App\Models\Training\Actions\Week\AddWeek;
+use App\Models\Training\Actions\Week\LinkWeek;
 use App\Models\Training\Data\TrainingData;
 
 class TrainingTree extends AbstractData
@@ -78,7 +77,7 @@ class TrainingTree extends AbstractData
     {
         [$nodeType, $actionName] = explode('.', $actionPath);
 
-        if (!isset($this->actions[$nodeType][$actionName])) {
+        if (! isset($this->actions[$nodeType][$actionName])) {
             throw new \Exception("Action {$actionPath} not found");
         }
 
@@ -108,7 +107,7 @@ class TrainingTree extends AbstractData
 
     protected function searchForNode(?TrainingNode $node, string $uuid): ?TrainingNode
     {
-        if (!$node) {
+        if (! $node) {
             return null;
         }
 
@@ -122,6 +121,7 @@ class TrainingTree extends AbstractData
                 return $found;
             }
         }
+
         return null;
     }
 
@@ -134,7 +134,7 @@ class TrainingTree extends AbstractData
 
     public function hasChanges(): bool
     {
-        if (!empty($this->deletedNodes)) {
+        if (! empty($this->deletedNodes)) {
             return true;
         }
 
@@ -143,11 +143,11 @@ class TrainingTree extends AbstractData
 
     protected function treeHasChanges(?TrainingNode $current, ?TrainingNode $original): bool
     {
-        if (!$current && !$original) {
+        if (! $current && ! $original) {
             return false;
         }
 
-        if (!$current || !$original) {
+        if (! $current || ! $original) {
             return true;
         }
 
@@ -163,8 +163,8 @@ class TrainingTree extends AbstractData
             return true;
         }
 
-        $currentUuids = array_map(fn($child) => $child->uuid, $current->children);
-        $originalUuids = array_map(fn($child) => $child->uuid, $original->children);
+        $currentUuids = array_map(fn ($child) => $child->uuid, $current->children);
+        $originalUuids = array_map(fn ($child) => $child->uuid, $original->children);
 
         if ($currentUuids !== $originalUuids) {
             return true;
@@ -181,7 +181,7 @@ class TrainingTree extends AbstractData
 
     public function save(): void
     {
-        if (!$this->hasChanges()) {
+        if (! $this->hasChanges()) {
             return;
         }
 
@@ -208,11 +208,22 @@ class TrainingTree extends AbstractData
 
     public function findParentNode(string $childUuid): ?TrainingNode
     {
-        if (!$this->root) {
+        if (! $this->root) {
             return null;
         }
 
         return $this->searchForParent($this->root, $childUuid);
+    }
+
+    public function findChildIndex(TrainingNode $parent, string $childUuid): ?int
+    {
+        foreach ($parent->children as $index => $child) {
+            if ($child->uuid === $childUuid) {
+                return $index;
+            }
+        }
+
+        return null;
     }
 
     protected function searchForParent(TrainingNode $node, string $childUuid): ?TrainingNode
@@ -226,6 +237,7 @@ class TrainingTree extends AbstractData
                 return $found;
             }
         }
+
         return null;
     }
 
@@ -239,7 +251,7 @@ class TrainingTree extends AbstractData
     public function addChild(string|TrainingNode $parent, TrainingData|TrainingNode $data): ?TrainingNode
     {
         $parentNode = $this->getNode($parent);
-        if (!$parentNode) {
+        if (! $parentNode) {
             return null;
         }
 
@@ -262,7 +274,7 @@ class TrainingTree extends AbstractData
     public function removeChild(string|TrainingNode $parent, string $childUuid): bool
     {
         $parentNode = $this->getNode($parent);
-        if (!$parentNode) {
+        if (! $parentNode) {
             return false;
         }
 
@@ -271,6 +283,7 @@ class TrainingTree extends AbstractData
                 array_splice($parentNode->children, $index, 1);
                 $this->renumberChildren($parentNode->children);
                 $this->markChanged();
+
                 return true;
             }
         }
@@ -281,12 +294,13 @@ class TrainingTree extends AbstractData
     protected function updateNodeData(string $uuid, callable $updater): bool
     {
         $node = $this->getNode($uuid);
-        if (!$node) {
+        if (! $node) {
             return false;
         }
 
         $updater($node);
         $this->markChanged();
+
         return true;
     }
 

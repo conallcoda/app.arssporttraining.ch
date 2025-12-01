@@ -17,17 +17,11 @@ class MoveNode extends Action
         $parent = $tree->findParentNode($this->nodeId);
         $node = $tree->getNode($this->nodeId);
 
-        if (!$parent || !$node || empty($parent->children)) {
-            throw new \Exception("Parent or node not found, or parent has no children");
+        if (! $parent || ! $node || empty($parent->children)) {
+            throw new \Exception('Parent or node not found, or parent has no children');
         }
 
-        $index = null;
-        foreach ($parent->children as $i => $child) {
-            if ($child->uuid === $this->nodeId) {
-                $index = $i;
-                break;
-            }
-        }
+        $index = $tree->findChildIndex($parent, $this->nodeId);
 
         if ($index === null) {
             throw new \Exception("Node not found in parent's children");
@@ -54,7 +48,7 @@ class MoveNode extends Action
             'node' => $node,
             'oldIndex' => $index,
             'newIndex' => $targetIndex,
-            'direction' => $this->direction
+            'direction' => $this->direction,
         ]);
     }
 

@@ -194,24 +194,6 @@ $getExerciseRows = function (int $exerciseId): array {
                 }
             }
 
-            $weekOverrides = $week->getData()->progressionOverrides;
-            $sessionKey = $session->getData()->day . '-' . $session->getData()->slot;
-            $overrides = $weekOverrides[$sessionKey][$exerciseId] ?? [];
-
-            $repsOverridden = [];
-            $weightsOverridden = [];
-
-            foreach ($overrides as $setIndex => $override) {
-                if (array_key_exists('reps', $override)) {
-                    $reps[$setIndex] = $override['reps'] ?? '-';
-                    $repsOverridden[$setIndex] = true;
-                }
-                if (array_key_exists('weight', $override)) {
-                    $weights[$setIndex] = $override['weight'] ?? '-';
-                    $weightsOverridden[$setIndex] = true;
-                }
-            }
-
             $rows[] = [
                 'week' => $weekIndex + 1,
                 'weekUuid' => $week->uuid,
@@ -220,8 +202,6 @@ $getExerciseRows = function (int $exerciseId): array {
                 'sessionSlot' => $session->getData()->slot,
                 'reps' => $reps,
                 'weights' => $weights,
-                'repsOverridden' => $repsOverridden,
-                'weightsOverridden' => $weightsOverridden,
             ];
         }
     }
@@ -269,19 +249,6 @@ $setActiveCategory = function (int $categoryId) {
     $this->activeCategory = $categoryId;
 };
 
-$updateProgressionOverride = function (array $data) {
-    $this->dispatch('schedule-action', action: 'session.updateProgressionOverride', params: [
-        'weekUuid' => $data['weekUuid'],
-        'sessionDay' => $data['sessionDay'],
-        'sessionSlot' => $data['sessionSlot'],
-        'exerciseId' => $data['exerciseId'],
-        'setIndex' => $data['setIndex'],
-        'field' => $data['field'],
-        'value' => $data['value'],
-    ]);
-    $this->skipRender();
-};
-
 on([
     'grid-refresh' => function ($block) {
         $this->block = TrainingNode::from($block);
@@ -299,7 +266,7 @@ on([
 
 ?>
 
-<div @cell-changed.window="$wire.updateProgressionOverride($event.detail)">
+<div>
     @if ($block && $activeCategory)
         <div class="flex flex-wrap gap-4">
             @forelse ($this->exercisesForCategory as $exercise)
