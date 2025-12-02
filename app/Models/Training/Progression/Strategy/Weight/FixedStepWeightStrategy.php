@@ -22,7 +22,7 @@ class FixedStepWeightStrategy implements WeightStrategyInterface
             $anchor -= $step;
         }
 
-        return WeightBracket::roundToIncrement($anchor, $config->incrementStep);
+        return WeightBracket::roundToIncrement($anchor, $config->weightConfig->incrementStep);
     }
 
     public function calculateSetWeight(
@@ -40,7 +40,7 @@ class FixedStepWeightStrategy implements WeightStrategyInterface
             $weight -= $step;
         }
 
-        return WeightBracket::roundToIncrement($weight, $config->incrementStep);
+        return WeightBracket::roundToIncrement($weight, $config->weightConfig->incrementStep);
     }
 
     public function getProjected1RM(
@@ -59,7 +59,7 @@ class FixedStepWeightStrategy implements WeightStrategyInterface
         ResolvedExerciseConfig $config,
         float $derived1RM,
     ): float {
-        return $derived1RM * (1 + $config->targetImprovement);
+        return $derived1RM * (1 + $config->weightConfig->getTargetImprovementAsDecimal());
     }
 
     protected function calculateFinalAnchorWeight(
@@ -71,6 +71,6 @@ class FixedStepWeightStrategy implements WeightStrategyInterface
         $finalAnchorReps = $config->getAnchorRepsForWeek($finalWeekIndex);
         $percentage = RepPercentageTable::getPercentage($finalAnchorReps);
 
-        return WeightBracket::roundToIncrement($target1RM * $percentage, $config->incrementStep);
+        return WeightBracket::roundToIncrement($target1RM * $percentage, $config->weightConfig->incrementStep);
     }
 }

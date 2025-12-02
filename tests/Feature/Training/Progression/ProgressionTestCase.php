@@ -3,12 +3,13 @@
 namespace Tests\Feature\Training\Progression;
 
 use App\Models\Training\Data\BlockData;
-use App\Models\Training\Data\SessionData;
 use App\Models\Training\Data\WeekData;
 use App\Models\Training\Progression\Athlete\AthleteData;
 use App\Models\Training\Progression\Athlete\AthleteTest;
 use App\Models\Training\Progression\Config\ProgressionConfig;
 use App\Models\Training\Progression\Override\OverrideStore;
+use App\Models\Training\Progression\Strategy\Rep\PairedLadderRepConfig;
+use App\Models\Training\Progression\Strategy\Weight\FixedStepWeightConfig;
 use App\Models\Training\TrainingNode;
 use App\Models\Training\TrainingTree;
 
@@ -72,15 +73,17 @@ trait ProgressionTestCase
     protected function createDefaultConfig(): ProgressionConfig
     {
         return new ProgressionConfig(
-            weightStrategy: 'fixed_step',
-            repStrategy: 'paired_ladder',
-            targetImprovement: 0.125,
-            startingReps: 12,
-            stepDownInterval: 2,
-            repDecrement: 2,
-            minimumReps: 6,
-            incrementStep: 0.5,
             blockLength: 5,
+            weightConfig: new FixedStepWeightConfig(
+                targetImprovement: 12.5,
+                incrementStep: 0.5,
+            ),
+            repConfig: new PairedLadderRepConfig(
+                startingReps: 12,
+                stepDownInterval: 2,
+                repDecrement: 2,
+                minimumReps: 6,
+            ),
         );
     }
 

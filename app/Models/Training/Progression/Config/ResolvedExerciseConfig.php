@@ -3,31 +3,40 @@
 namespace App\Models\Training\Progression\Config;
 
 use App\Data\AbstractData;
+use App\Models\Training\Progression\Casts\RepConfigCast;
+use App\Models\Training\Progression\Casts\WeightConfigCast;
 use App\Models\Training\Progression\Reference\RepPercentageTable;
+use App\Models\Training\Progression\Strategy\Rep\PairedLadderRepConfig;
+use App\Models\Training\Progression\Strategy\Rep\RepConfigInterface;
+use App\Models\Training\Progression\Strategy\Weight\WeightConfigInterface;
+use Spatie\LaravelData\Attributes\WithCast;
 
 class ResolvedExerciseConfig extends AbstractData
 {
     public function __construct(
         public int $exerciseId,
-        public string $weightStrategy,
-        public string $repStrategy,
-        public float $targetImprovement,
-        public int $startingReps,
-        public int $stepDownInterval,
-        public int $repDecrement,
-        public int $minimumReps,
-        public float $incrementStep,
         public int $blockLength,
+        #[WithCast(WeightConfigCast::class)]
+        public WeightConfigInterface $weightConfig,
+        #[WithCast(RepConfigCast::class)]
+        public RepConfigInterface $repConfig,
         public float $modifier = 1.0,
     ) {}
 
     public function getAnchorRepsForWeek(int $weekIndex): int
     {
-        $reps = $this->startingReps - $this->repDecrement;
-        $drops = intdiv($weekIndex, $this->stepDownInterval);
-        $reps -= ($drops * $this->repDecrement);
+        $startingReps = $this->repConfig->startingReps;
+        $stepDownInterval = $this->repConfig->stepDownInterval;
+        $repDecrement = $this->repConfig instanceof PairedLadderRepConfig
+            ? $this->repConfig->repDecrement
+            : 2;
+        $minimumReps = $this->repConfig->minimumReps;
 
-        return max($reps, $this->minimumReps);
+        $reps = $startingReps - $repDecrement;
+        $drops = intdiv($weekIndex, $stepDownInterval);
+        $reps -= ($drops * $repDecrement);
+
+        return max($reps, $minimumReps);
     }
 
     public function getSetCountForWeek(int $weekIndex): int
@@ -42,6 +51,6 @@ class ResolvedExerciseConfig extends AbstractData
 
     public function getTarget1RM(float $derived1RM): float
     {
-        return $derived1RM * (1 + $this->targetImprovement);
+        return $derived1RM * (1 + $this->weightConfig->getTargetImprovementAsDecimal());
     }
 }

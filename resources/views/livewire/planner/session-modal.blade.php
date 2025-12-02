@@ -31,8 +31,8 @@ $slots = computed(fn() => ['Morning', 'Afternoon']);
 on([
     'open-session-modal' => function (array $data) {
         $this->weekUuid = $data['weekUuid'];
-        $this->day = $data['day'];
-        $this->slot = $data['slot'];
+        $this->day = (int) ($data['day'] ?? 0);
+        $this->slot = (int) ($data['slot'] ?? 0);
         $this->sessionUuid = $data['sessionUuid'] ?? null;
         $this->name = $data['name'] ?? null;
         $this->category = $data['category'] ?? $this->categories->first()?->id;
@@ -65,11 +65,18 @@ $addExercise = function () {
 };
 
 $removeExercise = function (int $index) {
+    if (!is_array($this->exercises)) {
+        $this->exercises = [];
+        return;
+    }
     unset($this->exercises[$index]);
     $this->exercises = array_values($this->exercises);
 };
 
 $moveExercise = function (int $index, int $direction) {
+    if (!is_array($this->exercises)) {
+        return;
+    }
     $newIndex = $index + $direction;
     if ($newIndex < 0 || $newIndex >= count($this->exercises)) {
         return;
@@ -149,11 +156,11 @@ $delete = function () {
                     {{ $sessionUuid ? 'Edit Session' : 'Add Session' }}
                 </flux:heading>
                 <flux:subheading>
-                    {{ $this->daysFull[$day] }} {{ $this->slots[$slot] }}
+                    {{ $this->daysFull[$day] ?? 'Monday' }} {{ $this->slots[$slot] ?? 'Morning' }}
                 </flux:subheading>
             </div>
 
-            @if (!$sessionUuid && count($availableSessions) > 0)
+            @if (!$sessionUuid && is_array($availableSessions) && count($availableSessions) > 0)
                 <flux:button.group class="w-full">
                     <flux:button
                         type="button"
@@ -215,7 +222,7 @@ $delete = function () {
                         </flux:button>
                     </div>
 
-                    @if (count($exercises) > 0)
+                    @if (is_array($exercises) && count($exercises) > 0)
                         <div class="space-y-2">
                             @foreach ($exercises as $index => $exerciseId)
                                 @php

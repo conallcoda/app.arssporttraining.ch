@@ -1,26 +1,16 @@
 <?php
 
-use App\Models\Training\Progression\Config\ResolvedExerciseConfig;
 use App\Models\Training\Progression\Result\ExerciseProgression;
 use App\Models\Training\Progression\Result\SessionResult;
 use App\Models\Training\Progression\Result\SetResult;
 use App\Models\Training\Progression\Result\WeekResult;
+use Tests\Unit\Training\Progression\ProgressionTestHelpers;
+
+uses(ProgressionTestHelpers::class);
 
 describe('ExerciseProgression', function () {
     beforeEach(function () {
-        $this->config = new ResolvedExerciseConfig(
-            exerciseId: 1,
-            weightStrategy: 'fixed_step',
-            repStrategy: 'paired_ladder',
-            targetImprovement: 0.125,
-            startingReps: 14,
-            stepDownInterval: 2,
-            repDecrement: 2,
-            minimumReps: 6,
-            incrementStep: 0.5,
-            blockLength: 5,
-            modifier: 1.0,
-        );
+        $this->config = $this->createDefaultResolvedConfig();
 
         $this->weeks = [];
         for ($i = 0; $i < 5; $i++) {

@@ -23,7 +23,6 @@
                 {{ $titleActions }}
             </div>
             <div class="flex items-center gap-1">
-                <span class="text-xs text-zinc-400" x-text="width + '%'"></span>
                 <flux:dropdown>
                     <flux:button variant="ghost" size="sm">
                         <x-lucide-scaling class="w-4 h-4" />

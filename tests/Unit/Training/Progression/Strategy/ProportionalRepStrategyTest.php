@@ -1,24 +1,14 @@
 <?php
 
-use App\Models\Training\Progression\Config\ResolvedExerciseConfig;
 use App\Models\Training\Progression\Strategy\Rep\ProportionalRepStrategy;
+use Tests\Unit\Training\Progression\ProgressionTestHelpers;
+
+uses(ProgressionTestHelpers::class);
 
 describe('ProportionalRepStrategy', function () {
     beforeEach(function () {
         $this->strategy = new ProportionalRepStrategy;
-        $this->config = new ResolvedExerciseConfig(
-            exerciseId: 1,
-            weightStrategy: 'fixed_step',
-            repStrategy: 'proportional',
-            targetImprovement: 0.125,
-            startingReps: 14,
-            stepDownInterval: 2,
-            repDecrement: 2,
-            minimumReps: 6,
-            incrementStep: 0.5,
-            blockLength: 5,
-            modifier: 1.0,
-        );
+        $this->config = $this->createProportionalResolvedConfig();
         $this->derived1RM = 70.0;
         $this->target1RM = 78.75;
     });

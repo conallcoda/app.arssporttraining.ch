@@ -11,11 +11,7 @@ use App\Models\Training\Progression\Result\ExerciseProgression;
 use App\Models\Training\Progression\Result\SessionResult;
 use App\Models\Training\Progression\Result\SetResult;
 use App\Models\Training\Progression\Result\WeekResult;
-use App\Models\Training\Progression\Strategy\Rep\PairedLadderRepStrategy;
-use App\Models\Training\Progression\Strategy\Rep\ProportionalRepStrategy;
 use App\Models\Training\Progression\Strategy\Rep\RepStrategyInterface;
-use App\Models\Training\Progression\Strategy\Weight\CompoundedWeightStrategy;
-use App\Models\Training\Progression\Strategy\Weight\FixedStepWeightStrategy;
 use App\Models\Training\Progression\Strategy\Weight\WeightStrategyInterface;
 
 class ProgressionCalculator
@@ -237,20 +233,16 @@ class ProgressionCalculator
 
     protected function resolveWeightStrategy(ResolvedExerciseConfig $config): WeightStrategyInterface
     {
-        return match ($config->weightStrategy) {
-            'fixed_step' => new FixedStepWeightStrategy,
-            'compounded' => new CompoundedWeightStrategy,
-            default => new FixedStepWeightStrategy,
-        };
+        $strategyClass = $config->weightConfig->getStrategyClass();
+
+        return new $strategyClass;
     }
 
     protected function resolveRepStrategy(ResolvedExerciseConfig $config): RepStrategyInterface
     {
-        return match ($config->repStrategy) {
-            'paired_ladder' => new PairedLadderRepStrategy,
-            'proportional' => new ProportionalRepStrategy,
-            default => new PairedLadderRepStrategy,
-        };
+        $strategyClass = $config->repConfig->getStrategyClass();
+
+        return new $strategyClass;
     }
 
     public function getOverrideStore(): OverrideStore

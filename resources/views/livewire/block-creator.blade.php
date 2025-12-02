@@ -1,8 +1,8 @@
 <div
-    x-data="block_creator_storage"
+    x-data="block_creator_storage({ persistToStorage: false })"
     x-init="init()"
-    @grid-refresh.window="saveToStorage($event.detail.block)"
-    @tree-updated.window="saveToStorage($event.detail.block)"
+    @grid-refresh.window="saveToStorage($event.detail)"
+    @tree-updated.window="saveToStorage($event.detail)"
 >
     @if ($this->tree)
         <div class="p-6" x-show="initialized" x-cloak>
@@ -25,12 +25,6 @@
                 </x-resizable-card>
 
                 <x-resizable-card title="Training Progression" storage-key="block-creator-progression">
-                    <x-slot:titleActions>
-                        <div class="flex items-center gap-2">
-                            <livewire:planner.training-progression-category-selector />
-                            <livewire:planner.training-progression-type-selector />
-                        </div>
-                    </x-slot:titleActions>
                     <livewire:planner.training-progression :block="$this->tree->root" :key="'block-progression'" />
                 </x-resizable-card>
             </div>

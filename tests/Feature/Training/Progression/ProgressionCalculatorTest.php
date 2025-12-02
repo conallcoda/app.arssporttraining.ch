@@ -6,6 +6,8 @@ use App\Models\Training\Progression\Override\SetOverride;
 use App\Models\Training\Progression\Override\WeekAnchorOverride;
 use App\Models\Training\Progression\Result\ExerciseProgression;
 use App\Models\Training\Progression\Strategy\ProgressionCalculator;
+use App\Models\Training\Progression\Strategy\Rep\ProportionalRepConfig;
+use App\Models\Training\Progression\Strategy\Weight\CompoundedWeightConfig;
 use Tests\Feature\Training\Progression\ProgressionTestCase;
 
 uses(ProgressionTestCase::class);
@@ -81,7 +83,6 @@ describe('ProgressionCalculator', function () {
 
     describe('with fixed_step weight strategy', function () {
         it('calculates weights working backwards from target', function () {
-            $this->config->weightStrategy = 'fixed_step';
             $calculator = new ProgressionCalculator($this->config, $this->overrides, $this->athlete);
 
             $progression = $calculator->calculateExerciseProgression(1, $this->sessionMap);
@@ -92,7 +93,10 @@ describe('ProgressionCalculator', function () {
 
     describe('with compounded weight strategy', function () {
         it('calculates weights using compound growth', function () {
-            $this->config->weightStrategy = 'compounded';
+            $this->config->weightConfig = new CompoundedWeightConfig(
+                targetImprovement: 12.5,
+                incrementStep: 0.5,
+            );
             $calculator = new ProgressionCalculator($this->config, $this->overrides, $this->athlete);
 
             $progression = $calculator->calculateExerciseProgression(1, $this->sessionMap);
@@ -102,7 +106,10 @@ describe('ProgressionCalculator', function () {
         });
 
         it('sets projected 1RM for each week', function () {
-            $this->config->weightStrategy = 'compounded';
+            $this->config->weightConfig = new CompoundedWeightConfig(
+                targetImprovement: 12.5,
+                incrementStep: 0.5,
+            );
             $calculator = new ProgressionCalculator($this->config, $this->overrides, $this->athlete);
 
             $progression = $calculator->calculateExerciseProgression(1, $this->sessionMap);
@@ -114,7 +121,6 @@ describe('ProgressionCalculator', function () {
 
     describe('with paired_ladder rep strategy', function () {
         it('calculates reps in pairs', function () {
-            $this->config->repStrategy = 'paired_ladder';
             $calculator = new ProgressionCalculator($this->config, $this->overrides, $this->athlete);
 
             $progression = $calculator->calculateExerciseProgression(1, $this->sessionMap);
@@ -127,7 +133,11 @@ describe('ProgressionCalculator', function () {
 
     describe('with proportional rep strategy', function () {
         it('calculates reps based on weight percentage', function () {
-            $this->config->repStrategy = 'proportional';
+            $this->config->repConfig = new ProportionalRepConfig(
+                startingReps: 12,
+                stepDownInterval: 2,
+                minimumReps: 6,
+            );
             $calculator = new ProgressionCalculator($this->config, $this->overrides, $this->athlete);
 
             $progression = $calculator->calculateExerciseProgression(1, $this->sessionMap);
@@ -152,13 +162,16 @@ describe('ProgressionCalculator', function () {
         it('applies per-exercise weight strategy', function () {
             $this->config->exerciseOverrides[1] = new ExerciseConfig(
                 exerciseId: 1,
-                weightStrategy: 'compounded',
+                weightConfig: new CompoundedWeightConfig(
+                    targetImprovement: 12.5,
+                    incrementStep: 0.5,
+                ),
             );
             $calculator = new ProgressionCalculator($this->config, $this->overrides, $this->athlete);
 
             $progression = $calculator->calculateExerciseProgression(1, $this->sessionMap);
 
-            expect($progression->config->weightStrategy)->toBe('compounded');
+            expect($progression->config->weightConfig)->toBeInstanceOf(CompoundedWeightConfig::class);
         });
     });
 

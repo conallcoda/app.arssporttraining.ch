@@ -28,7 +28,7 @@ class ProportionalRepStrategy implements RepStrategyInterface
         $percentage = $setWeight / $reference1RM;
         $reps = RepPercentageTable::getRepsRounded($percentage, 2);
 
-        return max($reps, $config->minimumReps);
+        return max($reps, $config->repConfig->minimumReps);
     }
 
     public function getReference1RM(

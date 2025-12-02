@@ -1,63 +1,60 @@
 <?php
 
 use App\Models\Training\Progression\Config\ExerciseConfig;
+use App\Models\Training\Progression\Strategy\Weight\CompoundedWeightConfig;
 
 describe('ExerciseConfig', function () {
     it('can be created with only exercise id', function () {
         $config = new ExerciseConfig(exerciseId: 1);
 
         expect($config->exerciseId)->toBe(1);
-        expect($config->weightStrategy)->toBeNull();
-        expect($config->repStrategy)->toBeNull();
+        expect($config->weightConfig)->toBeNull();
+        expect($config->repConfig)->toBeNull();
         expect($config->modifier)->toBe(1.0);
     });
 
     it('can be created with overrides', function () {
+        $weightConfig = new CompoundedWeightConfig(targetImprovement: 15);
         $config = new ExerciseConfig(
             exerciseId: 1,
-            weightStrategy: 'compounded',
-            targetImprovement: 0.15,
+            weightConfig: $weightConfig,
             modifier: 0.85,
         );
 
         expect($config->exerciseId)->toBe(1);
-        expect($config->weightStrategy)->toBe('compounded');
-        expect($config->targetImprovement)->toBe(0.15);
+        expect($config->weightConfig)->toBe($weightConfig);
+        expect($config->weightConfig->targetImprovement)->toBe(15.0);
         expect($config->modifier)->toBe(0.85);
     });
 
     it('detects if a specific override exists', function () {
         $config = new ExerciseConfig(
             exerciseId: 1,
-            weightStrategy: 'compounded',
+            weightConfig: new CompoundedWeightConfig,
         );
 
-        expect($config->hasOverride('weightStrategy'))->toBeTrue();
-        expect($config->hasOverride('repStrategy'))->toBeFalse();
-        expect($config->hasOverride('targetImprovement'))->toBeFalse();
+        expect($config->hasOverride('weightConfig'))->toBeTrue();
+        expect($config->hasOverride('repConfig'))->toBeFalse();
     });
 
     it('returns all non-null overrides', function () {
         $config = new ExerciseConfig(
             exerciseId: 1,
-            weightStrategy: 'compounded',
-            targetImprovement: 0.15,
+            weightConfig: new CompoundedWeightConfig(targetImprovement: 15),
             modifier: 0.85,
         );
 
         $overrides = $config->getOverrides();
 
-        expect($overrides)->toHaveKey('weightStrategy');
-        expect($overrides)->toHaveKey('targetImprovement');
+        expect($overrides)->toHaveKey('weightConfig');
         expect($overrides)->toHaveKey('modifier');
-        expect($overrides)->not->toHaveKey('repStrategy');
-        expect($overrides)->not->toHaveKey('startingReps');
+        expect($overrides)->not->toHaveKey('repConfig');
     });
 
     it('does not include default modifier in overrides', function () {
         $config = new ExerciseConfig(
             exerciseId: 1,
-            weightStrategy: 'compounded',
+            weightConfig: new CompoundedWeightConfig,
             modifier: 1.0,
         );
 

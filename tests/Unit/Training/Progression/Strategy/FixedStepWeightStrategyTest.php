@@ -1,24 +1,14 @@
 <?php
 
-use App\Models\Training\Progression\Config\ResolvedExerciseConfig;
 use App\Models\Training\Progression\Strategy\Weight\FixedStepWeightStrategy;
+use Tests\Unit\Training\Progression\ProgressionTestHelpers;
+
+uses(ProgressionTestHelpers::class);
 
 describe('FixedStepWeightStrategy', function () {
     beforeEach(function () {
         $this->strategy = new FixedStepWeightStrategy;
-        $this->config = new ResolvedExerciseConfig(
-            exerciseId: 1,
-            weightStrategy: 'fixed_step',
-            repStrategy: 'paired_ladder',
-            targetImprovement: 0.125,
-            startingReps: 12,
-            stepDownInterval: 2,
-            repDecrement: 2,
-            minimumReps: 6,
-            incrementStep: 0.5,
-            blockLength: 5,
-            modifier: 1.0,
-        );
+        $this->config = $this->createDefaultResolvedConfig(exerciseId: 1, startingReps: 12);
         $this->derived1RM = 70.0;
     });
 

@@ -1,24 +1,17 @@
 <?php
 
 use App\Models\Training\Progression\Config\ResolvedExerciseConfig;
+use App\Models\Training\Progression\Strategy\Rep\PairedLadderRepConfig;
 use App\Models\Training\Progression\Strategy\Rep\PairedLadderRepStrategy;
+use App\Models\Training\Progression\Strategy\Weight\FixedStepWeightConfig;
+use Tests\Unit\Training\Progression\ProgressionTestHelpers;
+
+uses(ProgressionTestHelpers::class);
 
 describe('PairedLadderRepStrategy', function () {
     beforeEach(function () {
         $this->strategy = new PairedLadderRepStrategy;
-        $this->config = new ResolvedExerciseConfig(
-            exerciseId: 1,
-            weightStrategy: 'fixed_step',
-            repStrategy: 'paired_ladder',
-            targetImprovement: 0.125,
-            startingReps: 14,
-            stepDownInterval: 2,
-            repDecrement: 2,
-            minimumReps: 6,
-            incrementStep: 0.5,
-            blockLength: 5,
-            modifier: 1.0,
-        );
+        $this->config = $this->createDefaultResolvedConfig();
     });
 
     it('calculates reps in pairs', function () {
@@ -50,15 +43,17 @@ describe('PairedLadderRepStrategy', function () {
     it('respects minimum reps', function () {
         $config = new ResolvedExerciseConfig(
             exerciseId: 1,
-            weightStrategy: 'fixed_step',
-            repStrategy: 'paired_ladder',
-            targetImprovement: 0.125,
-            startingReps: 10,
-            stepDownInterval: 1,
-            repDecrement: 2,
-            minimumReps: 6,
-            incrementStep: 0.5,
             blockLength: 5,
+            weightConfig: new FixedStepWeightConfig(
+                targetImprovement: 12.5,
+                incrementStep: 0.5,
+            ),
+            repConfig: new PairedLadderRepConfig(
+                startingReps: 10,
+                stepDownInterval: 1,
+                repDecrement: 2,
+                minimumReps: 6,
+            ),
             modifier: 1.0,
         );
 

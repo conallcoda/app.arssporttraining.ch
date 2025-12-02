@@ -3,6 +3,9 @@
 use App\Models\Training\Progression\Config\ExerciseConfig;
 use App\Models\Training\Progression\Config\ProgressionConfig;
 use App\Models\Training\Progression\Config\ResolvedExerciseConfig;
+use App\Models\Training\Progression\Strategy\Rep\PairedLadderRepConfig;
+use App\Models\Training\Progression\Strategy\Weight\CompoundedWeightConfig;
+use App\Models\Training\Progression\Strategy\Weight\FixedStepWeightConfig;
 use Tests\Unit\Training\Progression\ProgressionTestHelpers;
 
 uses(ProgressionTestHelpers::class);
@@ -11,15 +14,15 @@ describe('ProgressionConfig', function () {
     it('has sensible defaults', function () {
         $config = new ProgressionConfig;
 
-        expect($config->weightStrategy)->toBe('fixed_step');
-        expect($config->repStrategy)->toBe('paired_ladder');
-        expect($config->targetImprovement)->toBe(0.125);
-        expect($config->startingReps)->toBe(14);
-        expect($config->stepDownInterval)->toBe(2);
-        expect($config->repDecrement)->toBe(2);
-        expect($config->minimumReps)->toBe(6);
-        expect($config->incrementStep)->toBe(0.5);
         expect($config->blockLength)->toBe(5);
+        expect($config->weightConfig)->toBeInstanceOf(FixedStepWeightConfig::class);
+        expect($config->repConfig)->toBeInstanceOf(PairedLadderRepConfig::class);
+        expect($config->weightConfig->targetImprovement)->toBe(12.5);
+        expect($config->weightConfig->incrementStep)->toBe(0.5);
+        expect($config->repConfig->startingReps)->toBe(14);
+        expect($config->repConfig->stepDownInterval)->toBe(2);
+        expect($config->repConfig->repDecrement)->toBe(2);
+        expect($config->repConfig->minimumReps)->toBe(6);
         expect($config->exerciseOverrides)->toBe([]);
     });
 
@@ -29,9 +32,9 @@ describe('ProgressionConfig', function () {
 
         expect($resolved)->toBeInstanceOf(ResolvedExerciseConfig::class);
         expect($resolved->exerciseId)->toBe(1);
-        expect($resolved->weightStrategy)->toBe('fixed_step');
-        expect($resolved->repStrategy)->toBe('paired_ladder');
-        expect($resolved->targetImprovement)->toBe(0.125);
+        expect($resolved->weightConfig)->toBeInstanceOf(FixedStepWeightConfig::class);
+        expect($resolved->repConfig)->toBeInstanceOf(PairedLadderRepConfig::class);
+        expect($resolved->weightConfig->targetImprovement)->toBe(12.5);
         expect($resolved->modifier)->toBe(1.0);
     });
 
@@ -39,44 +42,43 @@ describe('ProgressionConfig', function () {
         $config = $this->createDefaultConfig();
         $config->exerciseOverrides[1] = new ExerciseConfig(
             exerciseId: 1,
-            weightStrategy: 'compounded',
-            targetImprovement: 0.15,
+            weightConfig: new CompoundedWeightConfig(targetImprovement: 15),
             modifier: 0.85,
         );
 
         $resolved = $config->forExercise(1);
 
-        expect($resolved->weightStrategy)->toBe('compounded');
-        expect($resolved->targetImprovement)->toBe(0.15);
+        expect($resolved->weightConfig)->toBeInstanceOf(CompoundedWeightConfig::class);
+        expect($resolved->weightConfig->targetImprovement)->toBe(15.0);
         expect($resolved->modifier)->toBe(0.85);
-        expect($resolved->repStrategy)->toBe('paired_ladder');
+        expect($resolved->repConfig)->toBeInstanceOf(PairedLadderRepConfig::class);
     });
 
     it('can set exercise override', function () {
         $config = $this->createDefaultConfig();
-        $config->setExerciseOverride(1, 'weightStrategy', 'compounded');
+        $config->setExerciseOverride(1, 'weightConfig', new CompoundedWeightConfig);
         $config->setExerciseOverride(1, 'modifier', 0.85);
 
         expect($config->hasExerciseOverride(1))->toBeTrue();
-        expect($config->hasExerciseOverride(1, 'weightStrategy'))->toBeTrue();
+        expect($config->hasExerciseOverride(1, 'weightConfig'))->toBeTrue();
         expect($config->hasExerciseOverride(1, 'modifier'))->toBeTrue();
-        expect($config->hasExerciseOverride(1, 'repStrategy'))->toBeFalse();
+        expect($config->hasExerciseOverride(1, 'repConfig'))->toBeFalse();
     });
 
     it('can clear specific exercise override', function () {
         $config = $this->createDefaultConfig();
-        $config->setExerciseOverride(1, 'weightStrategy', 'compounded');
+        $config->setExerciseOverride(1, 'weightConfig', new CompoundedWeightConfig);
         $config->setExerciseOverride(1, 'modifier', 0.85);
 
-        $config->clearExerciseOverride(1, 'weightStrategy');
+        $config->clearExerciseOverride(1, 'weightConfig');
 
-        expect($config->hasExerciseOverride(1, 'weightStrategy'))->toBeFalse();
+        expect($config->hasExerciseOverride(1, 'weightConfig'))->toBeFalse();
         expect($config->hasExerciseOverride(1, 'modifier'))->toBeTrue();
     });
 
     it('can clear all exercise overrides', function () {
         $config = $this->createDefaultConfig();
-        $config->setExerciseOverride(1, 'weightStrategy', 'compounded');
+        $config->setExerciseOverride(1, 'weightConfig', new CompoundedWeightConfig);
         $config->setExerciseOverride(1, 'modifier', 0.85);
 
         $config->clearExerciseOverride(1);

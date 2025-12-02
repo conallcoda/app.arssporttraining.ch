@@ -3,20 +3,28 @@
 namespace App\Models\Training\Progression\Config;
 
 use App\Data\AbstractData;
+use App\Models\Contracts\HasForms;
+use App\Models\Training\Progression\Casts\RepConfigCast;
+use App\Models\Training\Progression\Casts\WeightConfigCast;
+use App\Models\Training\Progression\Strategy\Rep\PairedLadderRepConfig;
+use App\Models\Training\Progression\Strategy\Rep\ProportionalRepConfig;
+use App\Models\Training\Progression\Strategy\Rep\RepConfigInterface;
+use App\Models\Training\Progression\Strategy\Weight\CompoundedWeightConfig;
+use App\Models\Training\Progression\Strategy\Weight\FixedStepWeightConfig;
+use App\Models\Training\Progression\Strategy\Weight\WeightConfigInterface;
+use Filament\Schemas\Components\Fieldset;
+use Filament\Schemas\Schema;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
+use Spatie\LaravelData\Attributes\WithCast;
 
-class ProgressionConfig extends AbstractData
+class ProgressionConfig extends AbstractData implements HasForms
 {
     public function __construct(
-        public string $weightStrategy = 'fixed_step',
-        public string $repStrategy = 'paired_ladder',
-        public float $targetImprovement = 0.125,
-        public int $startingReps = 14,
-        public int $stepDownInterval = 2,
-        public int $repDecrement = 2,
-        public int $minimumReps = 6,
-        public float $incrementStep = 0.5,
         public int $blockLength = 5,
+        #[WithCast(WeightConfigCast::class)]
+        public WeightConfigInterface $weightConfig = new FixedStepWeightConfig,
+        #[WithCast(RepConfigCast::class)]
+        public RepConfigInterface $repConfig = new PairedLadderRepConfig,
         #[DataCollectionOf(ExerciseConfig::class)]
         public array $exerciseOverrides = [],
     ) {}
@@ -25,17 +33,14 @@ class ProgressionConfig extends AbstractData
     {
         $override = $this->getExerciseOverride($exerciseId);
 
+        $weightConfig = $override?->weightConfig ?? $this->weightConfig;
+        $repConfig = $override?->repConfig ?? $this->repConfig;
+
         return new ResolvedExerciseConfig(
             exerciseId: $exerciseId,
-            weightStrategy: $override?->weightStrategy ?? $this->weightStrategy,
-            repStrategy: $override?->repStrategy ?? $this->repStrategy,
-            targetImprovement: $override?->targetImprovement ?? $this->targetImprovement,
-            startingReps: $override?->startingReps ?? $this->startingReps,
-            stepDownInterval: $override?->stepDownInterval ?? $this->stepDownInterval,
-            repDecrement: $override?->repDecrement ?? $this->repDecrement,
-            minimumReps: $override?->minimumReps ?? $this->minimumReps,
-            incrementStep: $override?->incrementStep ?? $this->incrementStep,
             blockLength: $this->blockLength,
+            weightConfig: $weightConfig,
+            repConfig: $repConfig,
             modifier: $override?->modifier ?? 1.0,
         );
     }
@@ -80,5 +85,51 @@ class ProgressionConfig extends AbstractData
         }
 
         return $override->hasOverride($key);
+    }
+
+    public function buildOverview(int $totalSessions, int $minSessionsPerWeek, int $maxSessionsPerWeek): BlockOverview
+    {
+        return new BlockOverview(
+            weekCount: $this->blockLength,
+            totalSessions: $totalSessions,
+            minSessionsPerWeek: $minSessionsPerWeek,
+            maxSessionsPerWeek: $maxSessionsPerWeek,
+            weightStrategy: $this->getWeightStrategyLabel(),
+            repStrategy: $this->getRepStrategyLabel(),
+            targetImprovement: $this->weightConfig->targetImprovement,
+        );
+    }
+
+    public function getWeightStrategyLabel(): string
+    {
+        return match (true) {
+            $this->weightConfig instanceof CompoundedWeightConfig => 'Compounded',
+            $this->weightConfig instanceof FixedStepWeightConfig => 'Fixed Step',
+            default => 'Unknown',
+        };
+    }
+
+    public function getRepStrategyLabel(): string
+    {
+        return match (true) {
+            $this->repConfig instanceof ProportionalRepConfig => 'Proportional',
+            $this->repConfig instanceof PairedLadderRepConfig => 'Paired Ladder',
+            default => 'Unknown',
+        };
+    }
+
+    public function getFields(): array
+    {
+        return [];
+    }
+
+    public function getForm(Schema $schema): array
+    {
+        return $schema->components([
+            Fieldset::make('Weight Configuration')
+                ->schema($this->weightConfig->getFields()),
+            Fieldset::make('Rep Configuration')
+                ->schema($this->repConfig->getFields()),
+        ])->getComponents();
     }
 }

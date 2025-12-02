@@ -277,7 +277,7 @@ on(['week-added' => function (array $data) {
     ]);
 }]);
 
-on(['grid-refresh' => function ($block) {
+on(['grid-refresh' => function ($block, $progressionConfig = null, $overrideStore = null) {
     $this->block = TrainingNode::from($block);
 }]);
 
@@ -446,7 +446,6 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
                                                 $borderColor = $this->getColorValue($category->background_color, 400);
                                                 $isLinkedStyle = $week->isLinked() || $sessionIsLinked;
                                                 $weekLinkInfo = $this->getWeekLinkInfo($week->uuid);
-                                                $weekLinkInfoJson = $weekLinkInfo ? json_encode($weekLinkInfo) : 'null';
                                             @endphp
                                             <div class="h-full flex items-center justify-center gap-1 rounded px-2 py-1 transition-transform duration-200 cursor-move {{ $isLinkedStyle ? 'border-2 border-dashed' : '' }} cursor-pointer"
                                                 :class="{
@@ -457,17 +456,16 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
                                                 draggable="true"
                                                 @dragstart="startDrag($event, '{{ $session->uuid }}', '{{ $sessionLinkedTo }}', {{ $day }}, {{ $slotIndex }})"
                                                 @dragend="draggedSessionUuid = null; draggedSessionLinkedTo = null; isDraggingOver = null; isDropDisallowed = false"
-                                                @dblclick="confirmUnlinkAndAction({{ $weekLinkInfoJson }}, () => $wire.openSessionModal('{{ $week->uuid }}', {{ $slotIndex }}, {{ $day }}))"
+                                                @dblclick="confirmUnlinkAndAction({{ Js::from($weekLinkInfo) }}, () => $wire.openSessionModal('{{ $week->uuid }}', {{ $slotIndex }}, {{ $day }}))"
                                                 wire:click="$dispatch('progression-category-changed', { categoryId: {{ $categoryId }} })">
                                                 <span class="text-xs font-medium">{{ $sessionName ?? $category->name }}</span>
                                             </div>
                                         @else
                                             @php
                                                 $weekLinkInfo = $this->getWeekLinkInfo($week->uuid);
-                                                $weekLinkInfoJson = $weekLinkInfo ? json_encode($weekLinkInfo) : 'null';
                                             @endphp
                                             <div class="h-full flex items-center justify-center text-zinc-400 dark:text-zinc-600 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50 rounded"
-                                                @click="confirmUnlinkAndAction({{ $weekLinkInfoJson }}, () => $wire.openSessionModal('{{ $week->uuid }}', {{ $slotIndex }}, {{ $day }}))">
+                                                @click="confirmUnlinkAndAction({{ Js::from($weekLinkInfo) }}, () => $wire.openSessionModal('{{ $week->uuid }}', {{ $slotIndex }}, {{ $day }}))">
                                                 <x-lucide-plus class="w-4 h-4" />
                                             </div>
                                         @endif

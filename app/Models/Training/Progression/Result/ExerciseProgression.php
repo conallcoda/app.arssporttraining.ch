@@ -29,7 +29,7 @@ class ExerciseProgression extends AbstractData
 
     public function getImprovementPercentage(): float
     {
-        return $this->config->targetImprovement * 100;
+        return $this->config->weightConfig->targetImprovement;
     }
 
     public function getCompletedWeekCount(): int

@@ -17,7 +17,7 @@ class CompoundedWeightStrategy implements WeightStrategyInterface
         $anchorReps = $config->getAnchorRepsForWeek($weekIndex);
         $percentage = RepPercentageTable::getPercentage($anchorReps);
 
-        return WeightBracket::roundToIncrement($projected1RM * $percentage, $config->incrementStep);
+        return WeightBracket::roundToIncrement($projected1RM * $percentage, $config->weightConfig->incrementStep);
     }
 
     public function calculateSetWeight(
@@ -35,7 +35,7 @@ class CompoundedWeightStrategy implements WeightStrategyInterface
             $weight -= $step;
         }
 
-        return WeightBracket::roundToIncrement($weight, $config->incrementStep);
+        return WeightBracket::roundToIncrement($weight, $config->weightConfig->incrementStep);
     }
 
     public function getProjected1RM(
@@ -52,14 +52,14 @@ class CompoundedWeightStrategy implements WeightStrategyInterface
         ResolvedExerciseConfig $config,
         float $derived1RM,
     ): float {
-        return $derived1RM * (1 + $config->targetImprovement);
+        return $derived1RM * (1 + $config->weightConfig->getTargetImprovementAsDecimal());
     }
 
     public function calculateWeeklyGrowthRate(ResolvedExerciseConfig $config): float
     {
         $intervals = $config->blockLength - 1;
 
-        return pow(1 + $config->targetImprovement, 1 / $intervals) - 1;
+        return pow(1 + $config->weightConfig->getTargetImprovementAsDecimal(), 1 / $intervals) - 1;
     }
 
     public function recalculateFromOverride(

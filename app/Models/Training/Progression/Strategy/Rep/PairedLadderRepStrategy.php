@@ -14,13 +14,16 @@ class PairedLadderRepStrategy implements RepStrategyInterface
         ?float $setWeight = null,
         ?float $reference1RM = null,
     ): int {
+        $repConfig = $config->repConfig;
+        assert($repConfig instanceof PairedLadderRepConfig);
+
         $anchorReps = $config->getAnchorRepsForWeek($weekIndex);
-        $firstTierReps = $anchorReps + $config->repDecrement;
+        $firstTierReps = $anchorReps + $repConfig->repDecrement;
 
         $pairIndex = intdiv($setIndex, 2);
-        $reps = $firstTierReps - ($pairIndex * $config->repDecrement);
+        $reps = $firstTierReps - ($pairIndex * $repConfig->repDecrement);
 
-        return max($reps, $config->minimumReps);
+        return max($reps, $repConfig->minimumReps);
     }
 
     public function getReference1RM(
