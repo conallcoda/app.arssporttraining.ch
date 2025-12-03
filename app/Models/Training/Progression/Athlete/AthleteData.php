@@ -50,7 +50,8 @@ class AthleteData extends AbstractData
                 ->label('Athlete')
                 ->options(Athlete::orderBy('forename')->orderBy('surname')->get()->pluck('name', 'id')->toArray())
                 ->searchable()
-                ->required(),
+                ->required()
+                ->rules('required|integer|exists:users,id'),
             FluxField::repeater('tests')
                 ->label('Test Results')
                 ->schema(AthleteTest::getFields()),

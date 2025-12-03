@@ -2,7 +2,7 @@
 
 namespace App\Models\Training\Progression\Strategy\Weight;
 
-use Filament\Forms\Components\TextInput;
+use App\Data\Form\FluxField;
 
 class CompoundedWeightConfig extends AbstractWeightConfig
 {
@@ -16,6 +16,11 @@ class CompoundedWeightConfig extends AbstractWeightConfig
         return CompoundedWeightStrategy::class;
     }
 
+    public function getType(): string
+    {
+        return 'compounded';
+    }
+
     public function getTargetImprovementAsDecimal(): float
     {
         return $this->targetImprovement / 100;
@@ -24,20 +29,21 @@ class CompoundedWeightConfig extends AbstractWeightConfig
     public function getFields(): array
     {
         return [
-            TextInput::make('targetImprovement')
+            FluxField::number('targetImprovement')
                 ->label('Target Improvement')
-                ->numeric()
-                ->step(0.1)
-                ->default(12.5)
-                ->suffix('%')
-                ->helperText('Target improvement percentage (e.g., 12.5%)'),
-            TextInput::make('incrementStep')
-                ->label('Increment Step')
-                ->numeric()
+                ->required()
+                ->min(0)
+                ->max(100)
                 ->step(0.5)
-                ->default(0.5)
+                ->suffix('%')
+                ->rules('required|numeric|min:0|max:100'),
+            FluxField::number('incrementStep')
+                ->label('Increment Step')
+                ->required()
+                ->min(0.25)
+                ->step(0.25)
                 ->suffix('kg')
-                ->helperText('Weight increment step in kg'),
+                ->rules('required|numeric|min:0.25'),
         ];
     }
 }

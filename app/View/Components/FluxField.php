@@ -14,6 +14,8 @@ class FluxField extends Component
     public function __construct(
         public FluxFieldDTO $field,
         public ?string $prefix = null,
+        public ?array $repeaterItems = null,
+        public ?int $currentIndex = null,
     ) {
         $this->wireModel = $prefix ? "{$prefix}.{$field->name}" : $field->name;
     }

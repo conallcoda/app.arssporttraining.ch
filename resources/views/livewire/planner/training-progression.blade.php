@@ -357,6 +357,9 @@ on([
             'tests' => $data['tests'],
         ]);
     },
+    'progression-config-saved' => function (array $data) {
+        $this->dispatch('schedule-action', action: 'progression.update', params: $data);
+    },
 ]);
 
 ?>
@@ -407,6 +410,17 @@ on([
                         <x-stat-card label="Weight" :value="$overview->weightStrategy" />
                         <x-stat-card label="Reps" :value="$overview->repStrategy" />
                         <x-stat-card label="Target" :value="$overview->getTargetImprovementLabel()" />
+                    </div>
+                    <div class="flex justify-end mt-4">
+                        <flux:button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            icon="cog-6-tooth"
+                            wire:click="$dispatch('open-progression-modal', { progressionConfig: {{ Js::from($progressionConfig) }} })"
+                        >
+                            Configure
+                        </flux:button>
                     </div>
                 </div>
             </div>
@@ -518,4 +532,5 @@ on([
     @endif
 
     <livewire:planner.athlete-modal />
+    <livewire:planner.progression-modal />
 </div>

@@ -47,7 +47,7 @@ class BlockCreator extends Component
 
     protected function createDefaultAthleteData(): AthleteData
     {
-        $athleteData = new AthleteData(athleteId: 0);
+        $athleteData = new AthleteData(athleteId: 3);
         $athleteData->setTest(new AthleteTest(
             exerciseId: 1,
             reps: 8,
@@ -94,7 +94,7 @@ class BlockCreator extends Component
         return new ProgressionConfig(
             blockLength: $this->defaultWeeks,
             weightConfig: new FixedStepWeightConfig(
-                targetImprovement: 0.125,
+                targetImprovement: 12.5,
                 incrementStep: 0.5,
             ),
             repConfig: new PairedLadderRepConfig(
@@ -226,6 +226,8 @@ class BlockCreator extends Component
             'week.add' => $this->addWeek($params),
             'week.link' => $this->linkWeek($params),
             'week.delete' => $this->deleteWeek($params),
+            'athlete.update' => $this->updateAthlete($params),
+            'progression.update' => $this->updateProgression($params),
             default => null,
         };
     }
@@ -593,6 +595,59 @@ class BlockCreator extends Component
     public function setAthleteData(AthleteData $athleteData): void
     {
         $this->athleteData = $athleteData;
+        $this->clearExerciseProgressions();
+        $this->refreshGrid();
+    }
+
+    protected function updateAthlete(array $params): void
+    {
+        $athleteId = $params['athleteId'] ?? $this->athleteData->athleteId;
+        $tests = $params['tests'] ?? [];
+
+        $this->athleteData = new AthleteData(athleteId: $athleteId);
+
+        foreach ($tests as $exerciseId => $testData) {
+            $this->athleteData->setTest(new AthleteTest(
+                exerciseId: (int) $exerciseId,
+                reps: (int) $testData['reps'],
+                weight: (float) $testData['weight'],
+            ));
+        }
+
+        $this->clearExerciseProgressions();
+        $this->refreshGrid();
+    }
+
+    protected function updateProgression(array $params): void
+    {
+        $weightStrategy = $params['weightStrategy'] ?? 'fixed_step';
+        $repStrategy = $params['repStrategy'] ?? 'paired_ladder';
+
+        $this->progressionConfig->weightConfig = match ($weightStrategy) {
+            'compounded' => new CompoundedWeightConfig(
+                targetImprovement: (float) ($params['targetImprovement'] ?? 12.5),
+                incrementStep: (float) ($params['incrementStep'] ?? 0.5),
+            ),
+            default => new FixedStepWeightConfig(
+                targetImprovement: (float) ($params['targetImprovement'] ?? 12.5),
+                incrementStep: (float) ($params['incrementStep'] ?? 0.5),
+            ),
+        };
+
+        $this->progressionConfig->repConfig = match ($repStrategy) {
+            'proportional' => new ProportionalRepConfig(
+                startingReps: (int) ($params['startingReps'] ?? 12),
+                stepDownInterval: (int) ($params['stepDownInterval'] ?? 2),
+                minimumReps: (int) ($params['minimumReps'] ?? 6),
+            ),
+            default => new PairedLadderRepConfig(
+                startingReps: (int) ($params['startingReps'] ?? 12),
+                stepDownInterval: (int) ($params['stepDownInterval'] ?? 2),
+                repDecrement: (int) ($params['repDecrement'] ?? 2),
+                minimumReps: (int) ($params['minimumReps'] ?? 6),
+            ),
+        };
+
         $this->clearExerciseProgressions();
         $this->refreshGrid();
     }

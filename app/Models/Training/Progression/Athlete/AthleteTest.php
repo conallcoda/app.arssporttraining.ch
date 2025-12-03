@@ -34,21 +34,25 @@ class AthleteTest extends AbstractData
                 ->label('Exercise')
                 ->options(Exercise::orderBy('name')->pluck('name', 'id')->toArray())
                 ->searchable()
-                ->required(),
+                ->required()
+                ->unique()
+                ->rules('required|integer|exists:exercises,id'),
             FluxField::number('reps')
                 ->label('Reps')
                 ->required()
                 ->min(1)
                 ->max(30)
-                ->suffix('reps'),
+                ->suffix('reps')
+                ->rules('required|integer|min:1|max:30'),
             FluxField::number('weight')
                 ->label('Weight')
                 ->required()
                 ->min(0)
                 ->step(0.5)
-                ->suffix('kg'),
+                ->suffix('kg')
+                ->rules('required|numeric|min:0'),
             FluxField::number('value')
-                ->label('Estimated 1RM')
+                ->label('Derived 1RM')
                 ->step(0.5)
                 ->suffix('kg')
                 ->disabled()

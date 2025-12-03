@@ -2,7 +2,7 @@
 
 namespace App\Models\Training\Progression\Strategy\Rep;
 
-use Filament\Forms\Components\TextInput;
+use App\Data\Form\FluxField;
 
 class ProportionalRepConfig extends AbstractRepConfig
 {
@@ -17,28 +17,35 @@ class ProportionalRepConfig extends AbstractRepConfig
         return ProportionalRepStrategy::class;
     }
 
+    public function getType(): string
+    {
+        return 'proportional';
+    }
+
     public function getFields(): array
     {
         return [
-            TextInput::make('startingReps')
+            FluxField::number('startingReps')
                 ->label('Starting Reps')
-                ->numeric()
-                ->integer()
-                ->default(14)
-                ->minValue(1),
-            TextInput::make('stepDownInterval')
+                ->required()
+                ->min(1)
+                ->max(30)
+                ->suffix('reps')
+                ->rules('required|integer|min:1|max:30'),
+            FluxField::number('stepDownInterval')
                 ->label('Step Down Interval')
-                ->numeric()
-                ->integer()
-                ->default(2)
-                ->minValue(1)
-                ->helperText('Number of weeks before reducing reps'),
-            TextInput::make('minimumReps')
+                ->required()
+                ->min(1)
+                ->max(10)
+                ->suffix('weeks')
+                ->rules('required|integer|min:1|max:10'),
+            FluxField::number('minimumReps')
                 ->label('Minimum Reps')
-                ->numeric()
-                ->integer()
-                ->default(6)
-                ->minValue(1),
+                ->required()
+                ->min(1)
+                ->max(20)
+                ->suffix('reps')
+                ->rules('required|integer|min:1|max:20'),
         ];
     }
 }

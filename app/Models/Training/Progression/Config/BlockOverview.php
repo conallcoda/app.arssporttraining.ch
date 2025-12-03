@@ -18,7 +18,7 @@ class BlockOverview extends AbstractData
 
     public function getTargetImprovementLabel(): string
     {
-        return number_format($this->targetImprovement * 100, 1).'%';
+        return number_format($this->targetImprovement, 1).'%';
     }
 
     public function getSessionsPerWeekLabel(): string

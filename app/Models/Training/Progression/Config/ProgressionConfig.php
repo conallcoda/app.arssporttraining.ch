@@ -3,7 +3,8 @@
 namespace App\Models\Training\Progression\Config;
 
 use App\Data\AbstractData;
-use App\Models\Contracts\HasForms;
+use App\Data\Form\FluxField;
+use App\Data\Form\FluxFieldset;
 use App\Models\Training\Progression\Casts\RepConfigCast;
 use App\Models\Training\Progression\Casts\WeightConfigCast;
 use App\Models\Training\Progression\Strategy\Rep\PairedLadderRepConfig;
@@ -12,12 +13,10 @@ use App\Models\Training\Progression\Strategy\Rep\RepConfigInterface;
 use App\Models\Training\Progression\Strategy\Weight\CompoundedWeightConfig;
 use App\Models\Training\Progression\Strategy\Weight\FixedStepWeightConfig;
 use App\Models\Training\Progression\Strategy\Weight\WeightConfigInterface;
-use Filament\Schemas\Components\Fieldset;
-use Filament\Schemas\Schema;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Attributes\WithCast;
 
-class ProgressionConfig extends AbstractData implements HasForms
+class ProgressionConfig extends AbstractData
 {
     public function __construct(
         public int $blockLength = 5,
@@ -118,18 +117,52 @@ class ProgressionConfig extends AbstractData implements HasForms
         };
     }
 
-    public function getFields(): array
+    public static function getWeightConfigForStrategy(string $strategy): FixedStepWeightConfig|CompoundedWeightConfig
     {
-        return [];
+        return match ($strategy) {
+            'compounded' => new CompoundedWeightConfig,
+            default => new FixedStepWeightConfig,
+        };
     }
 
-    public function getForm(Schema $schema): array
+    public static function getRepConfigForStrategy(string $strategy): PairedLadderRepConfig|ProportionalRepConfig
     {
-        return $schema->components([
-            Fieldset::make('Weight Configuration')
-                ->schema($this->weightConfig->getFields()),
-            Fieldset::make('Rep Configuration')
-                ->schema($this->repConfig->getFields()),
-        ])->getComponents();
+        return match ($strategy) {
+            'proportional' => new ProportionalRepConfig,
+            default => new PairedLadderRepConfig,
+        };
+    }
+
+    public static function getFields(array $values = []): array
+    {
+        $weightConfig = self::getWeightConfigForStrategy($values['weightStrategy'] ?? 'fixed_step');
+        $repConfig = self::getRepConfigForStrategy($values['repStrategy'] ?? 'paired_ladder');
+
+        return [
+            FluxFieldset::make('Weight Configuration')->schema([
+                FluxField::select('weightStrategy')
+                    ->label('Weight Strategy')
+                    ->options([
+                        'fixed_step' => 'Fixed Step',
+                        'compounded' => 'Compounded',
+                    ])
+                    ->required()
+                    ->live()
+                    ->rules('required|in:fixed_step,compounded'),
+                ...$weightConfig->getFields(),
+            ]),
+            FluxFieldset::make('Rep Configuration')->schema([
+                FluxField::select('repStrategy')
+                    ->label('Rep Strategy')
+                    ->options([
+                        'paired_ladder' => 'Paired Ladder',
+                        'proportional' => 'Proportional',
+                    ])
+                    ->required()
+                    ->live()
+                    ->rules('required|in:paired_ladder,proportional'),
+                ...$repConfig->getFields(),
+            ]),
+        ];
     }
 }

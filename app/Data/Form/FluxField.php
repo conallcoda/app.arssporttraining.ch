@@ -19,6 +19,9 @@ class FluxField
         public array $schema = [],
         public bool $disabled = false,
         public array $computedFrom = [],
+        public ?string $validationRules = null,
+        public bool $unique = false,
+        public bool $live = false,
     ) {}
 
     public static function select(string $name): static
@@ -123,5 +126,42 @@ class FluxField
         $this->computedFrom = $fields;
 
         return $this;
+    }
+
+    public function rules(string $rules): static
+    {
+        $this->validationRules = $rules;
+
+        return $this;
+    }
+
+    public function unique(bool $unique = true): static
+    {
+        $this->unique = $unique;
+
+        return $this;
+    }
+
+    public function live(bool $live = true): static
+    {
+        $this->live = $live;
+
+        return $this;
+    }
+
+    public static function buildValidationRules(array $fields, string $prefix = ''): array
+    {
+        $rules = [];
+
+        foreach ($fields as $field) {
+            if ($field->type === 'repeater') {
+                $childRules = self::buildValidationRules($field->schema, "{$prefix}{$field->name}.*.");
+                $rules = array_merge($rules, $childRules);
+            } elseif ($field->validationRules) {
+                $rules["{$prefix}{$field->name}"] = $field->validationRules;
+            }
+        }
+
+        return $rules;
     }
 }
