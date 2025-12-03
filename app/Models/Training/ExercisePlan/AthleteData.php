@@ -25,4 +25,21 @@ class AthleteData extends AbstractData
             ],
         );
     }
+
+    public function getOneRepMaxForExercise(ExerciseData $exercise): float
+    {
+        foreach ($this->tests as $test) {
+            if ($test->exerciseId === $exercise->id) {
+                return $test->oneRepMax;
+            }
+        }
+
+        foreach ($this->tests as $test) {
+            if ($test->exerciseId === 1) {
+                return $test->oneRepMax * ($exercise->modifier / 100);
+            }
+        }
+
+        return 0.0;
+    }
 }

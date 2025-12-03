@@ -3,22 +3,30 @@
 namespace App\Models\Training\ExercisePlan;
 
 use App\Data\AbstractData;
-use Spatie\LaravelData\Attributes\Computed;
 
 class AthleteTestData extends AbstractData
 {
-    #[Computed]
-    public float $oneRepMax;
-
     public function __construct(
         public int $exerciseId,
         public int $reps,
         public float $weight,
-    ) {
-        $this->oneRepMax = OneRepMaxConverter::getOneRepMax(
+    ) {}
+
+    public function getOneRepMaxAttribute(): float
+    {
+        return OneRepMaxConverter::getOneRepMax(
             reps: $this->reps,
             weight: $this->weight,
         );
+    }
+
+    public function __get(string $name): mixed
+    {
+        if ($name === 'oneRepMax') {
+            return $this->getOneRepMaxAttribute();
+        }
+
+        return parent::__get($name);
     }
 
     public static function back_squat(): self

@@ -3,7 +3,13 @@
 @php
 
     $weeks = $block->weeks;
-    $setCount = count($weeks[0]?->sessions[0]?->sets ?? []) ?: 4;
+    $setCount = 0;
+    foreach ($weeks as $week) {
+        foreach ($week->sessions as $session) {
+            $setCount = max($setCount, count($session->sets));
+        }
+    }
+    $setCount = $setCount ?: 4;
 
     $sessionsAreIdentical = function ($sessions) {
         if (count($sessions) < 2) {
@@ -42,7 +48,7 @@
                 @endphp
                 @if ($merged)
                     @php $session = $week->sessions[0]; @endphp
-                    <tr class="bg-blue-50 dark:bg-blue-900/20">
+                    <tr>
                         <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle"
                             rowspan="3">
                             W{{ $weekIndex + 1 }}
@@ -51,30 +57,38 @@
                             rowspan="3">
                             1-{{ $sessionCount }}
                         </td>
-                        @foreach ($session->sets as $set)
-                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center">
-                                {{ $set->reps ?? '-' }}
-                            </td>
-                        @endforeach
+                        @for ($i = 0; $i < $setCount; $i++)
+                            @if (isset($session->sets[$i]))
+                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center bg-blue-50 dark:bg-blue-900/20">
+                                    {{ $session->sets[$i]->reps ?? '-' }}
+                                </td>
+                            @else
+                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center" rowspan="3"></td>
+                            @endif
+                        @endfor
                     </tr>
-                    <tr class="bg-green-50 dark:bg-green-900/20">
-                        @foreach ($session->sets as $set)
-                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center">
-                                {{ $set->weight !== null ? number_format($set->weight, 1) : '-' }}
-                            </td>
-                        @endforeach
+                    <tr>
+                        @for ($i = 0; $i < $setCount; $i++)
+                            @if (isset($session->sets[$i]))
+                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center bg-green-50 dark:bg-green-900/20">
+                                    {{ $session->sets[$i]->weight !== null ? number_format($session->sets[$i]->weight, 1) : '-' }}
+                                </td>
+                            @endif
+                        @endfor
                     </tr>
-                    <tr class="bg-orange-50 dark:bg-orange-900/20">
-                        @foreach ($session->sets as $set)
-                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-1 text-center text-xs text-zinc-500 dark:text-zinc-400">
-                                {{ $set->oneRepMax !== null ? number_format($set->oneRepMax, 1) : '-' }}
-                            </td>
-                        @endforeach
+                    <tr>
+                        @for ($i = 0; $i < $setCount; $i++)
+                            @if (isset($session->sets[$i]))
+                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-1 text-center text-xs text-zinc-500 dark:text-zinc-400 bg-orange-50 dark:bg-orange-900/20">
+                                    {{ $session->sets[$i]->oneRepMax !== null ? number_format($session->sets[$i]->oneRepMax, 1) : '-' }}
+                                </td>
+                            @endif
+                        @endfor
                     </tr>
                 @else
                     @foreach ($week->sessions as $sessionIndex => $session)
                         @php $isFirstSession = $sessionIndex === 0; @endphp
-                        <tr class="bg-blue-50 dark:bg-blue-900/20">
+                        <tr>
                             @if ($isFirstSession)
                                 <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle"
                                     rowspan="{{ $sessionCount * 3 }}">
@@ -85,25 +99,33 @@
                                 rowspan="3">
                                 S{{ $sessionIndex + 1 }}
                             </td>
-                            @foreach ($session->sets as $set)
-                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center">
-                                    {{ $set->reps ?? '-' }}
-                                </td>
-                            @endforeach
+                            @for ($i = 0; $i < $setCount; $i++)
+                                @if (isset($session->sets[$i]))
+                                    <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center bg-blue-50 dark:bg-blue-900/20">
+                                        {{ $session->sets[$i]->reps ?? '-' }}
+                                    </td>
+                                @else
+                                    <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center" rowspan="3"></td>
+                                @endif
+                            @endfor
                         </tr>
-                        <tr class="bg-green-50 dark:bg-green-900/20">
-                            @foreach ($session->sets as $set)
-                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center">
-                                    {{ $set->weight !== null ? number_format($set->weight, 1) : '-' }}
-                                </td>
-                            @endforeach
+                        <tr>
+                            @for ($i = 0; $i < $setCount; $i++)
+                                @if (isset($session->sets[$i]))
+                                    <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center bg-green-50 dark:bg-green-900/20">
+                                        {{ $session->sets[$i]->weight !== null ? number_format($session->sets[$i]->weight, 1) : '-' }}
+                                    </td>
+                                @endif
+                            @endfor
                         </tr>
-                        <tr class="bg-orange-50 dark:bg-orange-900/20">
-                            @foreach ($session->sets as $set)
-                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-1 text-center text-xs text-zinc-500 dark:text-zinc-400">
-                                    {{ $set->oneRepMax !== null ? number_format($set->oneRepMax, 1) : '-' }}
-                                </td>
-                            @endforeach
+                        <tr>
+                            @for ($i = 0; $i < $setCount; $i++)
+                                @if (isset($session->sets[$i]))
+                                    <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-1 text-center text-xs text-zinc-500 dark:text-zinc-400 bg-orange-50 dark:bg-orange-900/20">
+                                        {{ $session->sets[$i]->oneRepMax !== null ? number_format($session->sets[$i]->oneRepMax, 1) : '-' }}
+                                    </td>
+                                @endif
+                            @endfor
                         </tr>
                     @endforeach
                 @endif
