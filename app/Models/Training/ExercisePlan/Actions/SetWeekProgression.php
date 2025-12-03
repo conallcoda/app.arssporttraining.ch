@@ -5,7 +5,6 @@ namespace App\Models\Training\ExercisePlan\Actions;
 use App\Models\Training\ExercisePlan\ExerciseBlock;
 use App\Models\Training\ExercisePlan\ExerciseSession;
 use App\Models\Training\ExercisePlan\ExerciseSet;
-use App\Models\Training\ExercisePlan\ExerciseWeek;
 use App\Models\Training\ExercisePlan\FixedWeightStep;
 
 class SetWeekProgression extends BlockAction
@@ -21,59 +20,40 @@ class SetWeekProgression extends BlockAction
 
     public function apply(ExerciseBlock $block): BlockResult
     {
-        $newWeeks = [];
+        $newBlock = $block->mapWeeks(fn ($week) => $this->applyToWeek($week));
 
-        foreach ($block->weeks as $week) {
-            $sessions = $week->sessions;
-            $lastSessionIndex = count($sessions) - 1;
-            $lastSession = $sessions[$lastSessionIndex];
-            $sets = $lastSession->sets;
-            $lastSetIndex = count($sets) - 1;
+        return $this->result($block, $newBlock);
+    }
 
-            $lastSet = $sets[$lastSetIndex];
-            $setCount = count($sets);
+    protected function applyToWeek($week)
+    {
+        $lastSessionIndex = $week->lastSessionIndex();
+        $lastSession = $week->lastSession();
+        $lastSet = $lastSession->lastSet();
+        $setCount = count($lastSession->sets);
+        $totalGroups = (int) ceil($setCount / $this->stepDownInterval);
 
-            $totalGroups = (int) ceil($setCount / $this->stepDownInterval);
+        return $week->mapSessions(fn (ExerciseSession $session, int $sessionIndex) => $sessionIndex === $lastSessionIndex
+                ? $session->mapSets(fn (ExerciseSet $set, int $setIndex) => $this->applyToSet($set, $setIndex, $lastSet->oneRepMax, $totalGroups)
+                )
+                : $session
+        );
+    }
 
-            $newSets = [];
-            for ($setIndex = 0; $setIndex < $setCount; $setIndex++) {
-                $set = $sets[$setIndex];
-                $groupFromStart = intdiv($setIndex, $this->stepDownInterval);
-                $groupFromEnd = $totalGroups - 1 - $groupFromStart;
-                $oneRepMaxForSet = $lastSet->oneRepMax;
+    protected function applyToSet(ExerciseSet $set, int $setIndex, ?float $targetOneRepMax, int $totalGroups): ExerciseSet
+    {
+        $groupFromStart = intdiv($setIndex, $this->stepDownInterval);
+        $groupFromEnd = $totalGroups - 1 - $groupFromStart;
+        $oneRepMaxForSet = $targetOneRepMax;
 
-                for ($i = 0; $i < $groupFromEnd; $i++) {
-                    $oneRepMaxForSet = FixedWeightStep::decrement($oneRepMaxForSet);
-                }
-
-                $newSets[] = new ExerciseSet(
-                    reps: $set->reps,
-                    weight: $set->weight,
-                    oneRepMax: $oneRepMaxForSet,
-                );
-            }
-
-            $newSessions = [];
-            foreach ($sessions as $sessionIndex => $session) {
-                if ($sessionIndex === $lastSessionIndex) {
-                    $newSessions[] = new ExerciseSession(sets: $newSets);
-                } else {
-                    $newSessions[] = $session;
-                }
-            }
-
-            $newWeeks[] = new ExerciseWeek(sessions: $newSessions);
+        for ($i = 0; $i < $groupFromEnd; $i++) {
+            $oneRepMaxForSet = FixedWeightStep::decrement($oneRepMaxForSet);
         }
 
-        $newBlock = new ExerciseBlock(
-            config: $block->config,
-            weeks: $newWeeks,
-        );
-
-        return new BlockResult(
-            action: $this,
-            previous: $block,
-            current: $newBlock,
+        return new ExerciseSet(
+            reps: $set->reps,
+            weight: $set->weight,
+            oneRepMax: $oneRepMaxForSet,
         );
     }
 }

@@ -3,9 +3,7 @@
 namespace App\Models\Training\ExercisePlan\Actions;
 
 use App\Models\Training\ExercisePlan\ExerciseBlock;
-use App\Models\Training\ExercisePlan\ExerciseSession;
 use App\Models\Training\ExercisePlan\ExerciseSet;
-use App\Models\Training\ExercisePlan\ExerciseWeek;
 use App\Models\Training\ExercisePlan\OneRepMaxConverter;
 
 class SetWeightsByRepsAndDerivedOneRepMax extends BlockAction
@@ -17,43 +15,17 @@ class SetWeightsByRepsAndDerivedOneRepMax extends BlockAction
 
     public function apply(ExerciseBlock $block): BlockResult
     {
-        $newWeeks = [];
-
-        foreach ($block->weeks as $week) {
-            $newSessions = [];
-
-            foreach ($week->sessions as $session) {
-                $newSets = [];
-
-                foreach ($session->sets as $set) {
-                    $weight = null;
-
-                    if ($set->oneRepMax !== null && $set->reps !== null) {
-                        $weight = OneRepMaxConverter::getWeight($set->reps, $set->oneRepMax);
-                    }
-
-                    $newSets[] = new ExerciseSet(
-                        reps: $set->reps,
-                        weight: $weight,
-                        oneRepMax: $set->oneRepMax,
-                    );
-                }
-
-                $newSessions[] = new ExerciseSession(sets: $newSets);
-            }
-
-            $newWeeks[] = new ExerciseWeek(sessions: $newSessions);
-        }
-
-        $newBlock = new ExerciseBlock(
-            config: $block->config,
-            weeks: $newWeeks,
+        $newBlock = $block->mapWeeks(fn ($week) => $week->mapSessions(fn ($session) => $session->mapSets(fn (ExerciseSet $set) => new ExerciseSet(
+            reps: $set->reps,
+            weight: $set->oneRepMax !== null && $set->reps !== null
+                ? OneRepMaxConverter::getWeight($set->reps, $set->oneRepMax)
+                : null,
+            oneRepMax: $set->oneRepMax,
+        )
+        )
+        )
         );
 
-        return new BlockResult(
-            action: $this,
-            previous: $block,
-            current: $newBlock,
-        );
+        return $this->result($block, $newBlock);
     }
 }

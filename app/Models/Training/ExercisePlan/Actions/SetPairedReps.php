@@ -3,9 +3,7 @@
 namespace App\Models\Training\ExercisePlan\Actions;
 
 use App\Models\Training\ExercisePlan\ExerciseBlock;
-use App\Models\Training\ExercisePlan\ExerciseSession;
 use App\Models\Training\ExercisePlan\ExerciseSet;
-use App\Models\Training\ExercisePlan\ExerciseWeek;
 
 class SetPairedReps extends BlockAction
 {
@@ -24,44 +22,23 @@ class SetPairedReps extends BlockAction
     public function apply(ExerciseBlock $block): BlockResult
     {
         $blockLength = count($block->weeks);
-        $newWeeks = [];
 
-        foreach ($block->weeks as $weekIndex => $week) {
-            $anchorReps = $this->getAnchorRepsForWeek($weekIndex, $blockLength);
-            $firstTierReps = $anchorReps + $this->repDecrement;
-
-            $newSessions = [];
-            foreach ($week->sessions as $session) {
-                $totalSets = count($session->sets);
-
-                $newSets = [];
-                foreach ($session->sets as $setIndex => $set) {
-                    $pairIndex = intdiv($setIndex, 2);
-                    $reps = $firstTierReps - ($pairIndex * $this->repDecrement);
-                    $reps = max($reps, $this->minimumReps);
-
-                    $newSets[] = new ExerciseSet(
-                        reps: $reps,
-                        weight: $set->weight,
-                        oneRepMax: $set->oneRepMax,
-                    );
-                }
-
-                $newSessions[] = new ExerciseSession(sets: $newSets);
-            }
-
-            $newWeeks[] = new ExerciseWeek(sessions: $newSessions);
-        }
-
-        $newBlock = new ExerciseBlock(
-            config: $block->config,
-            weeks: $newWeeks,
+        $newBlock = $block->mapWeeks(fn ($week, int $weekIndex) => $week->mapSessions(fn ($session) => $this->applyToSession($session, $weekIndex, $blockLength))
         );
 
-        return new BlockResult(
-            action: $this,
-            previous: $block,
-            current: $newBlock,
+        return $this->result($block, $newBlock);
+    }
+
+    protected function applyToSession($session, int $weekIndex, int $blockLength)
+    {
+        $anchorReps = $this->getAnchorRepsForWeek($weekIndex, $blockLength);
+        $firstTierReps = $anchorReps + $this->repDecrement;
+
+        return $session->mapSets(fn (ExerciseSet $set, int $setIndex) => new ExerciseSet(
+            reps: max($firstTierReps - (intdiv($setIndex, 2) * $this->repDecrement), $this->minimumReps),
+            weight: $set->weight,
+            oneRepMax: $set->oneRepMax,
+        )
         );
     }
 

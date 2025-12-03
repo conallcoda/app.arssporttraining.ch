@@ -12,6 +12,15 @@ abstract class BlockAction extends AbstractData
 
     abstract public function getType(): string;
 
+    protected function result(ExerciseBlock $previous, ExerciseBlock $current): BlockResult
+    {
+        return new BlockResult(
+            action: $this,
+            previous: $previous,
+            current: $current,
+        );
+    }
+
     public function title(): string
     {
         $className = class_basename($this);

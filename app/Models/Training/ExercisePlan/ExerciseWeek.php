@@ -12,6 +12,23 @@ class ExerciseWeek extends AbstractData
         public array $sessions = [],
     ) {}
 
+    public function mapSessions(callable $transformer): self
+    {
+        return new self(
+            sessions: array_map($transformer, $this->sessions, array_keys($this->sessions))
+        );
+    }
+
+    public function lastSession(): ?ExerciseSession
+    {
+        return $this->sessions[count($this->sessions) - 1] ?? null;
+    }
+
+    public function lastSessionIndex(): int
+    {
+        return max(0, count($this->sessions) - 1);
+    }
+
     public static function example(): self
     {
         return new self(

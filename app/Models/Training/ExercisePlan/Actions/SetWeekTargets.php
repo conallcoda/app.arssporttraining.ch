@@ -21,15 +21,9 @@ class SetWeekTargets extends BlockAction
 
     public function apply(ExerciseBlock $block): BlockResult
     {
-        $weeks = $block->weeks;
-        $lastWeekIndex = count($weeks) - 1;
-
-        $lastWeek = $weeks[$lastWeekIndex];
-        $lastSession = $lastWeek->sessions[count($lastWeek->sessions) - 1];
-        $lastSet = $lastSession->sets[count($lastSession->sets) - 1];
+        $lastWeekIndex = $block->lastWeekIndex();
+        $lastSet = $block->lastWeek()->lastSession()->lastSet();
         $targetOneRepMax = $lastSet->oneRepMax ?? $block->config->targetOneRepMax;
-
-        $newWeeks = [];
 
         $stepDownCount = $this->countStepDowns($lastWeekIndex);
         for ($i = 0; $i < $stepDownCount; $i++) {
@@ -37,60 +31,41 @@ class SetWeekTargets extends BlockAction
         }
 
         $currentOneRepMax = $targetOneRepMax;
+        $newWeeks = [];
 
-        foreach ($weeks as $weekIndex => $week) {
+        foreach ($block->weeks as $weekIndex => $week) {
             if ($weekIndex === $lastWeekIndex) {
                 $newWeeks[] = $week;
 
                 continue;
             }
 
-            $sessions = $week->sessions;
-            $lastSessionIndex = count($sessions) - 1;
-            $lastSession = $sessions[$lastSessionIndex];
-            $sets = $lastSession->sets;
-            $lastSetIndex = count($sets) - 1;
-
-            $newSets = [];
-            foreach ($sets as $setIndex => $set) {
-                if ($setIndex === $lastSetIndex) {
-                    $newSets[] = new ExerciseSet(
-                        reps: $set->reps,
-                        weight: $set->weight,
-                        oneRepMax: $currentOneRepMax,
-                    );
-                } else {
-                    $newSets[] = $set;
-                }
-            }
-
-            $newSessions = [];
-            foreach ($sessions as $sessionIndex => $session) {
-                if ($sessionIndex === $lastSessionIndex) {
-                    $newSessions[] = new ExerciseSession(sets: $newSets);
-                } else {
-                    $newSessions[] = $session;
-                }
-            }
-
-            $newWeeks[] = new ExerciseWeek(sessions: $newSessions);
+            $newWeeks[] = $this->applyToWeek($week, $currentOneRepMax);
 
             $weeksFromTarget = $lastWeekIndex - $weekIndex;
-            $positionInGroup = ($weeksFromTarget - 1) % $this->stepDownInterval;
-            if ($positionInGroup === 0) {
+            if (($weeksFromTarget - 1) % $this->stepDownInterval === 0) {
                 $currentOneRepMax = FixedWeightStep::increment($currentOneRepMax);
             }
         }
 
-        $newBlock = new ExerciseBlock(
-            config: $block->config,
-            weeks: $newWeeks,
-        );
+        return $this->result($block, $block->withWeeks($newWeeks));
+    }
 
-        return new BlockResult(
-            action: $this,
-            previous: $block,
-            current: $newBlock,
+    protected function applyToWeek(ExerciseWeek $week, float $currentOneRepMax): ExerciseWeek
+    {
+        $lastSessionIndex = $week->lastSessionIndex();
+        $lastSetIndex = $week->lastSession()->lastSetIndex();
+
+        return $week->mapSessions(fn (ExerciseSession $session, int $sessionIndex) => $sessionIndex === $lastSessionIndex
+                ? $session->mapSets(fn (ExerciseSet $set, int $setIndex) => $setIndex === $lastSetIndex
+                        ? new ExerciseSet(
+                            reps: $set->reps,
+                            weight: $set->weight,
+                            oneRepMax: $currentOneRepMax,
+                        )
+                        : $set
+                )
+                : $session
         );
     }
 
@@ -100,8 +75,7 @@ class SetWeekTargets extends BlockAction
 
         for ($weekIndex = 0; $weekIndex < $lastWeekIndex; $weekIndex++) {
             $weeksFromTarget = $lastWeekIndex - $weekIndex;
-            $positionInGroup = ($weeksFromTarget - 1) % $this->stepDownInterval;
-            if ($positionInGroup === 0) {
+            if (($weeksFromTarget - 1) % $this->stepDownInterval === 0) {
                 $count++;
             }
         }
