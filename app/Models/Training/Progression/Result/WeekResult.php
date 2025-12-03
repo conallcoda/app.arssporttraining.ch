@@ -10,8 +10,8 @@ class WeekResult extends AbstractData
 {
     public function __construct(
         public int $weekIndex,
-        public float $anchorWeight,
-        public int $anchorReps,
+        public ?float $anchorWeight,
+        public ?int $anchorReps,
         public ?float $projected1RM = null,
         public ?float $reference1RM = null,
         #[DataCollectionOf(SessionResult::class)]

@@ -14,7 +14,7 @@ use App\Models\Training\Progression\Result\WeekResult;
 use App\Models\Training\Progression\Strategy\Rep\RepStrategyInterface;
 use App\Models\Training\Progression\Strategy\Weight\WeightStrategyInterface;
 
-class ProgressionCalculator
+class ProgressionBase
 {
     protected WeightStrategyInterface $weightStrategy;
 
@@ -253,56 +253,5 @@ class ProgressionCalculator
     public function getGlobalConfig(): ProgressionConfig
     {
         return $this->globalConfig;
-    }
-
-    public function createEmptyProgression(
-        int $exerciseId,
-        array $sessionMap,
-    ): ExerciseProgression {
-        $config = $this->globalConfig->forExercise($exerciseId);
-
-        $weeks = [];
-        for ($weekIndex = 0; $weekIndex < $config->blockLength; $weekIndex++) {
-            $weekSessions = $sessionMap[$weekIndex] ?? [];
-            $sessions = [];
-
-            foreach ($weekSessions as $sessionUuid => $sessionData) {
-                $totalSets = $config->getSetCountForWeek($weekIndex);
-                $sets = [];
-
-                for ($setIndex = 0; $setIndex < $totalSets; $setIndex++) {
-                    $sets[] = new SetResult(
-                        setIndex: $setIndex,
-                        reps: null,
-                        weight: null,
-                        source: 'empty',
-                    );
-                }
-
-                $sessions[] = new SessionResult(
-                    sessionUuid: $sessionUuid,
-                    day: $sessionData['day'] ?? 0,
-                    slot: $sessionData['slot'] ?? 0,
-                    sets: $sets,
-                );
-            }
-
-            $weeks[] = new WeekResult(
-                weekIndex: $weekIndex,
-                anchorWeight: null,
-                anchorReps: null,
-                projected1RM: null,
-                reference1RM: null,
-                sessions: $sessions,
-            );
-        }
-
-        return new ExerciseProgression(
-            exerciseId: $exerciseId,
-            derived1RM: null,
-            target1RM: null,
-            config: $config,
-            weeks: $weeks,
-        );
     }
 }

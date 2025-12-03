@@ -8,8 +8,8 @@ class SetResult extends AbstractData
 {
     public function __construct(
         public int $setIndex,
-        public int $reps,
-        public float $weight,
+        public ?int $reps,
+        public ?float $weight,
         public string $source = 'computed',
         public ?int $computedReps = null,
         public ?float $computedWeight = null,

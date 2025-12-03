@@ -10,8 +10,8 @@ class ExerciseProgression extends AbstractData
 {
     public function __construct(
         public int $exerciseId,
-        public float $derived1RM,
-        public float $target1RM,
+        public ?float $derived1RM,
+        public ?float $target1RM,
         public ResolvedExerciseConfig $config,
         #[DataCollectionOf(WeekResult::class)]
         public array $weeks = [],
