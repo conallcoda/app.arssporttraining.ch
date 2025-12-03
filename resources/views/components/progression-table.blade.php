@@ -1,5 +1,7 @@
 @props(['title', 'rows' => [], 'setCount' => 4, 'exerciseId' => null, 'progression' => null, 'groupByWeek' => false])
 
+@use('App\Models\Training\Progression\Reference\RepPercentageTable')
+
 @php
     $sourceColors = [
         'computed' => '',
@@ -64,10 +66,11 @@
                     @php $sessionCount = count($weekData['sessions']); @endphp
                     @foreach ($weekData['sessions'] as $sessionIndex => $row)
                         @php
-                            $repsRowIndex = $globalRowIndex * 2;
-                            $weightsRowIndex = $globalRowIndex * 2 + 1;
+                            $repsRowIndex = $globalRowIndex * 3;
+                            $weightsRowIndex = $globalRowIndex * 3 + 1;
+                            $derived1RMRowIndex = $globalRowIndex * 3 + 2;
                             $isFirstSession = $sessionIndex === 0;
-                            $rowspanForWeek = $sessionCount * 2;
+                            $rowspanForWeek = $sessionCount * 3;
                             $cellMeta = [
                                 'exerciseId' => $exerciseId,
                                 'weekIndex' => $row['weekIndex'] ?? 0,
@@ -97,7 +100,7 @@
                                     @endif
                                 </td>
                             @endif
-                            <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 text-center bg-zinc-100 dark:bg-zinc-700/50 text-xs font-medium" rowspan="2">
+                            <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 text-center bg-zinc-100 dark:bg-zinc-700/50 text-xs font-medium" rowspan="3">
                                 S{{ $row['session'] }}
                             </td>
                             @foreach ($row['reps'] as $colIndex => $rep)
@@ -140,14 +143,27 @@
                                 </td>
                             @endforeach
                         </tr>
+                        <tr class="bg-orange-50 dark:bg-orange-900/20">
+                            @foreach ($row['weights'] as $colIndex => $weight)
+                                @php
+                                    $rep = $row['reps'][$colIndex] ?? 1;
+                                    $percentage = RepPercentageTable::getPercentage($rep);
+                                    $setDerived1RM = $weight / $percentage;
+                                @endphp
+                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-1 text-center text-xs text-zinc-500 dark:text-zinc-400">
+                                    {{ number_format($setDerived1RM, 1) }}
+                                </td>
+                            @endforeach
+                        </tr>
                         @php $globalRowIndex++; @endphp
                     @endforeach
                 @endforeach
             @else
                 @foreach ($rows as $rowIndex => $row)
                     @php
-                        $repsRowIndex = $rowIndex * 2;
-                        $weightsRowIndex = $rowIndex * 2 + 1;
+                        $repsRowIndex = $rowIndex * 3;
+                        $weightsRowIndex = $rowIndex * 3 + 1;
+                        $derived1RMRowIndex = $rowIndex * 3 + 2;
                         $cellMeta = [
                             'exerciseId' => $exerciseId,
                             'weekIndex' => $row['weekIndex'] ?? $rowIndex,
@@ -158,17 +174,17 @@
                         ];
                     @endphp
                     <tr class="bg-blue-50 dark:bg-blue-900/20">
-                        <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50" rowspan="2">
+                        <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50" rowspan="3">
                             {{ $row['week'] }}.{{ $row['session'] }}
                         </td>
-                        <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-2 text-center bg-zinc-50 dark:bg-zinc-800/50 text-xs" rowspan="2">
+                        <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-2 text-center bg-zinc-50 dark:bg-zinc-800/50 text-xs" rowspan="3">
                             @if (isset($row['projected1RM']) && $row['projected1RM'] !== null)
                                 {{ number_format($row['projected1RM'], 1) }}
                             @else
                                 <span class="text-zinc-400">-</span>
                             @endif
                         </td>
-                        <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-2 text-center bg-zinc-50 dark:bg-zinc-800/50 text-xs" rowspan="2">
+                        <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-2 text-center bg-zinc-50 dark:bg-zinc-800/50 text-xs" rowspan="3">
                             @if (isset($row['derived1RM']) && $row['derived1RM'] !== null)
                                 {{ number_format($row['derived1RM'], 1) }}
                             @else
@@ -212,6 +228,18 @@
                                 @mouseenter="extendSelection({{ $weightsRowIndex }}, {{ $colIndex }}, $event)"
                                 x-init="registerCell({{ $weightsRowIndex }}, {{ $colIndex }}, $el, {{ $weightsMetaJson }})">
                                 {{ number_format($weight, 1) }}
+                            </td>
+                        @endforeach
+                    </tr>
+                    <tr class="bg-orange-50 dark:bg-orange-900/20">
+                        @foreach ($row['weights'] as $colIndex => $weight)
+                            @php
+                                $rep = $row['reps'][$colIndex] ?? 1;
+                                $percentage = RepPercentageTable::getPercentage($rep);
+                                $setDerived1RM = $weight / $percentage;
+                            @endphp
+                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-1 text-center text-xs text-zinc-500 dark:text-zinc-400">
+                                {{ number_format($setDerived1RM, 1) }}
                             </td>
                         @endforeach
                     </tr>
