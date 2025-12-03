@@ -1,0 +1,20 @@
+<?php
+
+namespace App\View\Components;
+
+use Closure;
+use Illuminate\Contracts\View\View;
+use Illuminate\View\Component;
+
+class FluxForm extends Component
+{
+    public function __construct(
+        public array $fields,
+        public ?string $prefix = null,
+    ) {}
+
+    public function render(): View|Closure|string
+    {
+        return view('components.flux-form');
+    }
+}

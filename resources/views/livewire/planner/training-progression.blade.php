@@ -351,98 +351,171 @@ on([
             $this->activeCategory = $this->uniqueCategoriesInBlock->first()->id;
         }
     },
+    'athlete-data-saved' => function (array $data) {
+        $this->dispatch('schedule-action', action: 'athlete.update', params: [
+            'athleteId' => $data['athleteId'],
+            'tests' => $data['tests'],
+        ]);
+    },
 ]);
 
 ?>
 
-<div>
+<div class="grid grid-cols-12 gap-4">
     @if ($block)
-        <flux:accordion transition>
-            <flux:accordion.item expanded>
-                <flux:accordion.heading>Overview</flux:accordion.heading>
-                <flux:accordion.content>
-                    <div class="py-4">
-                        @php $overview = $this->blockOverview; @endphp
+        @php $overview = $this->blockOverview; @endphp
+        <flux:card x-data="{ expanded: true }" class="col-span-6">
+            <button
+                type="button"
+                @click="expanded = !expanded"
+                class="flex w-full items-center justify-between"
+            >
+                <flux:heading size="sm">Overview</flux:heading>
+                <flux:icon
+                    name="chevron-down"
+                    class="size-5 text-zinc-400 transition-transform duration-200"
+                    ::class="expanded ? 'rotate-180' : ''"
+                />
+            </button>
+            <div x-show="expanded" x-collapse>
+                <div class="pt-4">
+                    <div class="flex flex-wrap gap-3">
+                        <x-stat-card label="Weeks" :value="$overview->weekCount" />
+                        <x-stat-card label="Total Sessions" :value="$overview->totalSessions" />
+                        <x-stat-card label="Sessions/Week" :value="$overview->getSessionsPerWeekLabel()" />
+                    </div>
+                </div>
+            </div>
+        </flux:card>
+
+        <flux:card x-data="{ expanded: true }" class="col-span-6">
+            <button
+                type="button"
+                @click="expanded = !expanded"
+                class="flex w-full items-center justify-between"
+            >
+                <flux:heading size="sm">Progression</flux:heading>
+                <flux:icon
+                    name="chevron-down"
+                    class="size-5 text-zinc-400 transition-transform duration-200"
+                    ::class="expanded ? 'rotate-180' : ''"
+                />
+            </button>
+            <div x-show="expanded" x-collapse>
+                <div class="pt-4">
+                    <div class="flex flex-wrap gap-3">
+                        <x-stat-card label="Weight" :value="$overview->weightStrategy" />
+                        <x-stat-card label="Reps" :value="$overview->repStrategy" />
+                        <x-stat-card label="Target" :value="$overview->getTargetImprovementLabel()" />
+                    </div>
+                </div>
+            </div>
+        </flux:card>
+
+        <flux:card x-data="{ expanded: true }" class="col-span-6">
+            <button
+                type="button"
+                @click="expanded = !expanded"
+                class="flex w-full items-center justify-between"
+            >
+                <flux:heading size="sm">Athlete</flux:heading>
+                <flux:icon
+                    name="chevron-down"
+                    class="size-5 text-zinc-400 transition-transform duration-200"
+                    ::class="expanded ? 'rotate-180' : ''"
+                />
+            </button>
+            <div x-show="expanded" x-collapse>
+                <div class="pt-4">
+                    @if ($athleteData && !empty($athleteData['tests']))
+                        @php
+                            $firstTest = collect($athleteData['tests'])->first();
+                            $derived1RM = $firstTest ? round($firstTest['weight'] / \App\Models\Training\Progression\Reference\RepPercentageTable::getPercentage($firstTest['reps']), 1) : null;
+                        @endphp
                         <div class="flex flex-wrap gap-3">
-                            <x-stat-card label="Weeks" :value="$overview->weekCount" />
-                            <x-stat-card label="Total Sessions" :value="$overview->totalSessions" />
-                            <x-stat-card label="Sessions/Week" :value="$overview->getSessionsPerWeekLabel()" />
-                            <x-stat-card label="Weight" :value="$overview->weightStrategy" />
-                            <x-stat-card label="Reps" :value="$overview->repStrategy" />
-                            <x-stat-card label="Target" :value="$overview->getTargetImprovementLabel()" />
+                            <x-stat-card label="Test Result" :value="$firstTest['reps'] . ' reps × ' . $firstTest['weight'] . 'kg'" />
+                            <x-stat-card label="Derived 1RM" :value="$derived1RM . 'kg'" />
                         </div>
+                    @else
+                        <p class="text-sm text-zinc-500">No athlete data configured.</p>
+                    @endif
+                    <div class="flex justify-end mt-4">
+                        <flux:button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            icon="cog-6-tooth"
+                            wire:click="$dispatch('open-athlete-modal', { athleteData: {{ Js::from($athleteData) }} })"
+                        >
+                            Configure
+                        </flux:button>
                     </div>
-                </flux:accordion.content>
-            </flux:accordion.item>
+                </div>
+            </div>
+        </flux:card>
 
-            @if ($athleteData && !empty($athleteData['tests']))
-                @php
-                    $firstTest = collect($athleteData['tests'])->first();
-                    $derived1RM = $firstTest ? round($firstTest['weight'] / \App\Models\Training\Progression\Reference\RepPercentageTable::getPercentage($firstTest['reps']), 1) : null;
-                @endphp
-                <flux:accordion.item expanded>
-                    <flux:accordion.heading>Athlete</flux:accordion.heading>
-                    <flux:accordion.content>
-                        <div class="py-4">
-                            <div class="flex flex-wrap gap-3">
-                                <x-stat-card label="Test Result" :value="$firstTest['reps'] . ' reps × ' . $firstTest['weight'] . 'kg'" />
-                                <x-stat-card label="Derived 1RM" :value="$derived1RM . 'kg'" />
-                            </div>
+        <flux:card x-data="{ expanded: true }" class="col-span-12">
+            <button
+                type="button"
+                @click="expanded = !expanded"
+                class="flex w-full items-center justify-between"
+            >
+                <flux:heading size="sm">Exercises</flux:heading>
+                <flux:icon
+                    name="chevron-down"
+                    class="size-5 text-zinc-400 transition-transform duration-200"
+                    ::class="expanded ? 'rotate-180' : ''"
+                />
+            </button>
+            <div x-show="expanded" x-collapse>
+                <div class="pt-4">
+                    @if ($this->uniqueCategoriesInBlock->isNotEmpty())
+                        <div class="flex gap-1 border-b border-zinc-200 dark:border-zinc-700 mb-4">
+                            @foreach ($this->uniqueCategoriesInBlock as $category)
+                                @php
+                                    $dotColor = $this->getColorValue($category->background_color, 500);
+                                    $isActive = $activeCategory === $category->id;
+                                @endphp
+                                <button
+                                    wire:click="setActiveCategory({{ $category->id }})"
+                                    class="flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors {{ $isActive ? 'border-zinc-800 dark:border-white text-zinc-900 dark:text-white' : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300' }}"
+                                >
+                                    <span class="w-2 h-2 rounded-full" style="background-color: {{ $dotColor }};"></span>
+                                    {{ $category->name }}
+                                </button>
+                            @endforeach
                         </div>
-                    </flux:accordion.content>
-                </flux:accordion.item>
-            @endif
 
-            <flux:accordion.item expanded>
-                <flux:accordion.heading>Exercises</flux:accordion.heading>
-                <flux:accordion.content>
-                    <div class="py-4">
-                        @if ($this->uniqueCategoriesInBlock->isNotEmpty())
-                            <div class="flex gap-1 border-b border-zinc-200 dark:border-zinc-700 mb-4">
-                                @foreach ($this->uniqueCategoriesInBlock as $category)
-                                    @php
-                                        $dotColor = $this->getColorValue($category->background_color, 500);
-                                        $isActive = $activeCategory === $category->id;
-                                    @endphp
-                                    <button
-                                        wire:click="setActiveCategory({{ $category->id }})"
-                                        class="flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors {{ $isActive ? 'border-zinc-800 dark:border-white text-zinc-900 dark:text-white' : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300' }}"
-                                    >
-                                        <span class="w-2 h-2 rounded-full" style="background-color: {{ $dotColor }};"></span>
-                                        {{ $category->name }}
-                                    </button>
-                                @endforeach
-                            </div>
-
-                            <div class="flex flex-wrap gap-4">
-                                @forelse ($this->exercisesForCategory as $exercise)
-                                    <div wire:key="exercise-{{ $activeCategory }}-{{ $exercise->id }}" class="flex-shrink-0">
-                                        <x-progression-table
-                                            :title="$exercise->name . ' (' . (collect($exercise->sessions)->pluck('name')->filter()->join(', ') ?: 'No sessions') . ')'"
-                                            :rows="$this->getExerciseRows($exercise->id)"
-                                            :set-count="$this->setCount"
-                                            :exercise-id="$exercise->id"
-                                            :progression="$this->getExerciseProgression($exercise->id)"
-                                        />
-                                    </div>
-                                @empty
-                                    <div class="text-center py-8 text-zinc-500 w-full">
-                                        No exercises in this category
-                                    </div>
-                                @endforelse
-                            </div>
-                        @else
-                            <div class="text-center py-8 text-zinc-500">
-                                No session categories in this block
-                            </div>
-                        @endif
-                    </div>
-                </flux:accordion.content>
-            </flux:accordion.item>
-        </flux:accordion>
+                        <div class="flex flex-wrap gap-4">
+                            @forelse ($this->exercisesForCategory as $exercise)
+                                <div wire:key="exercise-{{ $activeCategory }}-{{ $exercise->id }}" class="flex-shrink-0">
+                                    <x-progression-table
+                                        :title="$exercise->name . ' (' . (collect($exercise->sessions)->pluck('name')->filter()->join(', ') ?: 'No sessions') . ')'"
+                                        :rows="$this->getExerciseRows($exercise->id)"
+                                        :set-count="$this->setCount"
+                                        :exercise-id="$exercise->id"
+                                        :progression="$this->getExerciseProgression($exercise->id)"
+                                    />
+                                </div>
+                            @empty
+                                <div class="text-center py-8 text-zinc-500 w-full">
+                                    No exercises in this category
+                                </div>
+                            @endforelse
+                        </div>
+                    @else
+                        <div class="text-center py-8 text-zinc-500">
+                            No session categories in this block
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </flux:card>
     @else
         <div class="text-center py-8 text-zinc-500">
             No block data available
         </div>
     @endif
+
+    <livewire:planner.athlete-modal />
 </div>

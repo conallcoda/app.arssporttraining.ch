@@ -3,6 +3,8 @@
 namespace App\Models\Training\Progression\Athlete;
 
 use App\Data\AbstractData;
+use App\Data\Form\FluxField;
+use App\Models\Users\Types\Athlete;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 
 class AthleteData extends AbstractData
@@ -39,5 +41,19 @@ class AthleteData extends AbstractData
     public function hasTest(int $exerciseId): bool
     {
         return isset($this->tests[$exerciseId]);
+    }
+
+    public static function getFields(): array
+    {
+        return [
+            FluxField::select('athleteId')
+                ->label('Athlete')
+                ->options(Athlete::orderBy('forename')->orderBy('surname')->get()->pluck('name', 'id')->toArray())
+                ->searchable()
+                ->required(),
+            FluxField::repeater('tests')
+                ->label('Test Results')
+                ->schema(AthleteTest::getFields()),
+        ];
     }
 }

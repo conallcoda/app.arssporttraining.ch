@@ -473,6 +473,7 @@ class BlockCreator extends Component
             ]);
         }
 
+        $this->syncProgressionBlockLength();
         $this->refreshGrid();
     }
 
@@ -502,6 +503,7 @@ class BlockCreator extends Component
             'nodeId' => $week->uuid,
         ]);
 
+        $this->syncProgressionBlockLength();
         $this->refreshGrid();
     }
 

@@ -1,4 +1,6 @@
 document.addEventListener('alpine:init', () => {
+    Alpine.store('cardWidths', {});
+
     Alpine.data('resizable_card', () => ({
         config: {},
         width: 50,
@@ -15,14 +17,16 @@ document.addEventListener('alpine:init', () => {
                         localStorage.removeItem(this.config.storageKey);
                     }
                 }
+                Alpine.store('cardWidths')[this.config.storageKey] = this.width;
             }
-            this.$nextTick(() => this.dispatchCompactState());
+            setTimeout(() => this.dispatchCompactState(), 100);
         },
 
         setWidth(percent) {
             this.width = percent;
             if (this.config.storageKey) {
                 localStorage.setItem(this.config.storageKey, percent.toString());
+                Alpine.store('cardWidths')[this.config.storageKey] = percent;
             }
             this.dispatchCompactState();
         },
@@ -42,6 +46,7 @@ document.addEventListener('alpine:init', () => {
         dispatchCompactState() {
             const compact = this.width < 100;
             Livewire.dispatch('compact-mode-changed', { compact });
+            window.dispatchEvent(new CustomEvent('compact-mode-changed', { detail: { compact, width: this.width } }));
         },
 
         destroy() {}

@@ -18,19 +18,13 @@
     @keydown.meta.v.prevent="paste()"
     @keydown.escape="cancelEdit()"
     @keydown.enter="commitEdit()">
-    <div class="flex items-center justify-between mb-2">
+    <div class="mb-2">
         <flux:heading size="sm">{{ $title }}</flux:heading>
-        @if ($progression)
-            <div class="text-xs text-zinc-500">
-                1RM: {{ number_format($progression->derived1RM, 1) }}kg → {{ number_format($progression->target1RM, 1) }}kg
-            </div>
-        @endif
     </div>
     <table class="border-collapse border border-zinc-300 dark:border-zinc-600">
         <thead>
             <tr class="bg-zinc-100 dark:bg-zinc-800">
                 <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2">W.S</th>
-                <th class="border border-zinc-300 dark:border-zinc-600 px-2 py-2 text-xs text-zinc-500">Anchor</th>
                 @for ($i = 0; $i < $setCount; $i++)
                     <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2">Set {{ $i + 1 }}</th>
                 @endfor
@@ -53,12 +47,6 @@
                 <tr class="bg-blue-50 dark:bg-blue-900/20">
                     <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50" rowspan="2">
                         {{ $row['week'] }}.{{ $row['session'] }}
-                    </td>
-                    <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 text-xs text-center text-zinc-500 bg-zinc-50 dark:bg-zinc-800/50" rowspan="2">
-                        @if (isset($row['anchorReps']) && isset($row['anchorWeight']))
-                            <div>{{ $row['anchorReps'] }}r</div>
-                            <div>{{ number_format($row['anchorWeight'], 1) }}</div>
-                        @endif
                     </td>
                     @foreach ($row['reps'] as $colIndex => $rep)
                         @php

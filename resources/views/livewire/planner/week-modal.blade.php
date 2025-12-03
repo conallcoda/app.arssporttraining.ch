@@ -91,7 +91,7 @@ $delete = function () {
                     {{ !$isAddMode && $this->isFirstWeek ? 'disabled' : '' }}
                 >
                     <option value="" @selected($linkedTo === null || $linkedTo === '')>Unlinked</option>
-                    @foreach ($availableWeeks as $week)
+                    @foreach ($availableWeeks ?? [] as $week)
                         <option value="{{ $week['uuid'] }}" @selected($linkedTo === $week['uuid'])>
                             Week {{ $week['weekIndex'] + 1 }}
                         </option>

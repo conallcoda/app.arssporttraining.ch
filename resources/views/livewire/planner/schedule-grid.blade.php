@@ -307,6 +307,15 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
     isDraggingOver: null,
     isDropDisallowed: false,
 
+    get cardWidth() {
+        return $store.cardWidths['block-creator-schedule'] || 50;
+    },
+
+    formatName(name) {
+        if (!name) return '';
+        return this.cardWidth < 50 ? name.substring(0, 3) : name;
+    },
+
     startDrag(event, sessionUuid, linkedTo, day, slot) {
         this.draggedSessionUuid = sessionUuid;
         this.draggedSessionLinkedTo = linkedTo;
@@ -458,7 +467,7 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
                                                 @dragend="draggedSessionUuid = null; draggedSessionLinkedTo = null; isDraggingOver = null; isDropDisallowed = false"
                                                 @dblclick="confirmUnlinkAndAction({{ Js::from($weekLinkInfo) }}, () => $wire.openSessionModal('{{ $week->uuid }}', {{ $slotIndex }}, {{ $day }}))"
                                                 wire:click="$dispatch('progression-category-changed', { categoryId: {{ $categoryId }} })">
-                                                <span class="text-xs font-medium">{{ $sessionName ?? $category->name }}</span>
+                                                <span class="text-xs font-medium" x-text="formatName('{{ $sessionName ?? $category->name }}')"></span>
                                             </div>
                                         @else
                                             @php
