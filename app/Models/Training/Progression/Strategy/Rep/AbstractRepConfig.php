@@ -11,6 +11,8 @@ abstract class AbstractRepConfig extends AbstractData implements HasForms, RepCo
 
     abstract public function getType(): string;
 
+    abstract public function getAnchorRepsForWeek(int $weekIndex, int $blockLength): int;
+
     public function toArray(): array
     {
         return array_merge(parent::toArray(), [

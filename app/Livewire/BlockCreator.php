@@ -12,8 +12,8 @@ use App\Models\Training\Progression\Override\SetOverride;
 use App\Models\Training\Progression\Override\WeekAnchorOverride;
 use App\Models\Training\Progression\Result\ExerciseProgression;
 use App\Models\Training\Progression\Strategy\ProgressionCalculator;
+use App\Models\Training\Progression\Strategy\Rep\FixedRepConfig;
 use App\Models\Training\Progression\Strategy\Rep\PairedLadderRepConfig;
-use App\Models\Training\Progression\Strategy\Rep\ProportionalRepConfig;
 use App\Models\Training\Progression\Strategy\Weight\CompoundedWeightConfig;
 use App\Models\Training\Progression\Strategy\Weight\FixedStepWeightConfig;
 use App\Models\Training\TrainingNode;
@@ -97,11 +97,8 @@ class BlockCreator extends Component
                 targetImprovement: 12.5,
                 incrementStep: 0.5,
             ),
-            repConfig: new PairedLadderRepConfig(
-                startingReps: 12,
-                stepDownInterval: 2,
-                repDecrement: 2,
-                minimumReps: 6,
+            repConfig: new FixedRepConfig(
+                reps: 1,
             ),
         );
     }
@@ -276,23 +273,16 @@ class BlockCreator extends Component
         };
     }
 
-    protected function createRepConfig(string $strategy): PairedLadderRepConfig|ProportionalRepConfig
+    protected function createRepConfig(string $strategy): PairedLadderRepConfig
     {
         $current = $this->progressionConfig->repConfig;
 
-        return match ($strategy) {
-            'proportional' => new ProportionalRepConfig(
-                startingReps: $current->startingReps,
-                stepDownInterval: $current->stepDownInterval,
-                minimumReps: $current->minimumReps,
-            ),
-            default => new PairedLadderRepConfig(
-                startingReps: $current->startingReps,
-                stepDownInterval: $current->stepDownInterval,
-                repDecrement: $current instanceof PairedLadderRepConfig ? $current->repDecrement : 2,
-                minimumReps: $current->minimumReps,
-            ),
-        };
+        return new PairedLadderRepConfig(
+            startingReps: $current->startingReps,
+            stepDownInterval: $current->stepDownInterval,
+            repDecrement: $current instanceof PairedLadderRepConfig ? $current->repDecrement : 2,
+            minimumReps: $current->minimumReps,
+        );
     }
 
     protected function setOverride(array $params): void
@@ -621,7 +611,7 @@ class BlockCreator extends Component
     protected function updateProgression(array $params): void
     {
         $weightStrategy = $params['weightStrategy'] ?? 'fixed_step';
-        $repStrategy = $params['repStrategy'] ?? 'paired_ladder';
+        $repStrategy = $params['repStrategy'] ?? 'fixed';
 
         $this->progressionConfig->weightConfig = match ($weightStrategy) {
             'compounded' => new CompoundedWeightConfig(
@@ -635,16 +625,14 @@ class BlockCreator extends Component
         };
 
         $this->progressionConfig->repConfig = match ($repStrategy) {
-            'proportional' => new ProportionalRepConfig(
-                startingReps: (int) ($params['startingReps'] ?? 12),
-                stepDownInterval: (int) ($params['stepDownInterval'] ?? 2),
-                minimumReps: (int) ($params['minimumReps'] ?? 6),
-            ),
-            default => new PairedLadderRepConfig(
+            'paired_ladder' => new PairedLadderRepConfig(
                 startingReps: (int) ($params['startingReps'] ?? 12),
                 stepDownInterval: (int) ($params['stepDownInterval'] ?? 2),
                 repDecrement: (int) ($params['repDecrement'] ?? 2),
                 minimumReps: (int) ($params['minimumReps'] ?? 6),
+            ),
+            default => new FixedRepConfig(
+                reps: (int) ($params['reps'] ?? 1),
             ),
         };
 

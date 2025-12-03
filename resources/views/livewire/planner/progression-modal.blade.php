@@ -4,18 +4,27 @@ use App\Data\Form\FluxFieldset;
 use App\Models\Training\Progression\Config\ProgressionConfig;
 use Livewire\Volt\Component;
 
-new class extends Component {
+new class extends Component
+{
     public bool $showProgressionModal = false;
 
     public ?string $weightStrategy = null;
+
     public ?float $targetImprovement = null;
+
     public ?float $incrementStep = null;
 
     public ?string $repStrategy = null;
+
     public ?int $startingReps = null;
+
     public ?int $stepDownInterval = null;
+
     public ?int $repDecrement = null;
+
     public ?int $minimumReps = null;
+
+    public ?int $reps = null;
 
     public function getFieldsProperty(): array
     {
@@ -37,6 +46,7 @@ new class extends Component {
         $this->stepDownInterval = $progressionConfig['repConfig']['stepDownInterval'] ?? 2;
         $this->repDecrement = $progressionConfig['repConfig']['repDecrement'] ?? 2;
         $this->minimumReps = $progressionConfig['repConfig']['minimumReps'] ?? 6;
+        $this->reps = $progressionConfig['repConfig']['reps'] ?? 8;
 
         $this->showProgressionModal = true;
     }
@@ -53,6 +63,7 @@ new class extends Component {
             'stepDownInterval',
             'repDecrement',
             'minimumReps',
+            'reps',
         ]);
     }
 
@@ -71,6 +82,7 @@ new class extends Component {
             'stepDownInterval' => (int) $this->stepDownInterval,
             'repDecrement' => (int) $this->repDecrement,
             'minimumReps' => (int) $this->minimumReps,
+            'reps' => (int) $this->reps,
         ]);
 
         $this->close();

@@ -3,6 +3,7 @@
 namespace App\Models\Training\Progression\Result;
 
 use App\Data\AbstractData;
+use App\Models\Training\Progression\Reference\RepPercentageTable;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 
 class WeekResult extends AbstractData
@@ -16,6 +17,13 @@ class WeekResult extends AbstractData
         #[DataCollectionOf(SessionResult::class)]
         public array $sessions = [],
     ) {}
+
+    public function getDerived1RM(): float
+    {
+        $percentage = RepPercentageTable::getPercentage($this->anchorReps);
+
+        return $this->anchorWeight / $percentage;
+    }
 
     public function getSession(string $sessionUuid): ?SessionResult
     {

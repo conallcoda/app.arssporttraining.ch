@@ -8,7 +8,6 @@ use App\Models\Training\Progression\Config\ProgressionConfig;
 use App\Models\Training\Progression\Config\ResolvedExerciseConfig;
 use App\Models\Training\Progression\Override\OverrideStore;
 use App\Models\Training\Progression\Strategy\Rep\PairedLadderRepConfig;
-use App\Models\Training\Progression\Strategy\Rep\ProportionalRepConfig;
 use App\Models\Training\Progression\Strategy\Weight\CompoundedWeightConfig;
 use App\Models\Training\Progression\Strategy\Weight\FixedStepWeightConfig;
 
@@ -44,24 +43,6 @@ trait ProgressionTestHelpers
                 startingReps: $startingReps,
                 stepDownInterval: 2,
                 repDecrement: 2,
-                minimumReps: 6,
-            ),
-            modifier: 1.0,
-        );
-    }
-
-    protected function createProportionalResolvedConfig(int $exerciseId = 1): ResolvedExerciseConfig
-    {
-        return new ResolvedExerciseConfig(
-            exerciseId: $exerciseId,
-            blockLength: 5,
-            weightConfig: new FixedStepWeightConfig(
-                targetImprovement: 12.5,
-                incrementStep: 0.5,
-            ),
-            repConfig: new ProportionalRepConfig(
-                startingReps: 14,
-                stepDownInterval: 2,
                 minimumReps: 6,
             ),
             modifier: 1.0,

@@ -181,4 +181,24 @@ describe('WeekResult', function () {
 
         expect($result2->getWeekLabel())->toBe('Week 5');
     });
+
+    it('calculates derived 1RM from anchor weight and reps', function () {
+        $result = new WeekResult(
+            weekIndex: 0,
+            anchorWeight: 55.5,
+            anchorReps: 10,
+            sessions: [],
+        );
+
+        expect($result->getDerived1RM())->toBe(75.0);
+
+        $result2 = new WeekResult(
+            weekIndex: 4,
+            anchorWeight: 67.5,
+            anchorReps: 6,
+            sessions: [],
+        );
+
+        expect(round($result2->getDerived1RM(), 2))->toBe(78.49);
+    });
 });

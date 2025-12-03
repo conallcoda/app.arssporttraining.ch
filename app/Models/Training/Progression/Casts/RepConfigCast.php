@@ -2,8 +2,8 @@
 
 namespace App\Models\Training\Progression\Casts;
 
+use App\Models\Training\Progression\Strategy\Rep\FixedRepConfig;
 use App\Models\Training\Progression\Strategy\Rep\PairedLadderRepConfig;
-use App\Models\Training\Progression\Strategy\Rep\ProportionalRepConfig;
 use App\Models\Training\Progression\Strategy\Rep\RepConfigInterface;
 use Spatie\LaravelData\Casts\Cast;
 use Spatie\LaravelData\Support\Creation\CreationContext;
@@ -18,11 +18,11 @@ class RepConfigCast implements Cast
         }
 
         if (is_array($value)) {
-            $class = $value['class'] ?? PairedLadderRepConfig::class;
-            unset($value['class']);
+            $type = $value['type'] ?? null;
+            unset($value['class'], $value['type']);
 
-            return match ($class) {
-                ProportionalRepConfig::class => ProportionalRepConfig::from($value),
+            return match ($type) {
+                'fixed' => FixedRepConfig::from($value),
                 default => PairedLadderRepConfig::from($value),
             };
         }

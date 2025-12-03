@@ -26,9 +26,9 @@ $repStrategies = computed(fn () => [
         'description' => 'Sets in pairs with decreasing reps over the block',
         'color' => 'amber',
     ],
-    'proportional' => [
-        'label' => 'Proportional',
-        'description' => 'Reps calculated from percentage of 1RM',
+    'fixed' => [
+        'label' => 'Fixed',
+        'description' => 'Same rep count for all sets',
         'color' => 'amber',
     ],
 ]);
@@ -67,9 +67,9 @@ on([
             }
 
             if ($repConfig) {
-                $repClass = $repConfig['class'] ?? ($repConfig['type'] ?? null);
-                $this->repStrategy = match (true) {
-                    str_contains($repClass ?? '', 'Proportional') => 'proportional',
+                $repType = $repConfig['type'] ?? null;
+                $this->repStrategy = match ($repType) {
+                    'fixed' => 'fixed',
                     default => 'paired_ladder',
                 };
             }

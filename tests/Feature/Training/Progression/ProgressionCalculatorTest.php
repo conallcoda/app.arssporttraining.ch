@@ -6,7 +6,6 @@ use App\Models\Training\Progression\Override\SetOverride;
 use App\Models\Training\Progression\Override\WeekAnchorOverride;
 use App\Models\Training\Progression\Result\ExerciseProgression;
 use App\Models\Training\Progression\Strategy\ProgressionCalculator;
-use App\Models\Training\Progression\Strategy\Rep\ProportionalRepConfig;
 use App\Models\Training\Progression\Strategy\Weight\CompoundedWeightConfig;
 use Tests\Feature\Training\Progression\ProgressionTestCase;
 
@@ -128,21 +127,6 @@ describe('ProgressionCalculator', function () {
             $sessionUuid = array_key_first($this->sessionMap[1]);
             $week1Session = $progression->weeks[1]->getSession($sessionUuid);
             expect($week1Session->sets[0]->reps)->toBe($week1Session->sets[1]->reps);
-        });
-    });
-
-    describe('with proportional rep strategy', function () {
-        it('calculates reps based on weight percentage', function () {
-            $this->config->repConfig = new ProportionalRepConfig(
-                startingReps: 12,
-                stepDownInterval: 2,
-                minimumReps: 6,
-            );
-            $calculator = new ProgressionCalculator($this->config, $this->overrides, $this->athlete);
-
-            $progression = $calculator->calculateExerciseProgression(1, $this->sessionMap);
-
-            expect($progression->weeks[0]->reference1RM)->toBe(70.0);
         });
     });
 

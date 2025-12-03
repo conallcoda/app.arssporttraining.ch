@@ -23,6 +23,15 @@ class PairedLadderRepConfig extends AbstractRepConfig
         return 'paired_ladder';
     }
 
+    public function getAnchorRepsForWeek(int $weekIndex, int $blockLength): int
+    {
+        $reps = $this->startingReps - $this->repDecrement;
+        $drops = intdiv($weekIndex, $this->stepDownInterval);
+        $reps -= ($drops * $this->repDecrement);
+
+        return max($reps, $this->minimumReps);
+    }
+
     public function getFields(): array
     {
         return [

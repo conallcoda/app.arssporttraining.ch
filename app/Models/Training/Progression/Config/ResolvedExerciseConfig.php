@@ -6,7 +6,6 @@ use App\Data\AbstractData;
 use App\Models\Training\Progression\Casts\RepConfigCast;
 use App\Models\Training\Progression\Casts\WeightConfigCast;
 use App\Models\Training\Progression\Reference\RepPercentageTable;
-use App\Models\Training\Progression\Strategy\Rep\PairedLadderRepConfig;
 use App\Models\Training\Progression\Strategy\Rep\RepConfigInterface;
 use App\Models\Training\Progression\Strategy\Weight\WeightConfigInterface;
 use Spatie\LaravelData\Attributes\WithCast;
@@ -25,18 +24,7 @@ class ResolvedExerciseConfig extends AbstractData
 
     public function getAnchorRepsForWeek(int $weekIndex): int
     {
-        $startingReps = $this->repConfig->startingReps;
-        $stepDownInterval = $this->repConfig->stepDownInterval;
-        $repDecrement = $this->repConfig instanceof PairedLadderRepConfig
-            ? $this->repConfig->repDecrement
-            : 2;
-        $minimumReps = $this->repConfig->minimumReps;
-
-        $reps = $startingReps - $repDecrement;
-        $drops = intdiv($weekIndex, $stepDownInterval);
-        $reps -= ($drops * $repDecrement);
-
-        return max($reps, $minimumReps);
+        return $this->repConfig->getAnchorRepsForWeek($weekIndex, $this->blockLength);
     }
 
     public function getSetCountForWeek(int $weekIndex): int

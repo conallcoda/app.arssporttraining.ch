@@ -282,6 +282,8 @@ $getExerciseRows = function (int $exerciseId): array {
                 'sources' => $sources,
                 'anchorWeight' => $progression?->weeks[$weekIndex]?->anchorWeight,
                 'anchorReps' => $progression?->weeks[$weekIndex]?->anchorReps,
+                'projected1RM' => $progression?->weeks[$weekIndex]?->projected1RM,
+                'derived1RM' => $progression?->weeks[$weekIndex]?->getDerived1RM(),
             ];
         }
     }
@@ -509,6 +511,7 @@ on([
                                         :set-count="$this->setCount"
                                         :exercise-id="$exercise->id"
                                         :progression="$this->getExerciseProgression($exercise->id)"
+                                        :group-by-week="true"
                                     />
                                 </div>
                             @empty

@@ -7,8 +7,8 @@ use App\Data\Form\FluxField;
 use App\Data\Form\FluxFieldset;
 use App\Models\Training\Progression\Casts\RepConfigCast;
 use App\Models\Training\Progression\Casts\WeightConfigCast;
+use App\Models\Training\Progression\Strategy\Rep\FixedRepConfig;
 use App\Models\Training\Progression\Strategy\Rep\PairedLadderRepConfig;
-use App\Models\Training\Progression\Strategy\Rep\ProportionalRepConfig;
 use App\Models\Training\Progression\Strategy\Rep\RepConfigInterface;
 use App\Models\Training\Progression\Strategy\Weight\CompoundedWeightConfig;
 use App\Models\Training\Progression\Strategy\Weight\FixedStepWeightConfig;
@@ -111,7 +111,7 @@ class ProgressionConfig extends AbstractData
     public function getRepStrategyLabel(): string
     {
         return match (true) {
-            $this->repConfig instanceof ProportionalRepConfig => 'Proportional',
+            $this->repConfig instanceof FixedRepConfig => 'Fixed',
             $this->repConfig instanceof PairedLadderRepConfig => 'Paired Ladder',
             default => 'Unknown',
         };
@@ -125,10 +125,10 @@ class ProgressionConfig extends AbstractData
         };
     }
 
-    public static function getRepConfigForStrategy(string $strategy): PairedLadderRepConfig|ProportionalRepConfig
+    public static function getRepConfigForStrategy(string $strategy): FixedRepConfig|PairedLadderRepConfig
     {
         return match ($strategy) {
-            'proportional' => new ProportionalRepConfig,
+            'fixed' => new FixedRepConfig,
             default => new PairedLadderRepConfig,
         };
     }
@@ -156,11 +156,11 @@ class ProgressionConfig extends AbstractData
                     ->label('Rep Strategy')
                     ->options([
                         'paired_ladder' => 'Paired Ladder',
-                        'proportional' => 'Proportional',
+                        'fixed' => 'Fixed',
                     ])
                     ->required()
                     ->live()
-                    ->rules('required|in:paired_ladder,proportional'),
+                    ->rules('required|in:paired_ladder,fixed'),
                 ...$repConfig->getFields(),
             ]),
         ];
