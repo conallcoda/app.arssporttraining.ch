@@ -2,21 +2,30 @@
 
 namespace App\Models\Training\ExercisePlan\Actions;
 
+use App\Data\Form\FluxField;
 use App\Models\Training\ExercisePlan\ExerciseBlock;
 use App\Models\Training\ExercisePlan\ExerciseSession;
 use App\Models\Training\ExercisePlan\ExerciseSet;
 use App\Models\Training\ExercisePlan\ExerciseWeek;
 use App\Models\Training\ExercisePlan\FixedWeightStep;
 
-class SetWeekTargets extends BlockAction
+class SetOneRepMaxWeekTargetsFixedDecrement extends BlockAction
 {
     public function __construct(
         protected int $stepDownInterval = 2,
     ) {}
 
-    public function getType(): string
+    public function getFields(): array
     {
-        return 'set_week_targets';
+        return [
+            FluxField::number('stepDownInterval')
+                ->label('Step Down Interval')
+                ->required()
+                ->min(1)
+                ->max(10)
+                ->suffix('weeks')
+                ->rules('required|integer|min:1|max:10'),
+        ];
     }
 
     public function apply(ExerciseBlock $block): BlockResult

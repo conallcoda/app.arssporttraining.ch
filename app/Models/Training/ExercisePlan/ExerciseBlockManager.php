@@ -4,6 +4,9 @@ namespace App\Models\Training\ExercisePlan;
 
 use App\Data\AbstractData;
 use App\Models\Training\ExercisePlan\Actions\BlockResult;
+use App\Models\Training\ExercisePlan\Strategies\AbstractStrategy;
+use App\Models\Training\ExercisePlan\Strategies\FixedDecrement;
+use App\Models\Training\ExercisePlan\Strategies\LinearProgression;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 
 class ExerciseBlockManager extends AbstractData
@@ -23,15 +26,8 @@ class ExerciseBlockManager extends AbstractData
         );
 
         $current = ExerciseBlock::example($config);
-        $actions = [
-            new Actions\CreateEmptyBlock,
-            new Actions\SetBlockTarget,
-            new Actions\SetWeekTargets,
-            new Actions\SetWeekProgression,
-            new Actions\SetPairedReps(startingReps: $config->startingReps),
-            new Actions\SetWeightsByRepsAndDerivedOneRepMax,
-        ];
 
+        $actions = static::getStrategy($config->strategy)::actions([]);
         foreach ($actions as $index => $action) {
             $result = $action->apply($current);
 
@@ -49,6 +45,25 @@ class ExerciseBlockManager extends AbstractData
             config: $config,
             results: $results ?? []
         );
+    }
+
+    public static function getStrategy($name): AbstractStrategy
+    {
+        $strategies = static::strategies();
+
+        if (! array_key_exists($name, $strategies)) {
+            return new $strategies['fixed_decrement'];
+        }
+
+        return new $strategies[$name];
+    }
+
+    public static function strategies()
+    {
+        return [
+            'fixed_decrement' => FixedDecrement::class,
+            'linear_progression' => LinearProgression::class,
+        ];
     }
 
     protected static function applyRules(ExerciseBlock $block, array $rules): ExerciseBlock

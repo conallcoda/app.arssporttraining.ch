@@ -10,6 +10,7 @@ class ExerciseWeek extends AbstractData
     public function __construct(
         #[DataCollectionOf(ExerciseSession::class)]
         public array $sessions = [],
+        public ?float $target = null,
     ) {}
 
     public function mapSessions(callable $transformer): self

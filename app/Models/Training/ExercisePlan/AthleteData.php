@@ -21,7 +21,18 @@ class AthleteData extends AbstractData
             id: 1,
             name: 'John Doe',
             tests: [
-                AthleteTestData::back_squat(),
+                AthleteTestData::back_squat(8, 45),
+            ],
+        );
+    }
+
+    public static function strong_doe(): self
+    {
+        return new self(
+            id: 2,
+            name: 'Strong Doe',
+            tests: [
+                AthleteTestData::back_squat(8, 90),
             ],
         );
     }

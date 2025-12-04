@@ -2,22 +2,52 @@
 
 namespace App\Models\Training\ExercisePlan\Actions;
 
+use App\Data\Form\FluxField;
 use App\Models\Training\ExercisePlan\ExerciseBlock;
 use App\Models\Training\ExercisePlan\ExerciseSet;
 
 class SetPairedReps extends BlockAction
 {
-    public function getType(): string
-    {
-        return 'set_paired_reps';
-    }
-
     public function __construct(
         protected int $startingReps = 14,
         protected int $stepDownInterval = 2,
         protected int $repDecrement = 2,
         protected int $minimumReps = 1,
     ) {}
+
+    public function getFields(): array
+    {
+        return [
+            FluxField::number('startingReps')
+                ->label('Starting Reps')
+                ->required()
+                ->min(1)
+                ->max(30)
+                ->suffix('reps')
+                ->rules('required|integer|min:1|max:30'),
+            FluxField::number('stepDownInterval')
+                ->label('Step Down Interval')
+                ->required()
+                ->min(1)
+                ->max(10)
+                ->suffix('weeks')
+                ->rules('required|integer|min:1|max:10'),
+            FluxField::number('repDecrement')
+                ->label('Rep Decrement')
+                ->required()
+                ->min(1)
+                ->max(10)
+                ->suffix('reps')
+                ->rules('required|integer|min:1|max:10'),
+            FluxField::number('minimumReps')
+                ->label('Minimum Reps')
+                ->required()
+                ->min(1)
+                ->max(20)
+                ->suffix('reps')
+                ->rules('required|integer|min:1|max:20'),
+        ];
+    }
 
     public function apply(ExerciseBlock $block): BlockResult
     {

@@ -32,9 +32,12 @@ class ProgressionExample extends Component
 
     public int $startingReps = 14;
 
+    public string $selectedStrategy = 'fixed_decrement';
+
     public function mount(): void
     {
         $this->athletes[] = AthleteData::example();
+        $this->athletes[] = AthleteData::strong_doe();
 
         $this->athlete = $this->athletes[0];
         $this->exercises = [
@@ -69,6 +72,16 @@ class ProgressionExample extends Component
         $this->updateConfig();
     }
 
+    public function updatedSelectedStrategy(): void
+    {
+        $this->updateConfig();
+    }
+
+    public function getStrategies(): array
+    {
+        return ExerciseBlockManager::strategies();
+    }
+
     private function updateConfig(): void
     {
         $this->config = AthleteExerciseConfig::fromAthleteExerciseAndTarget(
@@ -76,6 +89,7 @@ class ProgressionExample extends Component
             exercise: $this->exercise,
             target: $this->targetGoal,
             startingReps: $this->startingReps,
+            strategy: $this->selectedStrategy,
         );
         $this->manager = ExerciseBlockManager::example($this->config);
     }

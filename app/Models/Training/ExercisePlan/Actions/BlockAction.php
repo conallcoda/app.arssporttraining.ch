@@ -3,14 +3,23 @@
 namespace App\Models\Training\ExercisePlan\Actions;
 
 use App\Data\AbstractData;
+use App\Models\Contracts\HasForms;
 use App\Models\Training\ExercisePlan\ExerciseBlock;
 use Illuminate\Support\Str;
 
-abstract class BlockAction extends AbstractData
+abstract class BlockAction extends AbstractData implements HasForms
 {
     abstract public function apply(ExerciseBlock $block): BlockResult;
 
-    abstract public function getType(): string;
+    public function getFields(): array
+    {
+        return [];
+    }
+
+    public static function getType(): string
+    {
+        return Str::snake(class_basename(static::class));
+    }
 
     protected function result(ExerciseBlock $previous, ExerciseBlock $current): BlockResult
     {

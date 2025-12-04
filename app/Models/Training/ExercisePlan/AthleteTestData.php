@@ -29,12 +29,12 @@ class AthleteTestData extends AbstractData
         return parent::__get($name);
     }
 
-    public static function back_squat(): self
+    public static function back_squat(int $reps = 8, float $weight = 45.0): self
     {
         return new self(
             exerciseId: 1,
-            reps: 8,
-            weight: 45.0,
+            reps: $reps,
+            weight: $weight,
         );
     }
 }

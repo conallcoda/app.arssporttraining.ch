@@ -5,13 +5,8 @@ namespace App\Models\Training\ExercisePlan\Actions;
 use App\Models\Training\ExercisePlan\ExerciseBlock;
 use App\Models\Training\ExercisePlan\ExerciseSet;
 
-class SetBlockTarget extends BlockAction
+class SetOneRepMaxBlockTarget extends BlockAction
 {
-    public function getType(): string
-    {
-        return 'set_block_target';
-    }
-
     public function apply(ExerciseBlock $block): BlockResult
     {
         $lastWeekIndex = $block->lastWeekIndex();

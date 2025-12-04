@@ -6,11 +6,6 @@ use App\Models\Training\ExercisePlan\ExerciseBlock;
 
 class CreateEmptyBlock extends BlockAction
 {
-    public function getType(): string
-    {
-        return 'create_empty_block';
-    }
-
     public function apply(ExerciseBlock $block): BlockResult
     {
         return $this->result($block, $block);

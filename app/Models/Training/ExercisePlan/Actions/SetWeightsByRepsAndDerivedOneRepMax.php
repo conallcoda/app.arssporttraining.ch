@@ -8,11 +8,6 @@ use App\Models\Training\ExercisePlan\OneRepMaxConverter;
 
 class SetWeightsByRepsAndDerivedOneRepMax extends BlockAction
 {
-    public function getType(): string
-    {
-        return 'set_weights_by_reps_and_derived_one_rep_max';
-    }
-
     public function apply(ExerciseBlock $block): BlockResult
     {
         $newBlock = $block->mapWeeks(fn ($week) => $week->mapSessions(fn ($session) => $session->mapSets(fn (ExerciseSet $set) => new ExerciseSet(

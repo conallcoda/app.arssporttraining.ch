@@ -15,6 +15,7 @@ class AthleteExerciseConfig extends AbstractData
         public int $startingReps = 14,
         public array $initialRules = [],
         public array $actionRules = [],
+        public string $strategy = 'fixed_decrement',
     ) {}
 
     public static function example(): self
@@ -26,7 +27,7 @@ class AthleteExerciseConfig extends AbstractData
         );
     }
 
-    public static function fromAthleteExerciseAndTarget(AthleteData $athlete, ExerciseData $exercise, float $target, int $startingReps = 14): self
+    public static function fromAthleteExerciseAndTarget(AthleteData $athlete, ExerciseData $exercise, float $target, int $startingReps = 14, string $strategy = 'fixed_decrement'): self
     {
         $startingOneRepMax = $athlete->getOneRepMaxForExercise($exercise);
         $increase = $startingOneRepMax * ($target / 100);
@@ -42,8 +43,10 @@ class AthleteExerciseConfig extends AbstractData
                 new Rules\ReduceSetsForOddWeeks(1),
             ],
             actionRules: [
+                new Rules\RoundWeightsToNearestStep(0.5),
                 new Rules\DuplicateSessionsPerWeek,
             ],
+            strategy: $strategy,
         );
     }
 }
