@@ -268,7 +268,7 @@ Week 5: [8, 8, 6, 6] reps     (stepped down after 2 weeks)
 
 ### Calculate Weights
 
-Converts 1RM values and rep counts into actual training weights using standard strength formulas (Brzycki formula).
+Converts 1RM values and rep counts into actual training weights using standard weight/rep calculations (1RM Conversion Table).
 
 *No configuration options.*
 
