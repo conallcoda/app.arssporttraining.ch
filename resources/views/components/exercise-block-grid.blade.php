@@ -1,4 +1,4 @@
-@props(['block', 'title' => null, 'mergeIdenticalSessions' => true])
+@props(['block', 'title' => null, 'mergeIdenticalSessions' => true, 'highlightedCells' => []])
 
 @php
 
@@ -24,6 +24,18 @@
         }
         return true;
     };
+
+    $isHighlighted = fn($weekIndex, $sessionIndex, $setIndex, $field) =>
+        isset($highlightedCells["{$weekIndex}.{$sessionIndex}.{$setIndex}.{$field}"]);
+
+    $cellClasses = [
+        'reps' => 'bg-blue-50 dark:bg-blue-900/20',
+        'weight' => 'bg-green-50 dark:bg-green-900/20',
+        'oneRepMax' => 'bg-orange-50 dark:bg-orange-900/20',
+    ];
+
+    $getCellClass = fn($weekIndex, $sessionIndex, $setIndex, $field) =>
+        $cellClasses[$field] . ($isHighlighted($weekIndex, $sessionIndex, $setIndex, $field) ? ' !border-2 !border-black dark:!border-white' : '');
 @endphp
 
 <div class="text-sm">
@@ -59,7 +71,7 @@
                         </td>
                         @for ($i = 0; $i < $setCount; $i++)
                             @if (isset($session->sets[$i]))
-                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center bg-blue-50 dark:bg-blue-900/20">
+                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $getCellClass($weekIndex, 0, $i, 'reps') }}">
                                     {{ $session->sets[$i]->reps ?? '-' }}
                                 </td>
                             @else
@@ -70,7 +82,7 @@
                     <tr>
                         @for ($i = 0; $i < $setCount; $i++)
                             @if (isset($session->sets[$i]))
-                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center bg-green-50 dark:bg-green-900/20">
+                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $getCellClass($weekIndex, 0, $i, 'weight') }}">
                                     {{ $session->sets[$i]->weight !== null ? number_format($session->sets[$i]->weight, 1) : '-' }}
                                 </td>
                             @endif
@@ -79,7 +91,7 @@
                     <tr>
                         @for ($i = 0; $i < $setCount; $i++)
                             @if (isset($session->sets[$i]))
-                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-1 text-center text-xs text-zinc-500 dark:text-zinc-400 bg-orange-50 dark:bg-orange-900/20">
+                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-1 text-center text-xs text-zinc-500 dark:text-zinc-400 {{ $getCellClass($weekIndex, 0, $i, 'oneRepMax') }}">
                                     {{ $session->sets[$i]->oneRepMax !== null ? number_format($session->sets[$i]->oneRepMax, 1) : '-' }}
                                 </td>
                             @endif
@@ -101,7 +113,7 @@
                             </td>
                             @for ($i = 0; $i < $setCount; $i++)
                                 @if (isset($session->sets[$i]))
-                                    <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center bg-blue-50 dark:bg-blue-900/20">
+                                    <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $getCellClass($weekIndex, $sessionIndex, $i, 'reps') }}">
                                         {{ $session->sets[$i]->reps ?? '-' }}
                                     </td>
                                 @else
@@ -112,7 +124,7 @@
                         <tr>
                             @for ($i = 0; $i < $setCount; $i++)
                                 @if (isset($session->sets[$i]))
-                                    <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center bg-green-50 dark:bg-green-900/20">
+                                    <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $getCellClass($weekIndex, $sessionIndex, $i, 'weight') }}">
                                         {{ $session->sets[$i]->weight !== null ? number_format($session->sets[$i]->weight, 1) : '-' }}
                                     </td>
                                 @endif
@@ -121,7 +133,7 @@
                         <tr>
                             @for ($i = 0; $i < $setCount; $i++)
                                 @if (isset($session->sets[$i]))
-                                    <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-1 text-center text-xs text-zinc-500 dark:text-zinc-400 bg-orange-50 dark:bg-orange-900/20">
+                                    <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-1 text-center text-xs text-zinc-500 dark:text-zinc-400 {{ $getCellClass($weekIndex, $sessionIndex, $i, 'oneRepMax') }}">
                                         {{ $session->sets[$i]->oneRepMax !== null ? number_format($session->sets[$i]->oneRepMax, 1) : '-' }}
                                     </td>
                                 @endif

@@ -9,13 +9,13 @@ use App\Models\Training\ExercisePlan\ExerciseSet;
 class SetPairedReps extends BlockAction
 {
     public function __construct(
-        protected int $startingReps = 14,
-        protected int $stepDownInterval = 2,
-        protected int $repDecrement = 2,
-        protected int $minimumReps = 1,
+        public int $startingReps = 12,
+        public int $stepDownInterval = 2,
+        public int $repDecrement = 2,
+        public int $minimumReps = 1,
     ) {}
 
-    public function getFields(): array
+    public static function getFields(): array
     {
         return [
             FluxField::number('startingReps')
@@ -53,7 +53,8 @@ class SetPairedReps extends BlockAction
     {
         $blockLength = count($block->weeks);
 
-        $newBlock = $block->mapWeeks(fn ($week, int $weekIndex) => $week->mapSessions(fn ($session) => $this->applyToSession($session, $weekIndex, $blockLength))
+        $newBlock = $block->mapWeeks(
+            fn ($week, int $weekIndex) => $week->mapSessions(fn ($session) => $this->applyToSession($session, $weekIndex, $blockLength))
         );
 
         return $this->result($block, $newBlock);
@@ -64,11 +65,12 @@ class SetPairedReps extends BlockAction
         $anchorReps = $this->getAnchorRepsForWeek($weekIndex, $blockLength);
         $firstTierReps = $anchorReps + $this->repDecrement;
 
-        return $session->mapSets(fn (ExerciseSet $set, int $setIndex) => new ExerciseSet(
-            reps: max($firstTierReps - (intdiv($setIndex, 2) * $this->repDecrement), $this->minimumReps),
-            weight: $set->weight,
-            oneRepMax: $set->oneRepMax,
-        )
+        return $session->mapSets(
+            fn (ExerciseSet $set, int $setIndex) => new ExerciseSet(
+                reps: max($firstTierReps - (intdiv($setIndex, 2) * $this->repDecrement), $this->minimumReps),
+                weight: $set->weight,
+                oneRepMax: $set->oneRepMax,
+            )
         );
     }
 

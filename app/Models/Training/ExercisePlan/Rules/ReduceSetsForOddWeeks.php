@@ -2,6 +2,7 @@
 
 namespace App\Models\Training\ExercisePlan\Rules;
 
+use App\Data\Form\FluxField;
 use App\Models\Training\ExercisePlan\ExerciseBlock;
 use App\Models\Training\ExercisePlan\ExerciseSession;
 use App\Models\Training\ExercisePlan\ExerciseSet;
@@ -10,8 +11,21 @@ use App\Models\Training\ExercisePlan\ExerciseWeek;
 class ReduceSetsForOddWeeks extends BlockRule
 {
     public function __construct(
-        protected int $setsToReduceBy = 1,
+        public int $setsToReduceBy = 1,
     ) {}
+
+    public static function getFields(): array
+    {
+        return [
+            FluxField::number('setsToReduceBy')
+                ->label('Sets to Reduce')
+                ->required()
+                ->min(1)
+                ->max(10)
+                ->suffix('sets')
+                ->rules('required|integer|min:1|max:10'),
+        ];
+    }
 
     public function apply(ExerciseBlock $block): ExerciseBlock
     {

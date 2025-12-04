@@ -6,7 +6,7 @@ use App\Models\Training\ExercisePlan\Actions;
 
 class FixedDecrement extends AbstractStrategy
 {
-    public static function actions(array $config): array
+    public static function actions(): array
     {
         $actions = [
             Actions\CreateEmptyBlock::class,
@@ -17,6 +17,6 @@ class FixedDecrement extends AbstractStrategy
             Actions\SetWeightsByRepsAndDerivedOneRepMax::class,
         ];
 
-        return static::mapActions($actions, $config);
+        return $actions;
     }
 }

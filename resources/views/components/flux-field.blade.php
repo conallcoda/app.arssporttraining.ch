@@ -53,9 +53,18 @@
                             disabled
                             readonly
                         />
-                    @else
+                    @elseif ($field->live)
                         <flux:input
                             wire:model.live="{{ $wireModel }}"
+                            type="number"
+                            placeholder="{{ $field->placeholder ?? $field->label }}"
+                            min="{{ $field->min ?? '' }}"
+                            max="{{ $field->max ?? '' }}"
+                            step="{{ $field->step ?? '' }}"
+                        />
+                    @else
+                        <flux:input
+                            wire:model="{{ $wireModel }}"
                             type="number"
                             placeholder="{{ $field->placeholder ?? $field->label }}"
                             min="{{ $field->min ?? '' }}"
@@ -77,9 +86,18 @@
                         disabled
                         readonly
                     />
-                @else
+                @elseif ($field->live)
                     <flux:input
                         wire:model.live="{{ $wireModel }}"
+                        type="number"
+                        placeholder="{{ $field->placeholder ?? $field->label }}"
+                        min="{{ $field->min ?? '' }}"
+                        max="{{ $field->max ?? '' }}"
+                        step="{{ $field->step ?? '' }}"
+                    />
+                @else
+                    <flux:input
+                        wire:model="{{ $wireModel }}"
                         type="number"
                         placeholder="{{ $field->placeholder ?? $field->label }}"
                         min="{{ $field->min ?? '' }}"

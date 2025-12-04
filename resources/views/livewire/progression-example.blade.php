@@ -4,113 +4,197 @@
     </div>
 
     <div class="mb-6 grid grid-cols-1 gap-6 text-sm md:grid-cols-2">
-        <div>
-            <h3 class="text-lg mb-2 font-semibold">Simplified Exercise Database</h3>
-            <table class="w-full border-collapse border border-zinc-300 dark:border-zinc-600">
-                <thead>
-                    <tr class="bg-zinc-100 dark:bg-zinc-800">
-                        <th class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">ID</th>
-                        <th class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">Name</th>
-                        <th class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">Modifier</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($exercises as $ex)
-                        <tr>
-                            <td class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">{{ $ex->id }}</td>
-                            <td class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">{{ $ex->name }}</td>
-                            <td class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">{{ $ex->modifier }}%</td>
+        <div class="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+            <div class="px-4 py-3 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
+                <h3 class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Simplified Exercise Database</h3>
+            </div>
+            <div class="p-4">
+                <table class="w-full border-collapse border border-zinc-300 dark:border-zinc-600">
+                    <thead>
+                        <tr class="bg-zinc-100 dark:bg-zinc-800">
+                            <th class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">ID</th>
+                            <th class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">Name</th>
+                            <th class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">Modifier</th>
                         </tr>
-                    @endforeach
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach ($exercises as $ex)
+                            <tr>
+                                <td class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">{{ $ex->id }}</td>
+                                <td class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">{{ $ex->name }}</td>
+                                <td class="border border-zinc-300 dark:border-zinc-600 w-20 h-10 p-0"
+                                    x-data="editable_cell($wire, 'updateExerciseModifier', [{{ $ex->id }}], {{ $ex->modifier }}, '%')"
+                                    @click="startEditing">
+                                    <div x-show="!editing" class="px-3 py-2 cursor-pointer text-center" x-text="value + '%'"></div>
+                                    <input x-show="editing" x-cloak x-ref="input" x-model="value" @blur="save" @keydown="handleKeydown" type="number" step="0.1" min="1" class="w-full h-full text-center border border-black outline-none focus:border-black focus:ring-0" />
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div>
 
-        <div>
-            <h3 class="text-lg mb-2 font-semibold">Simplified Athlete Database</h3>
-            <table class="w-full border-collapse border border-zinc-300 dark:border-zinc-600">
-                <thead>
-                    <tr class="bg-zinc-100 dark:bg-zinc-800">
-                        <th class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">ID</th>
-                        <th class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">Name</th>
-                        <th class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">Test (Reps)</th>
-                        <th class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">Test (Weight)</th>
-                        <th class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">1RM</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($athletes as $ath)
-                        <tr>
-                            <td class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">{{ $ath->id }}</td>
-                            <td class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">{{ $ath->name }}</td>
-                            @foreach ($ath->tests as $test)
-                                <td class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">{{ $test->reps }}
-                                </td>
-                                <td class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">{{ $test->weight }} kg
-                                </td>
-                                <td class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">
-                                    {{ number_format($test->oneRepMax, 1) }} kg</td>
-                            @endforeach
+        <div class="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+            <div class="px-4 py-3 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
+                <h3 class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Simplified Athlete Database</h3>
+            </div>
+            <div class="p-4">
+                <table class="w-full border-collapse border border-zinc-300 dark:border-zinc-600">
+                    <thead>
+                        <tr class="bg-zinc-100 dark:bg-zinc-800">
+                            <th class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">ID</th>
+                            <th class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">Name</th>
+                            <th class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">Test (Reps)</th>
+                            <th class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">Test (Weight)</th>
+                            <th class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">Test (1RM)</th>
                         </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <div class="mb-6">
-        <h3 class="mb-2 text-lg font-semibold">Configuration</h3>
-        <div class="flex items-end gap-4">
-            <flux:select wire:model.live="selectedAthleteId" label="Athlete">
-                @foreach ($athletes as $ath)
-                    <flux:select.option value="{{ $ath->id }}">{{ $ath->name }}</flux:select.option>
-                @endforeach
-            </flux:select>
-
-            <flux:select wire:model.live="selectedExerciseId" label="Exercise">
-                @foreach ($exercises as $ex)
-                    <flux:select.option value="{{ $ex->id }}">{{ $ex->name }}</flux:select.option>
-                @endforeach
-            </flux:select>
-
-            <flux:input wire:model.live="targetGoal" type="number" label="Target Goal (%)" step="0.1" />
-
-            <flux:input wire:model.live="startingReps" type="number" label="Starting Reps" step="1"
-                min="6" />
-
-            <flux:select wire:model.live="selectedStrategy" label="Strategy">
-                @foreach ($this->getStrategies() as $key => $class)
-                    <flux:select.option value="{{ $key }}">{{ str_replace('_', ' ', ucwords($key, '_')) }}
-                    </flux:select.option>
-                @endforeach
-            </flux:select>
-        </div>
-
-        <div class="mt-4 rounded border border-zinc-300 bg-zinc-50 p-4 dark:border-zinc-600 dark:bg-zinc-800">
-            <div class="grid grid-cols-3 gap-4 text-sm">
-                <div>
-                    <span class="font-medium">Starting 1RM:</span>
-                    <span>{{ number_format($config->startingOneRepMax, 1) }} kg</span>
-                </div>
-                <div>
-                    <span class="font-medium">Target 1RM:</span>
-                    <span>{{ number_format($config->targetOneRepMax, 1) }} kg</span>
-                </div>
-                <div>
-                    <span class="font-medium">Target:</span>
-                    <span>{{ $config->target }}%</span>
-                </div>
+                    </thead>
+                    <tbody>
+                        @foreach ($athletes as $ath)
+                            <tr>
+                                <td class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">{{ $ath->id }}</td>
+                                <td class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">{{ $ath->name }}</td>
+                                @foreach ($ath->tests as $testIndex => $test)
+                                    <td class="border border-zinc-300 dark:border-zinc-600 w-20 h-10 p-0"
+                                        x-data="editable_cell($wire, 'updateAthleteTestReps', [{{ $ath->id }}, {{ $testIndex }}], {{ $test->reps }})"
+                                        @click="startEditing">
+                                        <div x-show="!editing" class="px-3 py-2 cursor-pointer text-center" x-text="value"></div>
+                                        <input x-show="editing" x-cloak x-ref="input" x-model="value" @blur="save" @keydown="handleKeydown" type="number" step="1" min="1" class="w-full h-full text-center border border-black outline-none focus:border-black focus:ring-0" />
+                                    </td>
+                                    <td class="border border-zinc-300 dark:border-zinc-600 w-24 h-10 p-0"
+                                        x-data="editable_cell($wire, 'updateAthleteTestWeight', [{{ $ath->id }}, {{ $testIndex }}], {{ $test->weight }}, ' kg')"
+                                        @click="startEditing">
+                                        <div x-show="!editing" class="px-3 py-2 cursor-pointer text-center" x-text="value + ' kg'"></div>
+                                        <input x-show="editing" x-cloak x-ref="input" x-model="value" @blur="save" @keydown="handleKeydown" type="number" step="0.5" min="1" class="w-full h-full text-center border border-black outline-none focus:border-black focus:ring-0" />
+                                    </td>
+                                    <td class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">{{ number_format($test->oneRepMax, 1) }} kg</td>
+                                @endforeach
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 
-    <h2 class="mb-4 text-lg font-semibold">{{ $this->manager->exercise()->name }} Training Plan for
-        {{ $this->manager->athlete()->name }} ({{ str_replace('_', ' ', ucwords($selectedStrategy, '_')) }} Strategy)
-    </h2>
+    <div class="mb-6 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+        <div class="px-4 py-3 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
+            <h3 class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Configuration</h3>
+        </div>
+        <div class="p-4">
+            <div class="flex items-end gap-4">
+                <flux:select wire:model.live="selectedAthleteId" label="Athlete">
+                    @foreach ($athletes as $ath)
+                        <flux:select.option value="{{ $ath->id }}">{{ $ath->name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
 
-    <div class="flex flex-wrap gap-4">
-        @foreach ($this->manager->results as $index => $result)
-            <x-exercise-block-grid :block="$result->current" :title="'Step ' . ($index + 1) . ': ' . $result->title()" />
-        @endforeach
+                <flux:select wire:model.live="selectedExerciseId" label="Exercise">
+                    @foreach ($exercises as $ex)
+                        <flux:select.option value="{{ $ex->id }}">{{ $ex->name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+
+                <flux:input wire:model.live="targetGoal" type="number" label="Target Goal (%)" step="0.1" />
+
+                <flux:select wire:model.live="selectedStrategy" label="Strategy">
+                    @foreach ($this->getStrategies() as $key => $class)
+                        <flux:select.option value="{{ $key }}">
+                            {{ str_replace('_', ' ', ucwords($key, '_')) }}
+                        </flux:select.option>
+                    @endforeach
+                </flux:select>
+
+                <flux:button variant="subtle" wire:click="openAdvancedModal" icon="adjustments-horizontal">
+                    Advanced
+                </flux:button>
+            </div>
+
+            <div class="mt-4 flex flex-wrap gap-3">
+                <x-stat-card label="Starting 1RM" :value="number_format($config->startingOneRepMax, 1) . ' kg'" />
+                <x-stat-card label="Target 1RM" :value="number_format($config->targetOneRepMax, 1) . ' kg'" />
+                <x-stat-card label="Target" :value="$config->target . '%'" />
+            </div>
+        </div>
     </div>
+
+    <div class="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+        <div class="px-4 py-3 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
+            <h3 class="text-sm font-medium text-zinc-900 dark:text-zinc-100">{{ $this->manager->exercise()->name }}
+                Training Plan for
+                {{ $this->manager->athlete()->name }} ({{ str_replace('_', ' ', ucwords($selectedStrategy, '_')) }}
+                Strategy)</h3>
+        </div>
+        <div class="p-4">
+            <div class="flex flex-wrap gap-4">
+                @foreach ($this->manager->results as $index => $result)
+                    <x-exercise-block-grid :block="$result->current" :title="'Step ' . ($index + 1) . ': ' . $result->title()" :highlightedCells="$result->getHighlightedCells()" />
+                @endforeach
+            </div>
+        </div>
+    </div>
+
+    <flux:modal name="advanced-strategy-modal" wire:model="showAdvancedModal" variant="flyout" class="w-96">
+        <form wire:submit="saveAdvancedConfig" class="space-y-6">
+            <div>
+                <flux:heading size="lg">Advanced Configuration</flux:heading>
+                <flux:subheading>Configure strategy and rules parameters</flux:subheading>
+            </div>
+
+            @if (count($this->getStrategyFormFields()) > 0)
+                <div class="space-y-4">
+                    <flux:heading size="sm">Strategy: {{ str_replace('_', ' ', ucwords($selectedStrategy, '_')) }}</flux:heading>
+                    @foreach ($this->getStrategyFormFields() as $actionType => $fieldOrFieldset)
+                        <div wire:key="action-{{ $actionType }}">
+                            @if ($fieldOrFieldset instanceof \App\Data\Form\FluxFieldset)
+                                <x-flux-fieldset :fieldset="$fieldOrFieldset" :prefix="'strategyConfig.' . $actionType" />
+                            @elseif (is_array($fieldOrFieldset))
+                                @foreach ($fieldOrFieldset as $field)
+                                    <x-flux-field :field="$field" :prefix="'strategyConfig.' . $actionType" />
+                                @endforeach
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+
+            @if (count($this->getInitialRules()) > 0 || count($this->getActionRules()) > 0)
+                <div class="space-y-4">
+                    <flux:heading size="sm">Rules</flux:heading>
+                    @foreach ($this->getInitialRules() as $ruleType => $ruleInfo)
+                        <div wire:key="initial-rule-{{ $ruleType }}" class="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-medium">{{ $ruleInfo['title'] }}</span>
+                                <flux:switch wire:model.live="initialRulesEnabled.{{ $ruleType }}" />
+                            </div>
+                            @if ($ruleInfo['hasFields'] && ($initialRulesEnabled[$ruleType] ?? false))
+                                <div class="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-700">
+                                    <x-flux-fieldset :fieldset="$ruleInfo['fieldset']" :prefix="'initialRulesConfig.' . $ruleType" :showLegend="false" />
+                                </div>
+                            @endif
+                        </div>
+                    @endforeach
+                    @foreach ($this->getActionRules() as $ruleType => $ruleInfo)
+                        <div wire:key="action-rule-{{ $ruleType }}" class="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-medium">{{ $ruleInfo['title'] }}</span>
+                                <flux:switch wire:model.live="actionRulesEnabled.{{ $ruleType }}" />
+                            </div>
+                            @if ($ruleInfo['hasFields'] && ($actionRulesEnabled[$ruleType] ?? false))
+                                <div class="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-700">
+                                    <x-flux-fieldset :fieldset="$ruleInfo['fieldset']" :prefix="'actionRulesConfig.' . $ruleType" :showLegend="false" />
+                                </div>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+
+            <div class="flex gap-2 justify-end pt-4">
+                <flux:button type="button" variant="ghost" wire:click="closeAdvancedModal">Cancel</flux:button>
+                <flux:button type="submit" variant="primary">Save</flux:button>
+            </div>
+        </form>
+    </flux:modal>
 </div>

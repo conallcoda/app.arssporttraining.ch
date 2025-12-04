@@ -14,7 +14,7 @@ class SetOneRepMaxWeekTargetsLinear extends BlockAction
         protected int $stepUpInterval = 1,
     ) {}
 
-    public function getFields(): array
+    public static function getFields(): array
     {
         return [
             FluxField::number('stepUpInterval')

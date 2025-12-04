@@ -4,5 +4,5 @@ namespace App\Models\Contracts;
 
 interface HasForms
 {
-    public function getFields(): array;
+    public static function getFields(): array;
 }

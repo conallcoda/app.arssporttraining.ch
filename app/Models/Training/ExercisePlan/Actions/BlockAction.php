@@ -11,7 +11,7 @@ abstract class BlockAction extends AbstractData implements HasForms
 {
     abstract public function apply(ExerciseBlock $block): BlockResult;
 
-    public function getFields(): array
+    public static function getFields(): array
     {
         return [];
     }
@@ -32,7 +32,12 @@ abstract class BlockAction extends AbstractData implements HasForms
 
     public function title(): string
     {
-        $className = class_basename($this);
+        return static::getTitle();
+    }
+
+    public static function getTitle(): string
+    {
+        $className = class_basename(static::class);
 
         return ucfirst(strtolower(Str::headline($className)));
     }

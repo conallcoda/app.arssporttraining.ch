@@ -14,7 +14,7 @@ class SetWeekOneRepMaxProgressionFixedDecrement extends BlockAction
         protected int $stepDownInterval = 2,
     ) {}
 
-    public function getFields(): array
+    public static function getFields(): array
     {
         return [
             FluxField::number('stepDownInterval')

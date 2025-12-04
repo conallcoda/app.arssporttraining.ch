@@ -27,7 +27,12 @@ class ExerciseBlockManager extends AbstractData
 
         $current = ExerciseBlock::example($config);
 
-        $actions = static::getStrategy($config->strategy)::actions([]);
+        $strategyClass = static::strategies()[$config->strategy] ?? FixedDecrement::class;
+        $defaultConfig = $strategyClass::getDefaultConfig();
+
+        $strategyConfig = array_replace_recursive($defaultConfig, $config->strategyConfig);
+
+        $actions = static::getStrategy($config->strategy)::configure($strategyConfig);
         foreach ($actions as $index => $action) {
             $result = $action->apply($current);
 
