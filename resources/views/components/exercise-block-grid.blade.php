@@ -38,13 +38,14 @@
         $cellClasses[$field] . ($isHighlighted($weekIndex, $sessionIndex, $setIndex, $field) ? ' !border-2 !border-black dark:!border-white' : '');
 @endphp
 
-<div class="text-sm">
+<div class="text-sm min-w-0">
     <div class="mb-2 flex items-center gap-2">
         <flux:heading size="sm">{{ $title ?? '' }}</flux:heading>
         @if ($helpText)
             <x-help-tooltip :content="$helpText" position="top" />
         @endif
     </div>
+    <div class="overflow-x-auto">
     <table class="border-collapse border border-zinc-300 dark:border-zinc-600">
         <thead>
             <tr class="bg-zinc-100 dark:bg-zinc-800">
@@ -147,4 +148,5 @@
             @endforeach
         </tbody>
     </table>
+    </div>
 </div>

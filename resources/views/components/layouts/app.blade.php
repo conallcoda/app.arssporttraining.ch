@@ -13,9 +13,7 @@
 </head>
 
 <body>
-
-
-    <flux:main class="w-full">
+    <flux:main class="w-full !p-0">
         {{ $slot }}
     </flux:main>
     @fluxScripts
