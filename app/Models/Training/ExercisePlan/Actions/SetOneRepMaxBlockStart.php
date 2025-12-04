@@ -7,6 +7,11 @@ use App\Models\Training\ExercisePlan\ExerciseSet;
 
 class SetOneRepMaxBlockStart extends BlockAction
 {
+    public static function helpText(): string
+    {
+        return 'Sets the starting 1RM value on the first set of the last session of week one. This establishes the athlete\'s baseline strength for the training block.';
+    }
+
     public function apply(ExerciseBlock $block): BlockResult
     {
         $firstWeek = $block->weeks[0] ?? null;

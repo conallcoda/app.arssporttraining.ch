@@ -12,6 +12,11 @@ class RoundWeightsToNearestStep extends BlockRule
         public float $step = 0.5,
     ) {}
 
+    public static function helpText(): string
+    {
+        return 'Rounds all weights to the nearest increment (e.g., 0.5kg) for practical loading with available plates.';
+    }
+
     public static function getFields(): array
     {
         return [
@@ -22,7 +27,8 @@ class RoundWeightsToNearestStep extends BlockRule
                 ->max(10)
                 ->step(0.25)
                 ->suffix('kg')
-                ->rules('required|numeric|min:0.25|max:10'),
+                ->rules('required|numeric|min:0.25|max:10')
+                ->helpText('The smallest weight increment available in your gym. Weights will be rounded to the nearest multiple of this value.'),
         ];
     }
 

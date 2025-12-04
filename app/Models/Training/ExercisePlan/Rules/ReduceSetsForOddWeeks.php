@@ -14,6 +14,11 @@ class ReduceSetsForOddWeeks extends BlockRule
         public int $setsToReduceBy = 1,
     ) {}
 
+    public static function helpText(): string
+    {
+        return 'Reduces the number of sets on odd-numbered weeks to provide built-in deload periods and manage training volume.';
+    }
+
     public static function getFields(): array
     {
         return [
@@ -23,7 +28,8 @@ class ReduceSetsForOddWeeks extends BlockRule
                 ->min(1)
                 ->max(10)
                 ->suffix('sets')
-                ->rules('required|integer|min:1|max:10'),
+                ->rules('required|integer|min:1|max:10')
+                ->helpText('The number of sets to remove on odd-numbered weeks. This creates automatic deload periods to manage fatigue.'),
         ];
     }
 

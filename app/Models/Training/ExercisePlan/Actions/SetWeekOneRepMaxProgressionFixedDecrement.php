@@ -14,6 +14,11 @@ class SetWeekOneRepMaxProgressionFixedDecrement extends BlockAction
         protected int $stepDownInterval = 2,
     ) {}
 
+    public static function helpText(): string
+    {
+        return 'Distributes 1RM values across sets within each week using fixed decrements, grouping sets at specified intervals with the same intensity.';
+    }
+
     public static function getFields(): array
     {
         return [
@@ -23,7 +28,8 @@ class SetWeekOneRepMaxProgressionFixedDecrement extends BlockAction
                 ->min(1)
                 ->max(10)
                 ->suffix('sets')
-                ->rules('required|integer|min:1|max:10'),
+                ->rules('required|integer|min:1|max:10')
+                ->helpText('How many sets to group at the same intensity before decreasing. A value of 2 means sets 1-2 share intensity, then 3-4, etc.'),
         ];
     }
 

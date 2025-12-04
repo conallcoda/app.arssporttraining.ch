@@ -17,7 +17,12 @@
         @endphp
         <flux:field>
             @if ($field->label)
-                <flux:label>{{ $field->label }}</flux:label>
+                <div class="flex items-center gap-1">
+                    <flux:label>{{ $field->label }}</flux:label>
+                    @if ($field->helpText)
+                        <x-help-tooltip :content="$field->helpText" position="top" />
+                    @endif
+                </div>
             @endif
             @if ($field->live)
                 <flux:select wire:model.live="{{ $wireModel }}" placeholder="{{ $field->placeholder ?? 'Select...' }}">
@@ -38,7 +43,12 @@
     @elseif ($field->type === 'number')
         <flux:field>
             @if ($field->label)
-                <flux:label>{{ $field->label }}</flux:label>
+                <div class="flex items-center gap-1">
+                    <flux:label>{{ $field->label }}</flux:label>
+                    @if ($field->helpText)
+                        <x-help-tooltip :content="$field->helpText" position="top" />
+                    @endif
+                </div>
             @endif
             @if ($field->suffix)
                 <flux:input.group>
@@ -110,7 +120,12 @@
     @elseif ($field->type === 'text')
         <flux:field>
             @if ($field->label)
-                <flux:label>{{ $field->label }}</flux:label>
+                <div class="flex items-center gap-1">
+                    <flux:label>{{ $field->label }}</flux:label>
+                    @if ($field->helpText)
+                        <x-help-tooltip :content="$field->helpText" position="top" />
+                    @endif
+                </div>
             @endif
             <flux:input
                 wire:model="{{ $wireModel }}"
@@ -123,7 +138,12 @@
             <div class="space-y-3">
                 <div class="flex items-center justify-between">
                     @if ($field->label)
-                        <flux:label>{{ $field->label }}</flux:label>
+                        <div class="flex items-center gap-1">
+                            <flux:label>{{ $field->label }}</flux:label>
+                            @if ($field->helpText)
+                                <x-help-tooltip :content="$field->helpText" position="top" />
+                            @endif
+                        </div>
                     @endif
                     <flux:button type="button" size="sm" variant="ghost" wire:click="addRepeaterItem('{{ $field->name }}')" icon="plus">
                         Add

@@ -15,6 +15,11 @@ class SetPairedReps extends BlockAction
         public int $minimumReps = 1,
     ) {}
 
+    public static function helpText(): string
+    {
+        return 'Sets rep counts in pairs that decrease across sets and weeks. Starts high and progressively reduces reps at specified intervals to build intensity.';
+    }
+
     public static function getFields(): array
     {
         return [
@@ -22,30 +27,34 @@ class SetPairedReps extends BlockAction
                 ->label('Starting Reps')
                 ->required()
                 ->min(1)
-                ->max(30)
+                ->max(20)
                 ->suffix('reps')
-                ->rules('required|integer|min:1|max:30'),
+                ->rules('required|integer|min:1|max:20')
+                ->helpText('The initial rep count for the first set of week one. Higher values emphasize muscular endurance, lower values emphasize strength.'),
             FluxField::number('stepDownInterval')
                 ->label('Step Down Interval')
                 ->required()
                 ->min(1)
-                ->max(10)
+                ->max(4)
                 ->suffix('weeks')
-                ->rules('required|integer|min:1|max:10'),
+                ->rules('required|integer|min:1|max:4')
+                ->helpText('How many weeks before the rep count decreases. A value of 2 means reps drop every 2 weeks.'),
             FluxField::number('repDecrement')
                 ->label('Rep Decrement')
                 ->required()
                 ->min(1)
-                ->max(10)
+                ->max(4)
                 ->suffix('reps')
-                ->rules('required|integer|min:1|max:10'),
+                ->rules('required|integer|min:1|max:4')
+                ->helpText('The number of reps to reduce by at each step down interval. Larger decrements create faster intensity progression.'),
             FluxField::number('minimumReps')
                 ->label('Minimum Reps')
                 ->required()
                 ->min(1)
-                ->max(20)
+                ->max(6)
                 ->suffix('reps')
-                ->rules('required|integer|min:1|max:20'),
+                ->rules('required|integer|min:1|max:6')
+                ->helpText('The lowest rep count allowed. Reps will never go below this value regardless of decrements applied.'),
         ];
     }
 

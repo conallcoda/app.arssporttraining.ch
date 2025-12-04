@@ -12,6 +12,11 @@ class CreateEmptyBlock extends BlockAction
         public int $sets = 4,
     ) {}
 
+    public static function helpText(): string
+    {
+        return 'Creates an empty training block with the specified number of sets per session.';
+    }
+
     public static function getFields(): array
     {
         return [
@@ -19,9 +24,10 @@ class CreateEmptyBlock extends BlockAction
                 ->label('Sets Per Session')
                 ->required()
                 ->min(1)
-                ->max(20)
+                ->max(6)
                 ->suffix('sets')
-                ->rules('required|integer|min:1|max:20'),
+                ->rules('required|integer|min:1|max:20')
+                ->helpText('The number of sets to include in each training session. More sets increase volume but also fatigue.'),
         ];
     }
 

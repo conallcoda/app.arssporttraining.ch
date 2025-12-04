@@ -11,6 +11,8 @@ abstract class BlockRule extends AbstractData implements HasForms
 {
     abstract public function apply(ExerciseBlock $block): ExerciseBlock;
 
+    abstract public static function helpText(): string;
+
     public static function getFields(): array
     {
         return [];

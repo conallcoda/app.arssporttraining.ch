@@ -14,6 +14,11 @@ class SetOneRepMaxWeekTargetsLinear extends BlockAction
         protected int $stepUpInterval = 1,
     ) {}
 
+    public static function helpText(): string
+    {
+        return 'Sets weekly 1RM targets with linear progression from start to target, stepping up at specified intervals throughout the training block.';
+    }
+
     public static function getFields(): array
     {
         return [
@@ -23,7 +28,8 @@ class SetOneRepMaxWeekTargetsLinear extends BlockAction
                 ->min(1)
                 ->max(10)
                 ->suffix('weeks')
-                ->rules('required|integer|min:1|max:10'),
+                ->rules('required|integer|min:1|max:10')
+                ->helpText('How many weeks between 1RM target increases. A value of 1 increases every week, 2 increases every other week.'),
         ];
     }
 

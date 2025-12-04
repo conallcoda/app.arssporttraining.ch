@@ -22,6 +22,7 @@ class FluxField
         public ?string $validationRules = null,
         public bool $unique = false,
         public bool $live = false,
+        public ?string $helpText = null,
     ) {}
 
     public static function select(string $name): static
@@ -145,6 +146,13 @@ class FluxField
     public function live(bool $live = true): static
     {
         $this->live = $live;
+
+        return $this;
+    }
+
+    public function helpText(string $helpText): static
+    {
+        $this->helpText = $helpText;
 
         return $this;
     }

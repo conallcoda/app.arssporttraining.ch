@@ -11,6 +11,8 @@ abstract class BlockAction extends AbstractData implements HasForms
 {
     abstract public function apply(ExerciseBlock $block): BlockResult;
 
+    abstract public static function helpText(): string;
+
     public static function getFields(): array
     {
         return [];

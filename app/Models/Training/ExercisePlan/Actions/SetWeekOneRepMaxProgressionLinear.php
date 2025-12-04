@@ -9,6 +9,11 @@ use App\Models\Training\ExercisePlan\ExerciseWeek;
 
 class SetWeekOneRepMaxProgressionLinear extends BlockAction
 {
+    public static function helpText(): string
+    {
+        return 'Distributes 1RM values evenly across sets within each week, creating a linear progression from the week\'s start to its target 1RM.';
+    }
+
     public function apply(ExerciseBlock $block): BlockResult
     {
         $startingOneRepMax = $block->config->startingOneRepMax;

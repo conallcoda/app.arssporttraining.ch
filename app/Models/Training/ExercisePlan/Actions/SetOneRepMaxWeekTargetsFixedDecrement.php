@@ -15,6 +15,11 @@ class SetOneRepMaxWeekTargetsFixedDecrement extends BlockAction
         protected int $stepDownInterval = 2,
     ) {}
 
+    public static function helpText(): string
+    {
+        return 'Sets weekly 1RM targets using fixed weight decrements from the final target, stepping down at specified intervals. Creates a reverse-engineered progression.';
+    }
+
     public static function getFields(): array
     {
         return [
@@ -24,7 +29,8 @@ class SetOneRepMaxWeekTargetsFixedDecrement extends BlockAction
                 ->min(1)
                 ->max(10)
                 ->suffix('weeks')
-                ->rules('required|integer|min:1|max:10'),
+                ->rules('required|integer|min:1|max:10')
+                ->helpText('How many weeks to group together at the same 1RM target. Lower values create more frequent intensity changes.'),
         ];
     }
 

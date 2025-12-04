@@ -9,6 +9,11 @@ use App\Models\Training\ExercisePlan\ExerciseWeek;
 
 class DuplicateSessionsPerWeek extends BlockRule
 {
+    public static function helpText(): string
+    {
+        return 'Copies the last session\'s structure to all other sessions within each week, ensuring consistent training across multiple weekly sessions.';
+    }
+
     public function apply(ExerciseBlock $block): ExerciseBlock
     {
         $newWeeks = [];

@@ -26,6 +26,11 @@ class BlockResult extends AbstractData
         return $this->actionClass::getTitle();
     }
 
+    public function helpText(): string
+    {
+        return $this->actionClass::helpText();
+    }
+
     public function toArray(): array
     {
         return [

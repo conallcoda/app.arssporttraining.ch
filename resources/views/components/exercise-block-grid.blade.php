@@ -1,4 +1,4 @@
-@props(['block', 'title' => null, 'mergeIdenticalSessions' => true, 'highlightedCells' => []])
+@props(['block', 'title' => null, 'helpText' => null, 'mergeIdenticalSessions' => true, 'highlightedCells' => []])
 
 @php
 
@@ -39,8 +39,11 @@
 @endphp
 
 <div class="text-sm">
-    <div class="mb-2">
+    <div class="mb-2 flex items-center gap-2">
         <flux:heading size="sm">{{ $title ?? '' }}</flux:heading>
+        @if ($helpText)
+            <x-help-tooltip :content="$helpText" position="top" />
+        @endif
     </div>
     <table class="border-collapse border border-zinc-300 dark:border-zinc-600">
         <thead>

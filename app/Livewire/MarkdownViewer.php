@@ -13,10 +13,13 @@ class MarkdownViewer extends Component
 
     public string $content = '';
 
-    public function mount(string $filePath = '', string $content = ''): void
+    public bool $inline = false;
+
+    public function mount(string $filePath = '', string $content = '', bool $inline = false): void
     {
         $this->filePath = $filePath;
         $this->content = $content;
+        $this->inline = $inline;
     }
 
     #[Computed]

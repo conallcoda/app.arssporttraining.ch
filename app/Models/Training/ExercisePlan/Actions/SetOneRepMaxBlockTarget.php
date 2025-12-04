@@ -7,6 +7,11 @@ use App\Models\Training\ExercisePlan\ExerciseSet;
 
 class SetOneRepMaxBlockTarget extends BlockAction
 {
+    public static function helpText(): string
+    {
+        return 'Sets the target 1RM value on the last set of the final session of the last week. This defines the strength goal the athlete is working towards.';
+    }
+
     public function apply(ExerciseBlock $block): BlockResult
     {
         $lastWeekIndex = $block->lastWeekIndex();
