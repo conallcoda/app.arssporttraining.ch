@@ -1,8 +1,6 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
 @import '../../vendor/livewire/flux/dist/flux.css';
-@import 'jsuites/dist/jsuites.css';
-@import 'jspreadsheet-ce/dist/jspreadsheet.css';
 
 @source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
@@ -11,22 +9,7 @@
     --font-sans: Inter, sans-serif;
 }
 
-
 @custom-variant dark (&:where(.dark, .dark *));
-
-.jss_worksheet>thead {
-    display: none !important;
-}
-
-.jss_worksheet>tbody>tr:nth-child(odd)>td:not(.jss_row):not([data-x="0"]) {
-    background-color: var(--color-blue-100) !important;
-}
-
-.jss_worksheet>tbody>tr:nth-child(odd)>td[data-x="0"] {
-    font-weight: bold !important;
-    text-align: center !important;
-    vertical-align: middle !important;
-}
 
 .scrollbar-none::-webkit-scrollbar {
     display: none;
