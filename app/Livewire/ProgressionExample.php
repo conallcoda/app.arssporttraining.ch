@@ -11,13 +11,17 @@ use App\Models\Training\ExercisePlan\ExerciseData;
 use League\CommonMark\GithubFlavoredMarkdownConverter;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
-use Livewire\Component;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
+use Livewire\Component;
 
 #[Layout('components.layouts.app')]
 #[Title('Training Plan Calculator')]
 class ProgressionExample extends Component
 {
+    #[Url]
+    public string $tab = 'calculator';
+
     public array $athletes = [];
 
     public AthleteData $athlete;
@@ -95,13 +99,13 @@ class ProgressionExample extends Component
 
     public function updatedSelectedAthleteId(): void
     {
-        $this->athlete = collect($this->athletes)->first(fn($a) => $a->id === $this->selectedAthleteId) ?? $this->athletes[0];
+        $this->athlete = collect($this->athletes)->first(fn ($a) => $a->id === $this->selectedAthleteId) ?? $this->athletes[0];
         $this->updateConfig();
     }
 
     public function updatedSelectedExerciseId(): void
     {
-        $this->exercise = collect($this->exercises)->first(fn($e) => $e->id === $this->selectedExerciseId) ?? $this->exercises[0];
+        $this->exercise = collect($this->exercises)->first(fn ($e) => $e->id === $this->selectedExerciseId) ?? $this->exercises[0];
         $this->updateConfig();
     }
 
@@ -204,7 +208,7 @@ class ProgressionExample extends Component
                 break;
             }
         }
-        $this->exercise = collect($this->exercises)->first(fn($e) => $e->id === $this->selectedExerciseId) ?? $this->exercises[0];
+        $this->exercise = collect($this->exercises)->first(fn ($e) => $e->id === $this->selectedExerciseId) ?? $this->exercises[0];
         $this->updateConfig();
     }
 
@@ -228,7 +232,7 @@ class ProgressionExample extends Component
                 break;
             }
         }
-        $this->athlete = collect($this->athletes)->first(fn($a) => $a->id === $this->selectedAthleteId) ?? $this->athletes[0];
+        $this->athlete = collect($this->athletes)->first(fn ($a) => $a->id === $this->selectedAthleteId) ?? $this->athletes[0];
         $this->updateConfig();
     }
 
@@ -252,7 +256,7 @@ class ProgressionExample extends Component
                 break;
             }
         }
-        $this->athlete = collect($this->athletes)->first(fn($a) => $a->id === $this->selectedAthleteId) ?? $this->athletes[0];
+        $this->athlete = collect($this->athletes)->first(fn ($a) => $a->id === $this->selectedAthleteId) ?? $this->athletes[0];
         $this->updateConfig();
     }
 
@@ -320,7 +324,7 @@ class ProgressionExample extends Component
                         $numberParts[] = $counters[$i];
                     }
                     $number = implode('.', $numberParts);
-                    $numberHtml = '<span class="text-zinc-400 dark:text-zinc-500 mr-2">' . $number . '</span>';
+                    $numberHtml = '<span class="text-zinc-400 dark:text-zinc-500 mr-2">'.$number.'</span>';
 
                     if ($level <= 3) {
                         $toc[] = [
@@ -332,7 +336,7 @@ class ProgressionExample extends Component
                     }
                 }
 
-                return '<h' . $level . ' id="' . $slug . '" class="scroll-mt-16">' . $numberHtml . $matches[2] . '</h' . $level . '>';
+                return '<h'.$level.' id="'.$slug.'" class="scroll-mt-16">'.$numberHtml.$matches[2].'</h'.$level.'>';
             },
             $html
         );
