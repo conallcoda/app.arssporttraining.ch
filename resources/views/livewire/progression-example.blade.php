@@ -1,7 +1,7 @@
 <div>
-    <flux:tab.group wire:model="tab">
+    <flux:tab.group>
         <div class="sticky top-0 z-10 bg-white px-3 pt-4 sm:px-6 sm:pt-6 dark:bg-zinc-900">
-            <flux:tabs>
+            <flux:tabs wire:model.live="tab">
                 <flux:tab name="calculator">Calculator</flux:tab>
                 <flux:tab name="documentation">Documentation</flux:tab>
             </flux:tabs>
