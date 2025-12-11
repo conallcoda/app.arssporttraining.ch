@@ -18,16 +18,8 @@
                     <livewire:calculator.athlete-database />
                 </div>
 
-                <livewire:calculator.configuration
-                    :athletes="$athletes"
-                    :exercises="$exercises"
-                    :config="$config"
-                />
-
-                <livewire:calculator.exercise-plan-breakdown
-                    :config="$config"
-                    :strategy="$selectedStrategy"
-                />
+                <livewire:calculator.configuration />
+                <livewire:calculator.athlete-training-plan :athletes="$athletes" :exercises="$exercises" :config="$config" />
             </div>
         </flux:tab.panel>
 

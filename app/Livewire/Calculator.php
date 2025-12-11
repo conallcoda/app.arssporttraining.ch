@@ -5,7 +5,6 @@ namespace App\Livewire;
 use App\Models\Training\ExercisePlan\AthleteData;
 use App\Models\Training\ExercisePlan\AthleteExerciseConfig;
 use App\Models\Training\ExercisePlan\ExerciseData;
-use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
@@ -24,10 +23,6 @@ class Calculator extends Component
     public array $exercises = [];
 
     public ?AthleteExerciseConfig $config = null;
-
-    public int $selectedAthleteId = 1;
-
-    public int $selectedExerciseId = 2;
 
     public float $targetGoal = 10;
 
@@ -66,8 +61,6 @@ class Calculator extends Component
     #[On('config-changed')]
     public function handleConfigChanged(array $configData): void
     {
-        $this->selectedAthleteId = $configData['selectedAthleteId'];
-        $this->selectedExerciseId = $configData['selectedExerciseId'];
         $this->targetGoal = $configData['targetGoal'];
         $this->selectedStrategy = $configData['selectedStrategy'];
         $this->strategyConfig = $configData['strategyConfig'];
@@ -79,35 +72,18 @@ class Calculator extends Component
         $this->updateConfig();
     }
 
-    #[Computed]
-    public function athlete(): ?AthleteData
-    {
-        if (empty($this->athletes)) {
-            return null;
-        }
-
-        return collect($this->athletes)->first(fn ($a) => $a->id === $this->selectedAthleteId) ?? $this->athletes[0];
-    }
-
-    #[Computed]
-    public function exercise(): ?ExerciseData
-    {
-        if (empty($this->exercises)) {
-            return null;
-        }
-
-        return collect($this->exercises)->first(fn ($e) => $e->id === $this->selectedExerciseId) ?? $this->exercises[0];
-    }
-
     protected function updateConfig(): void
     {
-        if (! $this->athlete || ! $this->exercise) {
+        $athlete = $this->athletes[0] ?? null;
+        $exercise = $this->exercises[0] ?? null;
+
+        if (! $athlete || ! $exercise) {
             return;
         }
 
         $this->config = AthleteExerciseConfig::fromAthleteExerciseAndTarget(
-            athlete: $this->athlete,
-            exercise: $this->exercise,
+            athlete: $athlete,
+            exercise: $exercise,
             target: $this->targetGoal,
             strategy: $this->selectedStrategy,
             strategyConfig: $this->strategyConfig,

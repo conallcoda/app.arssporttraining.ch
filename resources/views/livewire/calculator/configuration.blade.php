@@ -2,23 +2,13 @@
     <div class="mb-4 sm:mb-6 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
         <div class="px-4 py-3 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex items-center justify-between">
             <h3 class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Configuration</h3>
-            <x-help-tooltip content="Select an athlete, exercise, target goal percentage, and training strategy. Use Advanced settings for fine-tuned control over steps and rules." />
+            <x-help-tooltip content="Set the target goal percentage and training strategy. Use Advanced settings for fine-tuned control over steps and rules." />
         </div>
         <div class="p-4">
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:flex lg:items-end">
-                <flux:select wire:model.live="selectedAthleteId" label="Athlete">
-                    @foreach ($athletes as $ath)
-                        <flux:select.option value="{{ $ath->id }}">{{ $ath->name }}</flux:select.option>
-                    @endforeach
-                </flux:select>
-
-                <flux:select wire:model.live="selectedExerciseId" label="Exercise">
-                    @foreach ($exercises as $ex)
-                        <flux:select.option value="{{ $ex->id }}">{{ $ex->name }}</flux:select.option>
-                    @endforeach
-                </flux:select>
-
+            <div class="flex flex-wrap items-end gap-4">
                 <flux:input wire:model.live="targetGoal" type="number" label="Target Goal (%)" step="0.1" />
+
+                <flux:input wire:model.live="strategyConfig.set_paired_reps.startingReps" type="number" label="Starting Reps" min="1" max="20" />
 
                 <flux:select wire:model.live="selectedStrategy" label="Strategy">
                     @foreach ($this->getStrategies() as $key => $class)
@@ -28,18 +18,10 @@
                     @endforeach
                 </flux:select>
 
-                <flux:button wire:click="openAdvancedModal" icon="adjustments-horizontal" class="sm:col-span-2 lg:col-span-1">
+                <flux:button wire:click="openAdvancedModal" icon="adjustments-horizontal">
                     Advanced
                 </flux:button>
             </div>
-
-            @if ($config)
-                <div class="mt-4 grid grid-cols-3 gap-3 sm:flex sm:flex-wrap">
-                    <x-stat-card label="Starting 1RM" :value="number_format($config->startingOneRepMax, 1) . ' kg'" />
-                    <x-stat-card label="Target 1RM" :value="number_format($config->targetOneRepMax, 1) . ' kg'" />
-                    <x-stat-card label="Target" :value="$config->target . '%'" />
-                </div>
-            @endif
         </div>
     </div>
 

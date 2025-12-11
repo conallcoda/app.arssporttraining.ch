@@ -6,26 +6,10 @@ use App\Data\Form\FluxFieldset;
 use App\Models\Training\ExercisePlan\AthleteExerciseConfig;
 use App\Models\Training\ExercisePlan\BlockProgressionEngine;
 use Livewire\Attributes\Modelable;
-use Livewire\Attributes\Reactive;
 use Livewire\Component;
 
 class Configuration extends Component
 {
-    #[Reactive]
-    public array $athletes = [];
-
-    #[Reactive]
-    public array $exercises = [];
-
-    #[Reactive]
-    public ?AthleteExerciseConfig $config = null;
-
-    #[Modelable]
-    public int $selectedAthleteId = 1;
-
-    #[Modelable]
-    public int $selectedExerciseId = 2;
-
     #[Modelable]
     public float $targetGoal = 10;
 
@@ -76,16 +60,6 @@ class Configuration extends Component
         }
     }
 
-    public function updatedSelectedAthleteId(): void
-    {
-        $this->emitConfigData();
-    }
-
-    public function updatedSelectedExerciseId(): void
-    {
-        $this->emitConfigData();
-    }
-
     public function updatedTargetGoal(): void
     {
         $this->emitConfigData();
@@ -94,6 +68,11 @@ class Configuration extends Component
     public function updatedSelectedStrategy(): void
     {
         $this->initializeStrategyConfig();
+        $this->emitConfigData();
+    }
+
+    public function updatedStrategyConfig(): void
+    {
         $this->emitConfigData();
     }
 
@@ -176,8 +155,6 @@ class Configuration extends Component
     protected function emitConfigData(): void
     {
         $this->dispatch('config-changed', configData: [
-            'selectedAthleteId' => $this->selectedAthleteId,
-            'selectedExerciseId' => $this->selectedExerciseId,
             'targetGoal' => $this->targetGoal,
             'selectedStrategy' => $this->selectedStrategy,
             'strategyConfig' => $this->strategyConfig,

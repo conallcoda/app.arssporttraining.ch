@@ -214,6 +214,14 @@ protected function isAccessible(User $user, ?string $path = null): bool
     <flux:button variant="primary"/>
 </code-snippet>
 
+### Flux Icons (Lucide)
+- When using a Flux icon (e.g., `<flux:icon.circle-question-mark />`), you must first install it using artisan:
+  ```bash
+  php artisan flux:icon {icon-name} --no-interaction
+  ```
+- Icon names use Lucide naming conventions (check https://lucide.dev/icons for the correct name)
+- Icons are published to `resources/views/flux/icon/{icon-name}.blade.php`
+- Already installed icons can be found in `resources/views/flux/icon/`
 
 ### Available Components
 This is correct as of Boost installation, but there may be additional components within the codebase.

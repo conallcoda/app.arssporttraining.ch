@@ -1,4 +1,4 @@
-@props(['block', 'title' => null, 'helpText' => null, 'mergeIdenticalSessions' => true, 'highlightedCells' => []])
+@props(['block', 'title' => null, 'helpText' => null, 'mergeIdenticalSessions' => true, 'highlightedCells' => [], 'titleAction' => null])
 
 @php
 
@@ -39,10 +39,15 @@
 @endphp
 
 <div class="text-sm min-w-0">
-    <div class="mb-2 flex items-center gap-2">
-        <flux:heading size="sm">{{ $title ?? '' }}</flux:heading>
-        @if ($helpText)
-            <x-help-tooltip :content="$helpText" position="top" />
+    <div class="mb-2 flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+            <flux:heading size="sm">{{ $title ?? '' }}</flux:heading>
+            @if ($helpText)
+                <x-help-tooltip :content="$helpText" position="top" />
+            @endif
+        </div>
+        @if ($titleAction)
+            {{ $titleAction }}
         @endif
     </div>
     <div class="overflow-x-auto">
