@@ -16,7 +16,7 @@ class AthleteDatabase extends Component
         $this->athletes = [
             AthleteData::example(1, 'John Doe', 8, 45),
             AthleteData::example(2, 'Max Mustermann', 8, 65),
-            AthleteData::example(3, 'Jan Modal', 6, 65),
+            AthleteData::example(3, 'Jan Modaal', 6, 65),
             AthleteData::example(4, 'Hans Muster', 8, 90),
         ];
 
