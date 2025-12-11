@@ -2,14 +2,12 @@
 
 namespace App\Livewire;
 
-use App\Data\Form\FluxFieldset;
 use App\Models\Training\ExercisePlan\AthleteData;
 use App\Models\Training\ExercisePlan\AthleteExerciseConfig;
-use App\Models\Training\ExercisePlan\AthleteTestData;
-use App\Models\Training\ExercisePlan\ExerciseBlockManager;
 use App\Models\Training\ExercisePlan\ExerciseData;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -25,9 +23,7 @@ class Calculator extends Component
 
     public array $exercises = [];
 
-    public ExerciseBlockManager $manager;
-
-    public AthleteExerciseConfig $config;
+    public ?AthleteExerciseConfig $config = null;
 
     public int $selectedAthleteId = 1;
 
@@ -47,224 +43,68 @@ class Calculator extends Component
 
     public array $actionRulesEnabled = [];
 
-    public bool $showAdvancedModal = false;
-
-    public function mount(): void
+    #[On('exercises-updated')]
+    public function handleExercisesUpdated(array $exercises): void
     {
-        $this->athletes[] = AthleteData::example();
-        $this->athletes[] = AthleteData::strong_doe();
-
-        $this->exercises = [
-            ExerciseData::back_squat(),
-            ExerciseData::front_squat(),
-            ExerciseData::from(['id' => 3, 'name' => 'Deadlift (Wide)', 'modifier' => 85.0]),
-            ExerciseData::from(['id' => 4, 'name' => 'Deadlift (Narrow)', 'modifier' => 105.0]),
-            ExerciseData::from(['id' => 5, 'name' => 'Row', 'modifier' => 100.0]),
-        ];
-
-        $this->initializeStrategyConfig();
-        $this->initializeRulesConfig();
-        $this->updateConfig();
-        $this->manager = ExerciseBlockManager::example($this->config);
-    }
-
-    protected function initializeStrategyConfig(): void
-    {
-        $strategyClass = ExerciseBlockManager::strategies()[$this->selectedStrategy] ?? null;
-        if ($strategyClass) {
-            $this->strategyConfig = $strategyClass::getDefaultConfig();
-        }
-    }
-
-    protected function initializeRulesConfig(): void
-    {
-        $this->initialRulesConfig = AthleteExerciseConfig::getDefaultRulesConfig(
-            AthleteExerciseConfig::initialRuleClasses()
+        $this->exercises = array_map(
+            fn ($e) => $e instanceof ExerciseData ? $e : ExerciseData::from($e),
+            $exercises
         );
-        $this->actionRulesConfig = AthleteExerciseConfig::getDefaultRulesConfig(
-            AthleteExerciseConfig::actionRuleClasses()
+        $this->updateConfig();
+    }
+
+    #[On('athletes-updated')]
+    public function handleAthletesUpdated(array $athletes): void
+    {
+        $this->athletes = array_map(
+            fn ($a) => $a instanceof AthleteData ? $a : AthleteData::from($a),
+            $athletes
         );
-
-        foreach (AthleteExerciseConfig::initialRuleClasses() as $ruleClass) {
-            $this->initialRulesEnabled[$ruleClass::getType()] = true;
-        }
-        foreach (AthleteExerciseConfig::actionRuleClasses() as $ruleClass) {
-            $this->actionRulesEnabled[$ruleClass::getType()] = true;
-        }
-    }
-
-    public function updatedSelectedAthleteId(): void
-    {
         $this->updateConfig();
     }
 
-    public function updatedSelectedExerciseId(): void
+    #[On('config-changed')]
+    public function handleConfigChanged(array $configData): void
     {
-        $this->updateConfig();
-    }
+        $this->selectedAthleteId = $configData['selectedAthleteId'];
+        $this->selectedExerciseId = $configData['selectedExerciseId'];
+        $this->targetGoal = $configData['targetGoal'];
+        $this->selectedStrategy = $configData['selectedStrategy'];
+        $this->strategyConfig = $configData['strategyConfig'];
+        $this->initialRulesConfig = $configData['initialRulesConfig'];
+        $this->actionRulesConfig = $configData['actionRulesConfig'];
+        $this->initialRulesEnabled = $configData['initialRulesEnabled'];
+        $this->actionRulesEnabled = $configData['actionRulesEnabled'];
 
-    public function updatedTargetGoal(): void
-    {
-        $this->updateConfig();
-    }
-
-    public function updatedSelectedStrategy(): void
-    {
-        $this->initializeStrategyConfig();
-        $this->updateConfig();
-    }
-
-    public function getStrategies(): array
-    {
-        return ExerciseBlockManager::strategies();
-    }
-
-    public function getStrategyFormFields(): array
-    {
-        $strategyClass = ExerciseBlockManager::strategies()[$this->selectedStrategy] ?? null;
-        if (! $strategyClass) {
-            return [];
-        }
-
-        return $strategyClass::getConfigureForm();
-    }
-
-    public function getInitialRules(): array
-    {
-        return AthleteExerciseConfig::getRulesInfo(
-            AthleteExerciseConfig::initialRuleClasses()
-        );
-    }
-
-    public function getActionRules(): array
-    {
-        return AthleteExerciseConfig::getRulesInfo(
-            AthleteExerciseConfig::actionRuleClasses()
-        );
-    }
-
-    public function openAdvancedModal(): void
-    {
-        $this->showAdvancedModal = true;
-    }
-
-    public function closeAdvancedModal(): void
-    {
-        $this->showAdvancedModal = false;
-    }
-
-    public function saveAdvancedConfig(): void
-    {
-        $rules = [];
-
-        $strategyClass = ExerciseBlockManager::strategies()[$this->selectedStrategy] ?? null;
-        if ($strategyClass) {
-            $formFields = $strategyClass::getConfigureForm();
-            foreach ($formFields as $actionType => $fieldset) {
-                $fieldsetRules = FluxFieldset::buildValidationRules([$fieldset], "strategyConfig.{$actionType}.");
-                $rules = array_merge($rules, $fieldsetRules);
-            }
-        }
-
-        foreach ($this->getInitialRules() as $ruleType => $ruleInfo) {
-            if (! ($this->initialRulesEnabled[$ruleType] ?? false) || $ruleInfo['fieldset'] === null) {
-                continue;
-            }
-            $fieldsetRules = FluxFieldset::buildValidationRules([$ruleInfo['fieldset']], "initialRulesConfig.{$ruleType}.");
-            $rules = array_merge($rules, $fieldsetRules);
-        }
-
-        foreach ($this->getActionRules() as $ruleType => $ruleInfo) {
-            if (! ($this->actionRulesEnabled[$ruleType] ?? false) || $ruleInfo['fieldset'] === null) {
-                continue;
-            }
-            $fieldsetRules = FluxFieldset::buildValidationRules([$ruleInfo['fieldset']], "actionRulesConfig.{$ruleType}.");
-            $rules = array_merge($rules, $fieldsetRules);
-        }
-
-        if (! empty($rules)) {
-            $this->validate($rules);
-        }
-
-        $this->updateConfig();
-        $this->showAdvancedModal = false;
-    }
-
-    public function updateExerciseModifier(int $exerciseId, float $value): void
-    {
-        foreach ($this->exercises as $index => $exercise) {
-            if ($exercise->id === $exerciseId) {
-                $this->exercises[$index] = new ExerciseData(
-                    id: $exercise->id,
-                    name: $exercise->name,
-                    modifier: $value,
-                );
-                break;
-            }
-        }
-        $this->updateConfig();
-    }
-
-    public function updateAthleteTestReps(int $athleteId, int $testIndex, int $value): void
-    {
-        foreach ($this->athletes as $index => $athlete) {
-            if ($athlete->id === $athleteId) {
-                $tests = $athlete->tests;
-                if (isset($tests[$testIndex])) {
-                    $tests[$testIndex] = new AthleteTestData(
-                        exerciseId: $tests[$testIndex]->exerciseId,
-                        reps: $value,
-                        weight: $tests[$testIndex]->weight,
-                    );
-                }
-                $this->athletes[$index] = new AthleteData(
-                    id: $athlete->id,
-                    name: $athlete->name,
-                    tests: $tests,
-                );
-                break;
-            }
-        }
-        $this->updateConfig();
-    }
-
-    public function updateAthleteTestWeight(int $athleteId, int $testIndex, float $value): void
-    {
-        foreach ($this->athletes as $index => $athlete) {
-            if ($athlete->id === $athleteId) {
-                $tests = $athlete->tests;
-                if (isset($tests[$testIndex])) {
-                    $tests[$testIndex] = new AthleteTestData(
-                        exerciseId: $tests[$testIndex]->exerciseId,
-                        reps: $tests[$testIndex]->reps,
-                        weight: $value,
-                    );
-                }
-                $this->athletes[$index] = new AthleteData(
-                    id: $athlete->id,
-                    name: $athlete->name,
-                    tests: $tests,
-                );
-                break;
-            }
-        }
         $this->updateConfig();
     }
 
     #[Computed]
-    public function athlete(): AthleteData
+    public function athlete(): ?AthleteData
     {
+        if (empty($this->athletes)) {
+            return null;
+        }
+
         return collect($this->athletes)->first(fn ($a) => $a->id === $this->selectedAthleteId) ?? $this->athletes[0];
     }
 
     #[Computed]
-    public function exercise(): ExerciseData
+    public function exercise(): ?ExerciseData
     {
+        if (empty($this->exercises)) {
+            return null;
+        }
+
         return collect($this->exercises)->first(fn ($e) => $e->id === $this->selectedExerciseId) ?? $this->exercises[0];
     }
 
-    private function updateConfig(): void
+    protected function updateConfig(): void
     {
+        if (! $this->athlete || ! $this->exercise) {
+            return;
+        }
+
         $this->config = AthleteExerciseConfig::fromAthleteExerciseAndTarget(
             athlete: $this->athlete,
             exercise: $this->exercise,
@@ -276,7 +116,6 @@ class Calculator extends Component
             initialRulesEnabled: $this->initialRulesEnabled,
             actionRulesEnabled: $this->actionRulesEnabled,
         );
-        $this->manager = ExerciseBlockManager::example($this->config);
     }
 
     public function render()
