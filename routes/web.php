@@ -1,8 +1,8 @@
 <?php
 
 use App\Livewire\BlockCreator;
-use App\Livewire\ProgressionExample;
+use App\Livewire\Calculator;
 use Illuminate\Support\Facades\Route;
 
-//Route::get('/', BlockCreator::class);
-Route::get('/calculator', ProgressionExample::class);
+// Route::get('/', BlockCreator::class);
+Route::get('/calculator', Calculator::class);
