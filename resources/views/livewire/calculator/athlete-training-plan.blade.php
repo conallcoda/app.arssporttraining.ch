@@ -41,11 +41,12 @@
         </div>
 
         @if ($this->selectedAthlete)
-            <div class="p-4">
+            <div>
+                <flux:heading size="xl" class="p-6 pb-0">Athlete Training Plan for {{ $this->selectedAthlete->name }}</flux:heading>
                 @if (count($this->exerciseBlocks) > 0)
                     <div class="flex flex-wrap">
                         @foreach ($this->exerciseBlocks as $item)
-                            <div class="p-4">
+                            <div class="p-6 {{ !$loop->last ? 'border-r border-zinc-200 dark:border-zinc-700' : '' }}">
                             <x-exercise-block-grid :block="$item['block']" :title="$item['exercise']->name" :highlightedCells="[]" headingSize="lg">
                                 <x-slot:titleAction>
                                     <button wire:click="openBreakdown({{ $item['exercise']->id }})"
@@ -109,7 +110,7 @@
                         @endforeach
                     </div>
                 @else
-                    <div class="text-center text-zinc-500 dark:text-zinc-400 py-8">
+                    <div class="text-center text-zinc-500 dark:text-zinc-400 p-8">
                         No exercises configured.
                     </div>
                 @endif
