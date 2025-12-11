@@ -10,6 +10,8 @@
 
                 <flux:input wire:model.live="strategyConfig.set_paired_reps.startingReps" type="number" label="Starting Reps" min="1" max="20" />
 
+                <flux:input wire:model.live="strategyConfig.create_empty_block.sets" type="number" label="# Sets" min="1" max="6" />
+
                 <flux:select wire:model.live="selectedStrategy" label="Strategy">
                     @foreach ($this->getStrategies() as $key => $class)
                         <flux:select.option value="{{ $key }}">

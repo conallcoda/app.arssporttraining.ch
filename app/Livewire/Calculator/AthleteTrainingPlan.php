@@ -27,6 +27,8 @@ class AthleteTrainingPlan extends Component
 
     public ?int $breakdownExerciseId = null;
 
+    public array $exerciseOverrides = [];
+
     #[Computed]
     public function selectedAthlete(): ?AthleteData
     {
@@ -61,15 +63,7 @@ class AthleteTrainingPlan extends Component
             return null;
         }
 
-        $exerciseConfig = AthleteExerciseConfig::fromAthleteExerciseAndTarget(
-            athlete: $athlete,
-            exercise: $exercise,
-            target: $this->config->target,
-            strategy: $this->config->strategy,
-            strategyConfig: $this->config->strategyConfig,
-            initialRulesConfig: $this->config->initialRulesConfig,
-            actionRulesConfig: $this->config->actionRulesConfig,
-        );
+        $exerciseConfig = $this->buildExerciseConfig($athlete, $exercise);
 
         return AthleteExerciseBlockHistory::example($exerciseConfig);
     }
@@ -84,16 +78,7 @@ class AthleteTrainingPlan extends Component
 
         $blocks = [];
         foreach ($this->exercises as $exercise) {
-            $exerciseConfig = AthleteExerciseConfig::fromAthleteExerciseAndTarget(
-                athlete: $athlete,
-                exercise: $exercise,
-                target: $this->config->target,
-                strategy: $this->config->strategy,
-                strategyConfig: $this->config->strategyConfig,
-                initialRulesConfig: $this->config->initialRulesConfig,
-                actionRulesConfig: $this->config->actionRulesConfig,
-            );
-
+            $exerciseConfig = $this->buildExerciseConfig($athlete, $exercise);
             $history = AthleteExerciseBlockHistory::example($exerciseConfig);
 
             $blocks[] = [
@@ -120,6 +105,76 @@ class AthleteTrainingPlan extends Component
     {
         $this->showBreakdownModal = false;
         $this->breakdownExerciseId = null;
+    }
+
+    public function getExerciseTarget(int $exerciseId): float
+    {
+        return (float) ($this->exerciseOverrides[$exerciseId]['target'] ?? $this->config?->target ?? 10);
+    }
+
+    public function getExerciseStartingReps(int $exerciseId): int
+    {
+        return (int) ($this->exerciseOverrides[$exerciseId]['startingReps']
+            ?? $this->config?->strategyConfig['set_paired_reps']['startingReps']
+            ?? 12);
+    }
+
+    public function getExerciseSets(int $exerciseId): int
+    {
+        return (int) ($this->exerciseOverrides[$exerciseId]['sets']
+            ?? $this->config?->strategyConfig['create_empty_block']['sets']
+            ?? 4);
+    }
+
+    public function updateExerciseOverride(int $exerciseId, string $field, float $value): void
+    {
+        $default = match ($field) {
+            'target' => $this->config?->target ?? 10,
+            'startingReps' => $this->config?->strategyConfig['set_paired_reps']['startingReps'] ?? 12,
+            'sets' => $this->config?->strategyConfig['create_empty_block']['sets'] ?? 4,
+            default => null,
+        };
+
+        if ($default !== null && (float) $value === (float) $default) {
+            if (isset($this->exerciseOverrides[$exerciseId][$field])) {
+                unset($this->exerciseOverrides[$exerciseId][$field]);
+                if (empty($this->exerciseOverrides[$exerciseId])) {
+                    unset($this->exerciseOverrides[$exerciseId]);
+                }
+            }
+
+            return;
+        }
+
+        if (! isset($this->exerciseOverrides[$exerciseId])) {
+            $this->exerciseOverrides[$exerciseId] = [];
+        }
+        $this->exerciseOverrides[$exerciseId][$field] = $value;
+    }
+
+    protected function buildExerciseConfig(AthleteData $athlete, ExerciseData $exercise): AthleteExerciseConfig
+    {
+        $overrides = $this->exerciseOverrides[$exercise->id] ?? [];
+
+        $target = $overrides['target'] ?? $this->config->target;
+
+        $strategyConfig = $this->config->strategyConfig;
+        if (isset($overrides['startingReps'])) {
+            $strategyConfig['set_paired_reps']['startingReps'] = (int) $overrides['startingReps'];
+        }
+        if (isset($overrides['sets'])) {
+            $strategyConfig['create_empty_block']['sets'] = (int) $overrides['sets'];
+        }
+
+        return AthleteExerciseConfig::fromAthleteExerciseAndTarget(
+            athlete: $athlete,
+            exercise: $exercise,
+            target: $target,
+            strategy: $this->config->strategy,
+            strategyConfig: $strategyConfig,
+            initialRulesConfig: $this->config->initialRulesConfig,
+            actionRulesConfig: $this->config->actionRulesConfig,
+        );
     }
 
     public function render()

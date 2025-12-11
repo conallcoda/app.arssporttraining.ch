@@ -15,27 +15,18 @@ class AthleteData extends AbstractData
 
     ) {}
 
-    public static function example(): self
+    public static function example($id = 1, $name = 'John Doe', $reps = 8, $weight = 45): self
     {
         return new self(
-            id: 1,
-            name: 'John Doe',
+            id: $id,
+            name: $name,
             tests: [
-                AthleteTestData::back_squat(8, 45),
+                AthleteTestData::back_squat($reps, $weight),
             ],
         );
     }
 
-    public static function strong_doe(): self
-    {
-        return new self(
-            id: 2,
-            name: 'Strong Doe',
-            tests: [
-                AthleteTestData::back_squat(8, 90),
-            ],
-        );
-    }
+
 
     public function getOneRepMaxForExercise(ExerciseData $exercise): float
     {

@@ -43,9 +43,10 @@
         @if ($this->selectedAthlete)
             <div class="p-4">
                 @if (count($this->exerciseBlocks) > 0)
-                    <div class="flex flex-wrap gap-4">
+                    <div class="flex flex-wrap">
                         @foreach ($this->exerciseBlocks as $item)
-                            <x-exercise-block-grid :block="$item['block']" :title="$item['exercise']->name" :highlightedCells="[]">
+                            <div class="p-4">
+                            <x-exercise-block-grid :block="$item['block']" :title="$item['exercise']->name" :highlightedCells="[]" headingSize="lg">
                                 <x-slot:titleAction>
                                     <button wire:click="openBreakdown({{ $item['exercise']->id }})"
                                         class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
@@ -53,7 +54,58 @@
                                         <flux:icon.circle-question-mark class="size-4" />
                                     </button>
                                 </x-slot:titleAction>
+                                <x-slot:subtitleContent>
+                                    <div class="flex items-center gap-1.5">
+                                        @php
+                                            $exerciseId = $item['exercise']->id;
+                                            $targetValue = $this->getExerciseTarget($exerciseId);
+                                            $repsValue = $this->getExerciseStartingReps($exerciseId);
+                                            $setsValue = $this->getExerciseSets($exerciseId);
+                                            $hasTargetOverride = isset($exerciseOverrides[$exerciseId]['target']);
+                                            $hasRepsOverride = isset($exerciseOverrides[$exerciseId]['startingReps']);
+                                            $hasSetsOverride = isset($exerciseOverrides[$exerciseId]['sets']);
+                                        @endphp
+                                        <div wire:key="target-{{ $exerciseId }}-{{ $targetValue }}"
+                                            class="inline-flex items-center rounded-md border px-1.5 py-0.5 {{ $hasTargetOverride ? 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800' }}"
+                                            x-data="editable_cell($wire, 'updateExerciseOverride', [{{ $exerciseId }}, 'target'], {{ $targetValue }})" @click="startEditing">
+                                            <span
+                                                class="{{ $hasTargetOverride ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400' }} mr-1">Target:</span>
+                                            <span x-show="!editing" class="font-medium cursor-pointer"
+                                                x-text="value + '%'"></span>
+                                            <input x-show="editing" x-cloak x-ref="input" x-model="value"
+                                                @blur="save" @keydown="handleKeydown" type="number" step="0.1"
+                                                min="1"
+                                                class="w-12 text-center bg-transparent border-none outline-none p-0 text-sm font-medium focus:ring-0" />
+                                        </div>
+                                        <div wire:key="reps-{{ $exerciseId }}-{{ $repsValue }}"
+                                            class="inline-flex items-center rounded-md border px-1.5 py-0.5 {{ $hasRepsOverride ? 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800' }}"
+                                            x-data="editable_cell($wire, 'updateExerciseOverride', [{{ $exerciseId }}, 'startingReps'], {{ $repsValue }})" @click="startEditing">
+                                            <span
+                                                class="{{ $hasRepsOverride ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400' }} mr-1">Start
+                                                Reps:</span>
+                                            <span x-show="!editing" class="font-medium cursor-pointer"
+                                                x-text="value"></span>
+                                            <input x-show="editing" x-cloak x-ref="input" x-model="value"
+                                                @blur="save" @keydown="handleKeydown" type="number" step="1"
+                                                min="1" max="20"
+                                                class="w-8 text-center bg-transparent border-none outline-none p-0 text-sm font-medium focus:ring-0" />
+                                        </div>
+                                        <div wire:key="sets-{{ $exerciseId }}-{{ $setsValue }}"
+                                            class="inline-flex items-center rounded-md border px-1.5 py-0.5 {{ $hasSetsOverride ? 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800' }}"
+                                            x-data="editable_cell($wire, 'updateExerciseOverride', [{{ $exerciseId }}, 'sets'], {{ $setsValue }})" @click="startEditing">
+                                            <span
+                                                class="{{ $hasSetsOverride ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400' }} mr-1">Sets:</span>
+                                            <span x-show="!editing" class="font-medium cursor-pointer"
+                                                x-text="value"></span>
+                                            <input x-show="editing" x-cloak x-ref="input" x-model="value"
+                                                @blur="save" @keydown="handleKeydown" type="number" step="1"
+                                                min="1" max="6"
+                                                class="w-8 text-center bg-transparent border-none outline-none p-0 text-sm font-medium focus:ring-0" />
+                                        </div>
+                                    </div>
+                                </x-slot:subtitleContent>
                             </x-exercise-block-grid>
+                            </div>
                         @endforeach
                     </div>
                 @else
