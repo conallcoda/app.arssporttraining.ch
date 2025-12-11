@@ -12,7 +12,7 @@ use App\Models\Training\ExercisePlan\FixedWeightStep;
 class SetOneRepMaxWeekTargetsFixedDecrement extends BlockAction
 {
     public function __construct(
-        protected int $stepDownInterval = 2,
+        public int $stepDownInterval = 2,
     ) {}
 
     public static function helpText(): string
@@ -71,8 +71,10 @@ class SetOneRepMaxWeekTargetsFixedDecrement extends BlockAction
         $lastSessionIndex = $week->lastSessionIndex();
         $lastSetIndex = $week->lastSession()->lastSetIndex();
 
-        return $week->mapSessions(fn (ExerciseSession $session, int $sessionIndex) => $sessionIndex === $lastSessionIndex
-                ? $session->mapSets(fn (ExerciseSet $set, int $setIndex) => $setIndex === $lastSetIndex
+        return $week->mapSessions(
+            fn(ExerciseSession $session, int $sessionIndex) => $sessionIndex === $lastSessionIndex
+                ? $session->mapSets(
+                    fn(ExerciseSet $set, int $setIndex) => $setIndex === $lastSetIndex
                         ? new ExerciseSet(
                             reps: $set->reps,
                             weight: $set->weight,

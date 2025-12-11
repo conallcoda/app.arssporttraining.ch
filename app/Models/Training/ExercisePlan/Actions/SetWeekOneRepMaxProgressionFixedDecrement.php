@@ -11,7 +11,7 @@ use App\Models\Training\ExercisePlan\FixedWeightStep;
 class SetWeekOneRepMaxProgressionFixedDecrement extends BlockAction
 {
     public function __construct(
-        protected int $stepDownInterval = 2,
+        public int $stepDownInterval = 2,
     ) {}
 
     public static function helpText(): string
@@ -35,7 +35,7 @@ class SetWeekOneRepMaxProgressionFixedDecrement extends BlockAction
 
     public function apply(ExerciseBlock $block): BlockResult
     {
-        $newBlock = $block->mapWeeks(fn ($week) => $this->applyToWeek($week));
+        $newBlock = $block->mapWeeks(fn($week) => $this->applyToWeek($week));
 
         return $this->result($block, $newBlock);
     }
@@ -48,8 +48,10 @@ class SetWeekOneRepMaxProgressionFixedDecrement extends BlockAction
         $setCount = count($lastSession->sets);
         $totalGroups = (int) ceil($setCount / $this->stepDownInterval);
 
-        return $week->mapSessions(fn (ExerciseSession $session, int $sessionIndex) => $sessionIndex === $lastSessionIndex
-                ? $session->mapSets(fn (ExerciseSet $set, int $setIndex) => $this->applyToSet($set, $setIndex, $lastSet->oneRepMax, $totalGroups)
+        return $week->mapSessions(
+            fn(ExerciseSession $session, int $sessionIndex) => $sessionIndex === $lastSessionIndex
+                ? $session->mapSets(
+                    fn(ExerciseSet $set, int $setIndex) => $this->applyToSet($set, $setIndex, $lastSet->oneRepMax, $totalGroups)
                 )
                 : $session
         );
