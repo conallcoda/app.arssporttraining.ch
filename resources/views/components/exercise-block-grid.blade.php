@@ -7,6 +7,20 @@
     'titleAction' => null,
     'subtitleContent' => null,
     'headingSize' => 'sm',
+    'overrideDisplayMode' => null,
+    'exerciseId' => null,
+    'targetValue' => null,
+    'targetDefault' => null,
+    'targetOptions' => [0 => '0%', 2.5 => '2.5%', 5 => '5%', 7.5 => '7.5%', 10 => '10%'],
+    'repsValue' => null,
+    'repsDefault' => null,
+    'repsOptions' => [8 => '8', 10 => '10', 12 => '12', 14 => '14', 16 => '16'],
+    'setsValue' => null,
+    'setsDefault' => null,
+    'setsOptions' => [4 => '4', 5 => '5', 6 => '6'],
+    'hasTargetOverride' => false,
+    'hasRepsOverride' => false,
+    'hasSetsOverride' => false,
 ])
 
 @php
@@ -62,7 +76,76 @@
             {{ $titleAction }}
         @endif
     </div>
-    @if ($subtitleContent)
+    @if ($overrideDisplayMode === 'radios' && $exerciseId !== null)
+        <div class="mb-2 flex flex-col gap-2">
+            <div class="flex items-center gap-2"
+                wire:key="target-radio-{{ $exerciseId }}-{{ $targetValue }}"
+                x-data="{ value: '{{ $targetValue }}' }"
+                x-init="$watch('value', v => $wire.updateExerciseOverride({{ $exerciseId }}, 'target', parseFloat(v)))">
+                <span class="text-xs w-16 text-zinc-500 dark:text-zinc-400">Target:</span>
+                <div class="{{ $hasTargetOverride ? 'override-active' : '' }}">
+                    <flux:radio.group x-model="value" variant="segmented" size="sm">
+                        @foreach ($targetOptions as $optValue => $optLabel)
+                            <flux:radio value="{{ $optValue }}" label="{{ $optLabel }}" />
+                        @endforeach
+                    </flux:radio.group>
+                </div>
+            </div>
+            <div class="flex items-center gap-2"
+                wire:key="reps-radio-{{ $exerciseId }}-{{ $repsValue }}"
+                x-data="{ value: '{{ $repsValue }}' }"
+                x-init="$watch('value', v => $wire.updateExerciseOverride({{ $exerciseId }}, 'startingReps', parseInt(v)))">
+                <span class="text-xs w-16 text-zinc-500 dark:text-zinc-400">Reps:</span>
+                <div class="{{ $hasRepsOverride ? 'override-active' : '' }}">
+                    <flux:radio.group x-model="value" variant="segmented" size="sm">
+                        @foreach ($repsOptions as $optValue => $optLabel)
+                            <flux:radio value="{{ $optValue }}" label="{{ $optLabel }}" />
+                        @endforeach
+                    </flux:radio.group>
+                </div>
+            </div>
+            <div class="flex items-center gap-2"
+                wire:key="sets-radio-{{ $exerciseId }}-{{ $setsValue }}"
+                x-data="{ value: '{{ $setsValue }}' }"
+                x-init="$watch('value', v => $wire.updateExerciseOverride({{ $exerciseId }}, 'sets', parseInt(v)))">
+                <span class="text-xs w-16 text-zinc-500 dark:text-zinc-400">Sets:</span>
+                <div class="{{ $hasSetsOverride ? 'override-active' : '' }}">
+                    <flux:radio.group x-model="value" variant="segmented" size="sm">
+                        @foreach ($setsOptions as $optValue => $optLabel)
+                            <flux:radio value="{{ $optValue }}" label="{{ $optLabel }}" />
+                        @endforeach
+                    </flux:radio.group>
+                </div>
+            </div>
+        </div>
+    @elseif ($overrideDisplayMode === 'pills' && $exerciseId !== null)
+        <div class="mb-2 flex items-center gap-1.5">
+            <div wire:key="target-{{ $exerciseId }}-{{ $targetValue }}"
+                class="inline-flex items-center rounded-md border px-1.5 py-0.5 {{ $hasTargetOverride ? 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800' }}"
+                x-data="editable_cell($wire, 'updateExerciseOverride', [{{ $exerciseId }}, 'target'], {{ $targetValue }})" @click="startEditing">
+                <span class="{{ $hasTargetOverride ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400' }} mr-1">Target:</span>
+                <span x-show="!editing" class="font-medium cursor-pointer" x-text="value + '%'"></span>
+                <input x-show="editing" x-cloak x-ref="input" x-model="value" @blur="save" @keydown="handleKeydown" type="number" step="0.1" min="0"
+                    class="w-12 text-center bg-transparent border-none outline-none p-0 text-sm font-medium focus:ring-0" />
+            </div>
+            <div wire:key="reps-{{ $exerciseId }}-{{ $repsValue }}"
+                class="inline-flex items-center rounded-md border px-1.5 py-0.5 {{ $hasRepsOverride ? 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800' }}"
+                x-data="editable_cell($wire, 'updateExerciseOverride', [{{ $exerciseId }}, 'startingReps'], {{ $repsValue }})" @click="startEditing">
+                <span class="{{ $hasRepsOverride ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400' }} mr-1">Start Reps:</span>
+                <span x-show="!editing" class="font-medium cursor-pointer" x-text="value"></span>
+                <input x-show="editing" x-cloak x-ref="input" x-model="value" @blur="save" @keydown="handleKeydown" type="number" step="1" min="1" max="20"
+                    class="w-8 text-center bg-transparent border-none outline-none p-0 text-sm font-medium focus:ring-0" />
+            </div>
+            <div wire:key="sets-{{ $exerciseId }}-{{ $setsValue }}"
+                class="inline-flex items-center rounded-md border px-1.5 py-0.5 {{ $hasSetsOverride ? 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800' }}"
+                x-data="editable_cell($wire, 'updateExerciseOverride', [{{ $exerciseId }}, 'sets'], {{ $setsValue }})" @click="startEditing">
+                <span class="{{ $hasSetsOverride ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-500 dark:text-zinc-400' }} mr-1">Sets:</span>
+                <span x-show="!editing" class="font-medium cursor-pointer" x-text="value"></span>
+                <input x-show="editing" x-cloak x-ref="input" x-model="value" @blur="save" @keydown="handleKeydown" type="number" step="1" min="1" max="6"
+                    class="w-8 text-center bg-transparent border-none outline-none p-0 text-sm font-medium focus:ring-0" />
+            </div>
+        </div>
+    @elseif ($subtitleContent)
         <div class="mb-2">
             {{ $subtitleContent }}
         </div>

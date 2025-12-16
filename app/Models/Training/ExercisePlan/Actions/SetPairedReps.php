@@ -9,7 +9,7 @@ use App\Models\Training\ExercisePlan\ExerciseSet;
 class SetPairedReps extends BlockAction
 {
     public function __construct(
-        public int $startingReps = 12,
+        public int $startingReps = 10,
         public int $stepDownInterval = 2,
         public int $repDecrement = 2,
         public int $minimumReps = 1,
@@ -23,13 +23,11 @@ class SetPairedReps extends BlockAction
     public static function getFields(): array
     {
         return [
-            FluxField::number('startingReps')
+            FluxField::radioSegmented('startingReps')
                 ->label('Starting Reps')
                 ->required()
-                ->min(1)
-                ->max(20)
-                ->suffix('reps')
-                ->rules('required|integer|min:1|max:20')
+                ->options([8 => '8', 10 => '10', 12 => '12', 14 => '14', 16 => '16'])
+                ->rules('required|integer|in:8,10,12,14,16')
                 ->helpText('The initial rep count for the first set of week one. Higher values emphasize muscular endurance, lower values emphasize strength.'),
             FluxField::number('stepDownInterval')
                 ->label('Step Down Interval')

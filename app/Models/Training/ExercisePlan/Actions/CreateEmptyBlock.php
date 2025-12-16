@@ -20,13 +20,11 @@ class CreateEmptyBlock extends BlockAction
     public static function getFields(): array
     {
         return [
-            FluxField::number('sets')
+            FluxField::radioSegmented('sets')
                 ->label('Sets Per Session')
                 ->required()
-                ->min(1)
-                ->max(6)
-                ->suffix('sets')
-                ->rules('required|integer|min:1|max:20')
+                ->options([4 => '4', 5 => '5', 6 => '6'])
+                ->rules('required|integer|in:4,5,6')
                 ->helpText('The number of sets to include in each training session. More sets increase volume but also fatigue.'),
         ];
     }

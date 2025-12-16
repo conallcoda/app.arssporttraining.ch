@@ -14,9 +14,9 @@ class ExerciseDatabase extends Component
         $this->exercises = [
             ExerciseData::back_squat(),
             ExerciseData::front_squat(),
-            ExerciseData::from(['id' => 3, 'name' => 'Deadlift (Wide)', 'modifier' => 85.0]),
-            ExerciseData::from(['id' => 4, 'name' => 'Deadlift (Narrow)', 'modifier' => 105.0]),
-            ExerciseData::from(['id' => 5, 'name' => 'Row', 'modifier' => 100.0]),
+            //  ExerciseData::from(['id' => 3, 'name' => 'Deadlift (Wide)', 'modifier' => 85.0]),
+            // ExerciseData::from(['id' => 4, 'name' => 'Deadlift (Narrow)', 'modifier' => 105.0]),
+            // ExerciseData::from(['id' => 5, 'name' => 'Row', 'modifier' => 100.0]),
         ];
 
         $this->emitExercises();

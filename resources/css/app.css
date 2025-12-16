@@ -14,3 +14,11 @@
 .scrollbar-none::-webkit-scrollbar {
     display: none;
 }
+
+.override-active [data-flux-radio-group-segmented] [data-checked] {
+    background-color: var(--color-blue-200) !important;
+}
+
+.dark .override-active [data-flux-radio-group-segmented] [data-checked] {
+    background-color: var(--color-blue-800) !important;
+}

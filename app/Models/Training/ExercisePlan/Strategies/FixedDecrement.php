@@ -11,10 +11,10 @@ class FixedDecrement extends AbstractStrategy
         $actions = [
             Actions\CreateEmptyBlock::class,
             Actions\SetOneRepMaxBlockTarget::class,
-            Actions\SetOneRepMaxWeekTargetsFixedDecrement::class,
-            Actions\SetWeekOneRepMaxProgressionFixedDecrement::class,
+            Actions\SetWeightWeekTargetsFixedDecrement::class,
+            Actions\SetWeekWeightProgressionFixedDecrement::class,
             Actions\SetPairedReps::class,
-            Actions\SetWeightsByRepsAndDerivedOneRepMax::class,
+
         ];
 
         return $actions;

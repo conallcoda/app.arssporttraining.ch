@@ -13,12 +13,35 @@ class AthleteDatabase extends Component
     public function mount(): void
     {
 
-        $this->athletes = [
+        /*$this->athletes = [
             AthleteData::example(1, 'John Doe', 8, 45),
             AthleteData::example(2, 'Max Mustermann', 8, 65),
             AthleteData::example(3, 'Jan Modaal', 6, 65),
             AthleteData::example(4, 'Hans Muster', 8, 90),
+        ];*/
+
+        $weights = [
+            52,
+            55,
+            57,
+            60,
+            102,
+            105,
+            107.5,
+            115,
+            122.5,
         ];
+
+        $i = 0;
+        foreach ($weights as $weight) {
+            $this->athletes[] = AthleteData::example(
+                id: $i + 1,
+                name: 'Athlete '.$i + 1,
+                reps: 1,
+                weight: $weight * 1,
+            );
+            $i++;
+        }
 
         $this->emitAthletes();
     }

@@ -1,24 +1,47 @@
 <div>
-    <div class="mb-4 sm:mb-6 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
-        <div class="px-4 py-3 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex items-center justify-between">
-            <h3 class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Configuration</h3>
-            <x-help-tooltip content="Set the target goal percentage and training strategy. Use Advanced settings for fine-tuned control over steps and rules." />
+    <div
+        class="mb-4 sm:mb-6 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+        <div
+            class="px-4 py-3 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex items-center justify-between">
+            <h3 class="text-sm font-medium text-zinc-900 dark:text-zinc-100">Default Configuration</h3>
+            <x-help-tooltip
+                content="Set the target goal percentage and training strategy. Use Advanced settings for fine-tuned control over steps and rules." />
         </div>
         <div class="p-4">
             <div class="flex flex-wrap items-end gap-4">
-                <flux:input wire:model.live="targetGoal" type="number" label="Target Goal (%)" step="0.1" />
+                <flux:radio.group wire:model.live="targetGoal" label="Target Goal (%)" variant="segmented">
+                    <flux:radio value="0" label="0%" />
+                    <flux:radio value="2.5" label="2.5%" />
+                    <flux:radio value="5" label="5%" />
+                    <flux:radio value="7.5" label="7.5%" />
+                    <flux:radio value="10" label="10%" />
+                </flux:radio.group>
 
-                <flux:input wire:model.live="strategyConfig.set_paired_reps.startingReps" type="number" label="Starting Reps" min="1" max="20" />
+                <flux:radio.group wire:model.live="strategyConfig.set_paired_reps.startingReps" label="Starting Reps"
+                    variant="segmented">
+                    <flux:radio value="8" label="8" />
+                    <flux:radio value="10" label="10" />
+                    <flux:radio value="12" label="12" />
+                    <flux:radio value="14" label="14" />
+                    <flux:radio value="16" label="16" />
+                </flux:radio.group>
 
-                <flux:input wire:model.live="strategyConfig.create_empty_block.sets" type="number" label="# Sets" min="1" max="6" />
+                <flux:radio.group wire:model.live="strategyConfig.create_empty_block.sets" label="# Sets"
+                    variant="segmented">
+                    <flux:radio value="4" label="4" />
+                    <flux:radio value="5" label="5" />
+                    <flux:radio value="6" label="6" />
+                </flux:radio.group>
 
-                <flux:select wire:model.live="selectedStrategy" label="Strategy">
-                    @foreach ($this->getStrategies() as $key => $class)
-                        <flux:select.option value="{{ $key }}">
-                            {{ str_replace('_', ' ', ucwords($key, '_')) }}
-                        </flux:select.option>
-                    @endforeach
-                </flux:select>
+                <div class="hidden">
+                    <flux:select wire:model.live="selectedStrategy" label="Strategy">
+                        @foreach ($this->getStrategies() as $key => $class)
+                            <flux:select.option value="{{ $key }}">
+                                {{ str_replace('_', ' ', ucwords($key, '_')) }}
+                            </flux:select.option>
+                        @endforeach
+                    </flux:select>
+                </div>
 
                 <flux:button wire:click="openAdvancedModal" icon="adjustments-horizontal">
                     Advanced

@@ -6,11 +6,11 @@ class FixedWeightStep
 {
     public static function getStepForWeight(float $weight): float
     {
-        if ($weight > 100) {
+        if ($weight > 107.5) {
             return 7.5;
         }
 
-        if ($weight >= 50) {
+        if ($weight >= 55) {
             return 5.0;
         }
 

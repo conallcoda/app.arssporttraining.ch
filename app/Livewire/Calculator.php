@@ -24,7 +24,7 @@ class Calculator extends Component
 
     public ?AthleteExerciseConfig $config = null;
 
-    public float $targetGoal = 10;
+    public float $targetGoal = 0;
 
     public string $selectedStrategy = 'fixed_decrement';
 

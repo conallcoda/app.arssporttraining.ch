@@ -29,6 +29,8 @@ class AthleteTrainingPlan extends Component
 
     public array $exerciseOverrides = [];
 
+    public string $overrideDisplayMode = 'radios';
+
     #[Computed]
     public function selectedAthlete(): ?AthleteData
     {
@@ -150,6 +152,16 @@ class AthleteTrainingPlan extends Component
             $this->exerciseOverrides[$exerciseId] = [];
         }
         $this->exerciseOverrides[$exerciseId][$field] = $value;
+    }
+
+    public function clearExerciseOverride(int $exerciseId, string $field): void
+    {
+        if (isset($this->exerciseOverrides[$exerciseId][$field])) {
+            unset($this->exerciseOverrides[$exerciseId][$field]);
+            if (empty($this->exerciseOverrides[$exerciseId])) {
+                unset($this->exerciseOverrides[$exerciseId]);
+            }
+        }
     }
 
     protected function buildExerciseConfig(AthleteData $athlete, ExerciseData $exercise): AthleteExerciseConfig

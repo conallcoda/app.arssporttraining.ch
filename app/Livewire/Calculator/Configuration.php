@@ -11,7 +11,7 @@ use Livewire\Component;
 class Configuration extends Component
 {
     #[Modelable]
-    public float $targetGoal = 10;
+    public float $targetGoal = 0;
 
     #[Modelable]
     public string $selectedStrategy = 'fixed_decrement';

@@ -45,6 +45,11 @@ class FluxField
         return new static($name, 'repeater');
     }
 
+    public static function radioSegmented(string $name): static
+    {
+        return new static($name, 'radioSegmented');
+    }
+
     public function label(string $label): static
     {
         $this->label = $label;

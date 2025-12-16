@@ -133,6 +133,30 @@
                 placeholder="{{ $field->placeholder ?? '' }}"
             />
         </flux:field>
+    @elseif ($field->type === 'radioSegmented')
+        <flux:field>
+            @if ($field->label)
+                <div class="flex items-center gap-1">
+                    <flux:label>{{ $field->label }}</flux:label>
+                    @if ($field->helpText)
+                        <x-help-tooltip :content="$field->helpText" position="top" />
+                    @endif
+                </div>
+            @endif
+            @if ($field->live)
+                <flux:radio.group wire:model.live="{{ $wireModel }}" variant="segmented">
+                    @foreach ($field->options as $value => $optionLabel)
+                        <flux:radio value="{{ $value }}" label="{{ $optionLabel }}" />
+                    @endforeach
+                </flux:radio.group>
+            @else
+                <flux:radio.group wire:model="{{ $wireModel }}" variant="segmented">
+                    @foreach ($field->options as $value => $optionLabel)
+                        <flux:radio value="{{ $value }}" label="{{ $optionLabel }}" />
+                    @endforeach
+                </flux:radio.group>
+            @endif
+        </flux:field>
     @elseif ($field->type === 'repeater')
         <flux:field>
             <div class="space-y-3">
