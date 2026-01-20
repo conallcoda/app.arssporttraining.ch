@@ -277,7 +277,7 @@ on(['week-added' => function (array $data) {
     ]);
 }]);
 
-on(['grid-refresh' => function ($block, $progressionConfig = null, $overrideStore = null) {
+on(['grid-refresh' => function ($block) {
     $this->block = TrainingNode::from($block);
 }]);
 
@@ -465,8 +465,7 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
                                                 draggable="true"
                                                 @dragstart="startDrag($event, '{{ $session->uuid }}', '{{ $sessionLinkedTo }}', {{ $day }}, {{ $slotIndex }})"
                                                 @dragend="draggedSessionUuid = null; draggedSessionLinkedTo = null; isDraggingOver = null; isDropDisallowed = false"
-                                                @dblclick="confirmUnlinkAndAction({{ Js::from($weekLinkInfo) }}, () => $wire.openSessionModal('{{ $week->uuid }}', {{ $slotIndex }}, {{ $day }}))"
-                                                wire:click="$dispatch('progression-category-changed', { categoryId: {{ $categoryId }} })">
+                                                @dblclick="confirmUnlinkAndAction({{ Js::from($weekLinkInfo) }}, () => $wire.openSessionModal('{{ $week->uuid }}', {{ $slotIndex }}, {{ $day }}))">
                                                 <span class="text-xs font-medium" x-text="formatName('{{ $sessionName ?? $category->name }}')"></span>
                                             </div>
                                         @else

@@ -19,11 +19,7 @@ document.addEventListener('alpine:init', () => {
                     const data = JSON.parse(stored);
                     if (data.tree) {
                         this.hasStoredData = true;
-                        this.$wire.loadFromStorage(
-                            data.tree,
-                            data.progressionConfig || null,
-                            data.overrideStore || null
-                        ).then(() => {
+                        this.$wire.loadFromStorage(data.tree).then(() => {
                             this.initialized = true;
                         });
                     } else {
@@ -50,9 +46,7 @@ document.addEventListener('alpine:init', () => {
 
             if (detail && detail.block) {
                 const data = {
-                    tree: detail.block,
-                    progressionConfig: detail.progressionConfig || null,
-                    overrideStore: detail.overrideStore || null
+                    tree: detail.block
                 };
                 localStorage.setItem(this.storageKey, JSON.stringify(data));
                 this.hasStoredData = true;

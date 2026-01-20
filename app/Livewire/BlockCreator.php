@@ -4,18 +4,6 @@ namespace App\Livewire;
 
 use App\Models\Training\Data\BlockData;
 use App\Models\Training\Data\WeekData;
-use App\Models\Training\Progression\Athlete\AthleteData;
-use App\Models\Training\Progression\Athlete\AthleteTest;
-use App\Models\Training\Progression\Config\ProgressionConfig;
-use App\Models\Training\Progression\Override\OverrideStore;
-use App\Models\Training\Progression\Override\SetOverride;
-use App\Models\Training\Progression\Override\WeekAnchorOverride;
-use App\Models\Training\Progression\Result\ExerciseProgression;
-use App\Models\Training\Progression\Strategy\ProgressionCalculator;
-use App\Models\Training\Progression\Strategy\Rep\FixedRepConfig;
-use App\Models\Training\Progression\Strategy\Rep\PairedLadderRepConfig;
-use App\Models\Training\Progression\Strategy\Weight\CompoundedWeightConfig;
-use App\Models\Training\Progression\Strategy\Weight\FixedStepWeightConfig;
 use App\Models\Training\TrainingNode;
 use App\Models\Training\TrainingTree;
 use Livewire\Attributes\Computed;
@@ -26,53 +14,16 @@ class BlockCreator extends Component
 {
     public ?TrainingTree $tree = null;
 
-    public ProgressionConfig $progressionConfig;
-
-    public OverrideStore $overrideStore;
-
-    public AthleteData $athleteData;
-
     protected int $defaultWeeks = 5;
 
     protected string $storageKey = 'block-creator-tree';
 
-    protected array $exerciseProgressions = [];
-
-    public function boot(): void
-    {
-        $this->progressionConfig ??= $this->createDefaultProgressionConfig();
-        $this->overrideStore ??= new OverrideStore;
-        $this->athleteData ??= $this->createDefaultAthleteData();
-    }
-
-    protected function createDefaultAthleteData(): AthleteData
-    {
-        $athleteData = new AthleteData(athleteId: 3);
-        $athleteData->setTest(new AthleteTest(
-            exerciseId: 1,
-            reps: 8,
-            weight: 45.0,
-        ));
-
-        return $athleteData;
-    }
-
-    public function loadFromStorage(array $treeData, ?array $progressionData = null, ?array $overrideData = null)
+    public function loadFromStorage(array $treeData)
     {
         TrainingNode::clearRegistry();
         $root = TrainingNode::from($treeData);
         $this->tree = TrainingTree::fromTrainingNode($root);
 
-        if ($progressionData) {
-            $this->progressionConfig = ProgressionConfig::from($progressionData);
-        }
-
-        if ($overrideData) {
-            $this->overrideStore = OverrideStore::from($overrideData);
-        }
-
-        $this->syncProgressionBlockLength();
-        $this->clearExerciseProgressions();
         $this->refreshGrid();
     }
 
@@ -83,34 +34,7 @@ class BlockCreator extends Component
 
     public function clearStorage()
     {
-        $this->overrideStore = new OverrideStore;
-        $this->progressionConfig = $this->createDefaultProgressionConfig();
-        $this->clearExerciseProgressions();
         $this->initializeTree();
-    }
-
-    protected function createDefaultProgressionConfig(): ProgressionConfig
-    {
-        return new ProgressionConfig(
-            blockLength: $this->defaultWeeks,
-            weightConfig: new FixedStepWeightConfig(
-                targetImprovement: 12.5,
-                incrementStep: 0.5,
-            ),
-            repConfig: new FixedRepConfig(
-                reps: 1,
-            ),
-        );
-    }
-
-    protected function syncProgressionBlockLength(): void
-    {
-        if ($this->tree) {
-            $weekCount = count($this->tree->root->getChildren());
-            if ($this->progressionConfig->blockLength !== $weekCount) {
-                $this->progressionConfig->blockLength = $weekCount;
-            }
-        }
     }
 
     protected function initializeTree(): void
@@ -223,136 +147,8 @@ class BlockCreator extends Component
             'week.add' => $this->addWeek($params),
             'week.link' => $this->linkWeek($params),
             'week.delete' => $this->deleteWeek($params),
-            'athlete.update' => $this->updateAthlete($params),
-            'progression.update' => $this->updateProgression($params),
             default => null,
         };
-    }
-
-    #[On('progression-action')]
-    public function onProgressionAction(string $action, array $params)
-    {
-        match ($action) {
-            'set.override' => $this->setOverride($params),
-            'set.clear-override' => $this->clearSetOverride($params),
-            'week.anchor-override' => $this->setWeekAnchorOverride($params),
-            'week.clear-anchor-override' => $this->clearWeekAnchorOverride($params),
-            'config.update' => $this->updateProgressionConfig($params),
-            default => null,
-        };
-    }
-
-    #[On('progression-config-changed')]
-    public function onProgressionConfigChanged(array $config)
-    {
-        if (isset($config['weightStrategy'])) {
-            $this->progressionConfig->weightConfig = $this->createWeightConfig($config['weightStrategy']);
-        }
-
-        if (isset($config['repStrategy'])) {
-            $this->progressionConfig->repConfig = $this->createRepConfig($config['repStrategy']);
-        }
-
-        $this->clearExerciseProgressions();
-        $this->refreshGrid();
-    }
-
-    protected function createWeightConfig(string $strategy): FixedStepWeightConfig|CompoundedWeightConfig
-    {
-        $current = $this->progressionConfig->weightConfig;
-
-        return match ($strategy) {
-            'compounded' => new CompoundedWeightConfig(
-                targetImprovement: $current->targetImprovement,
-                incrementStep: $current->incrementStep,
-            ),
-            default => new FixedStepWeightConfig(
-                targetImprovement: $current->targetImprovement,
-                incrementStep: $current->incrementStep,
-            ),
-        };
-    }
-
-    protected function createRepConfig(string $strategy): PairedLadderRepConfig
-    {
-        $current = $this->progressionConfig->repConfig;
-
-        return new PairedLadderRepConfig(
-            startingReps: $current->startingReps,
-            stepDownInterval: $current->stepDownInterval,
-            repDecrement: $current instanceof PairedLadderRepConfig ? $current->repDecrement : 2,
-            minimumReps: $current->minimumReps,
-        );
-    }
-
-    protected function setOverride(array $params): void
-    {
-        $key = OverrideStore::buildSetKey(
-            $params['exerciseId'],
-            $params['weekIndex'],
-            $params['sessionUuid'],
-            $params['setIndex']
-        );
-
-        $existing = $this->overrideStore->getSetOverride($key);
-
-        $this->overrideStore->setSetOverride($key, new SetOverride(
-            reps: $params['reps'] ?? $existing?->reps,
-            weight: $params['weight'] ?? $existing?->weight,
-            locked: $existing?->locked ?? false,
-            lockedAt: $existing?->lockedAt,
-        ));
-
-        $this->clearExerciseProgression($params['exerciseId']);
-        $this->refreshGrid();
-    }
-
-    protected function clearSetOverride(array $params): void
-    {
-        $key = OverrideStore::buildSetKey(
-            $params['exerciseId'],
-            $params['weekIndex'],
-            $params['sessionUuid'],
-            $params['setIndex']
-        );
-
-        $this->overrideStore->removeSetOverride($key);
-        $this->clearExerciseProgression($params['exerciseId']);
-        $this->refreshGrid();
-    }
-
-    protected function setWeekAnchorOverride(array $params): void
-    {
-        $key = OverrideStore::buildWeekKey($params['exerciseId'], $params['weekIndex']);
-
-        $this->overrideStore->setWeekAnchorOverride($key, new WeekAnchorOverride(
-            value: $params['value'],
-            scope: $params['scope'] ?? 'single',
-            fromWeek: $params['weekIndex'],
-            recalculateReps: $params['recalculateReps'] ?? false,
-        ));
-
-        $this->clearExerciseProgression($params['exerciseId']);
-        $this->refreshGrid();
-    }
-
-    protected function clearWeekAnchorOverride(array $params): void
-    {
-        $key = OverrideStore::buildWeekKey($params['exerciseId'], $params['weekIndex']);
-        $this->overrideStore->removeWeekAnchorOverride($key);
-        $this->clearExerciseProgression($params['exerciseId']);
-        $this->refreshGrid();
-    }
-
-    protected function updateProgressionConfig(array $params): void
-    {
-        foreach ($params as $key => $value) {
-            if (property_exists($this->progressionConfig, $key)) {
-                $this->progressionConfig->{$key} = $value;
-            }
-        }
-        $this->clearExerciseProgressions();
-        $this->refreshGrid();
     }
 
     protected function addSession(array $params): void
@@ -465,7 +261,6 @@ class BlockCreator extends Component
             ]);
         }
 
-        $this->syncProgressionBlockLength();
         $this->refreshGrid();
     }
 
@@ -495,7 +290,6 @@ class BlockCreator extends Component
             'nodeId' => $week->uuid,
         ]);
 
-        $this->syncProgressionBlockLength();
         $this->refreshGrid();
     }
 
@@ -510,142 +304,10 @@ class BlockCreator extends Component
         return null;
     }
 
-    public function buildSessionMap(): array
-    {
-        if (! $this->tree) {
-            return [];
-        }
-
-        $sessionMap = [];
-        $sourceWeek = $this->tree->root->children[0] ?? null;
-
-        if (! $sourceWeek) {
-            return [];
-        }
-
-        $sourceSessions = [];
-        foreach ($sourceWeek->getChildren() as $session) {
-            $sourceSessions[$session->uuid] = [
-                'day' => $session->getData()->day,
-                'slot' => $session->getData()->slot,
-            ];
-        }
-
-        foreach ($this->tree->root->getChildren() as $weekIndex => $week) {
-            $sessionMap[$weekIndex] = $sourceSessions;
-        }
-
-        return $sessionMap;
-    }
-
-    public function getExerciseProgression(int $exerciseId): ?ExerciseProgression
-    {
-        if (isset($this->exerciseProgressions[$exerciseId])) {
-            return $this->exerciseProgressions[$exerciseId];
-        }
-
-        if (! $this->tree) {
-            return null;
-        }
-
-        $sessionMap = $this->buildSessionMap();
-        $calculator = new ProgressionCalculator(
-            $this->progressionConfig,
-            $this->overrideStore,
-            $this->athleteData,
-        );
-
-        $progression = $calculator->calculateExerciseProgression($exerciseId, $sessionMap);
-        $this->exerciseProgressions[$exerciseId] = $progression;
-
-        return $progression;
-    }
-
-    public function getExerciseProgressionData(int $exerciseId): ?array
-    {
-        $progression = $this->getExerciseProgression($exerciseId);
-
-        if (! $progression) {
-            return null;
-        }
-
-        return $progression->toArray();
-    }
-
-    protected function clearExerciseProgression(int $exerciseId): void
-    {
-        unset($this->exerciseProgressions[$exerciseId]);
-    }
-
-    protected function clearExerciseProgressions(): void
-    {
-        $this->exerciseProgressions = [];
-    }
-
-    public function setAthleteData(AthleteData $athleteData): void
-    {
-        $this->athleteData = $athleteData;
-        $this->clearExerciseProgressions();
-        $this->refreshGrid();
-    }
-
-    protected function updateAthlete(array $params): void
-    {
-        $athleteId = $params['athleteId'] ?? $this->athleteData->athleteId;
-        $tests = $params['tests'] ?? [];
-
-        $this->athleteData = new AthleteData(athleteId: $athleteId);
-
-        foreach ($tests as $exerciseId => $testData) {
-            $this->athleteData->setTest(new AthleteTest(
-                exerciseId: (int) $exerciseId,
-                reps: (int) $testData['reps'],
-                weight: (float) $testData['weight'],
-            ));
-        }
-
-        $this->clearExerciseProgressions();
-        $this->refreshGrid();
-    }
-
-    protected function updateProgression(array $params): void
-    {
-        $weightStrategy = $params['weightStrategy'] ?? 'fixed_step';
-        $repStrategy = $params['repStrategy'] ?? 'fixed';
-
-        $this->progressionConfig->weightConfig = match ($weightStrategy) {
-            'compounded' => new CompoundedWeightConfig(
-                targetImprovement: (float) ($params['targetImprovement'] ?? 12.5),
-                incrementStep: (float) ($params['incrementStep'] ?? 0.5),
-            ),
-            default => new FixedStepWeightConfig(
-                targetImprovement: (float) ($params['targetImprovement'] ?? 12.5),
-                incrementStep: (float) ($params['incrementStep'] ?? 0.5),
-            ),
-        };
-
-        $this->progressionConfig->repConfig = match ($repStrategy) {
-            'paired_ladder' => new PairedLadderRepConfig(
-                startingReps: (int) ($params['startingReps'] ?? 12),
-                stepDownInterval: (int) ($params['stepDownInterval'] ?? 2),
-                repDecrement: (int) ($params['repDecrement'] ?? 2),
-                minimumReps: (int) ($params['minimumReps'] ?? 6),
-            ),
-            default => new FixedRepConfig(
-                reps: (int) ($params['reps'] ?? 1),
-            ),
-        };
-
-        $this->clearExerciseProgressions();
-        $this->refreshGrid();
-    }
-
     public function getStorageData(): array
     {
         return [
             'tree' => $this->tree?->root?->toArray(),
-            'progressionConfig' => $this->progressionConfig->toArray(),
-            'overrideStore' => $this->overrideStore->toArray(),
         ];
     }
 
@@ -654,9 +316,6 @@ class BlockCreator extends Component
         $this->dispatch(
             'grid-refresh',
             block: $this->tree->root,
-            progressionConfig: $this->progressionConfig->toArray(),
-            overrideStore: $this->overrideStore->toArray(),
-            athleteData: $this->athleteData->toArray(),
         );
     }
 

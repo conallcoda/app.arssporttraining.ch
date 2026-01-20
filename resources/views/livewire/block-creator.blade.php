@@ -20,12 +20,8 @@
             </div>
 
             <div class="grid grid-cols-12 gap-4">
-                <x-resizable-card title="Training Schedule" storage-key="block-creator-schedule">
+                <x-resizable-card title="Training Schedule" storage-key="block-creator-schedule" class="col-span-12">
                     <livewire:planner.schedule-grid :block="$this->tree->root" :key="'block-weeks-5'" />
-                </x-resizable-card>
-
-                <x-resizable-card title="Training Progression" storage-key="block-creator-progression">
-                    <livewire:planner.training-progression :block="$this->tree->root" :key="'block-progression'" />
                 </x-resizable-card>
             </div>
         </div>
