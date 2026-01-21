@@ -2,17 +2,12 @@
 
 namespace App\Livewire\Calculator;
 
-use App\Livewire\Concerns\ManagesDatabaseList;
 use App\Models\Training\ExercisePlan\ExerciseData;
 use Livewire\Component;
 
 class ExerciseDatabase extends Component
 {
-    use ManagesDatabaseList;
-
     public array $exercises = [];
-
-    public string $selectedGroup = 'Strength 1';
 
     public array $groups = ['Strength 1', 'Strength 2'];
 
@@ -20,9 +15,11 @@ class ExerciseDatabase extends Component
 
     public string $newGroupName = '';
 
-    public string $newName = '';
+    public array $showAddForm = [];
 
-    public float $newModifier = 100.0;
+    public array $newName = [];
+
+    public array $newModifier = [];
 
     public function mount(): void
     {
@@ -33,13 +30,14 @@ class ExerciseDatabase extends Component
             ExerciseData::press(),
         ];
 
+        foreach ($this->groups as $group) {
+            $this->showAddForm[$group] = false;
+            $this->newName[$group] = '';
+            $this->newModifier[$group] = 100.0;
+        }
+
         $this->emitExercises();
         $this->dispatch('groups-updated', groups: $this->groups);
-    }
-
-    public function selectGroup(string $group): void
-    {
-        $this->selectedGroup = $group;
     }
 
     public function toggleAddGroupModal(): void
@@ -58,7 +56,9 @@ class ExerciseDatabase extends Component
 
         if (! in_array($this->newGroupName, $this->groups)) {
             $this->groups[] = $this->newGroupName;
-            $this->selectedGroup = $this->newGroupName;
+            $this->showAddForm[$this->newGroupName] = false;
+            $this->newName[$this->newGroupName] = '';
+            $this->newModifier[$this->newGroupName] = 100.0;
             $this->dispatch('groups-updated', groups: $this->groups);
         }
 
@@ -66,11 +66,11 @@ class ExerciseDatabase extends Component
         $this->showAddGroupModal = false;
     }
 
-    public function getFilteredExercisesProperty(): array
+    public function getExercisesForGroup(string $group): array
     {
         return array_filter(
             $this->exercises,
-            fn ($ex) => $ex->group === $this->selectedGroup
+            fn ($ex) => $ex->group === $group
         );
     }
 
@@ -108,23 +108,37 @@ class ExerciseDatabase extends Component
         $this->emitExercises();
     }
 
-    public function addExercise(): void
+    public function addExercise(string $group): void
     {
         $this->validate([
-            'newName' => 'required|string|min:1',
-            'newModifier' => 'required|numeric|min:1',
+            "newName.{$group}" => 'required|string|min:1',
+            "newModifier.{$group}" => 'required|numeric|min:1',
         ]);
 
         $this->exercises[] = new ExerciseData(
             id: $this->getNextId(),
-            name: $this->newName,
-            modifier: $this->newModifier,
-            group: $this->selectedGroup,
+            name: $this->newName[$group],
+            modifier: $this->newModifier[$group],
+            group: $group,
         );
 
-        $this->resetAddForm();
-        $this->showAddForm = false;
+        $this->resetAddForm($group);
+        $this->showAddForm[$group] = false;
         $this->emitExercises();
+    }
+
+    public function toggleAddForm(string $group): void
+    {
+        $this->showAddForm[$group] = ! $this->showAddForm[$group];
+        if (! $this->showAddForm[$group]) {
+            $this->resetAddForm($group);
+        }
+    }
+
+    public function cancelAdd(string $group): void
+    {
+        $this->showAddForm[$group] = false;
+        $this->resetAddForm($group);
     }
 
     public function removeExercise(int $exerciseId): void
@@ -135,13 +149,13 @@ class ExerciseDatabase extends Component
         $this->emitExercises();
     }
 
-    public function moveExerciseUp(int $exerciseId): void
+    public function moveExerciseUp(int $exerciseId, string $group): void
     {
         $groupExercises = [];
         $groupIndices = [];
 
         foreach ($this->exercises as $index => $exercise) {
-            if ($exercise->group === $this->selectedGroup) {
+            if ($exercise->group === $group) {
                 $groupExercises[] = $exercise;
                 $groupIndices[] = $index;
             }
@@ -162,13 +176,13 @@ class ExerciseDatabase extends Component
         }
     }
 
-    public function moveExerciseDown(int $exerciseId): void
+    public function moveExerciseDown(int $exerciseId, string $group): void
     {
         $groupExercises = [];
         $groupIndices = [];
 
         foreach ($this->exercises as $index => $exercise) {
-            if ($exercise->group === $this->selectedGroup) {
+            if ($exercise->group === $group) {
                 $groupExercises[] = $exercise;
                 $groupIndices[] = $index;
             }
@@ -197,20 +211,26 @@ class ExerciseDatabase extends Component
         ));
     }
 
-    protected function getItems(): array
+    protected function getNextId(): int
     {
-        return $this->exercises;
+        if (empty($this->exercises)) {
+            return 1;
+        }
+
+        $maxId = max(array_map(fn ($item) => $item->id, $this->exercises));
+
+        return $maxId + 1;
     }
 
-    protected function resetAddForm(): void
+    protected function resetAddForm(string $group): void
     {
-        $this->newName = '';
-        $this->newModifier = 100.0;
+        $this->newName[$group] = '';
+        $this->newModifier[$group] = 100.0;
     }
 
-    public function getListKey(): string
+    public function getListKey(string $group): string
     {
-        return md5($this->selectedGroup.json_encode(array_map(fn ($ex) => $ex->id, $this->exercises)));
+        return md5($group.json_encode(array_map(fn ($ex) => $ex->id, $this->exercises)));
     }
 
     public function getGroupsKey(): string
