@@ -14,12 +14,12 @@
                 </div>
 
                 <div class="mb-4 sm:mb-6 grid grid-cols-1 gap-4 sm:gap-6 text-sm md:grid-cols-2">
-                    <livewire:calculator.exercise-database />
-                    <livewire:calculator.athlete-database />
+                    <livewire:calculator.exercise-database wire:key="exercise-database" />
+                    <livewire:calculator.athlete-database wire:key="athlete-database" />
                 </div>
 
-                <livewire:calculator.configuration />
-                <livewire:calculator.athlete-training-plan :athletes="$athletes" :exercises="$exercises" :config="$config" />
+                <livewire:calculator.configuration wire:key="configuration" />
+                <livewire:calculator.athlete-training-plan :athletes="$athletes" :exercises="$exercises" :config="$config" wire:key="athlete-training-plan-{{ $this->getDataKey() }}" />
             </div>
         </flux:tab.panel>
 

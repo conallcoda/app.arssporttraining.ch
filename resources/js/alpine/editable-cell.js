@@ -1,5 +1,5 @@
 document.addEventListener('alpine:init', () => {
-    Alpine.data('editable_cell', (wire, method, params, initialValue, suffix = '') => ({
+    Alpine.data('editable_cell', (wire, method, params, initialValue, suffix = '', isNumeric = true) => ({
         editing: false,
         value: initialValue,
         originalValue: initialValue,
@@ -7,6 +7,7 @@ document.addEventListener('alpine:init', () => {
         wire: wire,
         method: method,
         params: params,
+        isNumeric: isNumeric,
 
         startEditing() {
             this.editing = true;
@@ -24,14 +25,20 @@ document.addEventListener('alpine:init', () => {
 
         save() {
             this.editing = false;
-            let numericValue = parseFloat(this.value);
-            if (isNaN(numericValue) || numericValue < 1) {
-                numericValue = 1;
+            let valueToSave = this.value;
+
+            if (this.isNumeric) {
+                let numericValue = parseFloat(this.value);
+                if (isNaN(numericValue) || numericValue < 1) {
+                    numericValue = 1;
+                }
+                valueToSave = numericValue;
+                this.value = numericValue;
             }
-            this.value = numericValue;
-            if (this.value !== this.originalValue) {
-                this.originalValue = this.value;
-                this.wire[this.method](...this.params, numericValue);
+
+            if (valueToSave !== this.originalValue) {
+                this.originalValue = valueToSave;
+                this.wire[this.method](...this.params, valueToSave);
             }
         },
 

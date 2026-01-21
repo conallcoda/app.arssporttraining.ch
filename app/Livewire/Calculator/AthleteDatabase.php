@@ -2,13 +2,22 @@
 
 namespace App\Livewire\Calculator;
 
+use App\Livewire\Concerns\ManagesDatabaseList;
 use App\Models\Training\ExercisePlan\AthleteData;
 use App\Models\Training\ExercisePlan\AthleteTestData;
 use Livewire\Component;
 
 class AthleteDatabase extends Component
 {
+    use ManagesDatabaseList;
+
     public array $athletes = [];
+
+    public string $newName = '';
+
+    public int $newReps = 1;
+
+    public float $newWeight = 50.0;
 
     public function mount(): void
     {
@@ -41,6 +50,22 @@ class AthleteDatabase extends Component
                 weight: $weight * 1,
             );
             $i++;
+        }
+
+        $this->emitAthletes();
+    }
+
+    public function updateAthleteName(int $athleteId, string $value): void
+    {
+        foreach ($this->athletes as $index => $athlete) {
+            if ($athlete->id === $athleteId) {
+                $this->athletes[$index] = new AthleteData(
+                    id: $athlete->id,
+                    name: $value,
+                    tests: $athlete->tests,
+                );
+                break;
+            }
         }
 
         $this->emitAthletes();
@@ -94,9 +119,58 @@ class AthleteDatabase extends Component
         $this->emitAthletes();
     }
 
+    public function addAthlete(): void
+    {
+        $this->validate([
+            'newName' => 'required|string|min:1',
+            'newReps' => 'required|integer|min:1',
+            'newWeight' => 'required|numeric|min:1',
+        ]);
+
+        $this->athletes[] = new AthleteData(
+            id: $this->getNextId(),
+            name: $this->newName,
+            tests: [
+                AthleteTestData::back_squat($this->newReps, $this->newWeight),
+            ],
+        );
+
+        $this->resetAddForm();
+        $this->showAddForm = false;
+        $this->emitAthletes();
+    }
+
+    public function removeAthlete(int $athleteId): void
+    {
+        $this->athletes = array_values(
+            array_filter($this->athletes, fn ($ath) => $ath->id !== $athleteId)
+        );
+        $this->emitAthletes();
+    }
+
     protected function emitAthletes(): void
     {
-        $this->dispatch('athletes-updated', athletes: $this->athletes);
+        $this->dispatch('athletes-updated', athletes: array_map(
+            fn ($ath) => $ath->toArray(),
+            $this->athletes
+        ));
+    }
+
+    protected function getItems(): array
+    {
+        return $this->athletes;
+    }
+
+    protected function resetAddForm(): void
+    {
+        $this->newName = '';
+        $this->newReps = 1;
+        $this->newWeight = 50.0;
+    }
+
+    public function getListKey(): string
+    {
+        return md5(json_encode(array_map(fn ($ath) => $ath->id, $this->athletes)));
     }
 
     public function render()

@@ -42,7 +42,7 @@ class Calculator extends Component
     public function handleExercisesUpdated(array $exercises): void
     {
         $this->exercises = array_map(
-            fn ($e) => $e instanceof ExerciseData ? $e : ExerciseData::from($e),
+            fn ($e) => ExerciseData::from($e),
             $exercises
         );
         $this->updateConfig();
@@ -52,7 +52,7 @@ class Calculator extends Component
     public function handleAthletesUpdated(array $athletes): void
     {
         $this->athletes = array_map(
-            fn ($a) => $a instanceof AthleteData ? $a : AthleteData::from($a),
+            fn ($a) => AthleteData::from($a),
             $athletes
         );
         $this->updateConfig();
@@ -78,6 +78,8 @@ class Calculator extends Component
         $exercise = $this->exercises[0] ?? null;
 
         if (! $athlete || ! $exercise) {
+            $this->config = null;
+
             return;
         }
 
@@ -92,6 +94,16 @@ class Calculator extends Component
             initialRulesEnabled: $this->initialRulesEnabled,
             actionRulesEnabled: $this->actionRulesEnabled,
         );
+    }
+
+    public function getDataKey(): string
+    {
+        return md5(json_encode([
+            'athletes' => count($this->athletes),
+            'exercises' => count($this->exercises),
+            'athleteIds' => array_map(fn ($a) => $a->id, $this->athletes),
+            'exerciseIds' => array_map(fn ($e) => $e->id, $this->exercises),
+        ]));
     }
 
     public function render()
