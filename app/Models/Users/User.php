@@ -2,34 +2,31 @@
 
 namespace App\Models\Users;
 
-
+use App\Models\Concerns\HasExtraData;
+use App\Models\Users\Types\Admin;
+use App\Models\Users\Types\Athlete;
+use App\Models\Users\Types\Coach;
 use Database\Factories\UserFactory;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
-use App\Models\Concerns\HasExtraData;
 use Parental\HasChildren;
-use App\Models\Users\Types\Admin;
-use App\Models\Users\Types\Coach;
-use App\Models\Users\Types\Athlete;
-use Filament\Models\Contracts\FilamentUser;
-use Filament\Panel;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\MorphMany;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class User extends Authenticatable implements FilamentUser
 {
-    use HasFactory, Notifiable, HasExtraData, HasChildren, SoftDeletes;
+    use HasChildren, HasExtraData, HasFactory, Notifiable, SoftDeletes;
 
     protected $childTypes = [
         'admin' => Admin::class,
         'coach' => Coach::class,
         'athlete' => Athlete::class,
     ];
-
 
     protected static function newFactory(): UserFactory
     {
@@ -49,11 +46,6 @@ class User extends Authenticatable implements FilamentUser
         'password',
         'remember_token',
     ];
-
-    public static function getMetricTypes(): bool|array
-    {
-        return false;
-    }
 
     public function update(array $attributes = [], array $options = []): bool
     {
@@ -82,7 +74,7 @@ class User extends Authenticatable implements FilamentUser
         return Str::of($this->forename)
             ->explode(' ')
             ->take(2)
-            ->map(fn($word) => Str::substr($word, 0, 1))
+            ->map(fn ($word) => Str::substr($word, 0, 1))
             ->implode('');
     }
 
@@ -114,10 +106,5 @@ class User extends Authenticatable implements FilamentUser
     public function canJoinGroup(UserGroup $group): bool
     {
         return in_array($group->type, $this->allowedGroupTypes());
-    }
-
-    public function metrics(): MorphMany
-    {
-        return $this->morphMany(\App\Models\Metrics\Metric::class, 'metricable');
     }
 }

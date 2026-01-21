@@ -15,7 +15,6 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             ExerciseSeeder::class,
             TrainingSeeder::class,
-            MetricSeeder::class,
         ]);
     }
 }

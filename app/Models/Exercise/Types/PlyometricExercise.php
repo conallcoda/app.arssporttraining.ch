@@ -3,12 +3,9 @@
 namespace App\Models\Exercise\Types;
 
 use App\Models\Exercise\Exercise;
-use App\Models\Metrics\Contracts\HasMetricTypes;
 use Parental\HasParent;
-use App\Models\Metrics\Concerns\InteractsWithMetrics;
 
-class PlyometricExercise extends Exercise implements HasMetricTypes
+class PlyometricExercise extends Exercise
 {
     use HasParent;
-    use InteractsWithMetrics;
 }
