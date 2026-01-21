@@ -16,11 +16,13 @@ use Livewire\Component;
 class Calculator extends Component
 {
     #[Url]
-    public string $tab = 'calculator';
+    public string $tab = 'exercises';
 
     public array $athletes = [];
 
     public array $exercises = [];
+
+    public array $groups = ['Strength 1', 'Strength 2'];
 
     public ?AthleteExerciseConfig $config = null;
 
@@ -46,6 +48,12 @@ class Calculator extends Component
             $exercises
         );
         $this->updateConfig();
+    }
+
+    #[On('groups-updated')]
+    public function handleGroupsUpdated(array $groups): void
+    {
+        $this->groups = $groups;
     }
 
     #[On('athletes-updated')]
@@ -101,6 +109,7 @@ class Calculator extends Component
         return md5(json_encode([
             'athletes' => count($this->athletes),
             'exercises' => count($this->exercises),
+            'groups' => count($this->groups),
             'athleteIds' => array_map(fn ($a) => $a->id, $this->athletes),
             'exerciseIds' => array_map(fn ($e) => $e->id, $this->exercises),
         ]));

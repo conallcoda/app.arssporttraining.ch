@@ -27,7 +27,6 @@
         <table class="w-full border-collapse border border-zinc-300 dark:border-zinc-600">
             <thead>
                 <tr class="bg-zinc-100 dark:bg-zinc-800">
-                    <th class="border border-zinc-300 px-3 py-2 w-16 dark:border-zinc-600">ID</th>
                     <th class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">Name</th>
                     <th class="border border-zinc-300 px-3 py-2 w-20 dark:border-zinc-600">Test (Reps)</th>
                     <th class="border border-zinc-300 px-3 py-2 w-28 dark:border-zinc-600">Test (Weight)</th>
@@ -38,9 +37,6 @@
             <tbody wire:key="athlete-tbody-{{ $this->getListKey() }}">
                 @foreach ($athletes as $ath)
                     <tr wire:key="athlete-{{ $ath->id }}">
-                        <td class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">
-                            {{ $ath->id }}
-                        </td>
                         <td class="border border-zinc-300 dark:border-zinc-600 p-0"
                             x-data="editable_cell($wire, 'updateAthleteName', [{{ $ath->id }}], {{ json_encode($ath->name) }}, '', false)" @click="startEditing">
                             <div x-show="!editing" class="px-3 py-2 cursor-pointer"
@@ -73,7 +69,18 @@
                             </td>
                         @endforeach
                         <td class="border border-zinc-300 px-3 py-2 text-center dark:border-zinc-600">
-                            <flux:icon.trash-2 class="w-4 h-4 mx-auto cursor-pointer text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400" wire:click="removeAthlete({{ $ath->id }})" wire:confirm="Are you sure you want to remove this athlete?" />
+                            <div class="flex items-center justify-center gap-2">
+                                <flux:icon.arrow-up
+                                    class="w-4 h-4 cursor-pointer text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 {{ $loop->first ? 'opacity-30 cursor-not-allowed pointer-events-none' : '' }}"
+                                    wire:click="moveAthleteUp({{ $ath->id }})" />
+                                <flux:icon.arrow-down
+                                    class="w-4 h-4 cursor-pointer text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 {{ $loop->last ? 'opacity-30 cursor-not-allowed pointer-events-none' : '' }}"
+                                    wire:click="moveAthleteDown({{ $ath->id }})" />
+                                <flux:icon.trash-2
+                                    class="w-4 h-4 cursor-pointer text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400"
+                                    wire:click="removeAthlete({{ $ath->id }})"
+                                    wire:confirm="Are you sure you want to remove this athlete?" />
+                            </div>
                         </td>
                     </tr>
                 @endforeach

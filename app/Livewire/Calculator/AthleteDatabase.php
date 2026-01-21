@@ -148,6 +148,34 @@ class AthleteDatabase extends Component
         $this->emitAthletes();
     }
 
+    public function moveAthleteUp(int $athleteId): void
+    {
+        foreach ($this->athletes as $index => $athlete) {
+            if ($athlete->id === $athleteId && $index > 0) {
+                $temp = $this->athletes[$index];
+                $this->athletes[$index] = $this->athletes[$index - 1];
+                $this->athletes[$index - 1] = $temp;
+
+                $this->emitAthletes();
+                break;
+            }
+        }
+    }
+
+    public function moveAthleteDown(int $athleteId): void
+    {
+        foreach ($this->athletes as $index => $athlete) {
+            if ($athlete->id === $athleteId && $index < count($this->athletes) - 1) {
+                $temp = $this->athletes[$index];
+                $this->athletes[$index] = $this->athletes[$index + 1];
+                $this->athletes[$index + 1] = $temp;
+
+                $this->emitAthletes();
+                break;
+            }
+        }
+    }
+
     protected function emitAthletes(): void
     {
         $this->dispatch('athletes-updated', athletes: array_map(
