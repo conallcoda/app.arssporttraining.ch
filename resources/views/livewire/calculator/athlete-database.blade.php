@@ -6,10 +6,11 @@
 
     @if ($showAddForm)
         <div class="px-4 py-3 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
-            <form wire:submit="addAthlete" class="grid grid-cols-1 gap-3 sm:grid-cols-4">
+            <form wire:submit="addAthlete" class="grid grid-cols-1 gap-3 sm:grid-cols-5">
                 <flux:input wire:model="newName" label="Name" placeholder="Athlete name" required />
                 <flux:input wire:model="newReps" label="Test Reps" type="number" step="1" min="1" placeholder="1" required />
                 <flux:input wire:model="newWeight" label="Test Weight (kg)" type="number" step="0.5" min="1" placeholder="50.0" required />
+                <flux:input wire:model="newTargetModifier" label="Modifier (Target Goal) (%)" type="number" step="0.1" min="0" placeholder="100.0" required />
                 <div class="flex items-end gap-2">
                     <flux:button type="submit" variant="primary" class="flex-1">Add</flux:button>
                     <flux:button type="button" wire:click="cancelAdd">Cancel</flux:button>
@@ -31,6 +32,7 @@
                     <th class="border border-zinc-300 px-3 py-2 w-20 dark:border-zinc-600">Test (Reps)</th>
                     <th class="border border-zinc-300 px-3 py-2 w-28 dark:border-zinc-600">Test (Weight)</th>
                     <th class="border border-zinc-300 px-3 py-2 w-28 dark:border-zinc-600">Test (1RM)</th>
+                    <th class="border border-zinc-300 px-3 py-2 w-32 dark:border-zinc-600">Modifier (Target Goal)</th>
                     <th class="border border-zinc-300 px-3 py-2 w-16 dark:border-zinc-600">Actions</th>
                 </tr>
             </thead>
@@ -68,6 +70,15 @@
                                 {{ number_format($test->oneRepMax, 1) }} kg
                             </td>
                         @endforeach
+                        <td class="border border-zinc-300 dark:border-zinc-600 w-32 p-0"
+                            x-data="editable_cell($wire, 'updateAthleteTargetModifier', [{{ $ath->id }}], {{ $ath->target_modifier }}, '%')" @click="startEditing">
+                            <div x-show="!editing" class="px-3 py-2 cursor-pointer text-center"
+                                x-text="value + '%'"></div>
+                            <input x-show="editing" x-cloak x-ref="input" x-model="value"
+                                @blur="save" @keydown="handleKeydown" type="number"
+                                step="0.1" min="0"
+                                class="w-full px-3 py-2 text-center border border-black outline-none focus:border-black focus:ring-0" />
+                        </td>
                         <td class="border border-zinc-300 px-3 py-2 text-center dark:border-zinc-600">
                             <div class="flex items-center justify-center gap-2">
                                 <flux:icon.arrow-up

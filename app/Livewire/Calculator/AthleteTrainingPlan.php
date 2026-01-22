@@ -31,6 +31,8 @@ class AthleteTrainingPlan extends Component
 
     public string $overrideDisplayMode = 'radios';
 
+    public ?int $breakdownAthleteId = null;
+
     #[Computed]
     public function selectedAthlete(): ?AthleteData
     {
@@ -56,9 +58,19 @@ class AthleteTrainingPlan extends Component
     }
 
     #[Computed]
+    public function breakdownAthlete(): ?AthleteData
+    {
+        if ($this->breakdownAthleteId === null || empty($this->athletes)) {
+            return null;
+        }
+
+        return collect($this->athletes)->first(fn ($a) => $a->id === $this->breakdownAthleteId);
+    }
+
+    #[Computed]
     public function breakdownHistory(): ?AthleteExerciseBlockHistory
     {
-        $athlete = $this->selectedAthlete;
+        $athlete = $this->breakdownAthlete;
         $exercise = $this->breakdownExercise;
 
         if (! $athlete || ! $exercise || ! $this->config) {
@@ -71,25 +83,30 @@ class AthleteTrainingPlan extends Component
     }
 
     #[Computed]
-    public function exerciseBlocks(): array
+    public function groupedExerciseBlocks(): array
     {
         $athlete = $this->selectedAthlete;
         if (! $athlete || empty($this->exercises) || ! $this->config) {
             return [];
         }
 
-        $blocks = [];
+        $grouped = [];
         foreach ($this->exercises as $exercise) {
             $exerciseConfig = $this->buildExerciseConfig($athlete, $exercise);
             $history = AthleteExerciseBlockHistory::example($exerciseConfig);
 
-            $blocks[] = [
+            $group = $exercise->group;
+            if (! isset($grouped[$group])) {
+                $grouped[$group] = [];
+            }
+
+            $grouped[$group][] = [
                 'exercise' => $exercise,
                 'block' => $history->current(),
             ];
         }
 
-        return $blocks;
+        return $grouped;
     }
 
     public function selectAthlete(int $athleteId): void
@@ -97,8 +114,18 @@ class AthleteTrainingPlan extends Component
         $this->selectedAthleteId = $athleteId;
     }
 
-    public function openBreakdown(int $exerciseId): void
+    public function getAthleteOneRepMax(AthleteData $athlete): float
     {
+        if (empty($athlete->tests)) {
+            return 0;
+        }
+
+        return $athlete->tests[0]->oneRepMax ?? 0;
+    }
+
+    public function openBreakdown(int $athleteId, int $exerciseId): void
+    {
+        $this->breakdownAthleteId = $athleteId;
         $this->breakdownExerciseId = $exerciseId;
         $this->showBreakdownModal = true;
     }
@@ -106,6 +133,7 @@ class AthleteTrainingPlan extends Component
     public function closeBreakdown(): void
     {
         $this->showBreakdownModal = false;
+        $this->breakdownAthleteId = null;
         $this->breakdownExerciseId = null;
     }
 

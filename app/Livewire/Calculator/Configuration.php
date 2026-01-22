@@ -11,12 +11,15 @@ use Livewire\Component;
 class Configuration extends Component
 {
     #[Modelable]
-    public float $targetGoal = 0;
+    public float $targetGoal = 7;
 
     #[Modelable]
     public string $selectedStrategy = 'fixed_decrement';
 
-    public array $strategyConfig = [];
+    public array $strategyConfig = [
+        'set_paired_reps' => ['startingReps' => 12],
+        'create_empty_block' => ['sets' => 4],
+    ];
 
     public array $initialRulesConfig = [];
 

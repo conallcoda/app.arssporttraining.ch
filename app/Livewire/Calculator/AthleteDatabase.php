@@ -19,6 +19,8 @@ class AthleteDatabase extends Component
 
     public float $newWeight = 50.0;
 
+    public float $newTargetModifier = 100.0;
+
     public function mount(): void
     {
 
@@ -30,6 +32,24 @@ class AthleteDatabase extends Component
         ];*/
 
         $weights = [
+            52,
+            55,
+            57,
+            60,
+            102,
+            105,
+            107.5,
+            115,
+            122.5,
+            52,
+            55,
+            57,
+            60,
+            102,
+            105,
+            107.5,
+            115,
+            122.5,
             52,
             55,
             57,
@@ -63,6 +83,24 @@ class AthleteDatabase extends Component
                     id: $athlete->id,
                     name: $value,
                     tests: $athlete->tests,
+                    target_modifier: $athlete->target_modifier,
+                );
+                break;
+            }
+        }
+
+        $this->emitAthletes();
+    }
+
+    public function updateAthleteTargetModifier(int $athleteId, float $value): void
+    {
+        foreach ($this->athletes as $index => $athlete) {
+            if ($athlete->id === $athleteId) {
+                $this->athletes[$index] = new AthleteData(
+                    id: $athlete->id,
+                    name: $athlete->name,
+                    tests: $athlete->tests,
+                    target_modifier: $value,
                 );
                 break;
             }
@@ -87,6 +125,7 @@ class AthleteDatabase extends Component
                     id: $athlete->id,
                     name: $athlete->name,
                     tests: $tests,
+                    target_modifier: $athlete->target_modifier,
                 );
                 break;
             }
@@ -111,6 +150,7 @@ class AthleteDatabase extends Component
                     id: $athlete->id,
                     name: $athlete->name,
                     tests: $tests,
+                    target_modifier: $athlete->target_modifier,
                 );
                 break;
             }
@@ -125,6 +165,7 @@ class AthleteDatabase extends Component
             'newName' => 'required|string|min:1',
             'newReps' => 'required|integer|min:1',
             'newWeight' => 'required|numeric|min:1',
+            'newTargetModifier' => 'required|numeric|min:0',
         ]);
 
         $this->athletes[] = new AthleteData(
@@ -133,6 +174,7 @@ class AthleteDatabase extends Component
             tests: [
                 AthleteTestData::back_squat($this->newReps, $this->newWeight),
             ],
+            target_modifier: $this->newTargetModifier,
         );
 
         $this->resetAddForm();
@@ -194,6 +236,7 @@ class AthleteDatabase extends Component
         $this->newName = '';
         $this->newReps = 1;
         $this->newWeight = 50.0;
+        $this->newTargetModifier = 100.0;
     }
 
     public function getListKey(): string

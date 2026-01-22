@@ -11,13 +11,10 @@
     'exerciseId' => null,
     'targetValue' => null,
     'targetDefault' => null,
-    'targetOptions' => [0 => '0%', 2.5 => '2.5%', 5 => '5%', 7.5 => '7.5%', 10 => '10%'],
     'repsValue' => null,
     'repsDefault' => null,
-    'repsOptions' => [8 => '8', 10 => '10', 12 => '12', 14 => '14', 16 => '16'],
     'setsValue' => null,
     'setsDefault' => null,
-    'setsOptions' => [4 => '4', 5 => '5', 6 => '6'],
     'hasTargetOverride' => false,
     'hasRepsOverride' => false,
     'hasSetsOverride' => false,
@@ -77,45 +74,65 @@
         @endif
     </div>
     @if ($overrideDisplayMode === 'radios' && $exerciseId !== null)
-        <div class="mb-2 flex flex-col gap-2">
-            <div class="flex items-center gap-2"
-                wire:key="target-radio-{{ $exerciseId }}-{{ $targetValue }}"
+        <div class="mb-4 space-y-3">
+            <div wire:key="target-slider-{{ $exerciseId }}-{{ $targetValue }}"
                 x-data="{ value: '{{ $targetValue }}' }"
                 x-init="$watch('value', v => $wire.updateExerciseOverride({{ $exerciseId }}, 'target', parseFloat(v)))">
-                <span class="text-xs w-16 text-zinc-500 dark:text-zinc-400">Target:</span>
-                <div class="{{ $hasTargetOverride ? 'override-active' : '' }}">
-                    <flux:radio.group x-model="value" variant="segmented" size="sm">
-                        @foreach ($targetOptions as $optValue => $optLabel)
-                            <flux:radio value="{{ $optValue }}" label="{{ $optLabel }}" />
-                        @endforeach
-                    </flux:radio.group>
-                </div>
+                <flux:field>
+                    <flux:label class="text-xs {{ $hasTargetOverride ? 'text-blue-600 dark:text-blue-400' : '' }}">Target (%)</flux:label>
+                    <div class="flex items-center gap-4 -mt-2">
+                        <flux:slider x-model="value" min="1" max="15" step="0.1">
+                            @foreach ([2.5, 5, 7.5, 10, 12.5, 15] as $tick)
+                                <flux:slider.tick :value="$tick">{{ $tick }}</flux:slider.tick>
+                            @endforeach
+                        </flux:slider>
+                        <flux:input.group>
+                            <flux:input x-model="value" type="number" size="sm" class="max-w-18"
+                                min="0" step="0.1" />
+                            <flux:input.group.suffix>%</flux:input.group.suffix>
+                        </flux:input.group>
+                    </div>
+                </flux:field>
             </div>
-            <div class="flex items-center gap-2"
-                wire:key="reps-radio-{{ $exerciseId }}-{{ $repsValue }}"
+
+            <div wire:key="reps-slider-{{ $exerciseId }}-{{ $repsValue }}"
                 x-data="{ value: '{{ $repsValue }}' }"
                 x-init="$watch('value', v => $wire.updateExerciseOverride({{ $exerciseId }}, 'startingReps', parseInt(v)))">
-                <span class="text-xs w-16 text-zinc-500 dark:text-zinc-400">Reps:</span>
-                <div class="{{ $hasRepsOverride ? 'override-active' : '' }}">
-                    <flux:radio.group x-model="value" variant="segmented" size="sm">
-                        @foreach ($repsOptions as $optValue => $optLabel)
-                            <flux:radio value="{{ $optValue }}" label="{{ $optLabel }}" />
-                        @endforeach
-                    </flux:radio.group>
-                </div>
+                <flux:field>
+                    <flux:label class="text-xs {{ $hasRepsOverride ? 'text-blue-600 dark:text-blue-400' : '' }}">Starting Reps</flux:label>
+                    <div class="flex items-center gap-4 -mt-2">
+                        <flux:slider x-model="value" min="1" max="25" step="1">
+                            @foreach ([5, 10, 15, 20, 25] as $tick)
+                                <flux:slider.tick :value="$tick">{{ $tick }}</flux:slider.tick>
+                            @endforeach
+                        </flux:slider>
+                        <flux:input.group>
+                            <flux:input x-model="value" type="number" size="sm" class="max-w-18"
+                                min="1" max="25" step="1" />
+                            <flux:input.group.suffix>reps</flux:input.group.suffix>
+                        </flux:input.group>
+                    </div>
+                </flux:field>
             </div>
-            <div class="flex items-center gap-2"
-                wire:key="sets-radio-{{ $exerciseId }}-{{ $setsValue }}"
+
+            <div wire:key="sets-slider-{{ $exerciseId }}-{{ $setsValue }}"
                 x-data="{ value: '{{ $setsValue }}' }"
                 x-init="$watch('value', v => $wire.updateExerciseOverride({{ $exerciseId }}, 'sets', parseInt(v)))">
-                <span class="text-xs w-16 text-zinc-500 dark:text-zinc-400">Sets:</span>
-                <div class="{{ $hasSetsOverride ? 'override-active' : '' }}">
-                    <flux:radio.group x-model="value" variant="segmented" size="sm">
-                        @foreach ($setsOptions as $optValue => $optLabel)
-                            <flux:radio value="{{ $optValue }}" label="{{ $optLabel }}" />
-                        @endforeach
-                    </flux:radio.group>
-                </div>
+                <flux:field>
+                    <flux:label class="text-xs {{ $hasSetsOverride ? 'text-blue-600 dark:text-blue-400' : '' }}">Sets</flux:label>
+                    <div class="flex items-center gap-4 -mt-2">
+                        <flux:slider x-model="value" min="1" max="6" step="1">
+                            @foreach (range(1, 6) as $tick)
+                                <flux:slider.tick :value="$tick">{{ $tick }}</flux:slider.tick>
+                            @endforeach
+                        </flux:slider>
+                        <flux:input.group>
+                            <flux:input x-model="value" type="number" size="sm" class="max-w-18"
+                                min="1" max="6" step="1" />
+                            <flux:input.group.suffix>sets</flux:input.group.suffix>
+                        </flux:input.group>
+                    </div>
+                </flux:field>
             </div>
         </div>
     @elseif ($overrideDisplayMode === 'pills' && $exerciseId !== null)

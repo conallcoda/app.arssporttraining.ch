@@ -8,44 +8,31 @@
                 content="Set the target goal percentage and training strategy. Use Advanced settings for fine-tuned control over steps and rules." />
         </div>
         <div class="p-4">
-            <div class="flex flex-wrap items-end gap-4">
-                <flux:radio.group wire:model.live="targetGoal" label="Target Goal (%)" variant="segmented">
-                    <flux:radio value="0" label="0%" />
-                    <flux:radio value="2.5" label="2.5%" />
-                    <flux:radio value="5" label="5%" />
-                    <flux:radio value="7.5" label="7.5%" />
-                    <flux:radio value="10" label="10%" />
-                </flux:radio.group>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <x-slider-with-input label="Target Goal (%)" model="targetGoal" min="1" max="15" step="0.1"
+                    :ticks="[2.5, 5, 7.5, 10, 12.5, 15]" suffix="%" input-min="0" :input-max="null" />
 
-                <flux:radio.group wire:model.live="strategyConfig.set_paired_reps.startingReps" label="Starting Reps"
-                    variant="segmented">
-                    <flux:radio value="8" label="8" />
-                    <flux:radio value="10" label="10" />
-                    <flux:radio value="12" label="12" />
-                    <flux:radio value="14" label="14" />
-                    <flux:radio value="16" label="16" />
-                </flux:radio.group>
+                <x-slider-with-input label="Starting Reps" model="strategyConfig.set_paired_reps.startingReps"
+                    min="1" max="25" step="1" :ticks="[5, 10, 15, 20, 25]" suffix="reps" />
 
-                <flux:radio.group wire:model.live="strategyConfig.create_empty_block.sets" label="# Sets"
-                    variant="segmented">
-                    <flux:radio value="4" label="4" />
-                    <flux:radio value="5" label="5" />
-                    <flux:radio value="6" label="6" />
-                </flux:radio.group>
+                <x-slider-with-input label="Sets" model="strategyConfig.create_empty_block.sets" min="1"
+                    max="6" step="1" :ticks="range(1, 6)" suffix="sets" />
+            </div>
 
-                <div class="hidden">
-                    <flux:select wire:model.live="selectedStrategy" label="Strategy">
-                        @foreach ($this->getStrategies() as $key => $class)
-                            <flux:select.option value="{{ $key }}">
-                                {{ str_replace('_', ' ', ucwords($key, '_')) }}
-                            </flux:select.option>
-                        @endforeach
-                    </flux:select>
-                </div>
-
+            <div class="flex justify-end">
                 <flux:button wire:click="openAdvancedModal" icon="adjustments-horizontal">
                     Advanced
                 </flux:button>
+            </div>
+
+            <div class="hidden">
+                <flux:select wire:model.live="selectedStrategy" label="Strategy">
+                    @foreach ($this->getStrategies() as $key => $class)
+                        <flux:select.option value="{{ $key }}">
+                            {{ str_replace('_', ' ', ucwords($key, '_')) }}
+                        </flux:select.option>
+                    @endforeach
+                </flux:select>
             </div>
         </div>
     </div>

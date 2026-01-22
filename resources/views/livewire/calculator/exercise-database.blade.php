@@ -1,20 +1,19 @@
 <div>
-    <div class="mb-4 flex items-center justify-between">
-        <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Exercise Database</h2>
+    <div class="mb-4 flex justify-end">
         <flux:button variant="ghost" size="sm" wire:click="toggleAddGroupModal" icon="plus">
-            Add Group
+            Add Program
         </flux:button>
     </div>
 
     <flux:modal wire:model="showAddGroupModal" class="min-w-[400px]">
         <form wire:submit="addGroup" class="space-y-6">
-            <flux:heading size="lg">Add New Group</flux:heading>
+            <flux:heading size="lg">Add New Program</flux:heading>
 
             <flux:input wire:model="newGroupName" placeholder="Kraft 1A" required />
 
             <div class="flex gap-2 justify-end">
                 <flux:button type="button" variant="ghost" wire:click="toggleAddGroupModal">Cancel</flux:button>
-                <flux:button type="submit" variant="primary">Add Group</flux:button>
+                <flux:button type="submit" variant="primary">Add Program</flux:button>
             </div>
         </form>
     </flux:modal>
@@ -30,7 +29,7 @@
                     <div class="px-4 py-3 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
                         <form wire:submit="addExercise('{{ $group }}')" class="grid grid-cols-1 gap-3">
                             <flux:input wire:model="newName.{{ $group }}" label="Name" placeholder="Exercise name" required />
-                            <flux:input wire:model="newModifier.{{ $group }}" label="Modifier (%)" type="number" step="0.1" min="1" placeholder="100.0" required />
+                            <flux:input wire:model="newModifier.{{ $group }}" label="Modifier (1RM) (%)" type="number" step="0.1" min="1" placeholder="100.0" required />
                             <div class="flex gap-2">
                                 <flux:button type="submit" variant="primary" class="flex-1">Add</flux:button>
                                 <flux:button type="button" wire:click="cancelAdd('{{ $group }}')">Cancel</flux:button>
@@ -42,7 +41,7 @@
                 <div class="p-4 overflow-x-auto">
                     <div class="flex justify-end mb-3">
                         <flux:button variant="ghost" size="sm" wire:click="toggleAddForm('{{ $group }}')" icon="plus">
-                            Add
+                            Add Exercise
                         </flux:button>
                     </div>
                     @php
@@ -54,7 +53,7 @@
                             <thead>
                                 <tr class="bg-zinc-100 dark:bg-zinc-800">
                                     <th class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">Name</th>
-                                    <th class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">Modifier</th>
+                                    <th class="border border-zinc-300 px-3 py-2 dark:border-zinc-600">Modifier (1RM)</th>
                                     <th class="border border-zinc-300 px-3 py-2 w-16 dark:border-zinc-600">Actions</th>
                                 </tr>
                             </thead>
@@ -98,7 +97,7 @@
                         </table>
                     @else
                         <div class="text-center text-zinc-500 dark:text-zinc-400 p-8">
-                            No exercises in this group. Click "Add" to create one.
+                            No exercises in this group. Click "Add Exercise" to create one.
                         </div>
                     @endif
                 </div>

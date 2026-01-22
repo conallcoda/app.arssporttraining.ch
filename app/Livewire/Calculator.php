@@ -16,7 +16,7 @@ use Livewire\Component;
 class Calculator extends Component
 {
     #[Url]
-    public string $tab = 'exercises';
+    public string $tab = 'training';
 
     public array $athletes = [];
 

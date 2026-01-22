@@ -12,6 +12,7 @@ class AthleteData extends AbstractData
         public string $name,
         #[DataCollectionOf(AthleteTestData::class)]
         public array $tests = [],
+        public float $target_modifier = 100.0,
 
     ) {}
 
@@ -25,8 +26,6 @@ class AthleteData extends AbstractData
             ],
         );
     }
-
-
 
     public function getOneRepMaxForExercise(ExerciseData $exercise): float
     {
