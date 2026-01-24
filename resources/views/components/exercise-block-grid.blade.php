@@ -172,7 +172,7 @@
             <thead>
                 <tr class="bg-zinc-100 dark:bg-zinc-800">
                     <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2">Week</th>
-                    <th class="border border-zinc-300 dark:border-zinc-600 px-2 py-2">Sessions</th>
+                    <th class="border border-zinc-300 dark:border-zinc-600 px-2 py-2"># Sessions</th>
                     @for ($i = 0; $i < $setCount; $i++)
                         <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2">Set {{ $i + 1 }}</th>
                     @endfor
@@ -193,7 +193,7 @@
                             </td>
                             <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 text-center bg-zinc-100 dark:bg-zinc-700/50 text-xs font-medium"
                                 rowspan="3">
-                                1-{{ $sessionCount }}
+                                {{ $sessionCount }}
                             </td>
                             @for ($i = 0; $i < $setCount; $i++)
                                 @if (isset($session->sets[$i]))

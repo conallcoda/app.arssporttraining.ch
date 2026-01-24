@@ -5,6 +5,7 @@
                 <flux:tab name="training">Training</flux:tab>
                 <flux:tab name="exercises">Programs</flux:tab>
                 <flux:tab name="athletes">Athletes</flux:tab>
+                <flux:tab name="export">Export</flux:tab>
             </flux:tabs>
         </div>
 
@@ -24,6 +25,12 @@
         <flux:tab.panel name="athletes" class="px-3 sm:px-6">
             <div class="pt-4 sm:pt-6">
                 <livewire:calculator.athlete-database wire:key="athlete-database" />
+            </div>
+        </flux:tab.panel>
+
+        <flux:tab.panel name="export" class="px-3 sm:px-6">
+            <div class="pt-4 sm:pt-6">
+                <livewire:calculator.export :athletes="$athletes" :exercises="$exercises" :config="$config" wire:key="export-{{ $this->getDataKey() }}" />
             </div>
         </flux:tab.panel>
     </flux:tab.group>

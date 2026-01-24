@@ -1,6 +1,6 @@
 <div class="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
     <div
-        class="px-4 py-3 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex items-start gap-2 justify-between sm:items-center">
+        class="sticky top-0 z-20 px-4 py-3 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex items-start gap-2 justify-between sm:items-center">
         <h3 class="text-sm font-medium text-zinc-900 dark:text-zinc-100">
             Athlete Training Plans
         </h3>
@@ -28,8 +28,8 @@
     </div>
 
     @if (count($athletes) > 0)
-        <div class="flex min-h-[600px]">
-            <div class="w-64 border-r border-zinc-200 dark:border-zinc-700 overflow-y-auto">
+        <div class="flex">
+            <div class="w-64 border-r border-zinc-200 dark:border-zinc-700 flex-shrink-0 sticky top-[3.75rem] self-start max-h-[calc(100vh-4rem)] overflow-y-auto">
                 <div class="sticky top-0 bg-zinc-50 dark:bg-zinc-800 px-4 py-3 border-b border-zinc-200 dark:border-zinc-700">
                     <flux:heading size="sm" class="text-zinc-700 dark:text-zinc-300">Athletes</flux:heading>
                 </div>
