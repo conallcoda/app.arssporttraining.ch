@@ -2,12 +2,11 @@
 
 namespace App\Models\Training\Periods;
 
-use App\Models\Training\TrainingPeriodData;
-use Spatie\LaravelData\Attributes\DataCollectionOf;
 use App\Models\Training\Periods\Data\TrainingPeriodIdentity;
-use App\Models\Training\Periods\Data\TrainingSessionCategoryData;
 use App\Models\Training\Periods\Data\TrainingSessionPeriod;
 use App\Models\Training\TrainingPeriod;
+use App\Models\Training\TrainingPeriodData;
+use Spatie\LaravelData\Attributes\DataCollectionOf;
 
 class TrainingSession extends TrainingPeriodData
 {
@@ -16,7 +15,6 @@ class TrainingSession extends TrainingPeriodData
     public function __construct(
         public TrainingPeriodIdentity $identity,
         public ?TrainingSessionPeriod $period = null,
-        public ?TrainingSessionCategoryData $category = null,
         #[DataCollectionOf(TrainingExercise::class)]
         public array $children = [],
     ) {}
@@ -32,8 +30,8 @@ class TrainingSession extends TrainingPeriodData
         $instance = new static(
             identity: static::createIdentity($model),
             period: TrainingSessionPeriod::from($model->extra['period']),
-            category: TrainingSessionCategoryData::from($model->extra['category'] ?? null),
         );
+
         return static::passParentAndSequence($instance, $model);
     }
 
@@ -42,7 +40,6 @@ class TrainingSession extends TrainingPeriodData
         $model = new static(
             identity: static::createIdentity(),
             period: TrainingSessionPeriod::from($data['period']),
-            category: TrainingSessionCategoryData::from($data['category']),
         );
 
         return static::passParentAndSequence($model, $data);
@@ -58,8 +55,7 @@ class TrainingSession extends TrainingPeriodData
         return [
             'extra' => [
                 'period' => $this->period->toArray(),
-                'category' => $this->category?->identity?->id,
-            ]
+            ],
         ];
     }
 

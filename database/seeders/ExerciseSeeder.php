@@ -8,10 +8,9 @@ use Illuminate\Support\Facades\Artisan;
 
 class ExerciseSeeder extends Seeder
 {
-
     public function run(): void
     {
-        $base =  [
+        $base = [
             'Back Squat' => [],
             'Front Squat' => [],
             'Deadlift Narrow' => [],

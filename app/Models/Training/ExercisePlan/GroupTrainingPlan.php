@@ -84,9 +84,9 @@ class GroupTrainingPlan
         };
     }
 
-    public function isExerciseStartRow(array $row): bool
+    public function isExerciseHeaderRow(array $row): bool
     {
-        return $row['isExerciseStart'] ?? false;
+        return $row['type'] === self::ROW_TYPE_HEADER;
     }
 
     protected function calculateDimensions(): void
@@ -119,22 +119,33 @@ class GroupTrainingPlan
             $block = $item['block'];
             $exerciseNumber = $exerciseIndex + 1;
 
-            $this->buildExerciseRows($exercise, $exerciseNumber, $block);
+            $exerciseRowCount = $this->calculateExerciseRowCount($block);
+
+            $exerciseHeader = [$exerciseNumber, $exercise->name, ''];
+            for ($i = 1; $i <= $this->maxSets; $i++) {
+                $exerciseHeader[] = 'Set '.$i;
+            }
+            $exerciseHeader[] = 'TUT';
+            $exerciseHeader[] = 'Datum';
+            $exerciseHeader[] = 'Datum';
+            $exerciseHeader[] = 'Week';
 
             $this->rows[] = [
-                'type' => self::ROW_TYPE_SPACER,
-                'isExerciseStart' => false,
-                'isWeekStart' => false,
-                'cells' => [],
+                'type' => self::ROW_TYPE_HEADER,
+                'exerciseNumber' => $exerciseNumber,
+                'exerciseName' => $exercise->name,
+                'headerCells' => $exerciseHeader,
+                'exerciseRowCount' => $exerciseRowCount,
             ];
+
+            $this->buildExerciseRows($exercise, $exerciseNumber, $block);
         }
     }
 
     protected function buildExerciseRows(ExerciseData $exercise, int $exerciseNumber, ExerciseBlock $block): void
     {
-        $totalRows = $this->calculateTotalRowsForExercise($block);
-        $isFirstRow = true;
         $weekNumber = 1;
+        $lastReps = null;
 
         foreach ($block->weeks as $week) {
             $sessions = $week->sessions;
@@ -143,48 +154,82 @@ class GroupTrainingPlan
             }
 
             $firstSession = $sessions[0];
+            $currentReps = $this->getRepsArray($firstSession);
 
-            $this->rows[] = [
-                'type' => self::ROW_TYPE_REPS,
-                'isExerciseStart' => $isFirstRow,
-                'exerciseNumber' => $isFirstRow ? $exerciseNumber : null,
-                'exerciseName' => $isFirstRow ? $exercise->name : null,
-                'exerciseRowspan' => $isFirstRow ? $totalRows : null,
-                'label' => 'Reps',
-                'cells' => $this->buildSetCells($firstSession, 'reps'),
-                'tut' => '',
-                'datum1' => '',
-                'datum2' => '',
-                'weekLabel' => '',
-            ];
-            $isFirstRow = false;
-
-            foreach ($sessions as $session) {
+            if (! $this->repsAreSimilar($lastReps, $currentReps)) {
                 $this->rows[] = [
-                    'type' => self::ROW_TYPE_WEIGHT,
-                    'isExerciseStart' => false,
-                    'label' => 'Weight',
-                    'cells' => $this->buildSetCells($session, 'weight'),
-                    'tut' => '2010',
+                    'type' => self::ROW_TYPE_REPS,
+                    'label' => 'Reps',
+                    'cells' => $this->buildSetCells($firstSession, 'reps'),
+                    'tut' => '',
                     'datum1' => '',
                     'datum2' => '',
-                    'weekLabel' => 'W'.$weekNumber,
+                    'weekLabel' => '',
                 ];
-                $weekNumber++;
+                $lastReps = $currentReps;
             }
+
+            $this->rows[] = [
+                'type' => self::ROW_TYPE_WEIGHT,
+                'label' => 'Weight',
+                'cells' => $this->buildSetCells($firstSession, 'weight'),
+                'tut' => '2010',
+                'datum1' => '',
+                'datum2' => '',
+                'weekLabel' => 'W'.$weekNumber,
+            ];
+            $weekNumber++;
         }
     }
 
-    protected function calculateTotalRowsForExercise(ExerciseBlock $block): int
+    protected function calculateExerciseRowCount(ExerciseBlock $block): int
     {
-        $total = 0;
+        $count = 1;
+        $lastReps = null;
+
         foreach ($block->weeks as $week) {
-            if (! empty($week->sessions)) {
-                $total += 1 + count($week->sessions);
+            if (empty($week->sessions)) {
+                continue;
+            }
+
+            $firstSession = $week->sessions[0];
+            $currentReps = $this->getRepsArray($firstSession);
+
+            if (! $this->repsAreSimilar($lastReps, $currentReps)) {
+                $count++;
+                $lastReps = $currentReps;
+            }
+
+            $count++;
+        }
+
+        return $count;
+    }
+
+    protected function getRepsArray(ExerciseSession $session): array
+    {
+        $reps = [];
+        foreach ($session->sets as $set) {
+            $reps[] = $set->reps;
+        }
+
+        return $reps;
+    }
+
+    protected function repsAreSimilar(?array $lastReps, array $currentReps): bool
+    {
+        if ($lastReps === null) {
+            return false;
+        }
+
+        $minLength = min(count($lastReps), count($currentReps));
+        for ($i = 0; $i < $minLength; $i++) {
+            if ($lastReps[$i] !== $currentReps[$i]) {
+                return false;
             }
         }
 
-        return $total;
+        return true;
     }
 
     protected function buildSetCells(ExerciseSession $session, string $field): array
@@ -211,26 +256,15 @@ class GroupTrainingPlan
     public function toArray(): array
     {
         $data = [];
-        $data[] = $this->headers;
 
         foreach ($this->rows as $row) {
-            if ($row['type'] === self::ROW_TYPE_SPACER) {
-                $data[] = [];
+            if ($row['type'] === self::ROW_TYPE_HEADER) {
+                $data[] = $row['headerCells'];
 
                 continue;
             }
 
-            $rowData = [];
-
-            if ($row['isExerciseStart'] ?? false) {
-                $rowData[] = $row['exerciseNumber'] ?? '';
-                $rowData[] = $row['exerciseName'] ?? '';
-            } else {
-                $rowData[] = '';
-                $rowData[] = '';
-            }
-
-            $rowData[] = $row['label'] ?? '';
+            $rowData = ['', '', $row['label'] ?? ''];
 
             foreach ($row['cells'] as $cell) {
                 $rowData[] = $cell;

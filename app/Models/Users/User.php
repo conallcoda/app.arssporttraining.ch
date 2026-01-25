@@ -3,12 +3,7 @@
 namespace App\Models\Users;
 
 use App\Models\Concerns\HasExtraData;
-use App\Models\Users\Types\Admin;
-use App\Models\Users\Types\Athlete;
-use App\Models\Users\Types\Coach;
 use Database\Factories\UserFactory;
-use Filament\Models\Contracts\FilamentUser;
-use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -16,17 +11,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
-use Parental\HasChildren;
 
-class User extends Authenticatable implements FilamentUser
+class User extends Authenticatable
 {
-    use HasChildren, HasExtraData, HasFactory, Notifiable, SoftDeletes;
-
-    protected $childTypes = [
-        'admin' => Admin::class,
-        'coach' => Coach::class,
-        'athlete' => Athlete::class,
-    ];
+    use HasExtraData, HasFactory, Notifiable, SoftDeletes;
 
     protected static function newFactory(): UserFactory
     {
@@ -78,11 +66,6 @@ class User extends Authenticatable implements FilamentUser
             ->implode('');
     }
 
-    public function canAccessPanel(Panel $panel): bool
-    {
-        return in_array($this->type, ['admin', 'coach']);
-    }
-
     public static function getExtraConfig(?Model $model = null): array
     {
         return [];
@@ -96,15 +79,5 @@ class User extends Authenticatable implements FilamentUser
             'user_id',
             'user_group_id'
         );
-    }
-
-    public function allowedGroupTypes(): array
-    {
-        return [];
-    }
-
-    public function canJoinGroup(UserGroup $group): bool
-    {
-        return in_array($group->type, $this->allowedGroupTypes());
     }
 }

@@ -62,22 +62,42 @@ class GroupTrainingPlanSheet implements FromArray, WithColumnWidths, WithStyles,
     {
         $lastColumn = chr(ord('D') + $this->plan->getMaxSets() + 3);
 
-        $styles = [
-            1 => [
-                'font' => ['bold' => true],
-                'alignment' => [
-                    'horizontal' => Alignment::HORIZONTAL_CENTER,
-                ],
-                'fill' => [
-                    'fillType' => Fill::FILL_SOLID,
-                    'startColor' => ['rgb' => ltrim(GroupTrainingPlan::COLOR_HEADER, '#')],
-                ],
-            ],
-        ];
+        $rowIndex = 1;
+        $rows = $this->plan->getRows();
 
-        $rowIndex = 2;
-        foreach ($this->plan->getRows() as $row) {
-            if ($row['type'] === GroupTrainingPlan::ROW_TYPE_SPACER) {
+        foreach ($rows as $row) {
+            if ($row['type'] === GroupTrainingPlan::ROW_TYPE_HEADER) {
+                $exerciseRowCount = $row['exerciseRowCount'] ?? 1;
+                $endRow = $rowIndex + $exerciseRowCount - 1;
+
+                $sheet->mergeCells("A{$rowIndex}:A{$endRow}");
+                $sheet->mergeCells("B{$rowIndex}:B{$endRow}");
+
+                $sheet->getStyle("A{$rowIndex}:A{$endRow}")->applyFromArray([
+                    'font' => ['bold' => true],
+                    'alignment' => [
+                        'horizontal' => Alignment::HORIZONTAL_CENTER,
+                        'vertical' => Alignment::VERTICAL_CENTER,
+                    ],
+                ]);
+                $sheet->getStyle("B{$rowIndex}:B{$endRow}")->applyFromArray([
+                    'font' => ['bold' => true],
+                    'alignment' => [
+                        'horizontal' => Alignment::HORIZONTAL_CENTER,
+                        'vertical' => Alignment::VERTICAL_CENTER,
+                    ],
+                ]);
+
+                $sheet->getStyle("C{$rowIndex}:{$lastColumn}{$rowIndex}")->applyFromArray([
+                    'font' => ['bold' => true],
+                    'alignment' => [
+                        'horizontal' => Alignment::HORIZONTAL_CENTER,
+                    ],
+                    'fill' => [
+                        'fillType' => Fill::FILL_SOLID,
+                        'startColor' => ['rgb' => ltrim(GroupTrainingPlan::COLOR_HEADER, '#')],
+                    ],
+                ]);
                 $rowIndex++;
 
                 continue;
@@ -97,37 +117,9 @@ class GroupTrainingPlanSheet implements FromArray, WithColumnWidths, WithStyles,
                 ]);
             }
 
-            if ($this->plan->isExerciseStartRow($row) && isset($row['exerciseRowspan'])) {
-                $endRow = $rowIndex + $row['exerciseRowspan'] - 1;
-                $sheet->mergeCells("A{$rowIndex}:A{$endRow}");
-                $sheet->mergeCells("B{$rowIndex}:B{$endRow}");
-                $sheet->getStyle("A{$rowIndex}:A{$endRow}")->applyFromArray([
-                    'font' => ['bold' => true],
-                    'alignment' => [
-                        'vertical' => Alignment::VERTICAL_CENTER,
-                        'horizontal' => Alignment::HORIZONTAL_CENTER,
-                    ],
-                    'fill' => [
-                        'fillType' => Fill::FILL_SOLID,
-                        'startColor' => ['rgb' => 'F9FAFB'],
-                    ],
-                ]);
-                $sheet->getStyle("B{$rowIndex}:B{$endRow}")->applyFromArray([
-                    'font' => ['bold' => true],
-                    'alignment' => [
-                        'vertical' => Alignment::VERTICAL_CENTER,
-                        'horizontal' => Alignment::HORIZONTAL_CENTER,
-                    ],
-                    'fill' => [
-                        'fillType' => Fill::FILL_SOLID,
-                        'startColor' => ['rgb' => 'F9FAFB'],
-                    ],
-                ]);
-            }
-
             $rowIndex++;
         }
 
-        return $styles;
+        return [];
     }
 }

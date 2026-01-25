@@ -42,39 +42,29 @@
                             <div>
                                 <flux:heading size="xs" class="mb-2">{{ $plan->getTitle() }}</flux:heading>
                                 <div class="overflow-x-auto border border-zinc-300 dark:border-zinc-600 rounded">
-                                    <table class="w-full text-sm border-collapse">
-                                        <thead>
-                                            <tr class="bg-zinc-100 dark:bg-zinc-800">
-                                                <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center font-semibold whitespace-nowrap w-10">#</th>
-                                                <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center font-semibold whitespace-nowrap min-w-32">Exercise</th>
-                                                <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center font-semibold whitespace-nowrap w-16"></th>
-                                                @for ($i = 1; $i <= $plan->getMaxSets(); $i++)
-                                                    <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center font-semibold whitespace-nowrap w-16">Set {{ $i }}</th>
-                                                @endfor
-                                                <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center font-semibold whitespace-nowrap w-16">TUT</th>
-                                                <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center font-semibold whitespace-nowrap w-20">Datum</th>
-                                                <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center font-semibold whitespace-nowrap w-20">Datum</th>
-                                                <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center font-semibold whitespace-nowrap w-16">Week</th>
-                                            </tr>
-                                        </thead>
+                                    <table class="text-sm border-collapse">
                                         <tbody>
                                             @foreach ($plan->getRows() as $row)
-                                                @if ($row['type'] === 'spacer')
+                                                @if ($plan->isExerciseHeaderRow($row))
                                                     <tr>
-                                                        <td colspan="{{ count($plan->getHeaders()) }}" class="h-2 bg-white dark:bg-zinc-900"></td>
+                                                        <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle font-bold w-10"
+                                                            rowspan="{{ $row['exerciseRowCount'] ?? 1 }}">
+                                                            {{ $row['exerciseNumber'] }}
+                                                        </td>
+                                                        <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle font-bold w-60"
+                                                            rowspan="{{ $row['exerciseRowCount'] ?? 1 }}">
+                                                            {{ $row['exerciseName'] }}
+                                                        </td>
+                                                        @foreach ($row['headerCells'] as $index => $cell)
+                                                            @if ($index > 1)
+                                                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center whitespace-nowrap font-semibold bg-zinc-200 dark:bg-zinc-700">
+                                                                    {{ $cell }}
+                                                                </td>
+                                                            @endif
+                                                        @endforeach
                                                     </tr>
                                                 @else
                                                     <tr class="{{ $plan->getTailwindRowClass($row) }}">
-                                                        @if ($plan->isExerciseStartRow($row))
-                                                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle text-center"
-                                                                rowspan="{{ $row['exerciseRowspan'] ?? 1 }}">
-                                                                {{ $row['exerciseNumber'] }}
-                                                            </td>
-                                                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle"
-                                                                rowspan="{{ $row['exerciseRowspan'] ?? 1 }}">
-                                                                {{ $row['exerciseName'] }}
-                                                            </td>
-                                                        @endif
                                                         <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center whitespace-nowrap font-medium">
                                                             {{ $row['label'] ?? '' }}
                                                         </td>

@@ -4,14 +4,14 @@ namespace App\Filament\Resources\Athletes;
 
 use App\Filament\Extensions\ConfigurableResource;
 use App\Filament\Resources\Athletes\Schemas\AthleteForm;
-use App\Models\Users\Types\Athlete;
+use App\Models\Users\User;
 
 class AthleteResource extends ConfigurableResource
 {
     protected static function configure(): array
     {
         return [
-            'model' => Athlete::class,
+            'model' => User::class,
             'navigationGroup' => 'Athletes',
             'navigationIcon' => 'lucide-user',
             'navigationLabel' => 'Athletes',

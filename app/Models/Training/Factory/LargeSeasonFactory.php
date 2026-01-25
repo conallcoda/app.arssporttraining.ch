@@ -9,19 +9,12 @@ use App\Models\Training\Data\SeasonData;
 use App\Models\Training\Data\SessionData;
 use App\Models\Training\Data\WeekData;
 use App\Models\Training\TrainingNode;
-use App\Models\Training\TrainingSessionCategory;
 
 class LargeSeasonFactory extends AbstractData
 {
-
     public static function create(SeasonConfig $config): TrainingNode
     {
-        $categoryIds = TrainingSessionCategory::pluck('id')->toArray();
         $exerciseIds = Exercise::pluck('id')->toArray();
-
-        if (empty($categoryIds)) {
-            throw new \RuntimeException('No training session categories found. Please create some categories first.');
-        }
 
         if (empty($exerciseIds)) {
             throw new \RuntimeException('No exercises found. Please create some exercises first.');
@@ -37,7 +30,6 @@ class LargeSeasonFactory extends AbstractData
 
                 for ($day = 0; $day < 7; $day++) {
                     for ($slot = 0; $slot < 2; $slot++) {
-                        $randomCategory = $categoryIds[array_rand($categoryIds)];
                         $randomExercises = [];
 
                         for ($exerciseIndex = 0; $exerciseIndex < 6; $exerciseIndex++) {
@@ -48,19 +40,18 @@ class LargeSeasonFactory extends AbstractData
                             name: null,
                             day: $day,
                             slot: $slot,
-                            category: $randomCategory,
                             exercises: $randomExercises
                         );
                     }
                 }
 
-                $weeks[] = (new WeekData())->withChildren($sessions);
+                $weeks[] = (new WeekData)->withChildren($sessions);
             }
 
-            $blocks[] = (new BlockData())->withChildren($weeks);
+            $blocks[] = (new BlockData)->withChildren($weeks);
         }
 
-        $seasonData = (new SeasonData())->withChildren($blocks);
+        $seasonData = (new SeasonData)->withChildren($blocks);
 
         $node = TrainingNode::fromData($seasonData);
         $node->name = $config->name;

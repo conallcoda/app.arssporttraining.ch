@@ -20,21 +20,10 @@ return new class extends Migration
             $table->softDeletes();
             $table->foreign('parent_id')->references('id')->on('training_periods')->cascadeOnDelete();
         });
-
-        Schema::create('training_session_categories', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('slug')->unique();
-            $table->string('text_color')->nullable();
-            $table->string('background_color')->nullable();
-            $table->timestamps();
-            $table->softDeletes();
-        });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('training_session_categories');
         Schema::dropIfExists('training_periods');
     }
 };

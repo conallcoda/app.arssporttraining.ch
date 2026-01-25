@@ -35,7 +35,6 @@ trait ProgressionTestCase
             'parentId' => $firstWeek->uuid,
             'day' => 0,
             'slot' => 0,
-            'category' => 1,
             'exercises' => [1],
             'name' => 'Test Session',
         ]);

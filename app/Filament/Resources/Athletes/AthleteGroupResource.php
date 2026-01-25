@@ -5,14 +5,14 @@ namespace App\Filament\Resources\Athletes;
 use App\Filament\Extensions\ConfigurableResource;
 use App\Filament\Resources\Athletes\Schemas\AthleteGroupForm;
 use App\Filament\Resources\Athletes\Tables\AthleteGroupsTable;
-use App\Models\Users\Groups\AthleteGroup;
+use App\Models\Users\UserGroup;
 
 class AthleteGroupResource extends ConfigurableResource
 {
     protected static function configure(): array
     {
         return [
-            'model' => AthleteGroup::class,
+            'model' => UserGroup::class,
             'navigationGroup' => 'Athletes',
             'navigationIcon' => 'lucide-users',
             'navigationLabel' => 'Groups',

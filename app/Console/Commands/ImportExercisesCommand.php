@@ -7,13 +7,8 @@ use App\Models\Exercise\ExerciseEquipment;
 use App\Models\Exercise\ExerciseMuscle;
 use App\Models\Exercise\Level;
 use App\Models\Exercise\Mechanic;
-use App\Models\Exercise\Types\StrengthExercise;
-use App\Models\Exercise\Types\PlyometricExercise;
-use App\Models\Exercise\Types\StretchingExercise;
-use App\Models\Exercise\Types\CardioExercise;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Str;
 
 class ImportExercisesCommand extends Command
 {
@@ -31,19 +26,21 @@ class ImportExercisesCommand extends Command
     {
         $exercisesPath = base_path('import/exercises');
 
-        if (!File::isDirectory($exercisesPath)) {
+        if (! File::isDirectory($exercisesPath)) {
             $this->error("Directory not found: {$exercisesPath}");
+
             return 1;
         }
 
-        $files = File::glob($exercisesPath . '/*.json');
+        $files = File::glob($exercisesPath.'/*.json');
 
         if (empty($files)) {
             $this->error("No JSON files found in {$exercisesPath}");
+
             return 1;
         }
 
-        $this->info("Found " . count($files) . " exercise files to import...\n");
+        $this->info('Found '.count($files)." exercise files to import...\n");
 
         $progressBar = $this->output->createProgressBar(count($files));
         $progressBar->start();
@@ -68,23 +65,21 @@ class ImportExercisesCommand extends Command
 
         if (json_last_error() !== JSON_ERROR_NONE) {
             $this->stats['exercises']['skipped']++;
+
             return;
         }
 
-        // Import related entities first
         $equipmentIds = $this->importEquipment($data['equipment'] ?? null);
         $primaryMuscleIds = $this->importMuscles($data['primaryMuscles'] ?? []);
         $secondaryMuscleIds = $this->importMuscles($data['secondaryMuscles'] ?? []);
 
-        // Determine exercise type/class
-        $exerciseClass = $this->getExerciseClass($data['category'] ?? null);
-
-        // Create or update exercise
+        $type = $this->getExerciseType($data['category'] ?? null);
         $name = $data['name'] ?? $data['id'];
 
-        $exercise = $exerciseClass::updateOrCreate(
+        $exercise = Exercise::updateOrCreate(
             ['name' => $name],
             [
+                'type' => $type,
                 'level' => $this->getEnumValue(Level::class, $data['level'] ?? null),
                 'mechanic' => $this->getEnumValue(Mechanic::class, $data['mechanic'] ?? null),
                 'instructions' => $data['instructions'] ?? null,
@@ -97,24 +92,22 @@ class ImportExercisesCommand extends Command
             $this->stats['exercises']['updated']++;
         }
 
-        // Sync equipment relationships
-        if (!empty($equipmentIds)) {
+        if (! empty($equipmentIds)) {
             $exercise->equipment()->sync($equipmentIds);
         }
 
-        // Sync muscle relationships
-        if (!empty($primaryMuscleIds)) {
+        if (! empty($primaryMuscleIds)) {
             $exercise->primaryMuscles()->sync($primaryMuscleIds);
         }
 
-        if (!empty($secondaryMuscleIds)) {
+        if (! empty($secondaryMuscleIds)) {
             $exercise->secondaryMuscles()->sync($secondaryMuscleIds);
         }
     }
 
     private function importEquipment(string|array|null $equipment): array
     {
-        if (!$equipment) {
+        if (! $equipment) {
             return [];
         }
 
@@ -168,31 +161,30 @@ class ImportExercisesCommand extends Command
         return $ids;
     }
 
-    private function getExerciseClass(?string $category): string
+    private function getExerciseType(?string $category): string
     {
-        if (!$category) {
-            return StrengthExercise::class;
+        if (! $category) {
+            return 'strength';
         }
 
-        // Map category strings to exercise classes
         $categoryMap = [
-            'strength' => StrengthExercise::class,
-            'plyometrics' => PlyometricExercise::class,
-            'stretching' => StretchingExercise::class,
-            'cardio' => CardioExercise::class,
-            'powerlifting' => StrengthExercise::class,
-            'strongman' => StrengthExercise::class,
-            'olympic weightlifting' => StrengthExercise::class,
+            'strength' => 'strength',
+            'plyometrics' => 'plyometric',
+            'stretching' => 'stretching',
+            'cardio' => 'cardio',
+            'powerlifting' => 'strength',
+            'strongman' => 'strength',
+            'olympic weightlifting' => 'strength',
         ];
 
         $categoryLower = strtolower($category);
 
-        return $categoryMap[$categoryLower] ?? StrengthExercise::class;
+        return $categoryMap[$categoryLower] ?? 'strength';
     }
 
     private function getEnumValue(string $enumClass, ?string $value): ?string
     {
-        if (!$value) {
+        if (! $value) {
             return null;
         }
 

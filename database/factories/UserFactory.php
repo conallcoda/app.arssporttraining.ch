@@ -19,7 +19,6 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
-            'type' => fake()->randomElement(['admin', 'coach', 'athlete']),
             'forename' => fake()->firstName(),
             'surname' => fake()->lastName(),
             'email' => fake()->unique()->safeEmail(),
@@ -27,26 +26,5 @@ class UserFactory extends Factory
             'password' => static::$password ??= Hash::make('123456789'),
             'remember_token' => Str::random(10),
         ];
-    }
-
-    public function admin(): static
-    {
-        return $this->state(fn(array $attributes) => [
-            'type' => 'admin',
-        ]);
-    }
-
-    public function coach(): static
-    {
-        return $this->state(fn(array $attributes) => [
-            'type' => 'coach',
-        ]);
-    }
-
-    public function athlete(): static
-    {
-        return $this->state(fn(array $attributes) => [
-            'type' => 'athlete',
-        ]);
     }
 }

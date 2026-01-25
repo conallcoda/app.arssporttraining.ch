@@ -1,6 +1,5 @@
 <?php
 
-use App\Filament\Forms\Components\ColorPicker;
 use App\Models\Exercise\Exercise;
 use App\Models\Training\Progression\Athlete\AthleteData;
 use App\Models\Training\Progression\Config\BlockOverview;
@@ -8,56 +7,18 @@ use App\Models\Training\Progression\Config\ProgressionConfig;
 use App\Models\Training\Progression\Override\OverrideStore;
 use App\Models\Training\Progression\Strategy\ProgressionCalculator;
 use App\Models\Training\TrainingNode;
-use App\Models\Training\TrainingSessionCategory;
 use function Livewire\Volt\{state, computed, on};
 
 state([
     'block' => null,
-    'activeCategory' => null,
     'progressionConfig' => null,
     'overrideStore' => null,
     'athleteData' => null,
     'exerciseProgressions' => [],
 ]);
 
-$categories = computed(fn() => TrainingSessionCategory::all());
-
-$categoriesById = computed(fn() => $this->categories->keyBy('id'));
-
-$getColorValue = function (?string $colorName, int $shade = 500): string {
-    if (!$colorName) {
-        return '#000000';
-    }
-    return ColorPicker::getColorValue($colorName, $shade);
-};
-
-$uniqueCategoriesInBlock = computed(function () {
+$sourceSessions = computed(function () {
     if (!$this->block) {
-        return collect();
-    }
-
-    $categoryIds = [];
-
-    foreach ($this->block->getChildren() as $week) {
-        if ($week->isLinked()) {
-            continue;
-        }
-        foreach ($week->getChildren() as $session) {
-            if ($session->isLinked()) {
-                continue;
-            }
-            $categoryId = $session->getData()->category;
-            if ($categoryId && !in_array($categoryId, $categoryIds)) {
-                $categoryIds[] = $categoryId;
-            }
-        }
-    }
-
-    return $this->categories->whereIn('id', $categoryIds);
-});
-
-$sourceSessionsForCategory = computed(function () {
-    if (!$this->block || !$this->activeCategory) {
         return [];
     }
 
@@ -69,28 +30,26 @@ $sourceSessionsForCategory = computed(function () {
             if ($session->isLinked()) {
                 continue;
             }
-            if ($session->getData()->category === $this->activeCategory) {
-                $sessions[] = [
-                    'uuid' => $session->uuid,
-                    'name' => $session->getData()->name,
-                    'exercises' => $session->getData()->exercises ?? [],
-                ];
-            }
+            $sessions[] = [
+                'uuid' => $session->uuid,
+                'name' => $session->getData()->name,
+                'exercises' => $session->getData()->exercises ?? [],
+            ];
         }
     }
 
     return $sessions;
 });
 
-$exercisesForCategory = computed(function () {
-    if (!$this->block || !$this->activeCategory) {
+$allExercises = computed(function () {
+    if (!$this->block) {
         return collect();
     }
 
     $exerciseIds = [];
     $exerciseSessionMap = [];
 
-    foreach ($this->sourceSessionsForCategory as $session) {
+    foreach ($this->sourceSessions as $session) {
         foreach ($session['exercises'] as $exerciseId) {
             if (!in_array($exerciseId, $exerciseIds)) {
                 $exerciseIds[] = $exerciseId;
@@ -111,25 +70,6 @@ $exercisesForCategory = computed(function () {
         $exercise->sessions = $exerciseSessionMap[$exercise->id] ?? [];
         return $exercise;
     });
-});
-
-$sessionsPerWeekForCategory = computed(function () {
-    if (!$this->block || !$this->activeCategory) {
-        return 0;
-    }
-
-    $count = 0;
-    $firstWeek = collect($this->block->getChildren())->first(fn($week) => !$week->isLinked());
-
-    if ($firstWeek) {
-        foreach ($firstWeek->getChildren() as $session) {
-            if ($session->getData()->category === $this->activeCategory) {
-                $count++;
-            }
-        }
-    }
-
-    return $count;
 });
 
 $blockOverview = computed(function () {
@@ -218,7 +158,7 @@ $getExerciseProgression = function (int $exerciseId) {
 };
 
 $getExerciseRows = function (int $exerciseId): array {
-    if (!$this->block || !$this->activeCategory) {
+    if (!$this->block) {
         return [];
     }
 
@@ -234,10 +174,6 @@ $getExerciseRows = function (int $exerciseId): array {
         }
 
         foreach ($resolvedWeek->getChildren() as $session) {
-            if ($session->getData()->category !== $this->activeCategory) {
-                continue;
-            }
-
             $sessionNumber++;
             $resolvedSession = $session->isLinked() ? $this->findSessionByUuid($session->linked_to) : $session;
             $exerciseIds = $resolvedSession?->getData()->exercises ?? [];
@@ -337,10 +273,6 @@ $findSessionInWeek = function (string $weekUuid, int $day, int $slot): ?Training
     return null;
 };
 
-$setActiveCategory = function (int $categoryId) {
-    $this->activeCategory = $categoryId;
-};
-
 on([
     'grid-refresh' => function ($block, $progressionConfig = null, $overrideStore = null, $athleteData = null) {
         $this->block = TrainingNode::from($block);
@@ -348,10 +280,6 @@ on([
         $this->overrideStore = $overrideStore;
         $this->athleteData = $athleteData;
         $this->exerciseProgressions = [];
-
-        if (!$this->activeCategory && $this->uniqueCategoriesInBlock->isNotEmpty()) {
-            $this->activeCategory = $this->uniqueCategoriesInBlock->first()->id;
-        }
     },
     'athlete-data-saved' => function (array $data) {
         $this->dispatch('schedule-action', action: 'athlete.update', params: [
@@ -485,26 +413,10 @@ on([
             </button>
             <div x-show="expanded" x-collapse>
                 <div class="pt-4">
-                    @if ($this->uniqueCategoriesInBlock->isNotEmpty())
-                        <div class="flex gap-1 border-b border-zinc-200 dark:border-zinc-700 mb-4">
-                            @foreach ($this->uniqueCategoriesInBlock as $category)
-                                @php
-                                    $dotColor = $this->getColorValue($category->background_color, 500);
-                                    $isActive = $activeCategory === $category->id;
-                                @endphp
-                                <button
-                                    wire:click="setActiveCategory({{ $category->id }})"
-                                    class="flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors {{ $isActive ? 'border-zinc-800 dark:border-white text-zinc-900 dark:text-white' : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300' }}"
-                                >
-                                    <span class="w-2 h-2 rounded-full" style="background-color: {{ $dotColor }};"></span>
-                                    {{ $category->name }}
-                                </button>
-                            @endforeach
-                        </div>
-
+                    @if ($this->allExercises->isNotEmpty())
                         <div class="flex flex-wrap gap-4">
-                            @forelse ($this->exercisesForCategory as $exercise)
-                                <div wire:key="exercise-{{ $activeCategory }}-{{ $exercise->id }}" class="flex-shrink-0">
+                            @foreach ($this->allExercises as $exercise)
+                                <div wire:key="exercise-{{ $exercise->id }}" class="flex-shrink-0">
                                     <x-progression-table
                                         :title="$exercise->name . ' (' . (collect($exercise->sessions)->pluck('name')->filter()->join(', ') ?: 'No sessions') . ')'"
                                         :rows="$this->getExerciseRows($exercise->id)"
@@ -514,15 +426,11 @@ on([
                                         :group-by-week="true"
                                     />
                                 </div>
-                            @empty
-                                <div class="text-center py-8 text-zinc-500 w-full">
-                                    No exercises in this category
-                                </div>
-                            @endforelse
+                            @endforeach
                         </div>
                     @else
                         <div class="text-center py-8 text-zinc-500">
-                            No session categories in this block
+                            No exercises in this block
                         </div>
                     @endif
                 </div>

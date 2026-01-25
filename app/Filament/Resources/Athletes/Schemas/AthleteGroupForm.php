@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\Athletes\Schemas;
 
-use App\Models\Users\Types\Athlete;
+use App\Models\Users\User;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
@@ -27,12 +27,11 @@ class AthleteGroupForm
                         Select::make('members')
                             ->relationship(
                                 name: 'members',
-                                modifyQueryUsing: fn($query) => $query
-                                    ->where('type', 'athlete')
+                                modifyQueryUsing: fn ($query) => $query
                                     ->orderBy('forename')
                                     ->orderBy('surname')
                             )
-                            ->getOptionLabelFromRecordUsing(fn(Athlete $record) => "{$record->name}")
+                            ->getOptionLabelFromRecordUsing(fn (User $record) => "{$record->name}")
                             ->multiple()
                             ->native(false)
                             ->searchable()

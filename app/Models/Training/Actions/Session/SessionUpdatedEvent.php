@@ -2,9 +2,9 @@
 
 namespace App\Models\Training\Actions\Session;
 
-use App\Models\Training\TrainingTree;
 use App\Models\Training\Actions\Action;
 use App\Models\Training\TrainingNode;
+use App\Models\Training\TrainingTree;
 
 class SessionUpdatedEvent extends Action
 {
@@ -12,10 +12,8 @@ class SessionUpdatedEvent extends Action
         public TrainingNode $parent,
         public TrainingNode $session,
         public ?string $oldName,
-        public int $oldCategory,
         public array $oldExercises,
         public ?string $newName,
-        public int $newCategory,
         public array $newExercises,
     ) {}
 
@@ -23,7 +21,6 @@ class SessionUpdatedEvent extends Action
     {
         $session = $tree->getNode($this->session->uuid);
         $session->data->name = $this->newName;
-        $session->data->category = $this->newCategory;
         $session->data->exercises = $this->newExercises;
     }
 
@@ -31,7 +28,6 @@ class SessionUpdatedEvent extends Action
     {
         $session = $tree->getNode($this->session->uuid);
         $session->data->name = $this->oldName;
-        $session->data->category = $this->oldCategory;
         $session->data->exercises = $this->oldExercises;
     }
 

@@ -2,17 +2,14 @@
 
 namespace App\Console\Commands;
 
-
 use App\Models\Exercise\Exercise;
-use App\Models\Training\TrainingSessionCategory;
-use Illuminate\Console\Command;
 use App\Models\Training\Data;
 use App\Models\Training\TrainingNode;
+use Illuminate\Console\Command;
 
 class ImportTrainingPlansCommand extends Command
 {
     protected $signature = 'training:import';
-
 
     public static function getTemplate()
     {
@@ -21,15 +18,11 @@ class ImportTrainingPlansCommand extends Command
         $e3 = Exercise::find(63);
         $e4 = Exercise::find(64);
 
-        $gym = TrainingSessionCategory::where('slug', 'gym')->first();
-        $jump = TrainingSessionCategory::where('slug', 'jump')->first();
-
-        $createWeek = function () use ($gym, $jump, $e1, $e2, $e3, $e4) {
-            return  Data\WeekData::from()
+        $createWeek = function () use ($e1, $e2, $e3, $e4) {
+            return Data\WeekData::from()
                 ->withChildren([
                     Data\SessionData::from(
                         [
-                            'category' => $gym->id,
                             'day' => 0,
                             'slot' => 1,
                         ]
@@ -40,7 +33,6 @@ class ImportTrainingPlansCommand extends Command
                         ]),
                     Data\SessionData::from(
                         [
-                            'category' => $jump->id,
                             'day' => 2,
                             'slot' => 0,
                         ]
@@ -52,9 +44,8 @@ class ImportTrainingPlansCommand extends Command
                 ]);
         };
 
-
         $createBlock = function () use ($createWeek) {
-            return  Data\BlockData::from()
+            return Data\BlockData::from()
                 ->withChildren([
                     $createWeek(),
                     $createWeek(),
@@ -63,7 +54,7 @@ class ImportTrainingPlansCommand extends Command
                     $createWeek(),
                 ]);
         };
-        $template =  Data\SeasonData::from()
+        $template = Data\SeasonData::from()
             ->withChildren([
                 $createBlock(),
                 $createBlock(),
@@ -78,8 +69,8 @@ class ImportTrainingPlansCommand extends Command
         $tree = TrainingNode::fromData($template);
         $tree->name = 'Example Training Plan';
 
-
         $tree->save();
+
         return 0;
     }
 }

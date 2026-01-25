@@ -29,8 +29,7 @@
         "staudenmeir/laravel-adjacency-list": "^1.0",
         "symfony/expression-language": "^7.3",
         "symfony/http-client": "^7.3",
-        "symfony/mailgun-mailer": "^7.3",
-        "tightenco/parental": "^1.4"
+        "symfony/mailgun-mailer": "^7.3"
     },
     "require-dev": {
         "barryvdh/laravel-debugbar": "^3.16",

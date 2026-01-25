@@ -1,18 +1,12 @@
 <?php
 
-use App\Filament\Forms\Components\ColorPicker;
 use App\Models\Training\TrainingNode;
-use App\Models\Training\TrainingSessionCategory;
 use function Livewire\Volt\{state, computed, on};
 
 state([
     'block' => null,
     'compact' => false,
 ]);
-
-$categories = computed(fn() => TrainingSessionCategory::all());
-
-$categoriesById = computed(fn() => $this->categories->keyBy('id'));
 
 $days = computed(fn() => $this->compact
     ? ['M', 'T', 'W', 'T', 'F', 'S', 'S']
@@ -32,13 +26,6 @@ on(['compact-mode-changed' => function (bool $compact) {
     $this->compact = $compact;
 }]);
 
-$getColorValue = function (?string $colorName, int $shade = 500): string {
-    if (!$colorName) {
-        return '#000000';
-    }
-    return ColorPicker::getColorValue($colorName, $shade);
-};
-
 $getSessionAtPosition = function (string $weekUuid, int $slot, int $day): ?TrainingNode {
     foreach ($this->block->getChildren() as $week) {
         if ($week->uuid === $weekUuid) {
@@ -50,11 +37,6 @@ $getSessionAtPosition = function (string $weekUuid, int $slot, int $day): ?Train
         }
     }
     return null;
-};
-
-$getScheduleCategory = function (string $weekUuid, int $slot, int $day): ?int {
-    $session = $this->getSessionAtPosition($weekUuid, $slot, $day);
-    return $session?->getData()->category;
 };
 
 $getSessionName = function (string $weekUuid, int $slot, int $day): ?string {
@@ -113,7 +95,6 @@ $getNonLinkedSessions = function (): array {
             $sessions[] = [
                 'uuid' => $session->uuid,
                 'name' => $session->getData()->name,
-                'category' => $session->getData()->category,
                 'day' => $session->getData()->day,
                 'slot' => $session->getData()->slot,
             ];
@@ -132,7 +113,6 @@ $openSessionModal = function (string $weekUuid, int $slot, int $day) {
         'slot' => $slot,
         'sessionUuid' => $existingSession?->uuid,
         'name' => $existingSession?->getData()->name,
-        'category' => $existingSession?->getData()->category,
         'exercises' => $existingSession?->getData()->exercises ?? [],
         'availableSessions' => $this->getNonLinkedSessions(),
         'linkedTo' => $existingSession?->linked_to,
@@ -213,7 +193,6 @@ on(['session-saved' => function (array $data) {
             'name' => $data['name'],
             'day' => $data['day'],
             'slot' => $data['slot'],
-            'category' => $data['category'],
             'exercises' => $data['exercises'],
         ]);
     } else {
@@ -222,7 +201,6 @@ on(['session-saved' => function (array $data) {
             'name' => $data['name'],
             'day' => $data['day'],
             'slot' => $data['slot'],
-            'category' => $data['category'],
             'exercises' => $data['exercises'],
         ]);
     }
@@ -431,10 +409,6 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
                                 @for ($day = 0; $day < 7; $day++)
                                     @php
                                         $session = $this->getSessionAtPosition($week->uuid, $slotIndex, $day);
-                                        $categoryId = $session?->getData()->category;
-                                        $category = $categoryId
-                                            ? $this->categoriesById[$categoryId] ?? null
-                                            : null;
                                         $sessionName = $session?->getData()->name;
                                         $sessionIsLinked = $session !== null && $session->linked_to !== null;
                                         $sessionLinkedTo = $session?->linked_to;
@@ -448,25 +422,21 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
                                         @dragover.prevent="dragOver($event, {{ $day }}, {{ $slotIndex }}, '{{ $session?->uuid }}', '{{ $sessionLinkedTo }}')"
                                         @dragleave="dragLeave()"
                                         @drop.prevent="drop('{{ $session?->uuid }}', '{{ $sessionLinkedTo }}', {{ $day }}, {{ $slotIndex }})">
-                                        @if ($category)
+                                        @if ($session)
                                             @php
-                                                $bgColor = $this->getColorValue($category->background_color);
-                                                $lightBgColor = $this->getColorValue($category->background_color, 200);
-                                                $borderColor = $this->getColorValue($category->background_color, 400);
                                                 $isLinkedStyle = $week->isLinked() || $sessionIsLinked;
                                                 $weekLinkInfo = $this->getWeekLinkInfo($week->uuid);
                                             @endphp
-                                            <div class="h-full flex items-center justify-center gap-1 rounded px-2 py-1 transition-transform duration-200 cursor-move {{ $isLinkedStyle ? 'border-2 border-dashed' : '' }} cursor-pointer"
+                                            <div class="h-full flex items-center justify-center gap-1 rounded px-2 py-1 transition-transform duration-200 cursor-move {{ $isLinkedStyle ? 'border-2 border-dashed border-blue-400' : '' }} cursor-pointer bg-blue-500 text-white {{ $isLinkedStyle ? 'bg-blue-200 text-blue-800' : '' }}"
                                                 :class="{
                                                     'opacity-50 scale-95': draggedSessionUuid === '{{ $session->uuid }}',
                                                     'cursor-not-allowed': isDraggingOver === '{{ $cellKey }}' && isDropDisallowed
                                                 }"
-                                                style="background-color: {{ $isLinkedStyle ? $lightBgColor : $bgColor }}; color: {{ $this->getColorValue($category->text_color) }}; {{ $isLinkedStyle ? 'border-color: ' . $borderColor . ';' : '' }}"
                                                 draggable="true"
                                                 @dragstart="startDrag($event, '{{ $session->uuid }}', '{{ $sessionLinkedTo }}', {{ $day }}, {{ $slotIndex }})"
                                                 @dragend="draggedSessionUuid = null; draggedSessionLinkedTo = null; isDraggingOver = null; isDropDisallowed = false"
                                                 @dblclick="confirmUnlinkAndAction({{ Js::from($weekLinkInfo) }}, () => $wire.openSessionModal('{{ $week->uuid }}', {{ $slotIndex }}, {{ $day }}))">
-                                                <span class="text-xs font-medium" x-text="formatName('{{ $sessionName ?? $category->name }}')"></span>
+                                                <span class="text-xs font-medium" x-text="formatName('{{ $sessionName ?? 'Session' }}')"></span>
                                             </div>
                                         @else
                                             @php

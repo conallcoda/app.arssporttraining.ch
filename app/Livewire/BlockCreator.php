@@ -74,18 +74,12 @@ class BlockCreator extends Component
             return;
         }
 
-        $defaultCategory = \App\Models\Training\TrainingSessionCategory::first();
         $defaultExercises = \App\Models\Exercise\Exercise::take(3)->pluck('id')->toArray();
-
-        if (! $defaultCategory) {
-            return;
-        }
 
         $event = $this->tree->executeAction('session.add', [
             'parentId' => $firstWeek->uuid,
             'day' => 0,
             'slot' => 0,
-            'category' => $defaultCategory->id,
             'exercises' => $defaultExercises,
             'name' => 'Gym 1A',
         ]);
@@ -104,7 +98,6 @@ class BlockCreator extends Component
             'parentId' => $firstWeek->uuid,
             'day' => 4,
             'slot' => 1,
-            'category' => 4,
             'exercises' => [6],
             'name' => null,
         ]);
@@ -121,7 +114,6 @@ class BlockCreator extends Component
                 $sessions[] = [
                     'uuid' => $session->uuid,
                     'name' => $session->getData()->name,
-                    'category' => $session->getData()->category,
                     'day' => $session->getData()->day,
                     'slot' => $session->getData()->slot,
                 ];
@@ -161,7 +153,6 @@ class BlockCreator extends Component
                 'parentId' => $week->uuid,
                 'day' => $params['day'],
                 'slot' => $params['slot'],
-                'category' => $params['category'],
                 'exercises' => $params['exercises'],
                 'name' => $params['name'],
             ]);
@@ -174,7 +165,6 @@ class BlockCreator extends Component
     {
         $this->tree->executeAction('session.update', [
             'sessionId' => $params['sessionId'],
-            'category' => $params['category'],
             'exercises' => $params['exercises'],
             'name' => $params['name'],
         ]);

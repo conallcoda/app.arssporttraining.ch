@@ -4,7 +4,7 @@ namespace App\Models\Training\Progression\Athlete;
 
 use App\Data\AbstractData;
 use App\Data\Form\FluxField;
-use App\Models\Users\Types\Athlete;
+use App\Models\Users\User;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 
 class AthleteData extends AbstractData
@@ -48,7 +48,7 @@ class AthleteData extends AbstractData
         return [
             FluxField::select('athleteId')
                 ->label('Athlete')
-                ->options(Athlete::orderBy('forename')->orderBy('surname')->get()->pluck('name', 'id')->toArray())
+                ->options(User::orderBy('forename')->orderBy('surname')->get()->pluck('name', 'id')->toArray())
                 ->searchable()
                 ->required()
                 ->rules('required|integer|exists:users,id'),

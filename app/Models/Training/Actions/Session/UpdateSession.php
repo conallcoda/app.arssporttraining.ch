@@ -9,7 +9,6 @@ class UpdateSession extends Action
 {
     public function __construct(
         public string $sessionId,
-        public int $category,
         public array $exercises = [],
         public ?string $name = null,
     ) {}
@@ -18,37 +17,32 @@ class UpdateSession extends Action
     {
         $session = $tree->getNode($this->sessionId);
 
-        if (!$session) {
-            throw new \Exception("Session node not found");
+        if (! $session) {
+            throw new \Exception('Session node not found');
         }
 
         $parent = $tree->findParentNode($this->sessionId);
 
         $oldName = $session->data->name;
-        $oldCategory = $session->data->category;
         $oldExercises = $session->data->exercises;
 
         $session->data->name = $this->name;
-        $session->data->category = $this->category;
         $session->data->exercises = $this->exercises;
 
         return SessionUpdatedEvent::from([
             'parent' => $parent,
             'session' => $session,
             'oldName' => $oldName,
-            'oldCategory' => $oldCategory,
             'oldExercises' => $oldExercises,
             'newName' => $this->name,
-            'newCategory' => $this->category,
-            'newExercises' => $this->exercises
+            'newExercises' => $this->exercises,
         ]);
     }
 
-    public static function fromSessionId(string $sessionId, int $category, array $exercises = [], ?string $name = null): self
+    public static function fromSessionId(string $sessionId, array $exercises = [], ?string $name = null): self
     {
         return new self(
             sessionId: $sessionId,
-            category: $category,
             exercises: $exercises,
             name: $name
         );

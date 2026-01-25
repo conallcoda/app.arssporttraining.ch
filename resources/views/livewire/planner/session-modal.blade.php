@@ -1,9 +1,7 @@
 <?php
 
-use App\Filament\Forms\Components\ColorPicker;
 use App\Models\Exercise\Exercise;
 use App\Models\Training\TrainingNode;
-use App\Models\Training\TrainingSessionCategory;
 use function Livewire\Volt\{state, computed, on};
 
 state([
@@ -13,14 +11,11 @@ state([
     'day' => 0,
     'slot' => 0,
     'name' => null,
-    'category' => null,
     'exercises' => [],
     'mode' => 'new',
     'availableSessions' => [],
     'linkedSessionUuid' => null,
 ]);
-
-$categories = computed(fn() => TrainingSessionCategory::all());
 
 $exerciseOptions = computed(fn() => Exercise::orderBy('name')->get());
 
@@ -35,7 +30,6 @@ on([
         $this->slot = (int) ($data['slot'] ?? 0);
         $this->sessionUuid = $data['sessionUuid'] ?? null;
         $this->name = $data['name'] ?? null;
-        $this->category = $data['category'] ?? $this->categories->first()?->id;
         $this->exercises = $data['exercises'] ?? [];
         $this->availableSessions = $data['availableSessions'] ?? [];
         $this->linkedSessionUuid = $data['linkedTo'] ?? ($this->availableSessions[0]['uuid'] ?? null);
@@ -52,7 +46,6 @@ $close = function () {
         'day',
         'slot',
         'name',
-        'category',
         'exercises',
         'mode',
         'availableSessions',
@@ -113,7 +106,6 @@ $save = function () {
         }
     } else {
         $this->validate([
-            'category' => 'required|integer',
             'exercises.*' => 'nullable|integer|exists:exercises,id',
             'name' => 'nullable|string|max:255',
         ]);
@@ -126,7 +118,6 @@ $save = function () {
             'day' => $this->day,
             'slot' => $this->slot,
             'name' => $this->name,
-            'category' => (int) $this->category,
             'exercises' => $filteredExercises,
         ]);
     }
@@ -201,16 +192,6 @@ $delete = function () {
                 </flux:field>
             @else
                 <flux:input wire:model="name" label="Session Name" />
-
-            <flux:field>
-                <flux:label>Session Category</flux:label>
-                <flux:select wire:model="category" placeholder="Select a category">
-                    @foreach ($this->categories as $cat)
-                        <flux:select.option value="{{ $cat->id }}">{{ $cat->name }}</flux:select.option>
-                    @endforeach
-                </flux:select>
-                <flux:error name="category" />
-            </flux:field>
 
             <flux:field>
                 <div class="space-y-3">

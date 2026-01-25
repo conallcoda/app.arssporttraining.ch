@@ -16,8 +16,8 @@ class LinkSession extends Action
     {
         $session = $tree->getNode($this->sessionId);
 
-        if (!$session) {
-            throw new \Exception("Session node not found");
+        if (! $session) {
+            throw new \Exception('Session node not found');
         }
 
         $oldLinkedTo = $session->linked_to;
@@ -28,7 +28,6 @@ class LinkSession extends Action
             if ($sourceSession) {
                 $sourceData = $sourceSession->getData();
                 $session->data->name = $sourceData->name;
-                $session->data->category = $sourceData->category;
                 $session->data->exercises = $sourceData->exercises;
             }
         }

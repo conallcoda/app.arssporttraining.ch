@@ -11,16 +11,15 @@ class SessionData extends TrainingData
         public ?string $name = null,
         public int $day = 0,
         public int $slot = 0,
-        public ?int $category = null,
         public array $exercises = [],
     ) {}
 
     public function name(TrainingNode $node): string
     {
-        return $this->name ?? "Session " . ($node->sequence + 1);
+        return $this->name ?? 'Session '.($node->sequence + 1);
     }
 
-    static public function getModelType(): string
+    public static function getModelType(): string
     {
         return 'session';
     }
@@ -31,12 +30,9 @@ class SessionData extends TrainingData
             'name' => $this->name,
             'day' => $this->day,
             'slot' => $this->slot,
-            'category' => $this->category,
             'exercises' => $this->exercises,
         ];
     }
-
-
 
     public static function fromModel(TrainingPeriod $model)
     {
@@ -45,9 +41,9 @@ class SessionData extends TrainingData
             name: $model->extra->name ?? null,
             day: $model->extra->day,
             slot: $model->extra->slot,
-            category: $model->extra->category,
             exercises: $model->extra->exercises ?? [],
         );
+
         return $instance;
     }
 }
