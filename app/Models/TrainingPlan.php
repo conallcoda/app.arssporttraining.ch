@@ -7,6 +7,7 @@ use App\Models\Users\UserGroup;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class TrainingPlan extends Model
@@ -15,7 +16,15 @@ class TrainingPlan extends Model
 
     protected $fillable = [
         'name',
+        'start_date',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'start_date' => 'date',
+        ];
+    }
 
     public function users(): BelongsToMany
     {
@@ -25,6 +34,11 @@ class TrainingPlan extends Model
     public function userGroups(): BelongsToMany
     {
         return $this->belongsToMany(UserGroup::class)->withTimestamps();
+    }
+
+    public function programs(): HasMany
+    {
+        return $this->hasMany(TrainingPlanProgram::class);
     }
 
     public function allUsers(): Builder

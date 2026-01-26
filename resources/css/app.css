@@ -22,3 +22,8 @@
 .dark .override-active [data-flux-radio-group-segmented] [data-checked] {
     background-color: var(--color-blue-800) !important;
 }
+
+[data-flux-sidebar-brand] > div:first-child {
+    height: auto !important;
+    min-width: auto !important;
+}

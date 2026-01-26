@@ -1,9 +1,11 @@
 <div>
-    <div class="flex justify-end mb-3">
-        <flux:button variant="ghost" size="sm" icon="plus" wire:click="openAddModal">
-            Add {{ $entityName }}
-        </flux:button>
-    </div>
+    @unless ($compact)
+        <div class="flex justify-end mb-3">
+            <flux:button variant="ghost" size="sm" icon="plus" wire:click="openAddModal">
+                Add {{ $entityName }}
+            </flux:button>
+        </div>
+    @endunless
 
     <flux:modal :name="$modalName" flyout class="w-96" x-on:focus-field.window="$nextTick(() => {
         const field = $event.detail.field;
@@ -19,10 +21,9 @@
         <div class="space-y-6">
             <flux:heading size="lg">{{ $this->editingId ? 'Edit' : 'Add' }} {{ $entityName }}</flux:heading>
             <form wire:submit="save" class="space-y-4">
-                <fieldset class="border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 space-y-4 [&>legend+*]:!mt-0">
-                    <legend class="mb-0 px-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">General</legend>
+                <x-section title="General">
                     <x-flux-form :fields="$this->fields" prefix="data" />
-                </fieldset>
+                </x-section>
                 <div class="flex gap-2 pt-4">
                     <flux:button type="submit" variant="primary" class="flex-1">{{ $this->editingId ? 'Save' : 'Add' }} {{ $entityName }}</flux:button>
                     <flux:modal.close>
@@ -61,7 +62,11 @@
                     <flux:table.column class="{{ $column->width }}">{{ $column->getDisplayLabel() }}</flux:table.column>
                 @endif
             @endforeach
-            <flux:table.column class="w-px"></flux:table.column>
+            <flux:table.column class="w-px">
+                @if ($compact)
+                    <flux:button variant="ghost" size="xs" icon="plus" wire:click="openAddModal">Add</flux:button>
+                @endif
+            </flux:table.column>
         </flux:table.columns>
 
         <flux:table.rows>

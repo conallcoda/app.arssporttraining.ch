@@ -127,6 +127,22 @@
                     placeholder="{{ $field->placeholder ?? '' }}" />
             @endif
         </flux:field>
+    @elseif ($field->type === 'date')
+        <flux:field>
+            @if ($field->label)
+                <div class="flex items-center gap-1 mb-2">
+                    <flux:label>{{ $field->label }}</flux:label>
+                    @if ($field->helpText)
+                        <x-help-tooltip :content="$field->helpText" position="top" />
+                    @endif
+                </div>
+            @endif
+            @if ($field->live)
+                <flux:date-picker wire:model.live="{{ $wireModel }}" data-field="{{ $field->name }}" />
+            @else
+                <flux:date-picker wire:model="{{ $wireModel }}" data-field="{{ $field->name }}" />
+            @endif
+        </flux:field>
     @elseif ($field->type === 'radioSegmented')
         <flux:field>
             @if ($field->label)
@@ -150,6 +166,28 @@
                     @endforeach
                 </flux:radio.group>
             @endif
+        </flux:field>
+    @elseif ($field->type === 'pillbox')
+        <flux:field>
+            @if ($field->label)
+                <div class="flex items-center gap-1 mb-2">
+                    <flux:label>{{ $field->label }}</flux:label>
+                    @if ($field->helpText)
+                        <x-help-tooltip :content="$field->helpText" position="top" />
+                    @endif
+                </div>
+            @endif
+            <flux:pillbox
+                wire:model.live="{{ $wireModel }}"
+                multiple
+                :searchable="$field->searchable"
+                :placeholder="$field->placeholder ?? 'Select...'"
+                data-field="{{ $field->name }}"
+            >
+                @foreach ($field->options as $value => $optionLabel)
+                    <flux:pillbox.option value="{{ $value }}">{{ $optionLabel }}</flux:pillbox.option>
+                @endforeach
+            </flux:pillbox>
         </flux:field>
     @elseif ($field->type === 'relationship')
         <flux:field>

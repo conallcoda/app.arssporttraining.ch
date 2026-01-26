@@ -69,9 +69,19 @@ class FluxField
         return new static($name, 'radioSegmented');
     }
 
+    public static function date(string $name): static
+    {
+        return new static($name, 'date');
+    }
+
     public static function relationship(string $name): static
     {
         return new static($name, 'relationship');
+    }
+
+    public static function pillbox(string $name): static
+    {
+        return new static($name, 'pillbox');
     }
 
     public function label(string $label): static

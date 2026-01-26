@@ -26,6 +26,8 @@ abstract class AbstractModelList extends Component
 
     public int $refreshKey = 0;
 
+    public bool $compact = false;
+
     abstract protected function getDataClass(): string;
 
     abstract protected function getBaseQuery(): Builder;
@@ -312,6 +314,7 @@ abstract class AbstractModelList extends Component
             'modalName' => $this->getModalName(),
             'deleteModalName' => $this->getDeleteModalName(),
             'entityName' => $this->getEntityName(),
+            'compact' => $this->compact,
         ]);
     }
 }
