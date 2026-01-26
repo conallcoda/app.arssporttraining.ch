@@ -10,6 +10,7 @@ use App\Models\Exercise\Exercise;
 class StrengthDefaults extends AbstractData implements HasForms
 {
     public function __construct(
+        public int $oneRepMaxModifier = 100,
         public int $startingReps = 1,
         public string $timeUnderTension = '03-01-03-01',
         public int $rest = 30,
@@ -20,6 +21,7 @@ class StrengthDefaults extends AbstractData implements HasForms
         $config = $exercise->extra['type'] ?? [];
 
         return new self(
+            oneRepMaxModifier: $config['oneRepMaxModifier'] ?? 100,
             startingReps: $config['startingReps'] ?? 1,
             timeUnderTension: $config['timeUnderTension'] ?? '03-01-03-01',
             rest: $config['rest'] ?? 30,
@@ -29,11 +31,14 @@ class StrengthDefaults extends AbstractData implements HasForms
     public static function getFields(): array
     {
         return [
+            FluxField::percentage('oneRepMaxModifier')
+                ->label('1RM (Modifier)')
+                ->default(100),
             FluxField::number('startingReps')
                 ->label('Starting Reps')
                 ->default(12)
                 ->min(1)
-                ->suffix('reps')
+                ->suffix('rep(s)')
                 ->step(1),
             FluxField::tut('timeUnderTension')
                 ->default('03-01-03-01')

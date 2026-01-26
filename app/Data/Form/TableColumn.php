@@ -24,6 +24,8 @@ class TableColumn
         public bool $badge = false,
         public ?\Closure $source = null,
         public ?string $viewClass = null,
+        public ?string $mask = null,
+        public ?string $validationPattern = null,
     ) {}
 
     public static function id(): static
@@ -43,6 +45,24 @@ class TableColumn
     public static function number(string $field): static
     {
         return new static($field, 'number');
+    }
+
+    public static function tut(string $field): static
+    {
+        $column = new static($field, 'text');
+        $column->mask = '99-99-99-99';
+        $column->validationPattern = '^\d{2}-\d{2}-\d{2}-\d{2}$';
+
+        return $column;
+    }
+
+    public static function percentage(string $field): static
+    {
+        return (new static($field, 'number'))
+            ->min(0)
+            ->max(999)
+            ->step(1)
+            ->suffix('%');
     }
 
     public static function relationship(string $field): static
@@ -197,5 +217,32 @@ class TableColumn
         }
 
         return (string) $value;
+    }
+
+    public function mask(string $mask): static
+    {
+        $this->mask = $mask;
+
+        return $this;
+    }
+
+    public function validationPattern(string $pattern): static
+    {
+        $this->validationPattern = $pattern;
+
+        return $this;
+    }
+
+    public function isValid(mixed $value): bool
+    {
+        if ($value === null || $value === '') {
+            return true;
+        }
+
+        if ($this->validationPattern === null) {
+            return true;
+        }
+
+        return (bool) preg_match('/'.$this->validationPattern.'/', (string) $value);
     }
 }

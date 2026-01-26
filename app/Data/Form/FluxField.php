@@ -51,12 +51,22 @@ class FluxField
     {
         return (new static($name, 'text'))
             ->mask('99-99-99-99')
-            ->placeholder('03-01-03-01');
+            ->placeholder('03-01-03-01')
+            ->rules('nullable|regex:/^\d{2}-\d{2}-\d{2}-\d{2}$/');
     }
 
     public static function number(string $name): static
     {
         return new static($name, 'number');
+    }
+
+    public static function percentage(string $name): static
+    {
+        return (new static($name, 'number'))
+            ->min(0)
+            ->max(999)
+            ->step(1)
+            ->suffix('%');
     }
 
     public static function repeater(string $name): static

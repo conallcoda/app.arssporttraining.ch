@@ -10,20 +10,31 @@ class ExerciseSeeder extends Seeder
 {
     public function run(): void
     {
-        $base = [
-            'Back Squat' => [],
-            'Front Squat' => [],
-            'Deadlift Narrow' => [],
-            'Deadlift Wide' => [],
-            'Row' => [],
-            'Bulgarian Split Squat' => [],
+        $strengthDefaults = [
+            'oneRepMaxModifier' => 100,
+            'startingReps' => 12,
+            'timeUnderTension' => '03-01-03-01',
+            'rest' => 30,
         ];
 
-        foreach ($base as $name => $config) {
-            Exercise::firstOrCreate([
-                'name' => $name,
-                'type' => 'strength',
-            ]);
+        $exercises = [
+            'Back Squat' => [],
+            'Front Squat' => ['oneRepMaxModifier' => 85],
+            'Deadlift Narrow' => ['oneRepMaxModifier' => 85],
+            'Deadlift Wide' => ['oneRepMaxModifier' => 85],
+            'Row' => ['oneRepMaxModifier' => 70],
+        ];
+
+        foreach ($exercises as $name => $overrides) {
+            Exercise::firstOrCreate(
+                ['name' => $name],
+                [
+                    'type' => 'strength',
+                    'extra' => [
+                        'type' => array_merge($strengthDefaults, $overrides),
+                    ],
+                ]
+            );
         }
     }
 
