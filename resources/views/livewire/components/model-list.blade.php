@@ -5,7 +5,10 @@
         </flux:button>
     </div>
 
-    <flux:modal :name="$modalName" flyout class="w-96">
+    <flux:modal :name="$modalName" flyout class="w-96" x-on:focus-field.window="$nextTick(() => {
+        const input = $el.querySelector(`[data-field='${$event.detail.field}']`);
+        if (input) input.focus();
+    })">
         <div class="space-y-6">
             <flux:heading size="lg">{{ $this->editingId ? 'Edit' : 'Add' }} {{ $entityName }}</flux:heading>
             <form wire:submit="save" class="space-y-4">
@@ -42,7 +45,11 @@
     <flux:table :paginate="$this->items" class="table-fixed">
         <flux:table.columns>
             @foreach ($this->columns as $column)
-                <flux:table.column class="{{ $column->width }}">{{ $column->getDisplayLabel() }}</flux:table.column>
+                @if ($column->sticky)
+                    <flux:table.column sticky class="{{ $column->width }}">{{ $column->getDisplayLabel() }}</flux:table.column>
+                @else
+                    <flux:table.column class="{{ $column->width }}">{{ $column->getDisplayLabel() }}</flux:table.column>
+                @endif
             @endforeach
             <flux:table.column class="w-px"></flux:table.column>
         </flux:table.columns>
@@ -69,19 +76,25 @@
                                     />
                                 </div>
                             @elseif ($column->type === 'relationship')
-                                @php $relation = $model->{$column->field}; @endphp
-                                <div class="px-2 py-1 flex flex-wrap gap-1">
-                                    @if ($relation instanceof \Illuminate\Database\Eloquent\Collection)
+                                @php $relation = $item->{$column->field}; @endphp
+                                <div class="px-2 py-1 flex flex-wrap gap-1 @if($column->modalField) cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded @endif"
+                                    @if($column->modalField) wire:click="edit({{ $item->id }}, '{{ $column->modalField }}')" @endif>
+                                    @if (is_iterable($relation))
                                         @foreach ($relation as $related)
-                                            <flux:badge size="sm">{{ $related->{$column->displayAttribute} }}</flux:badge>
+                                            <flux:badge size="sm">{{ data_get($related, $column->displayAttribute) }}</flux:badge>
                                         @endforeach
                                     @elseif ($relation)
-                                        <flux:badge size="sm">{{ $relation->{$column->displayAttribute} }}</flux:badge>
+                                        <flux:badge size="sm">{{ data_get($relation, $column->displayAttribute) }}</flux:badge>
                                     @endif
+                                </div>
+                            @elseif ($column->modalField)
+                                <div class="px-2 py-1 truncate cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded"
+                                    wire:click="edit({{ $item->id }}, '{{ $column->modalField }}')">
+                                    @if ($column->prefix)<span class="opacity-50">{{ $column->prefix }}</span>@endif{{ $item->{$column->field} }}{{ $column->suffix }}
                                 </div>
                             @else
                                 <div class="px-2 py-1 truncate">
-                                    {{ $item->{$column->field} }}{{ $column->suffix }}
+                                    @if ($column->prefix)<span class="opacity-50">{{ $column->prefix }}</span>@endif{{ $item->{$column->field} }}{{ $column->suffix }}
                                 </div>
                             @endif
                         </flux:table.cell>

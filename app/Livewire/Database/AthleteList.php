@@ -23,8 +23,15 @@ class AthleteList extends AbstractModelList
     protected function getColumns(): array
     {
         return [
-            TableColumn::text('forename')->label('Forename')->width('w-1/3')->inline(),
-            TableColumn::text('surname')->label('Surname')->width('w-1/3')->inline(),
+            TableColumn::id(),
+            TableColumn::text('forename')
+                ->label('Forename')
+                ->width('w-1/3')
+                ->modal(),
+            TableColumn::text('surname')
+                ->label('Surname')
+                ->width('w-1/3')
+                ->inline(),
         ];
     }
 }

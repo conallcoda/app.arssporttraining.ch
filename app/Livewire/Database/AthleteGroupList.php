@@ -23,7 +23,7 @@ class AthleteGroupList extends AbstractModelList
     {
         return [
             TableColumn::text('name')->label('Name')->inline(),
-            TableColumn::relationship('members')->label('Members')->width('w-full'),
+            TableColumn::relationship('members')->label('Members')->modal()->width('w-full'),
         ];
     }
 }

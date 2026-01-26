@@ -35,8 +35,14 @@ class UserSeeder extends Seeder
             ]));
         }
 
-        $class11->members()->attach($athletes->slice(0, 3)->pluck('id'));
-        $class12->members()->attach($athletes->slice(3, 10)->pluck('id'));
-        $class13->members()->attach($athletes->slice(13, 6)->pluck('id'));
+        $class11->members()->attach(
+            $athletes->slice(0, 3)->values()->mapWithKeys(fn ($user, $index) => [$user->id => ['sort' => $index]])
+        );
+        $class12->members()->attach(
+            $athletes->slice(3, 10)->values()->mapWithKeys(fn ($user, $index) => [$user->id => ['sort' => $index]])
+        );
+        $class13->members()->attach(
+            $athletes->slice(13, 6)->values()->mapWithKeys(fn ($user, $index) => [$user->id => ['sort' => $index]])
+        );
     }
 }

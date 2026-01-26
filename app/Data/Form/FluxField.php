@@ -24,6 +24,9 @@ class FluxField
         public bool $live = false,
         public ?string $helpText = null,
         public mixed $default = null,
+        public bool $sortable = false,
+        public string $displayAttribute = 'name',
+        public string $valueAttribute = 'id',
     ) {}
 
     public static function select(string $name): static
@@ -49,6 +52,11 @@ class FluxField
     public static function radioSegmented(string $name): static
     {
         return new static($name, 'radioSegmented');
+    }
+
+    public static function relationship(string $name): static
+    {
+        return new static($name, 'relationship');
     }
 
     public function label(string $label): static
@@ -166,6 +174,27 @@ class FluxField
     public function default(mixed $default): static
     {
         $this->default = $default;
+
+        return $this;
+    }
+
+    public function sortable(bool $sortable = true): static
+    {
+        $this->sortable = $sortable;
+
+        return $this;
+    }
+
+    public function displayAttribute(string $displayAttribute): static
+    {
+        $this->displayAttribute = $displayAttribute;
+
+        return $this;
+    }
+
+    public function valueAttribute(string $valueAttribute): static
+    {
+        $this->valueAttribute = $valueAttribute;
 
         return $this;
     }

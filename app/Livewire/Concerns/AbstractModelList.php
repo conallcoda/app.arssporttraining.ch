@@ -108,6 +108,15 @@ abstract class AbstractModelList extends Component
             ->all();
     }
 
+    protected function getFormRelationshipsToLoad(): array
+    {
+        return collect($this->fields)
+            ->filter(fn (FluxField $field) => $field->type === 'relationship')
+            ->map(fn (FluxField $field) => $field->name)
+            ->values()
+            ->all();
+    }
+
     #[Computed(persist: false)]
     public function items()
     {
@@ -131,14 +140,24 @@ abstract class AbstractModelList extends Component
         $this->emit();
     }
 
-    public function edit(int $id): void
+    public function edit(int $id, ?string $focusField = null): void
     {
-        $model = $this->getBaseQuery()->findOrFail($id);
+        $query = $this->getBaseQuery();
+
+        if ($relationships = $this->getFormRelationshipsToLoad()) {
+            $query->with($relationships);
+        }
+
+        $model = $query->findOrFail($id);
         $data = $this->dataFromModel($model);
         $this->editingId = $id;
         $this->data = $data->toArray();
 
         Flux::modal($this->getModalName())->show();
+
+        if ($focusField) {
+            $this->dispatch('focus-field', field: $focusField);
+        }
     }
 
     public function save(): void
@@ -203,7 +222,13 @@ abstract class AbstractModelList extends Component
 
     protected function emit(): void
     {
-        $allItems = $this->getBaseQuery()
+        $query = $this->getBaseQuery();
+
+        if ($relationships = $this->getFormRelationshipsToLoad()) {
+            $query->with($relationships);
+        }
+
+        $allItems = $query
             ->get()
             ->map(fn (Model $model) => $this->dataFromModel($model)->toArray())
             ->all();
@@ -222,6 +247,63 @@ abstract class AbstractModelList extends Component
     {
         $this->resetForm();
         Flux::modal($this->getModalName())->show();
+    }
+
+    public function addRelationshipItem(string $fieldName): void
+    {
+        if (! isset($this->data[$fieldName])) {
+            $this->data[$fieldName] = [];
+        }
+
+        $field = collect($this->fields)->firstWhere('name', $fieldName);
+        $newItem = [$field?->valueAttribute ?? 'id' => null];
+
+        if ($field?->sortable) {
+            $newItem['sort'] = count($this->data[$fieldName]);
+        }
+
+        $this->data[$fieldName][] = $newItem;
+    }
+
+    public function removeRelationshipItem(string $fieldName, int $index): void
+    {
+        if (! isset($this->data[$fieldName][$index])) {
+            return;
+        }
+
+        unset($this->data[$fieldName][$index]);
+        $this->data[$fieldName] = array_values($this->data[$fieldName]);
+
+        $field = collect($this->fields)->firstWhere('name', $fieldName);
+        if ($field?->sortable) {
+            foreach ($this->data[$fieldName] as $i => $item) {
+                $this->data[$fieldName][$i]['sort'] = $i;
+            }
+        }
+    }
+
+    public function moveRelationshipItem(string $fieldName, int $index, int $direction): void
+    {
+        if (! isset($this->data[$fieldName])) {
+            return;
+        }
+
+        $newIndex = $index + $direction;
+        if ($newIndex < 0 || $newIndex >= count($this->data[$fieldName])) {
+            return;
+        }
+
+        $items = $this->data[$fieldName];
+        [$items[$index], $items[$newIndex]] = [$items[$newIndex], $items[$index]];
+
+        $field = collect($this->fields)->firstWhere('name', $fieldName);
+        if ($field?->sortable) {
+            foreach ($items as $i => $item) {
+                $items[$i]['sort'] = $i;
+            }
+        }
+
+        $this->data[$fieldName] = $items;
     }
 
     public function render(): View

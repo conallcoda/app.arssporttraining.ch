@@ -15,7 +15,19 @@ class TableColumn
         public ?float $min = null,
         public ?float $max = null,
         public string $displayAttribute = 'name',
+        public ?string $modalField = null,
+        public bool $sticky = false,
+        public ?string $prefix = null,
     ) {}
+
+    public static function id(): static
+    {
+        return (new static('id', 'text'))
+            ->label('ID')
+            ->width('w-16')
+            ->prefix('#')
+            ->sticky();
+    }
 
     public static function text(string $field): static
     {
@@ -30,6 +42,20 @@ class TableColumn
     public static function relationship(string $field): static
     {
         return new static($field, 'relationship');
+    }
+
+    public function sticky(bool $sticky = true): static
+    {
+        $this->sticky = $sticky;
+
+        return $this;
+    }
+
+    public function prefix(string $prefix): static
+    {
+        $this->prefix = $prefix;
+
+        return $this;
     }
 
     public function displayAttribute(string $attribute): static
@@ -84,6 +110,13 @@ class TableColumn
     public function max(float $max): static
     {
         $this->max = $max;
+
+        return $this;
+    }
+
+    public function modal(?string $fieldName = null): static
+    {
+        $this->modalField = $fieldName ?? $this->field;
 
         return $this;
     }
