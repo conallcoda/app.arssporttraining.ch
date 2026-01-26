@@ -23,6 +23,7 @@ class TableColumn
         public ?string $enumClass = null,
         public bool $badge = false,
         public ?\Closure $source = null,
+        public ?string $viewClass = null,
     ) {}
 
     public static function id(): static
@@ -47,6 +48,25 @@ class TableColumn
     public static function relationship(string $field): static
     {
         return new static($field, 'relationship');
+    }
+
+    public static function view(string $field, string $viewClass): static
+    {
+        $column = new static($field, 'view');
+        $column->viewClass = $viewClass;
+
+        return $column;
+    }
+
+    public function getViewRouteName(): ?string
+    {
+        if (! $this->viewClass) {
+            return null;
+        }
+
+        $className = class_basename($this->viewClass);
+
+        return str($className)->kebab()->toString();
     }
 
     public function sticky(bool $sticky = true): static

@@ -27,7 +27,7 @@
             </flux:sidebar.group>
 
             <flux:sidebar.group expandable icon="trophy" heading="Training" class="grid">
-                <flux:sidebar.item icon="clipboard-list" href="#">Training Plans</flux:sidebar.item>
+                <flux:sidebar.item icon="clipboard-list" href="/training-plans">Training Plans</flux:sidebar.item>
             </flux:sidebar.group>
         </flux:sidebar.nav>
 

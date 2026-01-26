@@ -127,6 +127,12 @@
                                         @endforeach
                                     @endif
                                 </div>
+                            @elseif ($column->type === 'view')
+                                <div class="py-1 truncate">
+                                    <a href="{{ route($column->getViewRouteName(), $model) }}" class="hover:underline">
+                                        @if ($column->prefix)<span class="opacity-50">{{ $column->prefix }}</span>@endif{{ $column->formatValue($item->{$column->field}) }}{{ $column->suffix }}
+                                    </a>
+                                </div>
                             @elseif ($column->modalField)
                                 <div class="py-1 truncate cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded"
                                     wire:click="edit({{ $item->id }}, '{{ $column->modalField }}')">
