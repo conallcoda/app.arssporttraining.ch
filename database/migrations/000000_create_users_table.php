@@ -55,6 +55,7 @@ return new class extends Migration
             $table->foreignId('user_group_id')
                 ->constrained('user_groups')
                 ->cascadeOnDelete();
+            $table->unsignedInteger('sort')->default(0);
             $table->timestamps();
 
             $table->unique(['user_id', 'user_group_id']);

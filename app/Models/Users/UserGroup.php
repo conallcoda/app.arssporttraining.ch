@@ -27,6 +27,6 @@ class UserGroup extends Model
             'user_group_memberships',
             'user_group_id',
             'user_id'
-        );
+        )->withPivot('sort')->withTimestamps()->orderByPivot('sort');
     }
 }

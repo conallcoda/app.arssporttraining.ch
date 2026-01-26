@@ -23,6 +23,7 @@ class FluxField
         public bool $unique = false,
         public bool $live = false,
         public ?string $helpText = null,
+        public mixed $default = null,
     ) {}
 
     public static function select(string $name): static
@@ -160,6 +161,26 @@ class FluxField
         $this->helpText = $helpText;
 
         return $this;
+    }
+
+    public function default(mixed $default): static
+    {
+        $this->default = $default;
+
+        return $this;
+    }
+
+    public static function buildDefaults(array $fields): array
+    {
+        $defaults = [];
+
+        foreach ($fields as $field) {
+            if ($field->default !== null) {
+                $defaults[$field->name] = $field->default;
+            }
+        }
+
+        return $defaults;
     }
 
     public static function buildValidationRules(array $fields, string $prefix = ''): array

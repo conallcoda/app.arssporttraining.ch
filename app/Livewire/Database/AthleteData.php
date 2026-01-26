@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models\Training\ExercisePlan;
+namespace App\Livewire\Database;
 
 use App\Data\AbstractData;
 use App\Data\Form\FluxField;
@@ -14,7 +14,6 @@ class AthleteData extends AbstractData implements HasForms
         public ?int $id,
         public string $forename,
         public string $surname,
-        public float $target_modifier = 100.0,
     ) {}
 
     public function name(): string
@@ -27,17 +26,13 @@ class AthleteData extends AbstractData implements HasForms
         return new self(
             id: $user->id,
             forename: $user->forename ?? '',
-            surname: $user->surname ?? '',
-            target_modifier: (float) ($user->extra['target_modifier'] ?? 100.0),
+            surname: $user->surname ?? ''
         );
     }
 
     public function persist(): void
     {
-        $extra = [
-            'target_modifier' => $this->target_modifier,
-        ];
-
+        $extra = [];
         if ($this->id === null) {
             $user = User::create([
                 'forename' => $this->forename,
@@ -64,11 +59,6 @@ class AthleteData extends AbstractData implements HasForms
         );
     }
 
-    public function getOneRepMaxForExercise(ExerciseData $exercise): float
-    {
-        return 100.0 * ($exercise->modifier / 100);
-    }
-
     public static function getFields(): array
     {
         return [
@@ -84,15 +74,6 @@ class AthleteData extends AbstractData implements HasForms
                 ->required()
                 ->default('')
                 ->rules('required|string|min:1'),
-            FluxField::number('target_modifier')
-                ->label('Modifier (Target Goal)')
-                ->placeholder('100.0')
-                ->min(0)
-                ->step(0.1)
-                ->suffix('%')
-                ->required()
-                ->default(100.0)
-                ->rules('required|numeric|min:0'),
         ];
     }
 }

@@ -1,10 +1,9 @@
 <?php
 
-namespace App\Livewire\Calculator;
+namespace App\Livewire\Database;
 
 use App\Data\Form\TableColumn;
 use App\Livewire\Concerns\AbstractModelList;
-use App\Models\Training\ExercisePlan\AthleteData;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
 use Illuminate\Contracts\Database\Eloquent\Builder;
@@ -24,9 +23,8 @@ class AthleteList extends AbstractModelList
     protected function getColumns(): array
     {
         return [
-            TableColumn::text('forename')->label('Forename')->width('w-1/4')->inline(),
-            TableColumn::text('surname')->label('Surname')->width('w-1/4')->inline(),
-            TableColumn::number('target_modifier')->label('Modifier (Target Goal)')->width('w-1/4')->suffix('%')->step(0.1)->min(0)->inline(),
+            TableColumn::text('forename')->label('Forename')->width('w-1/3')->inline(),
+            TableColumn::text('surname')->label('Surname')->width('w-1/3')->inline(),
         ];
     }
 }

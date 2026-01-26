@@ -12,6 +12,7 @@ return new class extends Migration
             $table->id();
             $table->uuid()->unique();
             $table->unsignedBigInteger('parent_id')->nullable();
+            $table->uuid('linked_to')->nullable();
             $table->string('type');
             $table->string('name')->nullable();
             $table->integer('sequence')->default(0);
@@ -19,6 +20,10 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
             $table->foreign('parent_id')->references('id')->on('training_periods')->cascadeOnDelete();
+        });
+
+        Schema::table('training_periods', function (Blueprint $table) {
+            $table->foreign('linked_to')->references('uuid')->on('training_periods')->nullOnDelete();
         });
     }
 

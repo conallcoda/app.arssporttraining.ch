@@ -64,7 +64,7 @@ class User extends Authenticatable
         return Str::of($this->forename)
             ->explode(' ')
             ->take(2)
-            ->map(fn ($word) => Str::substr($word, 0, 1))
+            ->map(fn($word) => Str::substr($word, 0, 1))
             ->implode('');
     }
 
@@ -80,6 +80,6 @@ class User extends Authenticatable
             'user_group_memberships',
             'user_id',
             'user_group_id'
-        );
+        )->withPivot('sort')->withTimestamps();
     }
 }
