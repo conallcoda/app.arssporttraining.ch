@@ -140,7 +140,7 @@ abstract class AbstractModelList extends Component
         $this->emit();
     }
 
-    public function edit(int $id, ?string $focusField = null): void
+    public function edit(int $id, ?string $focusField = null, ?int $focusIndex = null): void
     {
         $query = $this->getBaseQuery();
 
@@ -156,7 +156,7 @@ abstract class AbstractModelList extends Component
         Flux::modal($this->getModalName())->show();
 
         if ($focusField) {
-            $this->dispatch('focus-field', field: $focusField);
+            $this->dispatch('focus-field', field: $focusField, index: $focusIndex);
         }
     }
 

@@ -2,6 +2,8 @@
 
 namespace App\Data\Form;
 
+use Spatie\LaravelOptions\Options;
+
 class TableColumn
 {
     public function __construct(
@@ -18,6 +20,9 @@ class TableColumn
         public ?string $modalField = null,
         public bool $sticky = false,
         public ?string $prefix = null,
+        public ?string $enumClass = null,
+        public bool $badge = false,
+        public ?\Closure $source = null,
     ) {}
 
     public static function id(): static
@@ -124,5 +129,53 @@ class TableColumn
     public function getDisplayLabel(): string
     {
         return $this->label ?? ucfirst(str_replace('_', ' ', $this->field));
+    }
+
+    public function enum(string $enumClass): static
+    {
+        $this->enumClass = $enumClass;
+
+        return $this;
+    }
+
+    public function badge(bool $badge = true): static
+    {
+        $this->badge = $badge;
+
+        return $this;
+    }
+
+    public function source(\Closure $callback): static
+    {
+        $this->source = $callback;
+
+        return $this;
+    }
+
+    public function getSourceData(mixed $item): array
+    {
+        if ($this->source === null) {
+            return [];
+        }
+
+        return ($this->source)($item);
+    }
+
+    public function formatValue(mixed $value): string
+    {
+        if ($value === null) {
+            return '';
+        }
+
+        if ($this->enumClass) {
+            $options = collect(Options::forEnum($this->enumClass)->toArray())
+                ->keyBy('value');
+
+            $enumValue = $value instanceof \BackedEnum ? $value->value : $value;
+
+            return $options[$enumValue]['label'] ?? (string) $enumValue;
+        }
+
+        return (string) $value;
     }
 }

@@ -22,7 +22,7 @@ class AthleteGroupList extends AbstractModelList
     protected function getColumns(): array
     {
         return [
-            TableColumn::text('name')->label('Name')->inline(),
+            TableColumn::text('name')->label('Name')->modal(),
             TableColumn::relationship('members')->label('Members')->modal()->width('w-full'),
         ];
     }

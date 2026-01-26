@@ -16,8 +16,10 @@ class Exercise extends Model
         'type',
     ];
 
-    public static function getExtraConfig(?Model $model = null): array
+    protected function casts(): array
     {
-        return [];
+        return [
+            'type' => ExerciseTypeEnum::class,
+        ];
     }
 }

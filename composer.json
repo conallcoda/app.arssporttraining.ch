@@ -24,6 +24,7 @@
         "mallardduck/blade-lucide-icons": "^1.23",
         "spatie/laravel-data": "^4.18",
         "spatie/laravel-medialibrary": "^11.17",
+        "spatie/laravel-options": "^1.2",
         "spatie/laravel-query-builder": "^6.4",
         "spatie/laravel-schemaless-attributes": "^2.5",
         "spatie/laravel-sluggable": "^3.7",

@@ -5,7 +5,8 @@
         </flux:button>
     </div>
 
-    <flux:modal :name="$modalName" flyout class="w-96" x-on:focus-field.window="$nextTick(() => {
+    <flux:modal :name="$modalName" flyout class="w-96"
+        x-on:focus-field.window="$nextTick(() => {
         const field = $event.detail.field;
         const index = $event.detail.index;
         let input;
@@ -23,8 +24,17 @@
                     <legend class="mb-0 px-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">General</legend>
                     <x-flux-form :fields="$this->fields" prefix="data" />
                 </fieldset>
+
+                @if (count($this->typeFields) > 0)
+                    <fieldset class="border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 space-y-4 [&>legend+*]:!mt-0">
+                        <legend class="mb-0 px-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Defaults</legend>
+                        <x-flux-form :fields="$this->typeFields" prefix="data.typeConfig" />
+                    </fieldset>
+                @endif
+
                 <div class="flex gap-2 pt-4">
-                    <flux:button type="submit" variant="primary" class="flex-1">{{ $this->editingId ? 'Save' : 'Add' }} {{ $entityName }}</flux:button>
+                    <flux:button type="submit" variant="primary" class="flex-1">{{ $this->editingId ? 'Save' : 'Add' }}
+                        {{ $entityName }}</flux:button>
                     <flux:modal.close>
                         <flux:button variant="ghost">Cancel</flux:button>
                     </flux:modal.close>
@@ -56,9 +66,11 @@
         <flux:table.columns>
             @foreach ($this->columns as $column)
                 @if ($column->sticky)
-                    <flux:table.column sticky class="{{ $column->width }}">{{ $column->getDisplayLabel() }}</flux:table.column>
+                    <flux:table.column sticky class="{{ $column->width }}">{{ $column->getDisplayLabel() }}
+                    </flux:table.column>
                 @else
-                    <flux:table.column class="{{ $column->width }}">{{ $column->getDisplayLabel() }}</flux:table.column>
+                    <flux:table.column class="{{ $column->width }}">{{ $column->getDisplayLabel() }}
+                    </flux:table.column>
                 @endif
             @endforeach
             <flux:table.column class="w-px"></flux:table.column>
@@ -91,16 +103,22 @@
                                     @if (is_iterable($relation))
                                         @foreach ($relation as $index => $related)
                                             @if ($column->modalField)
-                                                <flux:badge size="sm" class="cursor-pointer" wire:click="edit({{ $item->id }}, '{{ $column->modalField }}', {{ $index }})">{{ data_get($related, $column->displayAttribute) }}</flux:badge>
+                                                <flux:badge size="sm" class="cursor-pointer"
+                                                    wire:click="edit({{ $item->id }}, '{{ $column->modalField }}', {{ $index }})">
+                                                    {{ data_get($related, $column->displayAttribute) }}</flux:badge>
                                             @else
-                                                <flux:badge size="sm">{{ data_get($related, $column->displayAttribute) }}</flux:badge>
+                                                <flux:badge size="sm">
+                                                    {{ data_get($related, $column->displayAttribute) }}</flux:badge>
                                             @endif
                                         @endforeach
                                     @elseif ($relation)
                                         @if ($column->modalField)
-                                            <flux:badge size="sm" class="cursor-pointer" wire:click="edit({{ $item->id }}, '{{ $column->modalField }}', 0)">{{ data_get($relation, $column->displayAttribute) }}</flux:badge>
+                                            <flux:badge size="sm" class="cursor-pointer"
+                                                wire:click="edit({{ $item->id }}, '{{ $column->modalField }}', 0)">
+                                                {{ data_get($relation, $column->displayAttribute) }}</flux:badge>
                                         @else
-                                            <flux:badge size="sm">{{ data_get($relation, $column->displayAttribute) }}</flux:badge>
+                                            <flux:badge size="sm">
+                                                {{ data_get($relation, $column->displayAttribute) }}</flux:badge>
                                         @endif
                                     @endif
                                 </div>
@@ -109,7 +127,9 @@
                                     @if ($column->source)
                                         @php $sourceBadges = $column->getSourceData($item); @endphp
                                         @foreach ($sourceBadges as $badge)
-                                            <flux:badge size="sm" class="cursor-pointer" wire:click="edit({{ $item->id }}, '{{ $badge['modalField'] }}')">{{ $badge['label'] }}</flux:badge>
+                                            <flux:badge size="sm" class="cursor-pointer"
+                                                wire:click="edit({{ $item->id }}, '{{ $badge['modalField'] }}')">
+                                                {{ $badge['label'] }}</flux:badge>
                                         @endforeach
                                     @else
                                         @php
@@ -119,9 +139,12 @@
                                         @foreach ($badgeValues as $index => $val)
                                             @if ($val !== null && $val !== '')
                                                 @if ($column->modalField)
-                                                    <flux:badge size="sm" class="cursor-pointer" wire:click="edit({{ $item->id }}, '{{ $column->modalField }}')">{{ $column->formatValue($val) }}</flux:badge>
+                                                    <flux:badge size="sm" class="cursor-pointer"
+                                                        wire:click="edit({{ $item->id }}, '{{ $column->modalField }}')">
+                                                        {{ $column->formatValue($val) }}</flux:badge>
                                                 @else
-                                                    <flux:badge size="sm">{{ $column->formatValue($val) }}</flux:badge>
+                                                    <flux:badge size="sm">{{ $column->formatValue($val) }}
+                                                    </flux:badge>
                                                 @endif
                                             @endif
                                         @endforeach
@@ -130,11 +153,15 @@
                             @elseif ($column->modalField)
                                 <div class="py-1 truncate cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded"
                                     wire:click="edit({{ $item->id }}, '{{ $column->modalField }}')">
-                                    @if ($column->prefix)<span class="opacity-50">{{ $column->prefix }}</span>@endif{{ $column->formatValue($item->{$column->field}) }}{{ $column->suffix }}
+                                    @if ($column->prefix)<span
+                                            class="opacity-50">{{ $column->prefix }}</span>@endif
+                                    {{ $column->formatValue($item->{$column->field}) }}{{ $column->suffix }}
                                 </div>
                             @else
                                 <div class="py-1 truncate">
-                                    @if ($column->prefix)<span class="opacity-50">{{ $column->prefix }}</span>@endif{{ $column->formatValue($item->{$column->field}) }}{{ $column->suffix }}
+                                    @if ($column->prefix)<span
+                                            class="opacity-50">{{ $column->prefix }}</span>@endif
+                                    {{ $column->formatValue($item->{$column->field}) }}{{ $column->suffix }}
                                 </div>
                             @endif
                         </flux:table.cell>

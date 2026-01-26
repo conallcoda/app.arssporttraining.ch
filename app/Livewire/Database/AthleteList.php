@@ -31,7 +31,7 @@ class AthleteList extends AbstractModelList
             TableColumn::text('surname')
                 ->label('Surname')
                 ->width('w-1/3')
-                ->inline(),
+                ->modal(),
         ];
     }
 }

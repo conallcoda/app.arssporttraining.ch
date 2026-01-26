@@ -15,11 +15,6 @@ class UserGroup extends Model
         'name',
     ];
 
-    public static function getExtraConfig(?Model $model = null): array
-    {
-        return [];
-    }
-
     public function members(): BelongsToMany
     {
         return $this->belongsToMany(

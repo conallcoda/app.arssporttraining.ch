@@ -5,7 +5,6 @@ namespace App\Models\Users;
 use App\Models\Concerns\HasExtraData;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -64,13 +63,8 @@ class User extends Authenticatable
         return Str::of($this->forename)
             ->explode(' ')
             ->take(2)
-            ->map(fn($word) => Str::substr($word, 0, 1))
+            ->map(fn ($word) => Str::substr($word, 0, 1))
             ->implode('');
-    }
-
-    public static function getExtraConfig(?Model $model = null): array
-    {
-        return [];
     }
 
     public function groups(): BelongsToMany

@@ -14,6 +14,14 @@
                     ->filter(fn($label, $value) => !in_array((string) $value, $selectedValues, true))
                     ->toArray();
             }
+
+            $selectVariant = $field->variant;
+            if ($field->multiple && !$selectVariant) {
+                $selectVariant = 'listbox';
+            }
+            if ($field->searchable && !$selectVariant) {
+                $selectVariant = 'combobox';
+            }
         @endphp
         <flux:field>
             @if ($field->label)
@@ -24,21 +32,24 @@
                     @endif
                 </div>
             @endif
-            @if ($field->live)
-                <flux:select wire:model.live="{{ $wireModel }}" placeholder="{{ $field->placeholder ?? 'Select...' }}" data-field="{{ $field->name }}">
+            <flux:select
+                :wire:model.live="$field->live ? $wireModel : null"
+                :wire:model="!$field->live ? $wireModel : null"
+                placeholder="{{ $field->placeholder ?? 'Select...' }}"
+                data-field="{{ $field->name }}"
+                :variant="$selectVariant"
+                :multiple="$field->multiple"
+                :searchable="$field->searchable"
+                :clearable="$field->clearable"
+                :size="$field->size"
+            >
+                @if (!$field->multiple)
                     <flux:select.option value="">{{ $field->placeholder ?? 'Select...' }}</flux:select.option>
-                    @foreach ($options as $value => $optionLabel)
-                        <flux:select.option value="{{ $value }}">{{ $optionLabel }}</flux:select.option>
-                    @endforeach
-                </flux:select>
-            @else
-                <flux:select wire:model="{{ $wireModel }}" placeholder="{{ $field->placeholder ?? 'Select...' }}" data-field="{{ $field->name }}">
-                    <flux:select.option value="">{{ $field->placeholder ?? 'Select...' }}</flux:select.option>
-                    @foreach ($options as $value => $optionLabel)
-                        <flux:select.option value="{{ $value }}">{{ $optionLabel }}</flux:select.option>
-                    @endforeach
-                </flux:select>
-            @endif
+                @endif
+                @foreach ($options as $value => $optionLabel)
+                    <flux:select.option value="{{ $value }}">{{ $optionLabel }}</flux:select.option>
+                @endforeach
+            </flux:select>
         </flux:field>
     @elseif ($field->type === 'number')
         <flux:field>
@@ -93,8 +104,28 @@
                     @endif
                 </div>
             @endif
-            <flux:input wire:model="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
-                placeholder="{{ $field->placeholder ?? '' }}" />
+            @if ($field->suffix)
+                <flux:input.group>
+                    @if ($field->mask)
+                        <div x-data="masked_input" data-mask="{{ $field->mask }}" class="flex-1">
+                            <flux:input wire:model="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
+                                placeholder="{{ $field->placeholder ?? '' }}" />
+                        </div>
+                    @else
+                        <flux:input wire:model="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
+                            placeholder="{{ $field->placeholder ?? '' }}" />
+                    @endif
+                    <flux:input.group.suffix>{{ $field->suffix }}</flux:input.group.suffix>
+                </flux:input.group>
+            @elseif ($field->mask)
+                <div x-data="masked_input" data-mask="{{ $field->mask }}">
+                    <flux:input wire:model="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
+                        placeholder="{{ $field->placeholder ?? '' }}" />
+                </div>
+            @else
+                <flux:input wire:model="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
+                    placeholder="{{ $field->placeholder ?? '' }}" />
+            @endif
         </flux:field>
     @elseif ($field->type === 'radioSegmented')
         <flux:field>
@@ -166,7 +197,8 @@
                                 <div class="flex-1">
                                     <flux:select
                                         wire:model="{{ $wireModel }}.{{ $index }}.{{ $field->valueAttribute }}"
-                                        placeholder="{{ $field->placeholder ?? 'Select...' }}" size="sm">
+                                        placeholder="{{ $field->placeholder ?? 'Select...' }}" size="sm"
+                                        data-field="{{ $field->name }}" data-index="{{ $index }}">
                                         <flux:select.option value="">{{ $field->placeholder ?? 'Select...' }}
                                         </flux:select.option>
                                         @foreach ($filteredOptions as $value => $optionLabel)

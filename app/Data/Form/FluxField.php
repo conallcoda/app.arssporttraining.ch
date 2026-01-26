@@ -2,6 +2,8 @@
 
 namespace App\Data\Form;
 
+use Spatie\LaravelOptions\Options;
+
 class FluxField
 {
     public function __construct(
@@ -27,6 +29,12 @@ class FluxField
         public bool $sortable = false,
         public string $displayAttribute = 'name',
         public string $valueAttribute = 'id',
+        public ?string $enumClass = null,
+        public bool $multiple = false,
+        public bool $clearable = false,
+        public ?string $variant = null,
+        public ?string $size = null,
+        public ?string $mask = null,
     ) {}
 
     public static function select(string $name): static
@@ -37,6 +45,13 @@ class FluxField
     public static function text(string $name): static
     {
         return new static($name, 'text');
+    }
+
+    public static function tut(string $name): static
+    {
+        return (new static($name, 'text'))
+            ->mask('99-99-99-99')
+            ->placeholder('03-01-03-01');
     }
 
     public static function number(string $name): static
@@ -80,6 +95,23 @@ class FluxField
         return $this;
     }
 
+    public function enum(string $enumClass): static
+    {
+        $this->enumClass = $enumClass;
+
+        $this->options = collect(Options::forEnum($enumClass)->toArray())
+            ->mapWithKeys(fn (array $option) => [$option['value'] => $option['label']])
+            ->toArray();
+
+        $cases = $enumClass::cases();
+        $values = array_map(fn ($case) => $case->value, $cases);
+
+        $this->validationRules = 'required|string|in:'.implode(',', $values);
+        $this->default = $cases[0]->value ?? null;
+
+        return $this;
+    }
+
     public function searchable(bool $searchable = true): static
     {
         $this->searchable = $searchable;
@@ -87,9 +119,44 @@ class FluxField
         return $this;
     }
 
+    public function multiple(bool $multiple = true): static
+    {
+        $this->multiple = $multiple;
+
+        return $this;
+    }
+
+    public function clearable(bool $clearable = true): static
+    {
+        $this->clearable = $clearable;
+
+        return $this;
+    }
+
+    public function variant(string $variant): static
+    {
+        $this->variant = $variant;
+
+        return $this;
+    }
+
+    public function size(string $size): static
+    {
+        $this->size = $size;
+
+        return $this;
+    }
+
     public function placeholder(string $placeholder): static
     {
         $this->placeholder = $placeholder;
+
+        return $this;
+    }
+
+    public function mask(string $mask): static
+    {
+        $this->mask = $mask;
 
         return $this;
     }

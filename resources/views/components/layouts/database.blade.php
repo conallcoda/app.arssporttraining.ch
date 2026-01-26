@@ -22,7 +22,7 @@
         <flux:sidebar.nav>
             <flux:sidebar.group expandable icon="database" heading="Database" class="grid">
                 <flux:sidebar.item icon="users" href="/athletes">Athletes</flux:sidebar.item>
-                <flux:sidebar.item icon="dumbbell" href="#">Exercises</flux:sidebar.item>
+                <flux:sidebar.item icon="dumbbell" href="/exercises">Exercises</flux:sidebar.item>
                 <flux:sidebar.item icon="settings" href="#">Settings</flux:sidebar.item>
             </flux:sidebar.group>
 

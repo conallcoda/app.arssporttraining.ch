@@ -3,7 +3,6 @@
 namespace App\Models\Concerns;
 
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Spatie\SchemalessAttributes\Casts\SchemalessAttributes;
 
 trait HasExtraData
@@ -17,6 +16,4 @@ trait HasExtraData
     {
         return $this->extra->modelScope();
     }
-
-    abstract public static function getExtraConfig(?Model $model = null): array;
 }

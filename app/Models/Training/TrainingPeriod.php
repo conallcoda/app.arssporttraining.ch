@@ -2,19 +2,18 @@
 
 namespace App\Models\Training;
 
+use App\Models\Concerns\HasExtraData;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\Concerns\HasExtraData;
-use App\Models\Training\Data;
 use Staudenmeir\LaravelAdjacencyList\Eloquent\HasRecursiveRelationships;
 
 class TrainingPeriod extends Model
 {
-    use SoftDeletes;
     use HasExtraData;
-    use HasUuids;
     use HasRecursiveRelationships;
+    use HasUuids;
+    use SoftDeletes;
 
     protected $types = [
         'season' => Data\SeasonData::class,
@@ -42,9 +41,10 @@ class TrainingPeriod extends Model
     public function toData()
     {
         $dataClass = $this->types[$this->type] ?? null;
-        if (!$dataClass) {
+        if (! $dataClass) {
             throw new \InvalidArgumentException("Unknown type: {$this->type}");
         }
+
         return $dataClass::fromModel($this, ['sequence' => $this->sequence]);
     }
 
@@ -76,10 +76,5 @@ class TrainingPeriod extends Model
     public static function createUuid()
     {
         return (string) \Illuminate\Support\Str::uuid7();
-    }
-
-    public static function getExtraConfig(?Model $model = null): array
-    {
-        return [];
     }
 }
