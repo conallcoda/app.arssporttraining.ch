@@ -25,6 +25,7 @@ class User extends Authenticatable
         'forename',
         'surname',
         'email',
+        'type',
         'phone',
         'password',
         'extra',
@@ -48,6 +49,7 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
+            'type' => UserTypeEnum::class,
             'password' => 'hashed',
         ];
     }

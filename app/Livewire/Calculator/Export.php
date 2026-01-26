@@ -111,7 +111,7 @@ class Export extends Component
         if (count($selectedAthletes) === 1) {
             $athlete = $selectedAthletes[0];
             $groupedBlocks = $this->getGroupedBlocksForAthlete($athlete);
-            $filename = $this->sanitizeFilename($athlete->name).'_training_plan.xlsx';
+            $filename = $this->sanitizeFilename($athlete->name()).'_training_plan.xlsx';
 
             $this->exporting = false;
 
@@ -129,7 +129,7 @@ class Export extends Component
 
         foreach ($selectedAthletes as $athlete) {
             $groupedBlocks = $this->getGroupedBlocksForAthlete($athlete);
-            $filename = $this->sanitizeFilename($athlete->name).'_training_plan.xlsx';
+            $filename = $this->sanitizeFilename($athlete->name()).'_training_plan.xlsx';
 
             Excel::store(
                 new AthleteTrainingPlanExport($athlete, $groupedBlocks),

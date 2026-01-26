@@ -12,6 +12,7 @@ class AddSession extends Action
         public string $parentId,
         public int $day,
         public int $slot,
+        public ?string $color = 'blue',
         public array $exercises = [],
         public ?string $name = null,
         public ?string $id = null,
@@ -45,6 +46,7 @@ class AddSession extends Action
             name: $this->name,
             day: $this->day,
             slot: $this->slot,
+            color: $this->color,
             exercises: $this->exercises
         );
 
@@ -53,12 +55,13 @@ class AddSession extends Action
         return SessionAddedEvent::from(['parent' => $parent, 'child' => $node]);
     }
 
-    public static function fromParentId(string $parentId, int $day, int $slot, array $exercises = [], ?string $name = null): self
+    public static function fromParentId(string $parentId, int $day, int $slot, ?string $color = 'blue', array $exercises = [], ?string $name = null): self
     {
         return new self(
             parentId: $parentId,
             day: $day,
             slot: $slot,
+            color: $color,
             exercises: $exercises,
             name: $name
         );

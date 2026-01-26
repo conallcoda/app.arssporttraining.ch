@@ -24,7 +24,7 @@
                             <flux:checkbox
                                 wire:model.live="selectedAthleteIds"
                                 value="{{ $athlete->id }}"
-                                label="{{ $athlete->name }}"
+                                label="{{ $athlete->name() }}"
                             />
                         </div>
                     @endforeach
@@ -34,7 +34,7 @@
             @if ($this->previewAthlete && count($this->previewPlans) > 0)
                 <div class="mb-6 pt-4 border-t border-zinc-200 dark:border-zinc-700">
                     <flux:heading size="sm" class="mb-4">
-                        Preview: {{ $this->previewAthlete->name }}
+                        Preview: {{ $this->previewAthlete->name() }}
                     </flux:heading>
 
                     <div class="space-y-6">

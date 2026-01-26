@@ -28,6 +28,7 @@ class LinkSession extends Action
             if ($sourceSession) {
                 $sourceData = $sourceSession->getData();
                 $session->data->name = $sourceData->name;
+                $session->data->color = $sourceData->color;
                 $session->data->exercises = $sourceData->exercises;
             }
         }

@@ -1,5 +1,6 @@
 <?php
 
+use App\Filament\Forms\Components\ColorPicker;
 use App\Models\Training\TrainingNode;
 use function Livewire\Volt\{state, computed, on};
 
@@ -25,6 +26,13 @@ $getWeekLabel = function (int $weekIndex): string {
 on(['compact-mode-changed' => function (bool $compact) {
     $this->compact = $compact;
 }]);
+
+$getColorValue = function (?string $colorName, int $shade = 500): string {
+    if (!$colorName) {
+        return '#3b82f6';
+    }
+    return ColorPicker::getColorValue($colorName, $shade);
+};
 
 $getSessionAtPosition = function (string $weekUuid, int $slot, int $day): ?TrainingNode {
     foreach ($this->block->getChildren() as $week) {
@@ -113,6 +121,7 @@ $openSessionModal = function (string $weekUuid, int $slot, int $day) {
         'slot' => $slot,
         'sessionUuid' => $existingSession?->uuid,
         'name' => $existingSession?->getData()->name,
+        'color' => $existingSession?->getData()->color ?? 'blue',
         'exercises' => $existingSession?->getData()->exercises ?? [],
         'availableSessions' => $this->getNonLinkedSessions(),
         'linkedTo' => $existingSession?->linked_to,
@@ -191,6 +200,7 @@ on(['session-saved' => function (array $data) {
         $this->dispatch('schedule-action', action: 'session.update', params: [
             'sessionId' => $data['sessionUuid'],
             'name' => $data['name'],
+            'color' => $data['color'],
             'day' => $data['day'],
             'slot' => $data['slot'],
             'exercises' => $data['exercises'],
@@ -199,6 +209,7 @@ on(['session-saved' => function (array $data) {
         $this->dispatch('schedule-action', action: 'session.add', params: [
             'weekIndex' => $weekIndex,
             'name' => $data['name'],
+            'color' => $data['color'],
             'day' => $data['day'],
             'slot' => $data['slot'],
             'exercises' => $data['exercises'],
@@ -410,6 +421,7 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
                                     @php
                                         $session = $this->getSessionAtPosition($week->uuid, $slotIndex, $day);
                                         $sessionName = $session?->getData()->name;
+                                        $sessionColor = $session?->getData()->color ?? 'blue';
                                         $sessionIsLinked = $session !== null && $session->linked_to !== null;
                                         $sessionLinkedTo = $session?->linked_to;
                                         $cellKey = $day . '-' . $slotIndex;
@@ -424,19 +436,23 @@ on(['session-swap' => function (string $session1Id, string $session2Id) {
                                         @drop.prevent="drop('{{ $session?->uuid }}', '{{ $sessionLinkedTo }}', {{ $day }}, {{ $slotIndex }})">
                                         @if ($session)
                                             @php
+                                                $bgColor = $this->getColorValue($sessionColor, 500);
+                                                $lightBgColor = $this->getColorValue($sessionColor, 200);
+                                                $borderColor = $this->getColorValue($sessionColor, 400);
                                                 $isLinkedStyle = $week->isLinked() || $sessionIsLinked;
                                                 $weekLinkInfo = $this->getWeekLinkInfo($week->uuid);
                                             @endphp
-                                            <div class="h-full flex items-center justify-center gap-1 rounded px-2 py-1 transition-transform duration-200 cursor-move {{ $isLinkedStyle ? 'border-2 border-dashed border-blue-400' : '' }} cursor-pointer bg-blue-500 text-white {{ $isLinkedStyle ? 'bg-blue-200 text-blue-800' : '' }}"
+                                            <div class="h-full flex items-center justify-center gap-1 rounded px-2 py-1 transition-transform duration-200 cursor-move {{ $isLinkedStyle ? 'border-2 border-dashed' : '' }} cursor-pointer"
                                                 :class="{
                                                     'opacity-50 scale-95': draggedSessionUuid === '{{ $session->uuid }}',
                                                     'cursor-not-allowed': isDraggingOver === '{{ $cellKey }}' && isDropDisallowed
                                                 }"
+                                                style="background-color: {{ $isLinkedStyle ? $lightBgColor : $bgColor }}; color: white; {{ $isLinkedStyle ? 'border-color: ' . $borderColor . ';' : '' }}"
                                                 draggable="true"
                                                 @dragstart="startDrag($event, '{{ $session->uuid }}', '{{ $sessionLinkedTo }}', {{ $day }}, {{ $slotIndex }})"
                                                 @dragend="draggedSessionUuid = null; draggedSessionLinkedTo = null; isDraggingOver = null; isDropDisallowed = false"
                                                 @dblclick="confirmUnlinkAndAction({{ Js::from($weekLinkInfo) }}, () => $wire.openSessionModal('{{ $week->uuid }}', {{ $slotIndex }}, {{ $day }}))">
-                                                <span class="text-xs font-medium" x-text="formatName('{{ $sessionName ?? 'Session' }}')"></span>
+                                                <span class="text-xs font-medium {{ $isLinkedStyle ? 'text-zinc-800' : '' }}" x-text="formatName('{{ $sessionName ?? 'Session' }}')"></span>
                                             </div>
                                         @else
                                             @php

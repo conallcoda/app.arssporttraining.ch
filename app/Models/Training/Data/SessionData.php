@@ -11,6 +11,7 @@ class SessionData extends TrainingData
         public ?string $name = null,
         public int $day = 0,
         public int $slot = 0,
+        public ?string $color = 'blue',
         public array $exercises = [],
     ) {}
 
@@ -30,6 +31,7 @@ class SessionData extends TrainingData
             'name' => $this->name,
             'day' => $this->day,
             'slot' => $this->slot,
+            'color' => $this->color,
             'exercises' => $this->exercises,
         ];
     }
@@ -41,6 +43,7 @@ class SessionData extends TrainingData
             name: $model->extra->name ?? null,
             day: $model->extra->day,
             slot: $model->extra->slot,
+            color: $model->extra->color ?? 'blue',
             exercises: $model->extra->exercises ?? [],
         );
 

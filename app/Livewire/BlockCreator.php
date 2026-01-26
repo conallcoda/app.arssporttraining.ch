@@ -80,6 +80,7 @@ class BlockCreator extends Component
             'parentId' => $firstWeek->uuid,
             'day' => 0,
             'slot' => 0,
+            'color' => 'blue',
             'exercises' => $defaultExercises,
             'name' => 'Gym 1A',
         ]);
@@ -98,6 +99,7 @@ class BlockCreator extends Component
             'parentId' => $firstWeek->uuid,
             'day' => 4,
             'slot' => 1,
+            'color' => 'emerald',
             'exercises' => [6],
             'name' => null,
         ]);
@@ -153,6 +155,7 @@ class BlockCreator extends Component
                 'parentId' => $week->uuid,
                 'day' => $params['day'],
                 'slot' => $params['slot'],
+                'color' => $params['color'] ?? 'blue',
                 'exercises' => $params['exercises'],
                 'name' => $params['name'],
             ]);
@@ -165,6 +168,7 @@ class BlockCreator extends Component
     {
         $this->tree->executeAction('session.update', [
             'sessionId' => $params['sessionId'],
+            'color' => $params['color'] ?? 'blue',
             'exercises' => $params['exercises'],
             'name' => $params['name'],
         ]);

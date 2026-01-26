@@ -12,8 +12,10 @@ class SessionUpdatedEvent extends Action
         public TrainingNode $parent,
         public TrainingNode $session,
         public ?string $oldName,
+        public ?string $oldColor,
         public array $oldExercises,
         public ?string $newName,
+        public ?string $newColor,
         public array $newExercises,
     ) {}
 
@@ -21,6 +23,7 @@ class SessionUpdatedEvent extends Action
     {
         $session = $tree->getNode($this->session->uuid);
         $session->data->name = $this->newName;
+        $session->data->color = $this->newColor;
         $session->data->exercises = $this->newExercises;
     }
 
@@ -28,6 +31,7 @@ class SessionUpdatedEvent extends Action
     {
         $session = $tree->getNode($this->session->uuid);
         $session->data->name = $this->oldName;
+        $session->data->color = $this->oldColor;
         $session->data->exercises = $this->oldExercises;
     }
 

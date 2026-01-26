@@ -39,7 +39,7 @@
                             wire:click="selectAthlete({{ $athlete->id }})"
                             class="w-full text-left px-3 py-2 rounded-lg transition-colors {{ ($selectedAthleteId === $athlete->id || ($selectedAthleteId === null && $loop->first)) ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300' : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-100' }}"
                         >
-                            <div class="font-medium text-sm">{{ $athlete->name }}</div>
+                            <div class="font-medium text-sm">{{ $athlete->name() }}</div>
                             <div class="text-xs text-zinc-500 dark:text-zinc-400">
                                 {{ number_format($this->getAthleteOneRepMax($athlete), 1) }}kg
                             </div>
@@ -52,7 +52,7 @@
                 @if ($this->selectedAthlete)
                     <div>
                         <flux:heading size="xl" class="p-6 pb-3">
-                            Training Plan for {{ $this->selectedAthlete->name }}
+                            Training Plan for {{ $this->selectedAthlete->name() }}
                         </flux:heading>
                         @if (count($this->groupedExerciseBlocks) > 0)
                             @foreach ($this->groupedExerciseBlocks as $groupName => $groupExercises)
@@ -113,7 +113,7 @@
         </div>
     @endif
 
-    <x-center-modal name="breakdown-modal" wire:model="showBreakdownModal" :title="$this->breakdownHistory?->exercise()->name . ' Training Plan'" :subtitle="'Step-by-step progression for ' . $this->breakdownAthlete?->name">
+    <x-center-modal name="breakdown-modal" wire:model="showBreakdownModal" :title="$this->breakdownHistory?->exercise()->name . ' Training Plan'" :subtitle="'Step-by-step progression for ' . $this->breakdownAthlete?->name()">
         @if ($this->breakdownHistory)
             <div class="overflow-x-auto">
                 <div class="flex flex-wrap gap-4">

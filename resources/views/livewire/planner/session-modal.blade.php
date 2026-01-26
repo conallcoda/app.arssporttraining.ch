@@ -11,6 +11,7 @@ state([
     'day' => 0,
     'slot' => 0,
     'name' => null,
+    'color' => 'blue',
     'exercises' => [],
     'mode' => 'new',
     'availableSessions' => [],
@@ -30,6 +31,7 @@ on([
         $this->slot = (int) ($data['slot'] ?? 0);
         $this->sessionUuid = $data['sessionUuid'] ?? null;
         $this->name = $data['name'] ?? null;
+        $this->color = $data['color'] ?? 'blue';
         $this->exercises = $data['exercises'] ?? [];
         $this->availableSessions = $data['availableSessions'] ?? [];
         $this->linkedSessionUuid = $data['linkedTo'] ?? ($this->availableSessions[0]['uuid'] ?? null);
@@ -46,6 +48,7 @@ $close = function () {
         'day',
         'slot',
         'name',
+        'color',
         'exercises',
         'mode',
         'availableSessions',
@@ -108,6 +111,7 @@ $save = function () {
         $this->validate([
             'exercises.*' => 'nullable|integer|exists:exercises,id',
             'name' => 'nullable|string|max:255',
+            'color' => 'nullable|string|max:50',
         ]);
 
         $filteredExercises = array_values(array_filter($this->exercises, fn($id) => $id !== null));
@@ -118,6 +122,7 @@ $save = function () {
             'day' => $this->day,
             'slot' => $this->slot,
             'name' => $this->name,
+            'color' => $this->color,
             'exercises' => $filteredExercises,
         ]);
     }
@@ -192,6 +197,8 @@ $delete = function () {
                 </flux:field>
             @else
                 <flux:input wire:model="name" label="Session Name" />
+
+                <x-color-select wire-model="color" label="Session Color" />
 
             <flux:field>
                 <div class="space-y-3">
