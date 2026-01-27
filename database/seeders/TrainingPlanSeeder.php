@@ -16,6 +16,7 @@ class TrainingPlanSeeder extends Seeder
         $plan = TrainingPlan::create([
             'name' => 'Default Training Plan',
             'start_date' => now()->startOfWeek(),
+            'duration' => 5,
         ]);
 
         $plan->userGroups()->attach(UserGroup::first());

@@ -17,6 +17,7 @@ class TrainingPlanData extends AbstractData implements HasForms
         public ?int $id,
         public string $name,
         public ?string $startDate = null,
+        public ?int $duration = null,
         public array $users = [],
         public array $userGroups = [],
     ) {}
@@ -43,6 +44,7 @@ class TrainingPlanData extends AbstractData implements HasForms
             id: $plan->id,
             name: $plan->name ?? '',
             startDate: $plan->start_date?->format('Y-m-d'),
+            duration: $plan->duration,
             users: $users,
             userGroups: $userGroups,
         );
@@ -54,12 +56,14 @@ class TrainingPlanData extends AbstractData implements HasForms
             $plan = TrainingPlan::create([
                 'name' => $this->name,
                 'start_date' => $this->startDate,
+                'duration' => $this->duration,
             ]);
             $this->id = $plan->id;
         } else {
             $plan = TrainingPlan::findOrFail($this->id);
             $plan->name = $this->name;
             $plan->start_date = $this->startDate;
+            $plan->duration = $this->duration;
             $plan->save();
         }
 
@@ -111,6 +115,11 @@ class TrainingPlanData extends AbstractData implements HasForms
                 ->options(WeekOptions::generate())
                 ->default(WeekOptions::getCurrentWeekValue())
                 ->rules('nullable|date'),
+            FluxField::text('duration')
+                ->label('Duration')
+                ->suffix('weeks')
+                ->default(5)
+                ->rules('nullable|integer|min:1'),
             FluxField::relationship('users')
                 ->label('Athletes')
                 ->options($athleteOptions)

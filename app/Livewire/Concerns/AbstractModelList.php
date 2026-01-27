@@ -30,6 +30,79 @@ abstract class AbstractModelList extends Component
 
     abstract protected function getDataClass(): string;
 
+    protected function isSortable(): bool
+    {
+        return false;
+    }
+
+    protected function getSortColumn(): string
+    {
+        return 'sort';
+    }
+
+    public function moveUp(int $id): void
+    {
+        if (! $this->isSortable()) {
+            return;
+        }
+
+        $sortColumn = $this->getSortColumn();
+        $item = $this->getBaseQuery()->findOrFail($id);
+        $currentSort = $item->{$sortColumn};
+
+        if ($currentSort <= 0) {
+            return;
+        }
+
+        $previousItem = $this->getBaseQuery()
+            ->where($sortColumn, $currentSort - 1)
+            ->first();
+
+        if ($previousItem) {
+            $previousItem->{$sortColumn} = $currentSort;
+            $previousItem->save();
+        }
+
+        $item->{$sortColumn} = $currentSort - 1;
+        $item->save();
+
+        unset($this->items);
+        $this->refreshKey++;
+        $this->emit();
+    }
+
+    public function moveDown(int $id): void
+    {
+        if (! $this->isSortable()) {
+            return;
+        }
+
+        $sortColumn = $this->getSortColumn();
+        $item = $this->getBaseQuery()->findOrFail($id);
+        $currentSort = $item->{$sortColumn};
+        $maxSort = $this->getBaseQuery()->max($sortColumn);
+
+        if ($currentSort >= $maxSort) {
+            return;
+        }
+
+        $nextItem = $this->getBaseQuery()
+            ->where($sortColumn, $currentSort + 1)
+            ->first();
+
+        if ($nextItem) {
+            $nextItem->{$sortColumn} = $currentSort;
+            $nextItem->save();
+        }
+
+        $item->{$sortColumn} = $currentSort + 1;
+        $item->save();
+
+        unset($this->items);
+        $this->refreshKey++;
+        $this->emit();
+    }
+
     abstract protected function getBaseQuery(): Builder;
 
     protected function createDataFromForm(): AbstractData
@@ -126,6 +199,10 @@ abstract class AbstractModelList extends Component
 
         if ($relationships = $this->getRelationshipsToLoad()) {
             $query->with($relationships);
+        }
+
+        if ($this->isSortable()) {
+            $query->orderBy($this->getSortColumn());
         }
 
         return $query->paginate($this->getPerPage());
@@ -315,6 +392,8 @@ abstract class AbstractModelList extends Component
             'deleteModalName' => $this->getDeleteModalName(),
             'entityName' => $this->getEntityName(),
             'compact' => $this->compact,
+            'sortable' => $this->isSortable(),
+            'sortColumn' => $this->getSortColumn(),
         ]);
     }
 }

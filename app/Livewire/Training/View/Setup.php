@@ -19,6 +19,8 @@ class Setup extends Component
 
     public ?string $startDate = null;
 
+    public ?int $duration = null;
+
     public array $users = [];
 
     public array $userGroups = [];
@@ -28,6 +30,7 @@ class Setup extends Component
         $this->trainingPlan = $trainingPlan->load(['users', 'userGroups']);
 
         $this->startDate = $trainingPlan->start_date?->format('Y-m-d');
+        $this->duration = $trainingPlan->duration;
 
         $this->users = $trainingPlan->users->pluck('id')->map(fn ($id) => (string) $id)->all();
 
@@ -42,6 +45,7 @@ class Setup extends Component
     protected function save(): void
     {
         $this->trainingPlan->start_date = $this->startDate;
+        $this->trainingPlan->duration = $this->duration;
         $this->trainingPlan->save();
 
         $this->trainingPlan->users()->sync($this->users);
@@ -69,6 +73,11 @@ class Setup extends Component
                 ->label('Start Date')
                 ->options(WeekOptions::generate())
                 ->default(WeekOptions::getCurrentWeekValue())
+                ->live(),
+            FluxField::text('duration')
+                ->label('Duration')
+                ->suffix('weeks')
+                ->default(5)
                 ->live(),
             FluxField::pillbox('users')
                 ->label('Athletes')

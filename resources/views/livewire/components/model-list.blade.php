@@ -152,7 +152,23 @@
                     @endforeach
 
                     <flux:table.cell class="text-right">
-                        <div class="flex gap-1 justify-end">
+                        <div class="flex gap-0.5 justify-end">
+                            @if ($sortable)
+                                @php
+                                    $isFirst = $loop->first;
+                                    $isLast = $loop->last;
+                                @endphp
+                                <flux:button type="button" size="xs" variant="ghost"
+                                    wire:click="moveUp({{ $item->id }})"
+                                    :disabled="$isFirst">
+                                    <x-lucide-chevron-up class="w-4 h-4" />
+                                </flux:button>
+                                <flux:button type="button" size="xs" variant="ghost"
+                                    wire:click="moveDown({{ $item->id }})"
+                                    :disabled="$isLast">
+                                    <x-lucide-chevron-down class="w-4 h-4" />
+                                </flux:button>
+                            @endif
                             <flux:button variant="ghost" size="xs" icon="pencil"
                                 wire:click="edit({{ $item->id }})" />
                             <flux:button variant="ghost" size="xs" icon="trash-2"

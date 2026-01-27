@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasExtraData;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use Illuminate\Database\Eloquent\Builder;
@@ -12,11 +13,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class TrainingPlan extends Model
 {
+    use HasExtraData;
     use SoftDeletes;
 
     protected $fillable = [
         'name',
         'start_date',
+        'duration',
     ];
 
     protected function casts(): array
