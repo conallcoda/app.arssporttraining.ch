@@ -35,6 +35,7 @@ class FluxField
         public ?string $variant = null,
         public ?string $size = null,
         public ?string $mask = null,
+        public array $ticks = [],
     ) {}
 
     public static function select(string $name): static
@@ -92,6 +93,11 @@ class FluxField
     public static function pillbox(string $name): static
     {
         return new static($name, 'pillbox');
+    }
+
+    public static function slider(string $name): static
+    {
+        return (new static($name, 'slider'))->live();
     }
 
     public function label(string $label): static
@@ -177,6 +183,13 @@ class FluxField
     public function mask(string $mask): static
     {
         $this->mask = $mask;
+
+        return $this;
+    }
+
+    public function ticks(array $ticks): static
+    {
+        $this->ticks = $ticks;
 
         return $this;
     }

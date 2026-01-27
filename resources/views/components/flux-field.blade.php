@@ -189,6 +189,16 @@
                 @endforeach
             </flux:pillbox>
         </flux:field>
+    @elseif ($field->type === 'slider')
+        <x-slider-with-input
+            :label="$field->label"
+            :model="$wireModel"
+            :min="$field->min"
+            :max="$field->max"
+            :step="$field->step"
+            :suffix="$field->suffix"
+            :ticks="$field->ticks"
+        />
     @elseif ($field->type === 'relationship')
         <flux:field>
             <div class="space-y-3">

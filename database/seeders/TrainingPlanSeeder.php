@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Exercise\Exercise;
+use App\Models\Exercise\ExerciseType\StrengthDefaults;
 use App\Models\TrainingPlan;
 use App\Models\TrainingPlanProgram;
 use App\Models\Users\User;
@@ -30,8 +31,8 @@ class TrainingPlanSeeder extends Seeder
                 'name' => 'Strength 1',
             ]);
             $program1->exercises()->attach([
-                $exercises[0]->id => ['sort' => 0],
-                $exercises[1]->id => ['sort' => 1],
+                $exercises[0]->id => ['sort' => 0, 'extra' => $this->getExerciseExtra($exercises[0])],
+                $exercises[1]->id => ['sort' => 1, 'extra' => $this->getExerciseExtra($exercises[1])],
             ]);
 
             $program2 = TrainingPlanProgram::create([
@@ -39,9 +40,21 @@ class TrainingPlanSeeder extends Seeder
                 'name' => 'Strength 2',
             ]);
             $program2->exercises()->attach([
-                $exercises[2]->id => ['sort' => 0],
-                $exercises[3]->id => ['sort' => 1],
+                $exercises[2]->id => ['sort' => 0, 'extra' => $this->getExerciseExtra($exercises[2])],
+                $exercises[3]->id => ['sort' => 1, 'extra' => $this->getExerciseExtra($exercises[3])],
             ]);
         }
+    }
+
+    private function getExerciseExtra(Exercise $exercise): array
+    {
+        $defaults = StrengthDefaults::fromExercise($exercise);
+
+        return [
+            'oneRepMaxModifier' => $defaults->oneRepMaxModifier,
+            'startingReps' => $defaults->startingReps,
+            'timeUnderTension' => $defaults->timeUnderTension,
+            'rest' => $defaults->rest,
+        ];
     }
 }
