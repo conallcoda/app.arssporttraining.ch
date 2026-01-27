@@ -1,9 +1,9 @@
 <div class="flex gap-6">
-    <x-section title="Athletes" class="w-64 shrink-0">
+    <x-section title="Athletes" class="w-64 shrink-0 sticky top-4 self-start">
         <div class="flex flex-col gap-1">
             <flux:button wire:click="selectUser(0)" variant="{{ $user === 0 ? 'primary' : 'ghost' }}"
                 class="justify-start">
-                Default Athlete
+                <span class="flex-1 text-left">Default Athlete</span>
             </flux:button>
 
             <div class="mx-3">
@@ -11,9 +11,20 @@
             </div>
 
             @foreach ($this->users as $userItem)
+                @php
+                    $hasMeasuredData = $this->userHasMeasuredData($userItem->id);
+                    $overrideCount = $this->countUserOverrides($userItem->id);
+                    $isSelected = $user === $userItem->id;
+                @endphp
                 <flux:button wire:click="selectUser({{ $userItem->id }})"
-                    variant="{{ $user === $userItem->id ? 'primary' : 'ghost' }}" class="justify-start">
-                    {{ $userItem->name }}
+                    variant="{{ $isSelected ? 'primary' : 'ghost' }}" class="justify-start">
+                    <span class="flex-1 text-left">{{ $userItem->name }}</span>
+                    @if (!$hasMeasuredData)
+                        <flux:badge size="sm" color="red" class="{{ $isSelected ? '!bg-red-500 !text-white dark:!text-white' : '' }}">!</flux:badge>
+                    @endif
+                    @if ($overrideCount > 0)
+                        <flux:badge size="sm" class="{{ $isSelected ? 'bg-white/20 !text-white dark:!text-black' : '' }}">{{ $overrideCount }}</flux:badge>
+                    @endif
                 </flux:button>
             @endforeach
         </div>
@@ -134,12 +145,19 @@
                                     ];
                                     $config = $this->getExerciseConfig($exercise->id, $pivotExtra);
                                     $block = $this->generateBlock($exercise->id, $pivotExtra);
+                                    if ($block) {
+                                        $block = $this->applyCellOverrides($block, $exercise->id);
+                                    }
+                                    $cellOverrides = $this->getCellOverrides($exercise->id);
+                                    $userSpecificCellOverrides = $this->getUserSpecificCellOverrides($exercise->id);
                                 @endphp
                                 <x-training.exercise-block
                                     :block="$block"
                                     :exercise="$exercise"
                                     :exerciseId="$exercise->id"
                                     :config="$config"
+                                    :cellOverrides="$cellOverrides"
+                                    :userSpecificCellOverrides="$userSpecificCellOverrides"
                                 />
                             @endforeach
                         </div>
