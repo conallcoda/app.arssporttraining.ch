@@ -108,8 +108,8 @@ class ProgramExerciseData extends AbstractData implements HasForms
                 ->min(1)
                 ->suffix('rep(s)')
                 ->step(1),
-            FluxField::tut('timeUnderTension')
-                ->default('03-01-03-01')
+            FluxField::tut('timeUnderTension', true)
+                ->default('3010')
                 ->label('Time Under Tension'),
             FluxField::number('rest')
                 ->label('Rest Between Sets')

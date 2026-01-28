@@ -31,7 +31,7 @@ class Export extends Component
 
     public array $selectedUserIds = [];
 
-    #[Url(as: 'preview')]
+    #[Url(as: 'user')]
     public ?int $previewUserId = null;
 
     public bool $exporting = false;
@@ -39,16 +39,7 @@ class Export extends Component
     public function mount(TrainingPlan $trainingPlan): void
     {
         $this->trainingPlan = $trainingPlan;
-
-        $users = $this->trainingPlan->allUsers()->get();
-        if ($users->isNotEmpty()) {
-            $firstUserId = $users->first()->id;
-            $this->selectedUserIds = [$firstUserId];
-
-            if ($this->previewUserId === null) {
-                $this->previewUserId = $firstUserId;
-            }
-        }
+        $this->syncSelectedFromPreview();
     }
 
     #[On('tab-changed')]
@@ -56,8 +47,48 @@ class Export extends Component
     {
         if ($tab === 'export') {
             $this->trainingPlan->refresh();
-            unset($this->previewPlans, $this->previewUser, $this->users, $this->programs);
+            $this->syncSelectedFromPreview();
+            unset($this->previewPlans, $this->previewUser, $this->users, $this->programs, $this->selectedUsers);
         }
+    }
+
+    #[On('plan-user-changed')]
+    public function handlePlanUserChanged(int $userId): void
+    {
+        $validUserIds = $this->users->pluck('id')->all();
+
+        if ($userId === 0) {
+            $this->selectedUserIds = $validUserIds;
+            $this->previewUserId = $validUserIds[0] ?? null;
+            unset($this->previewPlans, $this->previewUser, $this->selectedUsers);
+
+            return;
+        }
+
+        if (in_array($userId, $validUserIds)) {
+            $this->previewUserId = $userId;
+            $this->selectedUserIds = [$userId];
+            unset($this->previewPlans, $this->previewUser, $this->selectedUsers);
+        }
+    }
+
+    protected function syncSelectedFromPreview(): void
+    {
+        $users = $this->trainingPlan->allUsers()->get();
+        if ($users->isEmpty()) {
+            return;
+        }
+
+        $validUserIds = $users->pluck('id')->all();
+
+        if ($this->previewUserId && $this->previewUserId !== 0 && in_array($this->previewUserId, $validUserIds)) {
+            $this->selectedUserIds = [$this->previewUserId];
+
+            return;
+        }
+
+        $this->selectedUserIds = $validUserIds;
+        $this->previewUserId = $validUserIds[0] ?? null;
     }
 
     #[Computed]
@@ -106,7 +137,14 @@ class Export extends Component
 
     public function updatedPreviewUserId(): void
     {
-        unset($this->previewUser, $this->previewPlans);
+        unset($this->previewUser, $this->previewPlans, $this->selectedUsers);
+
+        if ($this->previewUserId && $this->previewUserId !== 0) {
+            $validUserIds = $this->users->pluck('id')->all();
+            if (in_array($this->previewUserId, $validUserIds) && ! in_array($this->previewUserId, $this->selectedUserIds)) {
+                $this->selectedUserIds = [$this->previewUserId];
+            }
+        }
     }
 
     #[Computed]

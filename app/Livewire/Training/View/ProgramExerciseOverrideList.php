@@ -43,7 +43,7 @@ class ProgramExerciseOverrideList extends Component
                 ->min(1)
                 ->step(1)
                 ->width('w-28'),
-            TableColumn::tut('timeUnderTension')
+            TableColumn::tut('timeUnderTension', true)
                 ->label('TUT')
                 ->inline()
                 ->width('w-32'),

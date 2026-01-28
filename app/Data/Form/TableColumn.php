@@ -47,11 +47,14 @@ class TableColumn
         return new static($field, 'number');
     }
 
-    public static function tut(string $field): static
+    public static function tut(string $field, bool $simple = false): static
     {
         $column = new static($field, 'text');
-        $column->mask = '99-99-99-99';
-        $column->validationPattern = '^\d{2}-\d{2}-\d{2}-\d{2}$';
+
+        if (! $simple) {
+            $column->mask = '99-99-99-99';
+            $column->validationPattern = '^\d{2}-\d{2}-\d{2}-\d{2}$';
+        }
 
         return $column;
     }

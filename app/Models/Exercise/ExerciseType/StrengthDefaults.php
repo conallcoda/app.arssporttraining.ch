@@ -12,7 +12,7 @@ class StrengthDefaults extends AbstractData implements HasForms
     public function __construct(
         public int $oneRepMaxModifier = 100,
         public int $startingReps = 1,
-        public string $timeUnderTension = '03-01-03-01',
+        public string $timeUnderTension = '3010',
         public int $rest = 30,
     ) {}
 
@@ -23,7 +23,7 @@ class StrengthDefaults extends AbstractData implements HasForms
         return new self(
             oneRepMaxModifier: $config['oneRepMaxModifier'] ?? 100,
             startingReps: $config['startingReps'] ?? 1,
-            timeUnderTension: $config['timeUnderTension'] ?? '03-01-03-01',
+            timeUnderTension: $config['timeUnderTension'] ?? '3010',
             rest: $config['rest'] ?? 30,
         );
     }
@@ -40,8 +40,8 @@ class StrengthDefaults extends AbstractData implements HasForms
                 ->min(1)
                 ->suffix('rep(s)')
                 ->step(1),
-            FluxField::tut('timeUnderTension')
-                ->default('03-01-03-01')
+            FluxField::tut('timeUnderTension', true)
+                ->default('3010')
                 ->label('Time Under Tension'),
             FluxField::number('rest')
                 ->label('Rest Between Sets')

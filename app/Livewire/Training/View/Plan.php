@@ -270,6 +270,7 @@ class Plan extends Component
     {
         $this->user = $userId;
         $this->loadAthleteData();
+        $this->dispatch('plan-user-changed', userId: $userId);
     }
 
     public function loadAthleteData(): void

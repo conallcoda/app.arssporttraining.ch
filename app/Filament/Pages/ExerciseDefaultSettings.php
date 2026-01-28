@@ -3,12 +3,12 @@
 namespace App\Filament\Pages;
 
 use App\Models\Exercise\Exercise;
-use Inerba\DbConfig\AbstractPageSettings;
-use Filament\Schemas\Schema;
-use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Schema;
 use Filament\Support\RawJs;
+use Icetalker\FilamentTableRepeater\Forms\Components\TableRepeater;
+use Inerba\DbConfig\AbstractPageSettings;
 use Livewire\Attributes\Url;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -57,7 +57,7 @@ class ExerciseDefaultSettings extends AbstractPageSettings
             ->get();
 
         return [
-            'exercise_defaults' => $exercises->map(fn($exercise) => [
+            'exercise_defaults' => $exercises->map(fn ($exercise) => [
                 'exercise_id' => $exercise->id,
                 'orm_conversion' => null,
                 'sets' => null,
@@ -109,7 +109,7 @@ class ExerciseDefaultSettings extends AbstractPageSettings
                         TextInput::make('tut')
                             ->label('Default TUT')
                             ->mask('99-99-99-99')
-                            ->placeholder('03-01-03-01'),
+                            ->placeholder('3010'),
 
                         TextInput::make('rest')
                             ->label('Default Rest (seconds)')
@@ -132,7 +132,7 @@ class ExerciseDefaultSettings extends AbstractPageSettings
                         $updatedState = $state ?? [];
 
                         foreach ($exercises as $exercise) {
-                            if (!in_array($exercise->id, $existingIds)) {
+                            if (! in_array($exercise->id, $existingIds)) {
                                 $updatedState[] = [
                                     'exercise_id' => $exercise->id,
                                     'orm_conversion' => null,
@@ -147,6 +147,7 @@ class ExerciseDefaultSettings extends AbstractPageSettings
                         usort($updatedState, function ($a, $b) use ($exerciseOrder) {
                             $posA = array_search($a['exercise_id'], $exerciseOrder);
                             $posB = array_search($b['exercise_id'], $exerciseOrder);
+
                             return $posA <=> $posB;
                         });
 

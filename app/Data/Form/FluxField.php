@@ -48,11 +48,17 @@ class FluxField
         return new static($name, 'text');
     }
 
-    public static function tut(string $name): static
+    public static function tut(string $name, bool $simple = false): static
     {
-        return (new static($name, 'text'))
+        $field = new static($name, 'text');
+
+        if ($simple) {
+            return $field;
+        }
+
+        return $field
             ->mask('99-99-99-99')
-            ->placeholder('03-01-03-01')
+            ->placeholder('3010')
             ->rules('nullable|regex:/^\d{2}-\d{2}-\d{2}-\d{2}$/');
     }
 

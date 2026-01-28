@@ -1,9 +1,9 @@
 <div class="flex gap-6">
-    <x-section title="Athletes" class="w-64 shrink-0 sticky top-4 self-start">
+    <x-section title="Plans" class="w-64 shrink-0 sticky top-4 self-start">
         <div class="flex flex-col gap-1">
             <flux:button wire:click="selectUser(0)" variant="{{ $user === 0 ? 'primary' : 'ghost' }}"
                 class="justify-start">
-                <span class="flex-1 text-left">Default Athlete</span>
+                <span class="flex-1 text-left">Default</span>
             </flux:button>
 
             <div class="mx-3">
@@ -31,9 +31,9 @@
     </x-section>
 
     <div class="flex-1 space-y-6">
-        <x-section title="Plan">
+        <x-section title="Settings">
             @if ($user === 0)
-                <flux:heading size="lg">Default Athlete</flux:heading>
+                <flux:heading size="lg">Default</flux:heading>
 
                 <div class="mt-6 space-y-4 max-w-lg">
                     <div class="flex items-end gap-3">

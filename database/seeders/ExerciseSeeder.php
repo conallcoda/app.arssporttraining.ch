@@ -13,7 +13,7 @@ class ExerciseSeeder extends Seeder
         $strengthDefaults = [
             'oneRepMaxModifier' => 100,
             'startingReps' => 12,
-            'timeUnderTension' => '03-01-03-01',
+            'timeUnderTension' => '3010',
             'rest' => 30,
         ];
 
