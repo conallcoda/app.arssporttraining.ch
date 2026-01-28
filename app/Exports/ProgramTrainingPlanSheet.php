@@ -19,9 +19,10 @@ class ProgramTrainingPlanSheet implements FromArray, WithColumnWidths, WithStyle
     public function __construct(
         User $user,
         string $programName,
-        array $exercises
+        array $exercises,
+        ?string $startDate = null
     ) {
-        $this->plan = new ProgramTrainingPlan($user, $programName, $exercises);
+        $this->plan = new ProgramTrainingPlan($user, $programName, $exercises, $startDate);
     }
 
     public function title(): string
@@ -51,16 +52,17 @@ class ProgramTrainingPlanSheet implements FromArray, WithColumnWidths, WithStyle
 
         $nextCol = chr(ord('D') + $this->plan->getMaxSets());
         $widths[$nextCol] = 8;
-        $widths[chr(ord($nextCol) + 1)] = 12;
+        $widths[chr(ord($nextCol) + 1)] = 8;
         $widths[chr(ord($nextCol) + 2)] = 12;
-        $widths[chr(ord($nextCol) + 3)] = 8;
+        $widths[chr(ord($nextCol) + 3)] = 12;
+        $widths[chr(ord($nextCol) + 4)] = 20;
 
         return $widths;
     }
 
     public function styles(Worksheet $sheet): array
     {
-        $lastColumn = chr(ord('D') + $this->plan->getMaxSets() + 3);
+        $lastColumn = chr(ord('D') + $this->plan->getMaxSets() + 4);
 
         $rowIndex = 1;
         $rows = $this->plan->getRows();

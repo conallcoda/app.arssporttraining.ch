@@ -113,10 +113,10 @@ class ProgramTrainingPlan
             $this->headers[] = 'Set '.$i;
         }
         $this->headers[] = 'TUT';
+        $this->headers[] = 'Rest';
         $this->headers[] = 'Date';
         $this->headers[] = 'Date';
-        $this->headers[] = 'Training Week';
-        $this->headers[] = 'Actual Week';
+        $this->headers[] = 'Week';
 
         foreach ($this->exercises as $exerciseIndex => $item) {
             $exercise = $item['exercise'];
@@ -130,10 +130,10 @@ class ProgramTrainingPlan
                 $exerciseHeader[] = 'Set '.$i;
             }
             $exerciseHeader[] = 'TUT';
+            $exerciseHeader[] = 'Rest';
             $exerciseHeader[] = 'Date';
             $exerciseHeader[] = 'Date';
-            $exerciseHeader[] = 'Training Week';
-            $exerciseHeader[] = 'Actual Week';
+            $exerciseHeader[] = 'Week';
 
             $this->rows[] = [
                 'type' => self::ROW_TYPE_HEADER,
@@ -143,11 +143,14 @@ class ProgramTrainingPlan
                 'exerciseRowCount' => $exerciseRowCount,
             ];
 
-            $this->buildExerciseRows($exercise, $exerciseNumber, $block);
+            $tut = $item['tut'] ?? '3010';
+            $rest = (int) ($item['rest'] ?? 30);
+            $weekOverrides = $item['weekOverrides'] ?? [];
+            $this->buildExerciseRows($block, $tut, $rest, $weekOverrides);
         }
     }
 
-    protected function buildExerciseRows(mixed $exercise, int $exerciseNumber, TrainingBlock $block): void
+    protected function buildExerciseRows(TrainingBlock $block, string $tut, int $rest, array $weekOverrides = []): void
     {
         $weekIndex = 0;
         $lastReps = null;
@@ -161,16 +164,20 @@ class ProgramTrainingPlan
             $firstSession = $sessions[0];
             $currentReps = $this->getRepsArray($firstSession);
 
+            $weekKey = "w{$weekIndex}";
+            $weekTut = $weekOverrides[$weekKey]['tut'] ?? $tut;
+            $weekRest = (int) ($weekOverrides[$weekKey]['rest'] ?? $rest);
+
             if (! $this->repsAreSimilar($lastReps, $currentReps)) {
                 $this->rows[] = [
                     'type' => self::ROW_TYPE_REPS,
                     'label' => 'Reps',
                     'cells' => $this->buildSetCells($firstSession, 'reps'),
                     'tut' => '',
+                    'rest' => '',
                     'date1' => '',
                     'date2' => '',
-                    'trainingWeek' => '',
-                    'actualWeek' => '',
+                    'week' => '',
                 ];
                 $lastReps = $currentReps;
             }
@@ -179,26 +186,27 @@ class ProgramTrainingPlan
                 'type' => self::ROW_TYPE_WEIGHT,
                 'label' => 'Weight',
                 'cells' => $this->buildSetCells($firstSession, 'weight'),
-                'tut' => '2010',
+                'tut' => $weekTut,
+                'rest' => $weekRest,
                 'date1' => '',
                 'date2' => '',
-                'trainingWeek' => 'TW '.($weekIndex + 1),
-                'actualWeek' => $this->getActualWeekLabel($weekIndex),
+                'week' => $this->getCombinedWeekLabel($weekIndex),
             ];
             $weekIndex++;
         }
     }
 
-    protected function getActualWeekLabel(int $weekIndex): string
+    protected function getCombinedWeekLabel(int $weekIndex): string
     {
+        $trainingWeek = 'TW '.($weekIndex + 1);
+
         if (! $this->startDate) {
-            return '';
+            return $trainingWeek;
         }
 
         $date = Carbon::parse($this->startDate)->addWeeks($weekIndex);
-        $monday = $date->startOfWeek(Carbon::MONDAY);
 
-        return $date->year.' - W'.$date->isoWeek().' ('.$monday->format('d.m.Y').')';
+        return $trainingWeek.' ('.$date->year.' - W'.$date->isoWeek().')';
     }
 
     protected function calculateExerciseRowCount(TrainingBlock $block): int
@@ -290,10 +298,10 @@ class ProgramTrainingPlan
             }
 
             $rowData[] = $row['tut'] ?? '';
+            $rowData[] = $row['rest'] ?? '';
             $rowData[] = $row['date1'] ?? '';
             $rowData[] = $row['date2'] ?? '';
-            $rowData[] = $row['trainingWeek'] ?? '';
-            $rowData[] = $row['actualWeek'] ?? '';
+            $rowData[] = $row['week'] ?? '';
 
             $data[] = $rowData;
         }

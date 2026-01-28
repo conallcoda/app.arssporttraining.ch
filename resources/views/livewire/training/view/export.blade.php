@@ -94,6 +94,10 @@
                                                         </td>
                                                         <td
                                                             class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center whitespace-nowrap">
+                                                            {{ $row['rest'] ?? '' }}
+                                                        </td>
+                                                        <td
+                                                            class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center whitespace-nowrap">
                                                             {{ $row['date1'] ?? '' }}
                                                         </td>
                                                         <td
@@ -102,11 +106,7 @@
                                                         </td>
                                                         <td
                                                             class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center whitespace-nowrap font-medium">
-                                                            {{ $row['trainingWeek'] ?? '' }}
-                                                        </td>
-                                                        <td
-                                                            class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center whitespace-nowrap">
-                                                            {{ $row['actualWeek'] ?? '' }}
+                                                            {{ $row['week'] ?? '' }}
                                                         </td>
                                                     </tr>
                                                 @endif

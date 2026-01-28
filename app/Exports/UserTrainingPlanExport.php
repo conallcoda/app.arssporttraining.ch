@@ -20,7 +20,8 @@ class UserTrainingPlanExport implements WithMultipleSheets
             $sheets[] = new ProgramTrainingPlanSheet(
                 $this->user,
                 $plan->programName,
-                $plan->exercises
+                $plan->exercises,
+                $plan->startDate
             );
         }
 

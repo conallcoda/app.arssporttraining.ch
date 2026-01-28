@@ -146,10 +146,16 @@ class Export extends Component
         return $this->generateGroupedPlansForUser($user);
     }
 
-    #[Computed]
-    public function weeks(): int
+    protected function getWeeksForUser(int $userId): int
     {
-        return $this->trainingPlan->duration ?? 5;
+        $userData = AthleteTrainingProgramData::fromTrainingPlan($this->trainingPlan, $userId);
+        if ($userData->duration !== null) {
+            return $userData->duration;
+        }
+
+        $defaultData = AthleteTrainingProgramData::fromTrainingPlan($this->trainingPlan, null);
+
+        return $defaultData->duration ?? AthleteTrainingProgramData::DEFAULT_DURATION;
     }
 
     public function selectAll(): void
@@ -283,12 +289,18 @@ class Export extends Component
             $exercises = [];
 
             foreach ($program->exercises as $exercise) {
-                $block = $this->generateBlockForUserAndExercise($user, $exercise, $program, $athleteData);
+                $pivotExtra = $this->getPivotExtra($program->id, $exercise->id);
+                $config = $this->getExerciseConfig($user->id, $exercise->id, $pivotExtra);
+                $block = $this->generateBlockForUserAndExercise($user, $exercise, $athleteData, $config);
 
                 if ($block) {
+                    $weekOverrides = $this->getWeekOverridesForExport($user->id, $exercise->id);
                     $exercises[] = [
                         'exercise' => $exercise,
                         'block' => $block,
+                        'tut' => $config['tut'],
+                        'rest' => (int) $config['rest'],
+                        'weekOverrides' => $weekOverrides,
                     ];
                 }
             }
@@ -343,12 +355,9 @@ class Export extends Component
     protected function generateBlockForUserAndExercise(
         User $user,
         mixed $exercise,
-        mixed $program,
-        AthleteTrainingProgramData $athleteData
+        AthleteTrainingProgramData $athleteData,
+        array $config
     ): ?TrainingBlock {
-        $pivotExtra = $this->getPivotExtra($program->id, $exercise->id);
-        $config = $this->getExerciseConfig($user->id, $exercise->id, $pivotExtra);
-
         $generator = new TrainingBlockGenerator;
 
         $block = $generator->generate(
@@ -358,7 +367,7 @@ class Export extends Component
             targetPercentage: $config['target'],
             startingReps: $config['startingReps'],
             sets: $config['sets'],
-            weeks: $this->weeks,
+            weeks: $this->getWeeksForUser($user->id),
             sessionsPerWeek: 2,
             deloadEnabled: true,
             deloadSetsReduction: 1,
@@ -398,23 +407,33 @@ class Export extends Component
         $systemTarget = $defaultData->target_goal ?? ExerciseOverrideData::DEFAULT_TARGET;
         $systemStartingReps = $pivotExtra['startingReps'] ?? ExerciseOverrideData::DEFAULT_STARTING_REPS;
         $systemSets = $pivotExtra['sets'] ?? ExerciseOverrideData::DEFAULT_SETS;
+        $systemTut = $pivotExtra['tut'] ?? ExerciseOverrideData::DEFAULT_TUT;
+        $systemRest = $pivotExtra['rest'] ?? ExerciseOverrideData::DEFAULT_REST;
         $oneRepMaxModifier = $pivotExtra['oneRepMaxModifier'] ?? 100;
 
-        $defaultOverride = $this->trainingPlan->extra->get("users.default.exercises.{$exerciseId}", []);
-        $userOverride = $this->trainingPlan->extra->get("users.{$userId}.exercises.{$exerciseId}", []);
+        $allDefaultExercises = $this->trainingPlan->extra->get('users.default.exercises', []);
+        $allUserExercises = $this->trainingPlan->extra->get("users.{$userId}.exercises", []);
+
+        $defaultOverride = $allDefaultExercises[$exerciseId] ?? $allDefaultExercises[(string) $exerciseId] ?? [];
+        $userOverride = $allUserExercises[$exerciseId] ?? $allUserExercises[(string) $exerciseId] ?? [];
 
         return [
             'target' => $userOverride['target'] ?? $defaultOverride['target'] ?? $systemTarget,
             'startingReps' => $userOverride['startingReps'] ?? $defaultOverride['startingReps'] ?? $systemStartingReps,
             'sets' => $userOverride['sets'] ?? $defaultOverride['sets'] ?? $systemSets,
+            'tut' => $userOverride['tut'] ?? $defaultOverride['tut'] ?? $systemTut,
+            'rest' => $userOverride['rest'] ?? $defaultOverride['rest'] ?? $systemRest,
             'oneRepMaxModifier' => $oneRepMaxModifier,
         ];
     }
 
     protected function applyCellOverrides(TrainingBlock $block, int $userId, int $exerciseId): TrainingBlock
     {
-        $defaultOverrides = $this->trainingPlan->extra->get("users.default.cells.{$exerciseId}", []);
-        $userOverrides = $this->trainingPlan->extra->get("users.{$userId}.cells.{$exerciseId}", []);
+        $allDefaultCells = $this->trainingPlan->extra->get('users.default.cells', []);
+        $allUserCells = $this->trainingPlan->extra->get("users.{$userId}.cells", []);
+
+        $defaultOverrides = $allDefaultCells[$exerciseId] ?? $allDefaultCells[(string) $exerciseId] ?? [];
+        $userOverrides = $allUserCells[$exerciseId] ?? $allUserCells[(string) $exerciseId] ?? [];
         $overrides = array_merge($defaultOverrides, $userOverrides);
 
         if (empty($overrides)) {
@@ -449,6 +468,24 @@ class Export extends Component
         }
 
         return $block->withWeeks($weeks);
+    }
+
+    protected function getWeekOverridesForExport(int $userId, int $exerciseId): array
+    {
+        $defaultOverrides = $this->trainingPlan->extra->get("users.default.weeks.{$exerciseId}", []);
+        $userOverrides = $this->trainingPlan->extra->get("users.{$userId}.weeks.{$exerciseId}", []);
+
+        $merged = [];
+        $allKeys = array_unique(array_merge(array_keys($defaultOverrides), array_keys($userOverrides)));
+
+        foreach ($allKeys as $weekKey) {
+            $merged[$weekKey] = array_merge(
+                $defaultOverrides[$weekKey] ?? [],
+                $userOverrides[$weekKey] ?? []
+            );
+        }
+
+        return $merged;
     }
 
     protected function sanitizeFilename(string $filename): string
