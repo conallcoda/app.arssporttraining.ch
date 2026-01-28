@@ -20,9 +20,9 @@ class ExerciseSeeder extends Seeder
         $exercises = [
             'Back Squat' => [],
             'Front Squat' => ['oneRepMaxModifier' => 85],
-            'Deadlift Narrow' => ['oneRepMaxModifier' => 85],
+            'Deadlift Narrow' => ['oneRepMaxModifier' => 105],
             'Deadlift Wide' => ['oneRepMaxModifier' => 85],
-            'Row' => ['oneRepMaxModifier' => 70],
+            'Row' => ['oneRepMaxModifier' => 105],
         ];
 
         foreach ($exercises as $name => $overrides) {
