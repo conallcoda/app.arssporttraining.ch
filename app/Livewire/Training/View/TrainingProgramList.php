@@ -4,6 +4,7 @@ namespace App\Livewire\Training\View;
 
 use App\Data\Form\TableColumn;
 use App\Livewire\Concerns\AbstractModelList;
+use App\Livewire\Concerns\InteractsWithParentView;
 use App\Models\TrainingPlan;
 use App\Models\TrainingPlanProgram;
 use Illuminate\Contracts\Database\Eloquent\Builder;
@@ -11,6 +12,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class TrainingProgramList extends AbstractModelList
 {
+    use InteractsWithParentView;
+
     public TrainingPlan $trainingPlan;
 
     protected function getDataClass(): string
@@ -53,5 +56,11 @@ class TrainingProgramList extends AbstractModelList
     protected function getPerPage(): int
     {
         return 100;
+    }
+
+    protected function emit(): void
+    {
+        parent::emit();
+        $this->notifyChanged('programs');
     }
 }

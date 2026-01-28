@@ -20,6 +20,10 @@ class Plan extends Component
 
     public TrainingPlan $trainingPlan;
 
+    public Collection $programs;
+
+    public Collection $users;
+
     #[Url]
     public ?int $user = 0;
 
@@ -37,19 +41,15 @@ class Plan extends Component
 
     public array $defaultCellOverrides = [];
 
-    public function mount(TrainingPlan $trainingPlan): void
-    {
+    public function mount(
+        TrainingPlan $trainingPlan,
+        Collection $programs,
+        Collection $users,
+    ): void {
         $this->trainingPlan = $trainingPlan;
+        $this->programs = $programs;
+        $this->users = $users;
         $this->loadAthleteData();
-    }
-
-    #[Computed]
-    public function users(): Collection
-    {
-        return $this->trainingPlan->allUsers()
-            ->orderBy('forename')
-            ->orderBy('surname')
-            ->get();
     }
 
     public function userHasMeasuredData(int $userId): bool
@@ -127,17 +127,6 @@ class Plan extends Component
         }
 
         return round($startingMax * (1 + $goal / 100), 1);
-    }
-
-    #[Computed]
-    public function programs(): Collection
-    {
-        return $this->trainingPlan->programs()
-            ->with(['exercises' => function ($query) {
-                $query->orderByPivot('sort');
-            }])
-            ->orderBy('sort')
-            ->get();
     }
 
     public function getPivotExtra(int $programId, int $exerciseId): array

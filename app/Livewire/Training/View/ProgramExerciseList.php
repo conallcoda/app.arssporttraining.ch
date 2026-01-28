@@ -4,6 +4,7 @@ namespace App\Livewire\Training\View;
 
 use App\Data\Form\TableColumn;
 use App\Livewire\Concerns\AbstractModelList;
+use App\Livewire\Concerns\InteractsWithParentView;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseType\StrengthDefaults;
 use App\Models\TrainingPlanProgram;
@@ -14,6 +15,8 @@ use Illuminate\View\View;
 
 class ProgramExerciseList extends AbstractModelList
 {
+    use InteractsWithParentView;
+
     public TrainingPlanProgram $program;
 
     public bool $compact = true;
@@ -134,6 +137,13 @@ class ProgramExerciseList extends AbstractModelList
 
         unset($this->items);
         $this->refreshKey++;
+        $this->notifyChanged('programs');
+    }
+
+    protected function emit(): void
+    {
+        parent::emit();
+        $this->notifyChanged('programs');
     }
 
     protected function getPerPage(): int

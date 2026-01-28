@@ -198,7 +198,7 @@
                                     rowspan="3">
                                     <div>W{{ $weekIndex + 1 }}</div>
                                     @if (!$anyWeekNotMerged)
-                                        <div class="text-xs font-normal text-zinc-500 dark:text-zinc-400">
+                                        <div class="text-[10px] font-normal text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
                                             ({{ $sessionCount }} {{ Str::plural('Session', $sessionCount) }})</div>
                                     @endif
                                 </td>

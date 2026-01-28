@@ -29,6 +29,10 @@ class Export extends Component
 
     public TrainingPlan $trainingPlan;
 
+    public Collection $programs;
+
+    public Collection $users;
+
     public array $selectedUserIds = [];
 
     #[Url(as: 'user')]
@@ -36,9 +40,14 @@ class Export extends Component
 
     public bool $exporting = false;
 
-    public function mount(TrainingPlan $trainingPlan): void
-    {
+    public function mount(
+        TrainingPlan $trainingPlan,
+        Collection $programs,
+        Collection $users,
+    ): void {
         $this->trainingPlan = $trainingPlan;
+        $this->programs = $programs;
+        $this->users = $users;
         $this->syncSelectedFromPreview();
     }
 
@@ -48,7 +57,7 @@ class Export extends Component
         if ($tab === 'export') {
             $this->trainingPlan->refresh();
             $this->syncSelectedFromPreview();
-            unset($this->previewPlans, $this->previewUser, $this->users, $this->programs, $this->selectedUsers);
+            unset($this->previewPlans, $this->previewUser, $this->selectedUsers);
         }
     }
 
@@ -74,14 +83,13 @@ class Export extends Component
 
     protected function syncSelectedFromPreview(): void
     {
-        $users = $this->trainingPlan->allUsers()->get();
-        if ($users->isEmpty()) {
+        if ($this->users->isEmpty()) {
             return;
         }
 
-        $validUserIds = $users->pluck('id')->all();
+        $validUserIds = $this->users->pluck('id')->all();
 
-        if ($this->previewUserId && $this->previewUserId !== 0 && in_array($this->previewUserId, $validUserIds)) {
+        if ($this->previewUserId && in_array($this->previewUserId, $validUserIds)) {
             $this->selectedUserIds = [$this->previewUserId];
 
             return;
@@ -89,15 +97,6 @@ class Export extends Component
 
         $this->selectedUserIds = $validUserIds;
         $this->previewUserId = $validUserIds[0] ?? null;
-    }
-
-    #[Computed]
-    public function users(): Collection
-    {
-        return $this->trainingPlan->allUsers()
-            ->orderBy('forename')
-            ->orderBy('surname')
-            ->get();
     }
 
     #[Computed]
@@ -139,12 +138,17 @@ class Export extends Component
     {
         unset($this->previewUser, $this->previewPlans, $this->selectedUsers);
 
-        if ($this->previewUserId && $this->previewUserId !== 0) {
-            $validUserIds = $this->users->pluck('id')->all();
-            if (in_array($this->previewUserId, $validUserIds) && ! in_array($this->previewUserId, $this->selectedUserIds)) {
+        $validUserIds = $this->users->pluck('id')->all();
+
+        if ($this->previewUserId && in_array($this->previewUserId, $validUserIds)) {
+            if (! in_array($this->previewUserId, $this->selectedUserIds)) {
                 $this->selectedUserIds = [$this->previewUserId];
             }
+
+            return;
         }
+
+        $this->selectedUserIds = $validUserIds;
     }
 
     #[Computed]
@@ -156,17 +160,6 @@ class Export extends Component
         }
 
         return $this->generateGroupedPlansForUser($user);
-    }
-
-    #[Computed]
-    public function programs(): Collection
-    {
-        return $this->trainingPlan->programs()
-            ->with(['exercises' => function ($query) {
-                $query->orderByPivot('sort');
-            }])
-            ->orderBy('sort')
-            ->get();
     }
 
     #[Computed]

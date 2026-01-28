@@ -22,6 +22,7 @@ class TrainingPlanList extends AbstractModelList
     protected function getColumns(): array
     {
         return [
+            TableColumn::id(),
             TableColumn::view('name', TrainingPlanView::class)->label('Name'),
             TableColumn::relationship('users')->label('Athletes'),
             TableColumn::relationship('userGroups')->label('Athlete Groups'),
