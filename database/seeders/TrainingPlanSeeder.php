@@ -29,8 +29,11 @@ class TrainingPlanSeeder extends Seeder
         ]);
         $plan->save();
 
-        $plan->userGroups()->attach(UserGroup::first());
-        $plan->users()->attach(User::latest('id')->take(2)->pluck('id'));
+        $plan->userGroups()->attach(UserGroup::first(), ['sort' => 0]);
+
+        $users = User::latest('id')->take(2)->pluck('id');
+        $usersWithSort = $users->mapWithKeys(fn ($id, $index) => [$id => ['sort' => $index]])->all();
+        $plan->users()->attach($usersWithSort);
 
         $exercises = Exercise::take(4)->get();
 

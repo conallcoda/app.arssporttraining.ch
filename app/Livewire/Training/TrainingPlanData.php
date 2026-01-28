@@ -25,6 +25,7 @@ class TrainingPlanData extends AbstractData implements HasForms
             $users = $plan->users->map(fn ($user) => [
                 'id' => $user->id,
                 'name' => $user->name,
+                'sort' => $user->pivot->sort ?? 0,
             ])->all();
         }
 
@@ -33,6 +34,7 @@ class TrainingPlanData extends AbstractData implements HasForms
             $userGroups = $plan->userGroups->map(fn ($group) => [
                 'id' => $group->id,
                 'name' => $group->name,
+                'sort' => $group->pivot->sort ?? 0,
             ])->all();
         }
 
@@ -63,18 +65,24 @@ class TrainingPlanData extends AbstractData implements HasForms
             $plan->save();
         }
 
-        $userIds = collect($this->users)
+        $usersWithSort = collect($this->users)
             ->filter(fn ($user) => ! empty($user['id']))
-            ->pluck('id')
+            ->values()
+            ->mapWithKeys(fn ($user, $index) => [
+                $user['id'] => ['sort' => $index],
+            ])
             ->all();
 
-        $groupIds = collect($this->userGroups)
+        $groupsWithSort = collect($this->userGroups)
             ->filter(fn ($group) => ! empty($group['id']))
-            ->pluck('id')
+            ->values()
+            ->mapWithKeys(fn ($group, $index) => [
+                $group['id'] => ['sort' => $index],
+            ])
             ->all();
 
-        $plan->users()->sync($userIds);
-        $plan->userGroups()->sync($groupIds);
+        $plan->users()->sync($usersWithSort);
+        $plan->userGroups()->sync($groupsWithSort);
     }
 
     public static function example(int $id = 1, string $name = 'Training Plan A'): self

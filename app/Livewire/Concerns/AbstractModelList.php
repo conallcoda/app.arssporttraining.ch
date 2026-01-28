@@ -35,6 +35,10 @@ abstract class AbstractModelList extends Component
 
     public ?int $deletingId = null;
 
+    public ?int $duplicatingId = null;
+
+    public string $duplicateName = '';
+
     public int $refreshKey = 0;
 
     public bool $compact = false;
@@ -310,6 +314,36 @@ abstract class AbstractModelList extends Component
         return 'delete-'.$this->getEntitySlug();
     }
 
+    public function confirmDuplicate(int $id): void
+    {
+        $model = $this->getBaseQuery()->findOrFail($id);
+        $this->duplicatingId = $id;
+        $this->duplicateName = $this->getDuplicateDefaultName($model);
+        Flux::modal($this->getDuplicateModalName())->show();
+    }
+
+    protected function getDuplicateDefaultName(Model $model): string
+    {
+        return ($model->name ?? '').' (Copy)';
+    }
+
+    public function performDuplicate(): void
+    {
+        if (! $this->duplicatingId) {
+            return;
+        }
+
+        $this->duplicatingId = null;
+        $this->duplicateName = '';
+
+        Flux::modal($this->getDuplicateModalName())->close();
+    }
+
+    protected function getDuplicateModalName(): string
+    {
+        return 'duplicate-'.$this->getEntitySlug();
+    }
+
     protected function emit(): void
     {
         $query = $this->getBaseQuery();
@@ -401,6 +435,7 @@ abstract class AbstractModelList extends Component
         return view('livewire.components.model-list', [
             'modalName' => $this->getModalName(),
             'deleteModalName' => $this->getDeleteModalName(),
+            'duplicateModalName' => $this->getDuplicateModalName(),
             'entityName' => $this->getEntityName(),
             'compact' => $this->compact,
             'sortable' => $this->isSortable(),

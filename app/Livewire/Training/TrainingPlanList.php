@@ -6,6 +6,7 @@ use App\Data\Form\RowAction;
 use App\Data\Form\TableColumn;
 use App\Livewire\Concerns\AbstractModelList;
 use App\Models\TrainingPlan;
+use Flux\Flux;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 
 class TrainingPlanList extends AbstractModelList
@@ -33,20 +34,33 @@ class TrainingPlanList extends AbstractModelList
     protected function getRowActions(): array
     {
         return [
-            RowAction::make('duplicate', 'Duplicate')->icon('copy'),
+            RowAction::make('confirmDuplicate', 'Duplicate')->icon('copy'),
         ];
     }
 
-    public function duplicate(int $id): void
+    public function performDuplicate(): void
     {
-        $original = TrainingPlan::with(['users', 'userGroups', 'programs.exercises'])->findOrFail($id);
+        if (! $this->duplicatingId) {
+            return;
+        }
+
+        $original = TrainingPlan::with(['users', 'userGroups', 'programs.exercises'])->findOrFail($this->duplicatingId);
 
         $newPlan = $original->replicate();
-        $newPlan->name = $original->name.' (Copy)';
+        $newPlan->name = $this->duplicateName;
         $newPlan->save();
 
-        $newPlan->users()->sync($original->users->pluck('id'));
-        $newPlan->userGroups()->sync($original->userGroups->pluck('id'));
+        $usersWithSort = [];
+        foreach ($original->users as $user) {
+            $usersWithSort[$user->id] = ['sort' => $user->pivot->sort];
+        }
+        $newPlan->users()->sync($usersWithSort);
+
+        $groupsWithSort = [];
+        foreach ($original->userGroups as $group) {
+            $groupsWithSort[$group->id] = ['sort' => $group->pivot->sort];
+        }
+        $newPlan->userGroups()->sync($groupsWithSort);
 
         foreach ($original->programs as $program) {
             $newProgram = $program->replicate();
@@ -62,6 +76,11 @@ class TrainingPlanList extends AbstractModelList
             }
             $newProgram->exercises()->sync($exercisesWithPivot);
         }
+
+        $this->duplicatingId = null;
+        $this->duplicateName = '';
+
+        Flux::modal($this->getDuplicateModalName())->close();
 
         unset($this->items);
         $this->refreshKey++;

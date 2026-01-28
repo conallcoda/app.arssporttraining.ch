@@ -31,12 +31,20 @@ class TrainingPlan extends Model
 
     public function users(): BelongsToMany
     {
-        return $this->belongsToMany(User::class)->withTimestamps();
+        return $this->belongsToMany(User::class)
+            ->using(TrainingPlanUser::class)
+            ->withPivot(['sort'])
+            ->orderByPivot('sort')
+            ->withTimestamps();
     }
 
     public function userGroups(): BelongsToMany
     {
-        return $this->belongsToMany(UserGroup::class)->withTimestamps();
+        return $this->belongsToMany(UserGroup::class)
+            ->using(TrainingPlanUserGroup::class)
+            ->withPivot(['sort'])
+            ->orderByPivot('sort')
+            ->withTimestamps();
     }
 
     public function programs(): HasMany

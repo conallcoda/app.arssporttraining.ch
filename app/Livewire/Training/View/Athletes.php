@@ -37,10 +37,34 @@ class Athletes extends Component
 
     protected function save(): void
     {
-        $this->trainingPlan->users()->sync($this->users);
-        $this->trainingPlan->userGroups()->sync($this->userGroups);
+        $this->trainingPlan->users()->sync($this->buildSyncDataWithSort(
+            $this->users,
+            $this->trainingPlan->users()->pluck('sort', 'user_id')->all()
+        ));
+
+        $this->trainingPlan->userGroups()->sync($this->buildSyncDataWithSort(
+            $this->userGroups,
+            $this->trainingPlan->userGroups()->pluck('sort', 'user_group_id')->all()
+        ));
 
         $this->notifyChanged('athletes');
+    }
+
+    protected function buildSyncDataWithSort(array $ids, array $existingSorts): array
+    {
+        $maxSort = empty($existingSorts) ? -1 : max($existingSorts);
+        $result = [];
+
+        foreach ($ids as $id) {
+            if (isset($existingSorts[$id])) {
+                $result[$id] = ['sort' => $existingSorts[$id]];
+            } else {
+                $maxSort++;
+                $result[$id] = ['sort' => $maxSort];
+            }
+        }
+
+        return $result;
     }
 
     public function getFields(): array

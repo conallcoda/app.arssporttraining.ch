@@ -53,6 +53,23 @@
         </div>
     </flux:modal>
 
+    <flux:modal :name="$duplicateModalName" flyout class="w-96">
+        <form wire:submit="performDuplicate" class="space-y-6">
+            <flux:heading size="lg">Duplicate {{ $entityName }}</flux:heading>
+            <flux:field>
+                <flux:label>Name</flux:label>
+                <flux:input wire:model="duplicateName" autofocus />
+            </flux:field>
+            <div class="flex gap-2">
+                <flux:spacer />
+                <flux:modal.close>
+                    <flux:button type="button" variant="ghost">Cancel</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" variant="primary">Duplicate</flux:button>
+            </div>
+        </form>
+    </flux:modal>
+
     @if ($this->items->isEmpty())
         <div class="flex flex-col items-center justify-center py-12 text-center">
             <flux:icon.inbox class="w-12 h-12 text-zinc-300 dark:text-zinc-600 mb-4" />
