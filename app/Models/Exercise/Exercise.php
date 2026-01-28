@@ -14,6 +14,7 @@ class Exercise extends Model
     protected $fillable = [
         'name',
         'type',
+        'extra',
     ];
 
     protected function casts(): array
