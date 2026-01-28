@@ -17,6 +17,7 @@ class TrainingPlanProgram extends Model
     protected $fillable = [
         'training_plan_id',
         'name',
+        'sort',
     ];
 
     public function trainingPlan(): BelongsTo

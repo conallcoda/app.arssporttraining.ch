@@ -6,7 +6,9 @@ use App\Data\AbstractData;
 use App\Data\Form\FluxField;
 use App\Models\Contracts\HasForms;
 use App\Models\Exercise\Exercise;
+use App\Models\Exercise\ExerciseType\StrengthDefaults;
 use App\Models\TrainingPlanProgram;
+use App\Models\TrainingPlanProgramExercise;
 
 class TrainingProgramData extends AbstractData implements HasForms
 {
@@ -39,9 +41,11 @@ class TrainingProgramData extends AbstractData implements HasForms
     public function persist(): void
     {
         if ($this->id === null) {
+            $maxSort = TrainingPlanProgram::where('training_plan_id', $this->training_plan_id)->max('sort') ?? -1;
             $program = TrainingPlanProgram::create([
                 'training_plan_id' => $this->training_plan_id,
                 'name' => $this->name,
+                'sort' => $maxSort + 1,
             ]);
             $this->id = $program->id;
         } else {
@@ -50,14 +54,54 @@ class TrainingProgramData extends AbstractData implements HasForms
             $program->save();
         }
 
-        $syncData = collect($this->exercises)
-            ->filter(fn ($exercise) => ! empty($exercise['id']))
-            ->mapWithKeys(fn ($exercise, $index) => [
-                $exercise['id'] => ['sort' => $exercise['sort'] ?? $index],
-            ])
-            ->all();
+        $this->syncExercisesWithDefaults($program);
+    }
 
-        $program->exercises()->sync($syncData);
+    protected function syncExercisesWithDefaults(TrainingPlanProgram $program): void
+    {
+        $currentExerciseIds = $program->exercises()->pluck('exercises.id')->toArray();
+        $newExerciseIds = collect($this->exercises)
+            ->filter(fn ($exercise) => ! empty($exercise['id']))
+            ->pluck('id')
+            ->toArray();
+
+        $exercisesToAdd = array_diff($newExerciseIds, $currentExerciseIds);
+        $exercisesToRemove = array_diff($currentExerciseIds, $newExerciseIds);
+
+        TrainingPlanProgramExercise::where('training_plan_program_id', $program->id)
+            ->whereIn('exercise_id', $exercisesToRemove)
+            ->delete();
+
+        foreach ($this->exercises as $index => $exerciseData) {
+            if (empty($exerciseData['id'])) {
+                continue;
+            }
+
+            $exerciseId = $exerciseData['id'];
+            $sort = $exerciseData['sort'] ?? $index;
+
+            if (in_array($exerciseId, $exercisesToAdd)) {
+                $exercise = Exercise::find($exerciseId);
+                if ($exercise) {
+                    $defaults = StrengthDefaults::fromExercise($exercise);
+                    TrainingPlanProgramExercise::create([
+                        'training_plan_program_id' => $program->id,
+                        'exercise_id' => $exerciseId,
+                        'sort' => $sort,
+                        'extra' => [
+                            'oneRepMaxModifier' => $defaults->oneRepMaxModifier,
+                            'startingReps' => $defaults->startingReps,
+                            'timeUnderTension' => $defaults->timeUnderTension,
+                            'rest' => $defaults->rest,
+                        ],
+                    ]);
+                }
+            } else {
+                TrainingPlanProgramExercise::where('training_plan_program_id', $program->id)
+                    ->where('exercise_id', $exerciseId)
+                    ->update(['sort' => $sort]);
+            }
+        }
     }
 
     public static function getFields(): array

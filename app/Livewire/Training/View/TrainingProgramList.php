@@ -13,11 +13,14 @@ class TrainingProgramList extends AbstractModelList
 {
     public TrainingPlan $trainingPlan;
 
-    public bool $compact = true;
-
     protected function getDataClass(): string
     {
         return TrainingProgramData::class;
+    }
+
+    protected function isSortable(): bool
+    {
+        return true;
     }
 
     protected function getBaseQuery(): Builder
@@ -45,5 +48,10 @@ class TrainingProgramList extends AbstractModelList
         $data->training_plan_id = $this->trainingPlan->id;
 
         return $data;
+    }
+
+    protected function getPerPage(): int
+    {
+        return 100;
     }
 }
