@@ -12,8 +12,6 @@ class TrainingPlanData extends AbstractData implements HasForms
     public function __construct(
         public ?int $id,
         public string $name,
-        public ?string $startDate = null,
-        public ?int $duration = null,
         public array $users = [],
         public array $userGroups = [],
     ) {}
@@ -41,8 +39,6 @@ class TrainingPlanData extends AbstractData implements HasForms
         return new self(
             id: $plan->id,
             name: $plan->name ?? '',
-            startDate: $plan->start_date?->format('Y-m-d'),
-            duration: $plan->duration,
             users: $users,
             userGroups: $userGroups,
         );
@@ -53,15 +49,11 @@ class TrainingPlanData extends AbstractData implements HasForms
         if ($this->id === null) {
             $plan = TrainingPlan::create([
                 'name' => $this->name,
-                'start_date' => $this->startDate,
-                'duration' => $this->duration,
             ]);
             $this->id = $plan->id;
         } else {
             $plan = TrainingPlan::findOrFail($this->id);
             $plan->name = $this->name;
-            $plan->start_date = $this->startDate;
-            $plan->duration = $this->duration;
             $plan->save();
         }
 

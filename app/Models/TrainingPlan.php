@@ -18,16 +18,7 @@ class TrainingPlan extends Model
 
     protected $fillable = [
         'name',
-        'start_date',
-        'duration',
     ];
-
-    protected function casts(): array
-    {
-        return [
-            'start_date' => 'date',
-        ];
-    }
 
     public function users(): BelongsToMany
     {
