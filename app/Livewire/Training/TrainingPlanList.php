@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Training;
 
+use App\Data\Form\RowAction;
 use App\Data\Form\TableColumn;
 use App\Livewire\Concerns\AbstractModelList;
 use App\Models\TrainingPlan;
@@ -27,5 +28,43 @@ class TrainingPlanList extends AbstractModelList
             TableColumn::relationship('users')->label('Athletes'),
             TableColumn::relationship('userGroups')->label('Athlete Groups'),
         ];
+    }
+
+    protected function getRowActions(): array
+    {
+        return [
+            RowAction::make('duplicate', 'Duplicate')->icon('copy'),
+        ];
+    }
+
+    public function duplicate(int $id): void
+    {
+        $original = TrainingPlan::with(['users', 'userGroups', 'programs.exercises'])->findOrFail($id);
+
+        $newPlan = $original->replicate();
+        $newPlan->name = $original->name.' (Copy)';
+        $newPlan->save();
+
+        $newPlan->users()->sync($original->users->pluck('id'));
+        $newPlan->userGroups()->sync($original->userGroups->pluck('id'));
+
+        foreach ($original->programs as $program) {
+            $newProgram = $program->replicate();
+            $newProgram->training_plan_id = $newPlan->id;
+            $newProgram->save();
+
+            $exercisesWithPivot = [];
+            foreach ($program->exercises as $exercise) {
+                $exercisesWithPivot[$exercise->id] = [
+                    'sort' => $exercise->pivot->sort,
+                    'extra' => $exercise->pivot->extra,
+                ];
+            }
+            $newProgram->exercises()->sync($exercisesWithPivot);
+        }
+
+        unset($this->items);
+        $this->refreshKey++;
+        $this->emit();
     }
 }

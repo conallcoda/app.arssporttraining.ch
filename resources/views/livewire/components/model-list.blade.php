@@ -180,6 +180,19 @@
                             <flux:button variant="ghost" size="xs" icon="trash-2"
                                 wire:click="confirmDelete({{ $item->id }})"
                                 class="text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400" />
+                            @if (count($rowActions) > 0)
+                                <flux:dropdown>
+                                    <flux:button variant="ghost" size="xs" icon="ellipsis" />
+                                    <flux:menu>
+                                        @foreach ($rowActions as $action)
+                                            <flux:menu.item
+                                                :icon="$action->icon"
+                                                wire:click="{{ $action->getMethod() }}({{ $item->id }})"
+                                            >{{ $action->label }}</flux:menu.item>
+                                        @endforeach
+                                    </flux:menu>
+                                </flux:dropdown>
+                            @endif
                         </div>
                     </flux:table.cell>
                 </flux:table.row>

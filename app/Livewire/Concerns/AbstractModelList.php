@@ -20,6 +20,17 @@ abstract class AbstractModelList extends Component
 
     public array $data = [];
 
+    protected function getRowActions(): array
+    {
+        return [];
+    }
+
+    #[Computed]
+    public function rowActions(): array
+    {
+        return $this->getRowActions();
+    }
+
     public ?int $editingId = null;
 
     public ?int $deletingId = null;
@@ -394,6 +405,7 @@ abstract class AbstractModelList extends Component
             'compact' => $this->compact,
             'sortable' => $this->isSortable(),
             'sortColumn' => $this->getSortColumn(),
+            'rowActions' => $this->rowActions,
         ]);
     }
 }
