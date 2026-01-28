@@ -77,10 +77,10 @@
                                                             {{ $row['tut'] ?? '' }}
                                                         </td>
                                                         <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center whitespace-nowrap">
-                                                            {{ $row['datum1'] ?? '' }}
+                                                            {{ $row['date1'] ?? '' }}
                                                         </td>
                                                         <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center whitespace-nowrap">
-                                                            {{ $row['datum2'] ?? '' }}
+                                                            {{ $row['date2'] ?? '' }}
                                                         </td>
                                                         <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center whitespace-nowrap font-medium">
                                                             {{ $row['weekLabel'] ?? '' }}

@@ -110,8 +110,8 @@ class GroupTrainingPlan
             $this->headers[] = 'Set '.$i;
         }
         $this->headers[] = 'TUT';
-        $this->headers[] = 'Datum';
-        $this->headers[] = 'Datum';
+        $this->headers[] = 'Date';
+        $this->headers[] = 'Date';
         $this->headers[] = 'Week';
 
         foreach ($this->exercises as $exerciseIndex => $item) {
@@ -126,8 +126,8 @@ class GroupTrainingPlan
                 $exerciseHeader[] = 'Set '.$i;
             }
             $exerciseHeader[] = 'TUT';
-            $exerciseHeader[] = 'Datum';
-            $exerciseHeader[] = 'Datum';
+            $exerciseHeader[] = 'Date';
+            $exerciseHeader[] = 'Date';
             $exerciseHeader[] = 'Week';
 
             $this->rows[] = [
@@ -162,8 +162,8 @@ class GroupTrainingPlan
                     'label' => 'Reps',
                     'cells' => $this->buildSetCells($firstSession, 'reps'),
                     'tut' => '',
-                    'datum1' => '',
-                    'datum2' => '',
+                    'date1' => '',
+                    'date2' => '',
                     'weekLabel' => '',
                 ];
                 $lastReps = $currentReps;
@@ -174,8 +174,8 @@ class GroupTrainingPlan
                 'label' => 'Weight',
                 'cells' => $this->buildSetCells($firstSession, 'weight'),
                 'tut' => '2010',
-                'datum1' => '',
-                'datum2' => '',
+                'date1' => '',
+                'date2' => '',
                 'weekLabel' => 'W'.$weekNumber,
             ];
             $weekNumber++;
@@ -271,8 +271,8 @@ class GroupTrainingPlan
             }
 
             $rowData[] = $row['tut'] ?? '';
-            $rowData[] = $row['datum1'] ?? '';
-            $rowData[] = $row['datum2'] ?? '';
+            $rowData[] = $row['date1'] ?? '';
+            $rowData[] = $row['date2'] ?? '';
             $rowData[] = $row['weekLabel'] ?? '';
 
             $data[] = $rowData;

@@ -15,6 +15,8 @@ use App\Training\Services\TrainingBlockGenerator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\On;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -29,6 +31,9 @@ class Export extends Component
 
     public array $selectedUserIds = [];
 
+    #[Url(as: 'preview')]
+    public ?int $previewUserId = null;
+
     public bool $exporting = false;
 
     public function mount(TrainingPlan $trainingPlan): void
@@ -37,7 +42,21 @@ class Export extends Component
 
         $users = $this->trainingPlan->allUsers()->get();
         if ($users->isNotEmpty()) {
-            $this->selectedUserIds = [$users->first()->id];
+            $firstUserId = $users->first()->id;
+            $this->selectedUserIds = [$firstUserId];
+
+            if ($this->previewUserId === null) {
+                $this->previewUserId = $firstUserId;
+            }
+        }
+    }
+
+    #[On('tab-changed')]
+    public function handleTabChanged(string $tab): void
+    {
+        if ($tab === 'export') {
+            $this->trainingPlan->refresh();
+            unset($this->previewPlans, $this->previewUser, $this->users, $this->programs);
         }
     }
 
@@ -57,7 +76,37 @@ class Export extends Component
             return null;
         }
 
+        if ($this->previewUserId && in_array($this->previewUserId, $this->selectedUserIds)) {
+            return $this->users->firstWhere('id', $this->previewUserId);
+        }
+
         return $this->users->firstWhere('id', $this->selectedUserIds[0]);
+    }
+
+    #[Computed]
+    public function selectedUsers(): Collection
+    {
+        return $this->users->whereIn('id', $this->selectedUserIds);
+    }
+
+    public function updatedSelectedUserIds(): void
+    {
+        unset($this->selectedUsers, $this->previewUser, $this->previewPlans);
+
+        if (empty($this->selectedUserIds)) {
+            $this->previewUserId = null;
+
+            return;
+        }
+
+        if (! in_array($this->previewUserId, $this->selectedUserIds)) {
+            $this->previewUserId = $this->selectedUserIds[0];
+        }
+    }
+
+    public function updatedPreviewUserId(): void
+    {
+        unset($this->previewUser, $this->previewPlans);
     }
 
     #[Computed]

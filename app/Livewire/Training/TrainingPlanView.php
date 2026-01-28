@@ -18,6 +18,11 @@ class TrainingPlanView extends Component
 
     public TrainingPlan $trainingPlan;
 
+    public function updatedTab(string $value): void
+    {
+        $this->dispatch('tab-changed', tab: $value);
+    }
+
     #[On('data-changed')]
     public function handleDataChanged(string $key, mixed $value): void
     {

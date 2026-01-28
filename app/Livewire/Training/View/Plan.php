@@ -164,6 +164,102 @@ class Plan extends Component
         return [];
     }
 
+    protected function findPivotExtraForExercise(int $exerciseId): array
+    {
+        $pivot = \App\Models\TrainingPlanProgramExercise::query()
+            ->whereHas('program', function ($query) {
+                $query->where('training_plan_id', $this->trainingPlan->id);
+            })
+            ->where('exercise_id', $exerciseId)
+            ->first();
+
+        if (! $pivot) {
+            return [];
+        }
+
+        $extra = $pivot->extra;
+
+        if ($extra instanceof \Spatie\SchemalessAttributes\SchemalessAttributes) {
+            return $extra->all();
+        }
+
+        if (is_array($extra)) {
+            return $extra;
+        }
+
+        return [];
+    }
+
+    protected function getEffectiveCellValue(int $exerciseId, int $weekIndex, int $sessionIndex, int $setIndex, string $field): mixed
+    {
+        $extra = $this->findPivotExtraForExercise($exerciseId);
+        $pivotExtra = [
+            'oneRepMaxModifier' => $extra['oneRepMaxModifier'] ?? 100,
+            'startingReps' => $extra['startingReps'] ?? null,
+            'sets' => $extra['sets'] ?? null,
+        ];
+
+        $block = $this->generateBlock($exerciseId, $pivotExtra);
+
+        if (! $block) {
+            return null;
+        }
+
+        $isDefaultUser = $this->user === 0;
+
+        if (! $isDefaultUser) {
+            $block = $this->applyDefaultCellOverrides($block, $exerciseId);
+        }
+
+        $weeks = $block->weeks;
+
+        if (! isset($weeks[$weekIndex]->sessions[$sessionIndex]->sets[$setIndex])) {
+            return null;
+        }
+
+        $set = $weeks[$weekIndex]->sessions[$sessionIndex]->sets[$setIndex];
+
+        return $set->{$field} ?? null;
+    }
+
+    protected function applyDefaultCellOverrides(TrainingBlock $block, int $exerciseId): TrainingBlock
+    {
+        $overrides = $this->defaultCellOverrides[$exerciseId] ?? [];
+
+        if (empty($overrides)) {
+            return $block;
+        }
+
+        $weeks = $block->weeks;
+
+        foreach ($overrides as $cellKey => $values) {
+            if (! preg_match('/^w(\d+)-s(\d+)-set(\d+)$/', $cellKey, $matches)) {
+                continue;
+            }
+
+            $weekIndex = (int) $matches[1];
+            $sessionIndex = (int) $matches[2];
+            $setIndex = (int) $matches[3];
+
+            if (! isset($weeks[$weekIndex]->sessions[$sessionIndex]->sets[$setIndex])) {
+                continue;
+            }
+
+            $set = $weeks[$weekIndex]->sessions[$sessionIndex]->sets[$setIndex];
+
+            $newReps = $values['reps'] ?? $set->reps;
+            $newWeight = $values['weight'] ?? $set->weight;
+
+            $weeks[$weekIndex]->sessions[$sessionIndex]->sets[$setIndex] = new \App\Training\Data\TrainingSet(
+                reps: $newReps,
+                weight: $newWeight,
+                oneRepMax: $set->oneRepMax,
+            );
+        }
+
+        return $block->withWeeks($weeks);
+    }
+
     #[Computed]
     public function weeks(): int
     {
@@ -376,28 +472,63 @@ class Plan extends Component
         $sessionsPerWeek = 2;
 
         for ($s = 0; $s < $sessionsPerWeek; $s++) {
+            $effectiveValue = $this->getEffectiveCellValue($exerciseId, $weekIndex, $s, $setIndex, $field);
+            $valuesMatch = $this->cellValuesMatch($value, $effectiveValue);
             $cellKey = "w{$weekIndex}-s{$s}-set{$setIndex}";
 
             if ($isDefaultUser) {
-                if (! isset($this->defaultCellOverrides[$exerciseId])) {
-                    $this->defaultCellOverrides[$exerciseId] = [];
+                if ($valuesMatch) {
+                    if (isset($this->defaultCellOverrides[$exerciseId][$cellKey][$field])) {
+                        unset($this->defaultCellOverrides[$exerciseId][$cellKey][$field]);
+                        if (empty($this->defaultCellOverrides[$exerciseId][$cellKey])) {
+                            unset($this->defaultCellOverrides[$exerciseId][$cellKey]);
+                        }
+                        if (empty($this->defaultCellOverrides[$exerciseId])) {
+                            unset($this->defaultCellOverrides[$exerciseId]);
+                        }
+                    }
+                } else {
+                    if (! isset($this->defaultCellOverrides[$exerciseId])) {
+                        $this->defaultCellOverrides[$exerciseId] = [];
+                    }
+                    if (! isset($this->defaultCellOverrides[$exerciseId][$cellKey])) {
+                        $this->defaultCellOverrides[$exerciseId][$cellKey] = [];
+                    }
+                    $this->defaultCellOverrides[$exerciseId][$cellKey][$field] = $value;
                 }
-                if (! isset($this->defaultCellOverrides[$exerciseId][$cellKey])) {
-                    $this->defaultCellOverrides[$exerciseId][$cellKey] = [];
-                }
-                $this->defaultCellOverrides[$exerciseId][$cellKey][$field] = $value;
             } else {
-                if (! isset($this->cellOverrides[$exerciseId])) {
-                    $this->cellOverrides[$exerciseId] = [];
+                if ($valuesMatch) {
+                    if (isset($this->cellOverrides[$exerciseId][$cellKey][$field])) {
+                        unset($this->cellOverrides[$exerciseId][$cellKey][$field]);
+                        if (empty($this->cellOverrides[$exerciseId][$cellKey])) {
+                            unset($this->cellOverrides[$exerciseId][$cellKey]);
+                        }
+                        if (empty($this->cellOverrides[$exerciseId])) {
+                            unset($this->cellOverrides[$exerciseId]);
+                        }
+                    }
+                } else {
+                    if (! isset($this->cellOverrides[$exerciseId])) {
+                        $this->cellOverrides[$exerciseId] = [];
+                    }
+                    if (! isset($this->cellOverrides[$exerciseId][$cellKey])) {
+                        $this->cellOverrides[$exerciseId][$cellKey] = [];
+                    }
+                    $this->cellOverrides[$exerciseId][$cellKey][$field] = $value;
                 }
-                if (! isset($this->cellOverrides[$exerciseId][$cellKey])) {
-                    $this->cellOverrides[$exerciseId][$cellKey] = [];
-                }
-                $this->cellOverrides[$exerciseId][$cellKey][$field] = $value;
             }
         }
 
         $this->persistCellOverrides($exerciseId);
+    }
+
+    protected function cellValuesMatch(mixed $value, mixed $originalValue): bool
+    {
+        if ($originalValue === null) {
+            return false;
+        }
+
+        return abs((float) $value - (float) $originalValue) < 0.001;
     }
 
     protected function persistCellOverrides(int $exerciseId): void
@@ -410,7 +541,11 @@ class Plan extends Component
             ? ($this->defaultCellOverrides[$exerciseId] ?? [])
             : ($this->cellOverrides[$exerciseId] ?? []);
 
-        $this->trainingPlan->extra->set($extraKey, $overrides);
+        if (empty($overrides)) {
+            $this->trainingPlan->extra->forget($extraKey);
+        } else {
+            $this->trainingPlan->extra->set($extraKey, $overrides);
+        }
         $this->trainingPlan->save();
     }
 

@@ -40,7 +40,7 @@
                         <flux:field class="flex-1">
                             <flux:label>Measured Reps</flux:label>
                             <flux:input.group>
-                                <flux:input wire:model.live="measured_reps" type="number" min="1" max="15" step="1" />
+                                <flux:input wire:model.live.debounce.500ms="measured_reps" type="number" min="1" max="15" step="1" />
                                 <flux:input.group.suffix>rep(s)</flux:input.group.suffix>
                             </flux:input.group>
                         </flux:field>
@@ -48,7 +48,7 @@
                         <flux:field class="flex-1">
                             <flux:label>Measured Weight</flux:label>
                             <flux:input.group>
-                                <flux:input wire:model.live="measured_weight" type="number" min="0" step="0.5" />
+                                <flux:input wire:model.live.debounce.500ms="measured_weight" type="number" min="0" step="0.5" />
                                 <flux:input.group.suffix>kg</flux:input.group.suffix>
                             </flux:input.group>
                         </flux:field>
@@ -65,7 +65,7 @@
                         <flux:field class="flex-[2]">
                             <flux:label>Target Goal</flux:label>
                             <flux:input.group>
-                                <flux:input wire:model.live="target_goal" type="number" min="0" max="999" step="1" />
+                                <flux:input wire:model.live.debounce.500ms="target_goal" type="number" min="0" max="999" step="1" />
                                 <flux:input.group.suffix>%</flux:input.group.suffix>
                             </flux:input.group>
                         </flux:field>
@@ -86,7 +86,7 @@
                         <flux:field class="flex-1">
                             <flux:label>Measured Reps</flux:label>
                             <flux:input.group>
-                                <flux:input wire:model.live="measured_reps" type="number" min="1" max="15" step="1" />
+                                <flux:input wire:model.live.debounce.500ms="measured_reps" type="number" min="1" max="15" step="1" />
                                 <flux:input.group.suffix>rep(s)</flux:input.group.suffix>
                             </flux:input.group>
                         </flux:field>
@@ -94,7 +94,7 @@
                         <flux:field class="flex-1">
                             <flux:label>Measured Weight</flux:label>
                             <flux:input.group>
-                                <flux:input wire:model.live="measured_weight" type="number" min="0" step="0.5" />
+                                <flux:input wire:model.live.debounce.500ms="measured_weight" type="number" min="0" step="0.5" />
                                 <flux:input.group.suffix>kg</flux:input.group.suffix>
                             </flux:input.group>
                         </flux:field>
@@ -111,7 +111,7 @@
                         <flux:field class="flex-[2]">
                             <flux:label>Target Goal</flux:label>
                             <flux:input.group>
-                                <flux:input wire:model.live="target_goal" type="number" min="0" max="999" step="1"
+                                <flux:input wire:model.live.debounce.500ms="target_goal" type="number" min="0" max="999" step="1"
                                     placeholder="{{ $this->getPlaceholder('target_goal') }}" />
                                 <flux:input.group.suffix>%</flux:input.group.suffix>
                             </flux:input.group>
@@ -158,6 +158,7 @@
                                     :config="$config"
                                     :cellOverrides="$cellOverrides"
                                     :userSpecificCellOverrides="$userSpecificCellOverrides"
+                                    :isDefaultUser="$user === 0"
                                 />
                             @endforeach
                         </div>
