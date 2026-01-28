@@ -8,6 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
+        return;
         Schema::create('training_periods', function (Blueprint $table) {
             $table->id();
             $table->uuid()->unique();

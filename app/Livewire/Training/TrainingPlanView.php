@@ -18,13 +18,9 @@ use Livewire\Component;
 class TrainingPlanView extends Component
 {
     #[Url]
-    public string $tab = 'setup';
+    public string $tab = 'athletes';
 
     public TrainingPlan $trainingPlan;
-
-    public ?string $startDate = null;
-
-    public ?int $duration = null;
 
     public array $userIds = [];
 
@@ -42,16 +38,9 @@ class TrainingPlanView extends Component
 
     protected function loadAllData(): void
     {
-        $this->loadSetup();
         $this->loadAthleteIds();
         $this->loadPrograms();
         $this->loadUsers();
-    }
-
-    protected function loadSetup(): void
-    {
-        $this->startDate = $this->trainingPlan->start_date?->format('Y-m-d');
-        $this->duration = $this->trainingPlan->duration;
     }
 
     protected function loadAthleteIds(): void
@@ -93,10 +82,6 @@ class TrainingPlanView extends Component
     public function getDataKey(?string $domain = null): string
     {
         $parts = [
-            'setup' => md5(json_encode([
-                $this->startDate,
-                $this->duration,
-            ])),
             'athletes' => md5(json_encode([
                 $this->userIds,
                 $this->userGroupIds,
@@ -130,7 +115,6 @@ class TrainingPlanView extends Component
         $this->trainingPlan->refresh();
 
         match ($domain) {
-            'setup' => $this->loadSetup(),
             'athletes' => $this->loadAthletes(),
             'programs' => $this->loadPrograms(),
             'users' => $this->loadUsers(),

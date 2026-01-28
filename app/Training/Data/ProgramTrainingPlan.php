@@ -3,6 +3,7 @@
 namespace App\Training\Data;
 
 use App\Models\Users\User;
+use Carbon\Carbon;
 
 class ProgramTrainingPlan
 {
@@ -33,7 +34,8 @@ class ProgramTrainingPlan
     public function __construct(
         public readonly User $user,
         public readonly string $programName,
-        public readonly array $exercises
+        public readonly array $exercises,
+        public readonly ?string $startDate = null
     ) {
         $this->calculateDimensions();
         $this->build();
@@ -113,7 +115,8 @@ class ProgramTrainingPlan
         $this->headers[] = 'TUT';
         $this->headers[] = 'Date';
         $this->headers[] = 'Date';
-        $this->headers[] = 'Week';
+        $this->headers[] = 'Training Week';
+        $this->headers[] = 'Actual Week';
 
         foreach ($this->exercises as $exerciseIndex => $item) {
             $exercise = $item['exercise'];
@@ -129,7 +132,8 @@ class ProgramTrainingPlan
             $exerciseHeader[] = 'TUT';
             $exerciseHeader[] = 'Date';
             $exerciseHeader[] = 'Date';
-            $exerciseHeader[] = 'Week';
+            $exerciseHeader[] = 'Training Week';
+            $exerciseHeader[] = 'Actual Week';
 
             $this->rows[] = [
                 'type' => self::ROW_TYPE_HEADER,
@@ -145,7 +149,7 @@ class ProgramTrainingPlan
 
     protected function buildExerciseRows(mixed $exercise, int $exerciseNumber, TrainingBlock $block): void
     {
-        $weekNumber = 1;
+        $weekIndex = 0;
         $lastReps = null;
 
         foreach ($block->weeks as $week) {
@@ -165,7 +169,8 @@ class ProgramTrainingPlan
                     'tut' => '',
                     'date1' => '',
                     'date2' => '',
-                    'weekLabel' => '',
+                    'trainingWeek' => '',
+                    'actualWeek' => '',
                 ];
                 $lastReps = $currentReps;
             }
@@ -177,10 +182,23 @@ class ProgramTrainingPlan
                 'tut' => '2010',
                 'date1' => '',
                 'date2' => '',
-                'weekLabel' => 'W'.$weekNumber,
+                'trainingWeek' => 'TW '.($weekIndex + 1),
+                'actualWeek' => $this->getActualWeekLabel($weekIndex),
             ];
-            $weekNumber++;
+            $weekIndex++;
         }
+    }
+
+    protected function getActualWeekLabel(int $weekIndex): string
+    {
+        if (! $this->startDate) {
+            return '';
+        }
+
+        $date = Carbon::parse($this->startDate)->addWeeks($weekIndex);
+        $monday = $date->startOfWeek(Carbon::MONDAY);
+
+        return $date->year.' - W'.$date->isoWeek().' ('.$monday->format('d.m.Y').')';
     }
 
     protected function calculateExerciseRowCount(TrainingBlock $block): int
@@ -274,7 +292,8 @@ class ProgramTrainingPlan
             $rowData[] = $row['tut'] ?? '';
             $rowData[] = $row['date1'] ?? '';
             $rowData[] = $row['date2'] ?? '';
-            $rowData[] = $row['weekLabel'] ?? '';
+            $rowData[] = $row['trainingWeek'] ?? '';
+            $rowData[] = $row['actualWeek'] ?? '';
 
             $data[] = $rowData;
         }

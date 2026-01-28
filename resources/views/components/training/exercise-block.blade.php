@@ -5,8 +5,11 @@
     'config',
     'cellOverrides' => [],
     'userSpecificCellOverrides' => [],
+    'weekOverrides' => [],
+    'userSpecificWeekOverrides' => [],
     'mergeIdenticalSessions' => true,
     'isDefaultUser' => false,
+    'startDate' => null,
 ])
 
 @php
@@ -39,6 +42,10 @@
         'weight' => 'bg-green-50 dark:bg-green-900/20',
         'weight_override' => 'bg-green-200 dark:bg-green-700/40',
         'oneRepMax' => 'bg-orange-50 dark:bg-orange-900/20',
+        'tut' => 'bg-zinc-50 dark:bg-zinc-800/50',
+        'tut_override' => 'bg-zinc-200 dark:bg-zinc-700/70',
+        'rest' => 'bg-zinc-50 dark:bg-zinc-800/50',
+        'rest_override' => 'bg-zinc-200 dark:bg-zinc-700/70',
     ];
 
     $hasOverride = function ($weekIndex, $sessionIndex, $setIndex, $field) use ($userSpecificCellOverrides) {
@@ -46,14 +53,44 @@
         return isset($userSpecificCellOverrides[$key][$field]);
     };
 
-    $exerciseTypeConfig = $exercise->extra['type'] ?? [];
-    $exerciseTut = $exerciseTypeConfig['timeUnderTension'] ?? '3010';
-    $exerciseRest = $exerciseTypeConfig['rest'] ?? 30;
+    $hasWeekOverride = function ($weekIndex, $field) use ($userSpecificWeekOverrides) {
+        $key = "w{$weekIndex}";
+        return isset($userSpecificWeekOverrides[$key][$field]);
+    };
+
+    $getWeekTut = function ($weekIndex) use ($weekOverrides, $config) {
+        $key = "w{$weekIndex}";
+        return $weekOverrides[$key]['tut'] ?? $config['tut'] ?? '3010';
+    };
+
+    $getWeekRest = function ($weekIndex) use ($weekOverrides, $config) {
+        $key = "w{$weekIndex}";
+        return $weekOverrides[$key]['rest'] ?? $config['rest'] ?? 30;
+    };
+
+    $exerciseTut = $config['tut'] ?? '3010';
+    $exerciseRest = $config['rest'] ?? 30;
+
+    $getCalendarWeek = function ($weekIndex) use ($startDate) {
+        if (!$startDate) {
+            return null;
+        }
+        $date = \Carbon\Carbon::parse($startDate)->addWeeks($weekIndex);
+        return $date->year . ' - W' . $date->isoWeek();
+    };
 @endphp
 
 <div class="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
     <div class="mb-4">
-        <flux:heading size="lg">{{ $exercise->name }}</flux:heading>
+        <div class="flex items-start justify-between">
+            <flux:heading size="lg">{{ $exercise->name }}</flux:heading>
+            <flux:dropdown>
+                <flux:button variant="ghost" size="sm" icon="ellipsis" class="!p-1" />
+                <flux:menu>
+                    <flux:menu.item icon="rotate-ccw" wire:click="resetExerciseOverrides({{ $exerciseId }})">Reset</flux:menu.item>
+                </flux:menu>
+            </flux:dropdown>
+        </div>
         @if ($block)
             @php
                 $modifier = $config['oneRepMaxModifier'] ?? 100;
@@ -87,6 +124,8 @@
                 'hasOverride' => $config['hasStartingRepsOverride'],
             ],
             ['field' => 'sets', 'label' => $config['sets'] . ' sets', 'hasOverride' => $config['hasSetsOverride']],
+            ['field' => 'tut', 'label' => $config['tut'], 'hasOverride' => $config['hasTutOverride'] ?? false],
+            ['field' => 'rest', 'label' => $config['rest'] . 's', 'hasOverride' => $config['hasRestOverride'] ?? false],
         ];
     @endphp
 
@@ -109,10 +148,14 @@
             target: {{ $config['target'] }},
             startingReps: {{ $config['startingReps'] }},
             sets: {{ $config['sets'] }},
+            tut: '{{ $config['tut'] }}',
+            rest: {{ $config['rest'] }},
             save() {
                 $wire.updateExerciseOverride({{ $exerciseId }}, 'target', parseFloat(this.target));
                 $wire.updateExerciseOverride({{ $exerciseId }}, 'startingReps', parseInt(this.startingReps));
                 $wire.updateExerciseOverride({{ $exerciseId }}, 'sets', parseInt(this.sets));
+                $wire.updateExerciseOverride({{ $exerciseId }}, 'tut', this.tut);
+                $wire.updateExerciseOverride({{ $exerciseId }}, 'rest', parseInt(this.rest));
                 $flux.modal('{{ $modalName }}').close();
             }
         }">
@@ -142,6 +185,21 @@
                         <flux:input x-model="sets" type="number" min="1" max="6" step="1"
                             data-field="sets" />
                         <flux:input.group.suffix>sets</flux:input.group.suffix>
+                    </flux:input.group>
+                </flux:field>
+
+                <flux:field>
+                    <flux:label>Time Under Tension</flux:label>
+                    <flux:input x-model="tut" type="text" maxlength="4" data-field="tut" placeholder="3010" />
+                    <flux:description>4 digits: eccentric, pause, concentric, pause</flux:description>
+                </flux:field>
+
+                <flux:field>
+                    <flux:label>Rest</flux:label>
+                    <flux:input.group>
+                        <flux:input x-model="rest" type="number" min="0" max="300" step="5"
+                            data-field="rest" />
+                        <flux:input.group.suffix>seconds</flux:input.group.suffix>
                     </flux:input.group>
                 </flux:field>
             </div>
@@ -196,7 +254,11 @@
                             <tr>
                                 <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle text-center"
                                     rowspan="3">
-                                    <div>W{{ $weekIndex + 1 }}</div>
+                                    <div>TW{{ $weekIndex + 1 }}</div>
+                                    @if ($getCalendarWeek($weekIndex))
+                                        <div class="text-[10px] font-normal text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
+                                            {{ $getCalendarWeek($weekIndex) }}</div>
+                                    @endif
                                     @if (!$anyWeekNotMerged)
                                         <div class="text-[10px] font-normal text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
                                             ({{ $sessionCount }} {{ Str::plural('Session', $sessionCount) }})</div>
@@ -229,13 +291,37 @@
                                             rowspan="3"></td>
                                     @endif
                                 @endfor
-                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center text-xs bg-zinc-50 dark:bg-zinc-800/50 align-middle"
-                                    rowspan="3">
-                                    {{ $exerciseTut }}
+                                @php
+                                    $weekTut = $getWeekTut($weekIndex);
+                                    $weekRest = $getWeekRest($weekIndex);
+                                    $tutOverridden = $hasWeekOverride($weekIndex, 'tut');
+                                    $restOverridden = $hasWeekOverride($weekIndex, 'rest');
+                                @endphp
+                                <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $tutOverridden ? $cellClasses['tut_override'] : $cellClasses['tut'] }}"
+                                    rowspan="3"
+                                    x-data="{ editing: false, editValue: '' }"
+                                    @click="editing = true; editValue = ''; $nextTick(() => $refs.input.focus())">
+                                    <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $weekTut }}</span>
+                                    <input x-show="editing" x-cloak x-ref="input" x-model="editValue"
+                                        type="text" maxlength="4"
+                                        class="w-full h-full px-2 py-1.5 text-center text-xs bg-transparent border-0 focus:ring-0"
+                                        placeholder="{{ $weekTut }}"
+                                        @blur="editing = false; if (editValue !== '') $wire.updateWeekOverride({{ $exerciseId }}, {{ $weekIndex }}, 'tut', editValue)"
+                                        @keydown.enter="$event.target.blur()"
+                                        @keydown.escape="editing = false" />
                                 </td>
-                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center text-xs bg-zinc-50 dark:bg-zinc-800/50 align-middle"
-                                    rowspan="3">
-                                    {{ $exerciseRest }}s
+                                <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $restOverridden ? $cellClasses['rest_override'] : $cellClasses['rest'] }}"
+                                    rowspan="3"
+                                    x-data="{ editing: false, editValue: '' }"
+                                    @click="editing = true; editValue = ''; $nextTick(() => $refs.input.focus())">
+                                    <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $weekRest }}s</span>
+                                    <input x-show="editing" x-cloak x-ref="input" x-model="editValue"
+                                        type="number" min="0" max="300" step="5"
+                                        class="w-full h-full px-2 py-1.5 text-center text-xs bg-transparent border-0 focus:ring-0"
+                                        placeholder="{{ $weekRest }}"
+                                        @blur="editing = false; if (editValue !== '') $wire.updateWeekOverride({{ $exerciseId }}, {{ $weekIndex }}, 'rest', parseInt(editValue))"
+                                        @keydown.enter="$event.target.blur()"
+                                        @keydown.escape="editing = false" />
                                 </td>
                             </tr>
                             <tr>
@@ -282,7 +368,11 @@
                                     @if ($isFirstSession)
                                         <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle text-center"
                                             rowspan="{{ $sessionCount * 3 }}">
-                                            W{{ $weekIndex + 1 }}
+                                            <div>TW{{ $weekIndex + 1 }}</div>
+                                            @if ($getCalendarWeek($weekIndex))
+                                                <div class="text-[10px] font-normal text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
+                                                    {{ $getCalendarWeek($weekIndex) }}</div>
+                                            @endif
                                         </td>
                                     @endif
                                     @if ($anyWeekNotMerged)
@@ -313,13 +403,37 @@
                                         @endif
                                     @endfor
                                     @if ($isFirstSession)
-                                        <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center text-xs bg-zinc-50 dark:bg-zinc-800/50 align-middle"
-                                            rowspan="{{ $sessionCount * 3 }}">
-                                            {{ $exerciseTut }}
+                                        @php
+                                            $weekTut = $getWeekTut($weekIndex);
+                                            $weekRest = $getWeekRest($weekIndex);
+                                            $tutOverridden = $hasWeekOverride($weekIndex, 'tut');
+                                            $restOverridden = $hasWeekOverride($weekIndex, 'rest');
+                                        @endphp
+                                        <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $tutOverridden ? $cellClasses['tut_override'] : $cellClasses['tut'] }}"
+                                            rowspan="{{ $sessionCount * 3 }}"
+                                            x-data="{ editing: false, editValue: '' }"
+                                            @click="editing = true; editValue = ''; $nextTick(() => $refs.input.focus())">
+                                            <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $weekTut }}</span>
+                                            <input x-show="editing" x-cloak x-ref="input" x-model="editValue"
+                                                type="text" maxlength="4"
+                                                class="w-full h-full px-2 py-1.5 text-center text-xs bg-transparent border-0 focus:ring-0"
+                                                placeholder="{{ $weekTut }}"
+                                                @blur="editing = false; if (editValue !== '') $wire.updateWeekOverride({{ $exerciseId }}, {{ $weekIndex }}, 'tut', editValue)"
+                                                @keydown.enter="$event.target.blur()"
+                                                @keydown.escape="editing = false" />
                                         </td>
-                                        <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center text-xs bg-zinc-50 dark:bg-zinc-800/50 align-middle"
-                                            rowspan="{{ $sessionCount * 3 }}">
-                                            {{ $exerciseRest }}s
+                                        <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $restOverridden ? $cellClasses['rest_override'] : $cellClasses['rest'] }}"
+                                            rowspan="{{ $sessionCount * 3 }}"
+                                            x-data="{ editing: false, editValue: '' }"
+                                            @click="editing = true; editValue = ''; $nextTick(() => $refs.input.focus())">
+                                            <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $weekRest }}s</span>
+                                            <input x-show="editing" x-cloak x-ref="input" x-model="editValue"
+                                                type="number" min="0" max="300" step="5"
+                                                class="w-full h-full px-2 py-1.5 text-center text-xs bg-transparent border-0 focus:ring-0"
+                                                placeholder="{{ $weekRest }}"
+                                                @blur="editing = false; if (editValue !== '') $wire.updateWeekOverride({{ $exerciseId }}, {{ $weekIndex }}, 'rest', parseInt(editValue))"
+                                                @keydown.enter="$event.target.blur()"
+                                                @keydown.escape="editing = false" />
                                         </td>
                                     @endif
                                 </tr>

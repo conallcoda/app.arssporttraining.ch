@@ -11,6 +11,7 @@ use App\Livewire\Training\TrainingPlanView;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', Database::class)->name('database');
+
 Route::get('/athletes', AthleteIndex::class)->name('athlete-index');
 Route::get('/athletes/groups', AthleteGroupIndex::class)->name('athlete-group-index');
 Route::get('/exercises', ExerciseIndex::class)->name('exercise-index');

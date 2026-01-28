@@ -21,27 +21,34 @@
 
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                     @foreach ($this->users as $userItem)
+                        @php
+                            $isExportable = in_array($userItem->id, $this->exportableUserIds);
+                        @endphp
                         <div wire:key="export-user-{{ $userItem->id }}">
-                            <flux:checkbox wire:model.live="selectedUserIds" value="{{ $userItem->id }}"
-                                label="{{ $userItem->name }}" />
+                            <flux:checkbox
+                                wire:model.live="selectedUserIds"
+                                value="{{ $userItem->id }}"
+                                label="{{ $userItem->name }}"
+                                :disabled="!$isExportable"
+                            />
                         </div>
                     @endforeach
                 </div>
             </div>
 
-            @if ($this->previewUser && count($this->previewPlans) > 0)
-                <div class="mb-6 pt-4 border-t border-zinc-200 dark:border-zinc-700">
-                    <div class="flex items-center gap-3 mb-4">
-                        <flux:heading size="sm">Preview:</flux:heading>
-                        <flux:select wire:model.live="previewUserId" size="sm" class="w-auto">
-                            @foreach ($this->selectedUsers as $selectedUser)
-                                <flux:select.option value="{{ $selectedUser->id }}">
-                                    {{ $selectedUser->name }}
-                                </flux:select.option>
-                            @endforeach
-                        </flux:select>
-                    </div>
+            <div class="mb-6 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                <div class="flex items-center gap-3 mb-4">
+                    <flux:heading size="sm">Preview:</flux:heading>
+                    <flux:select wire:model.live="previewUserId" size="sm" class="w-auto" placeholder="Select athlete to preview">
+                        @foreach ($this->users as $userOption)
+                            <flux:select.option value="{{ $userOption->id }}">
+                                {{ $userOption->name }}
+                            </flux:select.option>
+                        @endforeach
+                    </flux:select>
+                </div>
 
+                @if ($this->previewUser && count($this->previewPlans) > 0)
                     <div class="space-y-6">
                         @foreach ($this->previewPlans as $plan)
                             <div>
@@ -95,7 +102,11 @@
                                                         </td>
                                                         <td
                                                             class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center whitespace-nowrap font-medium">
-                                                            {{ $row['weekLabel'] ?? '' }}
+                                                            {{ $row['trainingWeek'] ?? '' }}
+                                                        </td>
+                                                        <td
+                                                            class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center whitespace-nowrap">
+                                                            {{ $row['actualWeek'] ?? '' }}
                                                         </td>
                                                     </tr>
                                                 @endif
@@ -106,27 +117,21 @@
                             </div>
                         @endforeach
                     </div>
-                </div>
-            @elseif ($this->previewUser)
-                <div class="mb-6 pt-4 border-t border-zinc-200 dark:border-zinc-700">
-                    <div class="flex items-center gap-3 mb-4">
-                        <flux:heading size="sm">Preview:</flux:heading>
-                        <flux:select wire:model.live="previewUserId" size="sm" class="w-auto">
-                            @foreach ($this->selectedUsers as $selectedUser)
-                                <flux:select.option value="{{ $selectedUser->id }}">
-                                    {{ $selectedUser->name }}
-                                </flux:select.option>
-                            @endforeach
-                        </flux:select>
-                    </div>
+                @elseif ($this->previewUser)
                     <div class="text-center py-4">
                         <p class="text-zinc-500 dark:text-zinc-400">
                             No training data available for {{ $this->previewUser->name }}. Please configure their
                             measured values in the Plan tab.
                         </p>
                     </div>
-                </div>
-            @endif
+                @else
+                    <div class="text-center py-4">
+                        <p class="text-zinc-500 dark:text-zinc-400">
+                            Select an athlete above to preview their training plan.
+                        </p>
+                    </div>
+                @endif
+            </div>
 
             <div class="flex items-center justify-between pt-4 border-t border-zinc-200 dark:border-zinc-700">
                 <p class="text-sm text-zinc-600 dark:text-zinc-400">

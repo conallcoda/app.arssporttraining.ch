@@ -6,10 +6,6 @@ use App\Data\AbstractData;
 use App\Data\Form\FluxField;
 use App\Models\Contracts\HasForms;
 use App\Models\TrainingPlan;
-use App\Models\Users\User;
-use App\Models\Users\UserGroup;
-use App\Models\Users\UserTypeEnum;
-use App\Support\WeekOptions;
 
 class TrainingPlanData extends AbstractData implements HasForms
 {
@@ -91,18 +87,6 @@ class TrainingPlanData extends AbstractData implements HasForms
 
     public static function getFields(): array
     {
-        $athleteOptions = User::where('type', UserTypeEnum::Athlete)
-            ->orderBy('forename')
-            ->orderBy('surname')
-            ->get()
-            ->mapWithKeys(fn ($user) => [$user->id => $user->name])
-            ->all();
-
-        $groupOptions = UserGroup::orderBy('name')
-            ->get()
-            ->mapWithKeys(fn ($group) => [$group->id => $group->name])
-            ->all();
-
         return [
             FluxField::text('name')
                 ->label('Name')
@@ -110,26 +94,6 @@ class TrainingPlanData extends AbstractData implements HasForms
                 ->required()
                 ->default('')
                 ->rules('required|string|min:1'),
-            FluxField::select('startDate')
-                ->label('Start Date')
-                ->options(WeekOptions::generate())
-                ->default(WeekOptions::getCurrentWeekValue())
-                ->rules('nullable|date'),
-            FluxField::text('duration')
-                ->label('Duration')
-                ->suffix('weeks')
-                ->default(5)
-                ->rules('nullable|integer|min:1'),
-            FluxField::relationship('users')
-                ->label('Athletes')
-                ->options($athleteOptions)
-                ->placeholder('Select athlete')
-                ->default([]),
-            FluxField::relationship('userGroups')
-                ->label('Groups')
-                ->options($groupOptions)
-                ->placeholder('Select group')
-                ->default([]),
         ];
     }
 }

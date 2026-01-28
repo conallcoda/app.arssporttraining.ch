@@ -7,6 +7,7 @@ use App\Data\Form\FluxField;
 use App\Models\Contracts\HasForms;
 use App\Models\Training\Progression\Reference\RepPercentageTable;
 use App\Models\TrainingPlan;
+use App\Support\WeekOptions;
 
 class AthleteTrainingProgramData extends AbstractData implements HasForms
 {
@@ -16,10 +17,15 @@ class AthleteTrainingProgramData extends AbstractData implements HasForms
 
     public const DEFAULT_TARGET_GOAL = 7;
 
+    public const DEFAULT_DURATION = 5;
+
     public function __construct(
+        public ?string $start_date = null,
+        public ?int $duration = null,
         public ?int $measured_reps = null,
         public ?float $measured_weight = null,
         public ?int $target_goal = null,
+        public ?array $programs_selected = null,
     ) {}
 
     public function estimatedOneRepMax(): ?float
@@ -43,10 +49,18 @@ class AthleteTrainingProgramData extends AbstractData implements HasForms
 
         $isDefault = $userId === null;
 
+        $startDate = ! empty($data['start_date']) ? $data['start_date'] : null;
+        $duration = ! empty($data['duration']) ? $data['duration'] : null;
+
+        $programsSelected = $data['programs_selected'] ?? null;
+
         return new self(
+            start_date: $startDate ?? ($isDefault ? WeekOptions::getCurrentWeekValue() : null),
+            duration: $duration ?? ($isDefault ? self::DEFAULT_DURATION : null),
             measured_reps: $data['measured_reps'] ?? ($isDefault ? self::DEFAULT_MEASURED_REPS : null),
             measured_weight: $data['measured_weight'] ?? ($isDefault ? self::DEFAULT_MEASURED_WEIGHT : null),
             target_goal: $data['target_goal'] ?? ($isDefault ? self::DEFAULT_TARGET_GOAL : null),
+            programs_selected: $programsSelected,
         );
     }
 
@@ -54,17 +68,72 @@ class AthleteTrainingProgramData extends AbstractData implements HasForms
     {
         $key = $userId === null ? 'default' : (string) $userId;
 
+        $startDate = $this->start_date ?: null;
+        $duration = $this->duration ?: null;
+        $targetGoal = $this->target_goal;
+        $programsSelected = $this->programs_selected !== null
+            ? array_map('intval', $this->programs_selected)
+            : null;
+
+        if ($userId !== null) {
+            $default = self::fromTrainingPlan($trainingPlan, null);
+
+            if ($startDate === $default->start_date) {
+                $startDate = null;
+            }
+            if ($duration === $default->duration) {
+                $duration = null;
+            }
+            if ($targetGoal === $default->target_goal) {
+                $targetGoal = null;
+            }
+            if ($this->arraysMatch($programsSelected, $default->programs_selected)) {
+                $programsSelected = null;
+            }
+        }
+
         $trainingPlan->extra->set("users.{$key}.training_plan", [
+            'start_date' => $startDate,
+            'duration' => $duration,
             'measured_reps' => $this->measured_reps,
             'measured_weight' => $this->measured_weight,
-            'target_goal' => $this->target_goal,
+            'target_goal' => $targetGoal,
+            'programs_selected' => $programsSelected,
         ]);
         $trainingPlan->save();
+    }
+
+    protected function arraysMatch(?array $a, ?array $b): bool
+    {
+        if ($a === null && $b === null) {
+            return true;
+        }
+
+        if ($a === null || $b === null) {
+            return false;
+        }
+
+        $sortedA = $a;
+        $sortedB = $b;
+        sort($sortedA);
+        sort($sortedB);
+
+        return $sortedA === $sortedB;
     }
 
     public static function getFields(): array
     {
         return [
+            FluxField::select('start_date')
+                ->label('Start Date')
+                ->options(WeekOptions::generate())
+                ->default(WeekOptions::getCurrentWeekValue()),
+            FluxField::number('duration')
+                ->label('Duration')
+                ->min(1)
+                ->step(1)
+                ->suffix('weeks')
+                ->default(self::DEFAULT_DURATION),
             FluxField::number('measured_reps')
                 ->label('Measured Reps')
                 ->min(1)

@@ -1,6 +1,6 @@
 <div>
     <div class="flex justify-end mb-3">
-        <flux:button variant="ghost" size="sm" icon="plus" wire:click="openAddModal">
+        <flux:button variant="primary" size="sm" icon="plus" wire:click="openAddModal">
             Add {{ $entityName }}
         </flux:button>
     </div>
@@ -62,19 +62,25 @@
         </div>
     </flux:modal>
 
-    <flux:table :paginate="$this->items" class="table-fixed">
-        <flux:table.columns>
-            @foreach ($this->columns as $column)
-                @if ($column->sticky)
-                    <flux:table.column sticky class="{{ $column->width }}">{{ $column->getDisplayLabel() }}
-                    </flux:table.column>
-                @else
-                    <flux:table.column class="{{ $column->width }}">{{ $column->getDisplayLabel() }}
-                    </flux:table.column>
-                @endif
-            @endforeach
-            <flux:table.column class="w-px"></flux:table.column>
-        </flux:table.columns>
+    @if ($this->items->isEmpty())
+        <div class="flex flex-col items-center justify-center py-12 text-center">
+            <flux:icon.inbox class="w-12 h-12 text-zinc-300 dark:text-zinc-600 mb-4" />
+            <flux:heading size="lg" class="text-zinc-500 dark:text-zinc-400">No {{ Str::plural(strtolower($entityName)) }} yet</flux:heading>
+        </div>
+    @else
+        <flux:table :paginate="$this->items" class="table-fixed">
+            <flux:table.columns>
+                @foreach ($this->columns as $column)
+                    @if ($column->sticky)
+                        <flux:table.column sticky class="{{ $column->width }}">{{ $column->getDisplayLabel() }}
+                        </flux:table.column>
+                    @else
+                        <flux:table.column class="{{ $column->width }}">{{ $column->getDisplayLabel() }}
+                        </flux:table.column>
+                    @endif
+                @endforeach
+                <flux:table.column class="w-px"></flux:table.column>
+            </flux:table.columns>
 
         <flux:table.rows>
             @foreach ($this->items as $model)
@@ -180,4 +186,5 @@
             @endforeach
         </flux:table.rows>
     </flux:table>
+    @endif
 </div>

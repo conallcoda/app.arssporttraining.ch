@@ -53,21 +53,11 @@
 
     <flux:tab.group>
         <flux:tabs wire:model.live="tab">
-            <flux:tab name="setup">Setup</flux:tab>
             <flux:tab name="athletes">Athletes</flux:tab>
             <flux:tab name="programs">Programs</flux:tab>
             <flux:tab name="plan">Plan</flux:tab>
             <flux:tab name="export">Export</flux:tab>
         </flux:tabs>
-
-        <flux:tab.panel name="setup">
-            <livewire:training.view.setup
-                :training-plan="$trainingPlan"
-                :start-date="$startDate"
-                :duration="$duration"
-                wire:key="setup-{{ $this->getDataKey('setup') }}"
-            />
-        </flux:tab.panel>
 
         <flux:tab.panel name="athletes">
             <livewire:training.view.athletes

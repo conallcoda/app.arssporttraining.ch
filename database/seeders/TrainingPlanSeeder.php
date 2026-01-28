@@ -2,12 +2,14 @@
 
 namespace Database\Seeders;
 
+use App\Livewire\Training\View\AthleteTrainingProgramData;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseType\StrengthDefaults;
 use App\Models\TrainingPlan;
 use App\Models\TrainingPlanProgram;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
+use App\Support\WeekOptions;
 use Illuminate\Database\Seeder;
 
 class TrainingPlanSeeder extends Seeder
@@ -16,9 +18,16 @@ class TrainingPlanSeeder extends Seeder
     {
         $plan = TrainingPlan::create([
             'name' => 'Default Training Plan',
-            'start_date' => now()->startOfWeek(),
-            'duration' => 5,
         ]);
+
+        $plan->extra->set('users.default.training_plan', [
+            'start_date' => WeekOptions::getCurrentWeekValue(),
+            'duration' => AthleteTrainingProgramData::DEFAULT_DURATION,
+            'measured_reps' => AthleteTrainingProgramData::DEFAULT_MEASURED_REPS,
+            'measured_weight' => AthleteTrainingProgramData::DEFAULT_MEASURED_WEIGHT,
+            'target_goal' => AthleteTrainingProgramData::DEFAULT_TARGET_GOAL,
+        ]);
+        $plan->save();
 
         $plan->userGroups()->attach(UserGroup::first());
         $plan->users()->attach(User::latest('id')->take(2)->pluck('id'));

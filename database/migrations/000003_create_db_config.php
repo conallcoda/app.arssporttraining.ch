@@ -8,6 +8,7 @@ return new class extends Migration
 {
     public function up()
     {
+        return;
         $tableName = config('db-config.table_name', 'db_config');
 
         Schema::create($tableName, function (Blueprint $table) {
