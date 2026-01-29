@@ -11,7 +11,7 @@ class StrengthDefaults extends AbstractData implements HasForms
 {
     public function __construct(
         public int $oneRepMaxModifier = 100,
-        public int $startingReps = 1,
+        public int $startingReps = 12,
         public string $timeUnderTension = '3010',
         public int $rest = 30,
     ) {}
@@ -21,10 +21,10 @@ class StrengthDefaults extends AbstractData implements HasForms
         $config = $exercise->extra['type'] ?? [];
 
         return new self(
-            oneRepMaxModifier: $config['oneRepMaxModifier'] ?? 100,
-            startingReps: $config['startingReps'] ?? 1,
-            timeUnderTension: $config['timeUnderTension'] ?? '3010',
-            rest: $config['rest'] ?? 30,
+            oneRepMaxModifier: (int) ($config['oneRepMaxModifier'] ?: 100),
+            startingReps: (int) ($config['startingReps'] ?: 12),
+            timeUnderTension: $config['timeUnderTension'] ?: '3010',
+            rest: (int) ($config['rest'] ?: 30),
         );
     }
 
