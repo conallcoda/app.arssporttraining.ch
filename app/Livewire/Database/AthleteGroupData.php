@@ -3,8 +3,8 @@
 namespace App\Livewire\Database;
 
 use App\Data\AbstractData;
-use App\Data\Form\Fields\Relationship;
-use App\Data\Form\Fields\Text;
+use App\Form\Fields\Relationship;
+use App\Form\Fields\Text;
 use App\Models\Contracts\HasForms;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
@@ -22,7 +22,7 @@ class AthleteGroupData extends AbstractData implements HasForms
     {
         $members = [];
         if ($group->relationLoaded('members')) {
-            $members = $group->members->map(fn ($user) => [
+            $members = $group->members->map(fn($user) => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'sort' => $user->pivot->sort ?? 0,
@@ -50,8 +50,8 @@ class AthleteGroupData extends AbstractData implements HasForms
         }
 
         $syncData = collect($this->members)
-            ->filter(fn ($member) => ! empty($member['id']))
-            ->mapWithKeys(fn ($member, $index) => [
+            ->filter(fn($member) => ! empty($member['id']))
+            ->mapWithKeys(fn($member, $index) => [
                 $member['id'] => ['sort' => $member['sort'] ?? $index],
             ])
             ->all();
@@ -65,7 +65,7 @@ class AthleteGroupData extends AbstractData implements HasForms
             ->orderBy('forename')
             ->orderBy('surname')
             ->get()
-            ->mapWithKeys(fn ($user) => [$user->id => $user->name])
+            ->mapWithKeys(fn($user) => [$user->id => $user->name])
             ->all();
 
         return [

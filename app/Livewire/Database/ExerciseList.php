@@ -2,8 +2,8 @@
 
 namespace App\Livewire\Database;
 
-use App\Data\Form\Field;
-use App\Data\Form\TableColumn;
+use App\Form\Field;
+use App\Form\TableColumn;
 use App\Livewire\Concerns\AbstractModelList;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseTypeEnum;
@@ -40,7 +40,7 @@ class ExerciseList extends AbstractModelList
             TableColumn::text('defaults')
                 ->label('Defaults')
                 ->badge()
-                ->source(fn (ExerciseData $data) => $data->getDefaultsBadges()),
+                ->source(fn(ExerciseData $data) => $data->getDefaultsBadges()),
         ];
     }
 

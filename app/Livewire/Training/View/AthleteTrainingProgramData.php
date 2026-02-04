@@ -3,9 +3,9 @@
 namespace App\Livewire\Training\View;
 
 use App\Data\AbstractData;
-use App\Data\Form\Fields\General\Percentage;
-use App\Data\Form\Fields\Number;
-use App\Data\Form\Fields\Select;
+use App\Form\Fields\General\Percentage;
+use App\Form\Fields\Number;
+use App\Form\Fields\Select;
 use App\Models\Contracts\HasForms;
 use App\Models\TrainingPlan;
 use App\Support\WeekOptions;

@@ -3,9 +3,9 @@
 namespace App\Livewire\Training\View;
 
 use App\Data\AbstractData;
-use App\Data\Form\Fields\Relationship;
-use App\Data\Form\Fields\Select;
-use App\Data\Form\Fields\Text;
+use App\Form\Fields\Relationship;
+use App\Form\Fields\Select;
+use App\Form\Fields\Text;
 use App\Models\Contracts\HasForms;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseType\StrengthDefaults;
@@ -47,7 +47,7 @@ class TrainingProgramData extends AbstractData implements HasForms
     {
         $exercises = [];
         if ($program->relationLoaded('exercises')) {
-            $exercises = $program->exercises->map(fn ($exercise) => [
+            $exercises = $program->exercises->map(fn($exercise) => [
                 'id' => $exercise->id,
                 'name' => $exercise->name,
                 'sort' => $exercise->pivot->sort ?? 0,
@@ -89,7 +89,7 @@ class TrainingProgramData extends AbstractData implements HasForms
     {
         $currentExerciseIds = $program->exercises()->pluck('exercises.id')->toArray();
         $newExerciseIds = collect($this->exercises)
-            ->filter(fn ($exercise) => ! empty($exercise['id']))
+            ->filter(fn($exercise) => ! empty($exercise['id']))
             ->pluck('id')
             ->toArray();
 
@@ -137,7 +137,7 @@ class TrainingProgramData extends AbstractData implements HasForms
         $exerciseOptions = Exercise::query()
             ->orderBy('name')
             ->get()
-            ->mapWithKeys(fn ($exercise) => [$exercise->id => $exercise->name])
+            ->mapWithKeys(fn($exercise) => [$exercise->id => $exercise->name])
             ->all();
 
         return [

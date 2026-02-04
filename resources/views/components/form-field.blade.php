@@ -1,12 +1,18 @@
-@use('App\Data\Form\Fields\Select')
-@use('App\Data\Form\Fields\Number')
-@use('App\Data\Form\Fields\Text')
-@use('App\Data\Form\Fields\Date')
-@use('App\Data\Form\Fields\RadioSegmented')
-@use('App\Data\Form\Fields\Pillbox')
-@use('App\Data\Form\Fields\Slider')
-@use('App\Data\Form\Fields\Relationship')
-@use('App\Data\Form\Fields\Repeater')
+@use('App\Form\Fields\Select')
+@use('App\Form\Fields\Number')
+@use('App\Form\Fields\Text')
+@use('App\Form\Fields\Date')
+@use('App\Form\Fields\RadioSegmented')
+@use('App\Form\Fields\Pillbox')
+@use('App\Form\Fields\Slider')
+@use('App\Form\Fields\Relationship')
+@use('App\Form\Fields\Repeater')
+
+@props(['field', 'prefix' => null, 'repeaterItems' => null, 'currentIndex' => null])
+
+@php
+    $wireModel = $prefix ? "{$prefix}.{$field->name}" : $field->name;
+@endphp
 
 <div>
     @if ($field instanceof Select)

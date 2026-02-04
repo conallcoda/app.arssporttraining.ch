@@ -3,7 +3,7 @@
 namespace App\Livewire\Database;
 
 use App\Data\AbstractData;
-use App\Data\Form\Fields\Text;
+use App\Form\Fields\Text;
 use App\Models\Contracts\HasForms;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;

@@ -3,9 +3,9 @@
 namespace App\Models\Exercise\ExerciseType;
 
 use App\Data\AbstractData;
-use App\Data\Form\Fields\General\Percentage;
-use App\Data\Form\Fields\General\Tut;
-use App\Data\Form\Fields\Number;
+use App\Form\Fields\General\Percentage;
+use App\Form\Fields\General\Tut;
+use App\Form\Fields\Number;
 use App\Models\Contracts\HasForms;
 use App\Models\Exercise\Exercise;
 

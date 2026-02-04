@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Training\View;
 
-use App\Data\Form\Fields\Pillbox;
+use App\Form\Fields\Pillbox;
 use App\Livewire\Concerns\InteractsWithParentView;
 use App\Models\TrainingPlan;
 use App\Models\Users\User;
@@ -73,12 +73,12 @@ class Athletes extends Component
             ->orderBy('forename')
             ->orderBy('surname')
             ->get()
-            ->mapWithKeys(fn ($user) => [$user->id => $user->name])
+            ->mapWithKeys(fn($user) => [$user->id => $user->name])
             ->all();
 
         $groupOptions = UserGroup::orderBy('name')
             ->get()
-            ->mapWithKeys(fn ($group) => [$group->id => $group->name])
+            ->mapWithKeys(fn($group) => [$group->id => $group->name])
             ->all();
 
         return [

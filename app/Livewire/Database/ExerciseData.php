@@ -3,8 +3,8 @@
 namespace App\Livewire\Database;
 
 use App\Data\AbstractData;
-use App\Data\Form\Fields\Select;
-use App\Data\Form\Fields\Text;
+use App\Form\Fields\Select;
+use App\Form\Fields\Text;
 use App\Models\Contracts\HasForms;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseTypeEnum;
@@ -100,7 +100,7 @@ class ExerciseData extends AbstractData implements HasForms
                 $displayValue = (string) $value;
 
                 if ($field->suffix) {
-                    $displayValue .= ' '.$field->suffix;
+                    $displayValue .= ' ' . $field->suffix;
                 }
 
                 $badges[] = [

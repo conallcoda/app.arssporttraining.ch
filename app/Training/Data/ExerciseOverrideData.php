@@ -3,7 +3,7 @@
 namespace App\Training\Data;
 
 use App\Data\AbstractData;
-use App\Data\Form\Fields\Slider;
+use App\Form\Fields\Slider;
 use App\Models\Contracts\HasForms;
 
 class ExerciseOverrideData extends AbstractData implements HasForms
@@ -81,7 +81,7 @@ class ExerciseOverrideData extends AbstractData implements HasForms
             'measuredWeight' => $this->measuredWeight,
             'tut' => $this->tut,
             'rest' => $this->rest,
-        ], fn ($value) => $value !== null);
+        ], fn($value) => $value !== null);
     }
 
     public function getTarget(float $default): float
