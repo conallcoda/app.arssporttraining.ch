@@ -119,6 +119,7 @@ class TrainingPlanView extends Component
             'programs' => $this->loadPrograms(),
             'users' => $this->loadUsers(),
             'plan' => $this->trainingPlan->refresh(),
+            'schedule' => $this->trainingPlan->refresh(),
             default => $this->loadAllData(),
         };
     }

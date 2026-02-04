@@ -12,10 +12,32 @@ use App\Models\TrainingPlanProgramExercise;
 
 class TrainingProgramData extends AbstractData implements HasForms
 {
+    public const DEFAULT_COLOR = 'blue';
+
+    public const AVAILABLE_COLORS = [
+        'blue' => 'Blue',
+        'green' => 'Green',
+        'emerald' => 'Emerald',
+        'teal' => 'Teal',
+        'cyan' => 'Cyan',
+        'sky' => 'Sky',
+        'indigo' => 'Indigo',
+        'violet' => 'Violet',
+        'purple' => 'Purple',
+        'pink' => 'Pink',
+        'rose' => 'Rose',
+        'red' => 'Red',
+        'orange' => 'Orange',
+        'amber' => 'Amber',
+        'yellow' => 'Yellow',
+        'lime' => 'Lime',
+    ];
+
     public function __construct(
         public ?int $id,
         public ?int $training_plan_id,
         public string $name,
+        public string $color = self::DEFAULT_COLOR,
         public array $exercises = [],
     ) {}
 
@@ -34,6 +56,7 @@ class TrainingProgramData extends AbstractData implements HasForms
             id: $program->id,
             training_plan_id: $program->training_plan_id,
             name: $program->name ?? '',
+            color: $program->extra->get('color', self::DEFAULT_COLOR),
             exercises: $exercises,
         );
     }
@@ -53,6 +76,9 @@ class TrainingProgramData extends AbstractData implements HasForms
             $program->name = $this->name;
             $program->save();
         }
+
+        $program->extra->set('color', $this->color);
+        $program->save();
 
         $this->syncExercisesWithDefaults($program);
     }
@@ -119,6 +145,10 @@ class TrainingProgramData extends AbstractData implements HasForms
                 ->required()
                 ->default('')
                 ->rules('required|string|min:1'),
+            FluxField::select('color')
+                ->label('Color')
+                ->options(self::AVAILABLE_COLORS)
+                ->default(self::DEFAULT_COLOR),
             FluxField::relationship('exercises')
                 ->label('Exercises')
                 ->options($exerciseOptions)

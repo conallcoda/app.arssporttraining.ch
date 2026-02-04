@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasExtraData;
 use App\Models\Exercise\Exercise;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class TrainingPlanProgram extends Model
 {
+    use HasExtraData;
     use HasFactory;
     use SoftDeletes;
 
