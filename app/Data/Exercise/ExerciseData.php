@@ -44,20 +44,20 @@ class ExerciseData extends AbstractData implements HasForms
 
     public function persist(): void
     {
-        $extra = ['type' => $this->typeConfig];
+        $configData = ['type' => $this->typeConfig];
 
         if ($this->id === null) {
             $exercise = Exercise::create([
                 'name' => $this->name,
                 'type' => $this->type,
-                'extra' => $extra,
+                'config' => $configData,
             ]);
             $this->id = $exercise->id;
         } else {
             $exercise = Exercise::findOrFail($this->id);
             $exercise->name = $this->name;
             $exercise->type = $this->type;
-            $exercise->extra = $extra;
+            $exercise->config = $configData;
             $exercise->save();
         }
     }

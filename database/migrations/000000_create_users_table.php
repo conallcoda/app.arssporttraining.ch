@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('email')->nullable()->unique();
             $table->string('phone')->nullable();
             $table->string('password')->nullable();
-            $table->schemalessAttributes('extra');
+            $table->schemalessAttributes('config');
             $table->rememberToken();
             $table->timestamps();
             $table->softDeletes();
@@ -43,7 +43,7 @@ return new class extends Migration
         Schema::create('user_groups', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->schemalessAttributes('extra');
+            $table->schemalessAttributes('config');
             $table->timestamps();
             $table->softDeletes();
         });

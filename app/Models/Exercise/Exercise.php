@@ -3,19 +3,19 @@
 namespace App\Models\Exercise;
 
 use App\Data\Exercise\ExerciseType;
-use App\Models\Concerns\HasExtraData;
+use App\Models\Concerns\HasConfigData;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Exercise extends Model
 {
-    use HasExtraData;
+    use HasConfigData;
     use SoftDeletes;
 
     protected $fillable = [
         'name',
         'type',
-        'extra',
+        'config',
     ];
 
     protected function casts(): array

@@ -27,7 +27,7 @@ class UserSeeder extends Seeder
         $athletes = collect();
         foreach ($weights as $weight) {
             $athletes->push(User::factory()->athlete()->create([
-                'extra' => [
+                'config' => [
                     'test_reps' => 1,
                     'test_weight' => $weight,
                     'target_modifier' => 100.0,

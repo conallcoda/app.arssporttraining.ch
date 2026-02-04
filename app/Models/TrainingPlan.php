@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\HasExtraData;
+use App\Models\Concerns\HasConfigData;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use Illuminate\Database\Eloquent\Builder;
@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class TrainingPlan extends Model
 {
-    use HasExtraData;
+    use HasConfigData;
     use SoftDeletes;
 
     protected $fillable = [

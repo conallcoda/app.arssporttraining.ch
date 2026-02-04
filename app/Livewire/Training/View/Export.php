@@ -289,8 +289,8 @@ class Export extends Component
             $exercises = [];
 
             foreach ($program->exercises as $exercise) {
-                $pivotExtra = $this->getPivotExtra($program->id, $exercise->id);
-                $config = $this->getExerciseConfig($user->id, $exercise->id, $pivotExtra);
+                $pivotConfig = $this->getPivotConfig($program->id, $exercise->id);
+                $config = $this->getExerciseConfig($user->id, $exercise->id, $pivotConfig);
                 $block = $this->generateBlockForUserAndExercise($user, $exercise, $athleteData, $config);
 
                 if ($block) {
@@ -376,7 +376,7 @@ class Export extends Component
         return $this->applyCellOverrides($block, $user->id, $exercise->id);
     }
 
-    protected function getPivotExtra(int $programId, int $exerciseId): array
+    protected function getPivotConfig(int $programId, int $exerciseId): array
     {
         $pivot = TrainingPlanProgramExercise::query()
             ->where('training_plan_program_id', $programId)
@@ -387,32 +387,32 @@ class Export extends Component
             return [];
         }
 
-        $extra = $pivot->extra;
+        $configData = $pivot->config;
 
-        if ($extra instanceof \Spatie\SchemalessAttributes\SchemalessAttributes) {
-            return $extra->all();
+        if ($configData instanceof \Spatie\SchemalessAttributes\SchemalessAttributes) {
+            return $configData->all();
         }
 
-        if (is_array($extra)) {
-            return $extra;
+        if (is_array($configData)) {
+            return $configData;
         }
 
         return [];
     }
 
-    protected function getExerciseConfig(int $userId, int $exerciseId, array $pivotExtra): array
+    protected function getExerciseConfig(int $userId, int $exerciseId, array $pivotConfig): array
     {
         $defaultData = AthleteTrainingProgramData::fromTrainingPlan($this->trainingPlan, null);
 
         $systemTarget = $defaultData->target_goal ?? ExerciseOverrideData::DEFAULT_TARGET;
-        $systemStartingReps = $pivotExtra['startingReps'] ?? ExerciseOverrideData::DEFAULT_STARTING_REPS;
-        $systemSets = $pivotExtra['sets'] ?? ExerciseOverrideData::DEFAULT_SETS;
-        $systemTut = $pivotExtra['tut'] ?? ExerciseOverrideData::DEFAULT_TUT;
-        $systemRest = $pivotExtra['rest'] ?? ExerciseOverrideData::DEFAULT_REST;
-        $oneRepMaxModifier = $pivotExtra['oneRepMaxModifier'] ?? 100;
+        $systemStartingReps = $pivotConfig['startingReps'] ?? ExerciseOverrideData::DEFAULT_STARTING_REPS;
+        $systemSets = $pivotConfig['sets'] ?? ExerciseOverrideData::DEFAULT_SETS;
+        $systemTut = $pivotConfig['tut'] ?? ExerciseOverrideData::DEFAULT_TUT;
+        $systemRest = $pivotConfig['rest'] ?? ExerciseOverrideData::DEFAULT_REST;
+        $oneRepMaxModifier = $pivotConfig['oneRepMaxModifier'] ?? 100;
 
-        $allDefaultExercises = $this->trainingPlan->extra->get('users.default.exercises', []);
-        $allUserExercises = $this->trainingPlan->extra->get("users.{$userId}.exercises", []);
+        $allDefaultExercises = $this->trainingPlan->config->get('users.default.exercises', []);
+        $allUserExercises = $this->trainingPlan->config->get("users.{$userId}.exercises", []);
 
         $defaultOverride = $allDefaultExercises[$exerciseId] ?? $allDefaultExercises[(string) $exerciseId] ?? [];
         $userOverride = $allUserExercises[$exerciseId] ?? $allUserExercises[(string) $exerciseId] ?? [];
@@ -429,8 +429,8 @@ class Export extends Component
 
     protected function applyCellOverrides(TrainingBlock $block, int $userId, int $exerciseId): TrainingBlock
     {
-        $allDefaultCells = $this->trainingPlan->extra->get('users.default.cells', []);
-        $allUserCells = $this->trainingPlan->extra->get("users.{$userId}.cells", []);
+        $allDefaultCells = $this->trainingPlan->config->get('users.default.cells', []);
+        $allUserCells = $this->trainingPlan->config->get("users.{$userId}.cells", []);
 
         $defaultOverrides = $allDefaultCells[$exerciseId] ?? $allDefaultCells[(string) $exerciseId] ?? [];
         $userOverrides = $allUserCells[$exerciseId] ?? $allUserCells[(string) $exerciseId] ?? [];
@@ -472,8 +472,8 @@ class Export extends Component
 
     protected function getWeekOverridesForExport(int $userId, int $exerciseId): array
     {
-        $defaultOverrides = $this->trainingPlan->extra->get("users.default.weeks.{$exerciseId}", []);
-        $userOverrides = $this->trainingPlan->extra->get("users.{$userId}.weeks.{$exerciseId}", []);
+        $defaultOverrides = $this->trainingPlan->config->get("users.default.weeks.{$exerciseId}", []);
+        $userOverrides = $this->trainingPlan->config->get("users.{$userId}.weeks.{$exerciseId}", []);
 
         $merged = [];
         $allKeys = array_unique(array_merge(array_keys($defaultOverrides), array_keys($userOverrides)));

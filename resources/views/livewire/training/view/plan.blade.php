@@ -218,17 +218,17 @@
                             <div class="flex flex-wrap gap-6">
                                 @foreach ($program->exercises as $exercise)
                                     @php
-                                        $extra = $this->getPivotExtra($program->id, $exercise->id);
-                                        $exerciseTypeConfig = $exercise->extra['type'] ?? [];
-                                        $pivotExtra = [
-                                            'oneRepMaxModifier' => $extra['oneRepMaxModifier'] ?? 100,
-                                            'startingReps' => $extra['startingReps'] ?? null,
-                                            'sets' => $extra['sets'] ?? null,
-                                            'tut' => $extra['tut'] ?? $exerciseTypeConfig['timeUnderTension'] ?? null,
-                                            'rest' => $extra['rest'] ?? $exerciseTypeConfig['rest'] ?? null,
+                                        $configData = $this->getPivotConfig($program->id, $exercise->id);
+                                        $exerciseTypeConfig = $exercise->config['type'] ?? [];
+                                        $pivotConfig = [
+                                            'oneRepMaxModifier' => $configData['oneRepMaxModifier'] ?? 100,
+                                            'startingReps' => $configData['startingReps'] ?? null,
+                                            'sets' => $configData['sets'] ?? null,
+                                            'tut' => $configData['tut'] ?? $exerciseTypeConfig['timeUnderTension'] ?? null,
+                                            'rest' => $configData['rest'] ?? $exerciseTypeConfig['rest'] ?? null,
                                         ];
-                                        $config = $this->getExerciseConfig($exercise->id, $pivotExtra);
-                                        $block = $this->generateBlock($exercise->id, $pivotExtra);
+                                        $config = $this->getExerciseConfig($exercise->id, $pivotConfig);
+                                        $block = $this->generateBlock($exercise->id, $pivotConfig);
                                         if ($block) {
                                             $block = $this->applyCellOverrides($block, $exercise->id);
                                         }

@@ -71,7 +71,7 @@ class TrainingPlanList extends AbstractModelList
             foreach ($program->exercises as $exercise) {
                 $exercisesWithPivot[$exercise->id] = [
                     'sort' => $exercise->pivot->sort,
-                    'extra' => $exercise->pivot->extra,
+                    'config' => $exercise->pivot->config,
                 ];
             }
             $newProgram->exercises()->sync($exercisesWithPivot);

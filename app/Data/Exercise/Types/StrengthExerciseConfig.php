@@ -6,7 +6,6 @@ use App\Data\AbstractConfig;
 use App\Form\Fields\Exercise as Fields;
 use App\Models\Exercise\Exercise;
 
-
 class StrengthExerciseConfig extends AbstractConfig
 {
     public function __construct(
@@ -18,12 +17,12 @@ class StrengthExerciseConfig extends AbstractConfig
 
     public static function accessor(): string
     {
-        return 'extra.strength';
+        return 'config.strength';
     }
 
     public static function fromExercise(Exercise $exercise): self
     {
-        $config = $exercise->extra['type'] ?? [];
+        $config = $exercise->config['type'] ?? [];
 
         return new self(
             oneRepMaxModifier: (int) ($config['oneRepMaxModifier'] ?: 100),

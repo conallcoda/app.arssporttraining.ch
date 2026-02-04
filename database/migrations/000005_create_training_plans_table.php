@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('training_plans', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->json('extra')->nullable();
+            $table->json('config')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });
@@ -44,7 +44,7 @@ return new class extends Migration
             $table->foreignId('training_plan_id')->constrained()->cascadeOnDelete();
             $table->string('name');
             $table->unsignedInteger('sort')->default(0);
-            $table->json('extra')->nullable();
+            $table->json('config')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });
@@ -54,7 +54,7 @@ return new class extends Migration
             $table->foreignId('training_plan_program_id')->constrained()->cascadeOnDelete();
             $table->foreignId('exercise_id')->constrained()->cascadeOnDelete();
             $table->unsignedInteger('sort')->default(0);
-            $table->json('extra')->nullable();
+            $table->json('config')->nullable();
             $table->timestamps();
 
             $table->unique(['training_plan_program_id', 'exercise_id'], 'program_exercise_unique');

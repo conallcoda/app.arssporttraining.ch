@@ -33,20 +33,20 @@ class AthleteData extends AbstractData implements HasForms
 
     public function persist(): void
     {
-        $extra = [];
+        $configData = [];
         if ($this->id === null) {
             $user = User::create([
                 'forename' => $this->forename,
                 'surname' => $this->surname,
                 'type' => UserTypeEnum::Athlete,
-                'extra' => $extra,
+                'config' => $configData,
             ]);
             $this->id = $user->id;
         } else {
             $user = User::findOrFail($this->id);
             $user->forename = $this->forename;
             $user->surname = $this->surname;
-            $user->extra = $extra;
+            $user->config = $configData;
             $user->save();
         }
     }

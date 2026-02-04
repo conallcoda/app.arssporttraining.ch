@@ -13,7 +13,7 @@ return new class extends Migration
             $table->string('type');
             $table->string('name');
             $table->json('instructions')->nullable();
-            $table->schemalessAttributes('extra');
+            $table->schemalessAttributes('config');
             $table->timestamps();
             $table->softDeletes();
         });

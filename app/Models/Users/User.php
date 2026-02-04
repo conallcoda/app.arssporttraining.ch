@@ -2,7 +2,7 @@
 
 namespace App\Models\Users;
 
-use App\Models\Concerns\HasExtraData;
+use App\Models\Concerns\HasConfigData;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
 
 class User extends Authenticatable
 {
-    use HasExtraData, HasFactory, Notifiable, SoftDeletes;
+    use HasConfigData, HasFactory, Notifiable, SoftDeletes;
 
     protected static function newFactory(): UserFactory
     {
@@ -27,7 +27,7 @@ class User extends Authenticatable
         'type',
         'phone',
         'password',
-        'extra',
+        'config',
     ];
 
     protected $hidden = [

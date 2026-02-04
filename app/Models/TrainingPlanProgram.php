@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\HasExtraData;
+use App\Models\Concerns\HasConfigData;
 use App\Models\Exercise\Exercise;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class TrainingPlanProgram extends Model
 {
-    use HasExtraData;
+    use HasConfigData;
     use HasFactory;
     use SoftDeletes;
 
@@ -31,7 +31,7 @@ class TrainingPlanProgram extends Model
     {
         return $this->belongsToMany(Exercise::class, 'training_plan_program_exercises')
             ->using(TrainingPlanProgramExercise::class)
-            ->withPivot(['sort', 'extra'])
+            ->withPivot(['sort', 'config'])
             ->orderByPivot('sort')
             ->withTimestamps();
     }

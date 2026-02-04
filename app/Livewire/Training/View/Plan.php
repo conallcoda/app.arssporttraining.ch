@@ -75,7 +75,7 @@ class Plan extends Component
 
     public function userHasMeasuredData(int $userId): bool
     {
-        $data = $this->trainingPlan->extra->get("users.{$userId}.training_plan", []);
+        $data = $this->trainingPlan->config->get("users.{$userId}.training_plan", []);
 
         $measuredReps = $data['measured_reps'] ?? null;
         $measuredWeight = $data['measured_weight'] ?? null;
@@ -85,9 +85,9 @@ class Plan extends Component
 
     public function countUserOverrides(int $userId): int
     {
-        $exerciseOverrides = $this->trainingPlan->extra->get("users.{$userId}.exercises", []);
-        $cellOverrides = $this->trainingPlan->extra->get("users.{$userId}.cells", []);
-        $weekOverrides = $this->trainingPlan->extra->get("users.{$userId}.weeks", []);
+        $exerciseOverrides = $this->trainingPlan->config->get("users.{$userId}.exercises", []);
+        $cellOverrides = $this->trainingPlan->config->get("users.{$userId}.cells", []);
+        $weekOverrides = $this->trainingPlan->config->get("users.{$userId}.weeks", []);
 
         $count = 0;
 
@@ -154,7 +154,7 @@ class Plan extends Component
         return round($startingMax * (1 + $goal / 100), 1);
     }
 
-    public function getPivotExtra(int $programId, int $exerciseId): array
+    public function getPivotConfig(int $programId, int $exerciseId): array
     {
         $pivot = \App\Models\TrainingPlanProgramExercise::query()
             ->where('training_plan_program_id', $programId)
@@ -165,20 +165,20 @@ class Plan extends Component
             return [];
         }
 
-        $extra = $pivot->extra;
+        $configData = $pivot->config;
 
-        if ($extra instanceof \Spatie\SchemalessAttributes\SchemalessAttributes) {
-            return $extra->all();
+        if ($configData instanceof \Spatie\SchemalessAttributes\SchemalessAttributes) {
+            return $configData->all();
         }
 
-        if (is_array($extra)) {
-            return $extra;
+        if (is_array($configData)) {
+            return $configData;
         }
 
         return [];
     }
 
-    protected function findPivotExtraForExercise(int $exerciseId): array
+    protected function findPivotConfigForExercise(int $exerciseId): array
     {
         $pivot = \App\Models\TrainingPlanProgramExercise::query()
             ->whereHas('program', function ($query) {
@@ -191,14 +191,14 @@ class Plan extends Component
             return [];
         }
 
-        $extra = $pivot->extra;
+        $configData = $pivot->config;
 
-        if ($extra instanceof \Spatie\SchemalessAttributes\SchemalessAttributes) {
-            return $extra->all();
+        if ($configData instanceof \Spatie\SchemalessAttributes\SchemalessAttributes) {
+            return $configData->all();
         }
 
-        if (is_array($extra)) {
-            return $extra;
+        if (is_array($configData)) {
+            return $configData;
         }
 
         return [];
@@ -206,14 +206,14 @@ class Plan extends Component
 
     protected function getEffectiveCellValue(int $exerciseId, int $weekIndex, int $sessionIndex, int $setIndex, string $field): mixed
     {
-        $extra = $this->findPivotExtraForExercise($exerciseId);
-        $pivotExtra = [
-            'oneRepMaxModifier' => $extra['oneRepMaxModifier'] ?? 100,
-            'startingReps' => $extra['startingReps'] ?? null,
-            'sets' => $extra['sets'] ?? null,
+        $pivotConfigData = $this->findPivotConfigForExercise($exerciseId);
+        $pivotConfig = [
+            'oneRepMaxModifier' => $pivotConfigData['oneRepMaxModifier'] ?? 100,
+            'startingReps' => $pivotConfigData['startingReps'] ?? null,
+            'sets' => $pivotConfigData['sets'] ?? null,
         ];
 
-        $block = $this->generateBlock($exerciseId, $pivotExtra);
+        $block = $this->generateBlock($exerciseId, $pivotConfig);
 
         if (! $block) {
             return null;
@@ -336,34 +336,34 @@ class Plan extends Component
         $this->weekOverrides = [];
         $this->defaultWeekOverrides = [];
 
-        $defaultExercisesData = $this->trainingPlan->extra->get('users.default.exercises', []);
+        $defaultExercisesData = $this->trainingPlan->config->get('users.default.exercises', []);
         foreach ($defaultExercisesData as $exerciseId => $overrideData) {
             $this->defaultExerciseOverrides[$exerciseId] = $overrideData;
         }
 
-        $defaultCellData = $this->trainingPlan->extra->get('users.default.cells', []);
+        $defaultCellData = $this->trainingPlan->config->get('users.default.cells', []);
         foreach ($defaultCellData as $exerciseId => $cells) {
             $this->defaultCellOverrides[$exerciseId] = $cells;
         }
 
-        $defaultWeekData = $this->trainingPlan->extra->get('users.default.weeks', []);
+        $defaultWeekData = $this->trainingPlan->config->get('users.default.weeks', []);
         foreach ($defaultWeekData as $exerciseId => $weeks) {
             $this->defaultWeekOverrides[$exerciseId] = $weeks;
         }
 
         if ($this->user !== null) {
-            $exercisesData = $this->trainingPlan->extra->get("users.{$this->user}.exercises", []);
+            $exercisesData = $this->trainingPlan->config->get("users.{$this->user}.exercises", []);
 
             foreach ($exercisesData as $exerciseId => $overrideData) {
                 $this->exerciseOverrides[$exerciseId] = $overrideData;
             }
 
-            $cellData = $this->trainingPlan->extra->get("users.{$this->user}.cells", []);
+            $cellData = $this->trainingPlan->config->get("users.{$this->user}.cells", []);
             foreach ($cellData as $exerciseId => $cells) {
                 $this->cellOverrides[$exerciseId] = $cells;
             }
 
-            $weekData = $this->trainingPlan->extra->get("users.{$this->user}.weeks", []);
+            $weekData = $this->trainingPlan->config->get("users.{$this->user}.weeks", []);
             foreach ($weekData as $exerciseId => $weeks) {
                 $this->weekOverrides[$exerciseId] = $weeks;
             }
@@ -421,7 +421,7 @@ class Plan extends Component
             ? ($this->defaultExerciseOverrides[$exerciseId] ?? [])
             : ($this->exerciseOverrides[$exerciseId] ?? []);
 
-        $this->trainingPlan->extra->set($extraKey, $overrides);
+        $this->trainingPlan->config->set($extraKey, $overrides);
         $this->trainingPlan->save();
     }
 
@@ -595,9 +595,9 @@ class Plan extends Component
             : ($this->cellOverrides[$exerciseId] ?? []);
 
         if (empty($overrides)) {
-            $this->trainingPlan->extra->forget($extraKey);
+            $this->trainingPlan->config->forget($extraKey);
         } else {
-            $this->trainingPlan->extra->set($extraKey, $overrides);
+            $this->trainingPlan->config->set($extraKey, $overrides);
         }
         $this->trainingPlan->save();
     }
@@ -684,7 +684,7 @@ class Plan extends Component
     {
         $extra = $this->findPivotExtraForExercise($exerciseId);
         $exercise = Exercise::find($exerciseId);
-        $exerciseTypeConfig = $exercise?->extra['type'] ?? [];
+        $exerciseTypeConfig = $exercise?->config['type'] ?? [];
 
         $systemTut = $extra['tut'] ?? $exerciseTypeConfig['timeUnderTension'] ?? ExerciseOverrideData::DEFAULT_TUT;
         $systemRest = $extra['rest'] ?? $exerciseTypeConfig['rest'] ?? ExerciseOverrideData::DEFAULT_REST;
@@ -725,9 +725,9 @@ class Plan extends Component
             : ($this->weekOverrides[$exerciseId] ?? []);
 
         if (empty($overrides)) {
-            $this->trainingPlan->extra->forget($extraKey);
+            $this->trainingPlan->config->forget($extraKey);
         } else {
-            $this->trainingPlan->extra->set($extraKey, $overrides);
+            $this->trainingPlan->config->set($extraKey, $overrides);
         }
         $this->trainingPlan->save();
     }
@@ -782,9 +782,9 @@ class Plan extends Component
             unset($this->weekOverrides[$exerciseId]);
         }
 
-        $this->trainingPlan->extra->forget("users.{$userId}.exercises.{$exerciseId}");
-        $this->trainingPlan->extra->forget("users.{$userId}.cells.{$exerciseId}");
-        $this->trainingPlan->extra->forget("users.{$userId}.weeks.{$exerciseId}");
+        $this->trainingPlan->config->forget("users.{$userId}.exercises.{$exerciseId}");
+        $this->trainingPlan->config->forget("users.{$userId}.cells.{$exerciseId}");
+        $this->trainingPlan->config->forget("users.{$userId}.weeks.{$exerciseId}");
         $this->trainingPlan->save();
     }
 

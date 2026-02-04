@@ -37,7 +37,7 @@ class TrainingProgramData extends AbstractData implements HasForms
             id: $program->id,
             training_plan_id: $program->training_plan_id,
             name: $program->name ?? '',
-            color: $program->extra->get('color', Color::DEFAULT_COLOR),
+            color: $program->config->get('color', Color::DEFAULT_COLOR),
             exercises: $exercises,
         );
     }
@@ -58,7 +58,7 @@ class TrainingProgramData extends AbstractData implements HasForms
             $program->save();
         }
 
-        $program->extra->set('color', $this->color);
+        $program->config->set('color', $this->color);
         $program->save();
 
         $this->syncExercisesWithDefaults($program);
@@ -95,7 +95,7 @@ class TrainingProgramData extends AbstractData implements HasForms
                         'training_plan_program_id' => $program->id,
                         'exercise_id' => $exerciseId,
                         'sort' => $sort,
-                        'extra' => [
+                        'config' => [
                             'oneRepMaxModifier' => $defaults->oneRepMaxModifier,
                             'startingReps' => $defaults->startingReps,
                             'timeUnderTension' => $defaults->timeUnderTension,

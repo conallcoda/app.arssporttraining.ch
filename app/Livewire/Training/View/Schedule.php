@@ -66,7 +66,7 @@ class Schedule extends Component
             ];
         }
 
-        $this->trainingPlan->extra->set('schedule.weeks', $weeks);
+        $this->trainingPlan->config->set('schedule.weeks', $weeks);
         $this->trainingPlan->save();
     }
 
@@ -86,7 +86,7 @@ class Schedule extends Component
     #[Computed]
     public function schedule(): array
     {
-        return $this->trainingPlan->extra->get('schedule.weeks', []);
+        return $this->trainingPlan->config->get('schedule.weeks', []);
     }
 
     #[Computed]
@@ -144,7 +144,7 @@ class Schedule extends Component
 
         $program = $this->programs->firstWhere('id', $programId);
 
-        return $program?->extra->get('color', Color::DEFAULT_COLOR) ?? Color::DEFAULT_COLOR;
+        return $program?->config->get('color', Color::DEFAULT_COLOR) ?? Color::DEFAULT_COLOR;
     }
 
     public function getColorValue(?string $colorName, int $shade = 500): string
@@ -412,7 +412,7 @@ class Schedule extends Component
 
     protected function saveWeeks(array $weeks): void
     {
-        $this->trainingPlan->extra->set('schedule.weeks', $weeks);
+        $this->trainingPlan->config->set('schedule.weeks', $weeks);
         $this->trainingPlan->save();
         $this->trainingPlan->refresh();
         unset($this->schedule);

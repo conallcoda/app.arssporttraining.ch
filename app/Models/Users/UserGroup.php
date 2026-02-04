@@ -2,14 +2,14 @@
 
 namespace App\Models\Users;
 
-use App\Models\Concerns\HasExtraData;
+use App\Models\Concerns\HasConfigData;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class UserGroup extends Model
 {
-    use HasExtraData, SoftDeletes;
+    use HasConfigData, SoftDeletes;
 
     protected $fillable = [
         'name',

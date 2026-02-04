@@ -2,14 +2,14 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\HasExtraData;
+use App\Models\Concerns\HasConfigData;
 use App\Models\Exercise\Exercise;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 
 class TrainingPlanProgramExercise extends Pivot
 {
-    use HasExtraData;
+    use HasConfigData;
 
     protected $table = 'training_plan_program_exercises';
 
@@ -19,7 +19,7 @@ class TrainingPlanProgramExercise extends Pivot
         'training_plan_program_id',
         'exercise_id',
         'sort',
-        'extra',
+        'config',
     ];
 
     public function program(): BelongsTo

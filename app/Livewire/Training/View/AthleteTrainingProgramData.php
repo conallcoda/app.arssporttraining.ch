@@ -49,7 +49,7 @@ class AthleteTrainingProgramData extends AbstractData implements HasForms
     public static function fromTrainingPlan(TrainingPlan $trainingPlan, ?int $userId): self
     {
         $key = $userId === null ? 'default' : (string) $userId;
-        $data = $trainingPlan->extra->get("users.{$key}.training_plan", []);
+        $data = $trainingPlan->config->get("users.{$key}.training_plan", []);
 
         $isDefault = $userId === null;
 
@@ -96,7 +96,7 @@ class AthleteTrainingProgramData extends AbstractData implements HasForms
             }
         }
 
-        $trainingPlan->extra->set("users.{$key}.training_plan", [
+        $trainingPlan->config->set("users.{$key}.training_plan", [
             'start_date' => $startDate,
             'duration' => $duration,
             'measured_reps' => $this->measured_reps,
