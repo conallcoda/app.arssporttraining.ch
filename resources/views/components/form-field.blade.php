@@ -40,20 +40,18 @@
             }
         @endphp
         <flux:field>
-            @if ($field->label)
-                <div class="flex items-center gap-1 mb-2">
-                    <flux:label>{{ $field->label }}</flux:label>
-                    @if ($field->helpText)
-                        <x-help-tooltip :content="$field->helpText" position="top" />
-                    @endif
-                </div>
-            @endif
+            <div class="flex items-center gap-1 mb-2">
+                <flux:label>{{ $field->getLabel() }}</flux:label>
+                @if ($field->helpText)
+                    <x-help-tooltip :content="$field->helpText" position="top" />
+                @endif
+            </div>
             <flux:select :wire:model.live="$field->live ? $wireModel : null"
-                :wire:model="!$field->live ? $wireModel : null" placeholder="{{ $field->placeholder ?? 'Select...' }}"
+                :wire:model="!$field->live ? $wireModel : null" placeholder="{{ $field->getPlaceholder() }}"
                 data-field="{{ $field->name }}" :variant="$selectVariant" :multiple="$field->multiple"
                 :searchable="$field->searchable" :clearable="$field->clearable" :size="$field->size">
                 @if (!$field->multiple)
-                    <flux:select.option value="">{{ $field->placeholder ?? 'Select...' }}</flux:select.option>
+                    <flux:select.option value="">{{ $field->getPlaceholder() }}</flux:select.option>
                 @endif
                 @foreach ($options as $value => $optionLabel)
                     <flux:select.option value="{{ $value }}">{{ $optionLabel }}</flux:select.option>
@@ -62,28 +60,26 @@
         </flux:field>
     @elseif ($field instanceof Number)
         <flux:field>
-            @if ($field->label)
-                <div class="flex items-center gap-1 mb-2">
-                    <flux:label>{{ $field->label }}</flux:label>
-                    @if ($field->helpText)
-                        <x-help-tooltip :content="$field->helpText" position="top" />
-                    @endif
-                </div>
-            @endif
+            <div class="flex items-center gap-1 mb-2">
+                <flux:label>{{ $field->getLabel() }}</flux:label>
+                @if ($field->helpText)
+                    <x-help-tooltip :content="$field->helpText" position="top" />
+                @endif
+            </div>
             @if ($field->suffix)
                 <flux:input.group>
                     @if ($field->disabled)
                         <flux:input wire:model="{{ $wireModel }}" type="number" data-field="{{ $field->name }}"
-                            placeholder="{{ $field->placeholder ?? $field->label }}" min="{{ $field->min ?? '' }}"
+                            placeholder="{{ $field->getPlaceholder() }}" min="{{ $field->min ?? '' }}"
                             max="{{ $field->max ?? '' }}" step="{{ $field->step ?? '' }}" disabled readonly />
                     @elseif ($field->live)
                         <flux:input wire:model.live="{{ $wireModel }}" type="number"
-                            data-field="{{ $field->name }}" placeholder="{{ $field->placeholder ?? $field->label }}"
+                            data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}"
                             min="{{ $field->min ?? '' }}" max="{{ $field->max ?? '' }}"
                             step="{{ $field->step ?? '' }}" />
                     @else
                         <flux:input wire:model="{{ $wireModel }}" type="number" data-field="{{ $field->name }}"
-                            placeholder="{{ $field->placeholder ?? $field->label }}" min="{{ $field->min ?? '' }}"
+                            placeholder="{{ $field->getPlaceholder() }}" min="{{ $field->min ?? '' }}"
                             max="{{ $field->max ?? '' }}" step="{{ $field->step ?? '' }}" />
                     @endif
                     <flux:input.group.suffix>{{ $field->suffix }}</flux:input.group.suffix>
@@ -91,62 +87,58 @@
             @else
                 @if ($field->disabled)
                     <flux:input wire:model="{{ $wireModel }}" type="number" data-field="{{ $field->name }}"
-                        placeholder="{{ $field->placeholder ?? $field->label }}" min="{{ $field->min ?? '' }}"
+                        placeholder="{{ $field->getPlaceholder() }}" min="{{ $field->min ?? '' }}"
                         max="{{ $field->max ?? '' }}" step="{{ $field->step ?? '' }}" disabled readonly />
                 @elseif ($field->live)
                     <flux:input wire:model.live="{{ $wireModel }}" type="number" data-field="{{ $field->name }}"
-                        placeholder="{{ $field->placeholder ?? $field->label }}" min="{{ $field->min ?? '' }}"
+                        placeholder="{{ $field->getPlaceholder() }}" min="{{ $field->min ?? '' }}"
                         max="{{ $field->max ?? '' }}" step="{{ $field->step ?? '' }}" />
                 @else
                     <flux:input wire:model="{{ $wireModel }}" type="number" data-field="{{ $field->name }}"
-                        placeholder="{{ $field->placeholder ?? $field->label }}" min="{{ $field->min ?? '' }}"
+                        placeholder="{{ $field->getPlaceholder() }}" min="{{ $field->min ?? '' }}"
                         max="{{ $field->max ?? '' }}" step="{{ $field->step ?? '' }}" />
                 @endif
             @endif
         </flux:field>
     @elseif ($field instanceof Text)
         <flux:field>
-            @if ($field->label)
-                <div class="flex items-center gap-1 mb-2">
-                    <flux:label>{{ $field->label }}</flux:label>
-                    @if ($field->helpText)
-                        <x-help-tooltip :content="$field->helpText" position="top" />
-                    @endif
-                </div>
-            @endif
+            <div class="flex items-center gap-1 mb-2">
+                <flux:label>{{ $field->getLabel() }}</flux:label>
+                @if ($field->helpText)
+                    <x-help-tooltip :content="$field->helpText" position="top" />
+                @endif
+            </div>
             @if ($field->suffix)
                 <flux:input.group>
                     @if ($field->mask)
                         <div x-data="masked_input" data-mask="{{ $field->mask }}" class="flex-1">
                             <flux:input wire:model="{{ $wireModel }}" type="text"
-                                data-field="{{ $field->name }}" placeholder="{{ $field->placeholder ?? '' }}" />
+                                data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
                         </div>
                     @else
                         <flux:input wire:model="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
-                            placeholder="{{ $field->placeholder ?? '' }}" />
+                            placeholder="{{ $field->getPlaceholder() }}" />
                     @endif
                     <flux:input.group.suffix>{{ $field->suffix }}</flux:input.group.suffix>
                 </flux:input.group>
             @elseif ($field->mask)
                 <div x-data="masked_input" data-mask="{{ $field->mask }}">
                     <flux:input wire:model="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
-                        placeholder="{{ $field->placeholder ?? '' }}" />
+                        placeholder="{{ $field->getPlaceholder() }}" />
                 </div>
             @else
                 <flux:input wire:model="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
-                    placeholder="{{ $field->placeholder ?? '' }}" />
+                    placeholder="{{ $field->getPlaceholder() }}" />
             @endif
         </flux:field>
     @elseif ($field instanceof Date)
         <flux:field>
-            @if ($field->label)
-                <div class="flex items-center gap-1 mb-2">
-                    <flux:label>{{ $field->label }}</flux:label>
-                    @if ($field->helpText)
-                        <x-help-tooltip :content="$field->helpText" position="top" />
-                    @endif
-                </div>
-            @endif
+            <div class="flex items-center gap-1 mb-2">
+                <flux:label>{{ $field->getLabel() }}</flux:label>
+                @if ($field->helpText)
+                    <x-help-tooltip :content="$field->helpText" position="top" />
+                @endif
+            </div>
             @if ($field->live)
                 <flux:date-picker wire:model.live="{{ $wireModel }}" data-field="{{ $field->name }}" />
             @else
@@ -155,14 +147,12 @@
         </flux:field>
     @elseif ($field instanceof RadioSegmented)
         <flux:field>
-            @if ($field->label)
-                <div class="flex items-center gap-1 mb-2">
-                    <flux:label>{{ $field->label }}</flux:label>
-                    @if ($field->helpText)
-                        <x-help-tooltip :content="$field->helpText" position="top" />
-                    @endif
-                </div>
-            @endif
+            <div class="flex items-center gap-1 mb-2">
+                <flux:label>{{ $field->getLabel() }}</flux:label>
+                @if ($field->helpText)
+                    <x-help-tooltip :content="$field->helpText" position="top" />
+                @endif
+            </div>
             @if ($field->live)
                 <flux:radio.group wire:model.live="{{ $wireModel }}" variant="segmented">
                     @foreach ($field->options as $value => $optionLabel)
@@ -179,36 +169,32 @@
         </flux:field>
     @elseif ($field instanceof Pillbox)
         <flux:field>
-            @if ($field->label)
-                <div class="flex items-center gap-1 mb-2">
-                    <flux:label>{{ $field->label }}</flux:label>
-                    @if ($field->helpText)
-                        <x-help-tooltip :content="$field->helpText" position="top" />
-                    @endif
-                </div>
-            @endif
+            <div class="flex items-center gap-1 mb-2">
+                <flux:label>{{ $field->getLabel() }}</flux:label>
+                @if ($field->helpText)
+                    <x-help-tooltip :content="$field->helpText" position="top" />
+                @endif
+            </div>
             <flux:pillbox wire:model.live="{{ $wireModel }}" multiple :searchable="$field->searchable"
-                :placeholder="$field->placeholder ?? 'Select...'" data-field="{{ $field->name }}">
+                :placeholder="$field->getPlaceholder()" data-field="{{ $field->name }}">
                 @foreach ($field->options as $value => $optionLabel)
                     <flux:pillbox.option value="{{ $value }}">{{ $optionLabel }}</flux:pillbox.option>
                 @endforeach
             </flux:pillbox>
         </flux:field>
     @elseif ($field instanceof Slider)
-        <x-slider-with-input :label="$field->label" :model="$wireModel" :min="$field->min" :max="$field->max" :step="$field->step"
+        <x-slider-with-input :label="$field->getLabel()" :model="$wireModel" :min="$field->min" :max="$field->max" :step="$field->step"
             :suffix="$field->suffix" :ticks="$field->ticks" />
     @elseif ($field instanceof Relationship)
         <flux:field>
             <div class="space-y-3">
                 <div class="flex items-center justify-between">
-                    @if ($field->label)
-                        <div class="flex items-center gap-1">
-                            <flux:label>{{ $field->label }}</flux:label>
-                            @if ($field->helpText)
-                                <x-help-tooltip :content="$field->helpText" position="top" />
-                            @endif
-                        </div>
-                    @endif
+                    <div class="flex items-center gap-1">
+                        <flux:label>{{ $field->getLabel() }}</flux:label>
+                        @if ($field->helpText)
+                            <x-help-tooltip :content="$field->helpText" position="top" />
+                        @endif
+                    </div>
                     <flux:button type="button" size="sm" variant="ghost"
                         wire:click="addRelationshipItem('{{ $field->name }}')" icon="plus">
                         Add
@@ -243,9 +229,9 @@
                                 <div class="flex-1">
                                     <flux:select
                                         wire:model="{{ $wireModel }}.{{ $index }}.{{ $field->valueAttribute }}"
-                                        placeholder="{{ $field->placeholder ?? 'Select...' }}" size="sm"
+                                        placeholder="{{ $field->getPlaceholder() }}" size="sm"
                                         data-field="{{ $field->name }}" data-index="{{ $index }}">
-                                        <flux:select.option value="">{{ $field->placeholder ?? 'Select...' }}
+                                        <flux:select.option value="">{{ $field->getPlaceholder() }}
                                         </flux:select.option>
                                         @foreach ($filteredOptions as $value => $optionLabel)
                                             <flux:select.option value="{{ $value }}">{{ $optionLabel }}
@@ -283,14 +269,12 @@
         <flux:field>
             <div class="space-y-3">
                 <div class="flex items-center justify-between">
-                    @if ($field->label)
-                        <div class="flex items-center gap-1">
-                            <flux:label>{{ $field->label }}</flux:label>
-                            @if ($field->helpText)
-                                <x-help-tooltip :content="$field->helpText" position="top" />
-                            @endif
-                        </div>
-                    @endif
+                    <div class="flex items-center gap-1">
+                        <flux:label>{{ $field->getLabel() }}</flux:label>
+                        @if ($field->helpText)
+                            <x-help-tooltip :content="$field->helpText" position="top" />
+                        @endif
+                    </div>
                     <flux:button type="button" size="sm" variant="ghost"
                         wire:click="addRepeaterItem('{{ $field->name }}')" icon="plus">
                         Add

@@ -3,7 +3,8 @@
 namespace App\Livewire\Database;
 
 use App\Data\AbstractData;
-use App\Form\Fields\Text;
+use App\Form\Fields\Athlete\Forename;
+use App\Form\Fields\Athlete\Surname;
 use App\Models\Contracts\HasForms;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
@@ -53,18 +54,8 @@ class AthleteData extends AbstractData implements HasForms
     public static function getFields(): array
     {
         return [
-            Text::make('forename')
-                ->label('Forename')
-                ->placeholder('Forename')
-                ->required()
-                ->default('')
-                ->rules('required|string|min:1'),
-            Text::make('surname')
-                ->label('Surname')
-                ->placeholder('Surname')
-                ->required()
-                ->default('')
-                ->rules('required|string|min:1'),
+            Forename::make('forename'),
+            Surname::make('surname'),
         ];
     }
 }

@@ -12,4 +12,9 @@ trait HasPlaceholder
 
         return $this;
     }
+
+    public function getPlaceholder(): string
+    {
+        return $this->placeholder ?? $this->getLabel();
+    }
 }

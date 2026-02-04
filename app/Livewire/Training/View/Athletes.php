@@ -2,12 +2,10 @@
 
 namespace App\Livewire\Training\View;
 
-use App\Form\Fields\Pillbox;
+use App\Form\Fields\Athlete\AthletePillbox;
+use App\Form\Fields\Athlete\GroupPillbox;
 use App\Livewire\Concerns\InteractsWithParentView;
 use App\Models\TrainingPlan;
-use App\Models\Users\User;
-use App\Models\Users\UserGroup;
-use App\Models\Users\UserTypeEnum;
 use Livewire\Component;
 
 class Athletes extends Component
@@ -69,29 +67,9 @@ class Athletes extends Component
 
     public function getFields(): array
     {
-        $athleteOptions = User::where('type', UserTypeEnum::Athlete)
-            ->orderBy('forename')
-            ->orderBy('surname')
-            ->get()
-            ->mapWithKeys(fn($user) => [$user->id => $user->name])
-            ->all();
-
-        $groupOptions = UserGroup::orderBy('name')
-            ->get()
-            ->mapWithKeys(fn($group) => [$group->id => $group->name])
-            ->all();
-
         return [
-            Pillbox::make('users')
-                ->label('Athletes')
-                ->options($athleteOptions)
-                ->searchable()
-                ->placeholder('Select athletes...'),
-            Pillbox::make('userGroups')
-                ->label('Groups')
-                ->options($groupOptions)
-                ->searchable()
-                ->placeholder('Select groups...'),
+            AthletePillbox::make('users')->withOptions(),
+            GroupPillbox::make('userGroups')->withOptions(),
         ];
     }
 

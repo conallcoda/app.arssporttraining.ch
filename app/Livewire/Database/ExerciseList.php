@@ -2,11 +2,12 @@
 
 namespace App\Livewire\Database;
 
+use App\Data\Exercise\ExerciseData;
+use App\Data\Exercise\ExerciseType;
 use App\Form\Field;
 use App\Form\TableColumn;
 use App\Livewire\Concerns\AbstractModelList;
 use App\Models\Exercise\Exercise;
-use App\Models\Exercise\ExerciseTypeEnum;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
@@ -34,13 +35,13 @@ class ExerciseList extends AbstractModelList
             TableColumn::text('type')
                 ->label('Type')
                 ->width('w-1/6')
-                ->enum(ExerciseTypeEnum::class)
+                ->enum(ExerciseType::class)
                 ->modal()
                 ->badge(),
             TableColumn::text('defaults')
                 ->label('Defaults')
                 ->badge()
-                ->source(fn(ExerciseData $data) => $data->getDefaultsBadges()),
+                ->source(fn (ExerciseData $data) => $data->getDefaultsBadges()),
         ];
     }
 
@@ -53,9 +54,9 @@ class ExerciseList extends AbstractModelList
             return [];
         }
 
-        $type = $typeValue instanceof ExerciseTypeEnum
+        $type = $typeValue instanceof ExerciseType
             ? $typeValue
-            : ExerciseTypeEnum::tryFrom($typeValue);
+            : ExerciseType::tryFrom($typeValue);
 
         if (! $type) {
             return [];
@@ -79,9 +80,9 @@ class ExerciseList extends AbstractModelList
     {
         $typeValue = $this->data['type'] ?? null;
 
-        $type = $typeValue instanceof ExerciseTypeEnum
+        $type = $typeValue instanceof ExerciseType
             ? $typeValue
-            : ExerciseTypeEnum::tryFrom($typeValue);
+            : ExerciseType::tryFrom($typeValue);
 
         if ($type) {
             $typeFieldsClass = ExerciseData::getTypeFieldsClass($type);

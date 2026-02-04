@@ -1,8 +1,6 @@
 <?php
 
-namespace App\Form\Fields\General;
-
-use App\Form\Fields\Number;
+namespace App\Form\Fields;
 
 class Percentage extends Number
 {

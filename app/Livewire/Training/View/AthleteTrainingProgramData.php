@@ -3,9 +3,11 @@
 namespace App\Livewire\Training\View;
 
 use App\Data\AbstractData;
-use App\Form\Fields\General\Percentage;
-use App\Form\Fields\Number;
-use App\Form\Fields\Select;
+use App\Form\Fields\Training\Duration;
+use App\Form\Fields\Training\MeasuredReps;
+use App\Form\Fields\Training\MeasuredWeight;
+use App\Form\Fields\Training\StartDate;
+use App\Form\Fields\Training\TargetGoal;
 use App\Models\Contracts\HasForms;
 use App\Models\TrainingPlan;
 use App\Support\WeekOptions;
@@ -126,31 +128,11 @@ class AthleteTrainingProgramData extends AbstractData implements HasForms
     public static function getFields(): array
     {
         return [
-            Select::make('start_date')
-                ->label('Start Date')
-                ->options(WeekOptions::generate())
-                ->default(WeekOptions::getCurrentWeekValue()),
-            Number::make('duration')
-                ->label('Duration')
-                ->min(1)
-                ->step(1)
-                ->suffix('weeks')
-                ->default(self::DEFAULT_DURATION),
-            Number::make('measured_reps')
-                ->label('Measured Reps')
-                ->min(1)
-                ->step(1)
-                ->suffix('reps')
-                ->default(self::DEFAULT_MEASURED_REPS),
-            Number::make('measured_weight')
-                ->label('Measured Weight')
-                ->min(0)
-                ->step(0.5)
-                ->suffix('kg')
-                ->default(self::DEFAULT_MEASURED_WEIGHT),
-            Percentage::make('target_goal')
-                ->label('Target Goal')
-                ->default(self::DEFAULT_TARGET_GOAL),
+            StartDate::make('start_date')->withOptions(),
+            Duration::make('duration'),
+            MeasuredReps::make('measured_reps'),
+            MeasuredWeight::make('measured_weight'),
+            TargetGoal::make('target_goal'),
         ];
     }
 }

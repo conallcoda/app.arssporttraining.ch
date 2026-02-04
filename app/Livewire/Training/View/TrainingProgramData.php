@@ -3,43 +3,22 @@
 namespace App\Livewire\Training\View;
 
 use App\Data\AbstractData;
-use App\Form\Fields\Relationship;
-use App\Form\Fields\Select;
-use App\Form\Fields\Text;
+use App\Data\Exercise\Types\StrengthExerciseConfig;
+use App\Form\Fields\Exercise\ExerciseRelationship;
+use App\Form\Fields\Training\ProgramColor;
+use App\Form\Fields\Training\ProgramName;
 use App\Models\Contracts\HasForms;
 use App\Models\Exercise\Exercise;
-use App\Models\Exercise\ExerciseType\StrengthDefaults;
 use App\Models\TrainingPlanProgram;
 use App\Models\TrainingPlanProgramExercise;
 
 class TrainingProgramData extends AbstractData implements HasForms
 {
-    public const DEFAULT_COLOR = 'blue';
-
-    public const AVAILABLE_COLORS = [
-        'blue' => 'Blue',
-        'green' => 'Green',
-        'emerald' => 'Emerald',
-        'teal' => 'Teal',
-        'cyan' => 'Cyan',
-        'sky' => 'Sky',
-        'indigo' => 'Indigo',
-        'violet' => 'Violet',
-        'purple' => 'Purple',
-        'pink' => 'Pink',
-        'rose' => 'Rose',
-        'red' => 'Red',
-        'orange' => 'Orange',
-        'amber' => 'Amber',
-        'yellow' => 'Yellow',
-        'lime' => 'Lime',
-    ];
-
     public function __construct(
         public ?int $id,
         public ?int $training_plan_id,
         public string $name,
-        public string $color = self::DEFAULT_COLOR,
+        public string $color = ProgramColor::DEFAULT_COLOR,
         public array $exercises = [],
     ) {}
 
@@ -47,7 +26,7 @@ class TrainingProgramData extends AbstractData implements HasForms
     {
         $exercises = [];
         if ($program->relationLoaded('exercises')) {
-            $exercises = $program->exercises->map(fn($exercise) => [
+            $exercises = $program->exercises->map(fn ($exercise) => [
                 'id' => $exercise->id,
                 'name' => $exercise->name,
                 'sort' => $exercise->pivot->sort ?? 0,
@@ -58,7 +37,7 @@ class TrainingProgramData extends AbstractData implements HasForms
             id: $program->id,
             training_plan_id: $program->training_plan_id,
             name: $program->name ?? '',
-            color: $program->extra->get('color', self::DEFAULT_COLOR),
+            color: $program->extra->get('color', ProgramColor::DEFAULT_COLOR),
             exercises: $exercises,
         );
     }
@@ -89,7 +68,7 @@ class TrainingProgramData extends AbstractData implements HasForms
     {
         $currentExerciseIds = $program->exercises()->pluck('exercises.id')->toArray();
         $newExerciseIds = collect($this->exercises)
-            ->filter(fn($exercise) => ! empty($exercise['id']))
+            ->filter(fn ($exercise) => ! empty($exercise['id']))
             ->pluck('id')
             ->toArray();
 
@@ -111,7 +90,7 @@ class TrainingProgramData extends AbstractData implements HasForms
             if (in_array($exerciseId, $exercisesToAdd)) {
                 $exercise = Exercise::find($exerciseId);
                 if ($exercise) {
-                    $defaults = StrengthDefaults::fromExercise($exercise);
+                    $defaults = StrengthExerciseConfig::fromExercise($exercise);
                     TrainingPlanProgramExercise::create([
                         'training_plan_program_id' => $program->id,
                         'exercise_id' => $exerciseId,
@@ -134,29 +113,10 @@ class TrainingProgramData extends AbstractData implements HasForms
 
     public static function getFields(): array
     {
-        $exerciseOptions = Exercise::query()
-            ->orderBy('name')
-            ->get()
-            ->mapWithKeys(fn($exercise) => [$exercise->id => $exercise->name])
-            ->all();
-
         return [
-            Text::make('name')
-                ->label('Name')
-                ->placeholder('Program name')
-                ->required()
-                ->default('')
-                ->rules('required|string|min:1'),
-            Select::make('color')
-                ->label('Color')
-                ->options(self::AVAILABLE_COLORS)
-                ->default(self::DEFAULT_COLOR),
-            Relationship::make('exercises')
-                ->label('Exercises')
-                ->options($exerciseOptions)
-                ->placeholder('Select exercise')
-                ->sortable()
-                ->default([]),
+            ProgramName::make('name'),
+            ProgramColor::make('color'),
+            ExerciseRelationship::make('exercises')->withOptions(),
         ];
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Models\Exercise;
 
+use App\Data\Exercise\ExerciseType;
 use App\Models\Concerns\HasExtraData;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -20,7 +21,7 @@ class Exercise extends Model
     protected function casts(): array
     {
         return [
-            'type' => ExerciseTypeEnum::class,
+            'type' => ExerciseType::class,
         ];
     }
 }

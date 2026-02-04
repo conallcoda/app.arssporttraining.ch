@@ -1,11 +1,10 @@
 <?php
 
-namespace App\Livewire\Database;
+namespace App\Data\Exercise;
 
 use App\Data\AbstractData;
-use App\Data\Exercise\ExerciseType;
-use App\Form\Fields\Exercise\Name;
-use App\Form\Fields\Exercise\TypeSelect;
+use App\Form\Fields\Select;
+use App\Form\Fields\Text;
 use App\Models\Contracts\HasForms;
 use App\Models\Exercise\Exercise;
 
@@ -64,8 +63,14 @@ class ExerciseData extends AbstractData implements HasForms
     public static function getFields(): array
     {
         return [
-            Name::make('name'),
-            TypeSelect::make('type'),
+            Text::make('name')
+                ->label('Name')
+                ->placeholder('Name')
+                ->required(),
+            Select::make('type')
+                ->label('Type')
+                ->enum(ExerciseType::class)
+                ->live(),
         ];
     }
 

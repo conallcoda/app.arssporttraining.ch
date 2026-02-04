@@ -1,0 +1,17 @@
+<?php
+
+namespace App\Form\Fields\Exercise;
+
+use App\Form\Fields\Text;
+
+class Name extends Text
+{
+    public function __construct(string $name)
+    {
+        parent::__construct($name);
+
+        $this->label = 'Name';
+        $this->placeholder = 'Name';
+        $this->required = true;
+    }
+}

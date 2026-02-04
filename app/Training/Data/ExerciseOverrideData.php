@@ -3,7 +3,9 @@
 namespace App\Training\Data;
 
 use App\Data\AbstractData;
-use App\Form\Fields\Slider;
+use App\Form\Fields\Training\SetsSlider;
+use App\Form\Fields\Training\StartingRepsSlider;
+use App\Form\Fields\Training\TargetSlider;
 use App\Models\Contracts\HasForms;
 
 class ExerciseOverrideData extends AbstractData implements HasForms
@@ -31,30 +33,9 @@ class ExerciseOverrideData extends AbstractData implements HasForms
     public static function getFields(): array
     {
         return [
-            Slider::make('target')
-                ->label('Target (%)')
-                ->min(1)
-                ->max(15)
-                ->step(0.5)
-                ->ticks([2.5, 5, 7.5, 10, 12.5, 15])
-                ->suffix('%')
-                ->default(self::DEFAULT_TARGET),
-            Slider::make('startingReps')
-                ->label('Starting Reps')
-                ->min(1)
-                ->max(25)
-                ->step(1)
-                ->ticks([5, 10, 15, 20, 25])
-                ->suffix('reps')
-                ->default(self::DEFAULT_STARTING_REPS),
-            Slider::make('sets')
-                ->label('Sets')
-                ->min(1)
-                ->max(6)
-                ->step(1)
-                ->ticks([1, 2, 3, 4, 5, 6])
-                ->suffix('sets')
-                ->default(self::DEFAULT_SETS),
+            TargetSlider::make('target'),
+            StartingRepsSlider::make('startingReps'),
+            SetsSlider::make('sets'),
         ];
     }
 
@@ -81,7 +62,7 @@ class ExerciseOverrideData extends AbstractData implements HasForms
             'measuredWeight' => $this->measuredWeight,
             'tut' => $this->tut,
             'rest' => $this->rest,
-        ], fn($value) => $value !== null);
+        ], fn ($value) => $value !== null);
     }
 
     public function getTarget(float $default): float
