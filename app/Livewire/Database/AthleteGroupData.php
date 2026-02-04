@@ -21,7 +21,7 @@ class AthleteGroupData extends AbstractData implements HasForms
     {
         $members = [];
         if ($group->relationLoaded('members')) {
-            $members = $group->members->map(fn ($user) => [
+            $members = $group->members->map(fn($user) => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'sort' => $user->pivot->sort ?? 0,
@@ -49,8 +49,8 @@ class AthleteGroupData extends AbstractData implements HasForms
         }
 
         $syncData = collect($this->members)
-            ->filter(fn ($member) => ! empty($member['id']))
-            ->mapWithKeys(fn ($member, $index) => [
+            ->filter(fn($member) => ! empty($member['id']))
+            ->mapWithKeys(fn($member, $index) => [
                 $member['id'] => ['sort' => $member['sort'] ?? $index],
             ])
             ->all();
@@ -58,13 +58,6 @@ class AthleteGroupData extends AbstractData implements HasForms
         $group->members()->sync($syncData);
     }
 
-    public static function example(int $id = 1, string $name = 'Group A'): self
-    {
-        return new self(
-            id: $id,
-            name: $name,
-        );
-    }
 
     public static function getFields(): array
     {
@@ -72,7 +65,7 @@ class AthleteGroupData extends AbstractData implements HasForms
             ->orderBy('forename')
             ->orderBy('surname')
             ->get()
-            ->mapWithKeys(fn ($user) => [$user->id => $user->name])
+            ->mapWithKeys(fn($user) => [$user->id => $user->name])
             ->all();
 
         return [

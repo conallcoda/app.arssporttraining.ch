@@ -60,15 +60,7 @@ class ExerciseData extends AbstractData implements HasForms
         }
     }
 
-    public static function example(int $id = 1, string $name = 'Bench Press', ExerciseTypeEnum $type = ExerciseTypeEnum::Strength): self
-    {
-        return new self(
-            id: $id,
-            name: $name,
-            type: $type,
-            typeConfig: [],
-        );
-    }
+
 
     public static function getFields(): array
     {
@@ -109,7 +101,7 @@ class ExerciseData extends AbstractData implements HasForms
                 $displayValue = (string) $value;
 
                 if ($field->suffix) {
-                    $displayValue .= ' '.$field->suffix;
+                    $displayValue .= ' ' . $field->suffix;
                 }
 
                 $badges[] = [

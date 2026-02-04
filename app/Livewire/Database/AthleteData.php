@@ -50,14 +50,6 @@ class AthleteData extends AbstractData implements HasForms
         }
     }
 
-    public static function example(int $id = 1, string $forename = 'John', string $surname = 'Doe'): self
-    {
-        return new self(
-            id: $id,
-            forename: $forename,
-            surname: $surname,
-        );
-    }
 
     public static function getFields(): array
     {
