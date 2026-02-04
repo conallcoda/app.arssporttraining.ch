@@ -1,8 +1,0 @@
-@import '../../../../vendor/filament/filament/resources/css/theme.css';
-@import '../../../../vendor/awcodes/filament-sticky-header/resources/css/plugin.css';
-@import '../../../../vendor/livewire/flux/dist/flux.css';
-
-@source '../../../../app/Filament/**/*';
-@source '../../../../resources/views/filament/**/*';
-@source '../../../../resources/views/livewire/**/*';
-@source '../../../../vendor/awcodes/filament-badgeable-column/resources/**/*.blade.php';
