@@ -2,15 +2,12 @@
 
 namespace App\Data\Exercise\Types;
 
-use App\Data\AbstractData;
-use App\Form\Fields\Exercise\OneRepMaxModifier;
-use App\Form\Fields\Exercise\Rest;
-use App\Form\Fields\Exercise\StartingReps;
-use App\Form\Fields\Exercise\TimeUnderTension;
-use App\Models\Contracts\HasForms;
+use App\Data\AbstractConfig;
+use App\Form\Fields\Exercise as Fields;
 use App\Models\Exercise\Exercise;
 
-class StrengthExerciseConfig extends AbstractData implements HasForms
+
+class StrengthExerciseConfig extends AbstractConfig
 {
     public function __construct(
         public int $oneRepMaxModifier = 100,
@@ -18,6 +15,11 @@ class StrengthExerciseConfig extends AbstractData implements HasForms
         public string $timeUnderTension = '3010',
         public int $rest = 30,
     ) {}
+
+    public static function accessor(): string
+    {
+        return 'extra.strength';
+    }
 
     public static function fromExercise(Exercise $exercise): self
     {
@@ -34,10 +36,10 @@ class StrengthExerciseConfig extends AbstractData implements HasForms
     public static function getFields(): array
     {
         return [
-            OneRepMaxModifier::make('oneRepMaxModifier'),
-            StartingReps::make('startingReps'),
-            TimeUnderTension::make('timeUnderTension'),
-            Rest::make('rest'),
+            Fields\OneRepMaxModifier::make('oneRepMaxModifier'),
+            Fields\StartingReps::make('startingReps'),
+            Fields\TimeUnderTension::make('timeUnderTension'),
+            Fields\Rest::make('rest'),
         ];
     }
 }
