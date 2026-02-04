@@ -21,6 +21,7 @@ return new class extends Migration
 
         Schema::create('training_plan_user_group', function (Blueprint $table) {
             $table->id();
+            $table->unsignedInteger('sort')->default(0);
             $table->foreignId('training_plan_id')->constrained()->cascadeOnDelete();
             $table->foreignId('user_group_id')->constrained()->cascadeOnDelete();
             $table->timestamps();
@@ -30,6 +31,7 @@ return new class extends Migration
 
         Schema::create('training_plan_user', function (Blueprint $table) {
             $table->id();
+            $table->unsignedInteger('sort')->default(0);
             $table->foreignId('training_plan_id')->constrained()->cascadeOnDelete();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->timestamps();

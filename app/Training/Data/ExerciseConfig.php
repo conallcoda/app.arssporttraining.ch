@@ -28,7 +28,7 @@ class ExerciseConfig extends AbstractData
         bool $deloadEnabled = true,
         int $deloadSetsReduction = 1,
     ): self {
-        $repPercentage = \App\Models\Training\Progression\Reference\RepPercentageTable::getPercentage($measuredReps);
+        $repPercentage = \App\Training\Reference\RepPercentageTable::getPercentage($measuredReps);
         $baseline1RM = $measuredWeight / $repPercentage;
         $exercise1RM = $baseline1RM * ($oneRepMaxModifier / 100);
         $target1RM = $exercise1RM * (1 + $targetPercentage / 100);

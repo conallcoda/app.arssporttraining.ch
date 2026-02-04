@@ -15,19 +15,21 @@ class ExerciseStatsCommand extends Command
     {
         $exercisesPath = base_path('import/exercises');
 
-        if (!File::isDirectory($exercisesPath)) {
+        if (! File::isDirectory($exercisesPath)) {
             $this->error("Directory not found: {$exercisesPath}");
+
             return 1;
         }
 
-        $files = File::glob($exercisesPath . '/*.json');
+        $files = File::glob($exercisesPath.'/*.json');
 
         if (empty($files)) {
             $this->error("No JSON files found in {$exercisesPath}");
+
             return 1;
         }
 
-        $this->info("Analyzing " . count($files) . " exercise files...\n");
+        $this->info('Analyzing '.count($files)." exercise files...\n");
 
         // Initialize metrics arrays
         $metrics = [
@@ -46,7 +48,8 @@ class ExerciseStatsCommand extends Command
             $exercise = json_decode($content, true);
 
             if (json_last_error() !== JSON_ERROR_NONE) {
-                $this->warn("Skipping invalid JSON file: " . basename($file));
+                $this->warn('Skipping invalid JSON file: '.basename($file));
+
                 continue;
             }
 
@@ -84,21 +87,21 @@ class ExerciseStatsCommand extends Command
             $uniqueCount = count($values);
             $totalCount = array_sum($values);
 
-            $this->line("─────────────────────────────────────────────────────────────────");
+            $this->line('─────────────────────────────────────────────────────────────────');
             $this->info(strtoupper($metricName));
-            $this->line("─────────────────────────────────────────────────────────────────");
+            $this->line('─────────────────────────────────────────────────────────────────');
             $this->line("Unique values: {$uniqueCount} | Total occurrences: {$totalCount}");
             $this->newLine();
 
             if (empty($values)) {
-                $this->comment("  No data available");
+                $this->comment('  No data available');
             } else {
                 // Display all unique values sorted by frequency
                 $maxValueLength = max(array_map('strlen', array_keys($values)));
 
                 foreach ($values as $value => $count) {
                     $percentage = $totalCount > 0 ? round(($count / $totalCount) * 100, 1) : 0;
-                    $bar = str_repeat('█', min(50, (int)($percentage / 2)));
+                    $bar = str_repeat('█', min(50, (int) ($percentage / 2)));
 
                     $this->line(sprintf(
                         "  %-{$maxValueLength}s : %4d (%5.1f%%) %s",

@@ -4,12 +4,12 @@ namespace App\Livewire\Training\View;
 
 use App\Livewire\Concerns\InteractsWithParentView;
 use App\Models\Exercise\Exercise;
-use App\Models\Training\Progression\Reference\RepPercentageTable;
 use App\Models\TrainingPlan;
 use App\Models\Users\User;
 use App\Support\WeekOptions;
 use App\Training\Data\ExerciseOverrideData;
 use App\Training\Data\TrainingBlock;
+use App\Training\Reference\RepPercentageTable;
 use App\Training\Services\TrainingBlockGenerator;
 use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Computed;

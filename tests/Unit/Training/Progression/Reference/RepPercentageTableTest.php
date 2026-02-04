@@ -1,6 +1,6 @@
 <?php
 
-use App\Models\Training\Progression\Reference\RepPercentageTable;
+use App\Training\Reference\RepPercentageTable;
 
 describe('RepPercentageTable', function () {
     it('returns correct percentage for each rep count', function () {

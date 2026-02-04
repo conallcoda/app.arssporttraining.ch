@@ -127,7 +127,7 @@ class FixedDecrementStrategy implements StrategyInterface
 
     protected function calculate1RM(float $weight, int $reps): float
     {
-        $percentage = \App\Models\Training\Progression\Reference\RepPercentageTable::getPercentage($reps);
+        $percentage = \App\Training\Reference\RepPercentageTable::getPercentage($reps);
 
         return $weight / $percentage;
     }

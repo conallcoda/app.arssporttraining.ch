@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models\Training\Progression\Reference;
+namespace App\Training\Reference;
 
 class RepPercentageTable
 {

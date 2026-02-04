@@ -5,9 +5,9 @@ namespace App\Livewire\Training\View;
 use App\Data\AbstractData;
 use App\Data\Form\FluxField;
 use App\Models\Contracts\HasForms;
-use App\Models\Training\Progression\Reference\RepPercentageTable;
 use App\Models\TrainingPlan;
 use App\Support\WeekOptions;
+use App\Training\Reference\RepPercentageTable;
 
 class AthleteTrainingProgramData extends AbstractData implements HasForms
 {
