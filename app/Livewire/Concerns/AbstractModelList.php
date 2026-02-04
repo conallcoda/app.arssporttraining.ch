@@ -5,6 +5,7 @@ namespace App\Livewire\Concerns;
 use App\Data\AbstractData;
 use App\Form\Field;
 use App\Form\Fields\Relationship;
+use App\Form\FormFieldset;
 use App\Form\TableColumn;
 use Flux\Flux;
 use Illuminate\Contracts\Database\Eloquent\Builder;
@@ -137,7 +138,7 @@ abstract class AbstractModelList extends Component
 
     protected function getEventName(): string
     {
-        return Str::plural($this->getEntitySlug()) . '-updated';
+        return Str::plural($this->getEntitySlug()).'-updated';
     }
 
     protected function getEventDataKey(): string
@@ -147,7 +148,7 @@ abstract class AbstractModelList extends Component
 
     protected function getModalName(): string
     {
-        return 'add-' . $this->getEntitySlug();
+        return 'add-'.$this->getEntitySlug();
     }
 
     protected function getEntityName(): string
@@ -190,20 +191,78 @@ abstract class AbstractModelList extends Component
         return $dataClass::getFields();
     }
 
+    #[Computed]
+    public function fieldsets(): array
+    {
+        $dataClass = $this->getDataClass();
+        $allFields = $dataClass::getFields();
+
+        if (method_exists($dataClass, 'getFieldsets')) {
+            $fieldsetConfigs = $dataClass::getFieldsets();
+            if ($fieldsetConfigs) {
+                return $this->resolveFieldsets($fieldsetConfigs, $allFields);
+            }
+        }
+
+        return [
+            FormFieldset::make('general')
+                ->label('General')
+                ->fields($allFields),
+        ];
+    }
+
+    protected function resolveFieldsets(array $configs, array $allFields): array
+    {
+        $fieldsMap = collect($allFields)->keyBy('name');
+
+        return collect($configs)->map(function ($config, $name) use ($fieldsMap) {
+            $resolvedFields = collect($config['fields'])
+                ->map(fn ($fieldName) => $fieldsMap->get($fieldName))
+                ->filter()
+                ->values()
+                ->all();
+
+            return FormFieldset::make($name)
+                ->label($config['label'])
+                ->fields($resolvedFields)
+                ->prefix($config['prefix'] ?? null);
+        })->values()->all();
+    }
+
+    protected function getAllFields(): array
+    {
+        return collect($this->fieldsets)
+            ->flatMap(fn (FormFieldset $fs) => $fs->fields)
+            ->all();
+    }
+
+    protected function buildValidationRulesFromFieldsets(): array
+    {
+        $rules = [];
+
+        foreach ($this->fieldsets as $fieldset) {
+            $prefix = $fieldset->prefix ?? 'data';
+            $fieldRules = Field::buildValidationRules($fieldset->fields, $prefix.'.');
+            $rules = array_merge($rules, $fieldRules);
+        }
+
+        return $rules;
+    }
+
     protected function getRelationshipsToLoad(): array
     {
         return collect($this->getColumns())
-            ->filter(fn(TableColumn $column) => $column->type === 'relationship')
-            ->map(fn(TableColumn $column) => $column->field)
+            ->filter(fn (TableColumn $column) => $column->type === 'relationship')
+            ->map(fn (TableColumn $column) => $column->field)
             ->values()
             ->all();
     }
 
     protected function getFormRelationshipsToLoad(): array
     {
-        return collect($this->fields)
-            ->filter(fn(Field $field) => $field instanceof Relationship)
-            ->map(fn(Field $field) => $field->name)
+        return collect($this->getAllFields())
+            ->filter(fn (Field $field) => $field instanceof Relationship)
+            ->map(fn (Field $field) => $field->name)
             ->values()
             ->all();
     }
@@ -257,7 +316,7 @@ abstract class AbstractModelList extends Component
 
     public function save(): void
     {
-        $this->validate(Field::buildValidationRules($this->fields, 'data.'));
+        $this->validate($this->buildValidationRulesFromFieldsets());
 
         $data = $this->createDataFromForm();
 
@@ -312,7 +371,7 @@ abstract class AbstractModelList extends Component
 
     protected function getDeleteModalName(): string
     {
-        return 'delete-' . $this->getEntitySlug();
+        return 'delete-'.$this->getEntitySlug();
     }
 
     public function confirmDuplicate(int $id): void
@@ -325,7 +384,7 @@ abstract class AbstractModelList extends Component
 
     protected function getDuplicateDefaultName(Model $model): string
     {
-        return ($model->name ?? '') . ' (Copy)';
+        return ($model->name ?? '').' (Copy)';
     }
 
     public function performDuplicate(): void
@@ -342,7 +401,7 @@ abstract class AbstractModelList extends Component
 
     protected function getDuplicateModalName(): string
     {
-        return 'duplicate-' . $this->getEntitySlug();
+        return 'duplicate-'.$this->getEntitySlug();
     }
 
     protected function emit(): void
@@ -355,7 +414,7 @@ abstract class AbstractModelList extends Component
 
         $allItems = $query
             ->get()
-            ->map(fn(Model $model) => $this->dataFromModel($model)->toArray())
+            ->map(fn (Model $model) => $this->dataFromModel($model)->toArray())
             ->all();
 
         $this->dispatch($this->getEventName(), ...[$this->getEventDataKey() => $allItems]);
@@ -364,8 +423,25 @@ abstract class AbstractModelList extends Component
     protected function resetForm(): void
     {
         $this->editingId = null;
-        $dataClass = $this->getDataClass();
-        $this->data = Field::buildDefaults($dataClass::getFields());
+        $this->data = $this->buildDefaultsFromFieldsets();
+    }
+
+    protected function buildDefaultsFromFieldsets(): array
+    {
+        $defaults = [];
+
+        foreach ($this->fieldsets as $fieldset) {
+            $fieldDefaults = Field::buildDefaults($fieldset->fields);
+
+            if ($fieldset->prefix && $fieldset->prefix !== 'data') {
+                $nestedKey = str_replace('data.', '', $fieldset->prefix);
+                data_set($defaults, $nestedKey, $fieldDefaults);
+            } else {
+                $defaults = array_merge($defaults, $fieldDefaults);
+            }
+        }
+
+        return $defaults;
     }
 
     public function openAddModal(): void
@@ -380,7 +456,7 @@ abstract class AbstractModelList extends Component
             $this->data[$fieldName] = [];
         }
 
-        $field = collect($this->fields)->firstWhere('name', $fieldName);
+        $field = collect($this->getAllFields())->firstWhere('name', $fieldName);
         $newItem = [$field?->valueAttribute ?? 'id' => null];
 
         if ($field?->sortable) {
@@ -399,7 +475,7 @@ abstract class AbstractModelList extends Component
         unset($this->data[$fieldName][$index]);
         $this->data[$fieldName] = array_values($this->data[$fieldName]);
 
-        $field = collect($this->fields)->firstWhere('name', $fieldName);
+        $field = collect($this->getAllFields())->firstWhere('name', $fieldName);
         if ($field?->sortable) {
             foreach ($this->data[$fieldName] as $i => $item) {
                 $this->data[$fieldName][$i]['sort'] = $i;
@@ -421,7 +497,7 @@ abstract class AbstractModelList extends Component
         $items = $this->data[$fieldName];
         [$items[$index], $items[$newIndex]] = [$items[$newIndex], $items[$index]];
 
-        $field = collect($this->fields)->firstWhere('name', $fieldName);
+        $field = collect($this->getAllFields())->firstWhere('name', $fieldName);
         if ($field?->sortable) {
             foreach ($items as $i => $item) {
                 $items[$i]['sort'] = $i;

@@ -22,9 +22,13 @@
         <div class="space-y-6">
             <flux:heading size="lg">{{ $this->editingId ? 'Edit' : 'Add' }} {{ $entityName }}</flux:heading>
             <form wire:submit="save" class="space-y-4">
-                <x-section title="General">
-                    <x-form :fields="$this->fields" prefix="data" />
-                </x-section>
+                @foreach ($this->fieldsets as $fieldset)
+                    <x-form-fieldset
+                        :fieldset="$fieldset"
+                        :prefix="$fieldset->prefix ?? 'data'"
+                        :showLegend="count($this->fieldsets) > 1"
+                    />
+                @endforeach
                 <div class="flex gap-2 pt-4">
                     <flux:button type="submit" variant="primary" class="flex-1">{{ $this->editingId ? 'Save' : 'Add' }}
                         {{ $entityName }}</flux:button>

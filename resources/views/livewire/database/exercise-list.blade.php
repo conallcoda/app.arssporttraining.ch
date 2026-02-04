@@ -20,23 +20,13 @@
         <div class="space-y-6">
             <flux:heading size="lg">{{ $this->editingId ? 'Edit' : 'Add' }} {{ $entityName }}</flux:heading>
             <form wire:submit="save" class="space-y-4">
-                <fieldset
-                    class="border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 space-y-4 [&>legend+*]:!mt-0">
-                    <legend
-                        class="mb-0 px-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                        General</legend>
-                    <x-form :fields="$this->fields" prefix="data" />
-                </fieldset>
-
-                @if (count($this->typeFields) > 0)
-                    <fieldset
-                        class="border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 space-y-4 [&>legend+*]:!mt-0">
-                        <legend
-                            class="mb-0 px-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                            Defaults</legend>
-                        <x-form :fields="$this->typeFields" prefix="data.config" />
-                    </fieldset>
-                @endif
+                @foreach ($this->fieldsets as $fieldset)
+                    <x-form-fieldset
+                        :fieldset="$fieldset"
+                        :prefix="$fieldset->prefix ?? 'data'"
+                        :showLegend="count($this->fieldsets) > 1"
+                    />
+                @endforeach
 
                 <div class="flex gap-2 pt-4">
                     <flux:button type="submit" variant="primary" class="flex-1">{{ $this->editingId ? 'Save' : 'Add' }}

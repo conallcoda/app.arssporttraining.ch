@@ -6,6 +6,7 @@ use App\Data\AbstractData;
 use App\Data\Exercise\ExerciseData;
 use App\Data\Exercise\ExerciseType;
 use App\Form\Field;
+use App\Form\FormFieldset;
 use App\Form\TableColumn;
 use App\Livewire\Concerns\AbstractModelList;
 use App\Models\Exercise\Exercise;
@@ -71,6 +72,21 @@ class ExerciseList extends AbstractModelList
         return $type->getFields();
     }
 
+    #[Computed]
+    public function fieldsets(): array
+    {
+        $baseFieldsets = parent::fieldsets();
+
+        if (count($this->typeFields) > 0) {
+            $baseFieldsets[] = FormFieldset::make('config')
+                ->label('Defaults')
+                ->fields($this->typeFields)
+                ->prefix('data.config');
+        }
+
+        return $baseFieldsets;
+    }
+
     public function updatedDataType(): void
     {
         $this->initializeTypeConfig();
@@ -93,46 +109,6 @@ class ExerciseList extends AbstractModelList
     {
         parent::resetForm();
         $this->initializeTypeConfig();
-    }
-
-    protected function getValidationRules(): array
-    {
-        $rules = Field::buildValidationRules($this->fields, 'data.');
-
-        if (count($this->typeFields) > 0) {
-            $typeRules = Field::buildValidationRules($this->typeFields, 'data.config.');
-            $rules = array_merge($rules, $typeRules);
-        }
-
-        return $rules;
-    }
-
-    public function save(): void
-    {
-        $this->validate($this->getValidationRules());
-
-        $data = $this->createDataFromForm();
-
-        if ($this->editingId) {
-            $data->id = $this->editingId;
-        }
-
-        $data->persist();
-
-        $isNew = ! $this->editingId;
-        $this->resetForm();
-
-        if ($isNew) {
-            $totalItems = $this->getBaseQuery()->count();
-            $lastPage = (int) ceil($totalItems / $this->getPerPage());
-            $this->setPage($lastPage);
-        }
-
-        \Flux\Flux::modal($this->getModalName())->close();
-
-        unset($this->items);
-        $this->refreshKey++;
-        $this->emit();
     }
 
     public function render(): View

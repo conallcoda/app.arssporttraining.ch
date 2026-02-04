@@ -65,6 +65,16 @@ class ExerciseData extends AbstractData implements HasForms
         ];
     }
 
+    public static function getFieldsets(): array
+    {
+        return [
+            'general' => [
+                'label' => 'General',
+                'fields' => ['name', 'type'],
+            ],
+        ];
+    }
+
     public function getDefaultsBadges(): array
     {
         return $this->config?->toBadges() ?? [];
