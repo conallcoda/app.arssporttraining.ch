@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Form\Fields\Training;
+namespace App\Form\Fields\Training\Program;
 
 use App\Form\Fields\Select;
 
-class ProgramColor extends Select
+class Color extends Select
 {
     public const DEFAULT_COLOR = 'blue';
 

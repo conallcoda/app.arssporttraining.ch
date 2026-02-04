@@ -12,7 +12,9 @@ class ExerciseData extends AbstractData implements HasForms
 {
     public function __construct(
         public ?int $id,
+        #[Field('exercise.name')]
         public string $name,
+        #[Field('exercise.type')]
         public ExerciseType $type,
         public array $typeConfig = [],
     ) {}

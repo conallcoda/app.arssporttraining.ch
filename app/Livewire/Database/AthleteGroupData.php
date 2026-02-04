@@ -3,8 +3,8 @@
 namespace App\Livewire\Database;
 
 use App\Data\AbstractData;
-use App\Form\Fields\Athlete\GroupName;
-use App\Form\Fields\Athlete\MembersRelationship;
+use App\Form\Fields\AthleteGroup\GroupName;
+use App\Form\Fields\AthleteGroup\Members;
 use App\Models\Contracts\HasForms;
 use App\Models\Users\UserGroup;
 
@@ -61,7 +61,7 @@ class AthleteGroupData extends AbstractData implements HasForms
     {
         return [
             GroupName::make('name'),
-            MembersRelationship::make('members')->withOptions(),
+            Members::make('members')->withOptions(),
         ];
     }
 }

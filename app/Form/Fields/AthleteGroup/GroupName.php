@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Form\Fields\Athlete;
+namespace App\Form\Fields\AthleteGroup;
 
 use App\Form\Fields\Text;
 

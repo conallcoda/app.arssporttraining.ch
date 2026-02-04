@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Form\Fields\Training;
+namespace App\Form\Fields\Training\Plan;
 
 use App\Form\Fields\Select;
 use App\Support\WeekOptions;

@@ -2,10 +2,10 @@
 
 namespace App\Form\Fields\Exercise;
 
-use App\Data\Exercise\ExerciseType;
+use App\Data\Exercise\ExerciseType as ExerciseTypeEnum;
 use App\Form\Fields\Select;
 
-class TypeSelect extends Select
+class ExerciseType extends Select
 {
     public function __construct(string $name)
     {
@@ -13,6 +13,6 @@ class TypeSelect extends Select
 
         $this->label = 'Type';
         $this->live = true;
-        $this->enum(ExerciseType::class);
+        $this->enum(ExerciseTypeEnum::class);
     }
 }

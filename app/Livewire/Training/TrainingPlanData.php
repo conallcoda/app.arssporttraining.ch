@@ -3,7 +3,7 @@
 namespace App\Livewire\Training;
 
 use App\Data\AbstractData;
-use App\Form\Fields\Training\PlanName;
+use App\Form\Fields\Training\Plan\PlanName;
 use App\Models\Contracts\HasForms;
 use App\Models\TrainingPlan;
 

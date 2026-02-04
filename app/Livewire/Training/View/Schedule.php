@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Training\View;
 
-use App\Form\Fields\Training\ProgramColor;
+use App\Form\Fields\Training\Program\Color;
 use App\Livewire\Concerns\InteractsWithParentView;
 use App\Models\TrainingPlan;
 use Flux\Flux;
@@ -139,12 +139,12 @@ class Schedule extends Component
     public function getProgramColor(?int $programId): string
     {
         if ($programId === null) {
-            return ProgramColor::DEFAULT_COLOR;
+            return Color::DEFAULT_COLOR;
         }
 
         $program = $this->programs->firstWhere('id', $programId);
 
-        return $program?->extra->get('color', ProgramColor::DEFAULT_COLOR) ?? ProgramColor::DEFAULT_COLOR;
+        return $program?->extra->get('color', Color::DEFAULT_COLOR) ?? Color::DEFAULT_COLOR;
     }
 
     public function getColorValue(?string $colorName, int $shade = 500): string

@@ -4,9 +4,9 @@ namespace App\Livewire\Training\View;
 
 use App\Data\AbstractData;
 use App\Data\Exercise\Types\StrengthExerciseConfig;
-use App\Form\Fields\Exercise\ExerciseRelationship;
-use App\Form\Fields\Training\ProgramColor;
-use App\Form\Fields\Training\ProgramName;
+use App\Form\Fields\Exercise\Exercises;
+use App\Form\Fields\Training\Program\Color;
+use App\Form\Fields\Training\Program\ProgramName;
 use App\Models\Contracts\HasForms;
 use App\Models\Exercise\Exercise;
 use App\Models\TrainingPlanProgram;
@@ -18,7 +18,7 @@ class TrainingProgramData extends AbstractData implements HasForms
         public ?int $id,
         public ?int $training_plan_id,
         public string $name,
-        public string $color = ProgramColor::DEFAULT_COLOR,
+        public string $color = Color::DEFAULT_COLOR,
         public array $exercises = [],
     ) {}
 
@@ -37,7 +37,7 @@ class TrainingProgramData extends AbstractData implements HasForms
             id: $program->id,
             training_plan_id: $program->training_plan_id,
             name: $program->name ?? '',
-            color: $program->extra->get('color', ProgramColor::DEFAULT_COLOR),
+            color: $program->extra->get('color', Color::DEFAULT_COLOR),
             exercises: $exercises,
         );
     }
@@ -115,8 +115,8 @@ class TrainingProgramData extends AbstractData implements HasForms
     {
         return [
             ProgramName::make('name'),
-            ProgramColor::make('color'),
-            ExerciseRelationship::make('exercises')->withOptions(),
+            Color::make('color'),
+            Exercises::make('exercises')->withOptions(),
         ];
     }
 }

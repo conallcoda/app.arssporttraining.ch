@@ -1,19 +1,19 @@
 <?php
 
-namespace App\Form\Fields\Training;
+namespace App\Form\Fields\Training\Plan;
 
 use App\Form\Fields\Number;
 
-class MeasuredReps extends Number
+class Duration extends Number
 {
     public function __construct(string $name)
     {
         parent::__construct($name);
 
-        $this->label = 'Measured Reps';
+        $this->label = 'Duration';
         $this->min = 1;
         $this->step = 1;
-        $this->suffix = 'reps';
-        $this->default = 8;
+        $this->suffix = 'weeks';
+        $this->default = 5;
     }
 }

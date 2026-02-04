@@ -2,20 +2,19 @@
 
 namespace App\Form\Fields\Athlete;
 
-use App\Form\Fields\Relationship;
+use App\Form\Fields\Pillbox;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
 
-class MembersRelationship extends Relationship
+class Athletes extends Pillbox
 {
     public function __construct(string $name)
     {
         parent::__construct($name);
 
-        $this->label = 'Members';
-        $this->placeholder = 'Select athlete';
-        $this->sortable = true;
-        $this->default = [];
+        $this->label = 'Athletes';
+        $this->placeholder = 'Select athletes...';
+        $this->searchable = true;
     }
 
     public function withOptions(): static

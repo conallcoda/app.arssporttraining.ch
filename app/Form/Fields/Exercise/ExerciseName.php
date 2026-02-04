@@ -4,7 +4,7 @@ namespace App\Form\Fields\Exercise;
 
 use App\Form\Fields\Text;
 
-class Name extends Text
+class ExerciseName extends Text
 {
     public function __construct(string $name)
     {

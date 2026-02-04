@@ -2,8 +2,8 @@
 
 namespace App\Livewire\Training\View;
 
-use App\Form\Fields\Athlete\AthletePillbox;
-use App\Form\Fields\Athlete\GroupPillbox;
+use App\Form\Fields\Athlete\Athletes as AthletesField;
+use App\Form\Fields\AthleteGroup\Groups;
 use App\Livewire\Concerns\InteractsWithParentView;
 use App\Models\TrainingPlan;
 use Livewire\Component;
@@ -68,8 +68,8 @@ class Athletes extends Component
     public function getFields(): array
     {
         return [
-            AthletePillbox::make('users')->withOptions(),
-            GroupPillbox::make('userGroups')->withOptions(),
+            AthletesField::make('users')->withOptions(),
+            Groups::make('userGroups')->withOptions(),
         ];
     }
 

@@ -3,9 +3,9 @@
 namespace App\Training\Data;
 
 use App\Data\AbstractData;
-use App\Form\Fields\Training\SetsSlider;
-use App\Form\Fields\Training\StartingRepsSlider;
-use App\Form\Fields\Training\TargetSlider;
+use App\Form\Fields\Training\Program\Sets;
+use App\Form\Fields\Training\Program\StartingReps;
+use App\Form\Fields\Training\Program\Target;
 use App\Models\Contracts\HasForms;
 
 class ExerciseOverrideData extends AbstractData implements HasForms
@@ -33,9 +33,9 @@ class ExerciseOverrideData extends AbstractData implements HasForms
     public static function getFields(): array
     {
         return [
-            TargetSlider::make('target'),
-            StartingRepsSlider::make('startingReps'),
-            SetsSlider::make('sets'),
+            Target::make('target'),
+            StartingReps::make('startingReps'),
+            Sets::make('sets'),
         ];
     }
 

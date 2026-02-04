@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Form\Fields\Training;
+namespace App\Form\Fields\Training\Program;
 
 use App\Form\Fields\Percentage;
 

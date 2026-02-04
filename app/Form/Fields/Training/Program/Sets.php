@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Form\Fields\Training;
+namespace App\Form\Fields\Training\Program;
 
 use App\Form\Fields\Slider;
 
-class SetsSlider extends Slider
+class Sets extends Slider
 {
     public function __construct(string $name)
     {

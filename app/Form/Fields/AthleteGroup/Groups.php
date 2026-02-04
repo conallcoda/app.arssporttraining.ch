@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Form\Fields\Athlete;
+namespace App\Form\Fields\AthleteGroup;
 
 use App\Form\Fields\Pillbox;
 use App\Models\Users\UserGroup;
 
-class GroupPillbox extends Pillbox
+class Groups extends Pillbox
 {
     public function __construct(string $name)
     {
