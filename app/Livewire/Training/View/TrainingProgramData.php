@@ -3,7 +3,9 @@
 namespace App\Livewire\Training\View;
 
 use App\Data\AbstractData;
-use App\Data\Form\FluxField;
+use App\Data\Form\Fields\Relationship;
+use App\Data\Form\Fields\Select;
+use App\Data\Form\Fields\Text;
 use App\Models\Contracts\HasForms;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseType\StrengthDefaults;
@@ -139,17 +141,17 @@ class TrainingProgramData extends AbstractData implements HasForms
             ->all();
 
         return [
-            FluxField::text('name')
+            Text::make('name')
                 ->label('Name')
                 ->placeholder('Program name')
                 ->required()
                 ->default('')
                 ->rules('required|string|min:1'),
-            FluxField::select('color')
+            Select::make('color')
                 ->label('Color')
                 ->options(self::AVAILABLE_COLORS)
                 ->default(self::DEFAULT_COLOR),
-            FluxField::relationship('exercises')
+            Relationship::make('exercises')
                 ->label('Exercises')
                 ->options($exerciseOptions)
                 ->placeholder('Select exercise')

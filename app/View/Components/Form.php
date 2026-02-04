@@ -6,7 +6,7 @@ use Closure;
 use Illuminate\Contracts\View\View;
 use Illuminate\View\Component;
 
-class FluxForm extends Component
+class Form extends Component
 {
     public function __construct(
         public array $fields,
@@ -15,6 +15,6 @@ class FluxForm extends Component
 
     public function render(): View|Closure|string
     {
-        return view('components.flux-form');
+        return view('components.form');
     }
 }

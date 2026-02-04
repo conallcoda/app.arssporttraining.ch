@@ -11,7 +11,7 @@
         <div class="space-y-6">
             <flux:heading size="lg">Add Athlete</flux:heading>
             <form wire:submit="add" class="space-y-4">
-                <x-flux-form :fields="$this->fields" prefix="data" />
+                <x-form :fields="$this->fields" prefix="data" />
                 <div class="flex gap-2 pt-4">
                     <flux:button type="submit" variant="primary" class="flex-1">Add Athlete</flux:button>
                     <flux:modal.close>

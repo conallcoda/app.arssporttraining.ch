@@ -3,7 +3,7 @@
 namespace App\Livewire\Database;
 
 use App\Data\AbstractData;
-use App\Data\Form\FluxField;
+use App\Data\Form\Fields\Text;
 use App\Models\Contracts\HasForms;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
@@ -50,17 +50,16 @@ class AthleteData extends AbstractData implements HasForms
         }
     }
 
-
     public static function getFields(): array
     {
         return [
-            FluxField::text('forename')
+            Text::make('forename')
                 ->label('Forename')
                 ->placeholder('Forename')
                 ->required()
                 ->default('')
                 ->rules('required|string|min:1'),
-            FluxField::text('surname')
+            Text::make('surname')
                 ->label('Surname')
                 ->placeholder('Surname')
                 ->required()

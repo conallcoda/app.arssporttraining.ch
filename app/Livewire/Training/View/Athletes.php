@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Training\View;
 
-use App\Data\Form\FluxField;
+use App\Data\Form\Fields\Pillbox;
 use App\Livewire\Concerns\InteractsWithParentView;
 use App\Models\TrainingPlan;
 use App\Models\Users\User;
@@ -82,12 +82,12 @@ class Athletes extends Component
             ->all();
 
         return [
-            FluxField::pillbox('users')
+            Pillbox::make('users')
                 ->label('Athletes')
                 ->options($athleteOptions)
                 ->searchable()
                 ->placeholder('Select athletes...'),
-            FluxField::pillbox('userGroups')
+            Pillbox::make('userGroups')
                 ->label('Groups')
                 ->options($groupOptions)
                 ->searchable()

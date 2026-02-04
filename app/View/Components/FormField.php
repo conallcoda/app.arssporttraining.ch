@@ -2,17 +2,17 @@
 
 namespace App\View\Components;
 
-use App\Data\Form\FluxField as FluxFieldDTO;
+use App\Data\Form\Field;
 use Closure;
 use Illuminate\Contracts\View\View;
 use Illuminate\View\Component;
 
-class FluxField extends Component
+class FormField extends Component
 {
     public string $wireModel;
 
     public function __construct(
-        public FluxFieldDTO $field,
+        public Field $field,
         public ?string $prefix = null,
         public ?array $repeaterItems = null,
         public ?int $currentIndex = null,
@@ -22,6 +22,6 @@ class FluxField extends Component
 
     public function render(): View|Closure|string
     {
-        return view('components.flux-field');
+        return view('components.form-field');
     }
 }

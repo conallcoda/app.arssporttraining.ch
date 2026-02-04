@@ -4,7 +4,7 @@ namespace App\Data\Form;
 
 use Spatie\LaravelOptions\Options;
 
-class FluxField
+class FormField
 {
     public function __construct(
         public string $name,

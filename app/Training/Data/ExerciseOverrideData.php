@@ -3,7 +3,7 @@
 namespace App\Training\Data;
 
 use App\Data\AbstractData;
-use App\Data\Form\FluxField;
+use App\Data\Form\Fields\Slider;
 use App\Models\Contracts\HasForms;
 
 class ExerciseOverrideData extends AbstractData implements HasForms
@@ -31,7 +31,7 @@ class ExerciseOverrideData extends AbstractData implements HasForms
     public static function getFields(): array
     {
         return [
-            FluxField::slider('target')
+            Slider::make('target')
                 ->label('Target (%)')
                 ->min(1)
                 ->max(15)
@@ -39,7 +39,7 @@ class ExerciseOverrideData extends AbstractData implements HasForms
                 ->ticks([2.5, 5, 7.5, 10, 12.5, 15])
                 ->suffix('%')
                 ->default(self::DEFAULT_TARGET),
-            FluxField::slider('startingReps')
+            Slider::make('startingReps')
                 ->label('Starting Reps')
                 ->min(1)
                 ->max(25)
@@ -47,7 +47,7 @@ class ExerciseOverrideData extends AbstractData implements HasForms
                 ->ticks([5, 10, 15, 20, 25])
                 ->suffix('reps')
                 ->default(self::DEFAULT_STARTING_REPS),
-            FluxField::slider('sets')
+            Slider::make('sets')
                 ->label('Sets')
                 ->min(1)
                 ->max(6)

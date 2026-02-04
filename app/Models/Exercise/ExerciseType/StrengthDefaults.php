@@ -3,7 +3,9 @@
 namespace App\Models\Exercise\ExerciseType;
 
 use App\Data\AbstractData;
-use App\Data\Form\FluxField;
+use App\Data\Form\Fields\General\Percentage;
+use App\Data\Form\Fields\General\Tut;
+use App\Data\Form\Fields\Number;
 use App\Models\Contracts\HasForms;
 use App\Models\Exercise\Exercise;
 
@@ -31,19 +33,19 @@ class StrengthDefaults extends AbstractData implements HasForms
     public static function getFields(): array
     {
         return [
-            FluxField::percentage('oneRepMaxModifier')
+            Percentage::make('oneRepMaxModifier')
                 ->label('1RM (Modifier)')
                 ->default(100),
-            FluxField::number('startingReps')
+            Number::make('startingReps')
                 ->label('Starting Reps')
                 ->default(12)
                 ->min(1)
                 ->suffix('rep(s)')
                 ->step(1),
-            FluxField::tut('timeUnderTension', true)
+            Tut::make('timeUnderTension', true)
                 ->default('3010')
                 ->label('Time Under Tension'),
-            FluxField::number('rest')
+            Number::make('rest')
                 ->label('Rest Between Sets')
                 ->default(30)
                 ->min(0)

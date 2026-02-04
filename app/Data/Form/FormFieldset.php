@@ -2,7 +2,7 @@
 
 namespace App\Data\Form;
 
-class FluxFieldset
+class FormFieldset
 {
     public function __construct(
         public string $label,
@@ -26,10 +26,10 @@ class FluxFieldset
         $rules = [];
 
         foreach ($items as $item) {
-            if ($item instanceof FluxFieldset) {
-                $itemRules = FluxField::buildValidationRules($item->fields, $prefix);
+            if ($item instanceof FormFieldset) {
+                $itemRules = FormField::buildValidationRules($item->fields, $prefix);
             } else {
-                $itemRules = FluxField::buildValidationRules([$item], $prefix);
+                $itemRules = FormField::buildValidationRules([$item], $prefix);
             }
             $rules = array_merge($rules, $itemRules);
         }

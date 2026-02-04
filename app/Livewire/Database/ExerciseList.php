@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Database;
 
-use App\Data\Form\FluxField;
+use App\Data\Form\Field;
 use App\Data\Form\TableColumn;
 use App\Livewire\Concerns\AbstractModelList;
 use App\Models\Exercise\Exercise;
@@ -40,7 +40,7 @@ class ExerciseList extends AbstractModelList
             TableColumn::text('defaults')
                 ->label('Defaults')
                 ->badge()
-                ->source(fn(ExerciseData $data) => $data->getDefaultsBadges()),
+                ->source(fn (ExerciseData $data) => $data->getDefaultsBadges()),
         ];
     }
 
@@ -87,7 +87,7 @@ class ExerciseList extends AbstractModelList
             $typeFieldsClass = ExerciseData::getTypeFieldsClass($type);
 
             if ($typeFieldsClass) {
-                $this->data['typeConfig'] = FluxField::buildDefaults($typeFieldsClass::getFields());
+                $this->data['typeConfig'] = Field::buildDefaults($typeFieldsClass::getFields());
             } else {
                 $this->data['typeConfig'] = [];
             }
@@ -104,10 +104,10 @@ class ExerciseList extends AbstractModelList
 
     protected function getValidationRules(): array
     {
-        $rules = FluxField::buildValidationRules($this->fields, 'data.');
+        $rules = Field::buildValidationRules($this->fields, 'data.');
 
         if (count($this->typeFields) > 0) {
-            $typeRules = FluxField::buildValidationRules($this->typeFields, 'data.typeConfig.');
+            $typeRules = Field::buildValidationRules($this->typeFields, 'data.typeConfig.');
             $rules = array_merge($rules, $typeRules);
         }
 

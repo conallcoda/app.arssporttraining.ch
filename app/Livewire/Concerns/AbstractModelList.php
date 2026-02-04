@@ -3,7 +3,8 @@
 namespace App\Livewire\Concerns;
 
 use App\Data\AbstractData;
-use App\Data\Form\FluxField;
+use App\Data\Form\Field;
+use App\Data\Form\Fields\Relationship;
 use App\Data\Form\TableColumn;
 use Flux\Flux;
 use Illuminate\Contracts\Database\Eloquent\Builder;
@@ -201,8 +202,8 @@ abstract class AbstractModelList extends Component
     protected function getFormRelationshipsToLoad(): array
     {
         return collect($this->fields)
-            ->filter(fn (FluxField $field) => $field->type === 'relationship')
-            ->map(fn (FluxField $field) => $field->name)
+            ->filter(fn (Field $field) => $field instanceof Relationship)
+            ->map(fn (Field $field) => $field->name)
             ->values()
             ->all();
     }
@@ -256,7 +257,7 @@ abstract class AbstractModelList extends Component
 
     public function save(): void
     {
-        $this->validate(FluxField::buildValidationRules($this->fields, 'data.'));
+        $this->validate(Field::buildValidationRules($this->fields, 'data.'));
 
         $data = $this->createDataFromForm();
 
@@ -364,7 +365,7 @@ abstract class AbstractModelList extends Component
     {
         $this->editingId = null;
         $dataClass = $this->getDataClass();
-        $this->data = FluxField::buildDefaults($dataClass::getFields());
+        $this->data = Field::buildDefaults($dataClass::getFields());
     }
 
     public function openAddModal(): void

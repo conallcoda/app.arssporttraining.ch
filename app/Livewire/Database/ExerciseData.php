@@ -3,7 +3,8 @@
 namespace App\Livewire\Database;
 
 use App\Data\AbstractData;
-use App\Data\Form\FluxField;
+use App\Data\Form\Fields\Select;
+use App\Data\Form\Fields\Text;
 use App\Models\Contracts\HasForms;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseTypeEnum;
@@ -60,18 +61,16 @@ class ExerciseData extends AbstractData implements HasForms
         }
     }
 
-
-
     public static function getFields(): array
     {
         return [
-            FluxField::text('name')
+            Text::make('name')
                 ->label('Name')
                 ->placeholder('Name')
                 ->required()
                 ->default('')
                 ->rules('required|string|min:1'),
-            FluxField::select('type')
+            Select::make('type')
                 ->label('Type')
                 ->enum(ExerciseTypeEnum::class)
                 ->live(),
@@ -101,7 +100,7 @@ class ExerciseData extends AbstractData implements HasForms
                 $displayValue = (string) $value;
 
                 if ($field->suffix) {
-                    $displayValue .= ' ' . $field->suffix;
+                    $displayValue .= ' '.$field->suffix;
                 }
 
                 $badges[] = [

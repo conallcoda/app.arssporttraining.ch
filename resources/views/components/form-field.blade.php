@@ -1,5 +1,15 @@
+@use('App\Data\Form\Fields\Select')
+@use('App\Data\Form\Fields\Number')
+@use('App\Data\Form\Fields\Text')
+@use('App\Data\Form\Fields\Date')
+@use('App\Data\Form\Fields\RadioSegmented')
+@use('App\Data\Form\Fields\Pillbox')
+@use('App\Data\Form\Fields\Slider')
+@use('App\Data\Form\Fields\Relationship')
+@use('App\Data\Form\Fields\Repeater')
+
 <div>
-    @if ($field->type === 'select')
+    @if ($field instanceof Select)
         @php
             $options = $field->options;
 
@@ -32,17 +42,10 @@
                     @endif
                 </div>
             @endif
-            <flux:select
-                :wire:model.live="$field->live ? $wireModel : null"
-                :wire:model="!$field->live ? $wireModel : null"
-                placeholder="{{ $field->placeholder ?? 'Select...' }}"
-                data-field="{{ $field->name }}"
-                :variant="$selectVariant"
-                :multiple="$field->multiple"
-                :searchable="$field->searchable"
-                :clearable="$field->clearable"
-                :size="$field->size"
-            >
+            <flux:select :wire:model.live="$field->live ? $wireModel : null"
+                :wire:model="!$field->live ? $wireModel : null" placeholder="{{ $field->placeholder ?? 'Select...' }}"
+                data-field="{{ $field->name }}" :variant="$selectVariant" :multiple="$field->multiple"
+                :searchable="$field->searchable" :clearable="$field->clearable" :size="$field->size">
                 @if (!$field->multiple)
                     <flux:select.option value="">{{ $field->placeholder ?? 'Select...' }}</flux:select.option>
                 @endif
@@ -51,7 +54,7 @@
                 @endforeach
             </flux:select>
         </flux:field>
-    @elseif ($field->type === 'number')
+    @elseif ($field instanceof Number)
         <flux:field>
             @if ($field->label)
                 <div class="flex items-center gap-1 mb-2">
@@ -68,9 +71,10 @@
                             placeholder="{{ $field->placeholder ?? $field->label }}" min="{{ $field->min ?? '' }}"
                             max="{{ $field->max ?? '' }}" step="{{ $field->step ?? '' }}" disabled readonly />
                     @elseif ($field->live)
-                        <flux:input wire:model.live="{{ $wireModel }}" type="number" data-field="{{ $field->name }}"
-                            placeholder="{{ $field->placeholder ?? $field->label }}" min="{{ $field->min ?? '' }}"
-                            max="{{ $field->max ?? '' }}" step="{{ $field->step ?? '' }}" />
+                        <flux:input wire:model.live="{{ $wireModel }}" type="number"
+                            data-field="{{ $field->name }}" placeholder="{{ $field->placeholder ?? $field->label }}"
+                            min="{{ $field->min ?? '' }}" max="{{ $field->max ?? '' }}"
+                            step="{{ $field->step ?? '' }}" />
                     @else
                         <flux:input wire:model="{{ $wireModel }}" type="number" data-field="{{ $field->name }}"
                             placeholder="{{ $field->placeholder ?? $field->label }}" min="{{ $field->min ?? '' }}"
@@ -94,7 +98,7 @@
                 @endif
             @endif
         </flux:field>
-    @elseif ($field->type === 'text')
+    @elseif ($field instanceof Text)
         <flux:field>
             @if ($field->label)
                 <div class="flex items-center gap-1 mb-2">
@@ -108,8 +112,8 @@
                 <flux:input.group>
                     @if ($field->mask)
                         <div x-data="masked_input" data-mask="{{ $field->mask }}" class="flex-1">
-                            <flux:input wire:model="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
-                                placeholder="{{ $field->placeholder ?? '' }}" />
+                            <flux:input wire:model="{{ $wireModel }}" type="text"
+                                data-field="{{ $field->name }}" placeholder="{{ $field->placeholder ?? '' }}" />
                         </div>
                     @else
                         <flux:input wire:model="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
@@ -127,7 +131,7 @@
                     placeholder="{{ $field->placeholder ?? '' }}" />
             @endif
         </flux:field>
-    @elseif ($field->type === 'date')
+    @elseif ($field instanceof Date)
         <flux:field>
             @if ($field->label)
                 <div class="flex items-center gap-1 mb-2">
@@ -143,7 +147,7 @@
                 <flux:date-picker wire:model="{{ $wireModel }}" data-field="{{ $field->name }}" />
             @endif
         </flux:field>
-    @elseif ($field->type === 'radioSegmented')
+    @elseif ($field instanceof RadioSegmented)
         <flux:field>
             @if ($field->label)
                 <div class="flex items-center gap-1 mb-2">
@@ -167,7 +171,7 @@
                 </flux:radio.group>
             @endif
         </flux:field>
-    @elseif ($field->type === 'pillbox')
+    @elseif ($field instanceof Pillbox)
         <flux:field>
             @if ($field->label)
                 <div class="flex items-center gap-1 mb-2">
@@ -177,29 +181,17 @@
                     @endif
                 </div>
             @endif
-            <flux:pillbox
-                wire:model.live="{{ $wireModel }}"
-                multiple
-                :searchable="$field->searchable"
-                :placeholder="$field->placeholder ?? 'Select...'"
-                data-field="{{ $field->name }}"
-            >
+            <flux:pillbox wire:model.live="{{ $wireModel }}" multiple :searchable="$field->searchable"
+                :placeholder="$field->placeholder ?? 'Select...'" data-field="{{ $field->name }}">
                 @foreach ($field->options as $value => $optionLabel)
                     <flux:pillbox.option value="{{ $value }}">{{ $optionLabel }}</flux:pillbox.option>
                 @endforeach
             </flux:pillbox>
         </flux:field>
-    @elseif ($field->type === 'slider')
-        <x-slider-with-input
-            :label="$field->label"
-            :model="$wireModel"
-            :min="$field->min"
-            :max="$field->max"
-            :step="$field->step"
-            :suffix="$field->suffix"
-            :ticks="$field->ticks"
-        />
-    @elseif ($field->type === 'relationship')
+    @elseif ($field instanceof Slider)
+        <x-slider-with-input :label="$field->label" :model="$wireModel" :min="$field->min" :max="$field->max" :step="$field->step"
+            :suffix="$field->suffix" :ticks="$field->ticks" />
+    @elseif ($field instanceof Relationship)
         <flux:field>
             <div class="space-y-3">
                 <div class="flex items-center justify-between">
@@ -281,7 +273,7 @@
                 @endif
             </div>
         </flux:field>
-    @elseif ($field->type === 'repeater')
+    @elseif ($field instanceof Repeater)
         <flux:field>
             <div class="space-y-3">
                 <div class="flex items-center justify-between">
@@ -310,7 +302,7 @@
                                 wire:key="{{ $field->name }}-{{ $index }}">
                                 <div class="flex-1 space-y-3">
                                     @foreach ($field->schema as $childField)
-                                        <x-flux-field :field="$childField" :prefix="$wireModel . '.' . $index" :repeater-items="$items"
+                                        <x-form-field :field="$childField" :prefix="$wireModel . '.' . $index" :repeater-items="$items"
                                             :current-index="$index" />
                                     @endforeach
                                 </div>
