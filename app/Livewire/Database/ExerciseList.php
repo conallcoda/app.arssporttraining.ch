@@ -11,7 +11,6 @@ use App\Form\TableColumn;
 use App\Livewire\Concerns\AbstractModelList;
 use App\Models\Exercise\Exercise;
 use Illuminate\Contracts\Database\Eloquent\Builder;
-use Illuminate\View\View;
 use Livewire\Attributes\Computed;
 
 class ExerciseList extends AbstractModelList
@@ -109,14 +108,5 @@ class ExerciseList extends AbstractModelList
     {
         parent::resetForm();
         $this->initializeTypeConfig();
-    }
-
-    public function render(): View
-    {
-        return view('livewire.database.exercise-list', [
-            'modalName' => $this->getModalName(),
-            'deleteModalName' => $this->getDeleteModalName(),
-            'entityName' => $this->getEntityName(),
-        ]);
     }
 }
