@@ -34,7 +34,7 @@
                         <legend
                             class="mb-0 px-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                             Defaults</legend>
-                        <x-form :fields="$this->typeFields" prefix="data.typeConfig" />
+                        <x-form :fields="$this->typeFields" prefix="data.config" />
                     </fieldset>
                 @endif
 

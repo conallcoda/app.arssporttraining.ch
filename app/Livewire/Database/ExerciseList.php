@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Database;
 
+use App\Data\AbstractData;
 use App\Data\Exercise\ExerciseData;
 use App\Data\Exercise\ExerciseType;
 use App\Form\Field;
@@ -22,6 +23,11 @@ class ExerciseList extends AbstractModelList
     protected function getBaseQuery(): Builder
     {
         return Exercise::query();
+    }
+
+    protected function createDataFromForm(): AbstractData
+    {
+        return ExerciseData::from($this->data);
     }
 
     protected function getColumns(): array
@@ -62,13 +68,7 @@ class ExerciseList extends AbstractModelList
             return [];
         }
 
-        $typeFieldsClass = ExerciseData::getTypeFieldsClass($type);
-
-        if (! $typeFieldsClass) {
-            return [];
-        }
-
-        return $typeFieldsClass::getFields();
+        return $type->getFields();
     }
 
     public function updatedDataType(): void
@@ -84,17 +84,9 @@ class ExerciseList extends AbstractModelList
             ? $typeValue
             : ExerciseType::tryFrom($typeValue);
 
-        if ($type) {
-            $typeFieldsClass = ExerciseData::getTypeFieldsClass($type);
-
-            if ($typeFieldsClass) {
-                $this->data['typeConfig'] = Field::buildDefaults($typeFieldsClass::getFields());
-            } else {
-                $this->data['typeConfig'] = [];
-            }
-        } else {
-            $this->data['typeConfig'] = [];
-        }
+        $this->data['config'] = $type
+            ? Field::buildDefaults($type->getFields())
+            : [];
     }
 
     protected function resetForm(): void
@@ -108,7 +100,7 @@ class ExerciseList extends AbstractModelList
         $rules = Field::buildValidationRules($this->fields, 'data.');
 
         if (count($this->typeFields) > 0) {
-            $typeRules = Field::buildValidationRules($this->typeFields, 'data.typeConfig.');
+            $typeRules = Field::buildValidationRules($this->typeFields, 'data.config.');
             $rules = array_merge($rules, $typeRules);
         }
 

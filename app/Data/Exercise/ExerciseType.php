@@ -6,12 +6,17 @@ enum ExerciseType: string
 {
     case Strength = 'strength';
     case Cardio = 'cardio';
-    case Mobility = 'mobility';
 
-    public function getFieldsClass(): ?string
+    public function getConfigClass(): string
     {
         return match ($this) {
             self::Strength => Types\StrengthExerciseConfig::class,
+            self::Cardio => Types\CardioExerciseConfig::class,
         };
+    }
+
+    public function getFields(): array
+    {
+        return $this->getConfigClass()::getFields();
     }
 }

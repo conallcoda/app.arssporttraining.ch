@@ -2,62 +2,57 @@
 
 namespace App\Data\Exercise;
 
+use App\Data\AbstractConfig;
 use App\Data\AbstractData;
-use App\Form\Fields\Select;
-use App\Form\Fields\Text;
+use App\Data\Casts\ConfigCast;
+use App\Form\Fields\Exercise as Fields;
 use App\Models\Contracts\HasForms;
 use App\Models\Exercise\Exercise;
+use Spatie\LaravelData\Attributes\WithCast;
 
 class ExerciseData extends AbstractData implements HasForms
 {
     public function __construct(
         public ?int $id,
-        #[Field('exercise.name')]
         public string $name,
-        #[Field('exercise.type')]
         public ExerciseType $type,
-        public array $typeConfig = [],
+        #[WithCast(ConfigCast::class)]
+        public ?AbstractConfig $config = null,
     ) {}
-
-    public function name(): string
-    {
-        return $this->name;
-    }
 
     public static function fromExercise(Exercise $exercise): self
     {
         $type = $exercise->type ?? ExerciseType::Strength;
-        $typeConfig = [];
 
-        $typeFieldsClass = $type->getFieldsClass();
-        if ($typeFieldsClass) {
-            $typeConfig = $typeFieldsClass::fromExercise($exercise)->toArray();
-        }
+        $config = match ($type) {
+            ExerciseType::Strength => Types\StrengthExerciseConfig::fromExercise($exercise),
+            ExerciseType::Cardio => Types\CardioExerciseConfig::fromExercise($exercise),
+        };
 
         return new self(
             id: $exercise->id,
-            name: $exercise->name ?? '',
+            name: $exercise->name,
             type: $type,
-            typeConfig: $typeConfig,
+            config: $config,
         );
     }
 
     public function persist(): void
     {
-        $configData = ['type' => $this->typeConfig];
+        $config = $this->config?->toArray() ?? [];
 
         if ($this->id === null) {
             $exercise = Exercise::create([
                 'name' => $this->name,
                 'type' => $this->type,
-                'config' => $configData,
+                'config' => $config,
             ]);
             $this->id = $exercise->id;
         } else {
             $exercise = Exercise::findOrFail($this->id);
             $exercise->name = $this->name;
             $exercise->type = $this->type;
-            $exercise->config = $configData;
+            $exercise->config = $config;
             $exercise->save();
         }
     }
@@ -65,50 +60,13 @@ class ExerciseData extends AbstractData implements HasForms
     public static function getFields(): array
     {
         return [
-            Text::make('name')
-                ->label('Name')
-                ->placeholder('Name')
-                ->required(),
-            Select::make('type')
-                ->label('Type')
-                ->enum(ExerciseType::class)
-                ->live(),
+            Fields\ExerciseName::make('name'),
+            Fields\ExerciseType::make('type'),
         ];
-    }
-
-    public static function getTypeFieldsClass(ExerciseType $type): ?string
-    {
-        return $type->getFieldsClass();
     }
 
     public function getDefaultsBadges(): array
     {
-        $typeFieldsClass = self::getTypeFieldsClass($this->type);
-
-        if (! $typeFieldsClass) {
-            return [];
-        }
-
-        $fields = $typeFieldsClass::getFields();
-        $badges = [];
-
-        foreach ($fields as $field) {
-            $value = $this->typeConfig[$field->name] ?? null;
-
-            if ($value !== null && $value !== '') {
-                $displayValue = (string) $value;
-
-                if ($field->suffix) {
-                    $displayValue .= ' '.$field->suffix;
-                }
-
-                $badges[] = [
-                    'label' => $displayValue,
-                    'modalField' => $field->name,
-                ];
-            }
-        }
-
-        return $badges;
+        return $this->config?->toBadges() ?? [];
     }
 }
