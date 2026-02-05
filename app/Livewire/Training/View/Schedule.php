@@ -2,7 +2,12 @@
 
 namespace App\Livewire\Training\View;
 
+use App\Cms\Form\Field;
+use App\Cms\Form\Fields\Relationship;
+use App\Cms\Form\Form;
+use App\Cms\Form\FormFieldset;
 use App\Cms\Livewire\Concerns\InteractsWithParentView;
+use App\Data\Training\TrainingProgramData;
 use App\Form\Fields\Training\Program\Color;
 use App\Models\TrainingPlan;
 use Flux\Flux;
@@ -20,13 +25,15 @@ class Schedule extends Component
 
     public Collection $programs;
 
-    public ?string $assigningWeekId = null;
+    public array $data = [];
 
-    public ?int $assigningDay = null;
+    public ?string $creatingForWeekId = null;
 
-    public ?string $assigningSlot = null;
+    public ?int $creatingForDay = null;
 
-    public ?int $assigningProgramId = null;
+    public ?string $creatingForSlot = null;
+
+    public ?int $editingProgramId = null;
 
     public ?string $linkingWeekId = null;
 
@@ -38,6 +45,7 @@ class Schedule extends Component
     {
         $this->trainingPlan = $trainingPlan;
         $this->programs = $programs;
+        $this->resetProgramForm();
 
         if (empty($this->schedule)) {
             $this->initializeSchedule();
@@ -95,6 +103,94 @@ class Schedule extends Component
         return $this->programs->mapWithKeys(fn ($program) => [
             $program->id => $program->name,
         ])->all();
+    }
+
+    #[Computed]
+    public function formConfig(): Form
+    {
+        return TrainingProgramData::getForm();
+    }
+
+    #[Computed]
+    public function fields(): array
+    {
+        return $this->formConfig->getFields();
+    }
+
+    #[Computed]
+    public function fieldsets(): array
+    {
+        $form = $this->formConfig;
+        $allFields = $form->getFields();
+
+        if ($form->hasFieldsets()) {
+            $fieldsMap = collect($allFields)->keyBy('name');
+
+            return collect($form->getFieldsets())->map(function ($config, $name) use ($fieldsMap) {
+                if (is_callable($config)) {
+                    $config = $config($this->data);
+                }
+
+                if ($config === null) {
+                    return null;
+                }
+
+                $resolvedFields = collect($config['fields'])
+                    ->map(fn ($field) => is_string($field) ? $fieldsMap->get($field) : $field)
+                    ->filter()
+                    ->values()
+                    ->all();
+
+                return FormFieldset::make($name)
+                    ->label($config['label'])
+                    ->fields($resolvedFields)
+                    ->prefix($config['prefix'] ?? null);
+            })->filter()->values()->all();
+        }
+
+        return [
+            FormFieldset::make('general')
+                ->label('General')
+                ->fields($allFields),
+        ];
+    }
+
+    protected function getAllFields(): array
+    {
+        return collect($this->fieldsets)
+            ->flatMap(fn (FormFieldset $fs) => $fs->fields)
+            ->all();
+    }
+
+    protected function buildValidationRulesFromFieldsets(): array
+    {
+        $rules = [];
+
+        foreach ($this->fieldsets as $fieldset) {
+            $prefix = $fieldset->prefix ?? 'data';
+            $fieldRules = Field::buildValidationRules($fieldset->fields, $prefix.'.');
+            $rules = array_merge($rules, $fieldRules);
+        }
+
+        return $rules;
+    }
+
+    protected function buildDefaultsFromFieldsets(): array
+    {
+        $defaults = [];
+
+        foreach ($this->fieldsets as $fieldset) {
+            $fieldDefaults = Field::buildDefaults($fieldset->fields);
+
+            if ($fieldset->prefix && $fieldset->prefix !== 'data') {
+                $nestedKey = str_replace('data.', '', $fieldset->prefix);
+                data_set($defaults, $nestedKey, $fieldDefaults);
+            } else {
+                $defaults = array_merge($defaults, $fieldDefaults);
+            }
+        }
+
+        return $defaults;
     }
 
     #[Computed]
@@ -299,54 +395,180 @@ class Schedule extends Component
         $this->saveWeeks($weeks);
     }
 
-    public function startEditing(string $weekId, int $day, string $slot): void
+    public function openAddProgramModal(string $weekId, int $day, string $slot): void
     {
         $week = collect($this->schedule)->firstWhere('id', $weekId);
         if ($week && $week['linkedToWeekId'] !== null) {
             return;
         }
 
-        $this->assigningWeekId = $weekId;
-        $this->assigningDay = $day;
-        $this->assigningSlot = $slot;
+        $this->resetProgramForm();
+        $this->creatingForWeekId = $weekId;
+        $this->creatingForDay = $day;
+        $this->creatingForSlot = $slot;
 
-        $resolvedSlots = $this->getResolvedSlots($week);
-        $this->assigningProgramId = $resolvedSlots[$day][$slot]['programId'] ?? null;
+        Flux::modal('add-program')->show();
     }
 
-    public function stopEditing(): void
+    public function editProgram(int $programId, string $weekId, int $day, string $slot): void
     {
-        $this->assigningWeekId = null;
-        $this->assigningDay = null;
-        $this->assigningSlot = null;
-        $this->assigningProgramId = null;
-    }
-
-    public function isEditing(string $weekId, int $day, string $slot): bool
-    {
-        return $this->assigningWeekId === $weekId
-            && $this->assigningDay === $day
-            && $this->assigningSlot === $slot;
-    }
-
-    public function selectProgram(string|int|null $programId): void
-    {
-        if ($this->assigningWeekId === null || $this->assigningDay === null || $this->assigningSlot === null) {
+        $week = collect($this->schedule)->firstWhere('id', $weekId);
+        if ($week && $week['linkedToWeekId'] !== null) {
             return;
         }
 
-        $programId = $programId === '' || $programId === null ? null : (int) $programId;
+        $program = $this->programs->firstWhere('id', $programId);
+        if (! $program) {
+            return;
+        }
+
+        $programData = TrainingProgramData::fromTrainingPlanProgram($program);
+        $this->data = $programData->toArray();
+        $this->editingProgramId = $programId;
+        $this->creatingForWeekId = $weekId;
+        $this->creatingForDay = $day;
+        $this->creatingForSlot = $slot;
+
+        $this->ensureRelationshipItemsHaveKeys();
+
+        Flux::modal('add-program')->show();
+    }
+
+    protected function ensureRelationshipItemsHaveKeys(): void
+    {
+        $relationshipFields = collect($this->getAllFields())
+            ->filter(fn (Field $field) => $field instanceof Relationship)
+            ->pluck('name')
+            ->all();
+
+        foreach ($relationshipFields as $fieldName) {
+            if (! isset($this->data[$fieldName]) || ! is_array($this->data[$fieldName])) {
+                continue;
+            }
+
+            foreach ($this->data[$fieldName] as $index => $item) {
+                if (! isset($item['_key'])) {
+                    $this->data[$fieldName][$index]['_key'] = uniqid('item_', true);
+                }
+            }
+        }
+    }
+
+    public function saveProgram(): void
+    {
+        $this->validate($this->buildValidationRulesFromFieldsets());
+
+        $programData = TrainingProgramData::from($this->data);
+        $programData->training_plan_id = $this->trainingPlan->id;
+
+        if ($this->editingProgramId) {
+            $programData->id = $this->editingProgramId;
+        }
+
+        $programData->persist();
+
+        if ($this->creatingForWeekId !== null && $this->creatingForDay !== null && $this->creatingForSlot !== null) {
+            $weeks = $this->schedule;
+            foreach ($weeks as &$week) {
+                if ($week['id'] === $this->creatingForWeekId) {
+                    $week['slots'][$this->creatingForDay][$this->creatingForSlot]['programId'] = $programData->id;
+                    break;
+                }
+            }
+            $this->saveWeeks($weeks);
+        }
+
+        $this->resetProgramForm();
+        Flux::modal('add-program')->close();
+        $this->notifyChanged('programs');
+    }
+
+    public function clearProgramFromCell(): void
+    {
+        if ($this->creatingForWeekId === null || $this->creatingForDay === null || $this->creatingForSlot === null) {
+            return;
+        }
 
         $weeks = $this->schedule;
         foreach ($weeks as &$week) {
-            if ($week['id'] === $this->assigningWeekId) {
-                $week['slots'][$this->assigningDay][$this->assigningSlot]['programId'] = $programId;
+            if ($week['id'] === $this->creatingForWeekId) {
+                $week['slots'][$this->creatingForDay][$this->creatingForSlot]['programId'] = null;
                 break;
             }
         }
 
         $this->saveWeeks($weeks);
-        $this->stopEditing();
+        $this->resetProgramForm();
+        Flux::modal('add-program')->close();
+    }
+
+    public function resetProgramForm(): void
+    {
+        $this->editingProgramId = null;
+        $this->creatingForWeekId = null;
+        $this->creatingForDay = null;
+        $this->creatingForSlot = null;
+        $this->data = $this->buildDefaultsFromFieldsets();
+    }
+
+    public function addRelationshipItem(string $fieldName): void
+    {
+        if (! isset($this->data[$fieldName])) {
+            $this->data[$fieldName] = [];
+        }
+
+        $field = collect($this->getAllFields())->firstWhere('name', $fieldName);
+        $newItem = [
+            $field?->valueAttribute ?? 'id' => null,
+            '_key' => uniqid('item_', true),
+        ];
+
+        if ($field?->sortable) {
+            $newItem['sort'] = count($this->data[$fieldName]);
+        }
+
+        $this->data[$fieldName][] = $newItem;
+    }
+
+    public function removeRelationshipItem(string $fieldName, int $index): void
+    {
+        if (! isset($this->data[$fieldName][$index])) {
+            return;
+        }
+
+        unset($this->data[$fieldName][$index]);
+        $this->data[$fieldName] = array_values($this->data[$fieldName]);
+
+        $field = collect($this->getAllFields())->firstWhere('name', $fieldName);
+        if ($field?->sortable) {
+            foreach ($this->data[$fieldName] as $i => $item) {
+                $this->data[$fieldName][$i]['sort'] = $i;
+            }
+        }
+    }
+
+    public function moveRelationshipItem(string $fieldName, int $index, int $direction): void
+    {
+        if (! isset($this->data[$fieldName])) {
+            return;
+        }
+
+        $newIndex = $index + $direction;
+        if ($newIndex < 0 || $newIndex >= count($this->data[$fieldName])) {
+            return;
+        }
+
+        $items = $this->data[$fieldName];
+        [$items[$index], $items[$newIndex]] = [$items[$newIndex], $items[$index]];
+
+        $field = collect($this->getAllFields())->firstWhere('name', $fieldName);
+        if ($field?->sortable) {
+            foreach ($items as $i => $item) {
+                $items[$i]['sort'] = $i;
+            }
+        }
+
+        $this->data[$fieldName] = $items;
     }
 
     #[On('program-move')]

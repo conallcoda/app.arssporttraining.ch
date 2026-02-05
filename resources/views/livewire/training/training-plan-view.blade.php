@@ -54,7 +54,6 @@
     <flux:tab.group>
         <flux:tabs wire:model.live="tab">
             <flux:tab name="athletes">Athletes</flux:tab>
-            <flux:tab name="programs">Programs</flux:tab>
             <flux:tab name="schedule">Schedule</flux:tab>
             <flux:tab name="plan">Plan</flux:tab>
             <flux:tab name="export">Export</flux:tab>
@@ -66,14 +65,6 @@
                 :user-ids="$userIds"
                 :user-group-ids="$userGroupIds"
                 wire:key="athletes-{{ $this->getDataKey('athletes') }}"
-            />
-        </flux:tab.panel>
-
-        <flux:tab.panel name="programs">
-            <livewire:training.view.programs
-                :training-plan="$trainingPlan"
-                :programs="$programs"
-                wire:key="programs-{{ $this->getDataKey('programs') }}"
             />
         </flux:tab.panel>
 

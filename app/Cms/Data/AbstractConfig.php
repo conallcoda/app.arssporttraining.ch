@@ -4,7 +4,10 @@ namespace App\Cms\Data;
 
 abstract class AbstractConfig extends AbstractData
 {
-    abstract public static function getFields(): array;
+    public static function getFields()
+    {
+        return [];
+    }
 
     public function toBadges(): array
     {

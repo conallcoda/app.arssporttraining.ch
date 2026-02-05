@@ -60,7 +60,6 @@
                                         $programName = $programId ? $this->programOptions[$programId] ?? '?' : null;
                                         $programColor = $this->getProgramColor($programId);
                                         $cellId = $week['id'] . '-' . $dayIndex . '-' . $slotKey;
-                                        $isEditingThisCell = $this->isEditing($week['id'], $dayIndex, $slotKey);
                                     @endphp
                                     <td class="border {{ $isLinked ? 'border-dashed border-zinc-400 dark:border-zinc-500' : 'border-zinc-300 dark:border-zinc-600' }} p-1 h-12 transition-colors duration-200"
                                         :class="{
@@ -69,27 +68,14 @@
                                             'bg-red-100 dark:bg-red-900/30': isDraggingOver === '{{ $cellId }}' &&
                                                 isDropDisallowed
                                         }"
-                                        @if (!$isLinked && !$isEditingThisCell) data-week-id="{{ $week['id'] }}"
+                                        @if (!$isLinked) data-week-id="{{ $week['id'] }}"
                                             data-day="{{ $dayIndex }}"
                                             data-slot="{{ $slotKey }}"
                                             data-program-id="{{ $programId }}"
                                             @dragover.prevent="handleDragOver($event)"
                                             @dragleave="handleDragLeave()"
                                             @drop.prevent="handleDrop($event)" @endif>
-                                        @if ($isEditingThisCell)
-                                            <div x-data x-init="$nextTick(() => $el.querySelector('button')?.click())" @click.outside="$wire.stopEditing()"
-                                                @keydown.escape.window="$wire.stopEditing()" class="h-full w-full">
-                                                <flux:select class="w-full" size="sm" searchable
-                                                    placeholder="Select..." :value="$assigningProgramId"
-                                                    wire:change="selectProgram($event.target.value)">
-                                                    <flux:select.option value="">None</flux:select.option>
-                                                    @foreach ($this->programOptions as $id => $name)
-                                                        <flux:select.option value="{{ $id }}">
-                                                            {{ $name }}</flux:select.option>
-                                                    @endforeach
-                                                </flux:select>
-                                            </div>
-                                        @elseif ($programId)
+                                        @if ($programId)
                                             <div class="h-full flex items-center justify-center rounded px-2 py-1 text-xs font-medium {{ $isLinked ? 'border-2 border-dashed opacity-70' : 'cursor-pointer' }}"
                                                 style="background-color: {{ $this->getColorValue($programColor, $isLinked ? 200 : 500) }}; color: {{ $isLinked ? '#374151' : 'white' }}; {{ $isLinked ? 'border-color: ' . $this->getColorValue($programColor, 400) . ';' : '' }}"
                                                 :class="{ 'opacity-50 scale-95': draggedCell === '{{ $cellId }}' }"
@@ -100,12 +86,12 @@
                                                     data-program-id="{{ $programId }}"
                                                     @dragstart="handleDragStart($event)"
                                                     @dragend="handleDragEnd()"
-                                                    wire:click="startEditing('{{ $week['id'] }}', {{ $dayIndex }}, '{{ $slotKey }}')" @endif>
+                                                    wire:click="editProgram({{ $programId }}, '{{ $week['id'] }}', {{ $dayIndex }}, '{{ $slotKey }}')" @endif>
                                                 <span class="truncate">{{ $programName }}</span>
                                             </div>
                                         @else
                                             <div class="h-full flex items-center justify-center text-zinc-400 dark:text-zinc-600 rounded {{ $isLinked ? '' : 'cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800/50' }}"
-                                                @if (!$isLinked) wire:click="startEditing('{{ $week['id'] }}', {{ $dayIndex }}, '{{ $slotKey }}')" @endif>
+                                                @if (!$isLinked) wire:click="openAddProgramModal('{{ $week['id'] }}', {{ $dayIndex }}, '{{ $slotKey }}')" @endif>
                                                 @if (!$isLinked)
                                                     <flux:icon.plus class="size-4" />
                                                 @endif
@@ -199,5 +185,25 @@
                 </flux:button>
             </div>
         </div>
+    </flux:modal>
+
+    <flux:modal name="add-program" flyout class="w-96">
+        <form wire:submit="saveProgram" class="space-y-6">
+            <flux:heading size="lg">{{ $this->editingProgramId ? 'Edit' : 'Add' }} Program</flux:heading>
+            @foreach ($this->fieldsets as $fieldset)
+                <x-cms.form.fieldset :fieldset="$fieldset" prefix="data" :showLegend="false" />
+            @endforeach
+            <div class="flex gap-2 pt-4">
+                <flux:button type="submit" variant="primary" class="flex-1">
+                    {{ $this->editingProgramId ? 'Save' : 'Add' }} Program
+                </flux:button>
+                @if ($this->editingProgramId && $this->creatingForWeekId)
+                    <flux:button type="button" variant="ghost" wire:click="clearProgramFromCell">Clear</flux:button>
+                @endif
+                <flux:modal.close>
+                    <flux:button variant="ghost">Cancel</flux:button>
+                </flux:modal.close>
+            </div>
+        </form>
     </flux:modal>
 </div>
