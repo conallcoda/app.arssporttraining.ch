@@ -10,11 +10,13 @@ use App\Cms\Livewire\Concerns\InteractsWithParentView;
 use App\Data\Training\TrainingProgramData;
 use App\Form\Fields\Training\Program\Color;
 use App\Models\TrainingPlan;
+use App\Models\Users\User;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 class Schedule extends Component
@@ -24,6 +26,11 @@ class Schedule extends Component
     public TrainingPlan $trainingPlan;
 
     public Collection $programs;
+
+    public Collection $users;
+
+    #[Url(except: null, as: 'user')]
+    public int|string|null $user = null;
 
     public array $data = [];
 
@@ -41,17 +48,172 @@ class Schedule extends Component
 
     public ?string $removingWeekId = null;
 
-    public function mount(TrainingPlan $trainingPlan, Collection $programs): void
+    public string $programMode = 'new';
+
+    public ?int $selectedProgramId = null;
+
+    public function updatedSelectedProgramId($value): void
+    {
+        logger()->info('updatedSelectedProgramId called', [
+            'value' => $value,
+            'type' => gettype($value),
+        ]);
+    }
+
+    public function updatedProgramMode($value): void
+    {
+        if ($value === 'existing' && $this->programs->isNotEmpty()) {
+            $this->selectedProgramId = $this->programs->first()->id;
+        }
+    }
+
+    public function mount(TrainingPlan $trainingPlan, Collection $programs, Collection $users): void
     {
         $this->trainingPlan = $trainingPlan;
         $this->programs = $programs;
+        $this->users = $users;
         $this->resetProgramForm();
 
-        if (empty($this->schedule)) {
+        if (empty($this->defaultSchedule)) {
             $this->initializeSchedule();
             $this->trainingPlan->refresh();
+            unset($this->defaultSchedule);
             unset($this->schedule);
         }
+    }
+
+    public function updatingUser(mixed $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return (int) $value;
+    }
+
+    #[Computed]
+    public function selectedUser(): ?User
+    {
+        if ($this->user === null) {
+            return null;
+        }
+
+        return $this->users->firstWhere('id', $this->user);
+    }
+
+    public function selectUser(?int $userId): void
+    {
+        $this->user = $userId;
+        unset($this->schedule);
+        $this->dispatch('schedule-user-changed', userId: $userId);
+    }
+
+    public function hasUserSchedule(int $userId): bool
+    {
+        $userSchedule = $this->trainingPlan->config->get("users.{$userId}.schedule.weeks");
+
+        return ! empty($userSchedule);
+    }
+
+    public function countUserScheduleChanges(int $userId): int
+    {
+        if (! $this->hasUserSchedule($userId)) {
+            return 0;
+        }
+
+        $defaultWeeks = $this->trainingPlan->config->get('schedule.weeks', []);
+        $userWeeks = $this->trainingPlan->config->get("users.{$userId}.schedule.weeks", []);
+
+        $removedPrograms = [];
+        $addedPrograms = [];
+
+        foreach ($userWeeks as $userWeek) {
+            $userSlots = $this->getResolvedSlotsFromWeeks($userWeek, $userWeeks);
+            $defaultWeek = collect($defaultWeeks)->firstWhere('id', $userWeek['id']);
+
+            if (! $defaultWeek) {
+                continue;
+            }
+
+            $defaultSlots = $this->getResolvedSlotsFromWeeks($defaultWeek, $defaultWeeks);
+
+            foreach ($userSlots as $dayIndex => $daySlots) {
+                foreach (['am', 'pm'] as $slotKey) {
+                    $userProgramId = $daySlots[$slotKey]['programId'] ?? null;
+                    $defaultProgramId = $defaultSlots[$dayIndex][$slotKey]['programId'] ?? null;
+
+                    if ($userProgramId === $defaultProgramId) {
+                        continue;
+                    }
+
+                    if ($defaultProgramId !== null) {
+                        $removedPrograms[] = $defaultProgramId;
+                    }
+
+                    if ($userProgramId !== null) {
+                        $addedPrograms[] = $userProgramId;
+                    }
+                }
+            }
+        }
+
+        $changes = 0;
+        $processedMoves = [];
+
+        foreach ($removedPrograms as $programId) {
+            if (in_array($programId, $addedPrograms) && ! in_array($programId, $processedMoves)) {
+                $changes++;
+                $processedMoves[] = $programId;
+            } elseif (! in_array($programId, $addedPrograms)) {
+                $changes++;
+            }
+        }
+
+        foreach ($addedPrograms as $programId) {
+            if (! in_array($programId, $removedPrograms)) {
+                $changes++;
+            }
+        }
+
+        return $changes;
+    }
+
+    protected function getResolvedSlotsFromWeeks(array $week, array $allWeeks): array
+    {
+        if ($week['linkedToWeekId'] === null) {
+            return $week['slots'] ?? [];
+        }
+
+        $sourceWeek = collect($allWeeks)->firstWhere('id', $week['linkedToWeekId']);
+
+        return $sourceWeek ? $this->getResolvedSlotsFromWeeks($sourceWeek, $allWeeks) : ($week['slots'] ?? []);
+    }
+
+    public function customizeSchedule(): void
+    {
+        if ($this->user === null) {
+            return;
+        }
+
+        $defaultWeeks = $this->trainingPlan->config->get('schedule.weeks', []);
+        $this->trainingPlan->config->set("users.{$this->user}.schedule.weeks", $defaultWeeks);
+        $this->trainingPlan->save();
+        $this->trainingPlan->refresh();
+        unset($this->schedule);
+        $this->notifyChanged('schedule');
+    }
+
+    public function resetToDefault(): void
+    {
+        if ($this->user === null) {
+            return;
+        }
+
+        $this->trainingPlan->config->forget("users.{$this->user}.schedule");
+        $this->trainingPlan->save();
+        $this->trainingPlan->refresh();
+        unset($this->schedule);
+        $this->notifyChanged('schedule');
     }
 
     protected function initializeSchedule(): void
@@ -92,9 +254,29 @@ class Schedule extends Component
     }
 
     #[Computed]
-    public function schedule(): array
+    public function defaultSchedule(): array
     {
         return $this->trainingPlan->config->get('schedule.weeks', []);
+    }
+
+    #[Computed]
+    public function schedule(): array
+    {
+        if ($this->user !== null && $this->hasUserSchedule($this->user)) {
+            return $this->trainingPlan->config->get("users.{$this->user}.schedule.weeks", []);
+        }
+
+        return $this->defaultSchedule;
+    }
+
+    public function isViewingCustomSchedule(): bool
+    {
+        return $this->user !== null && $this->hasUserSchedule($this->user);
+    }
+
+    public function isViewingInheritedSchedule(): bool
+    {
+        return $this->user !== null && ! $this->hasUserSchedule($this->user);
     }
 
     #[Computed]
@@ -103,6 +285,64 @@ class Schedule extends Component
         return $this->programs->mapWithKeys(fn ($program) => [
             $program->id => $program->name,
         ])->all();
+    }
+
+    #[Computed]
+    public function availableProgramsForLinking(): array
+    {
+        return $this->programs->map(fn ($program) => [
+            'id' => $program->id,
+            'name' => $program->name,
+            'color' => $program->config->get('color', Color::DEFAULT_COLOR),
+        ])->values()->all();
+    }
+
+    public function hasAvailablePrograms(): bool
+    {
+        return $this->programs->isNotEmpty();
+    }
+
+    public function isProgramLinkedInSlot(array $slot): bool
+    {
+        return ($slot['isLinked'] ?? false) === true;
+    }
+
+    public function countProgramReferences(int $programId): int
+    {
+        $count = 0;
+        foreach ($this->schedule as $week) {
+            $slots = $this->getResolvedSlots($week);
+            foreach ($slots as $daySlots) {
+                foreach (['am', 'pm'] as $slotKey) {
+                    if (($daySlots[$slotKey]['programId'] ?? null) === $programId) {
+                        $count++;
+                    }
+                }
+            }
+        }
+
+        return $count;
+    }
+
+    public function countLinkedProgramReferences(int $programId): int
+    {
+        $count = 0;
+        foreach ($this->schedule as $week) {
+            if ($week['linkedToWeekId'] !== null) {
+                continue;
+            }
+            $slots = $week['slots'] ?? [];
+            foreach ($slots as $daySlots) {
+                foreach (['am', 'pm'] as $slotKey) {
+                    $slot = $daySlots[$slotKey] ?? [];
+                    if (($slot['programId'] ?? null) === $programId && ($slot['isLinked'] ?? false) === true) {
+                        $count++;
+                    }
+                }
+            }
+        }
+
+        return $count;
     }
 
     #[Computed]
@@ -386,7 +626,15 @@ class Schedule extends Component
         $weeks = $this->schedule;
         foreach ($weeks as &$week) {
             if ($week['id'] === $weekId && $week['linkedToWeekId'] !== null) {
-                $week['slots'] = $this->getResolvedSlots($week);
+                $resolvedSlots = $this->getResolvedSlots($week);
+                foreach ($resolvedSlots as &$daySlots) {
+                    foreach (['am', 'pm'] as $slotKey) {
+                        if (isset($daySlots[$slotKey]['programId']) && $daySlots[$slotKey]['programId'] !== null) {
+                            $daySlots[$slotKey]['isLinked'] = true;
+                        }
+                    }
+                }
+                $week['slots'] = $resolvedSlots;
                 $week['linkedToWeekId'] = null;
                 break;
             }
@@ -406,6 +654,8 @@ class Schedule extends Component
         $this->creatingForWeekId = $weekId;
         $this->creatingForDay = $day;
         $this->creatingForSlot = $slot;
+        $this->programMode = 'new';
+        $this->selectedProgramId = null;
 
         Flux::modal('add-program')->show();
     }
@@ -422,14 +672,25 @@ class Schedule extends Component
             return;
         }
 
-        $programData = TrainingProgramData::fromTrainingPlanProgram($program);
-        $this->data = $programData->toArray();
-        $this->editingProgramId = $programId;
+        $slotData = $week['slots'][$day][$slot] ?? [];
+        $isLinked = $slotData['isLinked'] ?? false;
+
         $this->creatingForWeekId = $weekId;
         $this->creatingForDay = $day;
         $this->creatingForSlot = $slot;
+        $this->editingProgramId = $programId;
 
-        $this->ensureRelationshipItemsHaveKeys();
+        if ($isLinked) {
+            $this->programMode = 'existing';
+            $this->selectedProgramId = $programId;
+            $this->data = $this->buildDefaultsFromFieldsets();
+        } else {
+            $this->programMode = 'new';
+            $this->selectedProgramId = null;
+            $programData = TrainingProgramData::fromTrainingPlanProgram($program);
+            $this->data = $programData->toArray();
+            $this->ensureRelationshipItemsHaveKeys();
+        }
 
         Flux::modal('add-program')->show();
     }
@@ -456,12 +717,26 @@ class Schedule extends Component
 
     public function saveProgram(): void
     {
+        logger()->info('saveProgram called', [
+            'programMode' => $this->programMode,
+            'selectedProgramId' => $this->selectedProgramId,
+            'creatingForWeekId' => $this->creatingForWeekId,
+            'creatingForDay' => $this->creatingForDay,
+            'creatingForSlot' => $this->creatingForSlot,
+        ]);
+
+        if ($this->programMode === 'existing') {
+            $this->saveProgramLink();
+
+            return;
+        }
+
         $this->validate($this->buildValidationRulesFromFieldsets());
 
         $programData = TrainingProgramData::from($this->data);
         $programData->training_plan_id = $this->trainingPlan->id;
 
-        if ($this->editingProgramId) {
+        if ($this->editingProgramId && $this->programMode === 'new') {
             $programData->id = $this->editingProgramId;
         }
 
@@ -471,7 +746,10 @@ class Schedule extends Component
             $weeks = $this->schedule;
             foreach ($weeks as &$week) {
                 if ($week['id'] === $this->creatingForWeekId) {
-                    $week['slots'][$this->creatingForDay][$this->creatingForSlot]['programId'] = $programData->id;
+                    $week['slots'][$this->creatingForDay][$this->creatingForSlot] = [
+                        'programId' => $programData->id,
+                        'isLinked' => false,
+                    ];
                     break;
                 }
             }
@@ -483,6 +761,70 @@ class Schedule extends Component
         $this->notifyChanged('programs');
     }
 
+    public function saveProgramLink(): void
+    {
+        logger()->info('saveProgramLink called', [
+            'selectedProgramId' => $this->selectedProgramId,
+            'selectedProgramId_type' => gettype($this->selectedProgramId),
+            'creatingForWeekId' => $this->creatingForWeekId,
+            'creatingForDay' => $this->creatingForDay,
+            'creatingForSlot' => $this->creatingForSlot,
+        ]);
+
+        if ($this->selectedProgramId === null || $this->selectedProgramId === '') {
+            logger()->warning('saveProgramLink early return: selectedProgramId is null or empty');
+
+            return;
+        }
+
+        if ($this->creatingForWeekId === null || $this->creatingForDay === null || $this->creatingForSlot === null) {
+            logger()->warning('saveProgramLink early return: slot info missing', [
+                'creatingForWeekId' => $this->creatingForWeekId,
+                'creatingForDay' => $this->creatingForDay,
+                'creatingForSlot' => $this->creatingForSlot,
+            ]);
+
+            return;
+        }
+
+        $programId = (int) $this->selectedProgramId;
+
+        $weeks = $this->schedule;
+        $weekFound = false;
+
+        foreach ($weeks as &$week) {
+            if ($week['id'] === $this->creatingForWeekId) {
+                $weekFound = true;
+                logger()->info('saveProgramLink: Found week, updating slot', [
+                    'weekId' => $week['id'],
+                    'day' => $this->creatingForDay,
+                    'slot' => $this->creatingForSlot,
+                    'programId' => $programId,
+                    'slotBefore' => $week['slots'][$this->creatingForDay][$this->creatingForSlot] ?? 'NOT SET',
+                ]);
+
+                $week['slots'][$this->creatingForDay][$this->creatingForSlot] = [
+                    'programId' => $programId,
+                    'isLinked' => true,
+                ];
+                break;
+            }
+        }
+
+        if (! $weekFound) {
+            logger()->warning('saveProgramLink: Week not found', [
+                'lookingFor' => $this->creatingForWeekId,
+                'availableWeekIds' => collect($weeks)->pluck('id')->all(),
+            ]);
+        }
+
+        logger()->info('saveProgramLink: Calling saveWeeks');
+        $this->saveWeeks($weeks);
+        $this->resetProgramForm();
+        Flux::modal('add-program')->close();
+        logger()->info('saveProgramLink: Completed');
+    }
+
     public function clearProgramFromCell(): void
     {
         if ($this->creatingForWeekId === null || $this->creatingForDay === null || $this->creatingForSlot === null) {
@@ -492,7 +834,10 @@ class Schedule extends Component
         $weeks = $this->schedule;
         foreach ($weeks as &$week) {
             if ($week['id'] === $this->creatingForWeekId) {
-                $week['slots'][$this->creatingForDay][$this->creatingForSlot]['programId'] = null;
+                $week['slots'][$this->creatingForDay][$this->creatingForSlot] = [
+                    'programId' => null,
+                    'isLinked' => false,
+                ];
                 break;
             }
         }
@@ -502,12 +847,93 @@ class Schedule extends Component
         Flux::modal('add-program')->close();
     }
 
+    public function confirmDeleteProgram(): void
+    {
+        Flux::modal('delete-program')->show();
+    }
+
+    public function isEditingLinkedProgram(): bool
+    {
+        if ($this->creatingForWeekId === null || $this->creatingForDay === null || $this->creatingForSlot === null) {
+            return false;
+        }
+
+        $week = collect($this->schedule)->firstWhere('id', $this->creatingForWeekId);
+        if (! $week) {
+            return false;
+        }
+
+        $slot = $week['slots'][$this->creatingForDay][$this->creatingForSlot] ?? [];
+
+        return ($slot['isLinked'] ?? false) === true;
+    }
+
+    public function getEditingProgramLinkedCount(): int
+    {
+        if ($this->editingProgramId === null || $this->isEditingLinkedProgram()) {
+            return 0;
+        }
+
+        return $this->countLinkedProgramReferences($this->editingProgramId);
+    }
+
+    public function removeFromSchedule(): void
+    {
+        if ($this->creatingForWeekId === null || $this->creatingForDay === null || $this->creatingForSlot === null) {
+            return;
+        }
+
+        $isLinked = $this->isEditingLinkedProgram();
+        $programId = $this->editingProgramId;
+
+        $weeks = $this->schedule;
+        foreach ($weeks as &$week) {
+            if ($week['id'] === $this->creatingForWeekId) {
+                $week['slots'][$this->creatingForDay][$this->creatingForSlot] = [
+                    'programId' => null,
+                    'isLinked' => false,
+                ];
+                break;
+            }
+        }
+
+        if (! $isLinked && $programId !== null) {
+            foreach ($weeks as &$week) {
+                if ($week['linkedToWeekId'] !== null) {
+                    continue;
+                }
+                foreach ($week['slots'] as $dayIndex => &$daySlots) {
+                    foreach (['am', 'pm'] as $slotKey) {
+                        $slot = $daySlots[$slotKey] ?? [];
+                        if (($slot['programId'] ?? null) === $programId) {
+                            $daySlots[$slotKey] = ['programId' => null, 'isLinked' => false];
+                        }
+                    }
+                }
+            }
+
+            $program = $this->programs->firstWhere('id', $programId);
+            if ($program) {
+                $program->delete();
+                $this->programs = $this->programs->reject(fn ($p) => $p->id === $programId);
+            }
+        }
+
+        $this->saveWeeks($weeks);
+        Flux::modal('delete-program')->close();
+        Flux::modal('add-program')->close();
+        $this->resetProgramForm();
+        $this->notifyChanged('programs');
+    }
+
     public function resetProgramForm(): void
     {
         $this->editingProgramId = null;
         $this->creatingForWeekId = null;
         $this->creatingForDay = null;
         $this->creatingForSlot = null;
+        $this->programMode = 'new';
+        $this->selectedProgramId = null;
         $this->data = $this->buildDefaultsFromFieldsets();
     }
 
@@ -581,9 +1007,9 @@ class Schedule extends Component
                     return;
                 }
 
-                $programId = $week['slots'][$fromDay][$fromSlot]['programId'] ?? null;
-                $week['slots'][$fromDay][$fromSlot]['programId'] = null;
-                $week['slots'][$toDay][$toSlot]['programId'] = $programId;
+                $fromSlotData = $week['slots'][$fromDay][$fromSlot] ?? ['programId' => null, 'isLinked' => false];
+                $week['slots'][$fromDay][$fromSlot] = ['programId' => null, 'isLinked' => false];
+                $week['slots'][$toDay][$toSlot] = $fromSlotData;
                 break;
             }
         }
@@ -602,30 +1028,30 @@ class Schedule extends Component
     ): void {
         $weeks = $this->schedule;
 
-        $program1Id = null;
-        $program2Id = null;
+        $slot1Data = null;
+        $slot2Data = null;
 
         foreach ($weeks as $week) {
             if ($week['id'] === $week1Id) {
                 if ($week['linkedToWeekId'] !== null) {
                     return;
                 }
-                $program1Id = $week['slots'][$day1][$slot1]['programId'] ?? null;
+                $slot1Data = $week['slots'][$day1][$slot1] ?? ['programId' => null, 'isLinked' => false];
             }
             if ($week['id'] === $week2Id) {
                 if ($week['linkedToWeekId'] !== null) {
                     return;
                 }
-                $program2Id = $week['slots'][$day2][$slot2]['programId'] ?? null;
+                $slot2Data = $week['slots'][$day2][$slot2] ?? ['programId' => null, 'isLinked' => false];
             }
         }
 
         foreach ($weeks as &$week) {
             if ($week['id'] === $week1Id) {
-                $week['slots'][$day1][$slot1]['programId'] = $program2Id;
+                $week['slots'][$day1][$slot1] = $slot2Data;
             }
             if ($week['id'] === $week2Id) {
-                $week['slots'][$day2][$slot2]['programId'] = $program1Id;
+                $week['slots'][$day2][$slot2] = $slot1Data;
             }
         }
 
@@ -634,10 +1060,29 @@ class Schedule extends Component
 
     protected function saveWeeks(array $weeks): void
     {
-        $this->trainingPlan->config->set('schedule.weeks', $weeks);
+        $configPath = $this->user !== null
+            ? "users.{$this->user}.schedule.weeks"
+            : 'schedule.weeks';
+
+        logger()->info('saveWeeks called', [
+            'configPath' => $configPath,
+            'user' => $this->user,
+            'trainingPlanId' => $this->trainingPlan->id,
+            'weeksCount' => count($weeks),
+        ]);
+
+        $this->trainingPlan->config->set($configPath, $weeks);
+
         $this->trainingPlan->save();
+
+        logger()->info('saveWeeks: Model saved', [
+            'trainingPlanId' => $this->trainingPlan->id,
+            'configAfterSave' => $this->trainingPlan->config->get($configPath),
+        ]);
+
         $this->trainingPlan->refresh();
         unset($this->schedule);
+        unset($this->defaultSchedule);
         $this->notifyChanged('schedule');
     }
 

@@ -27,14 +27,13 @@ class TrainingProgramData extends AbstractData implements HasForms
 
     public static function fromTrainingPlanProgram(TrainingPlanProgram $program): self
     {
-        $exercises = [];
-        if ($program->relationLoaded('exercises')) {
-            $exercises = $program->exercises->map(fn ($exercise) => [
-                'id' => $exercise->id,
-                'name' => $exercise->name,
-                'sort' => $exercise->pivot->sort ?? 0,
-            ])->all();
-        }
+        $program->loadMissing(['exercises' => fn ($q) => $q->orderByPivot('sort')]);
+
+        $exercises = $program->exercises->map(fn ($exercise) => [
+            'id' => $exercise->id,
+            'name' => $exercise->name,
+            'sort' => $exercise->pivot->sort ?? 0,
+        ])->all();
 
         return new self(
             id: $program->id,
