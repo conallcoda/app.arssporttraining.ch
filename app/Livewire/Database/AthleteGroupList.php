@@ -3,7 +3,8 @@
 namespace App\Livewire\Database;
 
 use App\Cms\Form\TableColumn;
-use App\Livewire\Concerns\AbstractModelList;
+use App\Cms\Livewire\AbstractModelList;
+use App\Data\Athlete\AthleteGroupData;
 use App\Models\Users\UserGroup;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 

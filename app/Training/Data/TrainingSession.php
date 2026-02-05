@@ -2,7 +2,7 @@
 
 namespace App\Training\Data;
 
-use App\Data\AbstractData;
+use App\Cms\Data\AbstractData;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 
 class TrainingSession extends AbstractData

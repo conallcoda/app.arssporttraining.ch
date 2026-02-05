@@ -1,10 +1,11 @@
 <?php
 
-namespace App\Livewire\Training;
+namespace App\Data\Training;
 
+use App\Cms\Data\AbstractData;
 use App\Cms\Form\Concerns\InteractsWithForms;
+use App\Cms\Form\Form;
 use App\Cms\Models\Contracts\HasForms;
-use App\Data\AbstractData;
 use App\Form\Fields\Training\Plan\PlanName;
 use App\Models\TrainingPlan;
 
@@ -49,41 +50,23 @@ class TrainingPlanData extends AbstractData implements HasForms
 
     public function persist(): void
     {
-        if ($this->id === null) {
-            $plan = TrainingPlan::create([
-                'name' => $this->name,
-            ]);
-            $this->id = $plan->id;
-        } else {
-            $plan = TrainingPlan::findOrFail($this->id);
-            $plan->name = $this->name;
-            $plan->save();
-        }
+        $plan = TrainingPlan::updateOrCreate(
+            ['id' => $this->id],
+            ['name' => $this->name]
+        );
 
-        $usersWithSort = collect($this->users)
-            ->filter(fn ($user) => ! empty($user['id']))
-            ->values()
-            ->mapWithKeys(fn ($user, $index) => [
-                $user['id'] => ['sort' => $index],
-            ])
-            ->all();
+        $this->id = $plan->id;
 
-        $groupsWithSort = collect($this->userGroups)
-            ->filter(fn ($group) => ! empty($group['id']))
-            ->values()
-            ->mapWithKeys(fn ($group, $index) => [
-                $group['id'] => ['sort' => $index],
-            ])
-            ->all();
-
-        $plan->users()->sync($usersWithSort);
-        $plan->userGroups()->sync($groupsWithSort);
+        $plan->syncSortableRelation($plan->users(), $this->users);
+        $plan->syncSortableRelation($plan->userGroups(), $this->userGroups);
     }
 
-    public static function getForm(): array
+    public static function getForm(): Form
     {
-        return [
-            PlanName::make('name'),
-        ];
+        return Form::make()
+            ->withFields([
+                PlanName::make('name'),
+            ])
+            ->fieldset('general', 'General', ['name']);
     }
 }

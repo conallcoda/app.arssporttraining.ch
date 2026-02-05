@@ -2,8 +2,8 @@
 
 namespace App\Data\Exercise;
 
-use App\Data\AbstractConfig;
-use App\Data\AbstractData;
+use App\Cms\Data\AbstractConfig;
+use App\Cms\Data\AbstractData;
 
 class ExerciseConfig extends AbstractData
 {

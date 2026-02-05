@@ -2,7 +2,9 @@
 
 namespace App\Livewire\Training\View;
 
-use App\Livewire\Concerns\InteractsWithParentView;
+use App\Cms\Livewire\Concerns\InteractsWithParentView;
+use App\Data\Training\DefaultTrainingProgramData;
+use App\Data\Training\UserTrainingProgramData;
 use App\Models\Exercise\Exercise;
 use App\Models\TrainingPlan;
 use App\Models\Users\User;
@@ -38,17 +40,17 @@ class Plan extends Component
         return (int) $value;
     }
 
-    public ?string $start_date = null;
+    public ?string $startDate = null;
 
     public ?int $duration = null;
 
-    public ?int $measured_reps = null;
+    public ?int $measuredReps = null;
 
-    public ?float $measured_weight = null;
+    public ?float $measuredWeight = null;
 
-    public ?int $target_goal = null;
+    public ?int $targetGoal = null;
 
-    public array $programs_selected = [];
+    public array $programsSelected = [];
 
     public array $exerciseOverrides = [];
 
@@ -77,8 +79,8 @@ class Plan extends Component
     {
         $data = $this->trainingPlan->config->get("users.{$userId}.training_plan", []);
 
-        $measuredReps = $data['measured_reps'] ?? null;
-        $measuredWeight = $data['measured_weight'] ?? null;
+        $measuredReps = $data['measuredReps'] ?? null;
+        $measuredWeight = $data['measuredWeight'] ?? null;
 
         return $measuredReps !== null && $measuredWeight !== null;
     }
@@ -121,16 +123,16 @@ class Plan extends Component
     }
 
     #[Computed]
-    public function defaultData(): AthleteTrainingProgramData
+    public function defaultData(): DefaultTrainingProgramData
     {
-        return AthleteTrainingProgramData::fromTrainingPlan($this->trainingPlan, null);
+        return DefaultTrainingProgramData::fromTrainingPlan($this->trainingPlan);
     }
 
     #[Computed]
     public function estimatedOneRepMax(): ?float
     {
-        $reps = $this->measured_reps ?? ($this->user === null ? AthleteTrainingProgramData::DEFAULT_MEASURED_REPS : null);
-        $weight = $this->measured_weight ?? ($this->user === null ? AthleteTrainingProgramData::DEFAULT_MEASURED_WEIGHT : null);
+        $reps = $this->measuredReps;
+        $weight = $this->measuredWeight;
 
         if ($weight === null || $weight <= 0 || $reps === null || $reps < 1) {
             return null;
@@ -145,7 +147,7 @@ class Plan extends Component
     public function targetOneRepMax(): ?float
     {
         $startingMax = $this->estimatedOneRepMax;
-        $goal = $this->target_goal ?? ($this->user === null ? AthleteTrainingProgramData::DEFAULT_TARGET_GOAL : $this->defaultData->target_goal);
+        $goal = $this->targetGoal ?? $this->defaultData->targetGoal;
 
         if ($startingMax === null || $goal === null) {
             return null;
@@ -277,7 +279,7 @@ class Plan extends Component
     #[Computed]
     public function weeks(): int
     {
-        return $this->duration ?? ($this->user === null ? AthleteTrainingProgramData::DEFAULT_DURATION : $this->defaultData->duration) ?? AthleteTrainingProgramData::DEFAULT_DURATION;
+        return $this->duration ?? $this->defaultData->duration;
     }
 
     #[Computed]
@@ -307,22 +309,23 @@ class Plan extends Component
 
     public function loadAthleteData(): void
     {
-        $data = AthleteTrainingProgramData::fromTrainingPlan($this->trainingPlan, $this->user);
-
         if ($this->user === null) {
-            $this->start_date = $data->start_date;
+            $data = $this->defaultData;
+            $this->startDate = $data->startDate;
             $this->duration = $data->duration;
-            $this->target_goal = $data->target_goal;
-            $this->programs_selected = $data->programs_selected ?? $this->allProgramIds;
+            $this->measuredReps = $data->measuredReps;
+            $this->measuredWeight = $data->measuredWeight;
+            $this->targetGoal = $data->targetGoal;
+            $this->programsSelected = $data->programsSelected ?? $this->allProgramIds;
         } else {
-            $this->start_date = $data->start_date ?? $this->defaultData->start_date;
-            $this->duration = $data->duration ?? $this->defaultData->duration;
-            $this->target_goal = $data->target_goal ?? $this->defaultData->target_goal;
-            $this->programs_selected = $data->programs_selected ?? ($this->defaultData->programs_selected ?? $this->allProgramIds);
+            $userData = UserTrainingProgramData::fromTrainingPlan($this->trainingPlan, $this->user);
+            $this->startDate = $userData->startDate ?? $this->defaultData->startDate;
+            $this->duration = $userData->duration ?? $this->defaultData->duration;
+            $this->measuredReps = $userData->measuredReps;
+            $this->measuredWeight = $userData->measuredWeight;
+            $this->targetGoal = $userData->targetGoal ?? $this->defaultData->targetGoal;
+            $this->programsSelected = $userData->programsSelected ?? ($this->defaultData->programsSelected ?? $this->allProgramIds);
         }
-
-        $this->measured_reps = $data->measured_reps;
-        $this->measured_weight = $data->measured_weight;
 
         $this->loadExerciseOverrides();
     }
@@ -372,23 +375,36 @@ class Plan extends Component
 
     public function updated(string $property): void
     {
-        $trackedProperties = ['start_date', 'duration', 'measured_reps', 'measured_weight', 'target_goal', 'programs_selected'];
+        $trackedProperties = ['startDate', 'duration', 'measuredReps', 'measuredWeight', 'targetGoal', 'programsSelected'];
         $baseProperty = explode('.', $property)[0];
 
         if (! in_array($baseProperty, $trackedProperties)) {
             return;
         }
 
-        $data = new AthleteTrainingProgramData(
-            start_date: $this->start_date,
-            duration: $this->duration,
-            measured_reps: $this->measured_reps,
-            measured_weight: $this->measured_weight,
-            target_goal: $this->target_goal,
-            programs_selected: $this->programs_selected,
-        );
+        if ($this->user === null) {
+            $data = new DefaultTrainingProgramData(
+                startDate: $this->startDate,
+                duration: $this->duration,
+                measuredReps: $this->measuredReps,
+                measuredWeight: $this->measuredWeight,
+                targetGoal: $this->targetGoal,
+                programsSelected: $this->programsSelected,
+            );
+            $data->persist($this->trainingPlan);
+        } else {
+            $data = new UserTrainingProgramData(
+                userId: $this->user,
+                startDate: $this->startDate,
+                duration: $this->duration,
+                measuredReps: $this->measuredReps,
+                measuredWeight: $this->measuredWeight,
+                targetGoal: $this->targetGoal,
+                programsSelected: $this->programsSelected,
+            );
+            $data->persist($this->trainingPlan, $this->defaultData);
+        }
 
-        $data->persist($this->trainingPlan, $this->user);
         $this->trainingPlan->refresh();
     }
 
@@ -427,7 +443,7 @@ class Plan extends Component
 
     public function getExerciseConfig(int $exerciseId, array $pivotExtra): array
     {
-        $systemTarget = $this->defaultData->target_goal ?? ExerciseOverrideData::DEFAULT_TARGET;
+        $systemTarget = $this->targetGoal ?? $this->defaultData->targetGoal;
         $systemStartingReps = $pivotExtra['startingReps'] ?? ExerciseOverrideData::DEFAULT_STARTING_REPS;
         $systemSets = $pivotExtra['sets'] ?? ExerciseOverrideData::DEFAULT_SETS;
         $systemTut = $pivotExtra['tut'] ?? ExerciseOverrideData::DEFAULT_TUT;
@@ -472,8 +488,8 @@ class Plan extends Component
 
     public function generateBlock(int $exerciseId, array $pivotExtra): ?TrainingBlock
     {
-        $measuredWeight = $this->measured_weight;
-        $measuredReps = $this->measured_reps;
+        $measuredWeight = $this->measuredWeight;
+        $measuredReps = $this->measuredReps;
 
         if ($measuredWeight === null || $measuredWeight <= 0 || $measuredReps === null || $measuredReps < 1) {
             return null;
@@ -503,7 +519,7 @@ class Plan extends Component
             return null;
         }
 
-        if (! in_array($field, ['start_date', 'duration', 'target_goal'])) {
+        if (! in_array($field, ['startDate', 'duration', 'targetGoal'])) {
             return null;
         }
 

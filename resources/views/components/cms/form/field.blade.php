@@ -225,7 +225,7 @@
                                     ->toArray();
                             @endphp
                             <div class="flex items-center gap-2"
-                                wire:key="{{ $field->name }}-{{ $currentValue ?? 'new-' . $index }}">
+                                wire:key="{{ $field->name }}-{{ $index }}">
                                 <div class="flex-1">
                                     <flux:select
                                         wire:model="{{ $wireModel }}.{{ $index }}.{{ $field->valueAttribute }}"

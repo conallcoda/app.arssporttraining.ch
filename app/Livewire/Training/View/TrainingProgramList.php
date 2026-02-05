@@ -3,8 +3,9 @@
 namespace App\Livewire\Training\View;
 
 use App\Cms\Form\TableColumn;
-use App\Livewire\Concerns\AbstractModelList;
-use App\Livewire\Concerns\InteractsWithParentView;
+use App\Cms\Livewire\AbstractModelList;
+use App\Cms\Livewire\Concerns\InteractsWithParentView;
+use App\Data\Training\TrainingProgramData;
 use App\Models\TrainingPlan;
 use App\Models\TrainingPlanProgram;
 use Illuminate\Contracts\Database\Eloquent\Builder;

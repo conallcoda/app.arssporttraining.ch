@@ -3,7 +3,8 @@
 namespace App\Livewire\Database;
 
 use App\Cms\Form\TableColumn;
-use App\Livewire\Concerns\AbstractModelList;
+use App\Cms\Livewire\AbstractModelList;
+use App\Data\Athlete\AthleteData;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
 use Illuminate\Contracts\Database\Eloquent\Builder;

@@ -1,10 +1,11 @@
 <?php
 
-namespace App\Livewire\Database;
+namespace App\Data\Athlete;
 
+use App\Cms\Data\AbstractData;
 use App\Cms\Form\Concerns\InteractsWithForms;
+use App\Cms\Form\Form;
 use App\Cms\Models\Contracts\HasForms;
-use App\Data\AbstractData;
 use App\Form\Fields\Athlete\Forename;
 use App\Form\Fields\Athlete\Surname;
 use App\Models\Users\User;
@@ -25,7 +26,7 @@ class AthleteData extends AbstractData implements HasForms
         return trim("{$this->forename} {$this->surname}");
     }
 
-    public static function fromUser(User $user): self
+    public static function fromModel(User $user): self
     {
         return new self(
             id: $user->id,
@@ -36,29 +37,26 @@ class AthleteData extends AbstractData implements HasForms
 
     public function persist(): void
     {
-        $configData = [];
-        if ($this->id === null) {
-            $user = User::create([
+        $user = User::updateOrCreate(
+            ['id' => $this->id],
+            [
                 'forename' => $this->forename,
                 'surname' => $this->surname,
                 'type' => UserTypeEnum::Athlete,
-                'config' => $configData,
-            ]);
-            $this->id = $user->id;
-        } else {
-            $user = User::findOrFail($this->id);
-            $user->forename = $this->forename;
-            $user->surname = $this->surname;
-            $user->config = $configData;
-            $user->save();
-        }
+                'config' => [],
+            ]
+        );
+
+        $this->id = $user->id;
     }
 
-    public static function getForm(): array
+    public static function getForm(): Form
     {
-        return [
-            Forename::make('forename'),
-            Surname::make('surname'),
-        ];
+        return Form::make()
+            ->withFields([
+                Forename::make('forename'),
+                Surname::make('surname'),
+            ])
+            ->fieldset('general', 'General', ['forename', 'surname']);
     }
 }

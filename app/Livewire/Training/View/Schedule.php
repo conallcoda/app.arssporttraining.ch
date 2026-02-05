@@ -2,8 +2,8 @@
 
 namespace App\Livewire\Training\View;
 
+use App\Cms\Livewire\Concerns\InteractsWithParentView;
 use App\Form\Fields\Training\Program\Color;
-use App\Livewire\Concerns\InteractsWithParentView;
 use App\Models\TrainingPlan;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;

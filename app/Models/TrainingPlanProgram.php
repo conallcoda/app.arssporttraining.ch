@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Cms\Models\Concerns\HasConfigData;
+use App\Cms\Models\Concerns\SyncsSortableRelations;
 use App\Models\Exercise\Exercise;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -15,6 +16,7 @@ class TrainingPlanProgram extends Model
     use HasConfigData;
     use HasFactory;
     use SoftDeletes;
+    use SyncsSortableRelations;
 
     protected $fillable = [
         'training_plan_id',

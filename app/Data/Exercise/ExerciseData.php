@@ -2,10 +2,10 @@
 
 namespace App\Data\Exercise;
 
+use App\Cms\Data\AbstractData;
 use App\Cms\Form\Concerns\InteractsWithForms;
 use App\Cms\Form\Form;
 use App\Cms\Models\Contracts\HasForms;
-use App\Data\AbstractData;
 use App\Form\Fields\Exercise as Fields;
 use App\Models\Exercise\Exercise;
 
@@ -32,21 +32,16 @@ class ExerciseData extends AbstractData implements HasForms
 
     public function persist(): void
     {
-        $config = $this->config?->toArray() ?? [];
-        $data = [
-            'name' => $this->name,
-            'type' => $this->type,
-            'config' => $config,
-        ];
+        $exercise = Exercise::updateOrCreate(
+            ['id' => $this->id],
+            [
+                'name' => $this->name,
+                'type' => $this->type,
+                'config' => $this->config?->toArray() ?? [],
+            ]
+        );
 
-        if (! isset($this->id)) {
-            $exercise = Exercise::create($data);
-            $this->id = $exercise->id;
-        } else {
-            $exercise = Exercise::findOrFail($this->id);
-            $exercise->update($data);
-            $exercise->save();
-        }
+        $this->id = $exercise->id;
     }
 
     public static function getForm(): Form

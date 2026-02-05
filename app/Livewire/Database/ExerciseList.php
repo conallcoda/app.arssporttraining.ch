@@ -2,11 +2,11 @@
 
 namespace App\Livewire\Database;
 
+use App\Cms\Data\AbstractData;
 use App\Cms\Form\TableColumn;
-use App\Data\AbstractData;
+use App\Cms\Livewire\AbstractModelList;
 use App\Data\Exercise\ExerciseData;
 use App\Data\Exercise\ExerciseType;
-use App\Livewire\Concerns\AbstractModelList;
 use App\Models\Exercise\Exercise;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Cms\Models\Concerns\HasConfigData;
+use App\Cms\Models\Concerns\SyncsSortableRelations;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use Illuminate\Database\Eloquent\Builder;
@@ -15,6 +16,7 @@ class TrainingPlan extends Model
 {
     use HasConfigData;
     use SoftDeletes;
+    use SyncsSortableRelations;
 
     protected $fillable = [
         'name',

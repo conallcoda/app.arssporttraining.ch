@@ -2,8 +2,10 @@
 
 namespace App\Livewire\Training\View;
 
+use App\Cms\Livewire\Concerns\InteractsWithParentView;
+use App\Data\Training\DefaultTrainingProgramData;
+use App\Data\Training\UserTrainingProgramData;
 use App\Exports\UserTrainingPlanExport;
-use App\Livewire\Concerns\InteractsWithParentView;
 use App\Models\TrainingPlan;
 use App\Models\TrainingPlanProgramExercise;
 use App\Models\Users\User;
@@ -116,7 +118,7 @@ class Export extends Component
     {
         $athleteData = $this->getAthleteTrainingData($user->id);
 
-        return $athleteData->measured_reps !== null && $athleteData->measured_weight !== null;
+        return $athleteData->measuredReps !== null && $athleteData->measuredWeight !== null;
     }
 
     public function updatedSelectedUserIds(): void
@@ -148,14 +150,10 @@ class Export extends Component
 
     protected function getWeeksForUser(int $userId): int
     {
-        $userData = AthleteTrainingProgramData::fromTrainingPlan($this->trainingPlan, $userId);
-        if ($userData->duration !== null) {
-            return $userData->duration;
-        }
+        $userData = UserTrainingProgramData::fromTrainingPlan($this->trainingPlan, $userId);
+        $defaultData = DefaultTrainingProgramData::fromTrainingPlan($this->trainingPlan);
 
-        $defaultData = AthleteTrainingProgramData::fromTrainingPlan($this->trainingPlan, null);
-
-        return $defaultData->duration ?? AthleteTrainingProgramData::DEFAULT_DURATION;
+        return $userData->duration ?? $defaultData->duration;
     }
 
     public function selectAll(): void
@@ -275,7 +273,7 @@ class Export extends Component
         $plans = [];
         $athleteData = $this->getAthleteTrainingData($user->id);
 
-        if ($athleteData->measured_reps === null || $athleteData->measured_weight === null) {
+        if ($athleteData->measuredReps === null || $athleteData->measuredWeight === null) {
             return $plans;
         }
 
@@ -318,35 +316,31 @@ class Export extends Component
         return $plans;
     }
 
-    protected function getStartDateForUser(int $userId): ?string
+    protected function getStartDateForUser(int $userId): string
     {
-        $userData = AthleteTrainingProgramData::fromTrainingPlan($this->trainingPlan, $userId);
-        if ($userData->start_date !== null) {
-            return $userData->start_date;
-        }
+        $userData = UserTrainingProgramData::fromTrainingPlan($this->trainingPlan, $userId);
+        $defaultData = DefaultTrainingProgramData::fromTrainingPlan($this->trainingPlan);
 
-        $defaultData = AthleteTrainingProgramData::fromTrainingPlan($this->trainingPlan, null);
-
-        return $defaultData->start_date;
+        return $userData->startDate ?? $defaultData->startDate;
     }
 
-    protected function getAthleteTrainingData(int $userId): AthleteTrainingProgramData
+    protected function getAthleteTrainingData(int $userId): UserTrainingProgramData
     {
-        return AthleteTrainingProgramData::fromTrainingPlan($this->trainingPlan, $userId);
+        return UserTrainingProgramData::fromTrainingPlan($this->trainingPlan, $userId);
     }
 
     protected function getSelectedProgramIds(int $userId): array
     {
         $allProgramIds = $this->programs->pluck('id')->all();
 
-        $userData = AthleteTrainingProgramData::fromTrainingPlan($this->trainingPlan, $userId);
-        if ($userData->programs_selected !== null) {
-            return array_map('intval', $userData->programs_selected);
+        $userData = UserTrainingProgramData::fromTrainingPlan($this->trainingPlan, $userId);
+        if ($userData->programsSelected !== null) {
+            return array_map('intval', $userData->programsSelected);
         }
 
-        $defaultData = AthleteTrainingProgramData::fromTrainingPlan($this->trainingPlan, null);
-        if ($defaultData->programs_selected !== null) {
-            return array_map('intval', $defaultData->programs_selected);
+        $defaultData = DefaultTrainingProgramData::fromTrainingPlan($this->trainingPlan);
+        if ($defaultData->programsSelected !== null) {
+            return array_map('intval', $defaultData->programsSelected);
         }
 
         return $allProgramIds;
@@ -355,14 +349,14 @@ class Export extends Component
     protected function generateBlockForUserAndExercise(
         User $user,
         mixed $exercise,
-        AthleteTrainingProgramData $athleteData,
+        UserTrainingProgramData $athleteData,
         array $config
     ): ?TrainingBlock {
         $generator = new TrainingBlockGenerator;
 
         $block = $generator->generate(
-            measuredWeight: $athleteData->measured_weight,
-            measuredReps: $athleteData->measured_reps,
+            measuredWeight: $athleteData->measuredWeight,
+            measuredReps: $athleteData->measuredReps,
             oneRepMaxModifier: $config['oneRepMaxModifier'],
             targetPercentage: $config['target'],
             startingReps: $config['startingReps'],
@@ -402,9 +396,9 @@ class Export extends Component
 
     protected function getExerciseConfig(int $userId, int $exerciseId, array $pivotConfig): array
     {
-        $defaultData = AthleteTrainingProgramData::fromTrainingPlan($this->trainingPlan, null);
+        $defaultData = DefaultTrainingProgramData::fromTrainingPlan($this->trainingPlan);
 
-        $systemTarget = $defaultData->target_goal ?? ExerciseOverrideData::DEFAULT_TARGET;
+        $systemTarget = $defaultData->targetGoal;
         $systemStartingReps = $pivotConfig['startingReps'] ?? ExerciseOverrideData::DEFAULT_STARTING_REPS;
         $systemSets = $pivotConfig['sets'] ?? ExerciseOverrideData::DEFAULT_SETS;
         $systemTut = $pivotConfig['tut'] ?? ExerciseOverrideData::DEFAULT_TUT;

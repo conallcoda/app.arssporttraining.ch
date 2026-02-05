@@ -3,13 +3,14 @@
 namespace App\Models\Users;
 
 use App\Cms\Models\Concerns\HasConfigData;
+use App\Cms\Models\Concerns\SyncsSortableRelations;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class UserGroup extends Model
 {
-    use HasConfigData, SoftDeletes;
+    use HasConfigData, SoftDeletes, SyncsSortableRelations;
 
     protected $fillable = [
         'name',

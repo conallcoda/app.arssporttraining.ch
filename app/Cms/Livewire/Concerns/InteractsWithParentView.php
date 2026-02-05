@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Concerns;
+namespace App\Cms\Livewire\Concerns;
 
 use Illuminate\Database\Eloquent\Model;
 

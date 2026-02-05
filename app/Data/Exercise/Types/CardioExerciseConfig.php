@@ -2,7 +2,7 @@
 
 namespace App\Data\Exercise\Types;
 
-use App\Data\AbstractConfig;
+use App\Cms\Data\AbstractConfig;
 use App\Form\Fields\Exercise as Fields;
 
 class CardioExerciseConfig extends AbstractConfig

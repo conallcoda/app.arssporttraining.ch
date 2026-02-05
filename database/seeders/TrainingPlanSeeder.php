@@ -2,13 +2,12 @@
 
 namespace Database\Seeders;
 
-use App\Livewire\Training\View\AthleteTrainingProgramData;
+use App\Data\Training\DefaultTrainingProgramData;
 use App\Models\Exercise\Exercise;
 use App\Models\TrainingPlan;
 use App\Models\TrainingPlanProgram;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
-use App\Support\WeekOptions;
 use Illuminate\Database\Seeder;
 
 class TrainingPlanSeeder extends Seeder
@@ -19,14 +18,8 @@ class TrainingPlanSeeder extends Seeder
             'name' => 'Default Training Plan',
         ]);
 
-        $plan->config->set('users.default.training_plan', [
-            'start_date' => WeekOptions::getCurrentWeekValue(),
-            'duration' => AthleteTrainingProgramData::DEFAULT_DURATION,
-            'measured_reps' => AthleteTrainingProgramData::DEFAULT_MEASURED_REPS,
-            'measured_weight' => AthleteTrainingProgramData::DEFAULT_MEASURED_WEIGHT,
-            'target_goal' => AthleteTrainingProgramData::DEFAULT_TARGET_GOAL,
-        ]);
-        $plan->save();
+        $defaultData = new DefaultTrainingProgramData;
+        $defaultData->persist($plan);
 
         $plan->userGroups()->attach(UserGroup::first(), ['sort' => 0]);
 

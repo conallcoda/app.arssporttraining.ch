@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Data;
+namespace App\Cms\Data;
 
 abstract class AbstractConfig extends AbstractData
 {
@@ -17,7 +17,7 @@ abstract class AbstractConfig extends AbstractData
                 $displayValue = (string) $value;
 
                 if ($field->suffix) {
-                    $displayValue .= ' ' . $field->suffix;
+                    $displayValue .= ' '.$field->suffix;
                 }
 
                 $badges[] = [

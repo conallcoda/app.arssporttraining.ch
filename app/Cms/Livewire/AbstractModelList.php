@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Livewire\Concerns;
+namespace App\Cms\Livewire;
 
+use App\Cms\Data\AbstractData;
 use App\Cms\Form\Field;
 use App\Cms\Form\Fields\Relationship;
 use App\Cms\Form\Form;
 use App\Cms\Form\FormFieldset;
 use App\Cms\Form\TableColumn;
-use App\Data\AbstractData;
 use Flux\Flux;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -400,10 +400,32 @@ abstract class AbstractModelList extends Component
         $this->editingId = $id;
         $this->data = $data->toArray();
 
+        $this->ensureRelationshipItemsHaveKeys();
+
         Flux::modal($this->getModalName())->show();
 
         if ($focusField) {
             $this->dispatch('focus-field', field: $focusField, index: $focusIndex);
+        }
+    }
+
+    protected function ensureRelationshipItemsHaveKeys(): void
+    {
+        $relationshipFields = collect($this->getAllFields())
+            ->filter(fn (Field $field) => $field instanceof Relationship)
+            ->pluck('name')
+            ->all();
+
+        foreach ($relationshipFields as $fieldName) {
+            if (! isset($this->data[$fieldName]) || ! is_array($this->data[$fieldName])) {
+                continue;
+            }
+
+            foreach ($this->data[$fieldName] as $index => $item) {
+                if (! isset($item['_key'])) {
+                    $this->data[$fieldName][$index]['_key'] = uniqid('item_', true);
+                }
+            }
         }
     }
 
@@ -550,7 +572,10 @@ abstract class AbstractModelList extends Component
         }
 
         $field = collect($this->getAllFields())->firstWhere('name', $fieldName);
-        $newItem = [$field?->valueAttribute ?? 'id' => null];
+        $newItem = [
+            $field?->valueAttribute ?? 'id' => null,
+            '_key' => uniqid('item_', true),
+        ];
 
         if ($field?->sortable) {
             $newItem['sort'] = count($this->data[$fieldName]);

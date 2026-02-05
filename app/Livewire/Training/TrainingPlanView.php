@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Training;
 
-use App\Livewire\Training\View\AthleteTrainingProgramData;
+use App\Data\Training\DefaultTrainingProgramData;
 use App\Models\TrainingPlan;
 use App\Models\TrainingPlanProgram;
 use Illuminate\Database\Eloquent\Collection;
@@ -74,9 +74,9 @@ class TrainingPlanView extends Component
     }
 
     #[Computed]
-    public function defaultAthleteData(): AthleteTrainingProgramData
+    public function defaultAthleteData(): DefaultTrainingProgramData
     {
-        return AthleteTrainingProgramData::fromTrainingPlan($this->trainingPlan, null);
+        return DefaultTrainingProgramData::fromTrainingPlan($this->trainingPlan);
     }
 
     public function getDataKey(?string $domain = null): string

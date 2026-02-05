@@ -4,7 +4,8 @@ namespace App\Livewire\Training;
 
 use App\Cms\Form\RowAction;
 use App\Cms\Form\TableColumn;
-use App\Livewire\Concerns\AbstractModelList;
+use App\Cms\Livewire\AbstractModelList;
+use App\Data\Training\TrainingPlanData;
 use App\Models\TrainingPlan;
 use Flux\Flux;
 use Illuminate\Contracts\Database\Eloquent\Builder;

@@ -1,0 +1,154 @@
+{
+    "users": {
+        "default": {
+            "training_plan": {
+                "startDate": "2026-02-02",
+                "duration": 5,
+                "measuredReps": 8,
+                "measuredWeight": 52,
+                "targetGoal": 11,
+                "programsSelected": [
+                    1,
+                    2
+                ]
+            }
+        },
+        "6": {
+            "training_plan": {
+                "startDate": null,
+                "duration": null,
+                "measuredReps": 22,
+                "measuredWeight": 22,
+                "targetGoal": 20,
+                "programsSelected": null
+            },
+            "cells": {
+                "1": {
+                    "w0-s0-set2": {
+                        "weight": 33
+                    },
+                    "w0-s1-set2": {
+                        "weight": 33
+                    }
+                }
+            },
+            "exercises": {
+                "2": {
+                    "target": 20,
+                    "startingReps": 12,
+                    "sets": 3,
+                    "tut": "3010",
+                    "rest": 30
+                }
+            }
+        },
+        "39": {
+            "training_plan": {
+                "startDate": null,
+                "duration": null,
+                "measuredReps": 22,
+                "measuredWeight": 22,
+                "targetGoal": null,
+                "programsSelected": [
+                    1
+                ]
+            },
+            "cells": {
+                "2": {
+                    "w4-s0-set0": {
+                        "weight": 44
+                    },
+                    "w4-s1-set0": {
+                        "weight": 44
+                    }
+                }
+            }
+        }
+    },
+    "schedule": {
+        "weeks": [
+            {
+                "id": "61a0e5db-144d-487b-bdc0-3d590affe950",
+                "linkedToWeekId": null,
+                "slots": [
+                    {
+                        "am": {
+                            "programId": 1
+                        },
+                        "pm": {
+                            "programId": null
+                        }
+                    },
+                    {
+                        "am": {
+                            "programId": null
+                        },
+                        "pm": {
+                            "programId": null
+                        }
+                    },
+                    {
+                        "am": {
+                            "programId": null
+                        },
+                        "pm": {
+                            "programId": null
+                        }
+                    },
+                    {
+                        "am": {
+                            "programId": 2
+                        },
+                        "pm": {
+                            "programId": null
+                        }
+                    },
+                    {
+                        "am": {
+                            "programId": null
+                        },
+                        "pm": {
+                            "programId": null
+                        }
+                    },
+                    {
+                        "am": {
+                            "programId": null
+                        },
+                        "pm": {
+                            "programId": null
+                        }
+                    },
+                    {
+                        "am": {
+                            "programId": null
+                        },
+                        "pm": {
+                            "programId": null
+                        }
+                    }
+                ]
+            },
+            {
+                "id": "45f80804-5ffe-4f53-b6f6-a6f0981bd3ad",
+                "linkedToWeekId": "61a0e5db-144d-487b-bdc0-3d590affe950",
+                "slots": []
+            },
+            {
+                "id": "d82463f4-833b-4db5-9e85-06bb66b94ebf",
+                "linkedToWeekId": "61a0e5db-144d-487b-bdc0-3d590affe950",
+                "slots": []
+            },
+            {
+                "id": "27ad3467-6297-45c9-a221-ea7ccd249ab2",
+                "linkedToWeekId": "61a0e5db-144d-487b-bdc0-3d590affe950",
+                "slots": []
+            },
+            {
+                "id": "deb809f6-498b-4739-933a-a8349ee8e036",
+                "linkedToWeekId": "61a0e5db-144d-487b-bdc0-3d590affe950",
+                "slots": []
+            }
+        ]
+    }
+}

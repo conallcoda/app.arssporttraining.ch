@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Data;
+namespace App\Cms\Data;
 
-use Spatie\LaravelData\Data;
 use Livewire\Wireable;
 use Spatie\LaravelData\Concerns\WireableData;
+use Spatie\LaravelData\Data;
 
 abstract class AbstractData extends Data implements Wireable
 {

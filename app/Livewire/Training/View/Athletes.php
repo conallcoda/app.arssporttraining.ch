@@ -2,9 +2,9 @@
 
 namespace App\Livewire\Training\View;
 
+use App\Cms\Livewire\Concerns\InteractsWithParentView;
 use App\Form\Fields\Athlete\Athletes as AthletesField;
 use App\Form\Fields\AthleteGroup\Groups;
-use App\Livewire\Concerns\InteractsWithParentView;
 use App\Models\TrainingPlan;
 use Livewire\Component;
 

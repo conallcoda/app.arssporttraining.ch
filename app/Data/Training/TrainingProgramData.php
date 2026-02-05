@@ -1,10 +1,11 @@
 <?php
 
-namespace App\Livewire\Training\View;
+namespace App\Data\Training;
 
+use App\Cms\Data\AbstractData;
 use App\Cms\Form\Concerns\InteractsWithForms;
+use App\Cms\Form\Form;
 use App\Cms\Models\Contracts\HasForms;
-use App\Data\AbstractData;
 use App\Form\Fields\Exercise\Exercises;
 use App\Form\Fields\Training\Program\Color;
 use App\Form\Fields\Training\Program\ProgramName;
@@ -46,19 +47,18 @@ class TrainingProgramData extends AbstractData implements HasForms
 
     public function persist(): void
     {
+        $values = [
+            'training_plan_id' => $this->training_plan_id,
+            'name' => $this->name,
+        ];
+
         if ($this->id === null) {
-            $maxSort = TrainingPlanProgram::where('training_plan_id', $this->training_plan_id)->max('sort') ?? -1;
-            $program = TrainingPlanProgram::create([
-                'training_plan_id' => $this->training_plan_id,
-                'name' => $this->name,
-                'sort' => $maxSort + 1,
-            ]);
-            $this->id = $program->id;
-        } else {
-            $program = TrainingPlanProgram::findOrFail($this->id);
-            $program->name = $this->name;
-            $program->save();
+            $values['sort'] = (TrainingPlanProgram::where('training_plan_id', $this->training_plan_id)->max('sort') ?? -1) + 1;
         }
+
+        $program = TrainingPlanProgram::updateOrCreate(['id' => $this->id], $values);
+
+        $this->id = $program->id;
 
         $program->config->set('color', $this->color);
         $program->save();
@@ -113,12 +113,14 @@ class TrainingProgramData extends AbstractData implements HasForms
         }
     }
 
-    public static function getForm(): array
+    public static function getForm(): Form
     {
-        return [
-            ProgramName::make('name'),
-            Color::make('color'),
-            Exercises::make('exercises')->withOptions(),
-        ];
+        return Form::make()
+            ->withFields([
+                ProgramName::make('name'),
+                Color::make('color'),
+                Exercises::make('exercises')->withOptions(),
+            ])
+            ->fieldset('general', 'General', ['name', 'color', 'exercises']);
     }
 }

@@ -44,16 +44,16 @@
                         <div class="flex items-end gap-3">
                             <flux:field class="flex-1">
                                 <flux:label>Measured Reps</flux:label>
-                                <flux:input.group class="{{ empty($measured_reps) ? '[&>*]:!bg-red-500/20' : '' }}">
-                                    <flux:input wire:model.live.debounce.500ms="measured_reps" type="number" min="1" max="15" step="1" />
+                                <flux:input.group class="{{ empty($measuredReps) ? '[&>*]:!bg-red-500/20' : '' }}">
+                                    <flux:input wire:model.live.debounce.500ms="measuredReps" type="number" min="1" max="15" step="1" />
                                     <flux:input.group.suffix>rep(s)</flux:input.group.suffix>
                                 </flux:input.group>
                             </flux:field>
 
                             <flux:field class="flex-1">
                                 <flux:label>Measured Weight</flux:label>
-                                <flux:input.group class="{{ empty($measured_weight) ? '[&>*]:!bg-red-500/20' : '' }}">
-                                    <flux:input wire:model.live.debounce.500ms="measured_weight" type="number" min="0" step="0.5" />
+                                <flux:input.group class="{{ empty($measuredWeight) ? '[&>*]:!bg-red-500/20' : '' }}">
+                                    <flux:input wire:model.live.debounce.500ms="measuredWeight" type="number" min="0" step="0.5" />
                                     <flux:input.group.suffix>kg</flux:input.group.suffix>
                                 </flux:input.group>
                             </flux:field>
@@ -70,7 +70,7 @@
                             <flux:field class="flex-[2]">
                                 <flux:label>Target Goal</flux:label>
                                 <flux:input.group>
-                                    <flux:input wire:model.live.debounce.500ms="target_goal" type="number" min="0" max="999" step="1" />
+                                    <flux:input wire:model.live.debounce.500ms="targetGoal" type="number" min="0" max="999" step="1" />
                                     <flux:input.group.suffix>%</flux:input.group.suffix>
                                 </flux:input.group>
                             </flux:field>
@@ -88,16 +88,16 @@
                         <div class="flex items-end gap-3">
                             <flux:field class="flex-1">
                                 <flux:label>Measured Reps</flux:label>
-                                <flux:input.group class="{{ empty($measured_reps) ? '[&>*]:!bg-red-500/20' : '' }}">
-                                    <flux:input wire:model.live.debounce.500ms="measured_reps" type="number" min="1" max="15" step="1" />
+                                <flux:input.group class="{{ empty($measuredReps) ? '[&>*]:!bg-red-500/20' : '' }}">
+                                    <flux:input wire:model.live.debounce.500ms="measuredReps" type="number" min="1" max="15" step="1" />
                                     <flux:input.group.suffix>rep(s)</flux:input.group.suffix>
                                 </flux:input.group>
                             </flux:field>
 
                             <flux:field class="flex-1">
                                 <flux:label>Measured Weight</flux:label>
-                                <flux:input.group class="{{ empty($measured_weight) ? '[&>*]:!bg-red-500/20' : '' }}">
-                                    <flux:input wire:model.live.debounce.500ms="measured_weight" type="number" min="0" step="0.5" />
+                                <flux:input.group class="{{ empty($measuredWeight) ? '[&>*]:!bg-red-500/20' : '' }}">
+                                    <flux:input wire:model.live.debounce.500ms="measuredWeight" type="number" min="0" step="0.5" />
                                     <flux:input.group.suffix>kg</flux:input.group.suffix>
                                 </flux:input.group>
                             </flux:field>
@@ -114,8 +114,8 @@
                             <flux:field class="flex-[2]">
                                 <flux:label>Target Goal</flux:label>
                                 <flux:input.group>
-                                    <flux:input wire:model.live.debounce.500ms="target_goal" type="number" min="0" max="999" step="1"
-                                        placeholder="{{ $this->getPlaceholder('target_goal') }}" />
+                                    <flux:input wire:model.live.debounce.500ms="targetGoal" type="number" min="0" max="999" step="1"
+                                        placeholder="{{ $this->getPlaceholder('targetGoal') }}" />
                                     <flux:input.group.suffix>%</flux:input.group.suffix>
                                 </flux:input.group>
                             </flux:field>
@@ -139,7 +139,7 @@
                         <div class="flex items-end gap-3">
                             <flux:field class="flex-1">
                                 <flux:label>Start Date</flux:label>
-                                <flux:select wire:model.live="start_date">
+                                <flux:select wire:model.live="startDate">
                                     @foreach ($this->weekOptions as $value => $label)
                                         <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
                                     @endforeach
@@ -157,7 +157,7 @@
 
                         <flux:field>
                             <flux:label>Programs</flux:label>
-                            <flux:pillbox wire:model.live="programs_selected" multiple>
+                            <flux:pillbox wire:model.live="programsSelected" multiple>
                                 @foreach ($this->programOptions as $id => $name)
                                     <flux:pillbox.option value="{{ $id }}">{{ $name }}</flux:pillbox.option>
                                 @endforeach
@@ -169,7 +169,7 @@
                         <div class="flex items-end gap-3">
                             <flux:field class="flex-1">
                                 <flux:label>Start Date</flux:label>
-                                <flux:select wire:model.live="start_date">
+                                <flux:select wire:model.live="startDate">
                                     @foreach ($this->weekOptions as $value => $label)
                                         <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
                                     @endforeach
@@ -188,7 +188,7 @@
 
                         <flux:field>
                             <flux:label>Programs</flux:label>
-                            <flux:pillbox wire:model.live="programs_selected" multiple>
+                            <flux:pillbox wire:model.live="programsSelected" multiple>
                                 @foreach ($this->programOptions as $id => $name)
                                     <flux:pillbox.option value="{{ $id }}">{{ $name }}</flux:pillbox.option>
                                 @endforeach
@@ -202,9 +202,9 @@
         </div>
 
         @php
-            $selectedProgramIds = array_map('intval', $programs_selected);
+            $selectedProgramIds = array_map('intval', $programsSelected);
             $selectedProgramsKey = implode('-', $selectedProgramIds) ?: 'none';
-            $hasMeasuredData = !empty($measured_reps) && !empty($measured_weight);
+            $hasMeasuredData = !empty($measuredReps) && !empty($measuredWeight);
         @endphp
 
         @if ($hasMeasuredData)
@@ -248,7 +248,7 @@
                                         :weekOverrides="$weekOverrides"
                                         :userSpecificWeekOverrides="$userSpecificWeekOverrides"
                                         :isDefaultUser="$user === null"
-                                        :startDate="$start_date"
+                                        :startDate="$startDate"
                                     />
                                 @endforeach
                             </div>
