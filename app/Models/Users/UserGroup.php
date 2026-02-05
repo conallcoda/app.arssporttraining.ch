@@ -2,7 +2,7 @@
 
 namespace App\Models\Users;
 
-use App\Models\Concerns\HasConfigData;
+use App\Cms\Models\Concerns\HasConfigData;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;

@@ -2,8 +2,8 @@
 
 namespace App\Livewire\Training;
 
-use App\Form\RowAction;
-use App\Form\TableColumn;
+use App\Cms\Form\RowAction;
+use App\Cms\Form\TableColumn;
 use App\Livewire\Concerns\AbstractModelList;
 use App\Models\TrainingPlan;
 use Flux\Flux;

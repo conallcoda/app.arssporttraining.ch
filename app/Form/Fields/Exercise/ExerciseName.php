@@ -2,7 +2,7 @@
 
 namespace App\Form\Fields\Exercise;
 
-use App\Form\Fields\Text;
+use App\Cms\Form\Fields\Text;
 
 class ExerciseName extends Text
 {

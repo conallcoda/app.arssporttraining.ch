@@ -2,11 +2,11 @@
 
 namespace App\Data\Exercise;
 
+use App\Cms\Form\Concerns\InteractsWithForms;
+use App\Cms\Form\Form;
+use App\Cms\Models\Contracts\HasForms;
 use App\Data\AbstractData;
-use App\Form\Concerns\InteractsWithForms;
 use App\Form\Fields\Exercise as Fields;
-use App\Form\Form;
-use App\Models\Contracts\HasForms;
 use App\Models\Exercise\Exercise;
 
 class ExerciseData extends AbstractData implements HasForms

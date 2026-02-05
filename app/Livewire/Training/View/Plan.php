@@ -684,10 +684,10 @@ class Plan extends Component
     {
         $extra = $this->findPivotExtraForExercise($exerciseId);
         $exercise = Exercise::find($exerciseId);
-        $exerciseTypeConfig = $exercise?->config['type'] ?? [];
+        $exerciseTypeConfig = $exercise?->config?->strength;
 
-        $systemTut = $extra['tut'] ?? $exerciseTypeConfig['timeUnderTension'] ?? ExerciseOverrideData::DEFAULT_TUT;
-        $systemRest = $extra['rest'] ?? $exerciseTypeConfig['rest'] ?? ExerciseOverrideData::DEFAULT_REST;
+        $systemTut = $extra['tut'] ?? $exerciseTypeConfig?->timeUnderTension ?? ExerciseOverrideData::DEFAULT_TUT;
+        $systemRest = $extra['rest'] ?? $exerciseTypeConfig?->rest ?? ExerciseOverrideData::DEFAULT_REST;
 
         $defaultExerciseOverride = $this->defaultExerciseOverrides[$exerciseId] ?? [];
         $defaultWeekOverride = $this->defaultWeekOverrides[$exerciseId]["w{$weekIndex}"] ?? [];

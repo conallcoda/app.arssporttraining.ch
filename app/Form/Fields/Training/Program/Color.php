@@ -2,7 +2,7 @@
 
 namespace App\Form\Fields\Training\Program;
 
-use App\Form\Fields\Select;
+use App\Cms\Form\Fields\Select;
 
 class Color extends Select
 {

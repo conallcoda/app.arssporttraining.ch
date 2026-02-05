@@ -2,14 +2,14 @@
 
 namespace App\Livewire\Training\View;
 
+use App\Cms\Form\Concerns\InteractsWithForms;
+use App\Cms\Models\Contracts\HasForms;
 use App\Data\AbstractData;
-use App\Form\Concerns\InteractsWithForms;
 use App\Form\Fields\Athlete\MeasuredReps;
 use App\Form\Fields\Athlete\MeasuredWeight;
 use App\Form\Fields\Training\Plan\Duration;
 use App\Form\Fields\Training\Plan\StartDate;
 use App\Form\Fields\Training\Program\TargetGoal;
-use App\Models\Contracts\HasForms;
 use App\Models\TrainingPlan;
 use App\Support\WeekOptions;
 use App\Training\Reference\RepPercentageTable;

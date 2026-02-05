@@ -2,7 +2,7 @@
 
 namespace App\Form\Fields\Athlete;
 
-use App\Form\Fields\Number;
+use App\Cms\Form\Fields\Number;
 
 class MeasuredReps extends Number
 {

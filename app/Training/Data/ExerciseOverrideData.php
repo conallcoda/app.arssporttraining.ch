@@ -2,12 +2,12 @@
 
 namespace App\Training\Data;
 
+use App\Cms\Form\Concerns\InteractsWithForms;
+use App\Cms\Models\Contracts\HasForms;
 use App\Data\AbstractData;
-use App\Form\Concerns\InteractsWithForms;
 use App\Form\Fields\Training\Program\Sets;
 use App\Form\Fields\Training\Program\StartingReps;
 use App\Form\Fields\Training\Program\Target;
-use App\Models\Contracts\HasForms;
 
 class ExerciseOverrideData extends AbstractData implements HasForms
 {

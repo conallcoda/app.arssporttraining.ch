@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Database;
 
-use App\Form\TableColumn;
+use App\Cms\Form\TableColumn;
 use App\Livewire\Concerns\AbstractModelList;
 use App\Models\Users\UserGroup;
 use Illuminate\Contracts\Database\Eloquent\Builder;

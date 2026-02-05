@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\HasConfigData;
+use App\Cms\Models\Concerns\HasConfigData;
 use App\Models\Exercise\Exercise;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;

@@ -2,7 +2,7 @@
 
 namespace App\Form\Fields\Athlete;
 
-use App\Form\Fields\Pillbox;
+use App\Cms\Form\Fields\Pillbox;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
 

@@ -2,8 +2,8 @@
 
 namespace App\Form\Fields\Exercise;
 
+use App\Cms\Form\Fields\Select;
 use App\Data\Exercise\ExerciseType as ExerciseTypeEnum;
-use App\Form\Fields\Select;
 
 class ExerciseType extends Select
 {

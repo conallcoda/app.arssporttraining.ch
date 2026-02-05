@@ -2,12 +2,12 @@
 
 namespace App\Livewire\Training\View;
 
+use App\Cms\Form\Concerns\InteractsWithForms;
+use App\Cms\Models\Contracts\HasForms;
 use App\Data\AbstractData;
-use App\Form\Concerns\InteractsWithForms;
 use App\Form\Fields\Exercise\Exercises;
 use App\Form\Fields\Training\Program\Color;
 use App\Form\Fields\Training\Program\ProgramName;
-use App\Models\Contracts\HasForms;
 use App\Models\Exercise\Exercise;
 use App\Models\TrainingPlanProgram;
 use App\Models\TrainingPlanProgramExercise;

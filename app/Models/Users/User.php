@@ -2,7 +2,7 @@
 
 namespace App\Models\Users;
 
-use App\Models\Concerns\HasConfigData;
+use App\Cms\Models\Concerns\HasConfigData;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;

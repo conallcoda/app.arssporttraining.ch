@@ -2,7 +2,7 @@
 
 namespace App\Form\Fields\Athlete;
 
-use App\Form\Fields\Text;
+use App\Cms\Form\Fields\Text;
 
 class Forename extends Text
 {

@@ -2,7 +2,7 @@
 
 namespace App\Form\Fields\Training\Program;
 
-use App\Form\Fields\Slider;
+use App\Cms\Form\Fields\Slider;
 
 class Sets extends Slider
 {

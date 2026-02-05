@@ -219,13 +219,13 @@
                                 @foreach ($program->exercises as $exercise)
                                     @php
                                         $configData = $this->getPivotConfig($program->id, $exercise->id);
-                                        $exerciseTypeConfig = $exercise->config['type'] ?? [];
+                                        $exerciseTypeConfig = $exercise->config?->strength;
                                         $pivotConfig = [
                                             'oneRepMaxModifier' => $configData['oneRepMaxModifier'] ?? 100,
                                             'startingReps' => $configData['startingReps'] ?? null,
                                             'sets' => $configData['sets'] ?? null,
-                                            'tut' => $configData['tut'] ?? $exerciseTypeConfig['timeUnderTension'] ?? null,
-                                            'rest' => $configData['rest'] ?? $exerciseTypeConfig['rest'] ?? null,
+                                            'tut' => $configData['tut'] ?? $exerciseTypeConfig?->timeUnderTension ?? null,
+                                            'rest' => $configData['rest'] ?? $exerciseTypeConfig?->rest ?? null,
                                         ];
                                         $config = $this->getExerciseConfig($exercise->id, $pivotConfig);
                                         $block = $this->generateBlock($exercise->id, $pivotConfig);

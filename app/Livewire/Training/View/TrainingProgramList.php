@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Training\View;
 
-use App\Form\TableColumn;
+use App\Cms\Form\TableColumn;
 use App\Livewire\Concerns\AbstractModelList;
 use App\Livewire\Concerns\InteractsWithParentView;
 use App\Models\TrainingPlan;

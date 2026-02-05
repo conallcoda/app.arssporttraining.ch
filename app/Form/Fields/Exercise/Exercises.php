@@ -2,7 +2,7 @@
 
 namespace App\Form\Fields\Exercise;
 
-use App\Form\Fields\Relationship;
+use App\Cms\Form\Fields\Relationship;
 use App\Models\Exercise\Exercise;
 
 class Exercises extends Relationship

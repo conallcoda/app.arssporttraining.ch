@@ -2,7 +2,7 @@
 
 namespace App\Form\Fields\Exercise;
 
-use App\Form\Fields\Percentage;
+use App\Cms\Form\Fields\Percentage;
 
 class OneRepMaxModifier extends Percentage
 {

@@ -2,11 +2,11 @@
 
 namespace App\Livewire\Database;
 
+use App\Cms\Form\Concerns\InteractsWithForms;
+use App\Cms\Models\Contracts\HasForms;
 use App\Data\AbstractData;
-use App\Form\Concerns\InteractsWithForms;
 use App\Form\Fields\Athlete\Forename;
 use App\Form\Fields\Athlete\Surname;
-use App\Models\Contracts\HasForms;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
 

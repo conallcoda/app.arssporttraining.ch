@@ -23,7 +23,7 @@
             <flux:heading size="lg">{{ $this->editingId ? 'Edit' : 'Add' }} {{ $entityName }}</flux:heading>
             <form wire:submit="save" class="space-y-4">
                 @foreach ($this->fieldsets as $fieldset)
-                    <x-form-fieldset
+                    <x-cms.form.fieldset
                         :fieldset="$fieldset"
                         :prefix="$fieldset->prefix ?? 'data'"
                         :showLegend="count($this->fieldsets) > 1"

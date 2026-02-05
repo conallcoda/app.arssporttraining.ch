@@ -2,7 +2,7 @@
 
 namespace App\Form\Fields\Training\Plan;
 
-use App\Form\Fields\Select;
+use App\Cms\Form\Fields\Select;
 use App\Support\WeekOptions;
 
 class StartDate extends Select

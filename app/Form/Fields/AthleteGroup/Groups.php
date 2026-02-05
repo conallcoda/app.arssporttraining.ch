@@ -2,7 +2,7 @@
 
 namespace App\Form\Fields\AthleteGroup;
 
-use App\Form\Fields\Pillbox;
+use App\Cms\Form\Fields\Pillbox;
 use App\Models\Users\UserGroup;
 
 class Groups extends Pillbox

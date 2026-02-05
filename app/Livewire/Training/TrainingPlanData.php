@@ -2,10 +2,10 @@
 
 namespace App\Livewire\Training;
 
+use App\Cms\Form\Concerns\InteractsWithForms;
+use App\Cms\Models\Contracts\HasForms;
 use App\Data\AbstractData;
-use App\Form\Concerns\InteractsWithForms;
 use App\Form\Fields\Training\Plan\PlanName;
-use App\Models\Contracts\HasForms;
 use App\Models\TrainingPlan;
 
 class TrainingPlanData extends AbstractData implements HasForms

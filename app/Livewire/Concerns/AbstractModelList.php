@@ -2,12 +2,12 @@
 
 namespace App\Livewire\Concerns;
 
+use App\Cms\Form\Field;
+use App\Cms\Form\Fields\Relationship;
+use App\Cms\Form\Form;
+use App\Cms\Form\FormFieldset;
+use App\Cms\Form\TableColumn;
 use App\Data\AbstractData;
-use App\Form\Field;
-use App\Form\Fields\Relationship;
-use App\Form\Form;
-use App\Form\FormFieldset;
-use App\Form\TableColumn;
 use Flux\Flux;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;

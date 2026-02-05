@@ -2,7 +2,7 @@
 
 namespace App\Form\Fields\Training\Plan;
 
-use App\Form\Fields\Text;
+use App\Cms\Form\Fields\Text;
 
 class PlanName extends Text
 {

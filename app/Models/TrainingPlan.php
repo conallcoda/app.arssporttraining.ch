@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\HasConfigData;
+use App\Cms\Models\Concerns\HasConfigData;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use Illuminate\Database\Eloquent\Builder;

@@ -2,11 +2,11 @@
 
 namespace App\Livewire\Database;
 
+use App\Cms\Form\Concerns\InteractsWithForms;
+use App\Cms\Models\Contracts\HasForms;
 use App\Data\AbstractData;
-use App\Form\Concerns\InteractsWithForms;
 use App\Form\Fields\AthleteGroup\GroupName;
 use App\Form\Fields\AthleteGroup\Members;
-use App\Models\Contracts\HasForms;
 use App\Models\Users\UserGroup;
 
 class AthleteGroupData extends AbstractData implements HasForms

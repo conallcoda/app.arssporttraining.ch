@@ -2,7 +2,7 @@
 
 namespace App\Form\Fields\AthleteGroup;
 
-use App\Form\Fields\Relationship;
+use App\Cms\Form\Fields\Relationship;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
 
