@@ -3,6 +3,7 @@
 namespace App\Livewire\Database;
 
 use App\Data\AbstractData;
+use App\Form\Concerns\InteractsWithForms;
 use App\Form\Fields\Athlete\Forename;
 use App\Form\Fields\Athlete\Surname;
 use App\Models\Contracts\HasForms;
@@ -11,6 +12,8 @@ use App\Models\Users\UserTypeEnum;
 
 class AthleteData extends AbstractData implements HasForms
 {
+    use InteractsWithForms;
+
     public function __construct(
         public ?int $id,
         public string $forename,
@@ -51,7 +54,7 @@ class AthleteData extends AbstractData implements HasForms
         }
     }
 
-    public static function getFields(): array
+    public static function getForm(): array
     {
         return [
             Forename::make('forename'),

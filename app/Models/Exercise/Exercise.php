@@ -2,14 +2,13 @@
 
 namespace App\Models\Exercise;
 
+use App\Data\Exercise\ExerciseConfig;
 use App\Data\Exercise\ExerciseType;
-use App\Models\Concerns\HasConfigData;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Exercise extends Model
 {
-    use HasConfigData;
     use SoftDeletes;
 
     protected $fillable = [
@@ -22,6 +21,7 @@ class Exercise extends Model
     {
         return [
             'type' => ExerciseType::class,
+            'config' => ExerciseConfig::class,
         ];
     }
 }

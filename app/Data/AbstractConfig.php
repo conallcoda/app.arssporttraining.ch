@@ -2,19 +2,9 @@
 
 namespace App\Data;
 
-use App\Models\Contracts\HasForms;
-use Illuminate\Database\Eloquent\Model;
-
-abstract class AbstractConfig extends AbstractData implements HasForms
+abstract class AbstractConfig extends AbstractData
 {
-    abstract public static function accessor(): string;
-
-    public static function fromConfig(Model $exercise): static
-    {
-        $data = $exercise->config->get(static::accessor(), []);
-
-        return static::from($data);
-    }
+    abstract public static function getFields(): array;
 
     public function toBadges(): array
     {
@@ -27,7 +17,7 @@ abstract class AbstractConfig extends AbstractData implements HasForms
                 $displayValue = (string) $value;
 
                 if ($field->suffix) {
-                    $displayValue .= ' '.$field->suffix;
+                    $displayValue .= ' ' . $field->suffix;
                 }
 
                 $badges[] = [

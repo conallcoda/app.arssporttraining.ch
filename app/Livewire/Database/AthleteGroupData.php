@@ -3,6 +3,7 @@
 namespace App\Livewire\Database;
 
 use App\Data\AbstractData;
+use App\Form\Concerns\InteractsWithForms;
 use App\Form\Fields\AthleteGroup\GroupName;
 use App\Form\Fields\AthleteGroup\Members;
 use App\Models\Contracts\HasForms;
@@ -10,6 +11,8 @@ use App\Models\Users\UserGroup;
 
 class AthleteGroupData extends AbstractData implements HasForms
 {
+    use InteractsWithForms;
+
     public function __construct(
         public ?int $id,
         public string $name,
@@ -57,7 +60,7 @@ class AthleteGroupData extends AbstractData implements HasForms
         $group->members()->sync($syncData);
     }
 
-    public static function getFields(): array
+    public static function getForm(): array
     {
         return [
             GroupName::make('name'),

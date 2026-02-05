@@ -14,6 +14,5 @@ class Distance extends Number
         $this->default = 0;
         $this->min = 0;
         $this->suffix = 'm';
-        $this->step = 100;
     }
 }

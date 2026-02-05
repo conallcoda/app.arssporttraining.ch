@@ -5,6 +5,7 @@ namespace App\Livewire\Concerns;
 use App\Data\AbstractData;
 use App\Form\Field;
 use App\Form\Fields\Relationship;
+use App\Form\Form;
 use App\Form\FormFieldset;
 use App\Form\TableColumn;
 use Flux\Flux;
@@ -183,25 +184,47 @@ abstract class AbstractModelList extends Component
         $this->emit();
     }
 
-    #[Computed]
-    public function fields(): array
+    protected function getFormDefinition(): Form|array
     {
         $dataClass = $this->getDataClass();
 
-        return $dataClass::getFields();
+        if (method_exists($dataClass, 'getForm')) {
+            return $dataClass::getForm();
+        }
+
+        if (method_exists($dataClass, 'getFields')) {
+            return $dataClass::getFields();
+        }
+
+        return [];
+    }
+
+    #[Computed]
+    public function formConfig(): Form
+    {
+        $definition = $this->getFormDefinition();
+
+        if ($definition instanceof Form) {
+            return $definition;
+        }
+
+        return Form::fields($definition);
+    }
+
+    #[Computed]
+    public function fields(): array
+    {
+        return $this->formConfig->getFields();
     }
 
     #[Computed]
     public function fieldsets(): array
     {
-        $dataClass = $this->getDataClass();
-        $allFields = $dataClass::getFields();
+        $form = $this->formConfig;
+        $allFields = $form->getFields();
 
-        if (method_exists($dataClass, 'getFieldsets')) {
-            $fieldsetConfigs = $dataClass::getFieldsets();
-            if ($fieldsetConfigs) {
-                return $this->resolveFieldsets($fieldsetConfigs, $allFields);
-            }
+        if ($form->hasFieldsets()) {
+            return $this->resolveFieldsets($form->getFieldsets(), $allFields);
         }
 
         return [
@@ -211,13 +234,83 @@ abstract class AbstractModelList extends Component
         ];
     }
 
+    public function updated(string $property, mixed $value): void
+    {
+        $form = $this->formConfig;
+
+        if (! $form->hasDiscriminators()) {
+            return;
+        }
+
+        foreach ($form->getDiscriminators() as $field => $target) {
+            if ($property === "data.{$field}") {
+                $this->resetDiscriminatorTarget($target, $value);
+                break;
+            }
+        }
+    }
+
+    protected function resetDiscriminatorTarget(string $target, mixed $discriminatorValue): void
+    {
+        $form = $this->formConfig;
+        $fieldsets = $form->getFieldsets();
+
+        foreach ($fieldsets as $name => $config) {
+            if (! is_callable($config)) {
+                continue;
+            }
+
+            $resolved = $config([$this->getDiscriminatorField($target) => $discriminatorValue]);
+
+            if ($resolved === null) {
+                $this->data[$target] = [];
+
+                return;
+            }
+
+            $prefix = $resolved['prefix'] ?? null;
+            if ($prefix && str_contains($prefix, $target)) {
+                $this->data[$target] = Field::buildDefaults($resolved['fields']);
+
+                return;
+            }
+        }
+
+        $this->data[$target] = [];
+    }
+
+    protected function getDiscriminatorField(string $target): string
+    {
+        foreach ($this->formConfig->getDiscriminators() as $field => $t) {
+            if ($t === $target) {
+                return $field;
+            }
+        }
+
+        return '';
+    }
+
     protected function resolveFieldsets(array $configs, array $allFields): array
     {
         $fieldsMap = collect($allFields)->keyBy('name');
 
         return collect($configs)->map(function ($config, $name) use ($fieldsMap) {
+            if (is_callable($config)) {
+                $config = $config($this->data);
+            }
+
+            if ($config === null) {
+                return null;
+            }
+
             $resolvedFields = collect($config['fields'])
-                ->map(fn ($fieldName) => $fieldsMap->get($fieldName))
+                ->map(function ($field) use ($fieldsMap) {
+                    if (is_string($field)) {
+                        return $fieldsMap->get($field);
+                    }
+
+                    return $field;
+                })
                 ->filter()
                 ->values()
                 ->all();
@@ -226,7 +319,7 @@ abstract class AbstractModelList extends Component
                 ->label($config['label'])
                 ->fields($resolvedFields)
                 ->prefix($config['prefix'] ?? null);
-        })->values()->all();
+        })->filter()->values()->all();
     }
 
     protected function getAllFields(): array

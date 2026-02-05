@@ -3,12 +3,15 @@
 namespace App\Livewire\Training;
 
 use App\Data\AbstractData;
+use App\Form\Concerns\InteractsWithForms;
 use App\Form\Fields\Training\Plan\PlanName;
 use App\Models\Contracts\HasForms;
 use App\Models\TrainingPlan;
 
 class TrainingPlanData extends AbstractData implements HasForms
 {
+    use InteractsWithForms;
+
     public function __construct(
         public ?int $id,
         public string $name,
@@ -77,7 +80,7 @@ class TrainingPlanData extends AbstractData implements HasForms
         $plan->userGroups()->sync($groupsWithSort);
     }
 
-    public static function getFields(): array
+    public static function getForm(): array
     {
         return [
             PlanName::make('name'),

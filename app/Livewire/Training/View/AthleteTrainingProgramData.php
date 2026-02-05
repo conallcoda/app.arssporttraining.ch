@@ -3,6 +3,7 @@
 namespace App\Livewire\Training\View;
 
 use App\Data\AbstractData;
+use App\Form\Concerns\InteractsWithForms;
 use App\Form\Fields\Athlete\MeasuredReps;
 use App\Form\Fields\Athlete\MeasuredWeight;
 use App\Form\Fields\Training\Plan\Duration;
@@ -15,6 +16,8 @@ use App\Training\Reference\RepPercentageTable;
 
 class AthleteTrainingProgramData extends AbstractData implements HasForms
 {
+    use InteractsWithForms;
+
     public const DEFAULT_MEASURED_REPS = 8;
 
     public const DEFAULT_MEASURED_WEIGHT = 52;
@@ -125,7 +128,7 @@ class AthleteTrainingProgramData extends AbstractData implements HasForms
         return $sortedA === $sortedB;
     }
 
-    public static function getFields(): array
+    public static function getForm(): array
     {
         return [
             StartDate::make('start_date')->withOptions(),

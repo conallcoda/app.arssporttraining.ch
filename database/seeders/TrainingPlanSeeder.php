@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Data\Exercise\Types\StrengthExerciseConfig;
 use App\Livewire\Training\View\AthleteTrainingProgramData;
 use App\Models\Exercise\Exercise;
 use App\Models\TrainingPlan;
@@ -32,7 +31,7 @@ class TrainingPlanSeeder extends Seeder
         $plan->userGroups()->attach(UserGroup::first(), ['sort' => 0]);
 
         $users = User::latest('id')->take(2)->pluck('id');
-        $usersWithSort = $users->mapWithKeys(fn($id, $index) => [$id => ['sort' => $index]])->all();
+        $usersWithSort = $users->mapWithKeys(fn ($id, $index) => [$id => ['sort' => $index]])->all();
         $plan->users()->attach($usersWithSort);
 
         $exercises = Exercise::take(4)->get();
@@ -60,13 +59,13 @@ class TrainingPlanSeeder extends Seeder
 
     private function getExerciseConfig(Exercise $exercise): array
     {
-        $defaults = StrengthExerciseConfig::fromExercise($exercise);
+        $defaults = $exercise->config?->strength;
 
         return [
-            'oneRepMaxModifier' => $defaults->oneRepMaxModifier,
-            'startingReps' => $defaults->startingReps,
-            'timeUnderTension' => $defaults->timeUnderTension,
-            'rest' => $defaults->rest,
+            'oneRepMaxModifier' => $defaults?->oneRepMaxModifier ?? 100,
+            'startingReps' => $defaults?->startingReps ?? 12,
+            'timeUnderTension' => $defaults?->timeUnderTension ?? '3010',
+            'rest' => $defaults?->rest ?? 30,
         ];
     }
 }

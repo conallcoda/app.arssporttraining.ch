@@ -15,6 +15,14 @@ enum ExerciseType: string
         };
     }
 
+    public function getConfigAccessor(): string
+    {
+        return match ($this) {
+            self::Strength => 'strength',
+            self::Cardio => 'cardio',
+        };
+    }
+
     public function getFields(): array
     {
         return $this->getConfigClass()::getFields();

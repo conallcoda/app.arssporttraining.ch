@@ -4,7 +4,6 @@ namespace App\Data\Exercise\Types;
 
 use App\Data\AbstractConfig;
 use App\Form\Fields\Exercise as Fields;
-use Illuminate\Database\Eloquent\Model;
 
 class StrengthExerciseConfig extends AbstractConfig
 {
@@ -14,16 +13,6 @@ class StrengthExerciseConfig extends AbstractConfig
         public string $timeUnderTension = '3010',
         public int $rest = 30,
     ) {}
-
-    public static function accessor(): string
-    {
-        return 'config.strength';
-    }
-
-    public static function fromExercise(Model $exercise): self
-    {
-        return static::fromConfig($exercise);
-    }
 
     public static function getFields(): array
     {

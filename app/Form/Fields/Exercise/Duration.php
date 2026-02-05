@@ -14,6 +14,5 @@ class Duration extends Number
         $this->default = 0;
         $this->min = 0;
         $this->suffix = 's';
-        $this->step = 30;
     }
 }

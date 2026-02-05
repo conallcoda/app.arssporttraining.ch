@@ -2,81 +2,78 @@
 
 namespace App\Data\Exercise;
 
-use App\Data\AbstractConfig;
 use App\Data\AbstractData;
-use App\Data\Casts\ConfigCast;
+use App\Form\Concerns\InteractsWithForms;
 use App\Form\Fields\Exercise as Fields;
+use App\Form\Form;
 use App\Models\Contracts\HasForms;
 use App\Models\Exercise\Exercise;
-use Spatie\LaravelData\Attributes\WithCast;
 
 class ExerciseData extends AbstractData implements HasForms
 {
+    use InteractsWithForms;
+
     public function __construct(
         public ?int $id,
         public string $name,
         public ExerciseType $type,
-        #[WithCast(ConfigCast::class)]
-        public ?AbstractConfig $config = null,
+        public ?ExerciseConfig $config = null,
     ) {}
 
     public static function fromExercise(Exercise $exercise): self
     {
-        $type = $exercise->type ?? ExerciseType::Strength;
-
-        $config = match ($type) {
-            ExerciseType::Strength => Types\StrengthExerciseConfig::fromExercise($exercise),
-            ExerciseType::Cardio => Types\CardioExerciseConfig::fromExercise($exercise),
-        };
-
         return new self(
             id: $exercise->id,
             name: $exercise->name,
-            type: $type,
-            config: $config,
+            type: $exercise->type ?? ExerciseType::Strength,
+            config: $exercise->config,
         );
     }
 
     public function persist(): void
     {
         $config = $this->config?->toArray() ?? [];
+        $data = [
+            'name' => $this->name,
+            'type' => $this->type,
+            'config' => $config,
+        ];
 
-        if ($this->id === null) {
-            $exercise = Exercise::create([
-                'name' => $this->name,
-                'type' => $this->type,
-                'config' => $config,
-            ]);
+        if (! isset($this->id)) {
+            $exercise = Exercise::create($data);
             $this->id = $exercise->id;
         } else {
             $exercise = Exercise::findOrFail($this->id);
-            $exercise->name = $this->name;
-            $exercise->type = $this->type;
-            $exercise->config = $config;
+            $exercise->update($data);
             $exercise->save();
         }
     }
 
-    public static function getFields(): array
+    public static function getForm(): Form
     {
-        return [
-            Fields\ExerciseName::make('name'),
-            Fields\ExerciseType::make('type'),
-        ];
-    }
+        return Form::make()
+            ->withFields([
+                Fields\ExerciseName::make('name'),
+                Fields\ExerciseType::make('type'),
+            ])
+            ->fieldset('general', 'General', ['name', 'type'])
+            ->fieldset('defaults', function (array $data): ?array {
+                $type = ExerciseType::tryFrom($data['type'] ?? null);
+                if (! $type) {
+                    return null;
+                }
 
-    public static function getFieldsets(): array
-    {
-        return [
-            'general' => [
-                'label' => 'General',
-                'fields' => ['name', 'type'],
-            ],
-        ];
+                return [
+                    'label' => 'Defaults',
+                    'fields' => $type->getFields(),
+                    'prefix' => 'data.config.'.$type->getConfigAccessor(),
+                ];
+            })
+            ->discriminator('type', 'config');
     }
 
     public function getDefaultsBadges(): array
     {
-        return $this->config?->toBadges() ?? [];
+        return $this->config?->toBadges($this->type) ?? [];
     }
 }

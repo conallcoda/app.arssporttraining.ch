@@ -31,7 +31,7 @@ class ExerciseSeeder extends Seeder
                 [
                     'type' => 'strength',
                     'config' => [
-                        'type' => array_merge($strengthDefaults, $overrides),
+                        'strength' => array_merge($strengthDefaults, $overrides),
                     ],
                 ]
             );

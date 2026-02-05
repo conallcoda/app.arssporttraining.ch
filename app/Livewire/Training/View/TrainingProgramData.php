@@ -3,7 +3,7 @@
 namespace App\Livewire\Training\View;
 
 use App\Data\AbstractData;
-use App\Data\Exercise\Types\StrengthExerciseConfig;
+use App\Form\Concerns\InteractsWithForms;
 use App\Form\Fields\Exercise\Exercises;
 use App\Form\Fields\Training\Program\Color;
 use App\Form\Fields\Training\Program\ProgramName;
@@ -14,6 +14,8 @@ use App\Models\TrainingPlanProgramExercise;
 
 class TrainingProgramData extends AbstractData implements HasForms
 {
+    use InteractsWithForms;
+
     public function __construct(
         public ?int $id,
         public ?int $training_plan_id,
@@ -90,16 +92,16 @@ class TrainingProgramData extends AbstractData implements HasForms
             if (in_array($exerciseId, $exercisesToAdd)) {
                 $exercise = Exercise::find($exerciseId);
                 if ($exercise) {
-                    $defaults = StrengthExerciseConfig::fromExercise($exercise);
+                    $defaults = $exercise->config?->strength;
                     TrainingPlanProgramExercise::create([
                         'training_plan_program_id' => $program->id,
                         'exercise_id' => $exerciseId,
                         'sort' => $sort,
                         'config' => [
-                            'oneRepMaxModifier' => $defaults->oneRepMaxModifier,
-                            'startingReps' => $defaults->startingReps,
-                            'timeUnderTension' => $defaults->timeUnderTension,
-                            'rest' => $defaults->rest,
+                            'oneRepMaxModifier' => $defaults?->oneRepMaxModifier ?? 100,
+                            'startingReps' => $defaults?->startingReps ?? 12,
+                            'timeUnderTension' => $defaults?->timeUnderTension ?? '3010',
+                            'rest' => $defaults?->rest ?? 30,
                         ],
                     ]);
                 }
@@ -111,7 +113,7 @@ class TrainingProgramData extends AbstractData implements HasForms
         }
     }
 
-    public static function getFields(): array
+    public static function getForm(): array
     {
         return [
             ProgramName::make('name'),

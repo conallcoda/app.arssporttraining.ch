@@ -3,6 +3,7 @@
 namespace App\Training\Data;
 
 use App\Data\AbstractData;
+use App\Form\Concerns\InteractsWithForms;
 use App\Form\Fields\Training\Program\Sets;
 use App\Form\Fields\Training\Program\StartingReps;
 use App\Form\Fields\Training\Program\Target;
@@ -10,6 +11,8 @@ use App\Models\Contracts\HasForms;
 
 class ExerciseOverrideData extends AbstractData implements HasForms
 {
+    use InteractsWithForms;
+
     public const DEFAULT_TARGET = 7;
 
     public const DEFAULT_STARTING_REPS = 10;
@@ -30,7 +33,7 @@ class ExerciseOverrideData extends AbstractData implements HasForms
         public ?int $rest = null,
     ) {}
 
-    public static function getFields(): array
+    public static function getForm(): array
     {
         return [
             Target::make('target'),
