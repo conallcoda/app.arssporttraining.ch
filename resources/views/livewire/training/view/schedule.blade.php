@@ -161,7 +161,6 @@
                                         @php
                                             $defaultLinkedTo = $this->getDefaultWeekLinkedTo($week['id']);
                                             $userHasUnlinked = $this->userHasUnlinkedWeek($week['id']);
-                                            $canShowUserUnlink = $user !== null && $weekIndex > 0 && ($isLinked || ($defaultLinkedTo !== null && $userHasUnlinked));
                                         @endphp
                                         <td rowspan="2"
                                             class="border border-r-0 {{ $isLinked ? 'border-dashed border-zinc-400 dark:border-zinc-500' : 'border-zinc-300 dark:border-zinc-600' }} bg-zinc-50 dark:bg-zinc-800/50 text-center">
@@ -188,13 +187,13 @@
                                                         </flux:menu.item>
                                                     </flux:menu>
                                                 </flux:dropdown>
-                                            @elseif ($canShowUserUnlink)
+                                            @elseif ($user !== null && $weekIndex > 0)
                                                 <flux:dropdown>
                                                     <flux:button variant="ghost" size="xs" icon="ellipsis" />
                                                     <flux:menu>
                                                         @if ($isLinked)
                                                             <flux:menu.item wire:click="unlinkWeek('{{ $week['id'] }}')">
-                                                                <flux:icon.unlink class="size-4 mr-2" />
+                                                                <flux:icon.link class="size-4 mr-2" />
                                                                 Unlink
                                                             </flux:menu.item>
                                                         @elseif ($userHasUnlinked && $defaultLinkedTo !== null)
@@ -203,6 +202,11 @@
                                                                 Restore Link
                                                             </flux:menu.item>
                                                         @endif
+                                                        <flux:menu.item wire:click="openRemoveModal('{{ $week['id'] }}')"
+                                                            variant="danger">
+                                                            <flux:icon.trash-2 class="size-4 mr-2" />
+                                                            Remove
+                                                        </flux:menu.item>
                                                     </flux:menu>
                                                 </flux:dropdown>
                                             @endif
@@ -211,7 +215,7 @@
                                 </tr>
                             @endforeach
                         @endforeach
-                        @if ($canEditWeekStructure)
+                        @if ($canEdit)
                             <tr>
                                 <td colspan="10"
                                     class="border border-dashed border-zinc-300 dark:border-zinc-600 border-b-0 border-l-0 border-r-0 px-3 py-4 bg-zinc-50/50 dark:bg-zinc-800/30 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-colors"

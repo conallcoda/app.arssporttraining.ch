@@ -99,8 +99,14 @@ class Schedule extends Component
             return false;
         }
 
-        foreach ($userOverrides as $weekOverride) {
-            if (! empty($weekOverride['slots']) || array_key_exists('linkedToWeekId', $weekOverride)) {
+        $defaultWeekIds = collect($this->defaultSchedule)->pluck('id')->all();
+
+        foreach ($userOverrides as $weekId => $weekOverride) {
+            if (! in_array($weekId, $defaultWeekIds)) {
+                return true;
+            }
+
+            if (! empty($weekOverride['removed']) || ! empty($weekOverride['slots']) || array_key_exists('linkedToWeekId', $weekOverride)) {
                 return true;
             }
         }
@@ -116,9 +122,22 @@ class Schedule extends Component
             return 0;
         }
 
+        $defaultWeekIds = collect($this->defaultSchedule)->pluck('id')->all();
         $count = 0;
 
-        foreach ($userOverrides as $weekOverride) {
+        foreach ($userOverrides as $weekId => $weekOverride) {
+            if (! in_array($weekId, $defaultWeekIds)) {
+                $count++;
+
+                continue;
+            }
+
+            if (! empty($weekOverride['removed'])) {
+                $count++;
+
+                continue;
+            }
+
             if (array_key_exists('linkedToWeekId', $weekOverride)) {
                 $count++;
             }
@@ -162,14 +181,16 @@ class Schedule extends Component
                 'id' => $week1Id,
                 'linkedToWeekId' => null,
                 'slots' => $this->createEmptySlots(),
+                'sort' => 0,
             ],
         ];
 
-        for ($i = 2; $i <= 5; $i++) {
+        for ($i = 1; $i < 5; $i++) {
             $weeks[] = [
                 'id' => (string) Str::uuid(),
                 'linkedToWeekId' => $week1Id,
                 'slots' => [],
+                'sort' => $i,
             ];
         }
 
@@ -251,12 +272,22 @@ class Schedule extends Component
             return $defaultWeeks;
         }
 
-        return collect($defaultWeeks)->map(function ($week) use ($userOverrides) {
+        $defaultWeekIds = collect($defaultWeeks)->pluck('id')->all();
+
+        $weeks = collect($defaultWeeks)->map(function ($week, $index) use ($userOverrides) {
             $weekId = $week['id'];
             $override = $userOverrides[$weekId] ?? null;
 
+            if (! isset($week['sort'])) {
+                $week['sort'] = $index;
+            }
+
             if (! $override) {
                 return $week;
+            }
+
+            if (! empty($override['removed'])) {
+                return null;
             }
 
             if (array_key_exists('linkedToWeekId', $override)) {
@@ -268,7 +299,15 @@ class Schedule extends Component
             }
 
             return $week;
-        })->all();
+        })->filter();
+
+        $userAddedWeeks = collect($userOverrides)
+            ->filter(fn ($override, $weekId) => ! in_array($weekId, $defaultWeekIds));
+
+        return $weeks->merge($userAddedWeeks)
+            ->sortBy('sort')
+            ->values()
+            ->all();
     }
 
     protected function mergeSlotOverrides(array $baseSlots, array $overrideSlots): array
@@ -534,19 +573,56 @@ class Schedule extends Component
     public function addWeek(): void
     {
         if ($this->user !== null) {
+            $this->addWeekForUser();
+
             return;
         }
 
         $weeks = $this->defaultSchedule;
         $week1Id = $weeks[0]['id'] ?? null;
+        $maxSort = collect($weeks)->max('sort') ?? count($weeks) - 1;
 
         $weeks[] = [
             'id' => (string) Str::uuid(),
             'linkedToWeekId' => $week1Id,
             'slots' => [],
+            'sort' => $maxSort + 1,
         ];
 
         $this->saveWeeks($weeks);
+    }
+
+    protected function addWeekForUser(): void
+    {
+        $schedule = $this->schedule;
+        $firstWeekId = $schedule[0]['id'] ?? null;
+        $maxSort = collect($schedule)->max('sort') ?? count($schedule) - 1;
+
+        $newWeekId = (string) Str::uuid();
+        $userWeeks = $this->trainingPlan->config->get("users.{$this->user}.schedule.weeks", []);
+
+        $userWeeks[$newWeekId] = [
+            'id' => $newWeekId,
+            'linkedToWeekId' => $firstWeekId,
+            'slots' => [],
+            'sort' => $maxSort + 1,
+        ];
+
+        $this->trainingPlan->config->set("users.{$this->user}.schedule.weeks", $userWeeks);
+        $this->trainingPlan->save();
+        $this->trainingPlan->refresh();
+        unset($this->schedule);
+        unset($this->defaultSchedule);
+        $this->notifyChanged('schedule');
+    }
+
+    protected function isUserAddedWeek(string $weekId): bool
+    {
+        if ($this->user === null) {
+            return false;
+        }
+
+        return ! collect($this->defaultSchedule)->contains('id', $weekId);
     }
 
     public function openRemoveModal(string $weekId): void
@@ -568,7 +644,14 @@ class Schedule extends Component
 
     public function confirmRemoveWeek(): void
     {
-        if ($this->removingWeekId === null || $this->user !== null) {
+        if ($this->removingWeekId === null) {
+            $this->closeRemoveModal();
+
+            return;
+        }
+
+        if ($this->user !== null) {
+            $this->removeWeekForUser($this->removingWeekId);
             $this->closeRemoveModal();
 
             return;
@@ -715,10 +798,44 @@ class Schedule extends Component
 
         $userWeeks = $this->trainingPlan->config->get("users.{$this->user}.schedule.weeks", []);
 
-        $userWeeks[$weekId] = [
-            'linkedToWeekId' => null,
-            'slots' => $copiedSlots,
-        ];
+        if ($this->isUserAddedWeek($weekId)) {
+            $userWeeks[$weekId]['linkedToWeekId'] = null;
+            $userWeeks[$weekId]['slots'] = $copiedSlots;
+        } else {
+            $userWeeks[$weekId] = [
+                'linkedToWeekId' => null,
+                'slots' => $copiedSlots,
+            ];
+        }
+
+        $this->trainingPlan->config->set("users.{$this->user}.schedule.weeks", $userWeeks);
+        $this->trainingPlan->save();
+        $this->trainingPlan->refresh();
+        unset($this->schedule);
+        unset($this->defaultSchedule);
+        $this->notifyChanged('schedule');
+    }
+
+    public function removeWeekForUser(string $weekId): void
+    {
+        if ($this->user === null) {
+            return;
+        }
+
+        $weekIndex = $this->getWeekIndex($weekId);
+        if ($weekIndex === 0) {
+            return;
+        }
+
+        $userWeeks = $this->trainingPlan->config->get("users.{$this->user}.schedule.weeks", []);
+
+        if ($this->isUserAddedWeek($weekId)) {
+            unset($userWeeks[$weekId]);
+        } else {
+            $userWeeks[$weekId] = array_merge($userWeeks[$weekId] ?? [], [
+                'removed' => true,
+            ]);
+        }
 
         $this->trainingPlan->config->set("users.{$this->user}.schedule.weeks", $userWeeks);
         $this->trainingPlan->save();
@@ -897,6 +1014,12 @@ class Schedule extends Component
                 }
             }
             $this->trainingPlan->config->set('schedule.weeks', $weeks);
+        } elseif ($this->isUserAddedWeek($weekId)) {
+            $userWeeks = $this->trainingPlan->config->get("users.{$this->user}.schedule.weeks", []);
+            if (isset($userWeeks[$weekId])) {
+                $this->setSlot($userWeeks[$weekId]['slots'], $day, $slot, $programId);
+                $this->trainingPlan->config->set("users.{$this->user}.schedule.weeks", $userWeeks);
+            }
         } else {
             $userWeeks = $this->trainingPlan->config->get("users.{$this->user}.schedule.weeks", []);
 

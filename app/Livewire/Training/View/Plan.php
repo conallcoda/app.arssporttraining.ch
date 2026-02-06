@@ -144,12 +144,22 @@ class Plan extends Component
             return $defaultWeeks;
         }
 
-        return collect($defaultWeeks)->map(function ($week) use ($userOverrides) {
+        $defaultWeekIds = collect($defaultWeeks)->pluck('id')->all();
+
+        $weeks = collect($defaultWeeks)->map(function ($week, $index) use ($userOverrides) {
             $weekId = $week['id'];
             $override = $userOverrides[$weekId] ?? null;
 
+            if (! isset($week['sort'])) {
+                $week['sort'] = $index;
+            }
+
             if (! $override) {
                 return $week;
+            }
+
+            if (! empty($override['removed'])) {
+                return null;
             }
 
             if (array_key_exists('linkedToWeekId', $override)) {
@@ -161,7 +171,15 @@ class Plan extends Component
             }
 
             return $week;
-        })->all();
+        })->filter();
+
+        $userAddedWeeks = collect($userOverrides)
+            ->filter(fn ($override, $weekId) => ! in_array($weekId, $defaultWeekIds));
+
+        return $weeks->merge($userAddedWeeks)
+            ->sortBy('sort')
+            ->values()
+            ->all();
     }
 
     protected function mergeSlotOverrides(array $baseSlots, array $overrideSlots): array
