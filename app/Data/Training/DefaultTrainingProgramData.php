@@ -8,7 +8,6 @@ use App\Cms\Form\Form;
 use App\Cms\Models\Contracts\HasForms;
 use App\Form\Fields\Athlete\MeasuredReps;
 use App\Form\Fields\Athlete\MeasuredWeight;
-use App\Form\Fields\Training\Plan\Duration;
 use App\Form\Fields\Training\Plan\StartDate;
 use App\Form\Fields\Training\Program\TargetGoal;
 use App\Models\TrainingPlan;
@@ -21,11 +20,9 @@ class DefaultTrainingProgramData extends AbstractData implements HasForms
 
     public function __construct(
         public string $startDate = '',
-        public int $duration = 5,
         public int $measuredReps = 8,
         public float $measuredWeight = 52,
         public int $targetGoal = 7,
-        public ?array $programsSelected = null,
     ) {
         if ($this->startDate === '') {
             $this->startDate = WeekOptions::getCurrentWeekValue();
@@ -46,27 +43,24 @@ class DefaultTrainingProgramData extends AbstractData implements HasForms
     public static function fromTrainingPlan(TrainingPlan $trainingPlan): self
     {
         $data = $trainingPlan->config->get('users.default.training_plan', []);
+        $scheduleStartDate = $trainingPlan->config->get('schedule.startDate');
 
         return new self(
-            startDate: ! empty($data['startDate']) ? $data['startDate'] : WeekOptions::getCurrentWeekValue(),
-            duration: $data['duration'] ?? 5,
+            startDate: ! empty($scheduleStartDate) ? $scheduleStartDate : WeekOptions::getCurrentWeekValue(),
             measuredReps: $data['measuredReps'] ?? 8,
             measuredWeight: $data['measuredWeight'] ?? 52,
             targetGoal: $data['targetGoal'] ?? 7,
-            programsSelected: $data['programsSelected'] ?? null,
         );
     }
 
     public function persist(TrainingPlan $trainingPlan): void
     {
         $trainingPlan->config->set('users.default.training_plan', [
-            'startDate' => $this->startDate,
-            'duration' => $this->duration,
             'measuredReps' => $this->measuredReps,
             'measuredWeight' => $this->measuredWeight,
             'targetGoal' => $this->targetGoal,
-            'programsSelected' => $this->programsSelected,
         ]);
+        $trainingPlan->config->set('schedule.startDate', $this->startDate);
         $trainingPlan->save();
     }
 
@@ -75,11 +69,10 @@ class DefaultTrainingProgramData extends AbstractData implements HasForms
         return Form::make()
             ->withFields([
                 StartDate::make('startDate')->withOptions(),
-                Duration::make('duration'),
                 MeasuredReps::make('measuredReps'),
                 MeasuredWeight::make('measuredWeight'),
                 TargetGoal::make('targetGoal'),
             ])
-            ->fieldset('general', 'General', ['startDate', 'duration', 'measuredReps', 'measuredWeight', 'targetGoal']);
+            ->fieldset('general', 'General', ['startDate', 'measuredReps', 'measuredWeight', 'targetGoal']);
     }
 }

@@ -24,7 +24,7 @@
 
     $sessionsAreIdentical = function ($sessions) {
         if (count($sessions) < 2) {
-            return false;
+            return true;
         }
         $firstSessionSets = array_map(fn($set) => $set->toArray(), $sessions[0]->sets);
         foreach (array_slice($sessions, 1) as $session) {
@@ -282,7 +282,7 @@
                                                 type="number" min="1" step="1"
                                                 class="w-full h-full px-2 py-1.5 text-center text-sm bg-transparent border-0 focus:ring-0"
                                                 placeholder="{{ $session->sets[$i]->reps ?? '' }}"
-                                                @blur="editing = false; if (editValue !== '') $wire.updateCellOverride({{ $exerciseId }}, {{ $weekIndex }}, {{ $sessionIndex }}, {{ $i }}, 'reps', parseInt(editValue))"
+                                                @blur="editing = false; if (editValue !== '') $wire.updateCellOverride({{ $exerciseId }}, {{ $weekIndex }}, {{ $i }}, 'reps', parseInt(editValue))"
                                                 @keydown.enter="$event.target.blur()"
                                                 @keydown.escape="editing = false" />
                                         </td>
@@ -343,7 +343,7 @@
                                                     type="number" min="0" step="0.5"
                                                     class="w-full h-full px-2 py-1.5 text-center text-sm bg-transparent border-0 focus:ring-0"
                                                     placeholder="{{ $session->sets[$i]->weight ?? '' }}"
-                                                    @blur="editing = false; if (editValue !== '') $wire.updateCellOverride({{ $exerciseId }}, {{ $weekIndex }}, {{ $sessionIndex }}, {{ $i }}, 'weight', parseFloat(editValue))"
+                                                    @blur="editing = false; if (editValue !== '') $wire.updateCellOverride({{ $exerciseId }}, {{ $weekIndex }}, {{ $i }}, 'weight', parseFloat(editValue))"
                                                     @keydown.enter="$event.target.blur()"
                                                     @keydown.escape="editing = false" />
                                             </td>
@@ -393,7 +393,7 @@
                                                     type="number" min="1" step="1"
                                                     class="w-full h-full px-2 py-1.5 text-center text-sm bg-transparent border-0 focus:ring-0"
                                                     placeholder="{{ $session->sets[$i]->reps ?? '' }}"
-                                                    @blur="editing = false; if (editValue !== '') $wire.updateCellOverride({{ $exerciseId }}, {{ $weekIndex }}, {{ $sessionIndex }}, {{ $i }}, 'reps', parseInt(editValue))"
+                                                    @blur="editing = false; if (editValue !== '') $wire.updateCellOverride({{ $exerciseId }}, {{ $weekIndex }}, {{ $i }}, 'reps', parseInt(editValue))"
                                                     @keydown.enter="$event.target.blur()"
                                                     @keydown.escape="editing = false" />
                                             </td>
@@ -457,7 +457,7 @@
                                                         step="0.5"
                                                         class="w-full h-full px-2 py-1.5 text-center text-sm bg-transparent border-0 focus:ring-0"
                                                         placeholder="{{ $session->sets[$i]->weight ?? '' }}"
-                                                        @blur="editing = false; if (editValue !== '') $wire.updateCellOverride({{ $exerciseId }}, {{ $weekIndex }}, {{ $sessionIndex }}, {{ $i }}, 'weight', parseFloat(editValue))"
+                                                        @blur="editing = false; if (editValue !== '') $wire.updateCellOverride({{ $exerciseId }}, {{ $weekIndex }}, {{ $i }}, 'weight', parseFloat(editValue))"
                                                         @keydown.enter="$event.target.blur()"
                                                         @keydown.escape="editing = false" />
                                                 </td>

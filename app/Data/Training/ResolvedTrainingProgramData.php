@@ -9,11 +9,9 @@ class ResolvedTrainingProgramData
     public function __construct(
         public int $userId,
         public string $startDate,
-        public int $duration,
         public int $measuredReps,
         public float $measuredWeight,
         public int $targetGoal,
-        public ?array $programsSelected = null,
     ) {}
 
     public function estimatedOneRepMax(): ?float

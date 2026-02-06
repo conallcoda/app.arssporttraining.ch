@@ -8,7 +8,6 @@ use App\Cms\Form\Form;
 use App\Cms\Models\Contracts\HasForms;
 use App\Form\Fields\Athlete\MeasuredReps;
 use App\Form\Fields\Athlete\MeasuredWeight;
-use App\Form\Fields\Training\Plan\Duration;
 use App\Form\Fields\Training\Plan\StartDate;
 use App\Form\Fields\Training\Program\TargetGoal;
 use App\Models\TrainingPlan;
@@ -21,11 +20,9 @@ class UserTrainingProgramData extends AbstractData implements HasForms
     public function __construct(
         public int $userId,
         public ?string $startDate = null,
-        public ?int $duration = null,
         public ?int $measuredReps = null,
         public ?float $measuredWeight = null,
         public ?int $targetGoal = null,
-        public ?array $programsSelected = null,
     ) {}
 
     public function estimatedOneRepMax(): ?float
@@ -48,78 +45,51 @@ class UserTrainingProgramData extends AbstractData implements HasForms
         return new ResolvedTrainingProgramData(
             userId: $this->userId,
             startDate: $this->startDate ?? $default->startDate,
-            duration: $this->duration ?? $default->duration,
             measuredReps: $this->measuredReps ?? $default->measuredReps,
             measuredWeight: $this->measuredWeight ?? $default->measuredWeight,
             targetGoal: $this->targetGoal ?? $default->targetGoal,
-            programsSelected: $this->programsSelected ?? $default->programsSelected,
         );
     }
 
     public static function fromTrainingPlan(TrainingPlan $trainingPlan, int $userId): self
     {
         $data = $trainingPlan->config->get("users.{$userId}.training_plan", []);
+        $scheduleStartDate = $trainingPlan->config->get("users.{$userId}.schedule.startDate");
 
         return new self(
             userId: $userId,
-            startDate: ! empty($data['startDate']) ? $data['startDate'] : null,
-            duration: ! empty($data['duration']) ? $data['duration'] : null,
+            startDate: ! empty($scheduleStartDate) ? $scheduleStartDate : null,
             measuredReps: $data['measuredReps'] ?? null,
             measuredWeight: $data['measuredWeight'] ?? null,
             targetGoal: $data['targetGoal'] ?? null,
-            programsSelected: $data['programsSelected'] ?? null,
         );
     }
 
     public function persist(TrainingPlan $trainingPlan, DefaultTrainingProgramData $default): void
     {
         $startDate = $this->startDate;
-        $duration = $this->duration;
         $targetGoal = $this->targetGoal;
-        $programsSelected = $this->programsSelected !== null
-            ? array_map('intval', $this->programsSelected)
-            : null;
 
         if ($startDate === $default->startDate) {
             $startDate = null;
         }
-        if ($duration === $default->duration) {
-            $duration = null;
-        }
         if ($targetGoal === $default->targetGoal) {
             $targetGoal = null;
         }
-        if ($this->arraysMatch($programsSelected, $default->programsSelected)) {
-            $programsSelected = null;
-        }
 
         $trainingPlan->config->set("users.{$this->userId}.training_plan", [
-            'startDate' => $startDate,
-            'duration' => $duration,
             'measuredReps' => $this->measuredReps,
             'measuredWeight' => $this->measuredWeight,
             'targetGoal' => $targetGoal,
-            'programsSelected' => $programsSelected,
         ]);
+
+        if ($startDate === null) {
+            $trainingPlan->config->forget("users.{$this->userId}.schedule.startDate");
+        } else {
+            $trainingPlan->config->set("users.{$this->userId}.schedule.startDate", $startDate);
+        }
+
         $trainingPlan->save();
-    }
-
-    protected function arraysMatch(?array $a, ?array $b): bool
-    {
-        if ($a === null && $b === null) {
-            return true;
-        }
-
-        if ($a === null || $b === null) {
-            return false;
-        }
-
-        $sortedA = $a;
-        $sortedB = $b;
-        sort($sortedA);
-        sort($sortedB);
-
-        return $sortedA === $sortedB;
     }
 
     public static function getForm(): Form
@@ -127,11 +97,10 @@ class UserTrainingProgramData extends AbstractData implements HasForms
         return Form::make()
             ->withFields([
                 StartDate::make('startDate')->withOptions(),
-                Duration::make('duration'),
                 MeasuredReps::make('measuredReps'),
                 MeasuredWeight::make('measuredWeight'),
                 TargetGoal::make('targetGoal'),
             ])
-            ->fieldset('general', 'General', ['startDate', 'duration', 'measuredReps', 'measuredWeight', 'targetGoal']);
+            ->fieldset('general', 'General', ['startDate', 'measuredReps', 'measuredWeight', 'targetGoal']);
     }
 }

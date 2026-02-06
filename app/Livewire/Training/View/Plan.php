@@ -15,6 +15,7 @@ use App\Training\Reference\RepPercentageTable;
 use App\Training\Services\TrainingBlockGenerator;
 use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 
@@ -42,15 +43,11 @@ class Plan extends Component
 
     public ?string $startDate = null;
 
-    public ?int $duration = null;
-
     public ?int $measuredReps = null;
 
     public ?float $measuredWeight = null;
 
     public ?int $targetGoal = null;
-
-    public array $programsSelected = [];
 
     public array $exerciseOverrides = [];
 
@@ -73,6 +70,16 @@ class Plan extends Component
         $this->programs = $programs;
         $this->users = $users;
         $this->loadAthleteData();
+    }
+
+    #[On('child-changed')]
+    public function handleChildChanged(string $domain): void
+    {
+        if ($domain === 'schedule') {
+            $this->trainingPlan->refresh();
+            unset($this->scheduleWeeks);
+            unset($this->programIdsFromSchedule);
+        }
     }
 
     public function userHasMeasuredData(int $userId): bool
@@ -120,6 +127,89 @@ class Plan extends Component
         }
 
         return $this->users->firstWhere('id', $this->user);
+    }
+
+    #[Computed]
+    public function scheduleWeeks(): array
+    {
+        if ($this->user !== null) {
+            $userWeeks = $this->trainingPlan->config->get("users.{$this->user}.schedule.weeks");
+            if (! empty($userWeeks)) {
+                return $userWeeks;
+            }
+        }
+
+        return $this->trainingPlan->config->get('schedule.weeks', []);
+    }
+
+    #[Computed]
+    public function programIdsFromSchedule(): array
+    {
+        $programIds = [];
+        $weeks = $this->scheduleWeeks;
+
+        foreach ($weeks as $week) {
+            $slots = $this->getResolvedSlotsForWeek($week, $weeks);
+            foreach ($slots as $daySlots) {
+                foreach (['am', 'pm'] as $slotKey) {
+                    $programId = $daySlots[$slotKey]['programId'] ?? null;
+                    if ($programId !== null && ! in_array($programId, $programIds)) {
+                        $programIds[] = $programId;
+                    }
+                }
+            }
+        }
+
+        return $programIds;
+    }
+
+    protected function getResolvedSlotsForWeek(array $week, array $allWeeks): array
+    {
+        if ($week['linkedToWeekId'] === null) {
+            return $week['slots'] ?? [];
+        }
+
+        $sourceWeek = collect($allWeeks)->firstWhere('id', $week['linkedToWeekId']);
+
+        return $sourceWeek ? $this->getResolvedSlotsForWeek($sourceWeek, $allWeeks) : ($week['slots'] ?? []);
+    }
+
+    public function getSessionsPerWeekForProgram(int $programId): int
+    {
+        $weeks = $this->scheduleWeeks;
+
+        if (empty($weeks)) {
+            return 2;
+        }
+
+        $firstWeek = $weeks[0] ?? null;
+        if (! $firstWeek) {
+            return 2;
+        }
+
+        $slots = $this->getResolvedSlotsForWeek($firstWeek, $weeks);
+        $count = 0;
+
+        foreach ($slots as $daySlots) {
+            foreach (['am', 'pm'] as $slotKey) {
+                if (($daySlots[$slotKey]['programId'] ?? null) === $programId) {
+                    $count++;
+                }
+            }
+        }
+
+        return max(1, $count);
+    }
+
+    protected function findProgramIdForExercise(int $exerciseId): ?int
+    {
+        foreach ($this->programs as $program) {
+            if ($program->exercises->contains('id', $exerciseId)) {
+                return $program->id;
+            }
+        }
+
+        return null;
     }
 
     #[Computed]
@@ -215,7 +305,12 @@ class Plan extends Component
             'sets' => $pivotConfigData['sets'] ?? null,
         ];
 
-        $block = $this->generateBlock($exerciseId, $pivotConfig);
+        $programId = $this->findProgramIdForExercise($exerciseId);
+        if ($programId === null) {
+            return null;
+        }
+
+        $block = $this->generateBlock($exerciseId, $pivotConfig, $programId);
 
         if (! $block) {
             return null;
@@ -279,25 +374,13 @@ class Plan extends Component
     #[Computed]
     public function weeks(): int
     {
-        return $this->duration ?? $this->defaultData->duration;
+        return count($this->scheduleWeeks);
     }
 
     #[Computed]
     public function weekOptions(): array
     {
         return WeekOptions::generate();
-    }
-
-    #[Computed]
-    public function programOptions(): array
-    {
-        return $this->programs->pluck('name', 'id')->toArray();
-    }
-
-    #[Computed]
-    public function allProgramIds(): array
-    {
-        return $this->programs->pluck('id')->toArray();
     }
 
     public function selectUser(?int $userId): void
@@ -312,21 +395,19 @@ class Plan extends Component
         if ($this->user === null) {
             $data = $this->defaultData;
             $this->startDate = $data->startDate;
-            $this->duration = $data->duration;
             $this->measuredReps = $data->measuredReps;
             $this->measuredWeight = $data->measuredWeight;
             $this->targetGoal = $data->targetGoal;
-            $this->programsSelected = $data->programsSelected ?? $this->allProgramIds;
         } else {
             $userData = UserTrainingProgramData::fromTrainingPlan($this->trainingPlan, $this->user);
             $this->startDate = $userData->startDate ?? $this->defaultData->startDate;
-            $this->duration = $userData->duration ?? $this->defaultData->duration;
             $this->measuredReps = $userData->measuredReps;
             $this->measuredWeight = $userData->measuredWeight;
             $this->targetGoal = $userData->targetGoal ?? $this->defaultData->targetGoal;
-            $this->programsSelected = $userData->programsSelected ?? ($this->defaultData->programsSelected ?? $this->allProgramIds);
         }
 
+        unset($this->scheduleWeeks);
+        unset($this->programIdsFromSchedule);
         $this->loadExerciseOverrides();
     }
 
@@ -375,7 +456,7 @@ class Plan extends Component
 
     public function updated(string $property): void
     {
-        $trackedProperties = ['startDate', 'duration', 'measuredReps', 'measuredWeight', 'targetGoal', 'programsSelected'];
+        $trackedProperties = ['startDate', 'measuredReps', 'measuredWeight', 'targetGoal'];
         $baseProperty = explode('.', $property)[0];
 
         if (! in_array($baseProperty, $trackedProperties)) {
@@ -385,22 +466,18 @@ class Plan extends Component
         if ($this->user === null) {
             $data = new DefaultTrainingProgramData(
                 startDate: $this->startDate,
-                duration: $this->duration,
                 measuredReps: $this->measuredReps,
                 measuredWeight: $this->measuredWeight,
                 targetGoal: $this->targetGoal,
-                programsSelected: $this->programsSelected,
             );
             $data->persist($this->trainingPlan);
         } else {
             $data = new UserTrainingProgramData(
                 userId: $this->user,
                 startDate: $this->startDate,
-                duration: $this->duration,
                 measuredReps: $this->measuredReps,
                 measuredWeight: $this->measuredWeight,
                 targetGoal: $this->targetGoal,
-                programsSelected: $this->programsSelected,
             );
             $data->persist($this->trainingPlan, $this->defaultData);
         }
@@ -486,7 +563,7 @@ class Plan extends Component
         ];
     }
 
-    public function generateBlock(int $exerciseId, array $pivotExtra): ?TrainingBlock
+    public function generateBlock(int $exerciseId, array $pivotExtra, int $programId): ?TrainingBlock
     {
         $measuredWeight = $this->measuredWeight;
         $measuredReps = $this->measuredReps;
@@ -496,6 +573,7 @@ class Plan extends Component
         }
 
         $config = $this->getExerciseConfig($exerciseId, $pivotExtra);
+        $sessionsPerWeek = $this->getSessionsPerWeekForProgram($programId);
 
         $generator = new TrainingBlockGenerator;
 
@@ -507,7 +585,7 @@ class Plan extends Component
             startingReps: $config['startingReps'],
             sets: $config['sets'],
             weeks: $this->weeks,
-            sessionsPerWeek: 2,
+            sessionsPerWeek: $sessionsPerWeek,
             deloadEnabled: true,
             deloadSetsReduction: 1,
         );
@@ -519,7 +597,7 @@ class Plan extends Component
             return null;
         }
 
-        if (! in_array($field, ['startDate', 'duration', 'targetGoal'])) {
+        if (! in_array($field, ['startDate', 'targetGoal'])) {
             return null;
         }
 
@@ -535,10 +613,11 @@ class Plan extends Component
         return $this->weekOptions[$date] ?? $date;
     }
 
-    public function updateCellOverride(int $exerciseId, int $weekIndex, int $sessionIndex, int $setIndex, string $field, mixed $value): void
+    public function updateCellOverride(int $exerciseId, int $weekIndex, int $setIndex, string $field, mixed $value): void
     {
         $isDefaultUser = $this->user === null;
-        $sessionsPerWeek = 2;
+        $programId = $this->findProgramIdForExercise($exerciseId);
+        $sessionsPerWeek = $programId ? $this->getSessionsPerWeekForProgram($programId) : 1;
 
         for ($s = 0; $s < $sessionsPerWeek; $s++) {
             $effectiveValue = $this->getEffectiveCellValue($exerciseId, $weekIndex, $s, $setIndex, $field);

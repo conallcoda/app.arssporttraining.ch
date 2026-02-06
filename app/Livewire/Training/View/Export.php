@@ -150,10 +150,17 @@ class Export extends Component
 
     protected function getWeeksForUser(int $userId): int
     {
-        $userData = UserTrainingProgramData::fromTrainingPlan($this->trainingPlan, $userId);
-        $defaultData = DefaultTrainingProgramData::fromTrainingPlan($this->trainingPlan);
+        return count($this->getScheduleWeeksForUser($userId));
+    }
 
-        return $userData->duration ?? $defaultData->duration;
+    protected function getScheduleWeeksForUser(int $userId): array
+    {
+        $userWeeks = $this->trainingPlan->config->get("users.{$userId}.schedule.weeks");
+        if (! empty($userWeeks)) {
+            return $userWeeks;
+        }
+
+        return $this->trainingPlan->config->get('schedule.weeks', []);
     }
 
     public function selectAll(): void
@@ -289,7 +296,7 @@ class Export extends Component
             foreach ($program->exercises as $exercise) {
                 $pivotConfig = $this->getPivotConfig($program->id, $exercise->id);
                 $config = $this->getExerciseConfig($user->id, $exercise->id, $pivotConfig);
-                $block = $this->generateBlockForUserAndExercise($user, $exercise, $athleteData, $config);
+                $block = $this->generateBlockForUserAndExercise($user, $exercise, $athleteData, $config, $program->id);
 
                 if ($block) {
                     $weekOverrides = $this->getWeekOverridesForExport($user->id, $exercise->id);
@@ -331,28 +338,71 @@ class Export extends Component
 
     protected function getSelectedProgramIds(int $userId): array
     {
-        $allProgramIds = $this->programs->pluck('id')->all();
+        $programIds = [];
+        $weeks = $this->getScheduleWeeksForUser($userId);
 
-        $userData = UserTrainingProgramData::fromTrainingPlan($this->trainingPlan, $userId);
-        if ($userData->programsSelected !== null) {
-            return array_map('intval', $userData->programsSelected);
+        foreach ($weeks as $week) {
+            $slots = $this->getResolvedSlotsForWeek($week, $weeks);
+            foreach ($slots as $daySlots) {
+                foreach (['am', 'pm'] as $slotKey) {
+                    $programId = $daySlots[$slotKey]['programId'] ?? null;
+                    if ($programId !== null && ! in_array($programId, $programIds)) {
+                        $programIds[] = $programId;
+                    }
+                }
+            }
         }
 
-        $defaultData = DefaultTrainingProgramData::fromTrainingPlan($this->trainingPlan);
-        if ($defaultData->programsSelected !== null) {
-            return array_map('intval', $defaultData->programsSelected);
+        return $programIds;
+    }
+
+    protected function getResolvedSlotsForWeek(array $week, array $allWeeks): array
+    {
+        if ($week['linkedToWeekId'] === null) {
+            return $week['slots'] ?? [];
         }
 
-        return $allProgramIds;
+        $sourceWeek = collect($allWeeks)->firstWhere('id', $week['linkedToWeekId']);
+
+        return $sourceWeek ? $this->getResolvedSlotsForWeek($sourceWeek, $allWeeks) : ($week['slots'] ?? []);
+    }
+
+    protected function getSessionsPerWeekForProgram(int $userId, int $programId): int
+    {
+        $weeks = $this->getScheduleWeeksForUser($userId);
+
+        if (empty($weeks)) {
+            return 2;
+        }
+
+        $firstWeek = $weeks[0] ?? null;
+        if (! $firstWeek) {
+            return 2;
+        }
+
+        $slots = $this->getResolvedSlotsForWeek($firstWeek, $weeks);
+        $count = 0;
+
+        foreach ($slots as $daySlots) {
+            foreach (['am', 'pm'] as $slotKey) {
+                if (($daySlots[$slotKey]['programId'] ?? null) === $programId) {
+                    $count++;
+                }
+            }
+        }
+
+        return max(1, $count);
     }
 
     protected function generateBlockForUserAndExercise(
         User $user,
         mixed $exercise,
         UserTrainingProgramData $athleteData,
-        array $config
+        array $config,
+        int $programId
     ): ?TrainingBlock {
         $generator = new TrainingBlockGenerator;
+        $sessionsPerWeek = $this->getSessionsPerWeekForProgram($user->id, $programId);
 
         $block = $generator->generate(
             measuredWeight: $athleteData->measuredWeight,
@@ -362,7 +412,7 @@ class Export extends Component
             startingReps: $config['startingReps'],
             sets: $config['sets'],
             weeks: $this->getWeeksForUser($user->id),
-            sessionsPerWeek: 2,
+            sessionsPerWeek: $sessionsPerWeek,
             deloadEnabled: true,
             deloadSetsReduction: 1,
         );

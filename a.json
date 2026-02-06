@@ -2,40 +2,16 @@
     "users": {
         "default": {
             "training_plan": {
-                "startDate": "2026-02-02",
-                "duration": 5,
                 "measuredReps": 8,
                 "measuredWeight": 52,
-                "targetGoal": 7,
-                "programsSelected": null
+                "targetGoal": 7
             }
         },
         "40": {
-            "training_plan": {
-                "startDate": null,
-                "duration": null,
-                "measuredReps": 23,
-                "measuredWeight": 22,
-                "targetGoal": null,
-                "programsSelected": [
-                    1,
-                    2
-                ]
-            },
-            "cells": {
-                "1": {
-                    "w0-s0-set2": {
-                        "weight": 33
-                    },
-                    "w0-s1-set2": {
-                        "weight": 33
-                    }
-                }
-            },
             "schedule": {
                 "weeks": [
                     {
-                        "id": "321af80d-f287-40f2-9a81-2c7c2daef255",
+                        "id": "29a06544-30e1-4b08-b815-ffb9e0510ad6",
                         "linkedToWeekId": null,
                         "slots": [
                             {
@@ -54,7 +30,7 @@
                                     "isLinked": false
                                 },
                                 "pm": {
-                                    "programId": null,
+                                    "programId": 2,
                                     "isLinked": false
                                 }
                             },
@@ -64,7 +40,7 @@
                                     "isLinked": false
                                 },
                                 "pm": {
-                                    "programId": 2,
+                                    "programId": null,
                                     "isLinked": false
                                 }
                             },
@@ -111,33 +87,40 @@
                         ]
                     },
                     {
-                        "id": "1eec9b1d-0233-4b1d-b6f3-b7b00df8372e",
-                        "linkedToWeekId": "321af80d-f287-40f2-9a81-2c7c2daef255",
+                        "id": "d991a3e7-5b1f-48fe-a8c0-25fef2f78d03",
+                        "linkedToWeekId": "29a06544-30e1-4b08-b815-ffb9e0510ad6",
                         "slots": []
                     },
                     {
-                        "id": "0157c131-0969-4439-bf1b-a329f592b382",
-                        "linkedToWeekId": "321af80d-f287-40f2-9a81-2c7c2daef255",
+                        "id": "199e7438-0cba-480a-8658-df1542f856ce",
+                        "linkedToWeekId": "29a06544-30e1-4b08-b815-ffb9e0510ad6",
                         "slots": []
                     },
                     {
-                        "id": "70443673-9bf8-4f77-bc48-0afd545e547c",
-                        "linkedToWeekId": "321af80d-f287-40f2-9a81-2c7c2daef255",
+                        "id": "20da6926-05b8-4363-9331-11168f4415a6",
+                        "linkedToWeekId": "29a06544-30e1-4b08-b815-ffb9e0510ad6",
                         "slots": []
                     },
                     {
-                        "id": "6c905a45-1f37-451d-987a-6f5e23dd1eba",
-                        "linkedToWeekId": "321af80d-f287-40f2-9a81-2c7c2daef255",
+                        "id": "0ca82a4f-80ec-4976-b8be-e36d2baabc8a",
+                        "linkedToWeekId": "29a06544-30e1-4b08-b815-ffb9e0510ad6",
                         "slots": []
                     }
-                ]
+                ],
+                "startDate": "2026-02-16"
+            },
+            "training_plan": {
+                "measuredReps": 122,
+                "measuredWeight": 22,
+                "targetGoal": null
             }
         }
     },
     "schedule": {
+        "startDate": "2026-02-02",
         "weeks": [
             {
-                "id": "321af80d-f287-40f2-9a81-2c7c2daef255",
+                "id": "29a06544-30e1-4b08-b815-ffb9e0510ad6",
                 "linkedToWeekId": null,
                 "slots": [
                     {
@@ -213,23 +196,23 @@
                 ]
             },
             {
-                "id": "1eec9b1d-0233-4b1d-b6f3-b7b00df8372e",
-                "linkedToWeekId": "321af80d-f287-40f2-9a81-2c7c2daef255",
+                "id": "d991a3e7-5b1f-48fe-a8c0-25fef2f78d03",
+                "linkedToWeekId": "29a06544-30e1-4b08-b815-ffb9e0510ad6",
                 "slots": []
             },
             {
-                "id": "0157c131-0969-4439-bf1b-a329f592b382",
-                "linkedToWeekId": "321af80d-f287-40f2-9a81-2c7c2daef255",
+                "id": "199e7438-0cba-480a-8658-df1542f856ce",
+                "linkedToWeekId": "29a06544-30e1-4b08-b815-ffb9e0510ad6",
                 "slots": []
             },
             {
-                "id": "70443673-9bf8-4f77-bc48-0afd545e547c",
-                "linkedToWeekId": "321af80d-f287-40f2-9a81-2c7c2daef255",
+                "id": "20da6926-05b8-4363-9331-11168f4415a6",
+                "linkedToWeekId": "29a06544-30e1-4b08-b815-ffb9e0510ad6",
                 "slots": []
             },
             {
-                "id": "6c905a45-1f37-451d-987a-6f5e23dd1eba",
-                "linkedToWeekId": "321af80d-f287-40f2-9a81-2c7c2daef255",
+                "id": "0ca82a4f-80ec-4976-b8be-e36d2baabc8a",
+                "linkedToWeekId": "29a06544-30e1-4b08-b815-ffb9e0510ad6",
                 "slots": []
             }
         ]

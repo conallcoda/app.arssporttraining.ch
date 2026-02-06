@@ -134,7 +134,7 @@
             </x-section>
 
             <x-section title="Schedule" class="flex-1">
-                @if ($user === null)
+                @if ($user === null || $this->selectedUser)
                     <div class="space-y-4">
                         <div class="flex items-end gap-3">
                             <flux:field class="flex-1">
@@ -148,51 +148,21 @@
 
                             <flux:field class="flex-1">
                                 <flux:label>Duration</flux:label>
-                                <flux:input.group>
-                                    <flux:input wire:model.live.debounce.500ms="duration" type="number" min="1" max="10" step="1" />
-                                    <flux:input.group.suffix>weeks</flux:input.group.suffix>
-                                </flux:input.group>
+                                <div class="h-10 flex items-center justify-center rounded-lg bg-blue-500/15 text-blue-400 font-medium">
+                                    {{ $this->weeks }} weeks
+                                </div>
                             </flux:field>
                         </div>
 
                         <flux:field>
                             <flux:label>Programs</flux:label>
-                            <flux:pillbox wire:model.live="programsSelected" multiple>
-                                @foreach ($this->programOptions as $id => $name)
-                                    <flux:pillbox.option value="{{ $id }}">{{ $name }}</flux:pillbox.option>
-                                @endforeach
-                            </flux:pillbox>
-                        </flux:field>
-                    </div>
-                @elseif ($this->selectedUser)
-                    <div class="space-y-4">
-                        <div class="flex items-end gap-3">
-                            <flux:field class="flex-1">
-                                <flux:label>Start Date</flux:label>
-                                <flux:select wire:model.live="startDate">
-                                    @foreach ($this->weekOptions as $value => $label)
-                                        <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
-                                    @endforeach
-                                </flux:select>
-                            </flux:field>
-
-                            <flux:field class="flex-1">
-                                <flux:label>Duration</flux:label>
-                                <flux:input.group>
-                                    <flux:input wire:model.live.debounce.500ms="duration" type="number" min="1" max="10" step="1"
-                                        placeholder="{{ $this->getPlaceholder('duration') }}" />
-                                    <flux:input.group.suffix>weeks</flux:input.group.suffix>
-                                </flux:input.group>
-                            </flux:field>
-                        </div>
-
-                        <flux:field>
-                            <flux:label>Programs</flux:label>
-                            <flux:pillbox wire:model.live="programsSelected" multiple>
-                                @foreach ($this->programOptions as $id => $name)
-                                    <flux:pillbox.option value="{{ $id }}">{{ $name }}</flux:pillbox.option>
-                                @endforeach
-                            </flux:pillbox>
+                            <div class="flex flex-wrap gap-2">
+                                @forelse ($this->programs->whereIn('id', $this->programIdsFromSchedule) as $program)
+                                    <flux:badge>{{ $program->name }}</flux:badge>
+                                @empty
+                                    <flux:text class="text-zinc-500">No programs scheduled</flux:text>
+                                @endforelse
+                            </div>
                         </flux:field>
                     </div>
                 @else
@@ -202,15 +172,15 @@
         </div>
 
         @php
-            $selectedProgramIds = array_map('intval', $programsSelected);
-            $selectedProgramsKey = implode('-', $selectedProgramIds) ?: 'none';
+            $scheduledProgramIds = $this->programIdsFromSchedule;
+            $scheduledProgramsKey = implode('-', $scheduledProgramIds) ?: 'none';
             $hasMeasuredData = !empty($measuredReps) && !empty($measuredWeight);
         @endphp
 
         @if ($hasMeasuredData)
-            <div wire:key="programs-container-{{ $user ?? 'default' }}-{{ $selectedProgramsKey }}">
+            <div wire:key="programs-container-{{ $user ?? 'default' }}-{{ $scheduledProgramsKey }}">
                 @foreach ($this->programs as $program)
-                    @if (!in_array($program->id, $selectedProgramIds))
+                    @if (!in_array($program->id, $scheduledProgramIds))
                         @continue
                     @endif
                     <x-section wire:key="program-section-{{ $program->id }}" :title="$program->name" class="mb-6">
@@ -228,7 +198,7 @@
                                             'rest' => $configData['rest'] ?? $exerciseTypeConfig?->rest ?? null,
                                         ];
                                         $config = $this->getExerciseConfig($exercise->id, $pivotConfig);
-                                        $block = $this->generateBlock($exercise->id, $pivotConfig);
+                                        $block = $this->generateBlock($exercise->id, $pivotConfig, $program->id);
                                         if ($block) {
                                             $block = $this->applyCellOverrides($block, $exercise->id);
                                         }
