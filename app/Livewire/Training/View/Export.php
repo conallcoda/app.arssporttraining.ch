@@ -155,12 +155,50 @@ class Export extends Component
 
     protected function getScheduleWeeksForUser(int $userId): array
     {
-        $userWeeks = $this->trainingPlan->config->get("users.{$userId}.schedule.weeks");
-        if (! empty($userWeeks)) {
-            return $userWeeks;
+        $defaultWeeks = $this->trainingPlan->config->get('schedule.weeks', []);
+        $userOverrides = $this->trainingPlan->config->get("users.{$userId}.schedule.weeks", []);
+
+        if (empty($userOverrides)) {
+            return $defaultWeeks;
         }
 
-        return $this->trainingPlan->config->get('schedule.weeks', []);
+        return collect($defaultWeeks)->map(function ($week) use ($userOverrides) {
+            $weekId = $week['id'];
+            $override = $userOverrides[$weekId] ?? null;
+
+            if (! $override) {
+                return $week;
+            }
+
+            if (array_key_exists('linkedToWeekId', $override)) {
+                $week['linkedToWeekId'] = $override['linkedToWeekId'];
+            }
+
+            if (! empty($override['slots'])) {
+                $week['slots'] = $this->mergeSlotOverrides($week['slots'] ?? [], $override['slots']);
+            }
+
+            return $week;
+        })->all();
+    }
+
+    protected function mergeSlotOverrides(array $baseSlots, array $overrideSlots): array
+    {
+        $result = $baseSlots;
+
+        foreach ($overrideSlots as $override) {
+            $day = $override['day'];
+            $slot = $override['slot'];
+            $programId = $override['programId'] ?? null;
+
+            $result = array_filter($result, fn ($s) => ! ($s['day'] === $day && $s['slot'] === $slot));
+
+            if ($programId !== null) {
+                $result[] = $override;
+            }
+        }
+
+        return array_values($result);
     }
 
     public function selectAll(): void
@@ -343,12 +381,10 @@ class Export extends Component
 
         foreach ($weeks as $week) {
             $slots = $this->getResolvedSlotsForWeek($week, $weeks);
-            foreach ($slots as $daySlots) {
-                foreach (['am', 'pm'] as $slotKey) {
-                    $programId = $daySlots[$slotKey]['programId'] ?? null;
-                    if ($programId !== null && ! in_array($programId, $programIds)) {
-                        $programIds[] = $programId;
-                    }
+            foreach ($slots as $slot) {
+                $programId = $slot['programId'] ?? null;
+                if ($programId !== null && ! in_array($programId, $programIds)) {
+                    $programIds[] = $programId;
                 }
             }
         }
@@ -383,11 +419,9 @@ class Export extends Component
         $slots = $this->getResolvedSlotsForWeek($firstWeek, $weeks);
         $count = 0;
 
-        foreach ($slots as $daySlots) {
-            foreach (['am', 'pm'] as $slotKey) {
-                if (($daySlots[$slotKey]['programId'] ?? null) === $programId) {
-                    $count++;
-                }
+        foreach ($slots as $slot) {
+            if (($slot['programId'] ?? null) === $programId) {
+                $count++;
             }
         }
 

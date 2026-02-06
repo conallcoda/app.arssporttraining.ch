@@ -15,7 +15,7 @@ document.addEventListener('alpine:init', () => {
             const el = event.currentTarget;
             this.draggedWeekId = el.dataset.weekId;
             this.draggedDay = parseInt(el.dataset.day, 10);
-            this.draggedSlot = el.dataset.slot;
+            this.draggedSlot = parseInt(el.dataset.slot, 10);
             this.draggedProgramId = parseInt(el.dataset.programId, 10);
             this.draggedCell = this.draggedWeekId + '-' + this.draggedDay + '-' + this.draggedSlot;
             event.dataTransfer.effectAllowed = 'move';
@@ -25,7 +25,7 @@ document.addEventListener('alpine:init', () => {
             const el = event.currentTarget;
             const targetWeekId = el.dataset.weekId;
             const targetDay = parseInt(el.dataset.day, 10);
-            const targetSlot = el.dataset.slot;
+            const targetSlot = parseInt(el.dataset.slot, 10);
 
             const targetCell = targetWeekId + '-' + targetDay + '-' + targetSlot;
             this.isDraggingOver = targetCell;
@@ -55,7 +55,7 @@ document.addEventListener('alpine:init', () => {
             const el = event.currentTarget;
             const targetWeekId = el.dataset.weekId;
             const targetDay = parseInt(el.dataset.day, 10);
-            const targetSlot = el.dataset.slot;
+            const targetSlot = parseInt(el.dataset.slot, 10);
             const targetProgramId = el.dataset.programId ? parseInt(el.dataset.programId, 10) : null;
 
             if (this.isDropDisallowed || !this.draggedWeekId) {

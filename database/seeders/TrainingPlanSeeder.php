@@ -57,10 +57,11 @@ class TrainingPlanSeeder extends Seeder
     {
         $week1Id = (string) Str::uuid();
 
-        $slots = $this->createEmptySlots();
-        $slots[0]['am'] = ['programId' => $program1->id, 'isLinked' => false];
-        $slots[4]['am'] = ['programId' => $program1->id, 'isLinked' => true];
-        $slots[1]['pm'] = ['programId' => $program2->id, 'isLinked' => false];
+        $slots = [
+            ['day' => 0, 'slot' => 0, 'programId' => $program1->id],
+            ['day' => 4, 'slot' => 0, 'programId' => $program1->id, 'isLinked' => true],
+            ['day' => 1, 'slot' => 1, 'programId' => $program2->id],
+        ];
 
         $weeks = [
             [
@@ -80,19 +81,6 @@ class TrainingPlanSeeder extends Seeder
 
         $plan->config->set('schedule.weeks', $weeks);
         $plan->save();
-    }
-
-    private function createEmptySlots(): array
-    {
-        $slots = [];
-        for ($day = 0; $day < 7; $day++) {
-            $slots[] = [
-                'am' => ['programId' => null, 'isLinked' => false],
-                'pm' => ['programId' => null, 'isLinked' => false],
-            ];
-        }
-
-        return $slots;
     }
 
     private function getExerciseConfig(Exercise $exercise): array

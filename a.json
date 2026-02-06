@@ -7,112 +7,41 @@
                 "targetGoal": 7
             }
         },
-        "40": {
+        "7": {
             "schedule": {
-                "weeks": [
-                    {
-                        "id": "29a06544-30e1-4b08-b815-ffb9e0510ad6",
+                "weeks": {
+                    "21d0b9b5-ee8d-46fd-8309-a0fb710e48aa": {
                         "linkedToWeekId": null,
                         "slots": [
                             {
-                                "am": {
-                                    "programId": 1,
-                                    "isLinked": false
-                                },
-                                "pm": {
-                                    "programId": null,
-                                    "isLinked": false
-                                }
+                                "day": 4,
+                                "slot": 0,
+                                "programId": 1,
+                                "isLinked": true
                             },
                             {
-                                "am": {
-                                    "programId": null,
-                                    "isLinked": false
-                                },
-                                "pm": {
-                                    "programId": 2,
-                                    "isLinked": false
-                                }
+                                "day": 1,
+                                "slot": 1,
+                                "programId": 2,
+                                "isLinked": false
                             },
                             {
-                                "am": {
-                                    "programId": null,
-                                    "isLinked": false
-                                },
-                                "pm": {
-                                    "programId": null,
-                                    "isLinked": false
-                                }
+                                "day": 0,
+                                "slot": 0,
+                                "programId": null,
+                                "moved": [
+                                    1,
+                                    0
+                                ]
                             },
                             {
-                                "am": {
-                                    "programId": null,
-                                    "isLinked": false
-                                },
-                                "pm": {
-                                    "programId": null,
-                                    "isLinked": false
-                                }
-                            },
-                            {
-                                "am": {
-                                    "programId": 1,
-                                    "isLinked": true
-                                },
-                                "pm": {
-                                    "programId": null,
-                                    "isLinked": false
-                                }
-                            },
-                            {
-                                "am": {
-                                    "programId": null,
-                                    "isLinked": false
-                                },
-                                "pm": {
-                                    "programId": null,
-                                    "isLinked": false
-                                }
-                            },
-                            {
-                                "am": {
-                                    "programId": null,
-                                    "isLinked": false
-                                },
-                                "pm": {
-                                    "programId": null,
-                                    "isLinked": false
-                                }
+                                "day": 1,
+                                "slot": 0,
+                                "programId": 1
                             }
                         ]
-                    },
-                    {
-                        "id": "d991a3e7-5b1f-48fe-a8c0-25fef2f78d03",
-                        "linkedToWeekId": "29a06544-30e1-4b08-b815-ffb9e0510ad6",
-                        "slots": []
-                    },
-                    {
-                        "id": "199e7438-0cba-480a-8658-df1542f856ce",
-                        "linkedToWeekId": "29a06544-30e1-4b08-b815-ffb9e0510ad6",
-                        "slots": []
-                    },
-                    {
-                        "id": "20da6926-05b8-4363-9331-11168f4415a6",
-                        "linkedToWeekId": "29a06544-30e1-4b08-b815-ffb9e0510ad6",
-                        "slots": []
-                    },
-                    {
-                        "id": "0ca82a4f-80ec-4976-b8be-e36d2baabc8a",
-                        "linkedToWeekId": "29a06544-30e1-4b08-b815-ffb9e0510ad6",
-                        "slots": []
                     }
-                ],
-                "startDate": "2026-02-16"
-            },
-            "training_plan": {
-                "measuredReps": 122,
-                "measuredWeight": 22,
-                "targetGoal": null
+                }
             }
         }
     },
@@ -120,99 +49,45 @@
         "startDate": "2026-02-02",
         "weeks": [
             {
-                "id": "29a06544-30e1-4b08-b815-ffb9e0510ad6",
+                "id": "12e41c8f-55be-402f-b6d1-b2df8b0bf09d",
                 "linkedToWeekId": null,
                 "slots": [
                     {
-                        "am": {
-                            "programId": 1,
-                            "isLinked": false
-                        },
-                        "pm": {
-                            "programId": null,
-                            "isLinked": false
-                        }
+                        "day": 0,
+                        "slot": 0,
+                        "programId": 1
                     },
                     {
-                        "am": {
-                            "programId": null,
-                            "isLinked": false
-                        },
-                        "pm": {
-                            "programId": 2,
-                            "isLinked": false
-                        }
+                        "day": 4,
+                        "slot": 0,
+                        "programId": 1,
+                        "isLinked": true
                     },
                     {
-                        "am": {
-                            "programId": null,
-                            "isLinked": false
-                        },
-                        "pm": {
-                            "programId": null,
-                            "isLinked": false
-                        }
-                    },
-                    {
-                        "am": {
-                            "programId": null,
-                            "isLinked": false
-                        },
-                        "pm": {
-                            "programId": null,
-                            "isLinked": false
-                        }
-                    },
-                    {
-                        "am": {
-                            "programId": 1,
-                            "isLinked": true
-                        },
-                        "pm": {
-                            "programId": null,
-                            "isLinked": false
-                        }
-                    },
-                    {
-                        "am": {
-                            "programId": null,
-                            "isLinked": false
-                        },
-                        "pm": {
-                            "programId": null,
-                            "isLinked": false
-                        }
-                    },
-                    {
-                        "am": {
-                            "programId": null,
-                            "isLinked": false
-                        },
-                        "pm": {
-                            "programId": null,
-                            "isLinked": false
-                        }
+                        "day": 1,
+                        "slot": 1,
+                        "programId": 2
                     }
                 ]
             },
             {
-                "id": "d991a3e7-5b1f-48fe-a8c0-25fef2f78d03",
-                "linkedToWeekId": "29a06544-30e1-4b08-b815-ffb9e0510ad6",
+                "id": "21d0b9b5-ee8d-46fd-8309-a0fb710e48aa",
+                "linkedToWeekId": "12e41c8f-55be-402f-b6d1-b2df8b0bf09d",
                 "slots": []
             },
             {
-                "id": "199e7438-0cba-480a-8658-df1542f856ce",
-                "linkedToWeekId": "29a06544-30e1-4b08-b815-ffb9e0510ad6",
+                "id": "7bca133c-0b3a-4c6e-8709-c54835f2d5ea",
+                "linkedToWeekId": "12e41c8f-55be-402f-b6d1-b2df8b0bf09d",
                 "slots": []
             },
             {
-                "id": "20da6926-05b8-4363-9331-11168f4415a6",
-                "linkedToWeekId": "29a06544-30e1-4b08-b815-ffb9e0510ad6",
+                "id": "424ba125-01dd-4f0f-837c-2a06419bdc3a",
+                "linkedToWeekId": "12e41c8f-55be-402f-b6d1-b2df8b0bf09d",
                 "slots": []
             },
             {
-                "id": "0ca82a4f-80ec-4976-b8be-e36d2baabc8a",
-                "linkedToWeekId": "29a06544-30e1-4b08-b815-ffb9e0510ad6",
+                "id": "ac6efba8-4da9-489e-8f2d-74928c194168",
+                "linkedToWeekId": "12e41c8f-55be-402f-b6d1-b2df8b0bf09d",
                 "slots": []
             }
         ]

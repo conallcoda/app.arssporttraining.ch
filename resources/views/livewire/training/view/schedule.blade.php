@@ -43,6 +43,7 @@
 
         @php
             $canEdit = true;
+            $canEditWeekStructure = $user === null;
         @endphp
 
         <x-section title="Weekly Schedule" class="!p-0">
@@ -80,10 +81,10 @@
                                     : null;
                                 $isReadOnly = !$canEdit || $isLinked;
                             @endphp
-                            @foreach (['am' => 'AM', 'pm' => 'PM'] as $slotKey => $slotLabel)
+                            @foreach ([0 => 'AM', 1 => 'PM'] as $slotKey => $slotLabel)
                                 <tr wire:key="week-{{ $week['id'] }}-{{ $slotKey }}-{{ $user ?? 'default' }}"
                                     class="{{ $isLinked ? 'bg-zinc-50 dark:bg-zinc-900/50' : '' }}">
-                                    @if ($slotKey === 'am')
+                                    @if ($slotKey === 0)
                                         <td rowspan="2"
                                             class="border border-l-0 {{ $isLinked ? 'border-dashed border-zinc-400 dark:border-zinc-500' : 'border-zinc-300 dark:border-zinc-600' }} px-3 py-2 font-medium bg-zinc-50 dark:bg-zinc-800/50 text-center">
                                             <div class="flex flex-col items-center gap-1">
@@ -149,10 +150,15 @@
                                             @endif
                                         </td>
                                     @endfor
-                                    @if ($slotKey === 'am')
+                                    @if ($slotKey === 0)
+                                        @php
+                                            $defaultLinkedTo = $this->getDefaultWeekLinkedTo($week['id']);
+                                            $userHasUnlinked = $this->userHasUnlinkedWeek($week['id']);
+                                            $canShowUserUnlink = $user !== null && $weekIndex > 0 && ($isLinked || ($defaultLinkedTo !== null && $userHasUnlinked));
+                                        @endphp
                                         <td rowspan="2"
                                             class="border border-r-0 {{ $isLinked ? 'border-dashed border-zinc-400 dark:border-zinc-500' : 'border-zinc-300 dark:border-zinc-600' }} bg-zinc-50 dark:bg-zinc-800/50 text-center">
-                                            @if ($weekIndex > 0 && $canEdit)
+                                            @if ($weekIndex > 0 && $canEditWeekStructure)
                                                 <flux:dropdown>
                                                     <flux:button variant="ghost" size="xs" icon="ellipsis" />
                                                     <flux:menu>
@@ -175,13 +181,30 @@
                                                         </flux:menu.item>
                                                     </flux:menu>
                                                 </flux:dropdown>
+                                            @elseif ($canShowUserUnlink)
+                                                <flux:dropdown>
+                                                    <flux:button variant="ghost" size="xs" icon="ellipsis" />
+                                                    <flux:menu>
+                                                        @if ($isLinked)
+                                                            <flux:menu.item wire:click="unlinkWeek('{{ $week['id'] }}')">
+                                                                <flux:icon.unlink class="size-4 mr-2" />
+                                                                Unlink
+                                                            </flux:menu.item>
+                                                        @elseif ($userHasUnlinked && $defaultLinkedTo !== null)
+                                                            <flux:menu.item wire:click="relinkWeekForUser('{{ $week['id'] }}')">
+                                                                <flux:icon.link class="size-4 mr-2" />
+                                                                Restore Link
+                                                            </flux:menu.item>
+                                                        @endif
+                                                    </flux:menu>
+                                                </flux:dropdown>
                                             @endif
                                         </td>
                                     @endif
                                 </tr>
                             @endforeach
                         @endforeach
-                        @if ($canEdit)
+                        @if ($canEditWeekStructure)
                             <tr>
                                 <td colspan="10"
                                     class="border border-dashed border-zinc-300 dark:border-zinc-600 border-b-0 border-l-0 border-r-0 px-3 py-4 bg-zinc-50/50 dark:bg-zinc-800/30 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-colors"
