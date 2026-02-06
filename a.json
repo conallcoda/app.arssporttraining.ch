@@ -26,7 +26,7 @@
                             "isLinked": true
                         },
                         {
-                            "day": 2,
+                            "day": 1,
                             "slot": 1,
                             "programId": 2
                         }
@@ -62,170 +62,82 @@
         "exercises": [
             {
                 "id": 1,
-                "config": {
-                    "target": 7,
-                    "startingReps": 12,
-                    "sets": 4,
-                    "tut": "2000",
-                    "rest": 30
+                "config": [],
+                "overrides": {
+                    "weeks": [
+                        {
+                            "week": 0,
+                            "data": {
+                                "rest": 22,
+                                "tut": "1111"
+                            }
+                        }
+                    ],
+                    "cells": [
+                        {
+                            "week": 1,
+                            "session": 0,
+                            "set": 1,
+                            "data": {
+                                "reps": 9
+                            }
+                        },
+                        {
+                            "week": 1,
+                            "session": 1,
+                            "set": 1,
+                            "data": {
+                                "reps": 9
+                            }
+                        }
+                    ]
                 }
             }
-        ],
-        "cells": {
-            "1": [
-                {
-                    "week": 0,
-                    "session": 0,
-                    "set": 2,
-                    "data": {
-                        "reps": 5
-                    }
-                },
-                {
-                    "week": 0,
-                    "session": 1,
-                    "set": 2,
-                    "data": {
-                        "reps": 5
-                    }
-                }
-            ]
-        },
-        "weeks": {
-            "1": {
-                "w0": {
-                    "tut": "4010",
-                    "rest": 60
-                },
-                "w2": {
-                    "tut": "3010"
-                }
-            }
-        }
+        ]
     },
     "users": {
-        "7": {
-            "schedule": {
-                "weeks": [
-                    {
-                        "id": "default_0",
-                        "slots": [
-                            {
-                                "day": 1,
-                                "slot": 1,
-                                "programId": null,
-                                "moved": [
-                                    2,
-                                    1
-                                ]
-                            },
-                            {
-                                "day": 2,
-                                "slot": 1,
-                                "programId": 2
-                            }
-                        ]
-                    },
-                    {
-                        "id": "user_5",
-                        "linkedTo": null,
-                        "slots": [
-                            {
-                                "day": 0,
-                                "slot": 0,
-                                "programId": 1
-                            },
-                            {
-                                "day": 4,
-                                "slot": 0,
-                                "programId": 1
-                            },
-                            {
-                                "day": 3,
-                                "slot": 1,
-                                "programId": 2
-                            }
-                        ],
-                        "sort": 5
-                    },
-                    {
-                        "linkedTo": null,
-                        "slots": [
-                            {
-                                "day": 0,
-                                "slot": 0,
-                                "programId": 1
-                            },
-                            {
-                                "day": 2,
-                                "slot": 1,
-                                "programId": 2
-                            },
-                            {
-                                "day": 4,
-                                "slot": 0,
-                                "programId": null,
-                                "moved": [
-                                    5,
-                                    0
-                                ]
-                            },
-                            {
-                                "day": 5,
-                                "slot": 0,
-                                "programId": 1
-                            }
-                        ],
-                        "id": "default_1"
-                    }
-                ]
-            },
+        "5": {
             "exerciseConfig": {
                 "strength": {
                     "measuredReps": 22,
-                    "measuredWeight": 33,
-                    "targetGoal": 5
+                    "measuredWeight": 22,
+                    "targetGoal": null
                 }
-            },
-            "cells": {
-                "1": [
-                    {
-                        "week": 0,
-                        "session": 0,
-                        "set": 2,
-                        "data": {
-                            "weight": 9
-                        }
-                    },
-                    {
-                        "week": 0,
-                        "session": 1,
-                        "set": 2,
-                        "data": {
-                            "weight": 9
-                        }
-                    }
-                ]
             },
             "exercises": [
                 {
                     "id": 1,
-                    "config": {
-                        "target": 5,
-                        "startingReps": 8,
-                        "sets": 3,
-                        "tut": "3000",
-                        "rest": 25
+                    "config": [],
+                    "overrides": {
+                        "weeks": [
+                            {
+                                "week": 0,
+                                "data": {
+                                    "rest": 22
+                                }
+                            }
+                        ],
+                        "cells": [
+                            {
+                                "week": 0,
+                                "session": 0,
+                                "set": 2,
+                                "data": {
+                                    "weight": 56
+                                }
+                            },
+                            {
+                                "week": 0,
+                                "session": 1,
+                                "set": 2,
+                                "data": {
+                                    "weight": 56
+                                }
+                            }
+                        ]
                     }
                 }
-            ],
-            "weeks": {
-                "1": {
-                    "w0": {
-                        "rest": 90
-                    }
-                }
-            }
+            ]
         }
     }
 }

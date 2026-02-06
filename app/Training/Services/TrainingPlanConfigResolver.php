@@ -328,14 +328,29 @@ class TrainingPlanConfigResolver
         $defaultOverrides = $this->config->defaultWeekOverrides($exerciseId);
         $userOverrides = $this->config->userWeekOverrides($this->userId, $exerciseId);
 
-        $merged = [];
-        $allKeys = array_unique(array_merge(array_keys($defaultOverrides), array_keys($userOverrides)));
+        return $this->mergeWeekOverrides($defaultOverrides, $userOverrides);
+    }
 
-        foreach ($allKeys as $weekKey) {
-            $merged[$weekKey] = array_merge(
-                $defaultOverrides[$weekKey] ?? [],
-                $userOverrides[$weekKey] ?? []
-            );
+    protected function mergeWeekOverrides(array $defaultOverrides, array $userOverrides): array
+    {
+        $merged = $defaultOverrides;
+
+        foreach ($userOverrides as $userOverride) {
+            $existingIndex = null;
+
+            foreach ($merged as $index => $existing) {
+                if ($existing['week'] === $userOverride['week']) {
+                    $existingIndex = $index;
+
+                    break;
+                }
+            }
+
+            if ($existingIndex !== null) {
+                $merged[$existingIndex]['data'] = array_merge($merged[$existingIndex]['data'], $userOverride['data']);
+            } else {
+                $merged[] = $userOverride;
+            }
         }
 
         return $merged;

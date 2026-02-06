@@ -95,24 +95,18 @@ class Plan extends Component
     public function countUserOverrides(int $userId): int
     {
         $exerciseOverrides = $this->trainingPlan->config->get("users.{$userId}.exercises", []);
-        $cellOverrides = $this->trainingPlan->config->get("users.{$userId}.cells", []);
-        $weekOverrides = $this->trainingPlan->config->get("users.{$userId}.weeks", []);
 
         $count = 0;
 
         foreach ($exerciseOverrides as $override) {
             $count += count($override['config'] ?? []);
-        }
 
-        foreach ($cellOverrides as $exerciseCells) {
-            foreach ($exerciseCells as $override) {
-                $count += count($override['data'] ?? []);
+            $overrides = $override['overrides'] ?? [];
+            foreach ($overrides['cells'] ?? [] as $cellOverride) {
+                $count += count($cellOverride['data'] ?? []);
             }
-        }
-
-        foreach ($weekOverrides as $exerciseWeeks) {
-            foreach ($exerciseWeeks as $weekValues) {
-                $count += count($weekValues);
+            foreach ($overrides['weeks'] ?? [] as $weekOverride) {
+                $count += count($weekOverride['data'] ?? []);
             }
         }
 
@@ -473,27 +467,29 @@ class Plan extends Component
 
         $this->defaultExerciseOverrides = $this->trainingPlan->config->get('default.exercises', []);
 
-        $defaultCellData = $this->trainingPlan->config->get('default.cells', []);
-        foreach ($defaultCellData as $exerciseId => $cells) {
-            $this->defaultCellOverrides[$exerciseId] = $cells;
-        }
-
-        $defaultWeekData = $this->trainingPlan->config->get('default.weeks', []);
-        foreach ($defaultWeekData as $exerciseId => $weeks) {
-            $this->defaultWeekOverrides[$exerciseId] = $weeks;
+        foreach ($this->defaultExerciseOverrides as $exercise) {
+            $exerciseId = $exercise['id'];
+            $overrides = $exercise['overrides'] ?? [];
+            if (! empty($overrides['cells'])) {
+                $this->defaultCellOverrides[$exerciseId] = $overrides['cells'];
+            }
+            if (! empty($overrides['weeks'])) {
+                $this->defaultWeekOverrides[$exerciseId] = $overrides['weeks'];
+            }
         }
 
         if ($this->user !== null) {
             $this->exerciseOverrides = $this->trainingPlan->config->get("users.{$this->user}.exercises", []);
 
-            $cellData = $this->trainingPlan->config->get("users.{$this->user}.cells", []);
-            foreach ($cellData as $exerciseId => $cells) {
-                $this->cellOverrides[$exerciseId] = $cells;
-            }
-
-            $weekData = $this->trainingPlan->config->get("users.{$this->user}.weeks", []);
-            foreach ($weekData as $exerciseId => $weeks) {
-                $this->weekOverrides[$exerciseId] = $weeks;
+            foreach ($this->exerciseOverrides as $exercise) {
+                $exerciseId = $exercise['id'];
+                $overrides = $exercise['overrides'] ?? [];
+                if (! empty($overrides['cells'])) {
+                    $this->cellOverrides[$exerciseId] = $overrides['cells'];
+                }
+                if (! empty($overrides['weeks'])) {
+                    $this->weekOverrides[$exerciseId] = $overrides['weeks'];
+                }
             }
         }
     }
@@ -557,6 +553,8 @@ class Plan extends Component
             ? $this->defaultExerciseOverrides
             : $this->exerciseOverrides;
 
+        $overrides = $this->rebuildExercisesWithOverrides($isDefaultUser, $overrides);
+
         if (empty($overrides)) {
             $this->trainingPlan->config->forget($extraKey);
         } else {
@@ -564,6 +562,85 @@ class Plan extends Component
         }
 
         $this->trainingPlan->save();
+    }
+
+    protected function persistExerciseOverrideData(int $exerciseId, string $key, array $data): void
+    {
+        $isDefaultUser = $this->user === null;
+        $property = $isDefaultUser ? 'defaultExerciseOverrides' : 'exerciseOverrides';
+        $extraKey = $isDefaultUser ? 'default.exercises' : "users.{$this->user}.exercises";
+
+        $index = $this->findExerciseOverrideIndex($this->{$property}, $exerciseId);
+
+        if ($index === null && ! empty($data)) {
+            $this->{$property}[] = [
+                'id' => $exerciseId,
+                'config' => [],
+                'overrides' => [$key => $data],
+            ];
+        } elseif ($index !== null) {
+            if (empty($data)) {
+                unset($this->{$property}[$index]['overrides'][$key]);
+                if (empty($this->{$property}[$index]['overrides'])) {
+                    unset($this->{$property}[$index]['overrides']);
+                }
+            } else {
+                $this->{$property}[$index]['overrides'][$key] = $data;
+            }
+        }
+
+        $this->cleanEmptyExerciseOverrides($property);
+
+        $overrides = $this->{$property};
+
+        if (empty($overrides)) {
+            $this->trainingPlan->config->forget($extraKey);
+        } else {
+            $this->trainingPlan->config->set($extraKey, array_values($overrides));
+        }
+
+        $this->trainingPlan->save();
+    }
+
+    protected function rebuildExercisesWithOverrides(bool $isDefaultUser, array $exercises): array
+    {
+        $cellOverrides = $isDefaultUser ? $this->defaultCellOverrides : $this->cellOverrides;
+        $weekOverrides = $isDefaultUser ? $this->defaultWeekOverrides : $this->weekOverrides;
+
+        foreach ($exercises as &$exercise) {
+            $id = $exercise['id'];
+            $overrides = $exercise['overrides'] ?? [];
+
+            if (! empty($cellOverrides[$id])) {
+                $overrides['cells'] = $cellOverrides[$id];
+            } else {
+                unset($overrides['cells']);
+            }
+
+            if (! empty($weekOverrides[$id])) {
+                $overrides['weeks'] = $weekOverrides[$id];
+            } else {
+                unset($overrides['weeks']);
+            }
+
+            if (! empty($overrides)) {
+                $exercise['overrides'] = $overrides;
+            } else {
+                unset($exercise['overrides']);
+            }
+        }
+
+        return $exercises;
+    }
+
+    protected function cleanEmptyExerciseOverrides(string $property): void
+    {
+        $this->{$property} = array_values(array_filter($this->{$property}, function ($exercise) {
+            $hasConfig = ! empty($exercise['config']);
+            $hasOverrides = ! empty($exercise['overrides']);
+
+            return $hasConfig || $hasOverrides;
+        }));
     }
 
     public function getExerciseConfig(int $exerciseId, array $pivotExtra): array
@@ -740,6 +817,41 @@ class Plan extends Component
         return null;
     }
 
+    protected function findWeekOverrideIndex(array $overrides, int $weekIndex): ?int
+    {
+        foreach ($overrides as $index => $override) {
+            if ($override['week'] === $weekIndex) {
+                return $index;
+            }
+        }
+
+        return null;
+    }
+
+    protected function findWeekOverrideData(array $overrides, int $weekIndex): array
+    {
+        $index = $this->findWeekOverrideIndex($overrides, $weekIndex);
+
+        return $index !== null ? ($overrides[$index]['data'] ?? []) : [];
+    }
+
+    protected function mergeWeekOverrides(array $defaultOverrides, array $userOverrides): array
+    {
+        $merged = $defaultOverrides;
+
+        foreach ($userOverrides as $userOverride) {
+            $existingIndex = $this->findWeekOverrideIndex($merged, $userOverride['week']);
+
+            if ($existingIndex !== null) {
+                $merged[$existingIndex]['data'] = array_merge($merged[$existingIndex]['data'], $userOverride['data']);
+            } else {
+                $merged[] = $userOverride;
+            }
+        }
+
+        return $merged;
+    }
+
     protected function cellValuesMatch(mixed $value, mixed $originalValue): bool
     {
         if ($originalValue === null) {
@@ -752,18 +864,12 @@ class Plan extends Component
     protected function persistCellOverrides(int $exerciseId): void
     {
         $isDefaultUser = $this->user === null;
-        $extraKey = $isDefaultUser ? "default.cells.{$exerciseId}" : "users.{$this->user}.cells.{$exerciseId}";
 
         $overrides = $isDefaultUser
             ? ($this->defaultCellOverrides[$exerciseId] ?? [])
             : ($this->cellOverrides[$exerciseId] ?? []);
 
-        if (empty($overrides)) {
-            $this->trainingPlan->config->forget($extraKey);
-        } else {
-            $this->trainingPlan->config->set($extraKey, $overrides);
-        }
-        $this->trainingPlan->save();
+        $this->persistExerciseOverrideData($exerciseId, 'cells', $overrides);
     }
 
     public function getCellOverrides(int $exerciseId): array
@@ -806,50 +912,35 @@ class Plan extends Component
     public function updateWeekOverride(int $exerciseId, int $weekIndex, string $field, mixed $value): void
     {
         $isDefaultUser = $this->user === null;
-        $weekKey = "w{$weekIndex}";
+        $property = $isDefaultUser ? 'defaultWeekOverrides' : 'weekOverrides';
 
         $effectiveValue = $this->getEffectiveWeekValue($exerciseId, $weekIndex, $field);
         $valuesMatch = $this->weekValuesMatch($value, $effectiveValue, $field);
 
-        if ($isDefaultUser) {
-            if ($valuesMatch) {
-                if (isset($this->defaultWeekOverrides[$exerciseId][$weekKey][$field])) {
-                    unset($this->defaultWeekOverrides[$exerciseId][$weekKey][$field]);
-                    if (empty($this->defaultWeekOverrides[$exerciseId][$weekKey])) {
-                        unset($this->defaultWeekOverrides[$exerciseId][$weekKey]);
-                    }
-                    if (empty($this->defaultWeekOverrides[$exerciseId])) {
-                        unset($this->defaultWeekOverrides[$exerciseId]);
-                    }
+        if (! isset($this->{$property}[$exerciseId])) {
+            $this->{$property}[$exerciseId] = [];
+        }
+
+        $index = $this->findWeekOverrideIndex($this->{$property}[$exerciseId], $weekIndex);
+
+        if ($valuesMatch) {
+            if ($index !== null) {
+                unset($this->{$property}[$exerciseId][$index]['data'][$field]);
+                if (empty($this->{$property}[$exerciseId][$index]['data'])) {
+                    array_splice($this->{$property}[$exerciseId], $index, 1);
                 }
-            } else {
-                if (! isset($this->defaultWeekOverrides[$exerciseId])) {
-                    $this->defaultWeekOverrides[$exerciseId] = [];
+                if (empty($this->{$property}[$exerciseId])) {
+                    unset($this->{$property}[$exerciseId]);
                 }
-                if (! isset($this->defaultWeekOverrides[$exerciseId][$weekKey])) {
-                    $this->defaultWeekOverrides[$exerciseId][$weekKey] = [];
-                }
-                $this->defaultWeekOverrides[$exerciseId][$weekKey][$field] = $value;
             }
         } else {
-            if ($valuesMatch) {
-                if (isset($this->weekOverrides[$exerciseId][$weekKey][$field])) {
-                    unset($this->weekOverrides[$exerciseId][$weekKey][$field]);
-                    if (empty($this->weekOverrides[$exerciseId][$weekKey])) {
-                        unset($this->weekOverrides[$exerciseId][$weekKey]);
-                    }
-                    if (empty($this->weekOverrides[$exerciseId])) {
-                        unset($this->weekOverrides[$exerciseId]);
-                    }
-                }
+            if ($index !== null) {
+                $this->{$property}[$exerciseId][$index]['data'][$field] = $value;
             } else {
-                if (! isset($this->weekOverrides[$exerciseId])) {
-                    $this->weekOverrides[$exerciseId] = [];
-                }
-                if (! isset($this->weekOverrides[$exerciseId][$weekKey])) {
-                    $this->weekOverrides[$exerciseId][$weekKey] = [];
-                }
-                $this->weekOverrides[$exerciseId][$weekKey][$field] = $value;
+                $this->{$property}[$exerciseId][] = [
+                    'week' => $weekIndex,
+                    'data' => [$field => $value],
+                ];
             }
         }
 
@@ -858,7 +949,7 @@ class Plan extends Component
 
     protected function getEffectiveWeekValue(int $exerciseId, int $weekIndex, string $field): mixed
     {
-        $extra = $this->findPivotExtraForExercise($exerciseId);
+        $extra = $this->findPivotConfigForExercise($exerciseId);
         $exercise = Exercise::find($exerciseId);
         $exerciseTypeConfig = $exercise?->config?->strength;
 
@@ -866,7 +957,7 @@ class Plan extends Component
         $systemRest = $extra['rest'] ?? $exerciseTypeConfig?->rest ?? ExerciseOverrideData::DEFAULT_REST;
 
         $defaultExerciseOverride = $this->getExerciseOverrideConfig($this->defaultExerciseOverrides, $exerciseId);
-        $defaultWeekOverride = $this->defaultWeekOverrides[$exerciseId]["w{$weekIndex}"] ?? [];
+        $defaultWeekOverride = $this->findWeekOverrideData($this->defaultWeekOverrides[$exerciseId] ?? [], $weekIndex);
 
         $baseValue = match ($field) {
             'tut' => $defaultWeekOverride['tut'] ?? $defaultExerciseOverride['tut'] ?? $systemTut,
@@ -893,18 +984,12 @@ class Plan extends Component
     protected function persistWeekOverrides(int $exerciseId): void
     {
         $isDefaultUser = $this->user === null;
-        $extraKey = $isDefaultUser ? "default.weeks.{$exerciseId}" : "users.{$this->user}.weeks.{$exerciseId}";
 
         $overrides = $isDefaultUser
             ? ($this->defaultWeekOverrides[$exerciseId] ?? [])
             : ($this->weekOverrides[$exerciseId] ?? []);
 
-        if (empty($overrides)) {
-            $this->trainingPlan->config->forget($extraKey);
-        } else {
-            $this->trainingPlan->config->set($extraKey, $overrides);
-        }
-        $this->trainingPlan->save();
+        $this->persistExerciseOverrideData($exerciseId, 'weeks', $overrides);
     }
 
     public function getWeekOverrides(int $exerciseId): array
@@ -918,17 +1003,7 @@ class Plan extends Component
         $defaultOverrides = $this->defaultWeekOverrides[$exerciseId] ?? [];
         $userOverrides = $this->weekOverrides[$exerciseId] ?? [];
 
-        $merged = [];
-        $allKeys = array_unique(array_merge(array_keys($defaultOverrides), array_keys($userOverrides)));
-
-        foreach ($allKeys as $weekKey) {
-            $merged[$weekKey] = array_merge(
-                $defaultOverrides[$weekKey] ?? [],
-                $userOverrides[$weekKey] ?? []
-            );
-        }
-
-        return $merged;
+        return $this->mergeWeekOverrides($defaultOverrides, $userOverrides);
     }
 
     public function getUserSpecificWeekOverrides(int $exerciseId): array
@@ -961,17 +1036,15 @@ class Plan extends Component
         }
 
         $this->persistExerciseOverrides();
-        $this->persistCellOverrides($exerciseId);
-        $this->persistWeekOverrides($exerciseId);
     }
 
     public function getWeekValue(int $exerciseId, int $weekIndex, string $field, array $config): mixed
     {
         $weekOverrides = $this->getWeekOverrides($exerciseId);
-        $weekKey = "w{$weekIndex}";
+        $weekData = $this->findWeekOverrideData($weekOverrides, $weekIndex);
 
-        if (isset($weekOverrides[$weekKey][$field])) {
-            return $weekOverrides[$weekKey][$field];
+        if (isset($weekData[$field])) {
+            return $weekData[$field];
         }
 
         return $config[$field] ?? null;

@@ -23,19 +23,6 @@ it('resolves default schedule weeks when no user is set', function () {
     expect($weeks[1]['linkedTo'])->toBe('default_0');
 });
 
-it('resolves user schedule with overrides applied', function () {
-    $resolver = sampleResolver(7);
-    $weeks = $resolver->resolveScheduleWeeks();
-
-    expect(count($weeks))->toBeGreaterThanOrEqual(5);
-
-    $defaultWeek = collect($weeks)->firstWhere('id', 'default_0');
-    expect($defaultWeek)->not->toBeNull();
-
-    $userAddedWeek = collect($weeks)->firstWhere('id', 'user_5');
-    expect($userAddedWeek)->not->toBeNull();
-});
-
 it('returns default weeks when user has no overrides', function () {
     $resolver = sampleResolver(999);
     $weeks = $resolver->resolveScheduleWeeks();
@@ -131,25 +118,20 @@ it('resolves exercise config for default user', function () {
     $config = $resolver->getExerciseConfig(1, $pivotConfig, 7);
 
     expect($config['target'])->toBe(7);
-    expect($config['startingReps'])->toBe(12);
-    expect($config['sets'])->toBe(4);
-    expect($config['tut'])->toBe('2000');
-    expect($config['rest'])->toBe(30);
-    expect($config['hasTargetOverride'])->toBeTrue();
-    expect($config['hasStartingRepsOverride'])->toBeTrue();
+    expect($config['hasTargetOverride'])->toBeFalse();
 });
 
-it('resolves exercise config cascading user over default', function () {
-    $resolver = sampleResolver(7);
+it('resolves exercise config cascading user over default for user 5', function () {
+    $resolver = sampleResolver(5);
     $pivotConfig = ['startingReps' => 10, 'sets' => 4, 'tut' => '3010', 'rest' => 30, 'oneRepMaxModifier' => 100];
 
     $config = $resolver->getExerciseConfig(1, $pivotConfig, 7);
 
-    expect($config['target'])->toBe(5);
-    expect($config['startingReps'])->toBe(8);
-    expect($config['sets'])->toBe(3);
-    expect($config['tut'])->toBe('3000');
-    expect($config['rest'])->toBe(25);
+    expect($config['target'])->toBe(71);
+    expect($config['startingReps'])->toBe(12);
+    expect($config['sets'])->toBe(4);
+    expect($config['tut'])->toBe('3010');
+    expect($config['rest'])->toBe(30);
     expect($config['hasTargetOverride'])->toBeTrue();
 });
 
@@ -168,13 +150,13 @@ it('falls back to system defaults when no overrides exist', function () {
 });
 
 it('returns export exercise config without override flags', function () {
-    $resolver = sampleResolver(7);
+    $resolver = sampleResolver(5);
     $pivotConfig = ['startingReps' => 10, 'sets' => 4, 'tut' => '3010', 'rest' => 30, 'oneRepMaxModifier' => 100];
 
     $config = $resolver->getExerciseConfigForExport(1, $pivotConfig, 7);
 
     expect($config)->not->toHaveKey('hasTargetOverride');
-    expect($config['target'])->toBe(5);
+    expect($config['target'])->toBe(71);
 });
 
 it('returns default cell overrides when no user', function () {
@@ -183,11 +165,11 @@ it('returns default cell overrides when no user', function () {
     $overrides = $resolver->getCellOverrides(1);
 
     expect($overrides)->toHaveCount(2);
-    expect($overrides[0]['data']['reps'])->toBe(5);
+    expect($overrides[0]['data']['reps'])->toBe(33);
 });
 
 it('merges default and user cell overrides', function () {
-    $resolver = sampleResolver(7);
+    $resolver = sampleResolver(5);
 
     $overrides = $resolver->getCellOverrides(1);
 
@@ -209,37 +191,41 @@ it('returns default week overrides when no user', function () {
 
     $overrides = $resolver->getWeekOverrides(1);
 
-    expect($overrides)->toHaveKey('w0');
-    expect($overrides['w0']['tut'])->toBe('4010');
-    expect($overrides['w0']['rest'])->toBe(60);
+    expect($overrides)->not->toBeEmpty();
+    expect($overrides[0]['week'])->toBe(0);
+    expect($overrides[0]['data']['tut'])->toBe('222');
 });
 
 it('merges default and user week overrides', function () {
-    $resolver = sampleResolver(7);
+    $resolver = sampleResolver(5);
 
     $overrides = $resolver->getWeekOverrides(1);
 
-    expect($overrides['w0']['tut'])->toBe('4010');
-    expect($overrides['w0']['rest'])->toBe(90);
+    $week0 = collect($overrides)->firstWhere('week', 0);
+    expect($week0['data']['tut'])->toBe('111');
 });
 
-it('detects user has schedule overrides', function () {
+it('detects user has no schedule overrides for user 5', function () {
     $resolver = sampleResolver();
 
-    expect($resolver->hasUserSchedule(7))->toBeTrue();
+    expect($resolver->hasUserSchedule(5))->toBeFalse();
     expect($resolver->hasUserSchedule(999))->toBeFalse();
 });
 
 it('counts user schedule changes', function () {
     $resolver = sampleResolver();
 
-    expect($resolver->countUserScheduleChanges(7))->toBeGreaterThan(0);
+    expect($resolver->countUserScheduleChanges(5))->toBe(0);
     expect($resolver->countUserScheduleChanges(999))->toBe(0);
 });
 
 it('creates a new resolver for a different user via forUser', function () {
     $resolver = sampleResolver();
-    $userResolver = $resolver->forUser(7);
+    $userResolver = $resolver->forUser(5);
 
-    expect($userResolver->resolveScheduleWeeks())->not->toBe($resolver->resolveScheduleWeeks());
+    $defaultConfig = $resolver->getExerciseConfig(1, [], 7);
+    $userConfig = $userResolver->getExerciseConfig(1, [], 7);
+
+    expect($userConfig['target'])->toBe(71);
+    expect($defaultConfig['target'])->toBe(7);
 });

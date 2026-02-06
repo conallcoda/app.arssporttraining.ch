@@ -57,19 +57,28 @@
         return false;
     };
 
-    $hasWeekOverride = function ($weekIndex, $field) use ($userSpecificWeekOverrides) {
-        $key = "w{$weekIndex}";
-        return isset($userSpecificWeekOverrides[$key][$field]);
+    $findWeekData = function ($overrides, $weekIndex) {
+        foreach ($overrides as $override) {
+            if ($override['week'] === $weekIndex) {
+                return $override['data'] ?? [];
+            }
+        }
+        return [];
     };
 
-    $getWeekTut = function ($weekIndex) use ($weekOverrides, $config) {
-        $key = "w{$weekIndex}";
-        return $weekOverrides[$key]['tut'] ?? $config['tut'] ?? '3010';
+    $hasWeekOverride = function ($weekIndex, $field) use ($userSpecificWeekOverrides, $findWeekData) {
+        $data = $findWeekData($userSpecificWeekOverrides, $weekIndex);
+        return isset($data[$field]);
     };
 
-    $getWeekRest = function ($weekIndex) use ($weekOverrides, $config) {
-        $key = "w{$weekIndex}";
-        return $weekOverrides[$key]['rest'] ?? $config['rest'] ?? 30;
+    $getWeekTut = function ($weekIndex) use ($weekOverrides, $config, $findWeekData) {
+        $data = $findWeekData($weekOverrides, $weekIndex);
+        return $data['tut'] ?? $config['tut'] ?? '3010';
+    };
+
+    $getWeekRest = function ($weekIndex) use ($weekOverrides, $config, $findWeekData) {
+        $data = $findWeekData($weekOverrides, $weekIndex);
+        return $data['rest'] ?? $config['rest'] ?? 30;
     };
 
     $exerciseTut = $config['tut'] ?? '3010';

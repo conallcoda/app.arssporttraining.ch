@@ -93,11 +93,7 @@ class TrainingPlanConfig extends AbstractConfig
 
     public function defaultCellOverrides(?int $exerciseId = null): array
     {
-        if ($exerciseId !== null) {
-            return $this->default->cells[$exerciseId] ?? [];
-        }
-
-        return $this->default->cells;
+        return $this->extractOverridesFromExercises($this->default->exercises, 'cells', $exerciseId);
     }
 
     public function userCellOverrides(int $userId, ?int $exerciseId = null): array
@@ -108,20 +104,12 @@ class TrainingPlanConfig extends AbstractConfig
             return [];
         }
 
-        if ($exerciseId !== null) {
-            return $user->cells[$exerciseId] ?? [];
-        }
-
-        return $user->cells;
+        return $this->extractOverridesFromExercises($user->exercises, 'cells', $exerciseId);
     }
 
     public function defaultWeekOverrides(?int $exerciseId = null): array
     {
-        if ($exerciseId !== null) {
-            return $this->default->weeks[$exerciseId] ?? [];
-        }
-
-        return $this->default->weeks;
+        return $this->extractOverridesFromExercises($this->default->exercises, 'weeks', $exerciseId);
     }
 
     public function userWeekOverrides(int $userId, ?int $exerciseId = null): array
@@ -132,11 +120,7 @@ class TrainingPlanConfig extends AbstractConfig
             return [];
         }
 
-        if ($exerciseId !== null) {
-            return $user->weeks[$exerciseId] ?? [];
-        }
-
-        return $user->weeks;
+        return $this->extractOverridesFromExercises($user->exercises, 'weeks', $exerciseId);
     }
 
     public function defaultExerciseConfig(): array
@@ -180,6 +164,33 @@ class TrainingPlanConfig extends AbstractConfig
     }
 
     // --- Helpers ---
+
+    protected function extractOverridesFromExercises(array $exercises, string $key, ?int $exerciseId = null): array
+    {
+        if ($exerciseId !== null) {
+            foreach ($exercises as $exercise) {
+                $id = $exercise instanceof Data ? $exercise->id : ($exercise['id'] ?? null);
+                if ($id === $exerciseId) {
+                    $overrides = $exercise instanceof Data ? $exercise->overrides : ($exercise['overrides'] ?? []);
+
+                    return $overrides[$key] ?? [];
+                }
+            }
+
+            return [];
+        }
+
+        $result = [];
+        foreach ($exercises as $exercise) {
+            $id = $exercise instanceof Data ? $exercise->id : ($exercise['id'] ?? null);
+            $overrides = $exercise instanceof Data ? $exercise->overrides : ($exercise['overrides'] ?? []);
+            if ($id !== null && ! empty($overrides[$key])) {
+                $result[$id] = $overrides[$key];
+            }
+        }
+
+        return $result;
+    }
 
     protected function toPlainArrays(array $items): array
     {

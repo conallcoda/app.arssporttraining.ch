@@ -164,9 +164,9 @@ class ProgramTrainingPlan
             $firstSession = $sessions[0];
             $currentReps = $this->getRepsArray($firstSession);
 
-            $weekKey = "w{$weekIndex}";
-            $weekTut = $weekOverrides[$weekKey]['tut'] ?? $tut;
-            $weekRest = (int) ($weekOverrides[$weekKey]['rest'] ?? $rest);
+            $weekData = $this->findWeekOverrideData($weekOverrides, $weekIndex);
+            $weekTut = $weekData['tut'] ?? $tut;
+            $weekRest = (int) ($weekData['rest'] ?? $rest);
 
             if (! $this->repsAreSimilar($lastReps, $currentReps)) {
                 $this->rows[] = [
@@ -278,6 +278,17 @@ class ProgramTrainingPlan
         }
 
         return $cells;
+    }
+
+    protected function findWeekOverrideData(array $overrides, int $weekIndex): array
+    {
+        foreach ($overrides as $override) {
+            if ($override['week'] === $weekIndex) {
+                return $override['data'] ?? [];
+            }
+        }
+
+        return [];
     }
 
     public function toArray(): array

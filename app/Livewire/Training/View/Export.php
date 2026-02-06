@@ -525,13 +525,29 @@ class Export extends Component
         ];
     }
 
+    protected function findExerciseOverrideData(array $exercises, int $exerciseId, string $key): array
+    {
+        foreach ($exercises as $exercise) {
+            if (($exercise['id'] ?? null) === $exerciseId) {
+                return $exercise['overrides'][$key] ?? [];
+            }
+        }
+
+        return [];
+    }
+
     protected function applyCellOverrides(TrainingBlock $block, int $userId, int $exerciseId): TrainingBlock
     {
-        $allDefaultCells = $this->trainingPlan->config->get('default.cells', []);
-        $allUserCells = $this->trainingPlan->config->get("users.{$userId}.cells", []);
-
-        $defaultOverrides = $allDefaultCells[$exerciseId] ?? $allDefaultCells[(string) $exerciseId] ?? [];
-        $userOverrides = $allUserCells[$exerciseId] ?? $allUserCells[(string) $exerciseId] ?? [];
+        $defaultOverrides = $this->findExerciseOverrideData(
+            $this->trainingPlan->config->get('default.exercises', []),
+            $exerciseId,
+            'cells'
+        );
+        $userOverrides = $this->findExerciseOverrideData(
+            $this->trainingPlan->config->get("users.{$userId}.exercises", []),
+            $exerciseId,
+            'cells'
+        );
 
         $overrides = $defaultOverrides;
 
@@ -583,17 +599,35 @@ class Export extends Component
 
     protected function getWeekOverridesForExport(int $userId, int $exerciseId): array
     {
-        $defaultOverrides = $this->trainingPlan->config->get("default.weeks.{$exerciseId}", []);
-        $userOverrides = $this->trainingPlan->config->get("users.{$userId}.weeks.{$exerciseId}", []);
+        $defaultOverrides = $this->findExerciseOverrideData(
+            $this->trainingPlan->config->get('default.exercises', []),
+            $exerciseId,
+            'weeks'
+        );
+        $userOverrides = $this->findExerciseOverrideData(
+            $this->trainingPlan->config->get("users.{$userId}.exercises", []),
+            $exerciseId,
+            'weeks'
+        );
 
-        $merged = [];
-        $allKeys = array_unique(array_merge(array_keys($defaultOverrides), array_keys($userOverrides)));
+        $merged = $defaultOverrides;
 
-        foreach ($allKeys as $weekKey) {
-            $merged[$weekKey] = array_merge(
-                $defaultOverrides[$weekKey] ?? [],
-                $userOverrides[$weekKey] ?? []
-            );
+        foreach ($userOverrides as $userOverride) {
+            $existingIndex = null;
+
+            foreach ($merged as $index => $existing) {
+                if ($existing['week'] === $userOverride['week']) {
+                    $existingIndex = $index;
+
+                    break;
+                }
+            }
+
+            if ($existingIndex !== null) {
+                $merged[$existingIndex]['data'] = array_merge($merged[$existingIndex]['data'], $userOverride['data']);
+            } else {
+                $merged[] = $userOverride;
+            }
         }
 
         return $merged;
