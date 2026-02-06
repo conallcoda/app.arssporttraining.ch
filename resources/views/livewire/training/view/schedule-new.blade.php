@@ -12,18 +12,11 @@
 
             @foreach ($this->users as $userItem)
                 @php
-                    $hasCustomSchedule = $this->hasUserSchedule($userItem->id);
-                    $changeCount = $hasCustomSchedule ? $this->countUserScheduleChanges($userItem->id) : 0;
                     $isSelected = $user === $userItem->id;
                 @endphp
                 <flux:button wire:key="user-btn-{{ $userItem->id }}" wire:click="selectUser({{ $userItem->id }})"
                     variant="{{ $isSelected ? 'primary' : 'ghost' }}" class="justify-start">
                     <span class="flex-1 text-left">{{ $userItem->name }}</span>
-                    @if ($hasCustomSchedule)
-                        <flux:badge size="sm"
-                            class="{{ $isSelected ? 'bg-white/20 !text-white dark:!text-black' : '' }}">
-                            {{ $changeCount }}</flux:badge>
-                    @endif
                 </flux:button>
             @endforeach
         </div>
@@ -61,16 +54,16 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach ($this->schedule as $weekIndex => $week)
+                        @foreach ($this->schedule->items() as $weekIndex => $week)
                             @php
-                                $isLinked = $week['linkedTo'] !== null;
+                                $isLinked = $week->linkedTo !== null;
                                 $resolvedSlots = $this->getResolvedSlots($week);
                                 $linkedToIndex = $isLinked
-                                    ? collect($this->schedule)->search(fn($w) => $w['id'] === $week['linkedTo'])
+                                    ? $this->schedule->items()->search(fn($w) => $w->id === $week->linkedTo)
                                     : null;
                             @endphp
                             @foreach ([0 => 'AM', 1 => 'PM'] as $slotKey => $slotLabel)
-                                <tr wire:key="week-{{ $week['id'] }}-{{ $slotKey }}-{{ $user ?? 'default' }}"
+                                <tr wire:key="week-{{ $week->id }}-{{ $slotKey }}-{{ $user ?? 'default' }}"
                                     class="{{ $isLinked ? 'bg-zinc-50 dark:bg-zinc-900/50' : '' }}">
                                     @if ($slotKey === 0)
                                         <td rowspan="2"
