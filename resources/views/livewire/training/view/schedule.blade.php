@@ -139,10 +139,19 @@
                                                     <span class="truncate">{{ $programName }}</span>
                                                 </div>
                                             @else
-                                                <div class="h-full flex items-center justify-center text-zinc-400 dark:text-zinc-600 rounded {{ $isReadOnly ? '' : 'cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800/50' }}"
-                                                    @if (!$isReadOnly) wire:click="openAddProgramModal('{{ $week['id'] }}', {{ $dayIndex }}, '{{ $slotKey }}')" @endif>
+                                                <div class="h-full flex items-center justify-center text-zinc-400 dark:text-zinc-600 rounded">
                                                     @if (!$isReadOnly)
-                                                        <flux:icon.plus class="size-4" />
+                                                        <flux:dropdown position="bottom" align="center">
+                                                            <flux:button variant="ghost" size="xs" icon="plus" class="!text-zinc-400 dark:!text-zinc-600 hover:!text-zinc-600 dark:hover:!text-zinc-400" />
+                                                            <flux:menu>
+                                                                <flux:menu.item icon="plus" wire:click="openAddProgramModal('{{ $week['id'] }}', {{ $dayIndex }}, '{{ $slotKey }}')">
+                                                                    New
+                                                                </flux:menu.item>
+                                                                <flux:menu.item icon="link" wire:click="openLinkProgramModal('{{ $week['id'] }}', {{ $dayIndex }}, '{{ $slotKey }}')">
+                                                                    Link
+                                                                </flux:menu.item>
+                                                            </flux:menu>
+                                                        </flux:dropdown>
                                                     @endif
                                                 </div>
                                             @endif
@@ -301,6 +310,28 @@
                 </flux:modal.close>
                 <flux:button variant="danger" wire:click="removeFromSchedule">
                     Delete
+                </flux:button>
+            </div>
+        </div>
+    </flux:modal>
+
+    <flux:modal name="link-program" flyout class="w-80">
+        <div class="space-y-4">
+            <flux:heading size="lg">Link Program</flux:heading>
+            <flux:text class="text-sm text-zinc-600 dark:text-zinc-400">
+                Select an existing program to place in this slot.
+            </flux:text>
+            <flux:select wire:model="linkingProgramId" placeholder="Select a program...">
+                @foreach ($this->programOptions as $id => $name)
+                    <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
+                @endforeach
+            </flux:select>
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button variant="ghost">Cancel</flux:button>
+                </flux:modal.close>
+                <flux:button variant="primary" wire:click="linkProgramToSlot">
+                    Link
                 </flux:button>
             </div>
         </div>

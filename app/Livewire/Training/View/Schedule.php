@@ -48,6 +48,8 @@ class Schedule extends Component
 
     public ?string $removingWeekId = null;
 
+    public ?int $linkingProgramId = null;
+
     public function mount(TrainingPlan $trainingPlan, Collection $programs, Collection $users): void
     {
         $this->trainingPlan = $trainingPlan;
@@ -781,6 +783,41 @@ class Schedule extends Component
         $this->creatingForSlot = $slot;
 
         Flux::modal('add-program')->show();
+    }
+
+    public function openLinkProgramModal(string $weekId, int $day, int $slot): void
+    {
+        $week = collect($this->schedule)->firstWhere('id', $weekId);
+        if ($week && $week['linkedToWeekId'] !== null) {
+            return;
+        }
+
+        $this->creatingForWeekId = $weekId;
+        $this->creatingForDay = $day;
+        $this->creatingForSlot = $slot;
+        $this->linkingProgramId = null;
+
+        Flux::modal('link-program')->show();
+    }
+
+    public function linkProgramToSlot(): void
+    {
+        if ($this->creatingForWeekId === null || $this->creatingForDay === null || $this->creatingForSlot === null || $this->linkingProgramId === null) {
+            return;
+        }
+
+        $program = $this->programs->firstWhere('id', $this->linkingProgramId);
+        if (! $program) {
+            return;
+        }
+
+        $this->saveSlotChange($this->creatingForWeekId, $this->creatingForDay, $this->creatingForSlot, $this->linkingProgramId);
+
+        $this->linkingProgramId = null;
+        $this->creatingForWeekId = null;
+        $this->creatingForDay = null;
+        $this->creatingForSlot = null;
+        Flux::modal('link-program')->close();
     }
 
     public function editProgram(int $programId, string $weekId, int $day, int $slot): void
