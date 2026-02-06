@@ -42,8 +42,8 @@ class DefaultTrainingProgramData extends AbstractData implements HasForms
 
     public static function fromTrainingPlan(TrainingPlan $trainingPlan): self
     {
-        $data = $trainingPlan->config->get('users.default.training_plan', []);
-        $scheduleStartDate = $trainingPlan->config->get('schedule.startDate');
+        $data = $trainingPlan->config->get('default.exerciseConfig.strength', []);
+        $scheduleStartDate = $trainingPlan->config->get('default.schedule.startDate');
 
         return new self(
             startDate: ! empty($scheduleStartDate) ? $scheduleStartDate : WeekOptions::getCurrentWeekValue(),
@@ -55,12 +55,12 @@ class DefaultTrainingProgramData extends AbstractData implements HasForms
 
     public function persist(TrainingPlan $trainingPlan): void
     {
-        $trainingPlan->config->set('users.default.training_plan', [
+        $trainingPlan->config->set('default.exerciseConfig.strength', [
             'measuredReps' => $this->measuredReps,
             'measuredWeight' => $this->measuredWeight,
             'targetGoal' => $this->targetGoal,
         ]);
-        $trainingPlan->config->set('schedule.startDate', $this->startDate);
+        $trainingPlan->config->set('default.schedule.startDate', $this->startDate);
         $trainingPlan->save();
     }
 

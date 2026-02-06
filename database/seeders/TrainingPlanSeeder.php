@@ -9,7 +9,6 @@ use App\Models\TrainingPlanProgram;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 class TrainingPlanSeeder extends Seeder
 {
@@ -55,7 +54,7 @@ class TrainingPlanSeeder extends Seeder
 
     private function initializeScheduleWithPrograms(TrainingPlan $plan, TrainingPlanProgram $program1, TrainingPlanProgram $program2): void
     {
-        $week1Id = (string) Str::uuid();
+        $week1Id = 'default_0';
 
         $slots = [
             ['day' => 0, 'slot' => 0, 'programId' => $program1->id],
@@ -66,20 +65,22 @@ class TrainingPlanSeeder extends Seeder
         $weeks = [
             [
                 'id' => $week1Id,
-                'linkedToWeekId' => null,
+                'linkedTo' => null,
                 'slots' => $slots,
+                'sort' => 0,
             ],
         ];
 
-        for ($i = 2; $i <= 5; $i++) {
+        for ($i = 1; $i < 5; $i++) {
             $weeks[] = [
-                'id' => (string) Str::uuid(),
-                'linkedToWeekId' => $week1Id,
+                'id' => "default_{$i}",
+                'linkedTo' => $week1Id,
                 'slots' => [],
+                'sort' => $i,
             ];
         }
 
-        $plan->config->set('schedule.weeks', $weeks);
+        $plan->config->set('default.schedule.weeks', $weeks);
         $plan->save();
     }
 

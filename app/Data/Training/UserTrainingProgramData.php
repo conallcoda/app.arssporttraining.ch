@@ -53,7 +53,7 @@ class UserTrainingProgramData extends AbstractData implements HasForms
 
     public static function fromTrainingPlan(TrainingPlan $trainingPlan, int $userId): self
     {
-        $data = $trainingPlan->config->get("users.{$userId}.training_plan", []);
+        $data = $trainingPlan->config->get("users.{$userId}.exerciseConfig.strength", []);
         $scheduleStartDate = $trainingPlan->config->get("users.{$userId}.schedule.startDate");
 
         return new self(
@@ -77,7 +77,7 @@ class UserTrainingProgramData extends AbstractData implements HasForms
             $targetGoal = null;
         }
 
-        $trainingPlan->config->set("users.{$this->userId}.training_plan", [
+        $trainingPlan->config->set("users.{$this->userId}.exerciseConfig.strength", [
             'measuredReps' => $this->measuredReps,
             'measuredWeight' => $this->measuredWeight,
             'targetGoal' => $targetGoal,

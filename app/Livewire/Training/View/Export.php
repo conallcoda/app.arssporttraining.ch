@@ -155,7 +155,7 @@ class Export extends Component
 
     protected function getScheduleWeeksForUser(int $userId): array
     {
-        $defaultWeeks = $this->trainingPlan->config->get('schedule.weeks', []);
+        $defaultWeeks = $this->trainingPlan->config->get('default.schedule.weeks', []);
         $userOverrides = $this->trainingPlan->config->get("users.{$userId}.schedule.weeks", []);
 
         if (empty($userOverrides)) {
@@ -164,9 +164,11 @@ class Export extends Component
 
         $defaultWeekIds = collect($defaultWeeks)->pluck('id')->all();
 
-        $weeks = collect($defaultWeeks)->map(function ($week, $index) use ($userOverrides) {
+        $userOverridesCollection = collect($userOverrides);
+
+        $weeks = collect($defaultWeeks)->map(function ($week, $index) use ($userOverridesCollection) {
             $weekId = $week['id'];
-            $override = $userOverrides[$weekId] ?? null;
+            $override = $userOverridesCollection->firstWhere('id', $weekId);
 
             if (! isset($week['sort'])) {
                 $week['sort'] = $index;
@@ -180,8 +182,8 @@ class Export extends Component
                 return null;
             }
 
-            if (array_key_exists('linkedToWeekId', $override)) {
-                $week['linkedToWeekId'] = $override['linkedToWeekId'];
+            if (array_key_exists('linkedTo', $override)) {
+                $week['linkedTo'] = $override['linkedTo'];
             }
 
             if (! empty($override['slots'])) {
@@ -191,8 +193,8 @@ class Export extends Component
             return $week;
         })->filter();
 
-        $userAddedWeeks = collect($userOverrides)
-            ->filter(fn ($override, $weekId) => ! in_array($weekId, $defaultWeekIds));
+        $userAddedWeeks = $userOverridesCollection
+            ->filter(fn ($override) => ! in_array($override['id'] ?? null, $defaultWeekIds));
 
         return $weeks->merge($userAddedWeeks)
             ->sortBy('sort')
@@ -412,11 +414,11 @@ class Export extends Component
 
     protected function getResolvedSlotsForWeek(array $week, array $allWeeks): array
     {
-        if ($week['linkedToWeekId'] === null) {
+        if ($week['linkedTo'] === null) {
             return $week['slots'] ?? [];
         }
 
-        $sourceWeek = collect($allWeeks)->firstWhere('id', $week['linkedToWeekId']);
+        $sourceWeek = collect($allWeeks)->firstWhere('id', $week['linkedTo']);
 
         return $sourceWeek ? $this->getResolvedSlotsForWeek($sourceWeek, $allWeeks) : ($week['slots'] ?? []);
     }
@@ -507,11 +509,11 @@ class Export extends Component
         $systemRest = $pivotConfig['rest'] ?? ExerciseOverrideData::DEFAULT_REST;
         $oneRepMaxModifier = $pivotConfig['oneRepMaxModifier'] ?? 100;
 
-        $allDefaultExercises = $this->trainingPlan->config->get('users.default.exercises', []);
+        $allDefaultExercises = $this->trainingPlan->config->get('default.exercises', []);
         $allUserExercises = $this->trainingPlan->config->get("users.{$userId}.exercises", []);
 
-        $defaultOverride = $allDefaultExercises[$exerciseId] ?? $allDefaultExercises[(string) $exerciseId] ?? [];
-        $userOverride = $allUserExercises[$exerciseId] ?? $allUserExercises[(string) $exerciseId] ?? [];
+        $defaultOverride = collect($allDefaultExercises)->firstWhere('id', $exerciseId)['config'] ?? [];
+        $userOverride = collect($allUserExercises)->firstWhere('id', $exerciseId)['config'] ?? [];
 
         return [
             'target' => $userOverride['target'] ?? $defaultOverride['target'] ?? $systemTarget,
@@ -525,12 +527,31 @@ class Export extends Component
 
     protected function applyCellOverrides(TrainingBlock $block, int $userId, int $exerciseId): TrainingBlock
     {
-        $allDefaultCells = $this->trainingPlan->config->get('users.default.cells', []);
+        $allDefaultCells = $this->trainingPlan->config->get('default.cells', []);
         $allUserCells = $this->trainingPlan->config->get("users.{$userId}.cells", []);
 
         $defaultOverrides = $allDefaultCells[$exerciseId] ?? $allDefaultCells[(string) $exerciseId] ?? [];
         $userOverrides = $allUserCells[$exerciseId] ?? $allUserCells[(string) $exerciseId] ?? [];
-        $overrides = array_merge($defaultOverrides, $userOverrides);
+
+        $overrides = $defaultOverrides;
+
+        foreach ($userOverrides as $userOverride) {
+            $existingIndex = null;
+
+            foreach ($overrides as $index => $existing) {
+                if ($existing['week'] === $userOverride['week'] && $existing['session'] === $userOverride['session'] && $existing['set'] === $userOverride['set']) {
+                    $existingIndex = $index;
+
+                    break;
+                }
+            }
+
+            if ($existingIndex !== null) {
+                $overrides[$existingIndex]['data'] = array_merge($overrides[$existingIndex]['data'], $userOverride['data']);
+            } else {
+                $overrides[] = $userOverride;
+            }
+        }
 
         if (empty($overrides)) {
             return $block;
@@ -538,14 +559,11 @@ class Export extends Component
 
         $weeks = $block->weeks;
 
-        foreach ($overrides as $cellKey => $values) {
-            if (! preg_match('/^w(\d+)-s(\d+)-set(\d+)$/', $cellKey, $matches)) {
-                continue;
-            }
-
-            $weekIndex = (int) $matches[1];
-            $sessionIndex = (int) $matches[2];
-            $setIndex = (int) $matches[3];
+        foreach ($overrides as $override) {
+            $weekIndex = $override['week'];
+            $sessionIndex = $override['session'];
+            $setIndex = $override['set'];
+            $values = $override['data'];
 
             if (! isset($weeks[$weekIndex]->sessions[$sessionIndex]->sets[$setIndex])) {
                 continue;
@@ -553,12 +571,9 @@ class Export extends Component
 
             $set = $weeks[$weekIndex]->sessions[$sessionIndex]->sets[$setIndex];
 
-            $newReps = $values['reps'] ?? $set->reps;
-            $newWeight = $values['weight'] ?? $set->weight;
-
             $weeks[$weekIndex]->sessions[$sessionIndex]->sets[$setIndex] = new TrainingSet(
-                reps: $newReps,
-                weight: $newWeight,
+                reps: $values['reps'] ?? $set->reps,
+                weight: $values['weight'] ?? $set->weight,
                 oneRepMax: $set->oneRepMax,
             );
         }
@@ -568,7 +583,7 @@ class Export extends Component
 
     protected function getWeekOverridesForExport(int $userId, int $exerciseId): array
     {
-        $defaultOverrides = $this->trainingPlan->config->get("users.default.weeks.{$exerciseId}", []);
+        $defaultOverrides = $this->trainingPlan->config->get("default.weeks.{$exerciseId}", []);
         $userOverrides = $this->trainingPlan->config->get("users.{$userId}.weeks.{$exerciseId}", []);
 
         $merged = [];

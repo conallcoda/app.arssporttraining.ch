@@ -49,8 +49,12 @@
     ];
 
     $hasOverride = function ($weekIndex, $sessionIndex, $setIndex, $field) use ($userSpecificCellOverrides) {
-        $key = "w{$weekIndex}-s{$sessionIndex}-set{$setIndex}";
-        return isset($userSpecificCellOverrides[$key][$field]);
+        foreach ($userSpecificCellOverrides as $override) {
+            if ($override['week'] === $weekIndex && $override['session'] === $sessionIndex && $override['set'] === $setIndex && isset($override['data'][$field])) {
+                return true;
+            }
+        }
+        return false;
     };
 
     $hasWeekOverride = function ($weekIndex, $field) use ($userSpecificWeekOverrides) {

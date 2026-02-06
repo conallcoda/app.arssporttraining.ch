@@ -1,162 +1,213 @@
 {
-    "users": {
-        "default": {
-            "training_plan": {
+    "default": {
+        "exerciseConfig": {
+            "strength": {
                 "measuredReps": 8,
                 "measuredWeight": 52,
                 "targetGoal": 7
-            },
-            "cells": {
-                "1": {
-                    "w0-s0-set1": {
-                        "reps": 33
-                    },
-                    "w0-s1-set1": {
-                        "reps": 33
-                    },
-                    "w0-s0-set2": {
-                        "reps": 1
-                    },
-                    "w0-s1-set2": {
-                        "reps": 1
-                    }
-                }
             }
         },
+        "schedule": {
+            "startDate": "2026-02-02",
+            "weeks": [
+                {
+                    "id": "default_0",
+                    "linkedTo": null,
+                    "slots": [
+                        {
+                            "day": 0,
+                            "slot": 0,
+                            "programId": 1
+                        },
+                        {
+                            "day": 4,
+                            "slot": 0,
+                            "programId": 1,
+                            "isLinked": true
+                        },
+                        {
+                            "day": 2,
+                            "slot": 1,
+                            "programId": 2
+                        }
+                    ],
+                    "sort": 0
+                },
+                {
+                    "id": "default_1",
+                    "linkedTo": "default_0",
+                    "slots": [],
+                    "sort": 1
+                },
+                {
+                    "id": "default_2",
+                    "linkedTo": "default_0",
+                    "slots": [],
+                    "sort": 2
+                },
+                {
+                    "id": "default_3",
+                    "linkedTo": "default_0",
+                    "slots": [],
+                    "sort": 3
+                },
+                {
+                    "id": "default_4",
+                    "linkedTo": "default_0",
+                    "slots": [],
+                    "sort": 4
+                }
+            ]
+        },
+        "exercises": [
+            {
+                "id": 1,
+                "config": {
+                    "target": 7,
+                    "startingReps": 12,
+                    "sets": 4,
+                    "tut": "2000",
+                    "rest": 30
+                }
+            }
+        ],
+        "cells": {
+            "1": [
+                {
+                    "week": 0,
+                    "session": 0,
+                    "set": 2,
+                    "data": {
+                        "reps": 5
+                    }
+                },
+                {
+                    "week": 0,
+                    "session": 1,
+                    "set": 2,
+                    "data": {
+                        "reps": 5
+                    }
+                }
+            ]
+        }
+    },
+    "users": {
         "7": {
             "schedule": {
-                "weeks": {
-                    "21d0b9b5-ee8d-46fd-8309-a0fb710e48aa": {
-                        "removed": true
-                    },
-                    "ac6efba8-4da9-489e-8f2d-74928c194168": {
-                        "removed": true
-                    },
-                    "12e41c8f-55be-402f-b6d1-b2df8b0bf09d": {
+                "weeks": [
+                    {
+                        "id": "default_0",
                         "slots": [
                             {
-                                "day": 2,
-                                "slot": 0,
+                                "day": 1,
+                                "slot": 1,
                                 "programId": null,
                                 "moved": [
-                                    3,
-                                    0
+                                    2,
+                                    1
                                 ]
-                            },
-                            {
-                                "day": 3,
-                                "slot": 0,
-                                "programId": 3
                             },
                             {
                                 "day": 2,
                                 "slot": 1,
-                                "programId": 4
+                                "programId": 2
                             }
                         ]
-                    }
-                }
-            },
-            "training_plan": {
-                "measuredReps": 22,
-                "measuredWeight": 2,
-                "targetGoal": null
-            },
-            "cells": {
-                "1": {
-                    "w0-s0-set2": {
-                        "reps": 22
                     },
-                    "w0-s1-set2": {
-                        "reps": 22
-                    }
-                }
-            }
-        },
-        "5": {
-            "schedule": {
-                "weeks": {
-                    "12e41c8f-55be-402f-b6d1-b2df8b0bf09d": {
+                    {
+                        "id": "user_5",
+                        "linkedTo": null,
                         "slots": [
                             {
+                                "day": 0,
+                                "slot": 0,
+                                "programId": 1
+                            },
+                            {
+                                "day": 4,
+                                "slot": 0,
+                                "programId": 1
+                            },
+                            {
+                                "day": 3,
+                                "slot": 1,
+                                "programId": 2
+                            }
+                        ],
+                        "sort": 5
+                    },
+                    {
+                        "linkedTo": null,
+                        "slots": [
+                            {
+                                "day": 0,
+                                "slot": 0,
+                                "programId": 1
+                            },
+                            {
                                 "day": 2,
+                                "slot": 1,
+                                "programId": 2
+                            },
+                            {
+                                "day": 4,
                                 "slot": 0,
                                 "programId": null,
                                 "moved": [
-                                    3,
+                                    5,
                                     0
                                 ]
                             },
                             {
-                                "day": 3,
+                                "day": 5,
                                 "slot": 0,
-                                "programId": 3
+                                "programId": 1
                             }
-                        ]
-                    }
-                }
-            }
-        }
-    },
-    "schedule": {
-        "startDate": "2026-02-02",
-        "weeks": [
-            {
-                "id": "12e41c8f-55be-402f-b6d1-b2df8b0bf09d",
-                "linkedToWeekId": null,
-                "slots": [
-                    {
-                        "day": 0,
-                        "slot": 0,
-                        "programId": 1
-                    },
-                    {
-                        "day": 1,
-                        "slot": 1,
-                        "programId": 2
-                    },
-                    {
-                        "day": 4,
-                        "slot": 0,
-                        "programId": 1
-                    },
-                    {
-                        "day": 2,
-                        "slot": 0,
-                        "programId": 3
-                    },
-                    {
-                        "day": 5,
-                        "slot": 0,
-                        "programId": 2
-                    },
-                    {
-                        "day": 6,
-                        "slot": 0,
-                        "programId": 2
+                        ],
+                        "id": "default_1"
                     }
                 ]
             },
-            {
-                "id": "21d0b9b5-ee8d-46fd-8309-a0fb710e48aa",
-                "linkedToWeekId": "12e41c8f-55be-402f-b6d1-b2df8b0bf09d",
-                "slots": []
+            "exerciseConfig": {
+                "strength": {
+                    "measuredReps": 22,
+                    "measuredWeight": 33,
+                    "targetGoal": 5
+                }
             },
-            {
-                "id": "7bca133c-0b3a-4c6e-8709-c54835f2d5ea",
-                "linkedToWeekId": "12e41c8f-55be-402f-b6d1-b2df8b0bf09d",
-                "slots": []
+            "cells": {
+                "1": [
+                    {
+                        "week": 0,
+                        "session": 0,
+                        "set": 2,
+                        "data": {
+                            "weight": 9
+                        }
+                    },
+                    {
+                        "week": 0,
+                        "session": 1,
+                        "set": 2,
+                        "data": {
+                            "weight": 9
+                        }
+                    }
+                ]
             },
-            {
-                "id": "424ba125-01dd-4f0f-837c-2a06419bdc3a",
-                "linkedToWeekId": "12e41c8f-55be-402f-b6d1-b2df8b0bf09d",
-                "slots": []
-            },
-            {
-                "id": "ac6efba8-4da9-489e-8f2d-74928c194168",
-                "linkedToWeekId": "12e41c8f-55be-402f-b6d1-b2df8b0bf09d",
-                "slots": []
-            }
-        ]
+            "exercises": [
+                {
+                    "id": 1,
+                    "config": {
+                        "target": 5,
+                        "startingReps": 8,
+                        "sets": 3,
+                        "tut": "3000",
+                        "rest": 25
+                    }
+                }
+            ]
+        }
     }
 }
