@@ -106,11 +106,9 @@
                                         @php
                                             $slotData = $resolvedSlots[$dayIndex][$slotKey] ?? [];
                                             $programId = $slotData['programId'] ?? null;
-                                            $isProgramLinked = ($slotData['isLinked'] ?? false) === true;
                                             $programName = $programId ? $this->programOptions[$programId] ?? '?' : null;
                                             $programColor = $this->getProgramColor($programId);
                                             $cellId = $week['id'] . '-' . $dayIndex . '-' . $slotKey;
-                                            $showAsLinked = $isReadOnly || $isProgramLinked;
                                         @endphp
                                         <td class="border {{ $isLinked ? 'border-dashed border-zinc-400 dark:border-zinc-500' : 'border-zinc-300 dark:border-zinc-600' }} p-1 h-12 transition-colors duration-200"
                                             :class="{
@@ -127,8 +125,8 @@
                                                 @dragleave="handleDragLeave()"
                                                 @drop.prevent="handleDrop($event)" @endif>
                                             @if ($programId)
-                                                <div class="h-full flex items-center justify-center rounded px-2 py-1 text-xs font-medium {{ $showAsLinked ? 'border-2 border-dashed opacity-70' : 'cursor-pointer' }} {{ $isReadOnly ? '' : 'cursor-pointer' }}"
-                                                    style="background-color: {{ $this->getColorValue($programColor, $showAsLinked ? 200 : 500) }}; color: {{ $showAsLinked ? '#374151' : 'white' }}; {{ $showAsLinked ? 'border-color: ' . $this->getColorValue($programColor, 400) . ';' : '' }}"
+                                                <div class="h-full flex items-center justify-center rounded px-2 py-1 text-xs font-medium cursor-pointer"
+                                                    style="background-color: {{ $this->getColorValue($programColor, 500) }}; color: white;"
                                                     :class="{ 'opacity-50 scale-95': draggedCell === '{{ $cellId }}' }"
                                                     @if (!$isReadOnly) draggable="true"
                                                         data-week-id="{{ $week['id'] }}"
@@ -267,44 +265,13 @@
         <form wire:submit="saveProgram" class="space-y-6">
             <flux:heading size="lg">{{ $this->editingProgramId ? 'Edit' : 'Add' }} Program</flux:heading>
 
-            <div class="flex rounded-lg border border-zinc-200 dark:border-zinc-700 p-1 bg-zinc-50 dark:bg-zinc-800/50">
-                <button type="button"
-                    wire:click="$set('programMode', 'new')"
-                    class="flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors {{ $programMode === 'new' ? 'bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-white' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white' }}">
-                    New
-                </button>
-                @php
-                    $hasPrograms = $this->hasAvailablePrograms();
-                @endphp
-                <div class="flex-1 relative" @if(!$hasPrograms) x-data x-tooltip.raw="No programs available" @endif>
-                    <button type="button"
-                        wire:click="$set('programMode', 'existing')"
-                        @if(!$hasPrograms) disabled @endif
-                        class="w-full px-3 py-1.5 text-sm font-medium rounded-md transition-colors {{ $programMode === 'existing' ? 'bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-white' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white' }} {{ !$hasPrograms ? 'opacity-50 cursor-not-allowed' : '' }}">
-                        Existing
-                    </button>
-                </div>
-            </div>
-
-            @if ($programMode === 'new')
-                @foreach ($this->fieldsets as $fieldset)
-                    <x-cms.form.fieldset :fieldset="$fieldset" prefix="data" :showLegend="false" />
-                @endforeach
-            @else
-                <flux:select wire:model.live="selectedProgramId" label="Select Program" placeholder="Choose a program...">
-                    @foreach ($this->availableProgramsForLinking as $program)
-                        <flux:select.option value="{{ $program['id'] }}">{{ $program['name'] }}</flux:select.option>
-                    @endforeach
-                </flux:select>
-            @endif
+            @foreach ($this->fieldsets as $fieldset)
+                <x-cms.form.fieldset :fieldset="$fieldset" prefix="data" :showLegend="false" />
+            @endforeach
 
             <div class="flex gap-2 pt-4">
                 <flux:button type="submit" variant="primary" class="flex-1">
-                    @if ($programMode === 'existing')
-                        Link Program
-                    @else
-                        {{ $this->editingProgramId ? 'Save' : 'Add' }} Program
-                    @endif
+                    {{ $this->editingProgramId ? 'Save' : 'Add' }} Program
                 </flux:button>
                 <flux:modal.close>
                     <flux:button variant="ghost">Cancel</flux:button>
@@ -320,30 +287,12 @@
 
     <flux:modal name="delete-program" class="min-w-[22rem]">
         <div class="space-y-6">
-            @php
-                $isEditingLinked = $this->isEditingLinkedProgram();
-                $linkedCount = $this->getEditingProgramLinkedCount();
-            @endphp
             <div>
-                @if ($isEditingLinked)
-                    <flux:heading size="lg">Remove Link?</flux:heading>
-                    <flux:text class="mt-2">
-                        You're about to remove this linked program from the slot.<br>
-                        The original program will not be affected.
-                    </flux:text>
-                @elseif ($linkedCount > 0)
-                    <flux:heading size="lg">Delete Program?</flux:heading>
-                    <flux:text class="mt-2">
-                        You're about to delete this program and {{ $linkedCount }} linked {{ Str::plural('instance', $linkedCount) }}.<br>
-                        This action cannot be reversed.
-                    </flux:text>
-                @else
-                    <flux:heading size="lg">Delete Program?</flux:heading>
-                    <flux:text class="mt-2">
-                        You're about to delete this program.<br>
-                        This action cannot be reversed.
-                    </flux:text>
-                @endif
+                <flux:heading size="lg">Delete Program?</flux:heading>
+                <flux:text class="mt-2">
+                    You're about to delete this program.<br>
+                    This action cannot be reversed.
+                </flux:text>
             </div>
             <div class="flex gap-2">
                 <flux:spacer />
@@ -351,7 +300,7 @@
                     <flux:button variant="ghost">Cancel</flux:button>
                 </flux:modal.close>
                 <flux:button variant="danger" wire:click="removeFromSchedule">
-                    {{ $isEditingLinked ? 'Remove' : 'Delete' }}
+                    Delete
                 </flux:button>
             </div>
         </div>
