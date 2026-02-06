@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Cms\Models\Concerns\HasConfigData;
 use App\Cms\Models\Concerns\SyncsSortableRelations;
+use App\Data\Training\Config\TrainingPlanConfig;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use Illuminate\Database\Eloquent\Builder;
@@ -14,13 +15,19 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class TrainingPlan extends Model
 {
-    use HasConfigData;
     use SoftDeletes;
+    use HasConfigData;
     use SyncsSortableRelations;
 
     protected $fillable = [
         'name',
+        'config',
     ];
+
+    protected function casts(): array
+    {
+        return [];
+    }
 
     public function users(): BelongsToMany
     {

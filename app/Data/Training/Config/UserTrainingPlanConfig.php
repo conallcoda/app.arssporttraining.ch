@@ -10,6 +10,7 @@ use Spatie\LaravelData\Optional;
 /**
  * @property array<int, \App\Data\Training\Config\Exercise\ExerciseOverride> $exercises
  * @property array<int, \App\Data\Training\Config\Cell\CellOverride[]> $cells
+ * @property array<int, array<string, array{tut?: string, rest?: int}>> $weeks
  */
 class UserTrainingPlanConfig extends AbstractConfig
 {
@@ -18,5 +19,6 @@ class UserTrainingPlanConfig extends AbstractConfig
         public AthleteExerciseConfig|Optional $exerciseConfig,
         public array $exercises = [],
         public array $cells = [],
+        public array $weeks = [],
     ) {}
 }

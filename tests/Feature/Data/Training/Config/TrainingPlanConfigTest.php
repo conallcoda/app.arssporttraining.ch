@@ -21,7 +21,7 @@ function sampleConfig(): array
 
 it('deserializes from the full JSON config', function () {
     $config = TrainingPlanConfig::from(sampleConfig());
-    dd($config->toArray());
+
     expect($config)->toBeInstanceOf(TrainingPlanConfig::class);
     expect($config->default)->toBeInstanceOf(DefaultTrainingPlanConfig::class);
     expect($config->users)->toBeArray();
@@ -226,6 +226,36 @@ it('round-trips to array matching the original structure', function () {
     expect($output['default']['cells'])->toHaveKey('1');
 });
 
+it('deserializes default week overrides', function () {
+    $config = TrainingPlanConfig::from(sampleConfig());
+
+    $weeks = $config->default->weeks;
+
+    expect($weeks)->toHaveKey('1');
+    expect($weeks['1'])->toHaveKey('w0');
+    expect($weeks['1']['w0']['tut'])->toBe('4010');
+    expect($weeks['1']['w0']['rest'])->toBe(60);
+    expect($weeks['1']['w2']['tut'])->toBe('3010');
+});
+
+it('deserializes user week overrides', function () {
+    $config = TrainingPlanConfig::from(sampleConfig());
+
+    $userConfig = $config->forUser(7);
+
+    expect($userConfig->weeks)->toHaveKey('1');
+    expect($userConfig->weeks['1']['w0']['rest'])->toBe(90);
+});
+
+it('round-trips weeks in round-trip serialization', function () {
+    $json = sampleConfig();
+    $config = TrainingPlanConfig::from($json);
+    $output = $config->toArray();
+
+    expect($output['default']['weeks'])->toHaveKey('1');
+    expect($output['default']['weeks']['1']['w0']['tut'])->toBe('4010');
+});
+
 it('can be created with minimal data', function () {
     $config = TrainingPlanConfig::from([
         'default' => [],
@@ -236,5 +266,83 @@ it('can be created with minimal data', function () {
     expect($config->default->schedule)->toBeInstanceOf(Optional::class);
     expect($config->default->exercises)->toBeEmpty();
     expect($config->default->cells)->toBeEmpty();
+    expect($config->default->weeks)->toBeEmpty();
     expect($config->users)->toBeEmpty();
+});
+
+it('can be created via initialize factory', function () {
+    $config = TrainingPlanConfig::initialize();
+
+    expect($config)->toBeInstanceOf(TrainingPlanConfig::class);
+    expect($config->default->exercises)->toBeEmpty();
+    expect($config->defaultScheduleWeeks())->toBeEmpty();
+    expect($config->defaultExerciseOverrides())->toBeEmpty();
+});
+
+it('provides typed accessor for default schedule weeks', function () {
+    $config = TrainingPlanConfig::from(sampleConfig());
+
+    $weeks = $config->defaultScheduleWeeks();
+
+    expect($weeks)->toHaveCount(5);
+});
+
+it('provides typed accessor for user schedule weeks', function () {
+    $config = TrainingPlanConfig::from(sampleConfig());
+
+    expect($config->userScheduleWeeks(7))->toHaveCount(3);
+    expect($config->userScheduleWeeks(999))->toBeEmpty();
+});
+
+it('provides typed accessor for default exercise overrides', function () {
+    $config = TrainingPlanConfig::from(sampleConfig());
+
+    expect($config->defaultExerciseOverrides())->toHaveCount(1);
+});
+
+it('provides typed accessor for user exercise overrides', function () {
+    $config = TrainingPlanConfig::from(sampleConfig());
+
+    expect($config->userExerciseOverrides(7))->toHaveCount(1);
+    expect($config->userExerciseOverrides(999))->toBeEmpty();
+});
+
+it('provides typed accessor for cell overrides by exercise', function () {
+    $config = TrainingPlanConfig::from(sampleConfig());
+
+    expect($config->defaultCellOverrides(1))->toHaveCount(2);
+    expect($config->defaultCellOverrides(999))->toBeEmpty();
+    expect($config->userCellOverrides(7, 1))->toHaveCount(2);
+    expect($config->userCellOverrides(999, 1))->toBeEmpty();
+});
+
+it('provides typed accessor for week overrides by exercise', function () {
+    $config = TrainingPlanConfig::from(sampleConfig());
+
+    expect($config->defaultWeekOverrides(1))->toHaveKey('w0');
+    expect($config->defaultWeekOverrides(999))->toBeEmpty();
+    expect($config->userWeekOverrides(7, 1))->toHaveKey('w0');
+    expect($config->userWeekOverrides(999, 1))->toBeEmpty();
+});
+
+it('provides typed accessor for default exercise config', function () {
+    $config = TrainingPlanConfig::from(sampleConfig());
+
+    $exerciseConfig = $config->defaultExerciseConfig();
+
+    expect($exerciseConfig['measuredReps'])->toBe(8);
+    expect($exerciseConfig['measuredWeight'])->toBe(52.0);
+    expect($exerciseConfig['targetGoal'])->toBe(7);
+});
+
+it('provides typed accessor for user exercise config', function () {
+    $config = TrainingPlanConfig::from(sampleConfig());
+
+    $exerciseConfig = $config->userExerciseConfig(7);
+
+    expect($exerciseConfig['measuredReps'])->toBe(22);
+    expect($exerciseConfig['measuredWeight'])->toBe(33.0);
+    expect($exerciseConfig['targetGoal'])->toBe(5);
+
+    expect($config->userExerciseConfig(999))->toBeEmpty();
 });
