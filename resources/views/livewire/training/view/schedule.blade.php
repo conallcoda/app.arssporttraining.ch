@@ -128,8 +128,7 @@
                                                 @dragleave="handleDragLeave()"
                                                 @drop.prevent="handleDrop($event)" @endif>
                                             @if ($programId)
-                                                <div class="h-full flex items-center justify-center rounded px-2 py-1 text-xs font-medium cursor-pointer"
-                                                    style="background-color: {{ $this->getColorValue($programColor, 500) }}; color: white;"
+                                                <div class="h-full flex items-center justify-center rounded px-2 py-1 text-xs font-medium cursor-pointer bg-{{ $programColor ?? 'blue' }}-500 text-white"
                                                     :class="{ 'opacity-50 scale-95': draggedCell === '{{ $cellId }}' }"
                                                     @if (!$isReadOnly) draggable="true"
                                                         data-week-id="{{ $week['id'] }}"
