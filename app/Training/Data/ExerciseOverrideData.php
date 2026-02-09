@@ -19,7 +19,7 @@ class ExerciseOverrideData extends AbstractData implements HasForms
 
     public const DEFAULT_SETS = 4;
 
-    public const DEFAULT_TUT = '3010';
+    public const DEFAULT_TEMPO = '3010';
 
     public const DEFAULT_REST = 30;
 
@@ -29,7 +29,7 @@ class ExerciseOverrideData extends AbstractData implements HasForms
         public ?int $sets = null,
         public ?int $measuredReps = null,
         public ?float $measuredWeight = null,
-        public ?string $tut = null,
+        public ?string $tempo = null,
         public ?int $rest = null,
     ) {}
 
@@ -50,7 +50,7 @@ class ExerciseOverrideData extends AbstractData implements HasForms
             sets: isset($data['sets']) ? (int) $data['sets'] : null,
             measuredReps: isset($data['measuredReps']) ? (int) $data['measuredReps'] : null,
             measuredWeight: isset($data['measuredWeight']) ? (float) $data['measuredWeight'] : null,
-            tut: $data['tut'] ?? null,
+            tempo: $data['tempo'] ?? null,
             rest: isset($data['rest']) ? (int) $data['rest'] : null,
         );
     }
@@ -63,7 +63,7 @@ class ExerciseOverrideData extends AbstractData implements HasForms
             'sets' => $this->sets,
             'measuredReps' => $this->measuredReps,
             'measuredWeight' => $this->measuredWeight,
-            'tut' => $this->tut,
+            'tempo' => $this->tempo,
             'rest' => $this->rest,
         ], fn ($value) => $value !== null);
     }
@@ -83,9 +83,9 @@ class ExerciseOverrideData extends AbstractData implements HasForms
         return $this->sets ?? $default;
     }
 
-    public function getTut(string $default): string
+    public function getTempo(string $default): string
     {
-        return $this->tut ?? $default;
+        return $this->tempo ?? $default;
     }
 
     public function getRest(int $default): int

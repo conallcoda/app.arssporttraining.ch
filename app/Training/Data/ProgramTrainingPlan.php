@@ -112,7 +112,7 @@ class ProgramTrainingPlan
         for ($i = 1; $i <= $this->maxSets; $i++) {
             $this->headers[] = 'Set '.$i;
         }
-        $this->headers[] = 'TUT';
+        $this->headers[] = 'Tempo';
         $this->headers[] = 'Rest';
         $this->headers[] = 'Date';
         $this->headers[] = 'Date';
@@ -129,7 +129,7 @@ class ProgramTrainingPlan
             for ($i = 1; $i <= $this->maxSets; $i++) {
                 $exerciseHeader[] = 'Set '.$i;
             }
-            $exerciseHeader[] = 'TUT';
+            $exerciseHeader[] = 'Tempo';
             $exerciseHeader[] = 'Rest';
             $exerciseHeader[] = 'Date';
             $exerciseHeader[] = 'Date';
@@ -143,14 +143,14 @@ class ProgramTrainingPlan
                 'exerciseRowCount' => $exerciseRowCount,
             ];
 
-            $tut = $item['tut'] ?? '3010';
+            $tempo = $item['tempo'] ?? '3010';
             $rest = (int) ($item['rest'] ?? 30);
             $weekOverrides = $item['weekOverrides'] ?? [];
-            $this->buildExerciseRows($block, $tut, $rest, $weekOverrides);
+            $this->buildExerciseRows($block, $tempo, $rest, $weekOverrides);
         }
     }
 
-    protected function buildExerciseRows(TrainingBlock $block, string $tut, int $rest, array $weekOverrides = []): void
+    protected function buildExerciseRows(TrainingBlock $block, string $tempo, int $rest, array $weekOverrides = []): void
     {
         $weekIndex = 0;
         $lastReps = null;
@@ -165,7 +165,7 @@ class ProgramTrainingPlan
             $currentReps = $this->getRepsArray($firstSession);
 
             $weekData = $this->findWeekOverrideData($weekOverrides, $weekIndex);
-            $weekTut = $weekData['tut'] ?? $tut;
+            $weekTempo = $weekData['tempo'] ?? $tempo;
             $weekRest = (int) ($weekData['rest'] ?? $rest);
 
             if (! $this->repsAreSimilar($lastReps, $currentReps)) {
@@ -173,7 +173,7 @@ class ProgramTrainingPlan
                     'type' => self::ROW_TYPE_REPS,
                     'label' => 'Reps',
                     'cells' => $this->buildSetCells($firstSession, 'reps'),
-                    'tut' => '',
+                    'tempo' => '',
                     'rest' => '',
                     'date1' => '',
                     'date2' => '',
@@ -186,7 +186,7 @@ class ProgramTrainingPlan
                 'type' => self::ROW_TYPE_WEIGHT,
                 'label' => 'Weight',
                 'cells' => $this->buildSetCells($firstSession, 'weight'),
-                'tut' => $weekTut,
+                'tempo' => $weekTempo,
                 'rest' => $weekRest,
                 'date1' => '',
                 'date2' => '',
@@ -308,7 +308,7 @@ class ProgramTrainingPlan
                 $rowData[] = $cell;
             }
 
-            $rowData[] = $row['tut'] ?? '';
+            $rowData[] = $row['tempo'] ?? '';
             $rowData[] = $row['rest'] ?? '';
             $rowData[] = $row['date1'] ?? '';
             $rowData[] = $row['date2'] ?? '';

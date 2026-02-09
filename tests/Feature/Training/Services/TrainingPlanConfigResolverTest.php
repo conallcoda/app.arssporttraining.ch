@@ -113,7 +113,7 @@ it('returns minimum of 1 session for unknown program', function () {
 
 it('resolves exercise config for default user', function () {
     $resolver = sampleResolver();
-    $pivotConfig = ['startingReps' => 10, 'sets' => 4, 'tut' => '3010', 'rest' => 30, 'oneRepMaxModifier' => 100];
+    $pivotConfig = ['startingReps' => 10, 'sets' => 4, 'tempo' => '3010', 'rest' => 30, 'oneRepMaxModifier' => 100];
 
     $config = $resolver->getExerciseConfig(1, $pivotConfig, 7);
 
@@ -123,35 +123,35 @@ it('resolves exercise config for default user', function () {
 
 it('resolves exercise config cascading user over default for user 5', function () {
     $resolver = sampleResolver(5);
-    $pivotConfig = ['startingReps' => 10, 'sets' => 4, 'tut' => '3010', 'rest' => 30, 'oneRepMaxModifier' => 100];
+    $pivotConfig = ['startingReps' => 10, 'sets' => 4, 'tempo' => '3010', 'rest' => 30, 'oneRepMaxModifier' => 100];
 
     $config = $resolver->getExerciseConfig(1, $pivotConfig, 7);
 
     expect($config['target'])->toBe(71);
     expect($config['startingReps'])->toBe(12);
     expect($config['sets'])->toBe(4);
-    expect($config['tut'])->toBe('3010');
+    expect($config['tempo'])->toBe('3010');
     expect($config['rest'])->toBe(30);
     expect($config['hasTargetOverride'])->toBeTrue();
 });
 
 it('falls back to system defaults when no overrides exist', function () {
     $resolver = sampleResolver();
-    $pivotConfig = ['startingReps' => 10, 'sets' => 4, 'tut' => '3010', 'rest' => 30, 'oneRepMaxModifier' => 100];
+    $pivotConfig = ['startingReps' => 10, 'sets' => 4, 'tempo' => '3010', 'rest' => 30, 'oneRepMaxModifier' => 100];
 
     $config = $resolver->getExerciseConfig(999, $pivotConfig, 7);
 
     expect($config['target'])->toBe(7);
     expect($config['startingReps'])->toBe(10);
     expect($config['sets'])->toBe(4);
-    expect($config['tut'])->toBe('3010');
+    expect($config['tempo'])->toBe('3010');
     expect($config['rest'])->toBe(30);
     expect($config['hasTargetOverride'])->toBeFalse();
 });
 
 it('returns export exercise config without override flags', function () {
     $resolver = sampleResolver(5);
-    $pivotConfig = ['startingReps' => 10, 'sets' => 4, 'tut' => '3010', 'rest' => 30, 'oneRepMaxModifier' => 100];
+    $pivotConfig = ['startingReps' => 10, 'sets' => 4, 'tempo' => '3010', 'rest' => 30, 'oneRepMaxModifier' => 100];
 
     $config = $resolver->getExerciseConfigForExport(1, $pivotConfig, 7);
 
@@ -193,7 +193,7 @@ it('returns default week overrides when no user', function () {
 
     expect($overrides)->not->toBeEmpty();
     expect($overrides[0]['week'])->toBe(0);
-    expect($overrides[0]['data']['tut'])->toBe('222');
+    expect($overrides[0]['data']['tempo'])->toBe('222');
 });
 
 it('merges default and user week overrides', function () {
@@ -202,7 +202,7 @@ it('merges default and user week overrides', function () {
     $overrides = $resolver->getWeekOverrides(1);
 
     $week0 = collect($overrides)->firstWhere('week', 0);
-    expect($week0['data']['tut'])->toBe('111');
+    expect($week0['data']['tempo'])->toBe('111');
 });
 
 it('detects user has no schedule overrides for user 5', function () {

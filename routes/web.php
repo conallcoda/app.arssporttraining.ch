@@ -14,3 +14,5 @@ Route::get('/athletes/groups', AthleteGroupIndex::class)->name('athlete-group-in
 Route::get('/exercises', ExerciseIndex::class)->name('exercise-index');
 Route::get('/training-plans', TrainingPlanIndex::class)->name('training-plan-index');
 Route::get('/training-plans/{trainingPlan}', TrainingPlanView::class)->name('training-plan-view');
+
+Route::get('/test/exercise-creator', \App\Livewire\Test\ExerciseCreator::class)->name('test.exercise-creator');

@@ -11,7 +11,7 @@ class StrengthAutomaticExerciseConfig extends AbstractConfig
     public function __construct(
         public int $oneRepMaxModifier = 100,
         public int $startingReps = 12,
-        public string $timeUnderTension = '3010',
+        public string $tempo = '3010',
         public int $rest = 30,
     ) {}
 
@@ -28,7 +28,7 @@ class StrengthAutomaticExerciseConfig extends AbstractConfig
 
     public function badgeFields(): array
     {
-        return ['oneRepMaxModifier', 'startingReps', 'timeUnderTension', 'rest'];
+        return ['oneRepMaxModifier', 'startingReps', 'tempo', 'rest'];
     }
 
     public static function getFields(array $data = []): array
@@ -36,7 +36,7 @@ class StrengthAutomaticExerciseConfig extends AbstractConfig
         return [
             Fields\OneRepMaxModifier::make('oneRepMaxModifier'),
             Fields\StartingReps::make('startingReps'),
-            Fields\TimeUnderTension::make('timeUnderTension'),
+            Fields\Tempo::make('tempo'),
             Fields\Rest::make('rest'),
         ];
     }

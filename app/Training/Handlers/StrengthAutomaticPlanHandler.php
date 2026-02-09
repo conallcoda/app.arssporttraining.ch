@@ -51,8 +51,8 @@ class StrengthAutomaticPlanHandler extends AbstractExercisePlanHandler
             ],
             weekColumns: [
                 new GridWeekColumn(
-                    field: 'tut',
-                    label: 'TUT',
+                    field: 'tempo',
+                    label: 'Tempo',
                     color: 'bg-zinc-50 dark:bg-zinc-800/50',
                     overrideColor: 'bg-zinc-200 dark:bg-zinc-700/70',
                     inputType: 'text',
@@ -82,7 +82,7 @@ class StrengthAutomaticPlanHandler extends AbstractExercisePlanHandler
         $target = $this->mergeConfigValue('target', ExerciseOverrideData::DEFAULT_TARGET, $pivotConfig, $defaultOverrides, $userOverrides, $isDefaultUser);
         $startingReps = $this->mergeConfigValue('startingReps', $typeConfig?->startingReps ?? ExerciseOverrideData::DEFAULT_STARTING_REPS, $pivotConfig, $defaultOverrides, $userOverrides, $isDefaultUser);
         $sets = $this->mergeConfigValue('sets', ExerciseOverrideData::DEFAULT_SETS, $pivotConfig, $defaultOverrides, $userOverrides, $isDefaultUser);
-        $tut = $this->mergeConfigValue('tut', $typeConfig?->timeUnderTension ?? ExerciseOverrideData::DEFAULT_TUT, $pivotConfig, $defaultOverrides, $userOverrides, $isDefaultUser);
+        $tempo = $this->mergeConfigValue('tempo', $typeConfig?->tempo ?? ExerciseOverrideData::DEFAULT_TEMPO, $pivotConfig, $defaultOverrides, $userOverrides, $isDefaultUser);
         $rest = $this->mergeConfigValue('rest', $typeConfig?->rest ?? ExerciseOverrideData::DEFAULT_REST, $pivotConfig, $defaultOverrides, $userOverrides, $isDefaultUser);
 
         $oneRepMaxModifier = $pivotConfig['oneRepMaxModifier'] ?? $typeConfig?->oneRepMaxModifier ?? 100;
@@ -91,13 +91,13 @@ class StrengthAutomaticPlanHandler extends AbstractExercisePlanHandler
             'target' => $target['value'],
             'startingReps' => $startingReps['value'],
             'sets' => $sets['value'],
-            'tut' => $tut['value'],
+            'tempo' => $tempo['value'],
             'rest' => $rest['value'],
             'oneRepMaxModifier' => $oneRepMaxModifier,
             'hasTargetOverride' => $target['hasOverride'],
             'hasStartingRepsOverride' => $startingReps['hasOverride'],
             'hasSetsOverride' => $sets['hasOverride'],
-            'hasTutOverride' => $tut['hasOverride'],
+            'hasTempoOverride' => $tempo['hasOverride'],
             'hasRestOverride' => $rest['hasOverride'],
         ];
     }
@@ -108,7 +108,7 @@ class StrengthAutomaticPlanHandler extends AbstractExercisePlanHandler
             ['field' => 'target', 'label' => '+'.$config['target'].'%', 'hasOverride' => $config['hasTargetOverride']],
             ['field' => 'startingReps', 'label' => $config['startingReps'].' reps', 'hasOverride' => $config['hasStartingRepsOverride']],
             ['field' => 'sets', 'label' => $config['sets'].' sets', 'hasOverride' => $config['hasSetsOverride']],
-            ['field' => 'tut', 'label' => $config['tut'], 'hasOverride' => $config['hasTutOverride'] ?? false],
+            ['field' => 'tempo', 'label' => $config['tempo'], 'hasOverride' => $config['hasTempoOverride'] ?? false],
             ['field' => 'rest', 'label' => $config['rest'].'s', 'hasOverride' => $config['hasRestOverride'] ?? false],
         ];
     }
@@ -119,7 +119,7 @@ class StrengthAutomaticPlanHandler extends AbstractExercisePlanHandler
             ['field' => 'target', 'label' => 'Target', 'type' => 'number', 'suffix' => '%', 'min' => 0, 'step' => 0.5],
             ['field' => 'startingReps', 'label' => 'Starting Reps', 'type' => 'number', 'suffix' => 'reps', 'min' => 1, 'max' => 25, 'step' => 1],
             ['field' => 'sets', 'label' => 'Sets', 'type' => 'number', 'suffix' => 'sets', 'min' => 1, 'max' => 6, 'step' => 1],
-            ['field' => 'tut', 'label' => 'Time Under Tension', 'type' => 'text', 'maxlength' => 4, 'placeholder' => '3010', 'description' => '4 digits: eccentric, pause, concentric, pause'],
+            ['field' => 'tempo', 'label' => 'Tempo', 'type' => 'text', 'maxlength' => 4, 'placeholder' => '3010', 'description' => '4 digits: eccentric, pause, concentric, pause'],
             ['field' => 'rest', 'label' => 'Rest', 'type' => 'number', 'suffix' => 'seconds', 'min' => 0, 'max' => 300, 'step' => 5],
         ];
     }
@@ -177,7 +177,7 @@ class StrengthAutomaticPlanHandler extends AbstractExercisePlanHandler
     public function getDefaultWeekValues(array $config): array
     {
         return [
-            'tut' => $config['tut'] ?? ExerciseOverrideData::DEFAULT_TUT,
+            'tempo' => $config['tempo'] ?? ExerciseOverrideData::DEFAULT_TEMPO,
             'rest' => $config['rest'] ?? ExerciseOverrideData::DEFAULT_REST,
         ];
     }

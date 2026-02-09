@@ -55,7 +55,7 @@ class TrainingPlanSeeder extends Seeder
                 'config' => [
                     'oneRepMaxModifier' => $config?->oneRepMaxModifier ?? 100,
                     'startingReps' => $config?->startingReps ?? 12,
-                    'tut' => $config?->timeUnderTension ?? '3010',
+                    'tempo' => $config?->tempo ?? '3010',
                     'rest' => $config?->rest ?? 30,
                 ],
             ];
@@ -82,7 +82,7 @@ class TrainingPlanSeeder extends Seeder
                 'config' => [
                     'startingWeight' => $config?->startingWeight ?? 0,
                     'startingReps' => $config?->startingReps ?? 12,
-                    'tut' => $config?->timeUnderTension ?? '3010',
+                    'tempo' => $config?->tempo ?? '3010',
                     'rest' => $config?->rest ?? 30,
                 ],
             ];

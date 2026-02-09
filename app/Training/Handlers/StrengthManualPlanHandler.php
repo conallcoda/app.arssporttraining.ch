@@ -49,8 +49,8 @@ class StrengthManualPlanHandler extends AbstractExercisePlanHandler
             ],
             weekColumns: [
                 new GridWeekColumn(
-                    field: 'tut',
-                    label: 'TUT',
+                    field: 'tempo',
+                    label: 'Tempo',
                     color: 'bg-zinc-50 dark:bg-zinc-800/50',
                     overrideColor: 'bg-zinc-200 dark:bg-zinc-700/70',
                     inputType: 'text',
@@ -80,19 +80,19 @@ class StrengthManualPlanHandler extends AbstractExercisePlanHandler
         $startingWeight = $this->mergeConfigValue('startingWeight', $typeConfig?->startingWeight ?? 0, $pivotConfig, $defaultOverrides, $userOverrides, $isDefaultUser);
         $startingReps = $this->mergeConfigValue('startingReps', $typeConfig?->startingReps ?? ExerciseOverrideData::DEFAULT_STARTING_REPS, $pivotConfig, $defaultOverrides, $userOverrides, $isDefaultUser);
         $sets = $this->mergeConfigValue('sets', ExerciseOverrideData::DEFAULT_SETS, $pivotConfig, $defaultOverrides, $userOverrides, $isDefaultUser);
-        $tut = $this->mergeConfigValue('tut', $typeConfig?->timeUnderTension ?? ExerciseOverrideData::DEFAULT_TUT, $pivotConfig, $defaultOverrides, $userOverrides, $isDefaultUser);
+        $tempo = $this->mergeConfigValue('tempo', $typeConfig?->tempo ?? ExerciseOverrideData::DEFAULT_TEMPO, $pivotConfig, $defaultOverrides, $userOverrides, $isDefaultUser);
         $rest = $this->mergeConfigValue('rest', $typeConfig?->rest ?? ExerciseOverrideData::DEFAULT_REST, $pivotConfig, $defaultOverrides, $userOverrides, $isDefaultUser);
 
         return [
             'startingWeight' => $startingWeight['value'],
             'startingReps' => $startingReps['value'],
             'sets' => $sets['value'],
-            'tut' => $tut['value'],
+            'tempo' => $tempo['value'],
             'rest' => $rest['value'],
             'hasStartingWeightOverride' => $startingWeight['hasOverride'],
             'hasStartingRepsOverride' => $startingReps['hasOverride'],
             'hasSetsOverride' => $sets['hasOverride'],
-            'hasTutOverride' => $tut['hasOverride'],
+            'hasTempoOverride' => $tempo['hasOverride'],
             'hasRestOverride' => $rest['hasOverride'],
         ];
     }
@@ -103,7 +103,7 @@ class StrengthManualPlanHandler extends AbstractExercisePlanHandler
             ['field' => 'startingWeight', 'label' => $config['startingWeight'].'kg', 'hasOverride' => $config['hasStartingWeightOverride']],
             ['field' => 'startingReps', 'label' => $config['startingReps'].' reps', 'hasOverride' => $config['hasStartingRepsOverride']],
             ['field' => 'sets', 'label' => $config['sets'].' sets', 'hasOverride' => $config['hasSetsOverride']],
-            ['field' => 'tut', 'label' => $config['tut'], 'hasOverride' => $config['hasTutOverride'] ?? false],
+            ['field' => 'tempo', 'label' => $config['tempo'], 'hasOverride' => $config['hasTempoOverride'] ?? false],
             ['field' => 'rest', 'label' => $config['rest'].'s', 'hasOverride' => $config['hasRestOverride'] ?? false],
         ];
     }
@@ -114,7 +114,7 @@ class StrengthManualPlanHandler extends AbstractExercisePlanHandler
             ['field' => 'startingWeight', 'label' => 'Starting Weight', 'type' => 'number', 'suffix' => 'kg', 'min' => 0, 'step' => 0.5],
             ['field' => 'startingReps', 'label' => 'Starting Reps', 'type' => 'number', 'suffix' => 'reps', 'min' => 1, 'max' => 25, 'step' => 1],
             ['field' => 'sets', 'label' => 'Sets', 'type' => 'number', 'suffix' => 'sets', 'min' => 1, 'max' => 6, 'step' => 1],
-            ['field' => 'tut', 'label' => 'Time Under Tension', 'type' => 'text', 'maxlength' => 4, 'placeholder' => '3010', 'description' => '4 digits: eccentric, pause, concentric, pause'],
+            ['field' => 'tempo', 'label' => 'Tempo', 'type' => 'text', 'maxlength' => 4, 'placeholder' => '3010', 'description' => '4 digits: eccentric, pause, concentric, pause'],
             ['field' => 'rest', 'label' => 'Rest', 'type' => 'number', 'suffix' => 'seconds', 'min' => 0, 'max' => 300, 'step' => 5],
         ];
     }
@@ -182,7 +182,7 @@ class StrengthManualPlanHandler extends AbstractExercisePlanHandler
     public function getDefaultWeekValues(array $config): array
     {
         return [
-            'tut' => $config['tut'] ?? ExerciseOverrideData::DEFAULT_TUT,
+            'tempo' => $config['tempo'] ?? ExerciseOverrideData::DEFAULT_TEMPO,
             'rest' => $config['rest'] ?? ExerciseOverrideData::DEFAULT_REST,
         ];
     }

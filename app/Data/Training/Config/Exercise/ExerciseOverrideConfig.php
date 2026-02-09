@@ -11,7 +11,7 @@ class ExerciseOverrideConfig extends AbstractConfig
         public int|Optional $target,
         public int|Optional $startingReps,
         public int|Optional $sets,
-        public string|Optional $tut,
+        public string|Optional $tempo,
         public int|Optional $rest,
     ) {}
 }

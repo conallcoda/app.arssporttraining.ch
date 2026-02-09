@@ -161,7 +161,7 @@ it('deserializes user exercise overrides', function () {
     expect($userConfig->exercises[0]->config->target)->toBe(71);
     expect($userConfig->exercises[0]->config->startingReps)->toBe(12);
     expect($userConfig->exercises[0]->config->sets)->toBe(4);
-    expect($userConfig->exercises[0]->config->tut)->toBe('3010');
+    expect($userConfig->exercises[0]->config->tempo)->toBe('3010');
     expect($userConfig->exercises[0]->config->rest)->toBe(30);
 });
 
@@ -212,7 +212,7 @@ it('deserializes default week overrides from exercises', function () {
 
     expect($weeks)->toBeArray();
     expect($weeks[0]['week'])->toBe(0);
-    expect($weeks[0]['data']['tut'])->toBe('222');
+    expect($weeks[0]['data']['tempo'])->toBe('222');
 });
 
 it('deserializes user week overrides from exercises', function () {
@@ -222,7 +222,7 @@ it('deserializes user week overrides from exercises', function () {
 
     expect($weeks)->toBeArray();
     expect($weeks[0]['week'])->toBe(0);
-    expect($weeks[0]['data']['tut'])->toBe('111');
+    expect($weeks[0]['data']['tempo'])->toBe('111');
 });
 
 it('round-trips weeks in round-trip serialization', function () {
@@ -231,7 +231,7 @@ it('round-trips weeks in round-trip serialization', function () {
     $output = $config->toArray();
 
     expect($output['default']['exercises'][0]['overrides']['weeks'][0]['week'])->toBe(0);
-    expect($output['default']['exercises'][0]['overrides']['weeks'][0]['data']['tut'])->toBe('222');
+    expect($output['default']['exercises'][0]['overrides']['weeks'][0]['data']['tempo'])->toBe('222');
 });
 
 it('can be created with minimal data', function () {

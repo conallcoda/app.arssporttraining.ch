@@ -90,7 +90,7 @@
                                                         @endforeach
                                                         <td
                                                             class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center whitespace-nowrap">
-                                                            {{ $row['tut'] ?? '' }}
+                                                            {{ $row['tempo'] ?? '' }}
                                                         </td>
                                                         <td
                                                             class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center whitespace-nowrap">

@@ -47,7 +47,7 @@ class TableColumn
         return new static($field, 'number');
     }
 
-    public static function tut(string $field, bool $simple = false): static
+    public static function tempo(string $field, bool $simple = false): static
     {
         $column = new static($field, 'text');
 

@@ -919,7 +919,7 @@ class Plan extends Component
             return false;
         }
 
-        if ($field === 'tut') {
+        if ($field === 'tempo') {
             return (string) $value === (string) $originalValue;
         }
 

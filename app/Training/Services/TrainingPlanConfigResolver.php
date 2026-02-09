@@ -177,7 +177,7 @@ class TrainingPlanConfigResolver
         $systemTarget = $defaultTargetGoal ?? 7;
         $systemStartingReps = $pivotConfig['startingReps'] ?? ExerciseOverrideData::DEFAULT_STARTING_REPS;
         $systemSets = $pivotConfig['sets'] ?? ExerciseOverrideData::DEFAULT_SETS;
-        $systemTut = $pivotConfig['tut'] ?? ExerciseOverrideData::DEFAULT_TUT;
+        $systemTempo = $pivotConfig['tempo'] ?? ExerciseOverrideData::DEFAULT_TEMPO;
         $systemRest = $pivotConfig['rest'] ?? ExerciseOverrideData::DEFAULT_REST;
         $oneRepMaxModifier = $pivotConfig['oneRepMaxModifier'] ?? 100;
 
@@ -193,13 +193,13 @@ class TrainingPlanConfigResolver
                 'target' => $defaultOverride['target'] ?? $systemTarget,
                 'startingReps' => $defaultOverride['startingReps'] ?? $systemStartingReps,
                 'sets' => $defaultOverride['sets'] ?? $systemSets,
-                'tut' => $defaultOverride['tut'] ?? $systemTut,
+                'tempo' => $defaultOverride['tempo'] ?? $systemTempo,
                 'rest' => $defaultOverride['rest'] ?? $systemRest,
                 'oneRepMaxModifier' => $oneRepMaxModifier,
                 'hasTargetOverride' => isset($defaultOverride['target']),
                 'hasStartingRepsOverride' => isset($defaultOverride['startingReps']),
                 'hasSetsOverride' => isset($defaultOverride['sets']),
-                'hasTutOverride' => isset($defaultOverride['tut']),
+                'hasTempoOverride' => isset($defaultOverride['tempo']),
                 'hasRestOverride' => isset($defaultOverride['rest']),
             ];
         }
@@ -213,13 +213,13 @@ class TrainingPlanConfigResolver
             'target' => $userOverride['target'] ?? $defaultOverride['target'] ?? $systemTarget,
             'startingReps' => $userOverride['startingReps'] ?? $defaultOverride['startingReps'] ?? $systemStartingReps,
             'sets' => $userOverride['sets'] ?? $defaultOverride['sets'] ?? $systemSets,
-            'tut' => $userOverride['tut'] ?? $defaultOverride['tut'] ?? $systemTut,
+            'tempo' => $userOverride['tempo'] ?? $defaultOverride['tempo'] ?? $systemTempo,
             'rest' => $userOverride['rest'] ?? $defaultOverride['rest'] ?? $systemRest,
             'oneRepMaxModifier' => $oneRepMaxModifier,
             'hasTargetOverride' => isset($userOverride['target']),
             'hasStartingRepsOverride' => isset($userOverride['startingReps']),
             'hasSetsOverride' => isset($userOverride['sets']),
-            'hasTutOverride' => isset($userOverride['tut']),
+            'hasTempoOverride' => isset($userOverride['tempo']),
             'hasRestOverride' => isset($userOverride['rest']),
         ];
     }
@@ -232,7 +232,7 @@ class TrainingPlanConfigResolver
             $config['hasTargetOverride'],
             $config['hasStartingRepsOverride'],
             $config['hasSetsOverride'],
-            $config['hasTutOverride'],
+            $config['hasTempoOverride'],
             $config['hasRestOverride'],
         );
 

@@ -2,6 +2,7 @@
 
 namespace App\Cms\Form\Fields;
 
+use App\Cms\Form\Concerns\HasLiveUpdates;
 use App\Cms\Form\Concerns\HasMask;
 use App\Cms\Form\Concerns\HasPlaceholder;
 use App\Cms\Form\Concerns\HasSuffix;
@@ -9,6 +10,7 @@ use App\Cms\Form\Field;
 
 class Text extends Field
 {
+    use HasLiveUpdates;
     use HasMask;
     use HasPlaceholder;
     use HasSuffix;

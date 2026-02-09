@@ -99,7 +99,7 @@ class TrainingProgramData extends AbstractData implements HasForms
                         'config' => [
                             'oneRepMaxModifier' => $defaults?->oneRepMaxModifier ?? 100,
                             'startingReps' => $defaults?->startingReps ?? 12,
-                            'timeUnderTension' => $defaults?->timeUnderTension ?? '3010',
+                            'tempo' => $defaults?->tempo ?? '3010',
                             'rest' => $defaults?->rest ?? 30,
                         ],
                     ]);

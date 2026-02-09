@@ -11,7 +11,7 @@ class StrengthManualExerciseConfig extends AbstractConfig
     public function __construct(
         public float $startingWeight = 0,
         public int $startingReps = 12,
-        public string $timeUnderTension = '3010',
+        public string $tempo = '3010',
         public int $rest = 30,
     ) {}
 
@@ -28,7 +28,7 @@ class StrengthManualExerciseConfig extends AbstractConfig
 
     public function badgeFields(): array
     {
-        return ['startingWeight', 'startingReps', 'timeUnderTension', 'rest'];
+        return ['startingWeight', 'startingReps', 'tempo', 'rest'];
     }
 
     public static function getFields(array $data = []): array
@@ -36,7 +36,7 @@ class StrengthManualExerciseConfig extends AbstractConfig
         return [
             Fields\StartingWeight::make('startingWeight'),
             Fields\StartingReps::make('startingReps'),
-            Fields\TimeUnderTension::make('timeUnderTension'),
+            Fields\Tempo::make('tempo'),
             Fields\Rest::make('rest'),
         ];
     }

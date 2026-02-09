@@ -22,7 +22,7 @@ class ExerciseSeeder extends Seeder
         $defaults = [
             'oneRepMaxModifier' => 100,
             'startingReps' => 12,
-            'timeUnderTension' => '3010',
+            'tempo' => '3010',
             'rest' => 30,
         ];
 
@@ -52,7 +52,7 @@ class ExerciseSeeder extends Seeder
         $defaults = [
             'startingWeight' => 0,
             'startingReps' => 12,
-            'timeUnderTension' => '3010',
+            'tempo' => '3010',
             'rest' => 30,
         ];
 

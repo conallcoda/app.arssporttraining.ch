@@ -30,7 +30,7 @@ class Form
         return $this;
     }
 
-    public function fieldset(string $label, array|Closure $fieldsOrResolver, ?string $prefix = null): static
+    public function fieldset(string $label, array|Closure $fieldsOrResolver, ?string $prefix = null, ?string $show = null): static
     {
         $key = Str::snake($label);
 
@@ -38,12 +38,14 @@ class Form
             $this->fieldsets[$key] = [
                 'label' => $label,
                 'resolver' => $fieldsOrResolver,
+                'showExpression' => $show,
             ];
         } else {
             $this->fieldsets[$key] = [
                 'label' => $label,
                 'fields' => $fieldsOrResolver,
                 'prefix' => $prefix,
+                'showExpression' => $show,
             ];
         }
 
@@ -92,15 +94,17 @@ class Form
 
     public function resolveFieldsets(array $data = []): array
     {
+        $evaluator = new ConditionEvaluator;
+
         if (! $this->hasFieldsets()) {
             return [
                 FormFieldset::make('general')
                     ->label('General')
-                    ->fields($this->getFields()),
+                    ->fields($evaluator->filterFields($this->getFields(), $data)),
             ];
         }
 
-        return collect($this->fieldsets)->map(function (array $config, string $key) use ($data) {
+        return collect($this->fieldsets)->map(function (array $config, string $key) use ($data, $evaluator) {
             if (isset($config['resolver'])) {
                 $resolved = ($config['resolver'])($data);
 
@@ -108,16 +112,46 @@ class Form
                     return null;
                 }
 
-                return FormFieldset::make($key)
+                $fieldset = FormFieldset::make($key)
                     ->label($config['label'])
                     ->fields($resolved['fields'])
                     ->prefix($resolved['prefix'] ?? null);
+            } else {
+                $fieldset = FormFieldset::make($key)
+                    ->label($config['label'])
+                    ->fields($config['fields'])
+                    ->prefix($config['prefix'] ?? null);
             }
 
-            return FormFieldset::make($key)
-                ->label($config['label'])
-                ->fields($config['fields'])
-                ->prefix($config['prefix'] ?? null);
+            if (! empty($config['showExpression'])) {
+                $fieldset->show($config['showExpression']);
+            }
+
+            if ($fieldset->hasShowExpression() && ! $evaluator->evaluate($fieldset->showExpression, $data)) {
+                return null;
+            }
+
+            $fieldData = $this->resolveFieldDataContext($data, $fieldset->prefix);
+            $fieldDefaults = Field::buildDefaults($fieldset->fields);
+            $fieldData = array_replace($fieldDefaults, $fieldData);
+
+            $allFieldNames = collect($fieldset->fields)->pluck('name')->all();
+            $fieldset->fields($evaluator->filterFields($fieldset->fields, $fieldData));
+            $visibleFieldNames = collect($fieldset->fields)->pluck('name')->all();
+            $fieldset->hiddenFieldNames = array_values(array_diff($allFieldNames, $visibleFieldNames));
+
+            return $fieldset;
         })->filter()->values()->all();
+    }
+
+    protected function resolveFieldDataContext(array $data, ?string $prefix): array
+    {
+        if ($prefix === null || $prefix === 'data') {
+            return $data;
+        }
+
+        $nestedKey = str_replace('data.', '', $prefix);
+
+        return data_get($data, $nestedKey, []);
     }
 }

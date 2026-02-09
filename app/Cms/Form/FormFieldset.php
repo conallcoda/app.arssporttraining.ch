@@ -2,8 +2,12 @@
 
 namespace App\Cms\Form;
 
+use App\Cms\Form\Concerns\HasCondition;
+
 class FormFieldset
 {
+    use HasCondition;
+
     public string $name;
 
     public string $label = '';
@@ -13,6 +17,8 @@ class FormFieldset
     public ?string $prefix = null;
 
     public bool $collapsible = true;
+
+    public array $hiddenFieldNames = [];
 
     public function __construct(string $name)
     {

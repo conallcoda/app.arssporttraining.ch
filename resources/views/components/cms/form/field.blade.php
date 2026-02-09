@@ -14,7 +14,7 @@
     $wireModel = $prefix ? "{$prefix}.{$field->name}" : $field->name;
 @endphp
 
-<div>
+<div {{ $attributes }}>
     @if ($field instanceof Select)
         @php
             $options = $field->options;
@@ -114,23 +114,43 @@
                 <flux:input.group>
                     @if ($field->mask)
                         <div x-data="masked_input" data-mask="{{ $field->mask }}" class="flex-1">
-                            <flux:input wire:model="{{ $wireModel }}" type="text"
-                                data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
+                            @if ($field->live)
+                                <flux:input wire:model.live="{{ $wireModel }}" type="text"
+                                    data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
+                            @else
+                                <flux:input wire:model="{{ $wireModel }}" type="text"
+                                    data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
+                            @endif
                         </div>
                     @else
-                        <flux:input wire:model="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
-                            placeholder="{{ $field->getPlaceholder() }}" />
+                        @if ($field->live)
+                            <flux:input wire:model.live="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
+                                placeholder="{{ $field->getPlaceholder() }}" />
+                        @else
+                            <flux:input wire:model="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
+                                placeholder="{{ $field->getPlaceholder() }}" />
+                        @endif
                     @endif
                     <flux:input.group.suffix>{{ $field->suffix }}</flux:input.group.suffix>
                 </flux:input.group>
             @elseif ($field->mask)
                 <div x-data="masked_input" data-mask="{{ $field->mask }}">
-                    <flux:input wire:model="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
-                        placeholder="{{ $field->getPlaceholder() }}" />
+                    @if ($field->live)
+                        <flux:input wire:model.live="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
+                            placeholder="{{ $field->getPlaceholder() }}" />
+                    @else
+                        <flux:input wire:model="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
+                            placeholder="{{ $field->getPlaceholder() }}" />
+                    @endif
                 </div>
             @else
-                <flux:input wire:model="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
-                    placeholder="{{ $field->getPlaceholder() }}" />
+                @if ($field->live)
+                    <flux:input wire:model.live="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
+                        placeholder="{{ $field->getPlaceholder() }}" />
+                @else
+                    <flux:input wire:model="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
+                        placeholder="{{ $field->getPlaceholder() }}" />
+                @endif
             @endif
             <flux:error name="{{ $wireModel }}" />
         </flux:field>
@@ -181,12 +201,21 @@
                     <x-cms.form.help-tooltip :content="$field->helpText" position="top" />
                 @endif
             </div>
-            <flux:pillbox wire:model.live="{{ $wireModel }}" multiple :searchable="$field->searchable"
-                :placeholder="$field->getPlaceholder()" data-field="{{ $field->name }}">
-                @foreach ($field->options as $value => $optionLabel)
-                    <flux:pillbox.option value="{{ $value }}">{{ $optionLabel }}</flux:pillbox.option>
-                @endforeach
-            </flux:pillbox>
+            @if ($field->live)
+                <flux:pillbox wire:model.live="{{ $wireModel }}" multiple :searchable="$field->searchable"
+                    :placeholder="$field->getPlaceholder()" data-field="{{ $field->name }}">
+                    @foreach ($field->options as $value => $optionLabel)
+                        <flux:pillbox.option value="{{ $value }}">{{ $optionLabel }}</flux:pillbox.option>
+                    @endforeach
+                </flux:pillbox>
+            @else
+                <flux:pillbox wire:model="{{ $wireModel }}" multiple :searchable="$field->searchable"
+                    :placeholder="$field->getPlaceholder()" data-field="{{ $field->name }}">
+                    @foreach ($field->options as $value => $optionLabel)
+                        <flux:pillbox.option value="{{ $value }}">{{ $optionLabel }}</flux:pillbox.option>
+                    @endforeach
+                </flux:pillbox>
+            @endif
             <flux:error name="{{ $wireModel }}" />
         </flux:field>
     @elseif ($field instanceof Slider)

@@ -6,23 +6,73 @@ use App\Cms\Form\Field;
 use App\Cms\Form\Fields\Relationship;
 use App\Cms\Form\Fields\Repeater;
 use App\Cms\Form\FormFieldset;
+use Illuminate\Support\Arr;
 
 trait InteractsWithFormData
 {
+    public array $conditionalDataStash = [];
+
     public function updated(string $property, mixed $value): void
     {
         $form = $this->formConfig;
 
-        if (! $form->hasDiscriminators()) {
-            return;
-        }
-
-        foreach ($form->getDiscriminators() as $field => $target) {
-            if ($property === "data.{$field}") {
-                $this->resetDiscriminatorTarget($target, $value);
-                break;
+        if ($form->hasDiscriminators()) {
+            foreach ($form->getDiscriminators() as $field => $target) {
+                if ($property === "data.{$field}") {
+                    $this->resetDiscriminatorTarget($target, $value);
+                    break;
+                }
             }
         }
+
+        if (str_starts_with($property, 'data.')) {
+            unset($this->fieldsets);
+            $this->syncConditionalFieldData();
+            unset($this->fieldsets);
+        }
+    }
+
+    protected function syncConditionalFieldData(): void
+    {
+        foreach ($this->fieldsets as $fieldset) {
+            $prefix = $this->getFieldsetDataPrefix($fieldset);
+
+            foreach ($fieldset->hiddenFieldNames as $name) {
+                $key = $prefix ? "{$prefix}.{$name}" : $name;
+                $value = data_get($this->data, $key);
+
+                if ($value !== null) {
+                    data_set($this->conditionalDataStash, $key, $value);
+                }
+
+                Arr::forget($this->data, $key);
+            }
+
+            foreach ($fieldset->fields as $field) {
+                $key = $prefix ? "{$prefix}.{$field->name}" : $field->name;
+
+                if (data_get($this->data, $key) !== null) {
+                    continue;
+                }
+
+                $stashed = data_get($this->conditionalDataStash, $key);
+
+                if ($stashed !== null) {
+                    data_set($this->data, $key, $stashed);
+                } elseif ($field->default !== null) {
+                    data_set($this->data, $key, $field->default);
+                }
+            }
+        }
+    }
+
+    protected function getFieldsetDataPrefix(FormFieldset $fieldset): ?string
+    {
+        if (! $fieldset->prefix || $fieldset->prefix === 'data') {
+            return null;
+        }
+
+        return str_replace('data.', '', $fieldset->prefix);
     }
 
     protected function resetDiscriminatorTarget(string $target, mixed $discriminatorValue): void

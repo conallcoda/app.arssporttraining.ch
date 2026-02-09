@@ -2,12 +2,14 @@
 
 namespace App\Cms\Form;
 
+use App\Cms\Form\Concerns\HasCondition;
 use App\Cms\Form\Concerns\HasDefault;
 use App\Cms\Form\Concerns\HasLabel;
 use App\Cms\Form\Concerns\HasValidation;
 
 abstract class Field
 {
+    use HasCondition;
     use HasDefault;
     use HasLabel;
     use HasValidation;
