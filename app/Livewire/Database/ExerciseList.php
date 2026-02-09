@@ -22,9 +22,9 @@ class ExerciseList extends AbstractModelList
         return Exercise::query();
     }
 
-    protected function createDataFromForm(): AbstractData
+    protected function createDataFromForm(array $formData): AbstractData
     {
-        return ExerciseData::from($this->data);
+        return ExerciseData::from($formData);
     }
 
     protected function getColumns(): array

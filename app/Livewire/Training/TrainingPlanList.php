@@ -7,7 +7,6 @@ use App\Cms\Form\TableColumn;
 use App\Cms\Livewire\AbstractModelList;
 use App\Data\Training\TrainingPlanData;
 use App\Models\TrainingPlan;
-use Flux\Flux;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 
 class TrainingPlanList extends AbstractModelList
@@ -39,16 +38,16 @@ class TrainingPlanList extends AbstractModelList
         ];
     }
 
-    public function performDuplicate(): void
+    protected function performDuplicate(array $data): void
     {
-        if (! $this->duplicatingId) {
+        if (empty($data['id'])) {
             return;
         }
 
-        $original = TrainingPlan::with(['users', 'userGroups', 'programs.exercises'])->findOrFail($this->duplicatingId);
+        $original = TrainingPlan::with(['users', 'userGroups', 'programs.exercises'])->findOrFail($data['id']);
 
         $newPlan = $original->replicate();
-        $newPlan->name = $this->duplicateName;
+        $newPlan->name = $data['name'] ?? $original->name.' (Copy)';
         $newPlan->save();
 
         $usersWithSort = [];
@@ -77,14 +76,5 @@ class TrainingPlanList extends AbstractModelList
             }
             $newProgram->exercises()->sync($exercisesWithPivot);
         }
-
-        $this->duplicatingId = null;
-        $this->duplicateName = '';
-
-        Flux::modal($this->getDuplicateModalName())->close();
-
-        unset($this->items);
-        $this->refreshKey++;
-        $this->emit();
     }
 }

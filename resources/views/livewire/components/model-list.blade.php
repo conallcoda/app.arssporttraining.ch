@@ -1,44 +1,17 @@
 <div>
     @unless ($compact)
         <div class="flex justify-end mb-3">
-            <flux:button variant="primary" size="sm" icon="plus" wire:click="openAddModal">
+            <flux:button variant="primary" size="sm" icon="plus"
+                x-on:click="Livewire.dispatch('open-{{ $modalName }}', { title: 'Add {{ $entityName }}' })">
                 Add {{ $entityName }}
             </flux:button>
         </div>
     @endunless
 
-    <flux:modal :name="$modalName" flyout class="w-96"
-        x-on:focus-field.window="$nextTick(() => {
-        const field = $event.detail.field;
-        const index = $event.detail.index;
-        let input;
-        if (index !== null && index !== undefined) {
-            input = $el.querySelector(`[data-field='${field}'][data-index='${index}']`);
-        } else {
-            input = $el.querySelector(`[data-field='${field}']`);
-        }
-        if (input) input.focus();
-    })">
-        <div class="space-y-6">
-            <flux:heading size="lg">{{ $this->editingId ? 'Edit' : 'Add' }} {{ $entityName }}</flux:heading>
-            <form wire:submit="save" class="space-y-4">
-                @foreach ($this->fieldsets as $fieldset)
-                    <x-cms.form.fieldset
-                        :fieldset="$fieldset"
-                        :prefix="$fieldset->prefix ?? 'data'"
-                        :showLegend="count($this->fieldsets) > 1"
-                    />
-                @endforeach
-                <div class="flex gap-2 pt-4">
-                    <flux:button type="submit" variant="primary" class="flex-1">{{ $this->editingId ? 'Save' : 'Add' }}
-                        {{ $entityName }}</flux:button>
-                    <flux:modal.close>
-                        <flux:button variant="ghost">Cancel</flux:button>
-                    </flux:modal.close>
-                </div>
-            </form>
-        </div>
-    </flux:modal>
+    <livewire:cms.form-modal :name="$modalName" :title="'Add ' . $entityName" :form-data-class="$dataClass" :submit-label="'Save'" />
+
+    <livewire:cms.form-modal :name="$duplicateModalName" :title="'Duplicate ' . $entityName" form-data-class="App\Cms\Form\DuplicateNameForm"
+        submit-label="Duplicate" />
 
     <flux:modal :name="$deleteModalName" class="min-w-[22rem]">
         <div class="space-y-6">
@@ -57,23 +30,6 @@
                 <flux:button variant="danger" wire:click="remove">Delete</flux:button>
             </div>
         </div>
-    </flux:modal>
-
-    <flux:modal :name="$duplicateModalName" flyout class="w-96">
-        <form wire:submit="performDuplicate" class="space-y-6">
-            <flux:heading size="lg">Duplicate {{ $entityName }}</flux:heading>
-            <flux:field>
-                <flux:label>Name</flux:label>
-                <flux:input wire:model="duplicateName" autofocus />
-            </flux:field>
-            <div class="flex gap-2">
-                <flux:spacer />
-                <flux:modal.close>
-                    <flux:button type="button" variant="ghost">Cancel</flux:button>
-                </flux:modal.close>
-                <flux:button type="submit" variant="primary">Duplicate</flux:button>
-            </div>
-        </form>
     </flux:modal>
 
     @if ($this->items->isEmpty())
@@ -96,7 +52,9 @@
                 @endforeach
                 <flux:table.column class="w-px">
                     @if ($compact)
-                        <flux:button variant="ghost" size="xs" icon="plus" wire:click="openAddModal">Add
+                        <flux:button variant="ghost" size="xs" icon="plus"
+                            x-on:click="Livewire.dispatch('open-{{ $modalName }}', { title: 'Add {{ $entityName }}' })">
+                            Add
                         </flux:button>
                     @endif
                 </flux:table.column>
@@ -130,7 +88,12 @@
                                             @foreach ($relation as $index => $related)
                                                 @if ($column->modalField)
                                                     <flux:badge size="sm" class="cursor-pointer"
-                                                        wire:click="edit({{ $item->id }}, '{{ $column->modalField }}', {{ $index }})">
+                                                        x-on:click="Livewire.dispatch('open-{{ $modalName }}', {
+                                                            data: {{ Js::from($item->toArray()) }},
+                                                            title: 'Edit {{ $entityName }}',
+                                                            focusField: '{{ $column->modalField }}',
+                                                            focusIndex: {{ $index }}
+                                                        })">
                                                         {{ data_get($related, $column->displayAttribute) }}
                                                     </flux:badge>
                                                 @else
@@ -142,7 +105,12 @@
                                         @elseif ($relation)
                                             @if ($column->modalField)
                                                 <flux:badge size="sm" class="cursor-pointer"
-                                                    wire:click="edit({{ $item->id }}, '{{ $column->modalField }}', 0)">
+                                                    x-on:click="Livewire.dispatch('open-{{ $modalName }}', {
+                                                        data: {{ Js::from($item->toArray()) }},
+                                                        title: 'Edit {{ $entityName }}',
+                                                        focusField: '{{ $column->modalField }}',
+                                                        focusIndex: 0
+                                                    })">
                                                     {{ data_get($relation, $column->displayAttribute) }}</flux:badge>
                                             @else
                                                 <flux:badge size="sm">
@@ -156,7 +124,11 @@
                                             @php $sourceBadges = $column->getSourceData($item); @endphp
                                             @foreach ($sourceBadges as $badge)
                                                 <flux:badge size="sm" class="cursor-pointer"
-                                                    wire:click="edit({{ $item->id }}, '{{ $badge['modalField'] }}')">
+                                                    x-on:click="Livewire.dispatch('open-{{ $modalName }}', {
+                                                        data: {{ Js::from($item->toArray()) }},
+                                                        title: 'Edit {{ $entityName }}',
+                                                        focusField: '{{ $badge['modalField'] }}'
+                                                    })">
                                                     {{ $badge['label'] }}</flux:badge>
                                             @endforeach
                                         @else
@@ -168,7 +140,11 @@
                                                 @if ($val !== null && $val !== '')
                                                     @if ($column->modalField)
                                                         <flux:badge size="sm" class="cursor-pointer"
-                                                            wire:click="edit({{ $item->id }}, '{{ $column->modalField }}')">
+                                                            x-on:click="Livewire.dispatch('open-{{ $modalName }}', {
+                                                                data: {{ Js::from($item->toArray()) }},
+                                                                title: 'Edit {{ $entityName }}',
+                                                                focusField: '{{ $column->modalField }}'
+                                                            })">
                                                             {{ $column->formatValue($val) }}</flux:badge>
                                                     @else
                                                         <flux:badge size="sm">{{ $column->formatValue($val) }}
@@ -189,7 +165,11 @@
                                     </div>
                                 @elseif ($column->modalField)
                                     <div class="py-1 truncate cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded"
-                                        wire:click="edit({{ $item->id }}, '{{ $column->modalField }}')">
+                                        x-on:click="Livewire.dispatch('open-{{ $modalName }}', {
+                                            data: {{ Js::from($item->toArray()) }},
+                                            title: 'Edit {{ $entityName }}',
+                                            focusField: '{{ $column->modalField }}'
+                                        })">
                                         @if ($column->prefix)<span
                                                 class="opacity-50">{{ $column->prefix }}</span>@endif
                                         {{ $column->formatValue($item->{$column->field}) }}{{ $column->suffix }}
@@ -221,7 +201,10 @@
                                     </flux:button>
                                 @endif
                                 <flux:button variant="ghost" size="xs" icon="pencil"
-                                    wire:click="edit({{ $item->id }})" />
+                                    x-on:click="Livewire.dispatch('open-{{ $modalName }}', {
+                                        data: {{ Js::from($item->toArray()) }},
+                                        title: 'Edit {{ $entityName }}'
+                                    })" />
                                 <flux:button variant="ghost" size="xs" icon="trash-2"
                                     wire:click="confirmDelete({{ $item->id }})"
                                     class="text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400" />

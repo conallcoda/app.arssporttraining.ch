@@ -46,9 +46,9 @@ class TrainingProgramList extends AbstractModelList
         return TrainingProgramData::fromTrainingPlanProgram($model);
     }
 
-    protected function createDataFromForm(): TrainingProgramData
+    protected function createDataFromForm(array $formData): TrainingProgramData
     {
-        $data = TrainingProgramData::from($this->data);
+        $data = TrainingProgramData::from($formData);
         $data->training_plan_id = $this->trainingPlan->id;
 
         return $data;
