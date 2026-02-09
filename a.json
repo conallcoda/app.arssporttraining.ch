@@ -1,7 +1,7 @@
 {
     "default": {
         "exerciseConfig": {
-            "strength": {
+            "strength_automatic": {
                 "measuredReps": 8,
                 "measuredWeight": 52,
                 "targetGoal": 7
@@ -98,7 +98,7 @@
     "users": {
         "5": {
             "exerciseConfig": {
-                "strength": {
+                "strength_automatic": {
                     "measuredReps": 22,
                     "measuredWeight": 22,
                     "targetGoal": null

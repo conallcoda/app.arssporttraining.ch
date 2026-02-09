@@ -29,9 +29,9 @@ class ExerciseSeeder extends Seeder
             Exercise::firstOrCreate(
                 ['name' => $name],
                 [
-                    'type' => 'strength',
+                    'type' => 'strength_automatic',
                     'config' => [
-                        'strength' => array_merge($strengthDefaults, $overrides),
+                        'strength_automatic' => array_merge($strengthDefaults, $overrides),
                     ],
                 ]
             );

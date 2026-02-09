@@ -4,7 +4,7 @@ namespace App\Data\Training\Config\Exercise;
 
 use App\Cms\Data\AbstractConfig;
 
-class AthleteStrengthConfig extends AbstractConfig
+class AthleteStrengthAutomaticConfig extends AbstractConfig
 {
     public function __construct(
         public ?int $measuredReps = null,

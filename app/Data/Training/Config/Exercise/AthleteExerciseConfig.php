@@ -7,6 +7,6 @@ use App\Cms\Data\AbstractConfig;
 class AthleteExerciseConfig extends AbstractConfig
 {
     public function __construct(
-        public ?AthleteStrengthConfig $strength = null,
+        public ?AthleteStrengthAutomaticConfig $strength_automatic = null,
     ) {}
 }

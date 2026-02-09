@@ -4,7 +4,7 @@ namespace App\Cms\Data;
 
 abstract class AbstractConfig extends AbstractData
 {
-    public static function getFields()
+    public static function getFields(array $data = []): array
     {
         return [];
     }
@@ -13,13 +13,13 @@ abstract class AbstractConfig extends AbstractData
     {
         $badges = [];
 
-        foreach (static::getFields() as $field) {
+        foreach (static::getFields($this->toArray()) as $field) {
             $value = $this->{$field->name} ?? null;
 
             if ($value !== null && $value !== '') {
                 $displayValue = (string) $value;
 
-                if ($field->suffix) {
+                if (isset($field->suffix) && $field->suffix) {
                     $displayValue .= ' '.$field->suffix;
                 }
 

@@ -86,7 +86,7 @@ class TrainingPlanSeeder extends Seeder
 
     private function getExerciseConfig(Exercise $exercise): array
     {
-        $defaults = $exercise->config?->strength;
+        $defaults = $exercise->config?->strength_automatic;
 
         return [
             'oneRepMaxModifier' => $defaults?->oneRepMaxModifier ?? 100,

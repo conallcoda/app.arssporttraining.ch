@@ -211,10 +211,21 @@ class TableColumn
         }
 
         if ($this->enumClass) {
-            $options = collect(Options::forEnum($this->enumClass)->toArray())
-                ->keyBy('value');
+            if ($value instanceof \BackedEnum && method_exists($value, 'label')) {
+                return $value->label();
+            }
 
             $enumValue = $value instanceof \BackedEnum ? $value->value : $value;
+
+            if (! $value instanceof \BackedEnum) {
+                $enum = $this->enumClass::tryFrom($enumValue);
+                if ($enum && method_exists($enum, 'label')) {
+                    return $enum->label();
+                }
+            }
+
+            $options = collect(Options::forEnum($this->enumClass)->toArray())
+                ->keyBy('value');
 
             return $options[$enumValue]['label'] ?? (string) $enumValue;
         }
@@ -246,6 +257,6 @@ class TableColumn
             return true;
         }
 
-        return (bool) preg_match('/' . $this->validationPattern . '/', (string) $value);
+        return (bool) preg_match('/'.$this->validationPattern.'/', (string) $value);
     }
 }

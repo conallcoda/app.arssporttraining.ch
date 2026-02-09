@@ -2,9 +2,9 @@
 
 use App\Data\Training\Config\DefaultTrainingPlanConfig;
 use App\Data\Training\Config\Exercise\AthleteExerciseConfig;
-use App\Data\Training\Config\Exercise\AthleteStrengthConfig;
+use App\Data\Training\Config\Exercise\AthleteStrengthAutomaticConfig;
 use App\Data\Training\Config\Exercise\DefaultExerciseConfig;
-use App\Data\Training\Config\Exercise\DefaultStrengthConfig;
+use App\Data\Training\Config\Exercise\DefaultStrengthAutomaticConfig;
 use App\Data\Training\Config\Exercise\ExerciseOverride;
 use App\Data\Training\Config\Exercise\ExerciseOverrideConfig;
 use App\Data\Training\Config\Schedule\DefaultScheduleConfig;
@@ -33,10 +33,10 @@ it('deserializes default exercise config with strength values', function () {
     $exerciseConfig = $config->default->exerciseConfig;
 
     expect($exerciseConfig)->toBeInstanceOf(DefaultExerciseConfig::class);
-    expect($exerciseConfig->strength)->toBeInstanceOf(DefaultStrengthConfig::class);
-    expect($exerciseConfig->strength->measuredReps)->toBe(8);
-    expect($exerciseConfig->strength->measuredWeight)->toBe(52.0);
-    expect($exerciseConfig->strength->targetGoal)->toBe(7);
+    expect($exerciseConfig->strength_automatic)->toBeInstanceOf(DefaultStrengthAutomaticConfig::class);
+    expect($exerciseConfig->strength_automatic->measuredReps)->toBe(8);
+    expect($exerciseConfig->strength_automatic->measuredWeight)->toBe(52.0);
+    expect($exerciseConfig->strength_automatic->targetGoal)->toBe(7);
 });
 
 it('deserializes default schedule with start date and weeks', function () {
@@ -144,10 +144,10 @@ it('deserializes user exercise config with athlete strength values', function ()
     $userConfig = $config->forUser(5);
 
     expect($userConfig->exerciseConfig)->toBeInstanceOf(AthleteExerciseConfig::class);
-    expect($userConfig->exerciseConfig->strength)->toBeInstanceOf(AthleteStrengthConfig::class);
-    expect($userConfig->exerciseConfig->strength->measuredReps)->toBe(22);
-    expect($userConfig->exerciseConfig->strength->measuredWeight)->toBe(22.0);
-    expect($userConfig->exerciseConfig->strength->targetGoal)->toBeNull();
+    expect($userConfig->exerciseConfig->strength_automatic)->toBeInstanceOf(AthleteStrengthAutomaticConfig::class);
+    expect($userConfig->exerciseConfig->strength_automatic->measuredReps)->toBe(22);
+    expect($userConfig->exerciseConfig->strength_automatic->measuredWeight)->toBe(22.0);
+    expect($userConfig->exerciseConfig->strength_automatic->targetGoal)->toBeNull();
 });
 
 it('deserializes user exercise overrides', function () {
@@ -196,8 +196,8 @@ it('round-trips to array matching the original structure', function () {
     $config = TrainingPlanConfig::from($json);
     $output = $config->toArray();
 
-    expect($output['default']['exerciseConfig']['strength']['measuredReps'])->toBe(8);
-    expect($output['default']['exerciseConfig']['strength']['measuredWeight'])->toBe(52.0);
+    expect($output['default']['exerciseConfig']['strength_automatic']['measuredReps'])->toBe(8);
+    expect($output['default']['exerciseConfig']['strength_automatic']['measuredWeight'])->toBe(52.0);
     expect($output['default']['schedule']['startDate'])->toBe('2026-02-02');
     expect($output['default']['schedule']['weeks'])->toHaveCount(5);
     expect($output['default']['exercises'])->toHaveCount(1);

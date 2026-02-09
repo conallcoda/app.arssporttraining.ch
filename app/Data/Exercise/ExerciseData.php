@@ -57,9 +57,12 @@ class ExerciseData extends AbstractData implements HasForms
                     return null;
                 }
 
+                $accessor = $type->getConfigAccessor();
+                $configData = $data['config'][$accessor] ?? [];
+
                 return [
-                    'fields' => $type->getFields(),
-                    'prefix' => 'data.config.'.$type->getConfigAccessor(),
+                    'fields' => $type->getFields($configData),
+                    'prefix' => 'data.config.'.$accessor,
                 ];
             })
             ->discriminator('type', 'config');

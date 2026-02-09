@@ -189,7 +189,7 @@
                                 @foreach ($program->exercises as $exercise)
                                     @php
                                         $configData = $this->getPivotConfig($program->id, $exercise->id);
-                                        $exerciseTypeConfig = $exercise->config?->strength;
+                                        $exerciseTypeConfig = $exercise->config?->strength_automatic;
                                         $pivotConfig = [
                                             'oneRepMaxModifier' => $configData['oneRepMaxModifier'] ?? 100,
                                             'startingReps' => $configData['startingReps'] ?? null,

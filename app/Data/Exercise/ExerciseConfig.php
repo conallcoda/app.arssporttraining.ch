@@ -8,8 +8,11 @@ use App\Cms\Data\AbstractData;
 class ExerciseConfig extends AbstractData
 {
     public function __construct(
+        public ?Types\StrengthAutomaticExerciseConfig $strength_automatic = null,
+        public ?Types\StrengthManualExerciseConfig $strength_manual = null,
+        public ?Types\ConditioningExerciseConfig $conditioning = null,
+        public ?Types\TimedExerciseConfig $timed = null,
         public ?Types\CardioExerciseConfig $cardio = null,
-        public ?Types\StrengthExerciseConfig $strength = null,
     ) {}
 
     public static function forType(ExerciseType $type, array $data = []): self

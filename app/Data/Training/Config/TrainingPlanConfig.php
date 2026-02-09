@@ -130,7 +130,7 @@ class TrainingPlanConfig extends AbstractConfig
             return [];
         }
 
-        $strength = $this->default->exerciseConfig->strength;
+        $strength = $this->default->exerciseConfig->strength_automatic;
 
         if ($strength === null) {
             return [];
@@ -151,7 +151,7 @@ class TrainingPlanConfig extends AbstractConfig
             return [];
         }
 
-        $strength = $user->exerciseConfig->strength;
+        $strength = $user->exerciseConfig->strength_automatic;
 
         if ($strength === null) {
             return [];

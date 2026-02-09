@@ -7,6 +7,6 @@ use App\Cms\Data\AbstractConfig;
 class DefaultExerciseConfig extends AbstractConfig
 {
     public function __construct(
-        public ?DefaultStrengthConfig $strength = null,
+        public ?DefaultStrengthAutomaticConfig $strength_automatic = null,
     ) {}
 }

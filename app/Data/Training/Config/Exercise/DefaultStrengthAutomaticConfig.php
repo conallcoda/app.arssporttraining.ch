@@ -4,7 +4,7 @@ namespace App\Data\Training\Config\Exercise;
 
 use App\Cms\Data\AbstractConfig;
 
-class DefaultStrengthConfig extends AbstractConfig
+class DefaultStrengthAutomaticConfig extends AbstractConfig
 {
     public function __construct(
         public int $measuredReps = 8,
