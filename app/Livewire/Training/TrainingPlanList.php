@@ -2,7 +2,8 @@
 
 namespace App\Livewire\Training;
 
-use App\Cms\Form\RowAction;
+use App\Cms\Form\Action;
+use App\Cms\Form\DuplicateNameForm;
 use App\Cms\Form\TableColumn;
 use App\Cms\Livewire\AbstractModelList;
 use App\Data\Training\TrainingPlanData;
@@ -31,14 +32,22 @@ class TrainingPlanList extends AbstractModelList
         ];
     }
 
-    protected function getRowActions(): array
+    protected function getExtraActions(): array
     {
         return [
-            RowAction::make('confirmDuplicate', 'Duplicate')->icon('copy'),
+            Action::make('duplicate', 'Duplicate')
+                ->rowMenu()
+                ->icon('copy')
+                ->formModal(DuplicateNameForm::class, 'Duplicate '.$this->getEntityName(), 'Duplicate')
+                ->handler('handleDuplicateSubmitted')
+                ->prepareData(fn (TrainingPlan $model) => [
+                    'id' => $model->id,
+                    'name' => ($model->name ?? '').' (Copy)',
+                ]),
         ];
     }
 
-    protected function performDuplicate(array $data): void
+    public function handleDuplicateSubmitted(array $data): void
     {
         if (empty($data['id'])) {
             return;
@@ -76,5 +85,9 @@ class TrainingPlanList extends AbstractModelList
             }
             $newProgram->exercises()->sync($exercisesWithPivot);
         }
+
+        unset($this->items);
+        $this->refreshKey++;
+        $this->emit();
     }
 }

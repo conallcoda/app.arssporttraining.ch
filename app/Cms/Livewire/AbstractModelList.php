@@ -3,6 +3,8 @@
 namespace App\Cms\Livewire;
 
 use App\Cms\Data\AbstractData;
+use App\Cms\Form\Action;
+use App\Cms\Form\ActionPlacement;
 use App\Cms\Form\Field;
 use App\Cms\Form\Fields\Relationship;
 use App\Cms\Form\Form;
@@ -23,24 +25,19 @@ abstract class AbstractModelList extends Component
 
     public array $data = [];
 
-    protected function getRowActions(): array
-    {
-        return [];
-    }
+    public ?int $confirmingId = null;
 
-    #[Computed]
-    public function rowActions(): array
-    {
-        return $this->getRowActions();
-    }
-
-    public ?int $deletingId = null;
+    public ?string $confirmingAction = null;
 
     public int $refreshKey = 0;
 
     public bool $compact = false;
 
     abstract protected function getDataClass(): string;
+
+    abstract protected function getBaseQuery(): Builder;
+
+    abstract protected function getColumns(): array;
 
     protected function isSortable(): bool
     {
@@ -50,6 +47,251 @@ abstract class AbstractModelList extends Component
     protected function getSortColumn(): string
     {
         return 'sort';
+    }
+
+    protected function getActions(): array
+    {
+        return array_filter([
+            $this->getAddAction(),
+            $this->getEditAction(),
+            $this->getDeleteAction(),
+            ...$this->getSortActions(),
+            ...$this->getExtraActions(),
+        ]);
+    }
+
+    protected function getAddAction(): Action
+    {
+        return Action::make('add', 'Add ' . $this->getEntityName())
+            ->header()
+            ->icon('plus')
+            ->variant('primary')
+            ->formModal($this->getDataClass(), 'Add ' . $this->getEntityName())
+            ->handler('handleFormSubmitted');
+    }
+
+    protected function getEditAction(): Action
+    {
+        return Action::make('edit', 'Edit')
+            ->row()
+            ->icon('pencil')
+            ->formModal($this->getDataClass(), 'Edit ' . $this->getEntityName())
+            ->passesItemData()
+            ->handler('handleFormSubmitted');
+    }
+
+    protected function getDeleteAction(): Action
+    {
+        return Action::make('delete', 'Delete')
+            ->row()
+            ->icon('trash-2')
+            ->confirm(
+                heading: 'Delete ' . $this->getEntityName() . '?',
+                description: "You're about to delete this " . strtolower($this->getEntityName()) . ".\nThis action cannot be reversed.",
+                buttonLabel: 'Delete',
+            )
+            ->handler('removeItem');
+    }
+
+    protected function getSortActions(): array
+    {
+        if (! $this->isSortable()) {
+            return [];
+        }
+
+        return [
+            Action::make('moveUp', '')
+                ->row()
+                ->icon('chevron-up')
+                ->disabledWhen('first'),
+            Action::make('moveDown', '')
+                ->row()
+                ->icon('chevron-down')
+                ->disabledWhen('last'),
+        ];
+    }
+
+    protected function getExtraActions(): array
+    {
+        return [];
+    }
+
+    #[Computed]
+    public function actions(): array
+    {
+        return $this->getActions();
+    }
+
+    #[Computed]
+    public function headerActions(): array
+    {
+        return collect($this->actions)
+            ->filter(fn(Action $a) => $a->placement === ActionPlacement::Header)
+            ->values()
+            ->all();
+    }
+
+    #[Computed]
+    public function rowActions(): array
+    {
+        return collect($this->actions)
+            ->filter(fn(Action $a) => $a->placement === ActionPlacement::Row)
+            ->values()
+            ->all();
+    }
+
+    #[Computed]
+    public function rowMenuActions(): array
+    {
+        return collect($this->actions)
+            ->filter(fn(Action $a) => $a->placement === ActionPlacement::RowMenu)
+            ->values()
+            ->all();
+    }
+
+    #[Computed]
+    public function formModals(): array
+    {
+        $modals = [];
+        $seenFormClasses = [];
+
+        foreach ($this->actions as $action) {
+            if (! $action->isFormModal()) {
+                continue;
+            }
+
+            if (in_array($action->formDataClass, $seenFormClasses, true)) {
+                continue;
+            }
+
+            $seenFormClasses[] = $action->formDataClass;
+            $modals[] = [
+                'name' => $action->resolveModalName($this->getEntitySlug()),
+                'title' => $action->modalTitle,
+                'formDataClass' => $action->formDataClass,
+                'submitLabel' => $action->submitLabel ?? 'Save',
+            ];
+        }
+
+        return $modals;
+    }
+
+    #[Computed]
+    public function confirmModals(): array
+    {
+        return collect($this->actions)
+            ->filter(fn(Action $a) => $a->isConfirm())
+            ->values()
+            ->all();
+    }
+
+    #[Computed]
+    public function editModalName(): string
+    {
+        foreach ($this->actions as $action) {
+            if ($action->isFormModal() && $action->formDataClass === $this->getDataClass()) {
+                return $action->resolveModalName($this->getEntitySlug());
+            }
+        }
+
+        return 'add-' . $this->getEntitySlug();
+    }
+
+    public function getModalNameForAction(Action $action): string
+    {
+        if (! $action->isFormModal()) {
+            return $action->resolveModalName($this->getEntitySlug());
+        }
+
+        foreach ($this->actions as $other) {
+            if ($other->isFormModal() && $other->formDataClass === $action->formDataClass) {
+                return $other->resolveModalName($this->getEntitySlug());
+            }
+        }
+
+        return $action->resolveModalName($this->getEntitySlug());
+    }
+
+    /** @return array<string, string> */
+    public function getListeners(): array
+    {
+        $listeners = [];
+
+        foreach ($this->getActions() as $action) {
+            if (! $action->isFormModal()) {
+                continue;
+            }
+
+            $modalName = $action->resolveModalName($this->getEntitySlug());
+            $key = "{$modalName}.submitted";
+
+            if (! isset($listeners[$key])) {
+                $listeners[$key] = $action->getHandler();
+            }
+        }
+
+        return $listeners;
+    }
+
+    public function confirmAction(string $actionName, int $id): void
+    {
+        $action = collect($this->actions)->firstWhere('name', $actionName);
+        if (! $action || ! $action->isConfirm()) {
+            return;
+        }
+
+        $this->confirmingId = $id;
+        $this->confirmingAction = $actionName;
+        Flux::modal($action->resolveModalName($this->getEntitySlug()))->show();
+    }
+
+    public function executeConfirmedAction(): void
+    {
+        if (! $this->confirmingId || ! $this->confirmingAction) {
+            return;
+        }
+
+        $action = collect($this->actions)->firstWhere('name', $this->confirmingAction);
+        if (! $action) {
+            return;
+        }
+
+        $handler = $action->getHandler();
+        $id = $this->confirmingId;
+
+        $this->confirmingId = null;
+        $this->confirmingAction = null;
+
+        Flux::modal($action->resolveModalName($this->getEntitySlug()))->close();
+
+        $this->$handler($id);
+    }
+
+    public function openActionModal(string $actionName, int $id): void
+    {
+        $action = collect($this->actions)->firstWhere('name', $actionName);
+        if (! $action || ! $action->isFormModal()) {
+            return;
+        }
+
+        $modalName = $this->getModalNameForAction($action);
+        $data = ['id' => $id];
+
+        if ($action->prepareData) {
+            $model = $this->getBaseQuery()->findOrFail($id);
+            $data = ($action->prepareData)($model, $data);
+        }
+
+        $this->dispatch("open-{$modalName}", data: $data, title: $action->modalTitle);
+    }
+
+    public function removeItem(int $id): void
+    {
+        $this->getBaseQuery()->where('id', $id)->delete();
+
+        unset($this->items);
+        $this->refreshKey++;
+        $this->emit();
     }
 
     public function moveUp(int $id): void
@@ -115,8 +357,6 @@ abstract class AbstractModelList extends Component
         $this->emit();
     }
 
-    abstract protected function getBaseQuery(): Builder;
-
     protected function createDataFromForm(array $formData): AbstractData
     {
         return $this->getDataClass()::from($formData);
@@ -133,17 +373,12 @@ abstract class AbstractModelList extends Component
 
     protected function getEventName(): string
     {
-        return Str::plural($this->getEntitySlug()).'-updated';
+        return Str::plural($this->getEntitySlug()) . '-updated';
     }
 
     protected function getEventDataKey(): string
     {
         return Str::plural($this->getEntitySlug());
-    }
-
-    protected function getModalName(): string
-    {
-        return 'add-'.$this->getEntitySlug();
     }
 
     protected function getEntityName(): string
@@ -153,8 +388,6 @@ abstract class AbstractModelList extends Component
             ->headline()
             ->toString();
     }
-
-    abstract protected function getColumns(): array;
 
     protected function dataFromModel(Model $model): AbstractData
     {
@@ -220,8 +453,8 @@ abstract class AbstractModelList extends Component
     protected function getRelationshipsToLoad(): array
     {
         return collect($this->getColumns())
-            ->filter(fn (TableColumn $column) => $column->type === 'relationship')
-            ->map(fn (TableColumn $column) => $column->field)
+            ->filter(fn(TableColumn $column) => $column->type === 'relationship')
+            ->map(fn(TableColumn $column) => $column->field)
             ->values()
             ->all();
     }
@@ -229,8 +462,8 @@ abstract class AbstractModelList extends Component
     protected function getFormRelationshipsToLoad(): array
     {
         return collect($this->getAllFields())
-            ->filter(fn (Field $field) => $field instanceof Relationship)
-            ->map(fn (Field $field) => $field->name)
+            ->filter(fn(Field $field) => $field instanceof Relationship)
+            ->map(fn(Field $field) => $field->name)
             ->values()
             ->all();
     }
@@ -267,15 +500,6 @@ abstract class AbstractModelList extends Component
         $this->emit();
     }
 
-    /** @return array<string, string> */
-    public function getListeners(): array
-    {
-        return [
-            "{$this->getModalName()}.submitted" => 'handleFormSubmitted',
-            "{$this->getDuplicateModalName()}.submitted" => 'handleDuplicateSubmitted',
-        ];
-    }
-
     public function handleFormSubmitted(array $data): void
     {
         $model = $this->createDataFromForm($data);
@@ -294,62 +518,6 @@ abstract class AbstractModelList extends Component
         $this->emit();
     }
 
-    public function confirmDelete(int $id): void
-    {
-        $this->deletingId = $id;
-        Flux::modal($this->getDeleteModalName())->show();
-    }
-
-    public function remove(): void
-    {
-        if (! $this->deletingId) {
-            return;
-        }
-
-        $this->getBaseQuery()->where('id', $this->deletingId)->delete();
-
-        $this->deletingId = null;
-        unset($this->items);
-        $this->refreshKey++;
-        $this->emit();
-
-        Flux::modal($this->getDeleteModalName())->close();
-    }
-
-    protected function getDeleteModalName(): string
-    {
-        return 'delete-'.$this->getEntitySlug();
-    }
-
-    public function confirmDuplicate(int $id): void
-    {
-        $model = $this->getBaseQuery()->findOrFail($id);
-        $defaultName = $this->getDuplicateDefaultName($model);
-
-        $this->dispatch("open-{$this->getDuplicateModalName()}", data: ['id' => $id, 'name' => $defaultName]);
-    }
-
-    protected function getDuplicateDefaultName(Model $model): string
-    {
-        return ($model->name ?? '').' (Copy)';
-    }
-
-    public function handleDuplicateSubmitted(array $data): void
-    {
-        $this->performDuplicate($data);
-
-        unset($this->items);
-        $this->refreshKey++;
-        $this->emit();
-    }
-
-    protected function performDuplicate(array $data): void {}
-
-    protected function getDuplicateModalName(): string
-    {
-        return 'duplicate-'.$this->getEntitySlug();
-    }
-
     protected function emit(): void
     {
         $query = $this->getBaseQuery();
@@ -360,7 +528,7 @@ abstract class AbstractModelList extends Component
 
         $allItems = $query
             ->get()
-            ->map(fn (Model $model) => $this->dataFromModel($model)->toArray())
+            ->map(fn(Model $model) => $this->dataFromModel($model)->toArray())
             ->all();
 
         $this->dispatch($this->getEventName(), ...[$this->getEventDataKey() => $allItems]);
@@ -369,16 +537,10 @@ abstract class AbstractModelList extends Component
     public function render(): View
     {
         return view('livewire.components.model-list', [
-            'modalName' => $this->getModalName(),
-            'deleteModalName' => $this->getDeleteModalName(),
-            'duplicateModalName' => $this->getDuplicateModalName(),
             'entityName' => $this->getEntityName(),
             'entitySlug' => $this->getEntitySlug(),
-            'dataClass' => $this->getDataClass(),
             'compact' => $this->compact,
             'sortable' => $this->isSortable(),
-            'sortColumn' => $this->getSortColumn(),
-            'rowActions' => $this->rowActions,
         ]);
     }
 }

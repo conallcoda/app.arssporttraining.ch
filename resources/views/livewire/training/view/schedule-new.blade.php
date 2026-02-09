@@ -101,6 +101,16 @@
                                 </tr>
                             @endforeach
                         @endforeach
+                        <tr>
+                            <td colspan="9"
+                                class="border border-dashed border-zinc-300 dark:border-zinc-600 border-b-0 border-l-0 border-r-0 px-3 py-4 bg-zinc-50/50 dark:bg-zinc-800/30 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-colors"
+                                wire:click="addWeek">
+                                <div class="flex items-center justify-center gap-2 text-zinc-400 dark:text-zinc-500">
+                                    <flux:icon.plus class="size-4" />
+                                    <span class="text-sm font-medium">Add Week</span>
+                                </div>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>

@@ -1,36 +1,43 @@
 <div>
     @unless ($compact)
         <div class="flex justify-end mb-3">
-            <flux:button variant="primary" size="sm" icon="plus"
-                x-on:click="Livewire.dispatch('open-{{ $modalName }}', { title: 'Add {{ $entityName }}' })">
-                Add {{ $entityName }}
-            </flux:button>
+            @foreach ($this->headerActions as $action)
+                <flux:button variant="{{ $action->variant ?? 'primary' }}" size="sm" icon="{{ $action->icon }}"
+                    x-on:click="Livewire.dispatch('open-{{ $this->getModalNameForAction($action) }}', { title: '{{ $action->modalTitle }}' })">
+                    {{ $action->label }}
+                </flux:button>
+            @endforeach
         </div>
     @endunless
 
-    <livewire:cms.form-modal :name="$modalName" :title="'Add ' . $entityName" :form-data-class="$dataClass" :submit-label="'Save'" />
+    @foreach ($this->formModals as $modal)
+        <livewire:cms.form-modal :name="$modal['name']" :title="$modal['title']" :form-data-class="$modal['formDataClass']"
+            :submit-label="$modal['submitLabel']" />
+    @endforeach
 
-    <livewire:cms.form-modal :name="$duplicateModalName" :title="'Duplicate ' . $entityName" form-data-class="App\Cms\Form\DuplicateNameForm"
-        submit-label="Duplicate" />
-
-    <flux:modal :name="$deleteModalName" class="min-w-[22rem]">
-        <div class="space-y-6">
-            <div>
-                <flux:heading size="lg">Delete {{ $entityName }}?</flux:heading>
-                <flux:text class="mt-2">
-                    You're about to delete this {{ strtolower($entityName) }}.<br>
-                    This action cannot be reversed.
-                </flux:text>
+    @foreach ($this->confirmModals as $confirmAction)
+        @php $confirmModalName = $confirmAction->resolveModalName($entitySlug); @endphp
+        <flux:modal :name="$confirmModalName" class="min-w-[22rem]">
+            <div class="space-y-6">
+                <div>
+                    <flux:heading size="lg">{{ $confirmAction->confirmHeading }}</flux:heading>
+                    <flux:text class="mt-2">
+                        {!! nl2br(e($confirmAction->confirmDescription)) !!}
+                    </flux:text>
+                </div>
+                <div class="flex gap-2">
+                    <flux:spacer />
+                    <flux:modal.close>
+                        <flux:button variant="ghost">Cancel</flux:button>
+                    </flux:modal.close>
+                    <flux:button variant="{{ $confirmAction->confirmButtonVariant ?? 'danger' }}"
+                        wire:click="executeConfirmedAction">
+                        {{ $confirmAction->confirmButtonLabel }}
+                    </flux:button>
+                </div>
             </div>
-            <div class="flex gap-2">
-                <flux:spacer />
-                <flux:modal.close>
-                    <flux:button variant="ghost">Cancel</flux:button>
-                </flux:modal.close>
-                <flux:button variant="danger" wire:click="remove">Delete</flux:button>
-            </div>
-        </div>
-    </flux:modal>
+        </flux:modal>
+    @endforeach
 
     @if ($this->items->isEmpty())
         <div class="flex flex-col items-center justify-center py-12 text-center">
@@ -52,10 +59,12 @@
                 @endforeach
                 <flux:table.column class="w-px">
                     @if ($compact)
-                        <flux:button variant="ghost" size="xs" icon="plus"
-                            x-on:click="Livewire.dispatch('open-{{ $modalName }}', { title: 'Add {{ $entityName }}' })">
-                            Add
-                        </flux:button>
+                        @foreach ($this->headerActions as $action)
+                            <flux:button variant="ghost" size="xs" icon="{{ $action->icon }}"
+                                x-on:click="Livewire.dispatch('open-{{ $this->getModalNameForAction($action) }}', { title: '{{ $action->modalTitle }}' })">
+                                Add
+                            </flux:button>
+                        @endforeach
                     @endif
                 </flux:table.column>
             </flux:table.columns>
@@ -88,7 +97,7 @@
                                             @foreach ($relation as $index => $related)
                                                 @if ($column->modalField)
                                                     <flux:badge size="sm" class="cursor-pointer"
-                                                        x-on:click="Livewire.dispatch('open-{{ $modalName }}', {
+                                                        x-on:click="Livewire.dispatch('open-{{ $this->editModalName }}', {
                                                             data: {{ Js::from($item->toArray()) }},
                                                             title: 'Edit {{ $entityName }}',
                                                             focusField: '{{ $column->modalField }}',
@@ -105,7 +114,7 @@
                                         @elseif ($relation)
                                             @if ($column->modalField)
                                                 <flux:badge size="sm" class="cursor-pointer"
-                                                    x-on:click="Livewire.dispatch('open-{{ $modalName }}', {
+                                                    x-on:click="Livewire.dispatch('open-{{ $this->editModalName }}', {
                                                         data: {{ Js::from($item->toArray()) }},
                                                         title: 'Edit {{ $entityName }}',
                                                         focusField: '{{ $column->modalField }}',
@@ -124,7 +133,7 @@
                                             @php $sourceBadges = $column->getSourceData($item); @endphp
                                             @foreach ($sourceBadges as $badge)
                                                 <flux:badge size="sm" class="cursor-pointer"
-                                                    x-on:click="Livewire.dispatch('open-{{ $modalName }}', {
+                                                    x-on:click="Livewire.dispatch('open-{{ $this->editModalName }}', {
                                                         data: {{ Js::from($item->toArray()) }},
                                                         title: 'Edit {{ $entityName }}',
                                                         focusField: '{{ $badge['modalField'] }}'
@@ -140,7 +149,7 @@
                                                 @if ($val !== null && $val !== '')
                                                     @if ($column->modalField)
                                                         <flux:badge size="sm" class="cursor-pointer"
-                                                            x-on:click="Livewire.dispatch('open-{{ $modalName }}', {
+                                                            x-on:click="Livewire.dispatch('open-{{ $this->editModalName }}', {
                                                                 data: {{ Js::from($item->toArray()) }},
                                                                 title: 'Edit {{ $entityName }}',
                                                                 focusField: '{{ $column->modalField }}'
@@ -165,7 +174,7 @@
                                     </div>
                                 @elseif ($column->modalField)
                                     <div class="py-1 truncate cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded"
-                                        x-on:click="Livewire.dispatch('open-{{ $modalName }}', {
+                                        x-on:click="Livewire.dispatch('open-{{ $this->editModalName }}', {
                                             data: {{ Js::from($item->toArray()) }},
                                             title: 'Edit {{ $entityName }}',
                                             focusField: '{{ $column->modalField }}'
@@ -186,36 +195,42 @@
 
                         <flux:table.cell class="text-right">
                             <div class="flex gap-0.5 justify-end">
-                                @if ($sortable)
-                                    @php
-                                        $isFirst = $loop->first;
-                                        $isLast = $loop->last;
-                                    @endphp
-                                    <flux:button type="button" size="xs" variant="ghost"
-                                        wire:click="moveUp({{ $item->id }})" :disabled="$isFirst">
-                                        <x-lucide-chevron-up class="w-4 h-4" />
-                                    </flux:button>
-                                    <flux:button type="button" size="xs" variant="ghost"
-                                        wire:click="moveDown({{ $item->id }})" :disabled="$isLast">
-                                        <x-lucide-chevron-down class="w-4 h-4" />
-                                    </flux:button>
-                                @endif
-                                <flux:button variant="ghost" size="xs" icon="pencil"
-                                    x-on:click="Livewire.dispatch('open-{{ $modalName }}', {
-                                        data: {{ Js::from($item->toArray()) }},
-                                        title: 'Edit {{ $entityName }}'
-                                    })" />
-                                <flux:button variant="ghost" size="xs" icon="trash-2"
-                                    wire:click="confirmDelete({{ $item->id }})"
-                                    class="text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400" />
-                                @if (count($rowActions) > 0)
+                                @foreach ($this->rowActions as $action)
+                                    @if ($action->isFormModal())
+                                        <flux:button variant="ghost" size="xs" icon="{{ $action->icon }}"
+                                            x-on:click="Livewire.dispatch('open-{{ $this->getModalNameForAction($action) }}', {
+                                                data: {{ Js::from($item->toArray()) }},
+                                                title: '{{ $action->modalTitle }}'
+                                            })" />
+                                    @elseif ($action->isConfirm())
+                                        <flux:button variant="ghost" size="xs" icon="{{ $action->icon }}"
+                                            wire:click="confirmAction('{{ $action->name }}', {{ $item->id }})"
+                                            class="text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400" />
+                                    @elseif ($action->isDirect())
+                                        @php
+                                            $disabled = match ($action->disabledWhen) {
+                                                'first' => $loop->parent->first,
+                                                'last' => $loop->parent->last,
+                                                default => false,
+                                            };
+                                        @endphp
+                                        <flux:button type="button" size="xs" variant="ghost"
+                                            wire:click="{{ $action->getHandler() }}({{ $item->id }})"
+                                            :disabled="$disabled">
+                                            <x-dynamic-component :component="'lucide-' . $action->icon"
+                                                class="w-4 h-4" />
+                                        </flux:button>
+                                    @endif
+                                @endforeach
+
+                                @if (count($this->rowMenuActions) > 0)
                                     <flux:dropdown>
                                         <flux:button variant="ghost" size="xs" icon="ellipsis" />
                                         <flux:menu>
-                                            @foreach ($rowActions as $action)
-                                                <flux:menu.item :icon="$action->icon"
-                                                    wire:click="{{ $action->getMethod() }}({{ $item->id }})">
-                                                    {{ $action->label }}</flux:menu.item>
+                                            @foreach ($this->rowMenuActions as $menuAction)
+                                                <flux:menu.item :icon="$menuAction->icon"
+                                                    wire:click="openActionModal('{{ $menuAction->name }}', {{ $item->id }})">
+                                                    {{ $menuAction->label }}</flux:menu.item>
                                             @endforeach
                                         </flux:menu>
                                     </flux:dropdown>

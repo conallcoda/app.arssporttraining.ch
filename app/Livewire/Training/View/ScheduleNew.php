@@ -110,6 +110,63 @@ class ScheduleNew extends Component
         return $program?->config->get('color', Color::DEFAULT_COLOR) ?? Color::DEFAULT_COLOR;
     }
 
+    public function addWeek(): void
+    {
+        if ($this->user !== null) {
+            $this->addWeekForUser();
+
+            return;
+        }
+
+        $weeks = $this->trainingPlan->config->get('default.schedule.weeks', []);
+        $week1Id = $weeks[0]['id'] ?? null;
+        $maxSort = collect($weeks)->max('sort') ?? count($weeks) - 1;
+        $newSort = $maxSort + 1;
+
+        $weeks[] = [
+            'id' => "default_{$newSort}",
+            'linkedTo' => $week1Id,
+            'slots' => [],
+            'sort' => $newSort,
+        ];
+
+        $this->saveDefaultWeeks($weeks);
+    }
+
+    protected function addWeekForUser(): void
+    {
+        $schedule = $this->trainingPlan->config->get('default.schedule.weeks', []);
+        $userWeeks = $this->trainingPlan->config->get("users.{$this->user}.schedule.weeks", []);
+
+        $allWeeks = collect($schedule)->merge($userWeeks);
+        $firstWeekId = $allWeeks->first()['id'] ?? null;
+        $maxSort = $allWeeks->max('sort') ?? $allWeeks->count() - 1;
+
+        $newSort = $maxSort + 1;
+
+        $userWeeks[] = [
+            'id' => "user_{$newSort}",
+            'linkedTo' => $firstWeekId,
+            'slots' => [],
+            'sort' => $newSort,
+        ];
+
+        $this->trainingPlan->config->set("users.{$this->user}.schedule.weeks", $userWeeks);
+        $this->trainingPlan->save();
+        $this->trainingPlan->refresh();
+        unset($this->schedule);
+        unset($this->defaultSchedule);
+    }
+
+    protected function saveDefaultWeeks(array $weeks): void
+    {
+        $this->trainingPlan->config->set('default.schedule.weeks', $weeks);
+        $this->trainingPlan->save();
+        $this->trainingPlan->refresh();
+        unset($this->schedule);
+        unset($this->defaultSchedule);
+    }
+
     public function render()
     {
         return view('livewire.training.view.schedule-new');
