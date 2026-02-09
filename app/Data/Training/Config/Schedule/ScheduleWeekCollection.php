@@ -19,7 +19,7 @@ class ScheduleWeekCollection
     public static function fromArray(array $weeks): self
     {
         return new self(
-            collect($weeks)->map(fn (array $week, int $index) => ScheduleWeek::from([
+            collect($weeks)->map(fn(array $week, int $index) => ScheduleWeek::from([
                 ...$week,
                 'sort' => $week['sort'] ?? $index,
             ]))
@@ -71,11 +71,11 @@ class ScheduleWeekCollection
         })->filter();
 
         $userAddedWeeks = collect($overrides)
-            ->filter(fn (array $override) => ! in_array($override['id'] ?? null, $defaultWeekIds))
-            ->map(fn (array $week) => ScheduleWeek::from($week));
+            ->filter(fn(array $override) => ! in_array($override['id'] ?? null, $defaultWeekIds))
+            ->map(fn(array $week) => ScheduleWeek::from($week));
 
         $merged = $weeks->merge($userAddedWeeks)
-            ->sortBy(fn (ScheduleWeek $week) => $week->sort)
+            ->sortBy(fn(ScheduleWeek $week) => $week->sort)
             ->values();
 
         return new self($merged);
@@ -134,7 +134,7 @@ class ScheduleWeekCollection
             $slot = $override['slot'];
             $programId = $override['programId'] ?? null;
 
-            $result = array_filter($result, fn ($s) => ! ($s['day'] === $day && $s['slot'] === $slot));
+            $result = array_filter($result, fn($s) => ! ($s['day'] === $day && $s['slot'] === $slot));
 
             if ($programId !== null) {
                 $result[] = $override;
