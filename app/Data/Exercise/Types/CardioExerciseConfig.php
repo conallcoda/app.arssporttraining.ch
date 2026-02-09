@@ -17,6 +17,14 @@ class CardioExerciseConfig extends AbstractConfig
         public int $watts = 0,
     ) {}
 
+    public function badgeFields(): array
+    {
+        return match ($this->mode) {
+            CardioMode::Time->value => ['duration', 'pace', 'watts'],
+            default => ['distance', 'pace', 'watts'],
+        };
+    }
+
     public static function getFields(array $data = []): array
     {
         $mode = $data['mode'] ?? CardioMode::Distance->value;

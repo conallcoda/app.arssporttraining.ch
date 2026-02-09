@@ -85,7 +85,14 @@ class FormModal extends Component
     public function open(array $data = [], ?string $title = null, ?string $focusField = null, ?int $focusIndex = null): void
     {
         $this->activeTitle = $title;
-        $this->data = empty($data) ? $this->buildDefaultsFromFieldsets() : $data;
+
+        if (empty($data)) {
+            $this->data = $this->buildDefaultsFromFieldsets();
+        } else {
+            $this->data = $data;
+            unset($this->fieldsets);
+            $this->data = array_replace_recursive($this->buildDefaultsFromFieldsets(), $data);
+        }
 
         $this->ensureRelationshipItemsHaveKeys();
 
@@ -98,7 +105,9 @@ class FormModal extends Component
 
     public function submit(): void
     {
-        $this->validate($this->buildValidationRulesFromFieldsets());
+        $this->validate($this->buildValidationRulesFromFieldsets(), [
+            'required' => 'This field is required.',
+        ]);
 
         Flux::modal($this->name)->close();
 

@@ -9,9 +9,15 @@ use App\Data\Exercise\ExerciseData;
 use App\Data\Exercise\ExerciseType;
 use App\Models\Exercise\Exercise;
 use Illuminate\Contracts\Database\Eloquent\Builder;
+use Illuminate\View\View;
+use Livewire\Attributes\Computed;
+use Livewire\Attributes\Url;
 
 class ExerciseList extends AbstractModelList
 {
+    #[Url(as: 'type')]
+    public string $typeFilter = 'all';
+
     protected function getDataClass(): string
     {
         return ExerciseData::class;
@@ -19,12 +25,48 @@ class ExerciseList extends AbstractModelList
 
     protected function getBaseQuery(): Builder
     {
-        return Exercise::query();
+        $query = Exercise::query();
+
+        if ($this->typeFilter !== 'all') {
+            $query->where('type', $this->typeFilter);
+        }
+
+        return $query;
     }
 
     protected function createDataFromForm(array $formData): AbstractData
     {
         return ExerciseData::from($formData);
+    }
+
+    #[Computed]
+    public function typeCounts(): array
+    {
+        $counts = Exercise::query()
+            ->selectRaw('type, count(*) as count')
+            ->groupBy('type')
+            ->pluck('count', 'type')
+            ->all();
+
+        $total = array_sum($counts);
+
+        return ['all' => $total] + $counts;
+    }
+
+    public function updatedTypeFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function render(): View
+    {
+        return view('livewire.database.exercise-list', [
+            'entityName' => $this->getEntityName(),
+            'entitySlug' => $this->getEntitySlug(),
+            'compact' => $this->compact,
+            'sortable' => $this->isSortable(),
+            'exerciseTypes' => ExerciseType::cases(),
+        ]);
     }
 
     protected function getColumns(): array

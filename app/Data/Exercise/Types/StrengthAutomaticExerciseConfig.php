@@ -14,6 +14,11 @@ class StrengthAutomaticExerciseConfig extends AbstractConfig
         public int $rest = 30,
     ) {}
 
+    public function badgeFields(): array
+    {
+        return ['oneRepMaxModifier', 'startingReps', 'timeUnderTension', 'rest'];
+    }
+
     public static function getFields(array $data = []): array
     {
         return [

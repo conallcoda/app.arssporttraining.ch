@@ -16,6 +16,14 @@ class ConditioningExerciseConfig extends AbstractConfig
         public int $rest = 30,
     ) {}
 
+    public function badgeFields(): array
+    {
+        return match ($this->mode) {
+            ConditioningMode::Time->value => ['duration', 'rest'],
+            default => ['reps', 'rest'],
+        };
+    }
+
     public static function getFields(array $data = []): array
     {
         $mode = $data['mode'] ?? ConditioningMode::Reps->value;

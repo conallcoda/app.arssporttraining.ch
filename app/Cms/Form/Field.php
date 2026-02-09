@@ -47,8 +47,12 @@ abstract class Field
             if ($field->type === 'repeater') {
                 $childRules = self::buildValidationRules($field->schema, "{$prefix}{$field->name}.*.");
                 $rules = array_merge($rules, $childRules);
-            } elseif ($field->validationRules) {
-                $rules["{$prefix}{$field->name}"] = $field->validationRules;
+            } elseif ($field->validationRules || $field->required) {
+                $fieldRules = $field->validationRules ?? '';
+                if ($field->required && ! str_contains($fieldRules, 'required')) {
+                    $fieldRules = $fieldRules ? "required|{$fieldRules}" : 'required';
+                }
+                $rules["{$prefix}{$field->name}"] = $fieldRules;
             }
         }
 

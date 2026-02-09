@@ -25,14 +25,18 @@ trait HasOptions
     {
         $this->enumClass = $enumClass;
 
-        $this->options = collect(Options::forEnum($enumClass)->toArray())
-            ->mapWithKeys(fn(array $option) => [$option['value'] => $option['label']])
-            ->toArray();
-
         $cases = $enumClass::cases();
-        $values = array_map(fn($case) => $case->value, $cases);
+        $hasLabels = method_exists($cases[0] ?? null, 'label');
 
-        $this->validationRules = 'required|string|in:' . implode(',', $values);
+        $this->options = $hasLabels
+            ? collect($cases)->mapWithKeys(fn ($case) => [$case->value => $case->label()])->toArray()
+            : collect(Options::forEnum($enumClass)->toArray())
+                ->mapWithKeys(fn (array $option) => [$option['value'] => $option['label']])
+                ->toArray();
+
+        $values = array_map(fn ($case) => $case->value, $cases);
+
+        $this->validationRules = 'required|string|in:'.implode(',', $values);
         $this->default = $cases[0]->value ?? null;
 
         return $this;

@@ -57,6 +57,7 @@
                     <flux:select.option value="{{ $value }}">{{ $optionLabel }}</flux:select.option>
                 @endforeach
             </flux:select>
+            <flux:error name="{{ $wireModel }}" />
         </flux:field>
     @elseif ($field instanceof Number)
         <flux:field>
@@ -99,6 +100,7 @@
                         max="{{ $field->max ?? '' }}" step="{{ $field->step ?? '' }}" />
                 @endif
             @endif
+            <flux:error name="{{ $wireModel }}" />
         </flux:field>
     @elseif ($field instanceof Text)
         <flux:field>
@@ -130,6 +132,7 @@
                 <flux:input wire:model="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
                     placeholder="{{ $field->getPlaceholder() }}" />
             @endif
+            <flux:error name="{{ $wireModel }}" />
         </flux:field>
     @elseif ($field instanceof Date)
         <flux:field>
@@ -144,8 +147,10 @@
             @else
                 <flux:date-picker wire:model="{{ $wireModel }}" data-field="{{ $field->name }}" />
             @endif
+            <flux:error name="{{ $wireModel }}" />
         </flux:field>
     @elseif ($field instanceof RadioSegmented)
+        @php $currentValue = data_get($this, $wireModel) ?? $field->default; @endphp
         <flux:field>
             <div class="flex items-center gap-1 mb-2">
                 <flux:label>{{ $field->getLabel() }}</flux:label>
@@ -154,18 +159,19 @@
                 @endif
             </div>
             @if ($field->live)
-                <flux:radio.group wire:model.live="{{ $wireModel }}" variant="segmented">
+                <flux:radio.group wire:model.live="{{ $wireModel }}" variant="segmented" :value="$currentValue">
                     @foreach ($field->options as $value => $optionLabel)
                         <flux:radio value="{{ $value }}" label="{{ $optionLabel }}" />
                     @endforeach
                 </flux:radio.group>
             @else
-                <flux:radio.group wire:model="{{ $wireModel }}" variant="segmented">
+                <flux:radio.group wire:model="{{ $wireModel }}" variant="segmented" :value="$currentValue">
                     @foreach ($field->options as $value => $optionLabel)
                         <flux:radio value="{{ $value }}" label="{{ $optionLabel }}" />
                     @endforeach
                 </flux:radio.group>
             @endif
+            <flux:error name="{{ $wireModel }}" />
         </flux:field>
     @elseif ($field instanceof Pillbox)
         <flux:field>
@@ -181,6 +187,7 @@
                     <flux:pillbox.option value="{{ $value }}">{{ $optionLabel }}</flux:pillbox.option>
                 @endforeach
             </flux:pillbox>
+            <flux:error name="{{ $wireModel }}" />
         </flux:field>
     @elseif ($field instanceof Slider)
         <x-cms.form.slider-with-input :label="$field->getLabel()" :model="$wireModel" :min="$field->min" :max="$field->max" :step="$field->step"
@@ -264,6 +271,7 @@
                     <p class="text-sm text-zinc-500">No items added yet.</p>
                 @endif
             </div>
+            <flux:error name="{{ $wireModel }}" />
         </flux:field>
     @elseif ($field instanceof Repeater)
         <flux:field>
@@ -305,6 +313,7 @@
                     <p class="text-sm text-zinc-500">No items added yet.</p>
                 @endif
             </div>
+            <flux:error name="{{ $wireModel }}" />
         </flux:field>
     @endif
 </div>

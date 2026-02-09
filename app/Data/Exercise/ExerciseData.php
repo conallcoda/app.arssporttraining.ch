@@ -48,8 +48,8 @@ class ExerciseData extends AbstractData implements HasForms
     {
         return Form::make()
             ->fieldset('General', [
-                Fields\ExerciseName::make('name'),
-                Fields\ExerciseType::make('type'),
+                Fields\ExerciseName::make('name')->required(),
+                Fields\ExerciseType::make('type')->required(),
             ])
             ->fieldset('Defaults', function (array $data): ?array {
                 $type = ExerciseType::tryFrom($data['type'] ?? null);

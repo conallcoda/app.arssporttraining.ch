@@ -12,6 +12,11 @@ class TimedExerciseConfig extends AbstractConfig
         public int $rest = 30,
     ) {}
 
+    public function badgeFields(): array
+    {
+        return ['duration', 'rest'];
+    }
+
     public static function getFields(array $data = []): array
     {
         return [

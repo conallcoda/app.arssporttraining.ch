@@ -5,6 +5,6 @@
 </x-slot:navbar>
 
 <flux:main>
-    <flux:heading size="xl" level="1">Exercises</flux:heading>
+    <flux:heading size="xl" level="1" class="mb-6">Exercises</flux:heading>
     <livewire:database.exercise-list />
 </flux:main>

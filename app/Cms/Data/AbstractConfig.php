@@ -9,25 +9,36 @@ abstract class AbstractConfig extends AbstractData
         return [];
     }
 
+    /** @return string[] */
+    public function badgeFields(): array
+    {
+        return [];
+    }
+
     public function toBadges(): array
     {
         $badges = [];
+        $allowedFields = $this->badgeFields();
+        $fieldsMap = collect(static::getFields($this->toArray()))->keyBy('name');
 
-        foreach (static::getFields($this->toArray()) as $field) {
-            $value = $this->{$field->name} ?? null;
+        foreach ($allowedFields as $fieldName) {
+            $field = $fieldsMap->get($fieldName);
+            $value = $this->{$fieldName} ?? null;
 
-            if ($value !== null && $value !== '') {
-                $displayValue = (string) $value;
-
-                if (isset($field->suffix) && $field->suffix) {
-                    $displayValue .= ' '.$field->suffix;
-                }
-
-                $badges[] = [
-                    'label' => $displayValue,
-                    'modalField' => $field->name,
-                ];
+            if ($value === null || $value === '') {
+                continue;
             }
+
+            $displayValue = (string) $value;
+
+            if ($field && isset($field->suffix) && $field->suffix) {
+                $displayValue .= ' '.$field->suffix;
+            }
+
+            $badges[] = [
+                'label' => $displayValue,
+                'modalField' => $fieldName,
+            ];
         }
 
         return $badges;
