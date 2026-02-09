@@ -168,24 +168,22 @@
 
             <div class="space-y-4">
                 @foreach ($settingsFields as $sf)
+                    @php
+                        $sfMin = $sf['min'] ?? null;
+                        $sfMax = $sf['max'] ?? null;
+                        $sfStep = $sf['step'] ?? null;
+                        $sfMaxlength = $sf['maxlength'] ?? null;
+                        $sfPlaceholder = $sf['placeholder'] ?? null;
+                    @endphp
                     <flux:field>
                         <flux:label>{{ $sf['label'] }}</flux:label>
                         @if (!empty($sf['suffix']))
                             <flux:input.group>
-                                <flux:input x-model="{{ $sf['field'] }}" type="{{ $sf['type'] }}"
-                                    @if (isset($sf['min'])) min="{{ $sf['min'] }}" @endif
-                                    @if (isset($sf['max'])) max="{{ $sf['max'] }}" @endif
-                                    @if (isset($sf['step'])) step="{{ $sf['step'] }}" @endif
-                                    @if (isset($sf['maxlength'])) maxlength="{{ $sf['maxlength'] }}" @endif
-                                    @if (isset($sf['placeholder'])) placeholder="{{ $sf['placeholder'] }}" @endif
-                                    data-field="{{ $sf['field'] }}" />
+                                <flux:input x-model="{{ $sf['field'] }}" :type="$sf['type']" :min="$sfMin" :max="$sfMax" :step="$sfStep" :maxlength="$sfMaxlength" :placeholder="$sfPlaceholder" :data-field="$sf['field']" />
                                 <flux:input.group.suffix>{{ $sf['suffix'] }}</flux:input.group.suffix>
                             </flux:input.group>
                         @else
-                            <flux:input x-model="{{ $sf['field'] }}" type="{{ $sf['type'] }}"
-                                @if (isset($sf['maxlength'])) maxlength="{{ $sf['maxlength'] }}" @endif
-                                @if (isset($sf['placeholder'])) placeholder="{{ $sf['placeholder'] }}" @endif
-                                data-field="{{ $sf['field'] }}" />
+                            <flux:input x-model="{{ $sf['field'] }}" :type="$sf['type']" :maxlength="$sfMaxlength" :placeholder="$sfPlaceholder" :data-field="$sf['field']" />
                         @endif
                         @if (!empty($sf['description']))
                             <flux:description>{{ $sf['description'] }}</flux:description>

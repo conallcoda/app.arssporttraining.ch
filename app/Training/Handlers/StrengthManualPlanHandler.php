@@ -42,7 +42,7 @@ class StrengthManualPlanHandler extends AbstractExercisePlanHandler
                     field: 'weight',
                     color: 'bg-green-50 dark:bg-green-900/20',
                     overrideColor: 'bg-green-200 dark:bg-green-700/40',
-                    editableMode: 'user-only',
+                    editableMode: 'always',
                     inputType: 'number',
                     inputStep: '0.5',
                 ),
