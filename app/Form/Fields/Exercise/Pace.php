@@ -2,17 +2,17 @@
 
 namespace App\Form\Fields\Exercise;
 
-use App\Cms\Form\Fields\Number;
+use App\Cms\Form\Fields\Text;
 
-class Pace extends Number
+class Pace extends Text
 {
     public function __construct(string $name)
     {
         parent::__construct($name);
 
         $this->label = 'Pace';
-        $this->default = 0;
-        $this->min = 0;
+        $this->default = '00:00';
         $this->suffix = 'min/km';
+        $this->mask = '99:99';
     }
 }

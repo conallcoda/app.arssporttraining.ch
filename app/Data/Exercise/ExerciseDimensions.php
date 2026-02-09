@@ -7,6 +7,7 @@ enum ExerciseDimensions: string
     case Reps = 'reps';
     case Weight = 'weight';
     case Duration = 'duration';
+    case Distance = 'distance';
     case Rest = 'rest';
     case Tempo = 'tempo';
     case Pace = 'pace';

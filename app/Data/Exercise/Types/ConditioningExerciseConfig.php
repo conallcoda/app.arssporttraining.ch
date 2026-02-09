@@ -5,6 +5,7 @@ namespace App\Data\Exercise\Types;
 use App\Cms\Data\AbstractConfig;
 use App\Cms\Form\Fields\RadioSegmented;
 use App\Data\Exercise\ConditioningMode;
+use App\Data\Exercise\ExerciseDimensions;
 use App\Form\Fields\Exercise as Fields;
 
 class ConditioningExerciseConfig extends AbstractConfig
@@ -15,6 +16,21 @@ class ConditioningExerciseConfig extends AbstractConfig
         public int $duration = 0,
         public int $rest = 30,
     ) {}
+
+    /** @return ExerciseDimensions[] */
+    public function dimensions(): array
+    {
+        return match ($this->mode) {
+            ConditioningMode::Time->value => [
+                ExerciseDimensions::Duration,
+                ExerciseDimensions::Rest,
+            ],
+            default => [
+                ExerciseDimensions::Reps,
+                ExerciseDimensions::Rest,
+            ],
+        };
+    }
 
     public function badgeFields(): array
     {

@@ -5,6 +5,7 @@ namespace App\Data\Exercise\Types;
 use App\Cms\Data\AbstractConfig;
 use App\Cms\Form\Fields\RadioSegmented;
 use App\Data\Exercise\CardioMode;
+use App\Data\Exercise\ExerciseDimensions;
 use App\Form\Fields\Exercise as Fields;
 
 class CardioExerciseConfig extends AbstractConfig
@@ -13,9 +14,35 @@ class CardioExerciseConfig extends AbstractConfig
         public string $mode = 'distance',
         public int $distance = 0,
         public int $duration = 0,
-        public int $pace = 0,
+        public string $pace = '00:00',
         public int $watts = 0,
     ) {}
+
+    protected function formatBadgeValue(string $field, mixed $value): ?string
+    {
+        if ($field === 'pace') {
+            return $value.' min/km';
+        }
+
+        return null;
+    }
+
+    /** @return ExerciseDimensions[] */
+    public function dimensions(): array
+    {
+        return match ($this->mode) {
+            CardioMode::Time->value => [
+                ExerciseDimensions::Duration,
+                ExerciseDimensions::Pace,
+                ExerciseDimensions::Watts,
+            ],
+            default => [
+                ExerciseDimensions::Distance,
+                ExerciseDimensions::Pace,
+                ExerciseDimensions::Watts,
+            ],
+        };
+    }
 
     public function badgeFields(): array
     {

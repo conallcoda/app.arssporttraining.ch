@@ -3,6 +3,7 @@
 namespace App\Data\Exercise\Types;
 
 use App\Cms\Data\AbstractConfig;
+use App\Data\Exercise\ExerciseDimensions;
 use App\Form\Fields\Exercise as Fields;
 
 class StrengthAutomaticExerciseConfig extends AbstractConfig
@@ -13,6 +14,17 @@ class StrengthAutomaticExerciseConfig extends AbstractConfig
         public string $timeUnderTension = '3010',
         public int $rest = 30,
     ) {}
+
+    /** @return ExerciseDimensions[] */
+    public function dimensions(): array
+    {
+        return [
+            ExerciseDimensions::Reps,
+            ExerciseDimensions::Weight,
+            ExerciseDimensions::Tempo,
+            ExerciseDimensions::Rest,
+        ];
+    }
 
     public function badgeFields(): array
     {

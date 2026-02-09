@@ -9,6 +9,11 @@ abstract class AbstractConfig extends AbstractData
         return [];
     }
 
+    protected function formatBadgeValue(string $field, mixed $value): ?string
+    {
+        return null;
+    }
+
     /** @return string[] */
     public function badgeFields(): array
     {
@@ -25,14 +30,18 @@ abstract class AbstractConfig extends AbstractData
             $field = $fieldsMap->get($fieldName);
             $value = $this->{$fieldName} ?? null;
 
-            if ($value === null || $value === '') {
+            if ($value === null || $value === '' || $value === 0 || $value === 0.0 || $value === '00:00') {
                 continue;
             }
 
-            $displayValue = (string) $value;
+            $displayValue = $this->formatBadgeValue($fieldName, $value);
 
-            if ($field && isset($field->suffix) && $field->suffix) {
-                $displayValue .= ' '.$field->suffix;
+            if ($displayValue === null) {
+                $displayValue = (string) $value;
+
+                if ($field && isset($field->suffix) && $field->suffix) {
+                    $displayValue .= ' '.$field->suffix;
+                }
             }
 
             $badges[] = [
