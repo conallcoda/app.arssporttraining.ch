@@ -73,29 +73,31 @@ document.addEventListener('alpine:init', () => {
             }
 
             if (targetProgramId !== null) {
-                this.$wire.dispatch('program-swap', {
-                    week1Id: this.draggedWeekId,
-                    day1: this.draggedDay,
-                    slot1: this.draggedSlot,
-                    week2Id: targetWeekId,
-                    day2: targetDay,
-                    slot2: targetSlot
+                this.$wire.dispatch('schedule-event', {
+                    type: 'swap-programs',
+                    data: {
+                        week1Id: this.draggedWeekId,
+                        day1: this.draggedDay,
+                        slot1: this.draggedSlot,
+                        week2Id: targetWeekId,
+                        day2: targetDay,
+                        slot2: targetSlot
+                    }
                 });
             } else {
-                this.$wire.dispatch('program-move', {
-                    weekId: this.draggedWeekId,
-                    fromDay: this.draggedDay,
-                    fromSlot: this.draggedSlot,
-                    toDay: targetDay,
-                    toSlot: targetSlot
+                this.$wire.dispatch('schedule-event', {
+                    type: 'move-program',
+                    data: {
+                        weekId: this.draggedWeekId,
+                        fromDay: this.draggedDay,
+                        fromSlot: this.draggedSlot,
+                        toDay: targetDay,
+                        toSlot: targetSlot
+                    }
                 });
             }
 
             this.handleDragEnd();
-        },
-
-        getCellId(weekId, day, slot) {
-            return weekId + '-' + day + '-' + slot;
         },
 
         destroy() {

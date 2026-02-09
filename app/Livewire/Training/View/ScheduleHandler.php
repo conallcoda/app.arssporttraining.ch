@@ -340,17 +340,23 @@ class ScheduleHandler
                 $index = count($userWeeks) - 1;
             }
 
-            $defaultSlot = $this->getDefaultSlotForWeek($defaultWeeks, $weekId, $day, $slot);
-            $defaultProgramId = $defaultSlot['programId'] ?? null;
+            $hasLinkedToOverride = array_key_exists('linkedTo', $userWeeks[$index]);
 
-            if ($programId === $defaultProgramId) {
-                $this->removeSlot($userWeeks[$index]['slots'], $day, $slot);
+            if ($hasLinkedToOverride) {
+                $this->setSlot($userWeeks[$index]['slots'], $day, $slot, $programId);
             } else {
-                $this->removeSlot($userWeeks[$index]['slots'], $day, $slot);
-                $userWeeks[$index]['slots'][] = ['day' => $day, 'slot' => $slot, 'programId' => $programId];
+                $defaultSlot = $this->getDefaultSlotForWeek($defaultWeeks, $weekId, $day, $slot);
+                $defaultProgramId = $defaultSlot['programId'] ?? null;
+
+                if ($programId === $defaultProgramId) {
+                    $this->removeSlot($userWeeks[$index]['slots'], $day, $slot);
+                } else {
+                    $this->removeSlot($userWeeks[$index]['slots'], $day, $slot);
+                    $userWeeks[$index]['slots'][] = ['day' => $day, 'slot' => $slot, 'programId' => $programId];
+                }
             }
 
-            if (empty($userWeeks[$index]['slots']) && ! array_key_exists('linkedTo', $userWeeks[$index])) {
+            if (empty($userWeeks[$index]['slots']) && ! $hasLinkedToOverride) {
                 $userWeeks = array_values(array_filter($userWeeks, fn (array $w) => ($w['id'] ?? null) !== $weekId));
             }
         }

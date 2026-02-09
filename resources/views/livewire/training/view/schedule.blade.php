@@ -36,17 +36,13 @@
             <div class="flex items-center justify-between">
                 <flux:heading size="xl">{{ $this->selectedUser->name }}</flux:heading>
                 @if ($this->isViewingCustomSchedule() && $this->countUserScheduleChanges($user) > 0)
-                    <flux:button wire:click="resetToDefault" variant="primary" size="sm" icon="rotate-ccw">
+                    <flux:button wire:click="$dispatch('schedule-event', { type: 'reset-to-default' })"
+                        variant="primary" size="sm" icon="rotate-ccw">
                         Reset
                     </flux:button>
                 @endif
             </div>
         @endif
-
-        @php
-            $canEdit = true;
-            $canEditWeekStructure = $user === null;
-        @endphp
 
         <x-section title="Weekly Schedule" class="!p-0">
             <div class="overflow-x-auto">
@@ -75,17 +71,17 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach ($this->schedule as $weekIndex => $week)
+                        @foreach ($this->schedule->items() as $weekIndex => $week)
                             @php
-                                $isLinked = $week['linkedTo'] !== null;
+                                $isLinked = $week->linkedTo !== null;
                                 $resolvedSlots = $this->getResolvedSlots($week);
                                 $linkedToIndex = $isLinked
-                                    ? collect($this->schedule)->search(fn($w) => $w['id'] === $week['linkedTo'])
+                                    ? $this->schedule->items()->search(fn($w) => $w->id === $week->linkedTo)
                                     : null;
-                                $isReadOnly = !$canEdit || $isLinked;
+                                $isReadOnly = $isLinked;
                             @endphp
                             @foreach ([0 => 'AM', 1 => 'PM'] as $slotKey => $slotLabel)
-                                <tr wire:key="week-{{ $week['id'] }}-{{ $slotKey }}-{{ $user ?? 'default' }}"
+                                <tr wire:key="week-{{ $week->id }}-{{ $slotKey }}-{{ $user ?? 'default' }}"
                                     class="{{ $isLinked ? 'bg-zinc-50 dark:bg-zinc-900/50' : '' }}">
                                     @if ($slotKey === 0)
                                         <td rowspan="2"
@@ -111,7 +107,7 @@
                                             $programId = $slotData['programId'] ?? null;
                                             $programName = $programId ? $this->programOptions[$programId] ?? '?' : null;
                                             $programColor = $this->getProgramColor($programId);
-                                            $cellId = $week['id'] . '-' . $dayIndex . '-' . $slotKey;
+                                            $cellId = $week->id . '-' . $dayIndex . '-' . $slotKey;
                                         @endphp
                                         <td class="border {{ $isLinked ? 'border-dashed border-zinc-400 dark:border-zinc-500' : 'border-zinc-300 dark:border-zinc-600' }} p-1 h-12 transition-colors duration-200"
                                             :class="{
@@ -120,7 +116,7 @@
                                                 'bg-red-100 dark:bg-red-900/30': isDraggingOver === '{{ $cellId }}' &&
                                                     isDropDisallowed
                                             }"
-                                            @if (!$isReadOnly) data-week-id="{{ $week['id'] }}"
+                                            @if (!$isReadOnly) data-week-id="{{ $week->id }}"
                                                 data-day="{{ $dayIndex }}"
                                                 data-slot="{{ $slotKey }}"
                                                 data-program-id="{{ $programId }}"
@@ -131,13 +127,13 @@
                                                 <div class="h-full flex items-center justify-center rounded px-2 py-1 text-xs font-medium cursor-pointer bg-{{ $programColor ?? 'blue' }}-500 text-white"
                                                     :class="{ 'opacity-50 scale-95': draggedCell === '{{ $cellId }}' }"
                                                     @if (!$isReadOnly) draggable="true"
-                                                        data-week-id="{{ $week['id'] }}"
+                                                        data-week-id="{{ $week->id }}"
                                                         data-day="{{ $dayIndex }}"
                                                         data-slot="{{ $slotKey }}"
                                                         data-program-id="{{ $programId }}"
                                                         @dragstart="handleDragStart($event)"
                                                         @dragend="handleDragEnd()"
-                                                        wire:click="editProgram({{ $programId }}, '{{ $week['id'] }}', {{ $dayIndex }}, '{{ $slotKey }}')" @endif>
+                                                        wire:click="editProgram({{ $programId }}, '{{ $week->id }}', {{ $dayIndex }}, {{ $slotKey }})" @endif>
                                                     <span class="truncate">{{ $programName }}</span>
                                                 </div>
                                             @else
@@ -149,11 +145,11 @@
                                                                 class="!text-zinc-400 dark:!text-zinc-600 hover:!text-zinc-600 dark:hover:!text-zinc-400" />
                                                             <flux:menu>
                                                                 <flux:menu.item icon="plus"
-                                                                    wire:click="openAddProgramModal('{{ $week['id'] }}', {{ $dayIndex }}, '{{ $slotKey }}')">
+                                                                    wire:click="openAddProgramModal('{{ $week->id }}', {{ $dayIndex }}, {{ $slotKey }})">
                                                                     New
                                                                 </flux:menu.item>
                                                                 <flux:menu.item icon="link"
-                                                                    wire:click="openLinkProgramModal('{{ $week['id'] }}', {{ $dayIndex }}, '{{ $slotKey }}')">
+                                                                    wire:click="openLinkProgramModal('{{ $week->id }}', {{ $dayIndex }}, {{ $slotKey }})">
                                                                     Link
                                                                 </flux:menu.item>
                                                             </flux:menu>
@@ -165,8 +161,9 @@
                                     @endfor
                                     @if ($slotKey === 0)
                                         @php
-                                            $defaultLinkedTo = $this->getDefaultWeekLinkedTo($week['id']);
-                                            $userHasUnlinked = $this->userHasUnlinkedWeek($week['id']);
+                                            $defaultLinkedTo = $this->getDefaultWeekLinkedTo($week->id);
+                                            $hasUnlinked = $this->userHasUnlinkedWeek($week->id);
+                                            $canEditWeekStructure = $user === null;
                                         @endphp
                                         <td rowspan="2"
                                             class="border border-r-0 {{ $isLinked ? 'border-dashed border-zinc-400 dark:border-zinc-500' : 'border-zinc-300 dark:border-zinc-600' }} bg-zinc-50 dark:bg-zinc-800/50 text-center">
@@ -176,19 +173,19 @@
                                                     <flux:menu>
                                                         @if ($isLinked)
                                                             <flux:menu.item
-                                                                wire:click="unlinkWeek('{{ $week['id'] }}')">
+                                                                wire:click="$dispatch('schedule-event', { type: 'unlink-week', data: { weekId: '{{ $week->id }}' } })">
                                                                 <flux:icon.link class="size-4 mr-2" />
                                                                 Unlink
                                                             </flux:menu.item>
                                                         @else
                                                             <flux:menu.item
-                                                                wire:click="openLinkModal('{{ $week['id'] }}')">
+                                                                wire:click="openLinkModal('{{ $week->id }}')">
                                                                 <flux:icon.link class="size-4 mr-2" />
                                                                 Link to...
                                                             </flux:menu.item>
                                                         @endif
                                                         <flux:menu.item
-                                                            wire:click="openRemoveModal('{{ $week['id'] }}')"
+                                                            wire:click="openRemoveModal('{{ $week->id }}')"
                                                             variant="danger">
                                                             <flux:icon.trash-2 class="size-4 mr-2" />
                                                             Remove
@@ -201,19 +198,19 @@
                                                     <flux:menu>
                                                         @if ($isLinked)
                                                             <flux:menu.item
-                                                                wire:click="unlinkWeek('{{ $week['id'] }}')">
+                                                                wire:click="$dispatch('schedule-event', { type: 'unlink-week', data: { weekId: '{{ $week->id }}' } })">
                                                                 <flux:icon.link class="size-4 mr-2" />
                                                                 Unlink
                                                             </flux:menu.item>
-                                                        @elseif ($userHasUnlinked && $defaultLinkedTo !== null)
+                                                        @elseif ($hasUnlinked && $defaultLinkedTo !== null)
                                                             <flux:menu.item
-                                                                wire:click="relinkWeekForUser('{{ $week['id'] }}')">
+                                                                wire:click="$dispatch('schedule-event', { type: 'relink-week', data: { weekId: '{{ $week->id }}' } })">
                                                                 <flux:icon.link class="size-4 mr-2" />
                                                                 Restore Link
                                                             </flux:menu.item>
                                                         @endif
                                                         <flux:menu.item
-                                                            wire:click="openRemoveModal('{{ $week['id'] }}')"
+                                                            wire:click="openRemoveModal('{{ $week->id }}')"
                                                             variant="danger">
                                                             <flux:icon.trash-2 class="size-4 mr-2" />
                                                             Remove
@@ -226,24 +223,38 @@
                                 </tr>
                             @endforeach
                         @endforeach
-                        @if ($canEdit)
-                            <tr>
-                                <td colspan="10"
-                                    class="border border-dashed border-zinc-300 dark:border-zinc-600 border-b-0 border-l-0 border-r-0 px-3 py-4 bg-zinc-50/50 dark:bg-zinc-800/30 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-colors"
-                                    wire:click="addWeek">
-                                    <div
-                                        class="flex items-center justify-center gap-2 text-zinc-400 dark:text-zinc-500">
-                                        <flux:icon.plus class="size-4" />
-                                        <span class="text-sm font-medium">Add Week</span>
-                                    </div>
-                                </td>
-                            </tr>
-                        @endif
+                        <tr>
+                            <td colspan="10"
+                                class="border border-dashed border-zinc-300 dark:border-zinc-600 border-b-0 border-l-0 border-r-0 px-3 py-4 bg-zinc-50/50 dark:bg-zinc-800/30 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-colors"
+                                wire:click="$dispatch('schedule-event', { type: 'add-week' })">
+                                <div class="flex items-center justify-center gap-2 text-zinc-400 dark:text-zinc-500">
+                                    <flux:icon.plus class="size-4" />
+                                    <span class="text-sm font-medium">Add Week</span>
+                                </div>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
         </x-section>
     </div>
+
+    <flux:modal name="remove-week" class="w-80">
+        <div class="space-y-4">
+            <flux:heading size="lg">Remove Week</flux:heading>
+            <flux:text class="text-sm text-zinc-600 dark:text-zinc-400">
+                Are you sure you want to remove this week? This action cannot be undone.
+            </flux:text>
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button variant="ghost">Cancel</flux:button>
+                </flux:modal.close>
+                <flux:button variant="danger" wire:click="confirmRemoveWeek">
+                    Remove
+                </flux:button>
+            </div>
+        </div>
+    </flux:modal>
 
     <flux:modal name="link-week" class="w-80">
         <div class="space-y-4">
@@ -260,27 +271,32 @@
             </flux:select>
             <div class="flex justify-end gap-2">
                 <flux:modal.close>
-                    <flux:button variant="ghost" wire:click="closeLinkModal">Cancel</flux:button>
+                    <flux:button variant="ghost">Cancel</flux:button>
                 </flux:modal.close>
-                <flux:button variant="primary" wire:click="linkWeek">
+                <flux:button variant="primary" wire:click="confirmLinkWeek">
                     Save
                 </flux:button>
             </div>
         </div>
     </flux:modal>
 
-    <flux:modal name="remove-week" class="w-80">
+    <flux:modal name="link-program" flyout class="w-80">
         <div class="space-y-4">
-            <flux:heading size="lg">Remove Week</flux:heading>
+            <flux:heading size="lg">Link Program</flux:heading>
             <flux:text class="text-sm text-zinc-600 dark:text-zinc-400">
-                Are you sure you want to remove this week? This action cannot be undone.
+                Select an existing program to place in this slot.
             </flux:text>
+            <flux:select wire:model="linkingProgramId" placeholder="Select a program...">
+                @foreach ($this->programOptions as $id => $name)
+                    <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
+                @endforeach
+            </flux:select>
             <div class="flex justify-end gap-2">
                 <flux:modal.close>
-                    <flux:button variant="ghost" wire:click="closeRemoveModal">Cancel</flux:button>
+                    <flux:button variant="ghost">Cancel</flux:button>
                 </flux:modal.close>
-                <flux:button variant="danger" wire:click="confirmRemoveWeek">
-                    Remove
+                <flux:button variant="primary" wire:click="confirmLinkProgram">
+                    Link
                 </flux:button>
             </div>
         </div>
@@ -325,28 +341,6 @@
                 </flux:modal.close>
                 <flux:button variant="danger" wire:click="removeFromSchedule">
                     Delete
-                </flux:button>
-            </div>
-        </div>
-    </flux:modal>
-
-    <flux:modal name="link-program" flyout class="w-80">
-        <div class="space-y-4">
-            <flux:heading size="lg">Link Program</flux:heading>
-            <flux:text class="text-sm text-zinc-600 dark:text-zinc-400">
-                Select an existing program to place in this slot.
-            </flux:text>
-            <flux:select wire:model="linkingProgramId" placeholder="Select a program...">
-                @foreach ($this->programOptions as $id => $name)
-                    <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
-                @endforeach
-            </flux:select>
-            <div class="flex justify-end gap-2">
-                <flux:modal.close>
-                    <flux:button variant="ghost">Cancel</flux:button>
-                </flux:modal.close>
-                <flux:button variant="primary" wire:click="linkProgramToSlot">
-                    Link
                 </flux:button>
             </div>
         </div>
