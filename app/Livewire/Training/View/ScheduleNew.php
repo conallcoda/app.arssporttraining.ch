@@ -4,11 +4,13 @@ namespace App\Livewire\Training\View;
 
 use App\Data\Training\Config\Schedule\ScheduleWeek;
 use App\Data\Training\Config\Schedule\ScheduleWeekCollection;
+use App\Data\Training\Config\TrainingPlanConfig;
 use App\Form\Fields\Training\Program\Color;
 use App\Models\TrainingPlan;
 use App\Models\Users\User;
 use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 
@@ -49,19 +51,23 @@ class ScheduleNew extends Component
     }
 
     #[Computed]
+    public function config(): TrainingPlanConfig
+    {
+        return TrainingPlanConfig::from($this->trainingPlan->config->all());
+    }
+
+    #[Computed]
     public function defaultSchedule(): ScheduleWeekCollection
     {
-        $weeks = $this->trainingPlan->config->get('default.schedule.weeks', []);
-
-        return ScheduleWeekCollection::fromArray($weeks);
+        return ScheduleWeekCollection::fromArray($this->config->defaultScheduleWeeks());
     }
 
     #[Computed]
     public function schedule(): ScheduleWeekCollection
     {
-        $defaultWeeks = $this->trainingPlan->config->get('default.schedule.weeks', []);
+        $defaultWeeks = $this->config->defaultScheduleWeeks();
         $userOverrides = $this->user !== null
-            ? $this->trainingPlan->config->get("users.{$this->user}.schedule.weeks", [])
+            ? $this->config->userScheduleWeeks($this->user)
             : [];
 
         return ScheduleWeekCollection::fromArrays($defaultWeeks, $userOverrides);
@@ -69,7 +75,7 @@ class ScheduleNew extends Component
 
     public function hasUserSchedule(int $userId): bool
     {
-        $userOverrides = $this->trainingPlan->config->get("users.{$userId}.schedule.weeks", []);
+        $userOverrides = $this->config->userScheduleWeeks($userId);
 
         if (empty($userOverrides)) {
             return false;
@@ -110,59 +116,14 @@ class ScheduleNew extends Component
         return $program?->config->get('color', Color::DEFAULT_COLOR) ?? Color::DEFAULT_COLOR;
     }
 
-    public function addWeek(): void
+    #[On('schedule-event')]
+    public function onScheduleEvent(string $type, array $data = []): void
     {
-        if ($this->user !== null) {
-            $this->addWeekForUser();
+        $handler = new ScheduleHandler($this->trainingPlan, $this->user);
+        $handler->handle($type, $data);
 
-            return;
-        }
-
-        $weeks = $this->trainingPlan->config->get('default.schedule.weeks', []);
-        $week1Id = $weeks[0]['id'] ?? null;
-        $maxSort = collect($weeks)->max('sort') ?? count($weeks) - 1;
-        $newSort = $maxSort + 1;
-
-        $weeks[] = [
-            'id' => "default_{$newSort}",
-            'linkedTo' => $week1Id,
-            'slots' => [],
-            'sort' => $newSort,
-        ];
-
-        $this->saveDefaultWeeks($weeks);
-    }
-
-    protected function addWeekForUser(): void
-    {
-        $schedule = $this->trainingPlan->config->get('default.schedule.weeks', []);
-        $userWeeks = $this->trainingPlan->config->get("users.{$this->user}.schedule.weeks", []);
-
-        $allWeeks = collect($schedule)->merge($userWeeks);
-        $firstWeekId = $allWeeks->first()['id'] ?? null;
-        $maxSort = $allWeeks->max('sort') ?? $allWeeks->count() - 1;
-
-        $newSort = $maxSort + 1;
-
-        $userWeeks[] = [
-            'id' => "user_{$newSort}",
-            'linkedTo' => $firstWeekId,
-            'slots' => [],
-            'sort' => $newSort,
-        ];
-
-        $this->trainingPlan->config->set("users.{$this->user}.schedule.weeks", $userWeeks);
-        $this->trainingPlan->save();
         $this->trainingPlan->refresh();
-        unset($this->schedule);
-        unset($this->defaultSchedule);
-    }
-
-    protected function saveDefaultWeeks(array $weeks): void
-    {
-        $this->trainingPlan->config->set('default.schedule.weeks', $weeks);
-        $this->trainingPlan->save();
-        $this->trainingPlan->refresh();
+        unset($this->config);
         unset($this->schedule);
         unset($this->defaultSchedule);
     }

@@ -3,6 +3,7 @@
 namespace App\Data\Training\Config;
 
 use App\Cms\Data\AbstractConfig;
+use App\Data\Training\Config\Schedule\DefaultScheduleConfig;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Optional;
 
@@ -161,6 +162,30 @@ class TrainingPlanConfig extends AbstractConfig
             'measuredWeight' => $strength->measuredWeight,
             'targetGoal' => $strength->targetGoal,
         ], fn ($v) => $v !== null);
+    }
+
+    // --- Write Accessors ---
+
+    public function setDefaultScheduleWeeks(array $weeks): void
+    {
+        $this->default->schedule = DefaultScheduleConfig::from([
+            'weeks' => $weeks,
+            'startDate' => $this->default->schedule instanceof Optional ? '' : $this->default->schedule->startDate,
+        ]);
+    }
+
+    public function setUserScheduleWeeks(int $userId, array $weeks): void
+    {
+        $user = $this->forUser($userId);
+
+        if ($user === null) {
+            $this->users[$userId] = UserTrainingPlanConfig::from(['schedule' => ['weeks' => $weeks]]);
+        } else {
+            $user->schedule = DefaultScheduleConfig::from([
+                'weeks' => $weeks,
+                'startDate' => $user->schedule instanceof Optional ? '' : $user->schedule->startDate,
+            ]);
+        }
     }
 
     // --- Helpers ---
