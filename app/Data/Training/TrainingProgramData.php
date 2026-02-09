@@ -115,11 +115,10 @@ class TrainingProgramData extends AbstractData implements HasForms
     public static function getForm(): Form
     {
         return Form::make()
-            ->withFields([
+            ->fieldset('General', [
                 ProgramName::make('name'),
                 Color::make('color'),
                 Exercises::make('exercises')->withOptions(),
-            ])
-            ->fieldset('general', 'General', ['name', 'color', 'exercises']);
+            ]);
     }
 }

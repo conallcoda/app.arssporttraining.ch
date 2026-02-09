@@ -52,10 +52,9 @@ class AthleteGroupData extends AbstractData implements HasForms
     public static function getForm(): Form
     {
         return Form::make()
-            ->withFields([
+            ->fieldset('General', [
                 GroupName::make('name'),
                 Members::make('members')->withOptions(),
-            ])
-            ->fieldset('general', 'General', ['name', 'members']);
+            ]);
     }
 }

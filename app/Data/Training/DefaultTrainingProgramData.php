@@ -67,12 +67,11 @@ class DefaultTrainingProgramData extends AbstractData implements HasForms
     public static function getForm(): Form
     {
         return Form::make()
-            ->withFields([
+            ->fieldset('General', [
                 StartDate::make('startDate')->withOptions(),
                 MeasuredReps::make('measuredReps'),
                 MeasuredWeight::make('measuredWeight'),
                 TargetGoal::make('targetGoal'),
-            ])
-            ->fieldset('general', 'General', ['startDate', 'measuredReps', 'measuredWeight', 'targetGoal']);
+            ]);
     }
 }

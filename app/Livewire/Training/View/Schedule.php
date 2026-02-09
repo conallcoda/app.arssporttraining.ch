@@ -461,39 +461,7 @@ class Schedule extends Component
     #[Computed]
     public function fieldsets(): array
     {
-        $form = $this->formConfig;
-        $allFields = $form->getFields();
-
-        if ($form->hasFieldsets()) {
-            $fieldsMap = collect($allFields)->keyBy('name');
-
-            return collect($form->getFieldsets())->map(function ($config, $name) use ($fieldsMap) {
-                if (is_callable($config)) {
-                    $config = $config($this->data);
-                }
-
-                if ($config === null) {
-                    return null;
-                }
-
-                $resolvedFields = collect($config['fields'])
-                    ->map(fn ($field) => is_string($field) ? $fieldsMap->get($field) : $field)
-                    ->filter()
-                    ->values()
-                    ->all();
-
-                return FormFieldset::make($name)
-                    ->label($config['label'])
-                    ->fields($resolvedFields)
-                    ->prefix($config['prefix'] ?? null);
-            })->filter()->values()->all();
-        }
-
-        return [
-            FormFieldset::make('general')
-                ->label('General')
-                ->fields($allFields),
-        ];
+        return $this->formConfig->resolveFieldsets($this->data);
     }
 
     protected function getAllFields(): array

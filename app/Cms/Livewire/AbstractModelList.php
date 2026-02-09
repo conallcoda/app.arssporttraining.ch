@@ -220,18 +220,7 @@ abstract class AbstractModelList extends Component
     #[Computed]
     public function fieldsets(): array
     {
-        $form = $this->formConfig;
-        $allFields = $form->getFields();
-
-        if ($form->hasFieldsets()) {
-            return $this->resolveFieldsets($form->getFieldsets(), $allFields);
-        }
-
-        return [
-            FormFieldset::make('general')
-                ->label('General')
-                ->fields($allFields),
-        ];
+        return $this->formConfig->resolveFieldsets($this->data);
     }
 
     public function updated(string $property, mixed $value): void
@@ -256,11 +245,11 @@ abstract class AbstractModelList extends Component
         $fieldsets = $form->getFieldsets();
 
         foreach ($fieldsets as $name => $config) {
-            if (! is_callable($config)) {
+            if (! isset($config['resolver'])) {
                 continue;
             }
 
-            $resolved = $config([$this->getDiscriminatorField($target) => $discriminatorValue]);
+            $resolved = ($config['resolver'])([$this->getDiscriminatorField($target) => $discriminatorValue]);
 
             if ($resolved === null) {
                 $this->data[$target] = [];
@@ -288,38 +277,6 @@ abstract class AbstractModelList extends Component
         }
 
         return '';
-    }
-
-    protected function resolveFieldsets(array $configs, array $allFields): array
-    {
-        $fieldsMap = collect($allFields)->keyBy('name');
-
-        return collect($configs)->map(function ($config, $name) use ($fieldsMap) {
-            if (is_callable($config)) {
-                $config = $config($this->data);
-            }
-
-            if ($config === null) {
-                return null;
-            }
-
-            $resolvedFields = collect($config['fields'])
-                ->map(function ($field) use ($fieldsMap) {
-                    if (is_string($field)) {
-                        return $fieldsMap->get($field);
-                    }
-
-                    return $field;
-                })
-                ->filter()
-                ->values()
-                ->all();
-
-            return FormFieldset::make($name)
-                ->label($config['label'])
-                ->fields($resolvedFields)
-                ->prefix($config['prefix'] ?? null);
-        })->filter()->values()->all();
     }
 
     protected function getAllFields(): array

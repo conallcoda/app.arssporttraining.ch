@@ -47,19 +47,17 @@ class ExerciseData extends AbstractData implements HasForms
     public static function getForm(): Form
     {
         return Form::make()
-            ->withFields([
+            ->fieldset('General', [
                 Fields\ExerciseName::make('name'),
                 Fields\ExerciseType::make('type'),
             ])
-            ->fieldset('general', 'General', ['name', 'type'])
-            ->fieldset('defaults', function (array $data): ?array {
+            ->fieldset('Defaults', function (array $data): ?array {
                 $type = ExerciseType::tryFrom($data['type'] ?? null);
                 if (! $type) {
                     return null;
                 }
 
                 return [
-                    'label' => 'Defaults',
                     'fields' => $type->getFields(),
                     'prefix' => 'data.config.'.$type->getConfigAccessor(),
                 ];
