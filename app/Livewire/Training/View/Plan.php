@@ -9,10 +9,9 @@ use App\Models\Exercise\Exercise;
 use App\Models\TrainingPlan;
 use App\Models\Users\User;
 use App\Support\WeekOptions;
-use App\Training\Data\ExerciseOverrideData;
 use App\Training\Data\TrainingBlock;
+use App\Training\Handlers\ExercisePlanHandlerInterface;
 use App\Training\Reference\RepPercentageTable;
-use App\Training\Services\TrainingBlockGenerator;
 use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
@@ -349,19 +348,19 @@ class Plan extends Component
 
     protected function getEffectiveCellValue(int $exerciseId, int $weekIndex, int $sessionIndex, int $setIndex, string $field): mixed
     {
-        $pivotConfigData = $this->findPivotConfigForExercise($exerciseId);
-        $pivotConfig = [
-            'oneRepMaxModifier' => $pivotConfigData['oneRepMaxModifier'] ?? 100,
-            'startingReps' => $pivotConfigData['startingReps'] ?? null,
-            'sets' => $pivotConfigData['sets'] ?? null,
-        ];
+        $exercise = Exercise::find($exerciseId);
+        if (! $exercise) {
+            return null;
+        }
+
+        $pivotConfig = $this->findPivotConfigForExercise($exerciseId);
 
         $programId = $this->findProgramIdForExercise($exerciseId);
         if ($programId === null) {
             return null;
         }
 
-        $block = $this->generateBlock($exerciseId, $pivotConfig, $programId);
+        $block = $this->generateBlock($exercise, $pivotConfig, $programId);
 
         if (! $block) {
             return null;
@@ -404,13 +403,7 @@ class Plan extends Component
                 continue;
             }
 
-            $set = $weeks[$weekIndex]->sessions[$sessionIndex]->sets[$setIndex];
-
-            $weeks[$weekIndex]->sessions[$sessionIndex]->sets[$setIndex] = new \App\Training\Data\TrainingSet(
-                reps: $values['reps'] ?? $set->reps,
-                weight: $values['weight'] ?? $set->weight,
-                oneRepMax: $set->oneRepMax,
-            );
+            $weeks[$weekIndex]->sessions[$sessionIndex]->sets[$setIndex] = $weeks[$weekIndex]->sessions[$sessionIndex]->sets[$setIndex]->withOverrides($values);
         }
 
         return $block->withWeeks($weeks);
@@ -643,77 +636,32 @@ class Plan extends Component
         }));
     }
 
-    public function getExerciseConfig(int $exerciseId, array $pivotExtra): array
+    public function getExerciseConfig(Exercise $exercise, array $pivotConfig): array
     {
-        $systemTarget = $this->targetGoal ?? $this->defaultData->targetGoal;
-        $systemStartingReps = $pivotExtra['startingReps'] ?? ExerciseOverrideData::DEFAULT_STARTING_REPS;
-        $systemSets = $pivotExtra['sets'] ?? ExerciseOverrideData::DEFAULT_SETS;
-        $systemTut = $pivotExtra['tut'] ?? ExerciseOverrideData::DEFAULT_TUT;
-        $systemRest = $pivotExtra['rest'] ?? ExerciseOverrideData::DEFAULT_REST;
-        $oneRepMaxModifier = $pivotExtra['oneRepMaxModifier'] ?? 100;
-
-        $defaultOverride = $this->getExerciseOverrideConfig($this->defaultExerciseOverrides, $exerciseId);
-        $userOverride = $this->getExerciseOverrideConfig($this->exerciseOverrides, $exerciseId);
-
+        $handler = $exercise->type->getPlanHandler();
+        $defaultOverride = $this->getExerciseOverrideConfig($this->defaultExerciseOverrides, $exercise->id);
+        $userOverride = $this->getExerciseOverrideConfig($this->exerciseOverrides, $exercise->id);
         $isDefaultUser = $this->user === null;
 
-        if ($isDefaultUser) {
-            return [
-                'target' => $defaultOverride['target'] ?? $systemTarget,
-                'startingReps' => $defaultOverride['startingReps'] ?? $systemStartingReps,
-                'sets' => $defaultOverride['sets'] ?? $systemSets,
-                'tut' => $defaultOverride['tut'] ?? $systemTut,
-                'rest' => $defaultOverride['rest'] ?? $systemRest,
-                'oneRepMaxModifier' => $oneRepMaxModifier,
-                'hasTargetOverride' => isset($defaultOverride['target']),
-                'hasStartingRepsOverride' => isset($defaultOverride['startingReps']),
-                'hasSetsOverride' => isset($defaultOverride['sets']),
-                'hasTutOverride' => isset($defaultOverride['tut']),
-                'hasRestOverride' => isset($defaultOverride['rest']),
-            ];
-        }
-
-        return [
-            'target' => $userOverride['target'] ?? $defaultOverride['target'] ?? $systemTarget,
-            'startingReps' => $userOverride['startingReps'] ?? $defaultOverride['startingReps'] ?? $systemStartingReps,
-            'sets' => $userOverride['sets'] ?? $defaultOverride['sets'] ?? $systemSets,
-            'tut' => $userOverride['tut'] ?? $defaultOverride['tut'] ?? $systemTut,
-            'rest' => $userOverride['rest'] ?? $defaultOverride['rest'] ?? $systemRest,
-            'oneRepMaxModifier' => $oneRepMaxModifier,
-            'hasTargetOverride' => isset($userOverride['target']),
-            'hasStartingRepsOverride' => isset($userOverride['startingReps']),
-            'hasSetsOverride' => isset($userOverride['sets']),
-            'hasTutOverride' => isset($userOverride['tut']),
-            'hasRestOverride' => isset($userOverride['rest']),
-        ];
+        return $handler->resolveConfig($exercise, $pivotConfig, $defaultOverride, $userOverride, $isDefaultUser);
     }
 
-    public function generateBlock(int $exerciseId, array $pivotExtra, int $programId): ?TrainingBlock
+    public function getHandlerForExercise(Exercise $exercise): ExercisePlanHandlerInterface
     {
-        $measuredWeight = $this->measuredWeight;
-        $measuredReps = $this->measuredReps;
+        return $exercise->type->getPlanHandler();
+    }
 
-        if ($measuredWeight === null || $measuredWeight <= 0 || $measuredReps === null || $measuredReps < 1) {
-            return null;
-        }
-
-        $config = $this->getExerciseConfig($exerciseId, $pivotExtra);
+    public function generateBlock(Exercise $exercise, array $pivotConfig, int $programId): ?TrainingBlock
+    {
+        $handler = $exercise->type->getPlanHandler();
+        $config = $this->getExerciseConfig($exercise, $pivotConfig);
         $sessionsPerWeek = $this->getSessionsPerWeekForProgram($programId);
 
-        $generator = new TrainingBlockGenerator;
+        $measuredData = $handler->needsMeasuredData()
+            ? ['measuredWeight' => $this->measuredWeight, 'measuredReps' => $this->measuredReps]
+            : null;
 
-        return $generator->generate(
-            measuredWeight: $measuredWeight,
-            measuredReps: $measuredReps,
-            oneRepMaxModifier: $config['oneRepMaxModifier'],
-            targetPercentage: $config['target'],
-            startingReps: $config['startingReps'],
-            sets: $config['sets'],
-            weeks: $this->weeks,
-            sessionsPerWeek: $sessionsPerWeek,
-            deloadEnabled: true,
-            deloadSetsReduction: 1,
-        );
+        return $handler->generateBlock($config, $this->weeks, $sessionsPerWeek, $measuredData);
     }
 
     public function getPlaceholder(string $field): mixed
@@ -949,23 +897,20 @@ class Plan extends Component
 
     protected function getEffectiveWeekValue(int $exerciseId, int $weekIndex, string $field): mixed
     {
-        $extra = $this->findPivotConfigForExercise($exerciseId);
         $exercise = Exercise::find($exerciseId);
-        $exerciseTypeConfig = $exercise?->config?->strength;
+        if (! $exercise) {
+            return null;
+        }
 
-        $systemTut = $extra['tut'] ?? $exerciseTypeConfig?->timeUnderTension ?? ExerciseOverrideData::DEFAULT_TUT;
-        $systemRest = $extra['rest'] ?? $exerciseTypeConfig?->rest ?? ExerciseOverrideData::DEFAULT_REST;
+        $pivotConfig = $this->findPivotConfigForExercise($exerciseId);
+        $handler = $exercise->type->getPlanHandler();
+        $config = $this->getExerciseConfig($exercise, $pivotConfig);
+        $defaultWeekValues = $handler->getDefaultWeekValues($config);
 
         $defaultExerciseOverride = $this->getExerciseOverrideConfig($this->defaultExerciseOverrides, $exerciseId);
         $defaultWeekOverride = $this->findWeekOverrideData($this->defaultWeekOverrides[$exerciseId] ?? [], $weekIndex);
 
-        $baseValue = match ($field) {
-            'tut' => $defaultWeekOverride['tut'] ?? $defaultExerciseOverride['tut'] ?? $systemTut,
-            'rest' => $defaultWeekOverride['rest'] ?? $defaultExerciseOverride['rest'] ?? $systemRest,
-            default => null,
-        };
-
-        return $baseValue;
+        return $defaultWeekOverride[$field] ?? $defaultExerciseOverride[$field] ?? $defaultWeekValues[$field] ?? null;
     }
 
     protected function weekValuesMatch(mixed $value, mixed $originalValue, string $field): bool
@@ -1070,13 +1015,7 @@ class Plan extends Component
                 continue;
             }
 
-            $set = $weeks[$weekIndex]->sessions[$sessionIndex]->sets[$setIndex];
-
-            $weeks[$weekIndex]->sessions[$sessionIndex]->sets[$setIndex] = new \App\Training\Data\TrainingSet(
-                reps: $values['reps'] ?? $set->reps,
-                weight: $values['weight'] ?? $set->weight,
-                oneRepMax: $set->oneRepMax,
-            );
+            $weeks[$weekIndex]->sessions[$sessionIndex]->sets[$setIndex] = $weeks[$weekIndex]->sessions[$sessionIndex]->sets[$setIndex]->withOverrides($values);
         }
 
         return $block->withWeeks($weeks);

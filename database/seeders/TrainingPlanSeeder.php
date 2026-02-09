@@ -27,40 +27,155 @@ class TrainingPlanSeeder extends Seeder
         $usersWithSort = $users->mapWithKeys(fn ($id, $index) => [$id => ['sort' => $index]])->all();
         $plan->users()->attach($usersWithSort);
 
-        $exercises = Exercise::take(4)->get();
+        $programs = [];
 
-        if ($exercises->count() >= 4) {
-            $program1 = TrainingPlanProgram::create([
-                'training_plan_id' => $plan->id,
-                'name' => 'Strength 1',
-            ]);
-            $program1->exercises()->attach([
-                $exercises[0]->id => ['sort' => 0, 'config' => $this->getExerciseConfig($exercises[0])],
-                $exercises[1]->id => ['sort' => 1, 'config' => $this->getExerciseConfig($exercises[1])],
-            ]);
+        $programs[] = $this->createStrengthAutomaticProgram($plan);
+        $programs[] = $this->createStrengthManualProgram($plan);
+        $programs[] = $this->createConditioningProgram($plan);
+        $programs[] = $this->createTimedProgram($plan);
+        $programs[] = $this->createCardioProgram($plan);
 
-            $program2 = TrainingPlanProgram::create([
-                'training_plan_id' => $plan->id,
-                'name' => 'Strength 2',
-            ]);
-            $program2->exercises()->attach([
-                $exercises[2]->id => ['sort' => 0, 'config' => $this->getExerciseConfig($exercises[2])],
-                $exercises[3]->id => ['sort' => 1, 'config' => $this->getExerciseConfig($exercises[3])],
-            ]);
-
-            $this->initializeScheduleWithPrograms($plan, $program1, $program2);
-        }
+        $this->initializeScheduleWithPrograms($plan, $programs);
     }
 
-    private function initializeScheduleWithPrograms(TrainingPlan $plan, TrainingPlanProgram $program1, TrainingPlanProgram $program2): void
+    private function createStrengthAutomaticProgram(TrainingPlan $plan): TrainingPlanProgram
+    {
+        $program = TrainingPlanProgram::create([
+            'training_plan_id' => $plan->id,
+            'name' => 'Strength Auto',
+        ]);
+
+        $exercises = Exercise::where('type', 'strength_automatic')->take(2)->get();
+
+        $attachData = [];
+        foreach ($exercises as $index => $exercise) {
+            $config = $exercise->config?->strength_automatic;
+            $attachData[$exercise->id] = [
+                'sort' => $index,
+                'config' => [
+                    'oneRepMaxModifier' => $config?->oneRepMaxModifier ?? 100,
+                    'startingReps' => $config?->startingReps ?? 12,
+                    'tut' => $config?->timeUnderTension ?? '3010',
+                    'rest' => $config?->rest ?? 30,
+                ],
+            ];
+        }
+        $program->exercises()->attach($attachData);
+
+        return $program;
+    }
+
+    private function createStrengthManualProgram(TrainingPlan $plan): TrainingPlanProgram
+    {
+        $program = TrainingPlanProgram::create([
+            'training_plan_id' => $plan->id,
+            'name' => 'Strength Manual',
+        ]);
+
+        $exercises = Exercise::where('type', 'strength_manual')->take(2)->get();
+
+        $attachData = [];
+        foreach ($exercises as $index => $exercise) {
+            $config = $exercise->config?->strength_manual;
+            $attachData[$exercise->id] = [
+                'sort' => $index,
+                'config' => [
+                    'startingWeight' => $config?->startingWeight ?? 0,
+                    'startingReps' => $config?->startingReps ?? 12,
+                    'tut' => $config?->timeUnderTension ?? '3010',
+                    'rest' => $config?->rest ?? 30,
+                ],
+            ];
+        }
+        $program->exercises()->attach($attachData);
+
+        return $program;
+    }
+
+    private function createConditioningProgram(TrainingPlan $plan): TrainingPlanProgram
+    {
+        $program = TrainingPlanProgram::create([
+            'training_plan_id' => $plan->id,
+            'name' => 'Conditioning',
+        ]);
+
+        $exercises = Exercise::where('type', 'conditioning')->take(2)->get();
+
+        $attachData = [];
+        foreach ($exercises as $index => $exercise) {
+            $config = $exercise->config?->conditioning;
+            $attachData[$exercise->id] = [
+                'sort' => $index,
+                'config' => [
+                    'sets' => 3,
+                    'rest' => $config?->rest ?? 30,
+                ],
+            ];
+        }
+        $program->exercises()->attach($attachData);
+
+        return $program;
+    }
+
+    private function createTimedProgram(TrainingPlan $plan): TrainingPlanProgram
+    {
+        $program = TrainingPlanProgram::create([
+            'training_plan_id' => $plan->id,
+            'name' => 'Timed',
+        ]);
+
+        $exercises = Exercise::where('type', 'timed')->take(2)->get();
+
+        $attachData = [];
+        foreach ($exercises as $index => $exercise) {
+            $config = $exercise->config?->timed;
+            $attachData[$exercise->id] = [
+                'sort' => $index,
+                'config' => [
+                    'duration' => $config?->duration ?? 60,
+                    'sets' => 3,
+                    'rest' => $config?->rest ?? 30,
+                ],
+            ];
+        }
+        $program->exercises()->attach($attachData);
+
+        return $program;
+    }
+
+    private function createCardioProgram(TrainingPlan $plan): TrainingPlanProgram
+    {
+        $program = TrainingPlanProgram::create([
+            'training_plan_id' => $plan->id,
+            'name' => 'Cardio',
+        ]);
+
+        $exercises = Exercise::where('type', 'cardio')->take(2)->get();
+
+        $attachData = [];
+        foreach ($exercises as $index => $exercise) {
+            $config = $exercise->config?->cardio;
+            $attachData[$exercise->id] = [
+                'sort' => $index,
+                'config' => [
+                    'pace' => $config?->pace ?? '00:00',
+                    'watts' => $config?->watts ?? 0,
+                ],
+            ];
+        }
+        $program->exercises()->attach($attachData);
+
+        return $program;
+    }
+
+    private function initializeScheduleWithPrograms(TrainingPlan $plan, array $programs): void
     {
         $week1Id = 'default_0';
 
-        $slots = [
-            ['day' => 0, 'slot' => 0, 'programId' => $program1->id],
-            ['day' => 4, 'slot' => 0, 'programId' => $program1->id, 'isLinked' => true],
-            ['day' => 1, 'slot' => 1, 'programId' => $program2->id],
-        ];
+        $slots = [];
+        foreach ($programs as $index => $program) {
+            $slots[] = ['day' => $index, 'slot' => 0, 'programId' => $program->id];
+        }
 
         $weeks = [
             [
@@ -82,17 +197,5 @@ class TrainingPlanSeeder extends Seeder
 
         $plan->config->set('default.schedule.weeks', $weeks);
         $plan->save();
-    }
-
-    private function getExerciseConfig(Exercise $exercise): array
-    {
-        $defaults = $exercise->config?->strength_automatic;
-
-        return [
-            'oneRepMaxModifier' => $defaults?->oneRepMaxModifier ?? 100,
-            'startingReps' => $defaults?->startingReps ?? 12,
-            'timeUnderTension' => $defaults?->timeUnderTension ?? '3010',
-            'rest' => $defaults?->rest ?? 30,
-        ];
     }
 }

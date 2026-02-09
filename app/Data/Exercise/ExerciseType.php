@@ -2,6 +2,13 @@
 
 namespace App\Data\Exercise;
 
+use App\Training\Handlers\CardioPlanHandler;
+use App\Training\Handlers\ConditioningPlanHandler;
+use App\Training\Handlers\ExercisePlanHandlerInterface;
+use App\Training\Handlers\StrengthAutomaticPlanHandler;
+use App\Training\Handlers\StrengthManualPlanHandler;
+use App\Training\Handlers\TimedPlanHandler;
+
 enum ExerciseType: string
 {
     case StrengthAutomatic = 'strength_automatic';
@@ -46,5 +53,16 @@ enum ExerciseType: string
     public function getFields(array $data = []): array
     {
         return $this->getConfigClass()::getFields($data);
+    }
+
+    public function getPlanHandler(): ExercisePlanHandlerInterface
+    {
+        return match ($this) {
+            self::StrengthAutomatic => new StrengthAutomaticPlanHandler,
+            self::StrengthManual => new StrengthManualPlanHandler,
+            self::Conditioning => new ConditioningPlanHandler,
+            self::Timed => new TimedPlanHandler,
+            self::Cardio => new CardioPlanHandler,
+        };
     }
 }
