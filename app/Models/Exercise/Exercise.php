@@ -2,6 +2,7 @@
 
 namespace App\Models\Exercise;
 
+use App\Cms\Models\Concerns\HasQueryBuilder;
 use App\Cms\Models\Concerns\HasTags;
 use App\Cms\Models\Contracts\Taggable;
 use App\Data\Exercise\ExerciseConfig;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Exercise extends Model implements Taggable
 {
+    use HasQueryBuilder;
     use HasTags;
     use SoftDeletes;
 

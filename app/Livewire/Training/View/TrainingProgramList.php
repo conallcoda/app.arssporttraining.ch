@@ -4,6 +4,7 @@ namespace App\Livewire\Training\View;
 
 use App\Cms\Display\DisplayFields\Relationship;
 use App\Cms\Display\DisplayFields\Text;
+use App\Cms\Display\Table;
 use App\Cms\Livewire\AbstractModelList;
 use App\Cms\Livewire\Concerns\InteractsWithParentView;
 use App\Data\Training\TrainingProgramData;
@@ -34,12 +35,14 @@ class TrainingProgramList extends AbstractModelList
             ->where('training_plan_id', $this->trainingPlan->id);
     }
 
-    protected function getColumns(): array
+    protected function getTable(): Table
     {
-        return [
-            Text::make('name')->label('Name')->modal(),
-            Relationship::make('exercises')->label('Exercises')->modal()->width('w-full'),
-        ];
+        return Table::make()
+            ->columns([
+                Text::make('name')->label('Name')->modal(),
+                Relationship::make('exercises')->label('Exercises')->modal()->width('w-full'),
+            ])
+            ->limit(100);
     }
 
     protected function dataFromModel(Model $model): TrainingProgramData
@@ -53,11 +56,6 @@ class TrainingProgramList extends AbstractModelList
         $data->training_plan_id = $this->trainingPlan->id;
 
         return $data;
-    }
-
-    protected function getPerPage(): int
-    {
-        return 100;
     }
 
     protected function emit(): void

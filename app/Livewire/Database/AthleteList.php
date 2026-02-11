@@ -4,6 +4,7 @@ namespace App\Livewire\Database;
 
 use App\Cms\Display\DisplayFields\Id;
 use App\Cms\Display\DisplayFields\Text;
+use App\Cms\Display\Table;
 use App\Cms\Livewire\AbstractModelList;
 use App\Data\Athlete\AthleteData;
 use App\Models\Users\User;
@@ -22,18 +23,19 @@ class AthleteList extends AbstractModelList
         return User::query()->where('type', UserTypeEnum::Athlete);
     }
 
-    protected function getColumns(): array
+    protected function getTable(): Table
     {
-        return [
-            Id::make(),
-            Text::make('forename')
-                ->label('Forename')
-                ->width('w-1/3')
-                ->modal(),
-            Text::make('surname')
-                ->label('Surname')
-                ->width('w-1/3')
-                ->modal(),
-        ];
+        return Table::make()
+            ->columns([
+                Id::make(),
+                Text::make('forename')
+                    ->label('Forename')
+                    ->width('w-1/3')
+                    ->modal(),
+                Text::make('surname')
+                    ->label('Surname')
+                    ->width('w-1/3')
+                    ->modal(),
+            ]);
     }
 }

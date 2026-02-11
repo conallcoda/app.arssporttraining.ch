@@ -5,6 +5,7 @@ namespace App\Livewire\Training;
 use App\Cms\Display\DisplayFields\Id;
 use App\Cms\Display\DisplayFields\Relationship;
 use App\Cms\Display\DisplayFields\View;
+use App\Cms\Display\Table;
 use App\Cms\Form\Action;
 use App\Cms\Form\DuplicateNameForm;
 use App\Cms\Livewire\AbstractModelList;
@@ -24,29 +25,26 @@ class TrainingPlanList extends AbstractModelList
         return TrainingPlan::query();
     }
 
-    protected function getColumns(): array
+    protected function getTable(): Table
     {
-        return [
-            Id::make(),
-            View::make('name', TrainingPlanView::class)->label('Name'),
-            Relationship::make('users')->label('Athletes'),
-            Relationship::make('userGroups')->label('Athlete Groups'),
-        ];
-    }
-
-    protected function getExtraActions(): array
-    {
-        return [
-            Action::make('duplicate', 'Duplicate')
-                ->rowMenu()
-                ->icon('copy')
-                ->formModal(DuplicateNameForm::class, 'Duplicate '.$this->getEntityName(), 'Duplicate')
-                ->handler('handleDuplicateSubmitted')
-                ->prepareData(fn (TrainingPlan $model) => [
-                    'id' => $model->id,
-                    'name' => ($model->name ?? '').' (Copy)',
-                ]),
-        ];
+        return Table::make()
+            ->columns([
+                Id::make(),
+                View::make('name', TrainingPlanView::class)->label('Name'),
+                Relationship::make('users')->label('Athletes'),
+                Relationship::make('userGroups')->label('Athlete Groups'),
+            ])
+            ->actions([
+                Action::make('duplicate', 'Duplicate')
+                    ->rowMenu()
+                    ->icon('copy')
+                    ->formModal(DuplicateNameForm::class, 'Duplicate '.$this->getEntityName(), 'Duplicate')
+                    ->handler('handleDuplicateSubmitted')
+                    ->prepareData(fn (TrainingPlan $model) => [
+                        'id' => $model->id,
+                        'name' => ($model->name ?? '').' (Copy)',
+                    ]),
+            ]);
     }
 
     public function handleDuplicateSubmitted(array $data): void

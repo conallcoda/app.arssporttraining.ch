@@ -4,6 +4,7 @@ namespace App\Livewire\Database;
 
 use App\Cms\Display\DisplayFields\Relationship;
 use App\Cms\Display\DisplayFields\Text;
+use App\Cms\Display\Table;
 use App\Cms\Livewire\AbstractModelList;
 use App\Data\Athlete\AthleteGroupData;
 use App\Models\Users\UserGroup;
@@ -21,11 +22,12 @@ class AthleteGroupList extends AbstractModelList
         return UserGroup::query();
     }
 
-    protected function getColumns(): array
+    protected function getTable(): Table
     {
-        return [
-            Text::make('name')->label('Name')->modal(),
-            Relationship::make('members')->label('Members')->modal()->width('w-full'),
-        ];
+        return Table::make()
+            ->columns([
+                Text::make('name')->label('Name')->modal(),
+                Relationship::make('members')->label('Members')->modal()->width('w-full'),
+            ]);
     }
 }

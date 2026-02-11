@@ -5,6 +5,7 @@ namespace App\Cms\Livewire;
 use App\Cms\Data\AbstractData;
 use App\Cms\Display\DisplayField;
 use App\Cms\Display\DisplayFields\Relationship as RelationshipColumn;
+use App\Cms\Display\Table;
 use App\Cms\Form\Action;
 use App\Cms\Form\ActionPlacement;
 use App\Cms\Form\Field;
@@ -38,7 +39,7 @@ abstract class AbstractModelList extends Component
 
     abstract protected function getBaseQuery(): Builder;
 
-    abstract protected function getColumns(): array;
+    abstract protected function getTable(): Table;
 
     protected function isSortable(): bool
     {
@@ -114,7 +115,7 @@ abstract class AbstractModelList extends Component
 
     protected function getExtraActions(): array
     {
-        return [];
+        return $this->resolveTable()->getActions();
     }
 
     #[Computed]
@@ -395,15 +396,20 @@ abstract class AbstractModelList extends Component
         return $this->getDataClass()::from($model);
     }
 
+    protected function resolveTable(): Table
+    {
+        return $this->getTable();
+    }
+
     protected function getPerPage(): int
     {
-        return 10;
+        return $this->resolveTable()->getLimit();
     }
 
     #[Computed]
     public function columns(): array
     {
-        return $this->getColumns();
+        return $this->resolveTable()->getColumns();
     }
 
     public function mount(): void
@@ -453,7 +459,7 @@ abstract class AbstractModelList extends Component
 
     protected function getRelationshipsToLoad(): array
     {
-        return collect($this->getColumns())
+        return collect($this->resolveTable()->getColumns())
             ->filter(fn (DisplayField $column) => $column instanceof RelationshipColumn)
             ->map(fn (DisplayField $column) => $column->field)
             ->values()

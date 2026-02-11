@@ -6,6 +6,7 @@ use App\Cms\Data\AbstractData;
 use App\Cms\Display\DisplayFields\Badge;
 use App\Cms\Display\DisplayFields\Id;
 use App\Cms\Display\DisplayFields\Text;
+use App\Cms\Display\Table;
 use App\Cms\Livewire\AbstractModelList;
 use App\Data\Exercise\ExerciseData;
 use App\Data\Exercise\ExerciseType;
@@ -71,22 +72,23 @@ class ExerciseList extends AbstractModelList
         ]);
     }
 
-    protected function getColumns(): array
+    protected function getTable(): Table
     {
-        return [
-            Id::make(),
-            Text::make('name')
-                ->label('Name')
-                ->width('w-1/3')
-                ->modal(),
-            Badge::make('type')
-                ->label('Type')
-                ->width('w-1/6')
-                ->enum(ExerciseType::class)
-                ->modal(),
-            Badge::make('defaults')
-                ->label('Defaults')
-                ->source(fn (ExerciseData $data) => $data->getDefaultsBadges()),
-        ];
+        return Table::make()
+            ->columns([
+                Id::make(),
+                Text::make('name')
+                    ->label('Name')
+                    ->width('w-1/3')
+                    ->modal(),
+                Badge::make('type')
+                    ->label('Type')
+                    ->width('w-1/6')
+                    ->enum(ExerciseType::class)
+                    ->modal(),
+                Badge::make('defaults')
+                    ->label('Defaults')
+                    ->source(fn (ExerciseData $data) => $data->getDefaultsBadges()),
+            ]);
     }
 }
