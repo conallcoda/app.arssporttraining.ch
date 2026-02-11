@@ -2,9 +2,11 @@
 
 namespace App\Livewire\Training;
 
+use App\Cms\Display\DisplayFields\Id;
+use App\Cms\Display\DisplayFields\Relationship;
+use App\Cms\Display\DisplayFields\View;
 use App\Cms\Form\Action;
 use App\Cms\Form\DuplicateNameForm;
-use App\Cms\Form\TableColumn;
 use App\Cms\Livewire\AbstractModelList;
 use App\Data\Training\TrainingPlanData;
 use App\Models\TrainingPlan;
@@ -25,10 +27,10 @@ class TrainingPlanList extends AbstractModelList
     protected function getColumns(): array
     {
         return [
-            TableColumn::id(),
-            TableColumn::view('name', TrainingPlanView::class)->label('Name'),
-            TableColumn::relationship('users')->label('Athletes'),
-            TableColumn::relationship('userGroups')->label('Athlete Groups'),
+            Id::make(),
+            View::make('name', TrainingPlanView::class)->label('Name'),
+            Relationship::make('users')->label('Athletes'),
+            Relationship::make('userGroups')->label('Athlete Groups'),
         ];
     }
 

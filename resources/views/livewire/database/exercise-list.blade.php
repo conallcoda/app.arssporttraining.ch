@@ -1,3 +1,9 @@
+@php
+    use App\Cms\Display\DisplayFields\Badge as BadgeColumn;
+    use App\Cms\Display\DisplayFields\Relationship as RelationshipColumn;
+    use App\Cms\Display\DisplayFields\View as ViewColumn;
+@endphp
+
 <div>
     @unless ($compact)
         <div class="flex items-center justify-between mb-3">
@@ -87,22 +93,7 @@
                     <flux:table.row wire:key="item-{{ $item->id }}-{{ $this->refreshKey }}">
                         @foreach ($this->columns as $column)
                             <flux:table.cell>
-                                @if ($column->editable)
-                                    <div x-data="editable_cell($wire, 'update', [{{ $item->id }}, '{{ $column->field }}'], {{ json_encode($item->{$column->field}) }}, '{{ $column->suffix ?? '' }}'
-                                        {{ $column->type === 'text' ? ', false' : '' }})" @click="startEditing" class="cursor-pointer w-full">
-                                        <div x-show="!editing"
-                                            x-text="value{{ $column->suffix ? " + '" . $column->suffix . "'" : '' }}"
-                                            class="py-1 truncate border border-transparent"></div>
-                                        <input x-show="editing" x-cloak x-ref="input" x-model="value" @click.stop
-                                            @blur="save" @keydown="handleKeydown" type="{{ $column->type }}"
-                                            @if ($column->type === 'number') step="{{ $column->step ?? 'any' }}"
-                                            @if ($column->min !== null) min="{{ $column->min }}" @endif
-                                            @if ($column->max !== null) max="{{ $column->max }}" @endif
-                                            @endif
-                                        class="w-full px-2 py-1 text-sm border border-zinc-300 dark:border-zinc-600 rounded outline-none focus:border-zinc-500 focus:ring-0"
-                                        />
-                                    </div>
-                                @elseif ($column->type === 'relationship')
+                                @if ($column instanceof RelationshipColumn)
                                     @php $relation = $item->{$column->field}; @endphp
                                     <div class="py-1 flex flex-wrap gap-1">
                                         @if (is_iterable($relation))
@@ -139,7 +130,7 @@
                                             @endif
                                         @endif
                                     </div>
-                                @elseif ($column->badge)
+                                @elseif ($column instanceof BadgeColumn)
                                     <div class="py-1 flex flex-wrap gap-1">
                                         @if ($column->source)
                                             @php $sourceBadges = $column->getSourceData($item); @endphp
@@ -175,7 +166,7 @@
                                             @endforeach
                                         @endif
                                     </div>
-                                @elseif ($column->type === 'view')
+                                @elseif ($column instanceof ViewColumn)
                                     <div class="py-1 truncate">
                                         <a href="{{ route($column->getViewRouteName(), $model) }}"
                                             class="hover:underline">
@@ -184,7 +175,7 @@
                                             {{ $column->formatValue($item->{$column->field}) }}{{ $column->suffix }}
                                         </a>
                                     </div>
-                                @elseif ($column->modalField)
+                                @elseif (property_exists($column, 'modalField') && $column->modalField)
                                     <div class="py-1 truncate cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded"
                                         x-on:click="Livewire.dispatch('open-{{ $this->editModalName }}', {
                                             data: {{ Js::from($item->toArray()) }},

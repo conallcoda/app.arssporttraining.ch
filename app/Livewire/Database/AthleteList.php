@@ -2,7 +2,8 @@
 
 namespace App\Livewire\Database;
 
-use App\Cms\Form\TableColumn;
+use App\Cms\Display\DisplayFields\Id;
+use App\Cms\Display\DisplayFields\Text;
 use App\Cms\Livewire\AbstractModelList;
 use App\Data\Athlete\AthleteData;
 use App\Models\Users\User;
@@ -24,12 +25,12 @@ class AthleteList extends AbstractModelList
     protected function getColumns(): array
     {
         return [
-            TableColumn::id(),
-            TableColumn::text('forename')
+            Id::make(),
+            Text::make('forename')
                 ->label('Forename')
                 ->width('w-1/3')
                 ->modal(),
-            TableColumn::text('surname')
+            Text::make('surname')
                 ->label('Surname')
                 ->width('w-1/3')
                 ->modal(),

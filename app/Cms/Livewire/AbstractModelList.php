@@ -3,12 +3,13 @@
 namespace App\Cms\Livewire;
 
 use App\Cms\Data\AbstractData;
+use App\Cms\Display\DisplayField;
+use App\Cms\Display\DisplayFields\Relationship as RelationshipColumn;
 use App\Cms\Form\Action;
 use App\Cms\Form\ActionPlacement;
 use App\Cms\Form\Field;
 use App\Cms\Form\Fields\Relationship;
 use App\Cms\Form\Form;
-use App\Cms\Form\TableColumn;
 use Flux\Flux;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -62,11 +63,11 @@ abstract class AbstractModelList extends Component
 
     protected function getAddAction(): Action
     {
-        return Action::make('add', 'Add ' . $this->getEntityName())
+        return Action::make('add', 'Add '.$this->getEntityName())
             ->header()
             ->icon('plus')
             ->variant('primary')
-            ->formModal($this->getDataClass(), 'Add ' . $this->getEntityName())
+            ->formModal($this->getDataClass(), 'Add '.$this->getEntityName())
             ->handler('handleFormSubmitted');
     }
 
@@ -75,7 +76,7 @@ abstract class AbstractModelList extends Component
         return Action::make('edit', 'Edit')
             ->row()
             ->icon('pencil')
-            ->formModal($this->getDataClass(), 'Edit ' . $this->getEntityName())
+            ->formModal($this->getDataClass(), 'Edit '.$this->getEntityName())
             ->passesItemData()
             ->handler('handleFormSubmitted');
     }
@@ -86,8 +87,8 @@ abstract class AbstractModelList extends Component
             ->row()
             ->icon('trash-2')
             ->confirm(
-                heading: 'Delete ' . $this->getEntityName() . '?',
-                description: "You're about to delete this " . strtolower($this->getEntityName()) . ".\nThis action cannot be reversed.",
+                heading: 'Delete '.$this->getEntityName().'?',
+                description: "You're about to delete this ".strtolower($this->getEntityName()).".\nThis action cannot be reversed.",
                 buttonLabel: 'Delete',
             )
             ->handler('removeItem');
@@ -126,7 +127,7 @@ abstract class AbstractModelList extends Component
     public function headerActions(): array
     {
         return collect($this->actions)
-            ->filter(fn(Action $a) => $a->placement === ActionPlacement::Header)
+            ->filter(fn (Action $a) => $a->placement === ActionPlacement::Header)
             ->values()
             ->all();
     }
@@ -135,7 +136,7 @@ abstract class AbstractModelList extends Component
     public function rowActions(): array
     {
         return collect($this->actions)
-            ->filter(fn(Action $a) => $a->placement === ActionPlacement::Row)
+            ->filter(fn (Action $a) => $a->placement === ActionPlacement::Row)
             ->values()
             ->all();
     }
@@ -144,7 +145,7 @@ abstract class AbstractModelList extends Component
     public function rowMenuActions(): array
     {
         return collect($this->actions)
-            ->filter(fn(Action $a) => $a->placement === ActionPlacement::RowMenu)
+            ->filter(fn (Action $a) => $a->placement === ActionPlacement::RowMenu)
             ->values()
             ->all();
     }
@@ -180,7 +181,7 @@ abstract class AbstractModelList extends Component
     public function confirmModals(): array
     {
         return collect($this->actions)
-            ->filter(fn(Action $a) => $a->isConfirm())
+            ->filter(fn (Action $a) => $a->isConfirm())
             ->values()
             ->all();
     }
@@ -194,7 +195,7 @@ abstract class AbstractModelList extends Component
             }
         }
 
-        return 'add-' . $this->getEntitySlug();
+        return 'add-'.$this->getEntitySlug();
     }
 
     public function getModalNameForAction(Action $action): string
@@ -373,7 +374,7 @@ abstract class AbstractModelList extends Component
 
     protected function getEventName(): string
     {
-        return Str::plural($this->getEntitySlug()) . '-updated';
+        return Str::plural($this->getEntitySlug()).'-updated';
     }
 
     protected function getEventDataKey(): string
@@ -453,8 +454,8 @@ abstract class AbstractModelList extends Component
     protected function getRelationshipsToLoad(): array
     {
         return collect($this->getColumns())
-            ->filter(fn(TableColumn $column) => $column->type === 'relationship')
-            ->map(fn(TableColumn $column) => $column->field)
+            ->filter(fn (DisplayField $column) => $column instanceof RelationshipColumn)
+            ->map(fn (DisplayField $column) => $column->field)
             ->values()
             ->all();
     }
@@ -462,8 +463,8 @@ abstract class AbstractModelList extends Component
     protected function getFormRelationshipsToLoad(): array
     {
         return collect($this->getAllFields())
-            ->filter(fn(Field $field) => $field instanceof Relationship)
-            ->map(fn(Field $field) => $field->name)
+            ->filter(fn (Field $field) => $field instanceof Relationship)
+            ->map(fn (Field $field) => $field->name)
             ->values()
             ->all();
     }
@@ -487,17 +488,6 @@ abstract class AbstractModelList extends Component
         }
 
         return $query->paginate($this->getPerPage());
-    }
-
-    public function update(int $id, string $field, mixed $value): void
-    {
-        $model = $this->getBaseQuery()->findOrFail($id);
-        $data = $this->dataFromModel($model);
-        $data->{$field} = $value;
-        $data->persist();
-
-        unset($this->items);
-        $this->emit();
     }
 
     public function handleFormSubmitted(array $data): void
@@ -528,7 +518,7 @@ abstract class AbstractModelList extends Component
 
         $allItems = $query
             ->get()
-            ->map(fn(Model $model) => $this->dataFromModel($model)->toArray())
+            ->map(fn (Model $model) => $this->dataFromModel($model)->toArray())
             ->all();
 
         $this->dispatch($this->getEventName(), ...[$this->getEventDataKey() => $allItems]);

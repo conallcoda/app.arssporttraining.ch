@@ -2,7 +2,8 @@
 
 namespace App\Livewire\Training\View;
 
-use App\Cms\Form\TableColumn;
+use App\Cms\Display\DisplayFields\Relationship;
+use App\Cms\Display\DisplayFields\Text;
 use App\Cms\Livewire\AbstractModelList;
 use App\Cms\Livewire\Concerns\InteractsWithParentView;
 use App\Data\Training\TrainingProgramData;
@@ -36,8 +37,8 @@ class TrainingProgramList extends AbstractModelList
     protected function getColumns(): array
     {
         return [
-            TableColumn::text('name')->label('Name')->modal(),
-            TableColumn::relationship('exercises')->label('Exercises')->modal()->width('w-full'),
+            Text::make('name')->label('Name')->modal(),
+            Relationship::make('exercises')->label('Exercises')->modal()->width('w-full'),
         ];
     }
 
