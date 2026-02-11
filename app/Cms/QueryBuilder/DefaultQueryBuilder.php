@@ -11,4 +11,10 @@ class DefaultQueryBuilder extends QueryBuilder
     {
         return [];
     }
+
+    /** @return array<int, string|\Spatie\QueryBuilder\AllowedFilter> */
+    public function getDefinedFilters(): array
+    {
+        return [];
+    }
 }

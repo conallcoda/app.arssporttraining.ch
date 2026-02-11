@@ -9,7 +9,13 @@
             } else {
                 input = $el.querySelector(`[data-field='${field}']`);
             }
-            if (input) input.focus();
+            if (!input) return;
+            const trigger = input.querySelector('[data-flux-pillbox-trigger]');
+            if (trigger) {
+                trigger.click();
+            } else {
+                input.focus();
+            }
         })">
         <div class="space-y-6">
             <flux:heading size="lg">{{ $activeTitle ?? $title }}</flux:heading>

@@ -2,19 +2,82 @@
     use App\Cms\Display\DisplayFields\Badge as BadgeColumn;
     use App\Cms\Display\DisplayFields\Relationship as RelationshipColumn;
     use App\Cms\Display\DisplayFields\View as ViewColumn;
+    use App\Cms\Form\Fields\Select as SelectField;
 @endphp
 
 <div>
     @unless ($compact)
-        <div class="flex justify-end mb-3">
-            @foreach ($this->headerActions as $action)
-                <flux:button variant="{{ $action->variant ?? 'primary' }}" size="sm" icon="{{ $action->icon }}"
-                    x-on:click="Livewire.dispatch('open-{{ $this->getModalNameForAction($action) }}', { title: '{{ $action->modalTitle }}' })">
-                    {{ $action->label }}
-                </flux:button>
-            @endforeach
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+                @if (count($tableFilters) > 0)
+                    <flux:button variant="primary" size="sm" icon="list-filter"
+                        x-on:click="Flux.modal('{{ $entitySlug }}-filters').show()">
+                        Filter
+                    </flux:button>
+
+                    @if ($this->hasVisibleFilters())
+                        @foreach ($tableFilters as $tableFilter)
+                            @php
+                                $filterName = $tableFilter->getName();
+                                $filterValue = $this->filters[$filterName] ?? null;
+                                $filterField = $tableFilter->getField();
+                            @endphp
+                            @if (array_key_exists($filterName, $this->filters) && $filterField)
+                                <flux:input.group>
+                                    <flux:input.group.prefix>{{ $tableFilter->getLabel() }}</flux:input.group.prefix>
+                                    @if ($filterField instanceof SelectField)
+                                        <flux:select wire:model.live="filters.{{ $filterName }}" size="sm">
+                                            @foreach ($filterField->options as $optionValue => $optionLabel)
+                                                <flux:select.option value="{{ $optionValue }}">{{ $optionLabel }}</flux:select.option>
+                                            @endforeach
+                                        </flux:select>
+                                    @else
+                                        <flux:input wire:model.live.debounce.300ms="filters.{{ $filterName }}" size="sm" />
+                                    @endif
+                                    <flux:input.group.suffix>
+                                        <button type="button" wire:click="clearFilter('{{ $filterName }}')" class="cursor-pointer">
+                                            <flux:icon.x class="size-3" />
+                                        </button>
+                                    </flux:input.group.suffix>
+                                </flux:input.group>
+                            @endif
+                        @endforeach
+                    @endif
+                @endif
+            </div>
+            <div class="flex gap-2">
+                @foreach ($this->headerActions as $action)
+                    <flux:button variant="{{ $action->variant ?? 'primary' }}" size="sm" icon="{{ $action->icon }}"
+                        x-on:click="Livewire.dispatch('open-{{ $this->getModalNameForAction($action) }}', { title: '{{ $action->modalTitle }}' })">
+                        {{ $action->label }}
+                    </flux:button>
+                @endforeach
+            </div>
         </div>
     @endunless
+
+    @if (count($tableFilters) > 0)
+        <flux:modal :name="$entitySlug . '-filters'" flyout class="w-80">
+            <div class="space-y-6">
+                <flux:heading size="lg">Filter</flux:heading>
+                <div class="space-y-4">
+                    @foreach ($filterFields as $field)
+                        <x-cms.form.field :field="$field" prefix="filters" />
+                    @endforeach
+                </div>
+                <div class="flex gap-2 pt-4">
+                    <flux:button variant="primary" class="flex-1" wire:click="applyFilters">
+                        Apply
+                    </flux:button>
+                    @if ($this->hasActiveFilters())
+                        <flux:button variant="ghost" wire:click="clearFilters">
+                            Clear All
+                        </flux:button>
+                    @endif
+                </div>
+            </div>
+        </flux:modal>
+    @endif
 
     @foreach ($this->formModals as $modal)
         <livewire:cms.form-modal :name="$modal['name']" :title="$modal['title']" :form-data-class="$modal['formDataClass']"
@@ -48,8 +111,13 @@
     @if ($this->items->isEmpty())
         <div class="flex flex-col items-center justify-center py-12 text-center">
             <flux:icon.inbox class="w-12 h-12 text-zinc-300 dark:text-zinc-600 mb-4" />
-            <flux:heading size="lg" class="text-zinc-500 dark:text-zinc-400">No
-                {{ Str::plural(strtolower($entityName)) }} yet</flux:heading>
+            @if ($this->hasActiveFilters())
+                <flux:heading size="lg" class="text-zinc-500 dark:text-zinc-400">No
+                    {{ Str::plural(strtolower($entityName)) }} found</flux:heading>
+            @else
+                <flux:heading size="lg" class="text-zinc-500 dark:text-zinc-400">No
+                    {{ Str::plural(strtolower($entityName)) }} yet</flux:heading>
+            @endif
         </div>
     @else
         <flux:table :paginate="$this->items" class="table-fixed">

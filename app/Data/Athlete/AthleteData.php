@@ -10,6 +10,7 @@ use App\Form\Fields\Athlete\Forename;
 use App\Form\Fields\Athlete\Surname;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
+use Carbon\Carbon;
 
 class AthleteData extends AbstractData implements HasForms
 {
@@ -19,6 +20,7 @@ class AthleteData extends AbstractData implements HasForms
         public ?int $id,
         public string $forename,
         public string $surname,
+        public ?Carbon $updatedAt = null,
     ) {}
 
     public function name(): string
@@ -31,7 +33,8 @@ class AthleteData extends AbstractData implements HasForms
         return new self(
             id: $user->id,
             forename: $user->forename ?? '',
-            surname: $user->surname ?? ''
+            surname: $user->surname ?? '',
+            updatedAt: $user->updated_at,
         );
     }
 

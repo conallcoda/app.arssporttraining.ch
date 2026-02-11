@@ -27,4 +27,12 @@ class TagFactory extends Factory
             'scope' => $scope,
         ]);
     }
+
+    public function childOf(Tag $parent): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'parent_id' => $parent->id,
+            'scope' => $parent->scope,
+        ]);
+    }
 }

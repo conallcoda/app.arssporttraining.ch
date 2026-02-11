@@ -4,10 +4,12 @@ namespace App\Data\Exercise;
 
 use App\Cms\Data\AbstractData;
 use App\Cms\Form\Concerns\InteractsWithForms;
+use App\Cms\Form\Fields\Tags;
 use App\Cms\Form\Form;
 use App\Cms\Models\Contracts\HasForms;
 use App\Form\Fields\Exercise as Fields;
 use App\Models\Exercise\Exercise;
+use Carbon\Carbon;
 
 class ExerciseData extends AbstractData implements HasForms
 {
@@ -18,6 +20,10 @@ class ExerciseData extends AbstractData implements HasForms
         public string $name,
         public ExerciseType $type,
         public ?ExerciseConfig $config = null,
+        public array $categories = [],
+        public array $equipment = [],
+        public array $modifiers = [],
+        public ?Carbon $updatedAt = null,
     ) {}
 
     public static function fromExercise(Exercise $exercise): self
@@ -27,7 +33,21 @@ class ExerciseData extends AbstractData implements HasForms
             name: $exercise->name,
             type: $exercise->type ?? ExerciseType::Strength,
             config: $exercise->config,
+            categories: self::mapTagIds($exercise, 'categories'),
+            equipment: self::mapTagIds($exercise, 'equipment'),
+            modifiers: self::mapTagIds($exercise, 'modifiers'),
+            updatedAt: $exercise->updated_at,
         );
+    }
+
+    /** @return list<int> */
+    private static function mapTagIds(Exercise $exercise, string $relation): array
+    {
+        if (! $exercise->relationLoaded($relation)) {
+            return [];
+        }
+
+        return $exercise->{$relation}->pluck('id')->all();
     }
 
     public function persist(): void
@@ -42,6 +62,14 @@ class ExerciseData extends AbstractData implements HasForms
         );
 
         $this->id = $exercise->id;
+
+        $tagIds = collect([
+            ...$this->categories,
+            ...$this->equipment,
+            ...$this->modifiers,
+        ])->filter()->all();
+
+        $exercise->tags()->sync($tagIds);
     }
 
     public static function getForm(): Form
@@ -50,6 +78,9 @@ class ExerciseData extends AbstractData implements HasForms
             ->fieldset('General', [
                 Fields\ExerciseName::make('name')->required(),
                 Fields\ExerciseType::make('type')->required(),
+                Tags::make('categories', 'exercise_category')->label('Categories')->withOptions(),
+                Tags::make('equipment', 'exercise_equipment')->label('Equipment')->withOptions(),
+                Tags::make('modifiers', 'exercise_modifiers')->label('Modifiers')->withOptions(),
             ])
             ->fieldset('Defaults', function (array $data): ?array {
                 $type = ExerciseType::tryFrom($data['type'] ?? null);

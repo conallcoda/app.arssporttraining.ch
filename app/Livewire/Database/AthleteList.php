@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Database;
 
+use App\Cms\Display\DisplayFields\Ago;
 use App\Cms\Display\DisplayFields\Id;
 use App\Cms\Display\DisplayFields\Text;
 use App\Cms\Display\Table;
@@ -36,6 +37,7 @@ class AthleteList extends AbstractModelList
                     ->label('Surname')
                     ->width('w-1/3')
                     ->modal(),
+                Ago::make('updatedAt')->label('Last Changed'),
             ]);
     }
 }

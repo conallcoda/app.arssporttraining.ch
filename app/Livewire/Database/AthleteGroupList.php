@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Database;
 
+use App\Cms\Display\DisplayFields\Ago;
 use App\Cms\Display\DisplayFields\Relationship;
 use App\Cms\Display\DisplayFields\Text;
 use App\Cms\Display\Table;
@@ -28,6 +29,7 @@ class AthleteGroupList extends AbstractModelList
             ->columns([
                 Text::make('name')->label('Name')->modal(),
                 Relationship::make('members')->label('Members')->modal()->width('w-full'),
+                Ago::make('updatedAt')->label('Last Changed'),
             ]);
     }
 }

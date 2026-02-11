@@ -6,6 +6,7 @@ use App\Cms\Data\AbstractData;
 use App\Cms\Display\DisplayField;
 use App\Cms\Display\DisplayFields\Relationship as RelationshipColumn;
 use App\Cms\Display\Table;
+use App\Cms\Display\TableFilter;
 use App\Cms\Form\Action;
 use App\Cms\Form\ActionPlacement;
 use App\Cms\Form\Field;
@@ -39,6 +40,9 @@ abstract class AbstractModelList extends Component
 
     #[Url]
     public string $sort = '';
+
+    #[Url]
+    public array $filters = [];
 
     abstract protected function getDataClass(): string;
 
@@ -366,16 +370,24 @@ abstract class AbstractModelList extends Component
 
     public function sortBy(string $column): void
     {
-        $sortableFields = $this->resolveTable()->getSortableFields();
+        $table = $this->resolveTable();
+        $sortableFields = $table->getSortableFields();
 
         if (! in_array($column, $sortableFields, true)) {
             return;
         }
 
-        if ($this->sort === $column) {
+        $effectiveSort = $this->effectiveSort();
+        $defaultSort = $table->getDefaultSortString();
+
+        if ($effectiveSort === $column) {
             $this->sort = "-{$column}";
-        } elseif ($this->sort === "-{$column}") {
-            $this->sort = '';
+        } elseif ($effectiveSort === "-{$column}") {
+            if ($defaultSort === "-{$column}") {
+                $this->sort = $column;
+            } else {
+                $this->sort = '';
+            }
         } else {
             $this->sort = $column;
         }
@@ -383,14 +395,25 @@ abstract class AbstractModelList extends Component
         $this->resetPage();
     }
 
+    protected function effectiveSort(): string
+    {
+        if ($this->sort !== '') {
+            return $this->sort;
+        }
+
+        return $this->resolveTable()->getDefaultSortString();
+    }
+
     public function currentSortField(): string
     {
-        return ltrim($this->sort, '-');
+        return ltrim($this->effectiveSort(), '-');
     }
 
     public function currentSortDirection(): string
     {
-        if ($this->sort !== '' && str_starts_with($this->sort, '-')) {
+        $effective = $this->effectiveSort();
+
+        if ($effective !== '' && str_starts_with($effective, '-')) {
             return 'desc';
         }
 
@@ -399,7 +422,80 @@ abstract class AbstractModelList extends Component
 
     public function isSortedBy(string $field): bool
     {
-        return $this->sort !== '' && $this->currentSortField() === $field;
+        $effective = $this->effectiveSort();
+
+        return $effective !== '' && $this->currentSortField() === $field;
+    }
+
+    public function getActiveFilters(): array
+    {
+        return array_filter($this->filters, fn (mixed $value) => $value !== '' && $value !== null);
+    }
+
+    public function hasActiveFilters(): bool
+    {
+        return count($this->getActiveFilters()) > 0;
+    }
+
+    public function hasVisibleFilters(): bool
+    {
+        return count($this->filters) > 0;
+    }
+
+    public function activeFilterCount(): int
+    {
+        return count($this->getActiveFilters());
+    }
+
+    /** @return array<int, array{name: string, label: string, value: string}> */
+    public function activeFilterBadges(): array
+    {
+        $activeFilters = $this->getActiveFilters();
+        $tableFilters = collect($this->resolveTable()->getFilters())
+            ->keyBy(fn (TableFilter $filter) => $filter->getName());
+
+        $badges = [];
+
+        foreach ($activeFilters as $name => $value) {
+            $tableFilter = $tableFilters->get($name);
+
+            if ($tableFilter) {
+                $badges[] = [
+                    'name' => $name,
+                    'label' => $tableFilter->getLabel(),
+                    'value' => $tableFilter->resolveDisplayValue($value),
+                ];
+            }
+        }
+
+        return $badges;
+    }
+
+    public function clearFilter(string $name): void
+    {
+        unset($this->filters[$name]);
+        $this->resetPage();
+        unset($this->items);
+    }
+
+    public function applyFilters(): void
+    {
+        $this->filters = array_filter($this->filters, fn (mixed $value) => $value !== '' && $value !== null);
+        $this->resetPage();
+        unset($this->items);
+        Flux::modal($this->getEntitySlug().'-filters')->close();
+    }
+
+    public function clearFilters(): void
+    {
+        $this->filters = [];
+        $this->resetPage();
+        unset($this->items);
+    }
+
+    public function updatedFilters(): void
+    {
+        $this->resetPage();
     }
 
     protected function createDataFromForm(array $formData): AbstractData
@@ -522,14 +618,43 @@ abstract class AbstractModelList extends Component
     public function items()
     {
         $query = $this->getBaseQuery();
+        $table = $this->resolveTable();
+        $activeFilters = $this->getActiveFilters();
+        $needsQueryBuilder = $this->sort !== '' || ! empty($activeFilters) || $table->hasDefaultSort();
 
-        if ($this->sort !== '') {
+        if ($needsQueryBuilder) {
             $modelClass = get_class($query->getModel());
 
             if (method_exists($modelClass, 'buildQueryBuilder')) {
-                $request = Request::create('/', 'GET', ['sort' => $this->sort]);
+                $requestParams = [];
+
+                if ($this->sort !== '') {
+                    $requestParams['sort'] = $this->sort;
+                }
+
+                if (! empty($activeFilters)) {
+                    $requestParams['filter'] = $activeFilters;
+                }
+
+                $request = Request::create('/', 'GET', $requestParams);
                 $queryBuilder = $modelClass::buildQueryBuilder($query, $request);
-                $queryBuilder->allowedSorts($queryBuilder->getDefinedSorts());
+
+                if ($this->sort !== '') {
+                    $queryBuilder->allowedSorts($queryBuilder->getDefinedSorts());
+                }
+
+                $defaultSortString = $table->getDefaultSortString();
+                if ($defaultSortString !== '') {
+                    $queryBuilder->defaultSort($defaultSortString);
+                }
+
+                if (! empty($activeFilters)) {
+                    $allowedFilters = collect($table->getFilters())
+                        ->map(fn (TableFilter $filter) => $filter->getAllowedFilter())
+                        ->all();
+                    $queryBuilder->allowedFilters($allowedFilters);
+                }
+
                 $query = $queryBuilder;
             }
         }
@@ -586,12 +711,16 @@ abstract class AbstractModelList extends Component
 
     public function render(): View
     {
+        $table = $this->resolveTable();
+
         return view('livewire.components.model-list', [
             'entityName' => $this->getEntityName(),
             'entitySlug' => $this->getEntitySlug(),
             'compact' => $this->compact,
             'sortable' => $this->isSortable(),
-            'sortableFields' => $this->resolveTable()->getSortableFields(),
+            'sortableFields' => $table->getSortableFields(),
+            'tableFilters' => $table->getFilters(),
+            'filterFields' => $table->getFilterFields(),
         ]);
     }
 }

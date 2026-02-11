@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Exercise\Exercise;
+use App\Models\Tag;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Artisan;
 
@@ -35,7 +36,7 @@ class ExerciseSeeder extends Seeder
         ];
 
         foreach ($exercises as $name => $overrides) {
-            Exercise::firstOrCreate(
+            $exercise = Exercise::firstOrCreate(
                 ['name' => $name],
                 [
                     'type' => 'strength_automatic',
@@ -44,6 +45,13 @@ class ExerciseSeeder extends Seeder
                     ],
                 ]
             );
+
+            if (in_array($name, ['Back Squat', 'Front Squat'])) {
+                $this->attachTags($exercise, [
+                    'exercise_category' => ['Squat'],
+                    'exercise_equipment' => ['BB'],
+                ]);
+            }
         }
     }
 
@@ -170,7 +178,26 @@ class ExerciseSeeder extends Seeder
         }
     }
 
-    public function runOld()
+    /**
+     * @param  array<string, list<string>>  $scopedTags
+     */
+    protected function attachTags(Exercise $exercise, array $scopedTags): void
+    {
+        $tagIds = [];
+
+        foreach ($scopedTags as $scope => $names) {
+            foreach ($names as $sort => $name) {
+                $tag = Tag::firstOrCreate(
+                    ['name' => $name, 'scope' => $scope],
+                );
+                $tagIds[$tag->id] = ['sort' => $sort];
+            }
+        }
+
+        $exercise->tags()->syncWithoutDetaching($tagIds);
+    }
+
+    public function runOld(): void
     {
         Artisan::call('exercise:import');
     }

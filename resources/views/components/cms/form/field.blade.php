@@ -8,6 +8,7 @@
 @use('App\Cms\Form\Fields\Slider')
 @use('App\Cms\Form\Fields\Relationship')
 @use('App\Cms\Form\Fields\Repeater')
+@use('App\Cms\Form\Fields\Tags')
 
 @props(['field', 'prefix' => null, 'repeaterItems' => null, 'currentIndex' => null])
 
@@ -261,6 +262,22 @@
     @elseif ($field instanceof Slider)
         <x-cms.form.slider-with-input :label="$field->getLabel()" :model="$wireModel" :min="$field->min" :max="$field->max" :step="$field->step"
             :suffix="$resolvedSuffix" :ticks="$field->ticks" />
+    @elseif ($field instanceof Tags)
+        <flux:field>
+            <div class="flex items-center gap-1 mb-2">
+                <flux:label>{{ $field->getLabel() }}</flux:label>
+                @if ($field->helpText)
+                    <x-cms.form.help-tooltip :content="$field->helpText" position="top" />
+                @endif
+            </div>
+            <flux:pillbox wire:model="{{ $wireModel }}" multiple searchable placeholder="{{ $field->getPlaceholder() }}"
+                data-field="{{ $field->name }}">
+                @foreach ($field->options as $value => $optionLabel)
+                    <flux:pillbox.option value="{{ $value }}">{{ $optionLabel }}</flux:pillbox.option>
+                @endforeach
+            </flux:pillbox>
+            <flux:error name="{{ $wireModel }}" />
+        </flux:field>
     @elseif ($field instanceof Relationship)
         <flux:field>
             <div class="space-y-3">

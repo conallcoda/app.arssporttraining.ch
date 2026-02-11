@@ -8,15 +8,18 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Sluggable\HasSlug;
 use Spatie\Sluggable\SlugOptions;
+use Staudenmeir\LaravelAdjacencyList\Eloquent\HasRecursiveRelationships;
 
 class Tag extends Model
 {
     use HasFactory;
+    use HasRecursiveRelationships;
     use HasSlug;
     use SoftDeletes;
 
     protected $fillable = [
         'scope',
+        'parent_id',
         'name',
         'short_name',
         'slug',
@@ -25,6 +28,19 @@ class Tag extends Model
     protected function casts(): array
     {
         return [];
+    }
+
+    protected static function booted(): void
+    {
+        static::saving(function (Tag $tag) {
+            if ($tag->parent_id !== null) {
+                $parent = Tag::find($tag->parent_id);
+
+                if ($parent) {
+                    $tag->scope = $parent->scope;
+                }
+            }
+        });
     }
 
     public function getSlugOptions(): SlugOptions

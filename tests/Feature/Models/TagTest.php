@@ -77,6 +77,64 @@ it('detaches tags without deleting the tag', function () {
     expect(Tag::find($tag->id))->not->toBeNull();
 });
 
+it('creates a child tag under a parent', function () {
+    $parent = Tag::factory()->create(['scope' => 'exercise_category', 'name' => 'Upper Body']);
+    $child = Tag::factory()->childOf($parent)->create(['name' => 'Incline Press']);
+
+    expect($child->parent_id)->toBe($parent->id);
+    expect($child->scope)->toBe('exercise_category');
+    expect($child->parent->id)->toBe($parent->id);
+});
+
+it('returns children of a parent tag', function () {
+    $parent = Tag::factory()->create(['scope' => 'exercise_category', 'name' => 'Upper Body']);
+    Tag::factory()->childOf($parent)->create(['name' => 'Incline Press']);
+    Tag::factory()->childOf($parent)->create(['name' => 'Flat Press']);
+
+    expect($parent->children)->toHaveCount(2);
+});
+
+it('returns descendants of a tag', function () {
+    $root = Tag::factory()->create(['scope' => 'exercise_category', 'name' => 'Lower Body']);
+    $child = Tag::factory()->childOf($root)->create(['name' => 'Squat']);
+    Tag::factory()->childOf($child)->create(['name' => 'Split Squat']);
+
+    $descendants = $root->descendants()->get();
+
+    expect($descendants)->toHaveCount(2);
+    expect($descendants->pluck('name')->all())->toContain('Squat', 'Split Squat');
+});
+
+it('returns ancestors of a tag', function () {
+    $root = Tag::factory()->create(['scope' => 'exercise_category', 'name' => 'Lower Body']);
+    $child = Tag::factory()->childOf($root)->create(['name' => 'Squat']);
+    $grandchild = Tag::factory()->childOf($child)->create(['name' => 'Split Squat']);
+
+    $ancestors = $grandchild->ancestors()->get();
+
+    expect($ancestors)->toHaveCount(2);
+    expect($ancestors->pluck('name')->all())->toContain('Squat', 'Lower Body');
+});
+
+it('enforces parent scope on child tags', function () {
+    $parent = Tag::factory()->create(['scope' => 'exercise_category']);
+    $child = Tag::factory()->create([
+        'scope' => 'exercise_equipment',
+        'parent_id' => $parent->id,
+    ]);
+
+    expect($child->fresh()->scope)->toBe('exercise_category');
+});
+
+it('nullifies parent_id when parent is force deleted', function () {
+    $parent = Tag::factory()->create(['scope' => 'exercise_category']);
+    $child = Tag::factory()->childOf($parent)->create();
+
+    $parent->forceDelete();
+
+    expect($child->fresh()->parent_id)->toBeNull();
+});
+
 it('preserves sort order on the pivot', function () {
     $exercise = Exercise::create(['name' => 'Bench Press', 'type' => 'strength_manual']);
     $tag1 = Tag::factory()->create(['scope' => 'muscle_group', 'name' => 'Chest']);

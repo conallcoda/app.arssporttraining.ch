@@ -9,6 +9,7 @@ use App\Cms\Models\Contracts\HasForms;
 use App\Form\Fields\AthleteGroup\GroupName;
 use App\Form\Fields\AthleteGroup\Members;
 use App\Models\Users\UserGroup;
+use Carbon\Carbon;
 
 class AthleteGroupData extends AbstractData implements HasForms
 {
@@ -18,6 +19,7 @@ class AthleteGroupData extends AbstractData implements HasForms
         public ?int $id,
         public string $name,
         public array $members = [],
+        public ?Carbon $updatedAt = null,
     ) {}
 
     public static function fromModel(UserGroup $group): self
@@ -34,6 +36,7 @@ class AthleteGroupData extends AbstractData implements HasForms
             id: $group->id,
             name: $group->name ?? '',
             members: $members,
+            updatedAt: $group->updated_at,
         );
     }
 
