@@ -68,6 +68,7 @@ class ExerciseList extends AbstractModelList
             'entitySlug' => $this->getEntitySlug(),
             'compact' => $this->compact,
             'sortable' => $this->isSortable(),
+            'sortableFields' => $this->resolveTable()->getSortableFields(),
             'exerciseTypes' => ExerciseType::cases(),
         ]);
     }
@@ -89,6 +90,7 @@ class ExerciseList extends AbstractModelList
                 Badge::make('defaults')
                     ->label('Defaults')
                     ->source(fn (ExerciseData $data) => $data->getDefaultsBadges()),
-            ]);
+            ])
+            ->sortable(['id', 'name', 'type']);
     }
 }

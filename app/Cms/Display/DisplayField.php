@@ -3,12 +3,14 @@
 namespace App\Cms\Display;
 
 use App\Cms\Display\Concerns\HasLabel;
+use App\Cms\Display\Concerns\HasSortable;
 use App\Cms\Display\Concerns\HasSticky;
 use App\Cms\Display\Concerns\HasWidth;
 
 abstract class DisplayField
 {
     use HasLabel;
+    use HasSortable;
     use HasSticky;
     use HasWidth;
 

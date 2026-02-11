@@ -3,6 +3,8 @@
 namespace App\Cms\Models\Concerns;
 
 use App\Cms\QueryBuilder\DefaultQueryBuilder;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
 
 trait HasQueryBuilder
 {
@@ -15,5 +17,17 @@ trait HasQueryBuilder
         }
 
         return DefaultQueryBuilder::for(static::query());
+    }
+
+    public static function buildQueryBuilder(Builder $baseQuery, ?Request $request = null): DefaultQueryBuilder
+    {
+        $modelClass = get_class($baseQuery->getModel());
+        $concreteClass = 'App\\QueryBuilders\\'.class_basename($modelClass).'QueryBuilder';
+
+        if (class_exists($concreteClass)) {
+            return $concreteClass::for($baseQuery, $request);
+        }
+
+        return DefaultQueryBuilder::for($baseQuery, $request);
     }
 }

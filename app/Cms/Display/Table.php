@@ -8,6 +8,8 @@ class Table
 
     protected array $actions = [];
 
+    protected array $sortableFields = [];
+
     protected int $limit = 10;
 
     public static function make(): static
@@ -29,6 +31,19 @@ class Table
         return $this;
     }
 
+    public function sortable(array $fields): static
+    {
+        $this->sortableFields = $fields;
+
+        foreach ($this->columns as $column) {
+            if (in_array($column->field, $fields, true)) {
+                $column->sortable();
+            }
+        }
+
+        return $this;
+    }
+
     public function limit(int $limit): static
     {
         $this->limit = $limit;
@@ -44,6 +59,11 @@ class Table
     public function getActions(): array
     {
         return $this->actions;
+    }
+
+    public function getSortableFields(): array
+    {
+        return $this->sortableFields;
     }
 
     public function hasActions(): bool

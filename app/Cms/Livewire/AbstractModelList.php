@@ -14,9 +14,11 @@ use App\Cms\Form\Form;
 use Flux\Flux;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -34,6 +36,9 @@ abstract class AbstractModelList extends Component
     public int $refreshKey = 0;
 
     public bool $compact = false;
+
+    #[Url]
+    public string $sort = '';
 
     abstract protected function getDataClass(): string;
 
@@ -359,6 +364,44 @@ abstract class AbstractModelList extends Component
         $this->emit();
     }
 
+    public function sortBy(string $column): void
+    {
+        $sortableFields = $this->resolveTable()->getSortableFields();
+
+        if (! in_array($column, $sortableFields, true)) {
+            return;
+        }
+
+        if ($this->sort === $column) {
+            $this->sort = "-{$column}";
+        } elseif ($this->sort === "-{$column}") {
+            $this->sort = '';
+        } else {
+            $this->sort = $column;
+        }
+
+        $this->resetPage();
+    }
+
+    public function currentSortField(): string
+    {
+        return ltrim($this->sort, '-');
+    }
+
+    public function currentSortDirection(): string
+    {
+        if ($this->sort !== '' && str_starts_with($this->sort, '-')) {
+            return 'desc';
+        }
+
+        return 'asc';
+    }
+
+    public function isSortedBy(string $field): bool
+    {
+        return $this->sort !== '' && $this->currentSortField() === $field;
+    }
+
     protected function createDataFromForm(array $formData): AbstractData
     {
         return $this->getDataClass()::from($formData);
@@ -480,6 +523,17 @@ abstract class AbstractModelList extends Component
     {
         $query = $this->getBaseQuery();
 
+        if ($this->sort !== '') {
+            $modelClass = get_class($query->getModel());
+
+            if (method_exists($modelClass, 'buildQueryBuilder')) {
+                $request = Request::create('/', 'GET', ['sort' => $this->sort]);
+                $queryBuilder = $modelClass::buildQueryBuilder($query, $request);
+                $queryBuilder->allowedSorts($queryBuilder->getDefinedSorts());
+                $query = $queryBuilder;
+            }
+        }
+
         $relationships = array_unique(array_merge(
             $this->getRelationshipsToLoad(),
             $this->getFormRelationshipsToLoad(),
@@ -537,6 +591,7 @@ abstract class AbstractModelList extends Component
             'entitySlug' => $this->getEntitySlug(),
             'compact' => $this->compact,
             'sortable' => $this->isSortable(),
+            'sortableFields' => $this->resolveTable()->getSortableFields(),
         ]);
     }
 }

@@ -67,12 +67,26 @@
         <flux:table :paginate="$this->items" class="table-fixed">
             <flux:table.columns>
                 @foreach ($this->columns as $column)
-                    @if ($column->sticky)
-                        <flux:table.column sticky class="{{ $column->width }}">{{ $column->getDisplayLabel() }}
-                        </flux:table.column>
+                    @if ($column->sortable)
+                        @if ($column->sticky)
+                            <flux:table.column sticky sortable :sorted="$this->isSortedBy($column->field)" :direction="$this->currentSortDirection()" wire:click="sortBy('{{ $column->field }}')" class="{{ $column->width }}">
+                                {{ $column->getDisplayLabel() }}
+                            </flux:table.column>
+                        @else
+                            <flux:table.column sortable :sorted="$this->isSortedBy($column->field)" :direction="$this->currentSortDirection()" wire:click="sortBy('{{ $column->field }}')" class="{{ $column->width }}">
+                                {{ $column->getDisplayLabel() }}
+                            </flux:table.column>
+                        @endif
                     @else
-                        <flux:table.column class="{{ $column->width }}">{{ $column->getDisplayLabel() }}
-                        </flux:table.column>
+                        @if ($column->sticky)
+                            <flux:table.column sticky class="{{ $column->width }}">
+                                {{ $column->getDisplayLabel() }}
+                            </flux:table.column>
+                        @else
+                            <flux:table.column class="{{ $column->width }}">
+                                {{ $column->getDisplayLabel() }}
+                            </flux:table.column>
+                        @endif
                     @endif
                 @endforeach
                 <flux:table.column class="w-px">
