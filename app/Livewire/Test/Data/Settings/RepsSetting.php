@@ -17,35 +17,33 @@ class RepsSetting extends AbstractSetting
                 ])
                 ->default('automatic')
                 ->live(),
-            Fields\Number::make('startingReps')
-                ->label('Starting Reps')
+            Fields\Number::make('default')
+                ->label('Default Reps')
                 ->default(10)
+                ->min(0)
                 ->suffix('rep(s)')
-                ->live()
-                ->show('mode == "automatic"'),
+                ->live(),
             Fields\Number::make('stepDownInterval')
                 ->label('Step Down Interval')
                 ->default(2)
+                ->min(0)
+                ->suffix('week(s)')
                 ->live()
                 ->show('mode == "automatic"'),
-            Fields\Number::make('repDecrement')
+            Fields\Number::make('decrement')
                 ->label('Rep Decrement')
                 ->default(2)
+                ->min(0)
                 ->suffix('rep(s)')
                 ->live()
                 ->show('mode == "automatic"'),
-            Fields\Number::make('minimumReps')
+            Fields\Number::make('minimum')
                 ->label('Minimum Reps')
                 ->default(1)
+                ->min(1)
                 ->suffix('rep(s)')
                 ->live()
                 ->show('mode == "automatic"'),
-            Fields\Number::make('defaultReps')
-                ->label('Default Reps')
-                ->default(5)
-                ->suffix('rep(s)')
-                ->live()
-                ->show('mode == "manual"'),
         ];
     }
 }

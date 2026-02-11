@@ -2,13 +2,16 @@
 
 namespace App\Models\Exercise;
 
+use App\Cms\Models\Concerns\HasTags;
+use App\Cms\Models\Contracts\Taggable;
 use App\Data\Exercise\ExerciseConfig;
 use App\Data\Exercise\ExerciseType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Exercise extends Model
+class Exercise extends Model implements Taggable
 {
+    use HasTags;
     use SoftDeletes;
 
     protected $fillable = [

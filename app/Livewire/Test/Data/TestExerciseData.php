@@ -25,9 +25,10 @@ class TestExerciseData extends AbstractData implements HasForms
     {
         $form = Form::make()
             ->fieldset('General', [
-                Fields\Text::make('name')->label('Name')->live(),
-                Fields\Pillbox::make('settings')->label('Settings')->enum(ExerciseSetting::class)->default([])->live(),
-            ]);
+                Fields\Text::make('name')->label('Name')->default('Test Exercise')->live(),
+                Fields\Pillbox::make('settings')->label('Settings')->enum(ExerciseSetting::class)->default(['reps', 'weight'])->live(),
+            ])
+            ->fieldset('Sets', Settings\SetsSetting::fields(), 'data.sets');
 
         foreach (ExerciseSetting::settingMap() as $settingKey => $settingClass) {
             $form->fieldset(

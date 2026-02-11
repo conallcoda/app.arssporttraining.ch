@@ -33,7 +33,13 @@ abstract class Field
         $defaults = [];
 
         foreach ($fields as $field) {
-            if ($field->default !== null) {
+            if (method_exists($field, 'resolveDefault')) {
+                $resolved = $field->resolveDefault($defaults);
+
+                if ($resolved !== null) {
+                    $defaults[$field->name] = $resolved;
+                }
+            } elseif ($field->default !== null) {
                 $defaults[$field->name] = $field->default;
             }
         }

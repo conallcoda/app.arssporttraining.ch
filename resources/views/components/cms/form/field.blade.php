@@ -1,5 +1,6 @@
 @use('App\Cms\Form\Fields\Select')
 @use('App\Cms\Form\Fields\Number')
+@use('App\Cms\Form\Fields\Duration')
 @use('App\Cms\Form\Fields\Text')
 @use('App\Cms\Form\Fields\Date')
 @use('App\Cms\Form\Fields\RadioSegmented')
@@ -12,6 +13,9 @@
 
 @php
     $wireModel = $prefix ? "{$prefix}.{$field->name}" : $field->name;
+    $resolvedSuffix = method_exists($field, 'resolveSuffix')
+        ? $field->resolveSuffix($prefix ? data_get($this, $prefix, []) : [])
+        : ($resolvedSuffix ?? null);
 @endphp
 
 <div {{ $attributes }}>
@@ -67,7 +71,7 @@
                     <x-cms.form.help-tooltip :content="$field->helpText" position="top" />
                 @endif
             </div>
-            @if ($field->suffix)
+            @if ($resolvedSuffix)
                 <flux:input.group>
                     @if ($field->disabled)
                         <flux:input wire:model="{{ $wireModel }}" type="number" data-field="{{ $field->name }}"
@@ -83,7 +87,7 @@
                             placeholder="{{ $field->getPlaceholder() }}" min="{{ $field->min ?? '' }}"
                             max="{{ $field->max ?? '' }}" step="{{ $field->step ?? '' }}" />
                     @endif
-                    <flux:input.group.suffix>{{ $field->suffix }}</flux:input.group.suffix>
+                    <flux:input.group.suffix>{{ $resolvedSuffix }}</flux:input.group.suffix>
                 </flux:input.group>
             @else
                 @if ($field->disabled)
@@ -102,6 +106,42 @@
             @endif
             <flux:error name="{{ $wireModel }}" />
         </flux:field>
+    @elseif ($field instanceof Duration)
+        @php
+            $siblingData = $prefix ? data_get($this, $prefix, []) : [];
+            $isMasked = $field->isMasked($siblingData);
+            $mask = $field->resolveMask($siblingData);
+        @endphp
+        <flux:field>
+            <div class="flex items-center gap-1 mb-2">
+                <flux:label>{{ $field->getLabel() }}</flux:label>
+            </div>
+            <flux:input.group>
+                @if ($isMasked)
+                    <div x-data="masked_input" data-mask="{{ $mask }}" class="flex-1">
+                        @if ($field->live)
+                            <flux:input wire:model.live="{{ $wireModel }}" type="text"
+                                data-field="{{ $field->name }}" placeholder="00:00" />
+                        @else
+                            <flux:input wire:model="{{ $wireModel }}" type="text"
+                                data-field="{{ $field->name }}" placeholder="00:00" />
+                        @endif
+                    </div>
+                @else
+                    @if ($field->live)
+                        <flux:input wire:model.live="{{ $wireModel }}" type="number"
+                            data-field="{{ $field->name }}" min="{{ $field->min ?? '' }}"
+                            max="{{ $field->max ?? '' }}" step="{{ $field->step ?? '' }}" />
+                    @else
+                        <flux:input wire:model="{{ $wireModel }}" type="number"
+                            data-field="{{ $field->name }}" min="{{ $field->min ?? '' }}"
+                            max="{{ $field->max ?? '' }}" step="{{ $field->step ?? '' }}" />
+                    @endif
+                @endif
+                <flux:input.group.suffix>{{ $resolvedSuffix }}</flux:input.group.suffix>
+            </flux:input.group>
+            <flux:error name="{{ $wireModel }}" />
+        </flux:field>
     @elseif ($field instanceof Text)
         <flux:field>
             <div class="flex items-center gap-1 mb-2">
@@ -110,7 +150,7 @@
                     <x-cms.form.help-tooltip :content="$field->helpText" position="top" />
                 @endif
             </div>
-            @if ($field->suffix)
+            @if ($resolvedSuffix)
                 <flux:input.group>
                     @if ($field->mask)
                         <div x-data="masked_input" data-mask="{{ $field->mask }}" class="flex-1">
@@ -131,7 +171,7 @@
                                 placeholder="{{ $field->getPlaceholder() }}" />
                         @endif
                     @endif
-                    <flux:input.group.suffix>{{ $field->suffix }}</flux:input.group.suffix>
+                    <flux:input.group.suffix>{{ $resolvedSuffix }}</flux:input.group.suffix>
                 </flux:input.group>
             @elseif ($field->mask)
                 <div x-data="masked_input" data-mask="{{ $field->mask }}">
@@ -220,7 +260,7 @@
         </flux:field>
     @elseif ($field instanceof Slider)
         <x-cms.form.slider-with-input :label="$field->getLabel()" :model="$wireModel" :min="$field->min" :max="$field->max" :step="$field->step"
-            :suffix="$field->suffix" :ticks="$field->ticks" />
+            :suffix="$resolvedSuffix" :ticks="$field->ticks" />
     @elseif ($field instanceof Relationship)
         <flux:field>
             <div class="space-y-3">

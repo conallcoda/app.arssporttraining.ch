@@ -50,8 +50,18 @@ trait InteractsWithFormData
 
             foreach ($fieldset->fields as $field) {
                 $key = $prefix ? "{$prefix}.{$field->name}" : $field->name;
+                $currentValue = data_get($this->data, $key);
 
-                if (data_get($this->data, $key) !== null) {
+                if ($currentValue !== null && method_exists($field, 'resolveDefault') && ! empty($field->defaultMap)) {
+                    $siblingData = $prefix ? data_get($this->data, $prefix, []) : $this->data;
+                    $resolvedDefault = $field->resolveDefault($siblingData);
+
+                    if (in_array($currentValue, $field->defaultMap) && $currentValue != $resolvedDefault) {
+                        data_set($this->data, $key, $resolvedDefault);
+                    }
+                }
+
+                if ($currentValue !== null) {
                     continue;
                 }
 
@@ -59,6 +69,9 @@ trait InteractsWithFormData
 
                 if ($stashed !== null) {
                     data_set($this->data, $key, $stashed);
+                } elseif (method_exists($field, 'resolveDefault')) {
+                    $siblingData = $prefix ? data_get($this->data, $prefix, []) : $this->data;
+                    data_set($this->data, $key, $field->resolveDefault($siblingData));
                 } elseif ($field->default !== null) {
                     data_set($this->data, $key, $field->default);
                 }

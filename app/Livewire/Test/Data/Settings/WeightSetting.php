@@ -22,7 +22,7 @@ class WeightSetting extends AbstractSetting
                 ->default(100)
                 ->live()
                 ->show('mode == "automatic"'),
-            Fields\Weight::make('defaultWeight')
+            Fields\Weight::make('default')
                 ->label('Default Weight')
                 ->default(5)
                 ->live()
