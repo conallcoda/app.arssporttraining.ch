@@ -55,12 +55,8 @@ class ExercisePreviewBuilder
         ?GridOverrides $overrides = null,
         int $sessionsPerWeek = 1,
     ): PreviewGrid {
-        $orchestrator = new StrategyOrchestrator($data, $measuredData, $weeks);
+        $orchestrator = new StrategyOrchestrator($data, $measuredData, $weeks, $overrides);
         $state = $orchestrator->execute();
-
-        if ($overrides !== null) {
-            $state->setOverrides($overrides);
-        }
 
         $settings = $data['settings'] ?? [];
 

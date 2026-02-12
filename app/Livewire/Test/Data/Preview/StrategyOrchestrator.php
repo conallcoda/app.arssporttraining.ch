@@ -16,11 +16,16 @@ class StrategyOrchestrator
         private array $data,
         private ?MeasuredData $measuredData = null,
         private int $weeks = 5,
+        private ?GridOverrides $overrides = null,
     ) {}
 
     public function execute(): GridState
     {
         $state = new GridState;
+
+        if ($this->overrides !== null) {
+            $state->setOverrides($this->overrides);
+        }
 
         $this->executeSetsPhase($state);
         $this->executeRepsPhase($state);

@@ -97,7 +97,7 @@ class OneRepMaxFixedStrategy implements DefinesEditability
         $lastWeekIndex = $weeks - 1;
         $lastSetIndex = $setsPerWeek[$lastWeekIndex] - 1;
 
-        $lastSetReps = $state->getCellValue('reps', $lastWeekIndex, $lastSetIndex);
+        $lastSetReps = $state->getResolvedCellValue('reps', $lastWeekIndex, $lastSetIndex);
         $repPercentage = RepPercentageTable::getPercentage((int) ($lastSetReps ?? 1));
         $anchorWeight = $target1RM * $repPercentage;
 
