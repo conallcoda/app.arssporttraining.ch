@@ -3,6 +3,7 @@
 namespace App\Livewire\Test\Data\Settings;
 
 use App\Cms\Form\Fields;
+use App\Livewire\Test\Data\Preview\CellInputMeta;
 
 class PaceSetting extends AbstractSetting
 {
@@ -14,6 +15,15 @@ class PaceSetting extends AbstractSetting
     public static function unitLabel(): string
     {
         return 'mm:ss/km';
+    }
+
+    public static function inputMeta(array $config = []): CellInputMeta
+    {
+        return new CellInputMeta(
+            inputType: 'text',
+            maxlength: 5,
+            mask: '9:99',
+        );
     }
 
     public static function fields(): array

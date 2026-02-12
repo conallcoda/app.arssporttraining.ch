@@ -13,6 +13,11 @@ class GridState
     /** @var array<string, array<string, mixed>> */
     private array $metadata = [];
 
+    private ?GridOverrides $overrides = null;
+
+    /** @var array<DefinesEditability> */
+    private array $editabilityStrategies = [];
+
     /** @param array<int, int> $setsPerWeek */
     public function setSetsPerWeek(array $setsPerWeek): void
     {
@@ -75,5 +80,75 @@ class GridState
     public function getMetadata(string $setting, string $key): mixed
     {
         return $this->metadata[$setting][$key] ?? null;
+    }
+
+    public function setOverrides(GridOverrides $overrides): void
+    {
+        $this->overrides = $overrides;
+    }
+
+    public function getOverrides(): ?GridOverrides
+    {
+        return $this->overrides;
+    }
+
+    public function getResolvedCellValue(string $setting, int $weekIndex, int $setIndex): mixed
+    {
+        if ($this->overrides !== null) {
+            $overrideValue = $this->overrides->getCellOverrideValue($weekIndex, $setIndex, $setting);
+
+            if ($overrideValue !== null) {
+                return $overrideValue;
+            }
+        }
+
+        return $this->getCellValue($setting, $weekIndex, $setIndex);
+    }
+
+    public function isCellOverridden(string $setting, int $weekIndex, int $setIndex): bool
+    {
+        if ($this->overrides === null) {
+            return false;
+        }
+
+        return $this->overrides->hasCellOverride($weekIndex, $setIndex, $setting);
+    }
+
+    public function getResolvedWeekValue(string $setting, int $weekIndex, mixed $default): mixed
+    {
+        if ($this->overrides !== null) {
+            $overrideValue = $this->overrides->getWeekOverrideValue($weekIndex, $setting);
+
+            if ($overrideValue !== null) {
+                return $overrideValue;
+            }
+        }
+
+        return $default;
+    }
+
+    public function isWeekOverridden(string $setting, int $weekIndex): bool
+    {
+        if ($this->overrides === null) {
+            return false;
+        }
+
+        return $this->overrides->hasWeekOverride($weekIndex, $setting);
+    }
+
+    public function addEditabilityStrategy(DefinesEditability $strategy): void
+    {
+        $this->editabilityStrategies[] = $strategy;
+    }
+
+    public function isCellEditable(string $field, int $week, int $set): bool
+    {
+        foreach ($this->editabilityStrategies as $strategy) {
+            if (! $strategy->isEditable($field, $week, $set, $this)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

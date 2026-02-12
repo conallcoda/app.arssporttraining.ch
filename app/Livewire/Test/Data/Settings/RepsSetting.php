@@ -3,6 +3,7 @@
 namespace App\Livewire\Test\Data\Settings;
 
 use App\Cms\Form\Fields;
+use App\Livewire\Test\Data\Preview\CellInputMeta;
 
 class RepsSetting extends AbstractSetting
 {
@@ -14,6 +15,15 @@ class RepsSetting extends AbstractSetting
         public int $minimum = 1,
         public string $applyPer = 'session',
     ) {}
+
+    public static function inputMeta(array $config = []): CellInputMeta
+    {
+        return new CellInputMeta(
+            inputType: 'number',
+            inputStep: '1',
+            min: 1,
+        );
+    }
 
     public static function fields(): array
     {

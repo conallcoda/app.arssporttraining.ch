@@ -2,16 +2,22 @@
 
 namespace App\Livewire\Test\Data\Strategies\Weight;
 
+use App\Livewire\Test\Data\Preview\DefinesEditability;
 use App\Livewire\Test\Data\Preview\GridState;
 use App\Livewire\Test\Data\Settings\WeightSetting;
 use App\Training\Reference\RepPercentageTable;
 
-class OneRepMaxFixedStrategy
+class OneRepMaxFixedStrategy implements DefinesEditability
 {
     public function __construct(
         private WeightSetting $setting,
         private MeasuredData $measuredData,
     ) {}
+
+    public function isEditable(string $field, int $week, int $set, GridState $state): bool
+    {
+        return $field !== 'oneRepMax' && $field !== 'weight';
+    }
 
     /**
      * @return array{weights: array<int, array<int, float>>, oneRepMax: array<int, array<int, string|float>>}|null

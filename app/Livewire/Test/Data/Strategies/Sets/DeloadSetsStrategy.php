@@ -2,10 +2,11 @@
 
 namespace App\Livewire\Test\Data\Strategies\Sets;
 
+use App\Livewire\Test\Data\Preview\DefinesEditability;
 use App\Livewire\Test\Data\Preview\GridState;
 use App\Livewire\Test\Data\Settings\SetsSetting;
 
-class DeloadSetsStrategy
+class DeloadSetsStrategy implements DefinesEditability
 {
     public function __construct(private SetsSetting $setting) {}
 
@@ -21,6 +22,11 @@ class DeloadSetsStrategy
         $state->setSetsPerWeek($setsPerWeek);
 
         return $setsPerWeek;
+    }
+
+    public function isEditable(string $field, int $week, int $set, GridState $state): bool
+    {
+        return $set < ($state->getSetsPerWeek()[$week] ?? 0);
     }
 
     private function getSetsForWeek(int $weekIndex): int

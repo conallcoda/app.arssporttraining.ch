@@ -23,6 +23,8 @@ class TestExerciseData extends AbstractData implements HasForms
         public array $equipment = [],
         public array $modifiers = [],
         public array $settings = [],
+        /** @var array{cells: array<int, array{week: int, session: int, set: int, data: array<string, mixed>}>, weeks: array<int, array{week: int, data: array<string, mixed>}>} */
+        public array $overrides = ['cells' => [], 'weeks' => []],
     ) {}
 
     public static function getForm(): Form|array

@@ -31,12 +31,36 @@ class ExercisePreviewBuilder
         'bg-amber-50 dark:bg-amber-900/20',
     ];
 
+    private const OVERRIDE_ROW_COLORS = [
+        'bg-blue-200 dark:bg-blue-700/40',
+        'bg-green-200 dark:bg-green-700/40',
+        'bg-red-200 dark:bg-red-700/40',
+        'bg-purple-200 dark:bg-purple-700/40',
+        'bg-cyan-200 dark:bg-cyan-700/40',
+        'bg-orange-200 dark:bg-orange-700/40',
+        'bg-pink-200 dark:bg-pink-700/40',
+        'bg-amber-200 dark:bg-amber-700/40',
+    ];
+
     private const ONE_REP_MAX_COLOR = 'bg-orange-50 dark:bg-orange-900/20';
 
-    public static function build(array $data, ?MeasuredData $measuredData = null, int $weeks = self::DEFAULT_WEEKS): PreviewGrid
-    {
+    private const WEEK_COLUMN_COLOR = 'bg-zinc-100 dark:bg-zinc-700/30';
+
+    private const WEEK_COLUMN_OVERRIDE_COLOR = 'bg-zinc-200 dark:bg-zinc-600/50';
+
+    public static function build(
+        array $data,
+        ?MeasuredData $measuredData = null,
+        int $weeks = self::DEFAULT_WEEKS,
+        ?GridOverrides $overrides = null,
+        int $sessionsPerWeek = 1,
+    ): PreviewGrid {
         $orchestrator = new StrategyOrchestrator($data, $measuredData, $weeks);
         $state = $orchestrator->execute();
+
+        if ($overrides !== null) {
+            $state->setOverrides($overrides);
+        }
 
         $settings = $data['settings'] ?? [];
 
@@ -58,21 +82,22 @@ class ExercisePreviewBuilder
             $applyPer = $config['applyPer'] ?? 'session';
 
             if ($applyPer === 'week') {
-                $weekColumns[] = self::buildWeekColumn($setting, $config, $weeks);
+                $weekColumns[] = self::buildWeekColumn($setting, $config, $weeks, $state);
 
                 continue;
             }
 
             $color = self::ROW_COLORS[$colorIndex] ?? 'bg-zinc-50 dark:bg-zinc-800/20';
+            $overrideColor = self::OVERRIDE_ROW_COLORS[$colorIndex] ?? 'bg-zinc-200 dark:bg-zinc-600/50';
             $colorIndex++;
 
             if ($setting === 'weight') {
-                $weightRows = self::buildWeightRows($config, $color, $weeks, $setsPerWeek, $state);
+                $weightRows = self::buildWeightRows($config, $color, $overrideColor, $weeks, $setsPerWeek, $state);
                 foreach ($weightRows as $row) {
                     $rows[] = $row;
                 }
             } else {
-                $rows[] = self::buildRow($setting, $config, $color, $weeks, $setsPerWeek, $state);
+                $rows[] = self::buildRow($setting, $config, $color, $overrideColor, $weeks, $setsPerWeek, $state);
             }
         }
 
@@ -83,21 +108,41 @@ class ExercisePreviewBuilder
             setLabel: ($data['sets']['label'] ?? 'Set'),
             weekColumns: $weekColumns,
             summary: $state->getMetadata('weight', 'summary'),
+            sessionsPerWeek: $sessionsPerWeek,
         );
     }
 
     /** @param array<int, int> $setsPerWeek */
-    private static function buildRow(string $setting, array $config, string $color, int $weeks, array $setsPerWeek, GridState $state): PreviewGridRow
+    private static function buildRow(string $setting, array $config, string $color, string $overrideColor, int $weeks, array $setsPerWeek, GridState $state): PreviewGridRow
     {
-        $cells = $state->hasGrid($setting)
+        $defaultGrid = $state->hasGrid($setting)
             ? $state->getGrid($setting)
             : self::buildDefaultCells($config, $weeks, $setsPerWeek);
+
+        $cells = [];
+        $overrideMap = [];
+
+        for ($week = 0; $week < $weeks; $week++) {
+            $setCount = $setsPerWeek[$week];
+            for ($set = 0; $set < $setCount; $set++) {
+                $resolved = $state->getResolvedCellValue($setting, $week, $set);
+                $cells[$week][$set] = $resolved ?? ($defaultGrid[$week][$set] ?? '-');
+                $overrideMap[$week][$set] = $state->isCellOverridden($setting, $week, $set);
+            }
+        }
+
+        $inputMeta = self::resolveInputMeta($setting, $config);
+        $editableMap = self::buildEditableMap($setting, $weeks, $state->maxSets(), $state);
 
         return new PreviewGridRow(
             field: $setting,
             label: self::resolveLabel($setting, $config),
             color: $color,
             cells: $cells,
+            overrideColor: $overrideColor,
+            overrides: $overrideMap,
+            inputMeta: $inputMeta,
+            editableMap: $editableMap,
         );
     }
 
@@ -105,16 +150,35 @@ class ExercisePreviewBuilder
      * @param  array<int, int>  $setsPerWeek
      * @return PreviewGridRow[]
      */
-    private static function buildWeightRows(array $config, string $color, int $weeks, array $setsPerWeek, GridState $state): array
+    private static function buildWeightRows(array $config, string $color, string $overrideColor, int $weeks, array $setsPerWeek, GridState $state): array
     {
         $rows = [];
+        $inputMeta = self::resolveInputMeta('weight', $config);
 
         if ($state->hasGrid('weight')) {
+            $weightCells = [];
+            $weightOverrides = [];
+
+            for ($week = 0; $week < $weeks; $week++) {
+                $setCount = $setsPerWeek[$week];
+                for ($set = 0; $set < $setCount; $set++) {
+                    $resolved = $state->getResolvedCellValue('weight', $week, $set);
+                    $weightCells[$week][$set] = $resolved ?? ($state->getCellValue('weight', $week, $set) ?? '-');
+                    $weightOverrides[$week][$set] = $state->isCellOverridden('weight', $week, $set);
+                }
+            }
+
+            $maxSets = $state->maxSets();
+
             $rows[] = new PreviewGridRow(
                 field: 'weight',
                 label: self::resolveLabel('weight', $config),
                 color: $color,
-                cells: $state->getGrid('weight'),
+                cells: $weightCells,
+                overrideColor: $overrideColor,
+                overrides: $weightOverrides,
+                inputMeta: $inputMeta,
+                editableMap: self::buildEditableMap('weight', $weeks, $maxSets, $state),
             );
 
             $rows[] = new PreviewGridRow(
@@ -122,6 +186,7 @@ class ExercisePreviewBuilder
                 label: '1RM',
                 color: self::ONE_REP_MAX_COLOR,
                 cells: $state->getGrid('oneRepMax'),
+                editableMap: self::buildEditableMap('oneRepMax', $weeks, $maxSets, $state),
             );
 
             return $rows;
@@ -136,26 +201,53 @@ class ExercisePreviewBuilder
             $cells = self::fillGrid($weeks, $setsPerWeek, $defaultWeight);
         }
 
+        $overrideMap = [];
+        for ($week = 0; $week < $weeks; $week++) {
+            $setCount = $setsPerWeek[$week];
+            for ($set = 0; $set < $setCount; $set++) {
+                $resolved = $state->getResolvedCellValue('weight', $week, $set);
+                if ($resolved !== null) {
+                    $cells[$week][$set] = $resolved;
+                }
+                $overrideMap[$week][$set] = $state->isCellOverridden('weight', $week, $set);
+            }
+        }
+
         $rows[] = new PreviewGridRow(
             field: 'weight',
             label: self::resolveLabel('weight', $config),
             color: $color,
             cells: $cells,
+            overrideColor: $overrideColor,
+            overrides: $overrideMap,
+            inputMeta: $inputMeta,
+            editableMap: self::buildEditableMap('weight', $weeks, $state->maxSets(), $state),
         );
 
         return $rows;
     }
 
-    private static function buildWeekColumn(string $setting, array $config, int $weeks): PreviewGridRow
+    private static function buildWeekColumn(string $setting, array $config, int $weeks, GridState $state): PreviewGridRow
     {
         $default = $config['default'] ?? '-';
-        $cells = array_fill(0, $weeks, $default);
+        $cells = [];
+        $overrideMap = [];
+
+        for ($week = 0; $week < $weeks; $week++) {
+            $cells[$week] = $state->getResolvedWeekValue($setting, $week, $default);
+            $overrideMap[$week] = $state->isWeekOverridden($setting, $week);
+        }
+
+        $inputMeta = self::resolveInputMeta($setting, $config);
 
         return new PreviewGridRow(
             field: $setting,
             label: self::resolveLabel($setting, $config),
-            color: 'bg-zinc-100 dark:bg-zinc-700/30',
+            color: self::WEEK_COLUMN_COLOR,
             cells: $cells,
+            overrideColor: self::WEEK_COLUMN_OVERRIDE_COLOR,
+            overrides: $overrideMap,
+            inputMeta: $inputMeta,
         );
     }
 
@@ -173,6 +265,33 @@ class ExercisePreviewBuilder
         }
 
         return $label;
+    }
+
+    private static function resolveInputMeta(string $setting, array $config): ?CellInputMeta
+    {
+        $enum = ExerciseSetting::tryFrom($setting);
+
+        if ($enum?->settingClass()) {
+            return $enum->settingClass()::inputMeta($config);
+        }
+
+        return new CellInputMeta;
+    }
+
+    /** @return array<int, array<int, bool>> */
+    private static function buildEditableMap(string $field, int $weeks, int $maxSets, GridState $state): array
+    {
+        $editableMap = [];
+
+        for ($week = 0; $week < $weeks; $week++) {
+            for ($set = 0; $set < $maxSets; $set++) {
+                if (! $state->isCellEditable($field, $week, $set)) {
+                    $editableMap[$week][$set] = false;
+                }
+            }
+        }
+
+        return $editableMap;
     }
 
     /**

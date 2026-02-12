@@ -34,6 +34,7 @@ class StrategyOrchestrator
         $setsSetting = SetsSetting::from($this->data['sets'] ?? []);
         $strategy = new DeloadSetsStrategy($setsSetting);
         $strategy->generate($this->weeks, $state);
+        $this->registerEditability($strategy, $state);
     }
 
     private function executeRepsPhase(GridState $state): void
@@ -56,6 +57,7 @@ class StrategyOrchestrator
             $repsSetting = RepsSetting::from($config);
             $strategy = new PairedRepStrategy($repsSetting);
             $strategy->generate($this->weeks, $state);
+            $this->registerEditability($strategy, $state);
 
             return;
         }
@@ -87,6 +89,14 @@ class StrategyOrchestrator
         $weightSetting = WeightSetting::from($config);
         $strategy = new OneRepMaxFixedStrategy($weightSetting, $this->measuredData);
         $strategy->generate($this->weeks, $state);
+        $this->registerEditability($strategy, $state);
+    }
+
+    private function registerEditability(object $strategy, GridState $state): void
+    {
+        if ($strategy instanceof DefinesEditability) {
+            $state->addEditabilityStrategy($strategy);
+        }
     }
 
     /** @return array<int, array<int, mixed>> */

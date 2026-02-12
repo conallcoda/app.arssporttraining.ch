@@ -6,6 +6,7 @@ use App\Cms\Data\AbstractData;
 use App\Cms\Form\Concerns\InteractsWithForms;
 use App\Cms\Form\Form;
 use App\Cms\Models\Contracts\HasForms;
+use App\Livewire\Test\Data\Preview\CellInputMeta;
 
 abstract class AbstractSetting extends AbstractData implements HasForms
 {
@@ -36,6 +37,11 @@ abstract class AbstractSetting extends AbstractData implements HasForms
         $unit = $data['unit'] ?? array_key_first($label);
 
         return $label[$unit] ?? reset($label);
+    }
+
+    public static function inputMeta(array $config = []): CellInputMeta
+    {
+        return new CellInputMeta;
     }
 
     public static function fields(): array

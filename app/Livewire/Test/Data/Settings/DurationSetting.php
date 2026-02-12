@@ -3,6 +3,7 @@
 namespace App\Livewire\Test\Data\Settings;
 
 use App\Cms\Form\Fields;
+use App\Livewire\Test\Data\Preview\CellInputMeta;
 
 class DurationSetting extends AbstractSetting
 {
@@ -15,6 +16,25 @@ class DurationSetting extends AbstractSetting
     public static function unitLabel(): array
     {
         return ['seconds' => 's', 'minutes' => 'm', 'mm:ss' => 'mm:ss'];
+    }
+
+    public static function inputMeta(array $config = []): CellInputMeta
+    {
+        $unit = $config['unit'] ?? 'seconds';
+
+        if ($unit === 'mm:ss') {
+            return new CellInputMeta(
+                inputType: 'text',
+                maxlength: 5,
+                mask: '9:99',
+            );
+        }
+
+        return new CellInputMeta(
+            inputType: 'number',
+            inputStep: '1',
+            min: 0,
+        );
     }
 
     public static function fields(): array

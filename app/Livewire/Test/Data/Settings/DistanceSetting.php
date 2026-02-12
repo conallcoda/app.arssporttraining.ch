@@ -3,6 +3,7 @@
 namespace App\Livewire\Test\Data\Settings;
 
 use App\Cms\Form\Fields;
+use App\Livewire\Test\Data\Preview\CellInputMeta;
 
 class DistanceSetting extends AbstractSetting
 {
@@ -15,6 +16,17 @@ class DistanceSetting extends AbstractSetting
     public static function unitLabel(): array
     {
         return ['meters' => 'm', 'kilometers' => 'km'];
+    }
+
+    public static function inputMeta(array $config = []): CellInputMeta
+    {
+        $unit = $config['unit'] ?? 'meters';
+
+        return new CellInputMeta(
+            inputType: 'number',
+            inputStep: $unit === 'kilometers' ? '0.1' : '1',
+            min: 0,
+        );
     }
 
     public static function fields(): array

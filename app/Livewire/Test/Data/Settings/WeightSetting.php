@@ -3,6 +3,7 @@
 namespace App\Livewire\Test\Data\Settings;
 
 use App\Cms\Form\Fields;
+use App\Livewire\Test\Data\Preview\CellInputMeta;
 
 class WeightSetting extends AbstractSetting
 {
@@ -16,6 +17,15 @@ class WeightSetting extends AbstractSetting
     public static function unitLabel(): string
     {
         return 'kg';
+    }
+
+    public static function inputMeta(array $config = []): CellInputMeta
+    {
+        return new CellInputMeta(
+            inputType: 'number',
+            inputStep: '0.5',
+            min: 0,
+        );
     }
 
     public static function fields(): array
