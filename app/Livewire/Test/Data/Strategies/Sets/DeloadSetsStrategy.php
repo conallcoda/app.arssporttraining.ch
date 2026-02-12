@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Test\Data\Strategies\Sets;
 
+use App\Livewire\Test\Data\Preview\GridState;
 use App\Livewire\Test\Data\Settings\SetsSetting;
 
 class DeloadSetsStrategy
@@ -9,7 +10,7 @@ class DeloadSetsStrategy
     public function __construct(private SetsSetting $setting) {}
 
     /** @return array<int, int> */
-    public function generate(int $weeks): array
+    public function generate(int $weeks, GridState $state): array
     {
         $setsPerWeek = [];
 
@@ -17,12 +18,9 @@ class DeloadSetsStrategy
             $setsPerWeek[$week] = $this->getSetsForWeek($week);
         }
 
-        return $setsPerWeek;
-    }
+        $state->setSetsPerWeek($setsPerWeek);
 
-    public function maxSets(int $weeks): int
-    {
-        return max($this->generate($weeks));
+        return $setsPerWeek;
     }
 
     private function getSetsForWeek(int $weekIndex): int

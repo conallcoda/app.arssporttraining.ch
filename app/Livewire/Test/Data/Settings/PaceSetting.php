@@ -11,6 +11,11 @@ class PaceSetting extends AbstractSetting
         public string $applyPer = 'session',
     ) {}
 
+    public static function unitLabel(): string
+    {
+        return 'mm:ss/km';
+    }
+
     public static function fields(): array
     {
         return [
@@ -18,7 +23,7 @@ class PaceSetting extends AbstractSetting
                 ->label('Default Pace')
                 ->default('5:00')
                 ->defaultUnit('mm:ss')
-                ->suffix('mm:ss/km')
+                ->suffix(static::unitLabel())
                 ->live(),
             ApplyPerField::make(),
         ];

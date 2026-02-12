@@ -2,13 +2,8 @@
 
 namespace App\Livewire\Test\Data\Preview;
 
-use App\Livewire\Test\Data\Settings\RepsSetting;
-use App\Livewire\Test\Data\Settings\SetsSetting;
-use App\Livewire\Test\Data\Settings\WeightSetting;
-use App\Livewire\Test\Data\Strategies\Reps\PairedRepStrategy;
-use App\Livewire\Test\Data\Strategies\Sets\DeloadSetsStrategy;
+use App\Livewire\Test\Data\ExerciseSetting;
 use App\Livewire\Test\Data\Strategies\Weight\MeasuredData;
-use App\Livewire\Test\Data\Strategies\Weight\OneRepMaxFixedStrategy;
 
 class ExercisePreviewBuilder
 {
@@ -40,10 +35,8 @@ class ExercisePreviewBuilder
 
     public static function build(array $data, ?MeasuredData $measuredData = null, int $weeks = self::DEFAULT_WEEKS): PreviewGrid
     {
-        $setsSetting = SetsSetting::from($data['sets'] ?? []);
-        $deload = new DeloadSetsStrategy($setsSetting);
-        $setsPerWeek = $deload->generate($weeks);
-        $maxSets = max($setsPerWeek);
+        $orchestrator = new StrategyOrchestrator($data, $measuredData, $weeks);
+        $state = $orchestrator->execute();
 
         $settings = $data['settings'] ?? [];
 
@@ -58,7 +51,7 @@ class ExercisePreviewBuilder
         $rows = [];
         $weekColumns = [];
         $colorIndex = 0;
-        $summary = null;
+        $setsPerWeek = $state->getSetsPerWeek();
 
         foreach ($settings as $setting) {
             $config = $data[$setting] ?? [];
@@ -74,44 +67,35 @@ class ExercisePreviewBuilder
             $colorIndex++;
 
             if ($setting === 'weight') {
-                $weightRows = self::buildWeightRows($config, $color, $weeks, $setsPerWeek, $measuredData);
-                foreach ($weightRows['rows'] as $row) {
+                $weightRows = self::buildWeightRows($config, $color, $weeks, $setsPerWeek, $state);
+                foreach ($weightRows as $row) {
                     $rows[] = $row;
-                }
-                if ($weightRows['summary'] !== null) {
-                    $summary = $weightRows['summary'];
                 }
             } else {
-                $row = self::buildRow($setting, $config, $color, $weeks, $setsPerWeek);
-                if ($row) {
-                    $rows[] = $row;
-                }
+                $rows[] = self::buildRow($setting, $config, $color, $weeks, $setsPerWeek, $state);
             }
         }
 
         return new PreviewGrid(
             rows: $rows,
             weekCount: $weeks,
-            setCount: $maxSets,
-            setLabel: $setsSetting->label,
+            setCount: $state->maxSets(),
+            setLabel: ($data['sets']['label'] ?? 'Set'),
             weekColumns: $weekColumns,
-            summary: $summary,
+            summary: $state->getMetadata('weight', 'summary'),
         );
     }
 
     /** @param array<int, int> $setsPerWeek */
-    private static function buildRow(string $setting, array $config, string $color, int $weeks, array $setsPerWeek): ?PreviewGridRow
+    private static function buildRow(string $setting, array $config, string $color, int $weeks, array $setsPerWeek, GridState $state): PreviewGridRow
     {
-        $mode = $config['mode'] ?? 'manual';
-
-        $cells = match ($setting) {
-            'reps' => self::buildRepsCells($config, $mode, $weeks, $setsPerWeek),
-            default => self::buildDefaultCells($config, $weeks, $setsPerWeek),
-        };
+        $cells = $state->hasGrid($setting)
+            ? $state->getGrid($setting)
+            : self::buildDefaultCells($config, $weeks, $setsPerWeek);
 
         return new PreviewGridRow(
             field: $setting,
-            label: ucfirst($setting),
+            label: self::resolveLabel($setting, $config),
             color: $color,
             cells: $cells,
         );
@@ -119,39 +103,31 @@ class ExercisePreviewBuilder
 
     /**
      * @param  array<int, int>  $setsPerWeek
-     * @return array{rows: PreviewGridRow[], summary: array|null}
+     * @return PreviewGridRow[]
      */
-    private static function buildWeightRows(array $config, string $color, int $weeks, array $setsPerWeek, ?MeasuredData $measuredData): array
+    private static function buildWeightRows(array $config, string $color, int $weeks, array $setsPerWeek, GridState $state): array
     {
-        $mode = $config['mode'] ?? 'manual';
         $rows = [];
-        $summary = null;
 
-        if ($mode === 'automatic' && $measuredData !== null) {
-            $weightSetting = WeightSetting::from($config);
-            $strategy = new OneRepMaxFixedStrategy($weightSetting, $measuredData);
-            $result = $strategy->generate($weeks, $setsPerWeek);
+        if ($state->hasGrid('weight')) {
+            $rows[] = new PreviewGridRow(
+                field: 'weight',
+                label: self::resolveLabel('weight', $config),
+                color: $color,
+                cells: $state->getGrid('weight'),
+            );
 
-            if ($result !== null) {
-                $rows[] = new PreviewGridRow(
-                    field: 'weight',
-                    label: 'Weight',
-                    color: $color,
-                    cells: $result['weights'],
-                );
+            $rows[] = new PreviewGridRow(
+                field: 'oneRepMax',
+                label: '1RM',
+                color: self::ONE_REP_MAX_COLOR,
+                cells: $state->getGrid('oneRepMax'),
+            );
 
-                $rows[] = new PreviewGridRow(
-                    field: 'oneRepMax',
-                    label: '1RM',
-                    color: self::ONE_REP_MAX_COLOR,
-                    cells: $result['oneRepMax'],
-                );
-
-                $summary = $strategy->getSummary();
-
-                return ['rows' => $rows, 'summary' => $summary];
-            }
+            return $rows;
         }
+
+        $mode = $config['mode'] ?? 'manual';
 
         if ($mode === 'automatic') {
             $cells = self::fillGrid($weeks, $setsPerWeek, '-');
@@ -162,29 +138,41 @@ class ExercisePreviewBuilder
 
         $rows[] = new PreviewGridRow(
             field: 'weight',
-            label: 'Weight',
+            label: self::resolveLabel('weight', $config),
             color: $color,
             cells: $cells,
         );
 
-        return ['rows' => $rows, 'summary' => null];
+        return $rows;
     }
 
-    /**
-     * @param  array<int, int>  $setsPerWeek
-     * @return array<int, array<int, int>>
-     */
-    private static function buildRepsCells(array $config, string $mode, int $weeks, array $setsPerWeek): array
+    private static function buildWeekColumn(string $setting, array $config, int $weeks): PreviewGridRow
     {
-        if ($mode === 'automatic') {
-            $repsSetting = RepsSetting::from($config);
+        $default = $config['default'] ?? '-';
+        $cells = array_fill(0, $weeks, $default);
 
-            return (new PairedRepStrategy($repsSetting))->generate($weeks, $setsPerWeek);
+        return new PreviewGridRow(
+            field: $setting,
+            label: self::resolveLabel($setting, $config),
+            color: 'bg-zinc-100 dark:bg-zinc-700/30',
+            cells: $cells,
+        );
+    }
+
+    private static function resolveLabel(string $setting, array $config): string
+    {
+        $label = ucfirst($setting);
+        $enum = ExerciseSetting::tryFrom($setting);
+
+        if ($enum?->settingClass()) {
+            $unit = $enum->settingClass()::resolveUnitLabel($config);
+
+            if ($unit !== null) {
+                return "{$label} ({$unit})";
+            }
         }
 
-        $defaultReps = (int) ($config['default'] ?? 10);
-
-        return self::fillGrid($weeks, $setsPerWeek, $defaultReps);
+        return $label;
     }
 
     /**
@@ -196,19 +184,6 @@ class ExercisePreviewBuilder
         $default = $config['default'] ?? '-';
 
         return self::fillGrid($weeks, $setsPerWeek, $default);
-    }
-
-    private static function buildWeekColumn(string $setting, array $config, int $weeks): PreviewGridRow
-    {
-        $default = $config['default'] ?? '-';
-        $cells = array_fill(0, $weeks, $default);
-
-        return new PreviewGridRow(
-            field: $setting,
-            label: ucfirst($setting),
-            color: 'bg-zinc-100 dark:bg-zinc-700/30',
-            cells: $cells,
-        );
     }
 
     /**

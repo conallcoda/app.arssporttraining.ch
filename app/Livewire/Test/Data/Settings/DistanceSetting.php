@@ -12,6 +12,11 @@ class DistanceSetting extends AbstractSetting
         public string $applyPer = 'session',
     ) {}
 
+    public static function unitLabel(): array
+    {
+        return ['meters' => 'm', 'kilometers' => 'km'];
+    }
+
     public static function fields(): array
     {
         return [
@@ -31,10 +36,7 @@ class DistanceSetting extends AbstractSetting
                 ])
                 ->min(0)
                 ->live()
-                ->suffixMap([
-                    'meters' => 'm',
-                    'kilometers' => 'km',
-                ]),
+                ->suffixMap(static::unitLabel()),
             ApplyPerField::make(),
         ];
     }

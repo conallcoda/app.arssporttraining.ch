@@ -13,6 +13,11 @@ class WeightSetting extends AbstractSetting
         public string $applyPer = 'session',
     ) {}
 
+    public static function unitLabel(): string
+    {
+        return 'kg';
+    }
+
     public static function fields(): array
     {
         return [
@@ -34,7 +39,8 @@ class WeightSetting extends AbstractSetting
                 ->default(5)
                 ->live()
                 ->show('mode == "manual"'),
-            ApplyPerField::make(),
+            ApplyPerField::make()
+                ->show('mode == "manual"'),
         ];
     }
 }

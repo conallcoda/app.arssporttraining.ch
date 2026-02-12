@@ -11,6 +11,10 @@ class RestSetting extends AbstractSetting
         public string $applyPer = 'week',
     ) {}
 
+    public static function unitLabel(): string
+    {
+        return 's';
+    }
     public static function fields(): array
     {
         return [

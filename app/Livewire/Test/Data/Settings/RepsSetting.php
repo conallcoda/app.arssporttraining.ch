@@ -53,7 +53,8 @@ class RepsSetting extends AbstractSetting
                 ->suffix('rep(s)')
                 ->live()
                 ->show('mode == "automatic"'),
-            ApplyPerField::make(),
+            ApplyPerField::make()
+                ->show('mode == "manual"'),
         ];
     }
 }

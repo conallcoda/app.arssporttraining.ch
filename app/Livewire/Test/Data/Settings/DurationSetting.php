@@ -12,6 +12,11 @@ class DurationSetting extends AbstractSetting
         public string $applyPer = 'session',
     ) {}
 
+    public static function unitLabel(): array
+    {
+        return ['seconds' => 's', 'minutes' => 'm', 'mm:ss' => 'mm:ss'];
+    }
+
     public static function fields(): array
     {
         return [

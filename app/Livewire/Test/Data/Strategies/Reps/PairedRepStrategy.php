@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Test\Data\Strategies\Reps;
 
+use App\Livewire\Test\Data\Preview\GridState;
 use App\Livewire\Test\Data\Settings\RepsSetting;
 
 class PairedRepStrategy
@@ -9,32 +10,35 @@ class PairedRepStrategy
     public function __construct(private RepsSetting $setting) {}
 
     /**
-     * @param  array<int, int>  $setsPerWeek
      * @return array<int, array<int, int>>
      */
-    public function generate(int $weeks, array $setsPerWeek): array
+    public function generate(int $weeks, GridState $state): array
     {
+        $setsPerWeek = $state->getSetsPerWeek();
         $grid = [];
 
         for ($week = 0; $week < $weeks; $week++) {
             $grid[$week] = [];
-            for ($set = 0; $set < $setsPerWeek[$week]; $set++) {
-                $grid[$week][$set] = $this->calculateReps($week, $set);
+            $totalSets = $setsPerWeek[$week];
+            for ($set = 0; $set < $totalSets; $set++) {
+                $grid[$week][$set] = $this->calculateReps($week, $set, $totalSets);
             }
         }
+
+        $state->setGrid('reps', $grid);
 
         return $grid;
     }
 
-    private function calculateReps(int $weekIndex, int $setIndex): int
+    private function calculateReps(int $weekIndex, int $setIndex, int $totalSets): int
     {
         $anchorReps = $this->anchorRepsForWeek($weekIndex);
         $topTierReps = $anchorReps + $this->setting->decrement;
+        $midpoint = (int) ceil($totalSets / 2);
 
-        return max(
-            $topTierReps - (intdiv($setIndex, 2) * $this->setting->decrement),
-            $this->setting->minimum,
-        );
+        $reps = $setIndex < $midpoint ? $topTierReps : $anchorReps;
+
+        return max($reps, $this->setting->minimum);
     }
 
     private function anchorRepsForWeek(int $weekIndex): int

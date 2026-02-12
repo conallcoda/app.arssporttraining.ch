@@ -2,45 +2,29 @@
 
 namespace App\Livewire\Test\Data\Strategies\Weight;
 
+use App\Livewire\Test\Data\Preview\GridState;
 use App\Livewire\Test\Data\Settings\WeightSetting;
+use App\Training\Reference\RepPercentageTable;
 
 class OneRepMaxFixedStrategy
 {
-    private const REP_PERCENTAGE_TABLE = [
-        1 => 1.00,
-        2 => 0.96,
-        3 => 0.94,
-        4 => 0.91,
-        5 => 0.88,
-        6 => 0.86,
-        7 => 0.83,
-        8 => 0.80,
-        9 => 0.77,
-        10 => 0.74,
-        11 => 0.71,
-        12 => 0.67,
-        13 => 0.65,
-        14 => 0.63,
-        15 => 0.62,
-    ];
-
     public function __construct(
         private WeightSetting $setting,
         private MeasuredData $measuredData,
     ) {}
 
     /**
-     * @param  array<int, int>  $setsPerWeek
      * @return array{weights: array<int, array<int, float>>, oneRepMax: array<int, array<int, string|float>>}|null
      */
-    public function generate(int $weeks, array $setsPerWeek): ?array
+    public function generate(int $weeks, GridState $state): ?array
     {
         if (! $this->measuredData->isComplete()) {
             return null;
         }
 
+        $setsPerWeek = $state->getSetsPerWeek();
         $target1RM = $this->calculateTarget1RM();
-        $weekTargets = $this->calculateWeekTargets($target1RM, $weeks);
+        $weekTargets = $this->calculateWeekTargets($target1RM, $weeks, $setsPerWeek, $state);
 
         $weights = [];
         $oneRepMax = [];
@@ -64,23 +48,22 @@ class OneRepMaxFixedStrategy
             }
         }
 
+        $state->setGrid('weight', $weights);
+        $state->setGrid('oneRepMax', $oneRepMax);
+        $state->setMetadata('weight', 'summary', $this->buildSummary($target1RM));
+
         return [
             'weights' => $weights,
             'oneRepMax' => $oneRepMax,
         ];
     }
 
-    /** @return array{starting1RM: float, target1RM: float, targetGoal: int}|null */
-    public function getSummary(): ?array
+    /** @return array{starting1RM: float, target1RM: float, targetGoal: int} */
+    private function buildSummary(float $target1RM): array
     {
-        if (! $this->measuredData->isComplete()) {
-            return null;
-        }
-
-        $repPercentage = self::repPercentage($this->measuredData->measuredReps);
+        $repPercentage = RepPercentageTable::getPercentage($this->measuredData->measuredReps);
         $estimated1RM = $this->measuredData->measuredWeight / $repPercentage;
         $exercise1RM = $estimated1RM * ($this->setting->oneRepMaxModifier / 100);
-        $target1RM = $exercise1RM * (1 + ($this->measuredData->targetGoal ?? 0) / 100);
 
         return [
             'starting1RM' => round($exercise1RM, 1),
@@ -91,21 +74,30 @@ class OneRepMaxFixedStrategy
 
     private function calculateTarget1RM(): float
     {
-        $repPercentage = self::repPercentage($this->measuredData->measuredReps);
+        $repPercentage = RepPercentageTable::getPercentage($this->measuredData->measuredReps);
         $estimated1RM = $this->measuredData->measuredWeight / $repPercentage;
         $exercise1RM = $estimated1RM * ($this->setting->oneRepMaxModifier / 100);
 
         return $exercise1RM * (1 + ($this->measuredData->targetGoal ?? 0) / 100);
     }
 
-    /** @return array<int, float> */
-    private function calculateWeekTargets(float $target1RM, int $weeks): array
+    /**
+     * @param  array<int, int>  $setsPerWeek
+     * @return array<int, float>
+     */
+    private function calculateWeekTargets(float $target1RM, int $weeks, array $setsPerWeek, GridState $state): array
     {
         $targets = [];
         $lastWeekIndex = $weeks - 1;
-        $targets[$lastWeekIndex] = $target1RM;
+        $lastSetIndex = $setsPerWeek[$lastWeekIndex] - 1;
 
-        $currentWeight = $target1RM;
+        $lastSetReps = $state->getCellValue('reps', $lastWeekIndex, $lastSetIndex);
+        $repPercentage = RepPercentageTable::getPercentage((int) ($lastSetReps ?? 1));
+        $anchorWeight = $target1RM * $repPercentage;
+
+        $targets[$lastWeekIndex] = $anchorWeight;
+
+        $currentWeight = $anchorWeight;
 
         for ($week = $lastWeekIndex - 1; $week >= 0; $week--) {
             $currentWeight = self::decrementWeight($currentWeight);
@@ -134,13 +126,6 @@ class OneRepMaxFixedStrategy
         }
 
         return $weights;
-    }
-
-    private static function repPercentage(int $reps): float
-    {
-        $reps = max(1, min(15, $reps));
-
-        return self::REP_PERCENTAGE_TABLE[$reps];
     }
 
     private static function stepForWeight(float $weight): float
