@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Cms\Models\Concerns\HasQueryBuilder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,6 +14,7 @@ use Staudenmeir\LaravelAdjacencyList\Eloquent\HasRecursiveRelationships;
 class Tag extends Model
 {
     use HasFactory;
+    use HasQueryBuilder;
     use HasRecursiveRelationships;
     use HasSlug;
     use SoftDeletes;
@@ -20,6 +22,7 @@ class Tag extends Model
     protected $fillable = [
         'scope',
         'parent_id',
+        'sort_order',
         'name',
         'short_name',
         'slug',
