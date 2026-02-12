@@ -31,6 +31,8 @@ class FormModal extends Component
 
     public ?string $activeTitle = null;
 
+    public int $openCount = 0;
+
     public function mount(
         string $name,
         string $title,
@@ -85,6 +87,9 @@ class FormModal extends Component
     public function open(array $data = [], ?string $title = null, ?string $focusField = null, ?int $focusIndex = null): void
     {
         $this->activeTitle = $title;
+
+        unset($this->formConfig, $this->fieldsets);
+        $this->openCount++;
 
         if (empty($data)) {
             $this->data = $this->buildDefaultsFromFieldsets();

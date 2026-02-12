@@ -267,6 +267,8 @@
         @php
             $treeValue = data_get($this, $wireModel);
             $treeValue = is_int($treeValue) ? (int) $treeValue : null;
+            $treeOptionsJson = json_encode($field->treeOptions);
+            $treeKey = md5($treeOptionsJson);
         @endphp
         <flux:field>
             <div class="flex items-center gap-1 mb-2">
@@ -275,9 +277,9 @@
                     <x-cms.form.help-tooltip :content="$field->helpText" position="top" />
                 @endif
             </div>
-            <div x-data="tree_select" data-options="{{ json_encode($field->treeOptions) }}"
+            <div x-data="tree_select" data-options="{{ $treeOptionsJson }}"
                 data-value="{{ $treeValue }}" data-placeholder="{{ $field->getPlaceholder() }}"
-                data-wire-model="{{ $wireModel }}" wire:ignore>
+                data-wire-model="{{ $wireModel }}" wire:ignore wire:key="tree-{{ $field->name }}-{{ $treeKey }}">
                 <div data-tree-select-container></div>
             </div>
             <flux:error name="{{ $wireModel }}" />

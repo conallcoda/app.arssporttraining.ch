@@ -62,7 +62,7 @@ class CategoryData extends AbstractData implements HasForms
 
         if ($tag->relationLoaded('children')) {
             $children = $tag->children
-                ->sortBy('sort_order')
+                ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
                 ->values()
                 ->map(fn (Tag $child) => self::fromTagTree($child, $depth + 1))
                 ->all();
@@ -99,7 +99,7 @@ class CategoryData extends AbstractData implements HasForms
         return Form::make()
             ->fieldset('General', [
                 Text::make('name')->label('Name')->required(),
-                Category::make('parentId', 'exercise_category')->label('Parent')->placeholder('None (top-level)'),
+                Category::make('parentId', 'exercise_category')->label('Parent')->placeholder('None (top-level)')->withOptions(),
             ]);
     }
 }
