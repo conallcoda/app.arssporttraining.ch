@@ -30,12 +30,13 @@ class ExerciseExternalSeeder extends Seeder
                 ],
             );
 
-            $tagIds = [];
-
-            foreach ($exercise['categories'] as $sort => $category) {
-                $tag = $this->resolveTag($tagCache, 'exercise_category', $category);
-                $tagIds[$tag->id] = ['sort' => $sort];
+            $firstCategory = $exercise['categories'][0] ?? null;
+            if ($firstCategory) {
+                $categoryTag = $this->resolveTag($tagCache, 'exercise_category', $firstCategory);
+                $model->update(['category_id' => $categoryTag->id]);
             }
+
+            $tagIds = [];
 
             foreach ($exercise['equipment'] as $sort => $item) {
                 $tag = $this->resolveTag($tagCache, 'exercise_equipment', $item);

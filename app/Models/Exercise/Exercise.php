@@ -7,7 +7,9 @@ use App\Cms\Models\Concerns\HasTags;
 use App\Cms\Models\Contracts\Taggable;
 use App\Data\Exercise\ExerciseConfig;
 use App\Data\Exercise\ExerciseType;
+use App\Models\Tag;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -21,6 +23,7 @@ class Exercise extends Model implements Taggable
         'name',
         'type',
         'config',
+        'category_id',
     ];
 
     protected function casts(): array
@@ -31,9 +34,9 @@ class Exercise extends Model implements Taggable
         ];
     }
 
-    public function categories(): MorphToMany
+    public function category(): BelongsTo
     {
-        return $this->tagsWithScope('exercise_category');
+        return $this->belongsTo(Tag::class, 'category_id');
     }
 
     public function equipment(): MorphToMany

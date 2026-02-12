@@ -9,6 +9,7 @@
 @use('App\Cms\Form\Fields\Relationship')
 @use('App\Cms\Form\Fields\Repeater')
 @use('App\Cms\Form\Fields\Tags')
+@use('App\Cms\Form\Fields\Tree')
 
 @props(['field', 'prefix' => null, 'repeaterItems' => null, 'currentIndex' => null])
 
@@ -16,7 +17,7 @@
     $wireModel = $prefix ? "{$prefix}.{$field->name}" : $field->name;
     $resolvedSuffix = method_exists($field, 'resolveSuffix')
         ? $field->resolveSuffix($prefix ? data_get($this, $prefix, []) : [])
-        : ($resolvedSuffix ?? null);
+        : $resolvedSuffix ?? null;
 @endphp
 
 <div {{ $attributes }}>
@@ -134,9 +135,9 @@
                             data-field="{{ $field->name }}" min="{{ $field->min ?? '' }}"
                             max="{{ $field->max ?? '' }}" step="{{ $field->step ?? '' }}" />
                     @else
-                        <flux:input wire:model="{{ $wireModel }}" type="number"
-                            data-field="{{ $field->name }}" min="{{ $field->min ?? '' }}"
-                            max="{{ $field->max ?? '' }}" step="{{ $field->step ?? '' }}" />
+                        <flux:input wire:model="{{ $wireModel }}" type="number" data-field="{{ $field->name }}"
+                            min="{{ $field->min ?? '' }}" max="{{ $field->max ?? '' }}"
+                            step="{{ $field->step ?? '' }}" />
                     @endif
                 @endif
                 <flux:input.group.suffix>{{ $resolvedSuffix }}</flux:input.group.suffix>
@@ -165,11 +166,11 @@
                         </div>
                     @else
                         @if ($field->live)
-                            <flux:input wire:model.live="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
-                                placeholder="{{ $field->getPlaceholder() }}" />
+                            <flux:input wire:model.live="{{ $wireModel }}" type="text"
+                                data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
                         @else
-                            <flux:input wire:model="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
-                                placeholder="{{ $field->getPlaceholder() }}" />
+                            <flux:input wire:model="{{ $wireModel }}" type="text"
+                                data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
                         @endif
                     @endif
                     <flux:input.group.suffix>{{ $resolvedSuffix }}</flux:input.group.suffix>
@@ -177,17 +178,17 @@
             @elseif ($field->mask)
                 <div x-data="masked_input" data-mask="{{ $field->mask }}">
                     @if ($field->live)
-                        <flux:input wire:model.live="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
-                            placeholder="{{ $field->getPlaceholder() }}" />
+                        <flux:input wire:model.live="{{ $wireModel }}" type="text"
+                            data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
                     @else
-                        <flux:input wire:model="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
-                            placeholder="{{ $field->getPlaceholder() }}" />
+                        <flux:input wire:model="{{ $wireModel }}" type="text"
+                            data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
                     @endif
                 </div>
             @else
                 @if ($field->live)
-                    <flux:input wire:model.live="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
-                        placeholder="{{ $field->getPlaceholder() }}" />
+                    <flux:input wire:model.live="{{ $wireModel }}" type="text"
+                        data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
                 @else
                     <flux:input wire:model="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
                         placeholder="{{ $field->getPlaceholder() }}" />
@@ -260,8 +261,27 @@
             <flux:error name="{{ $wireModel }}" />
         </flux:field>
     @elseif ($field instanceof Slider)
-        <x-cms.form.slider-with-input :label="$field->getLabel()" :model="$wireModel" :min="$field->min" :max="$field->max" :step="$field->step"
-            :suffix="$resolvedSuffix" :ticks="$field->ticks" />
+        <x-cms.form.slider-with-input :label="$field->getLabel()" :model="$wireModel" :min="$field->min" :max="$field->max"
+            :step="$field->step" :suffix="$resolvedSuffix" :ticks="$field->ticks" />
+    @elseif ($field instanceof Tree)
+        @php
+            $treeValue = data_get($this, $wireModel);
+            $treeValue = is_int($treeValue) ? (int) $treeValue : null;
+        @endphp
+        <flux:field>
+            <div class="flex items-center gap-1 mb-2">
+                <flux:label>{{ $field->getLabel() }}</flux:label>
+                @if ($field->helpText)
+                    <x-cms.form.help-tooltip :content="$field->helpText" position="top" />
+                @endif
+            </div>
+            <div x-data="tree_select" data-options="{{ json_encode($field->treeOptions) }}"
+                data-value="{{ $treeValue }}" data-placeholder="{{ $field->getPlaceholder() }}"
+                data-wire-model="{{ $wireModel }}" wire:ignore>
+                <div data-tree-select-container></div>
+            </div>
+            <flux:error name="{{ $wireModel }}" />
+        </flux:field>
     @elseif ($field instanceof Tags)
         <flux:field>
             <div class="flex items-center gap-1 mb-2">
@@ -270,25 +290,12 @@
                     <x-cms.form.help-tooltip :content="$field->helpText" position="top" />
                 @endif
             </div>
-            @if ($field->useTree)
-                <div
-                    x-data="tree_select"
-                    data-options="{{ json_encode($field->treeOptions) }}"
-                    data-value="{{ json_encode(data_get($this, $wireModel, [])) }}"
-                    data-placeholder="{{ $field->getPlaceholder() }}"
-                    data-wire-model="{{ $wireModel }}"
-                    wire:ignore
-                >
-                    <div data-tree-select-container></div>
-                </div>
-            @else
-                <flux:pillbox wire:model="{{ $wireModel }}" multiple searchable placeholder="{{ $field->getPlaceholder() }}"
-                    data-field="{{ $field->name }}">
-                    @foreach ($field->options as $value => $optionLabel)
-                        <flux:pillbox.option value="{{ $value }}">{{ $optionLabel }}</flux:pillbox.option>
-                    @endforeach
-                </flux:pillbox>
-            @endif
+            <flux:pillbox wire:model="{{ $wireModel }}" multiple searchable
+                placeholder="{{ $field->getPlaceholder() }}" data-field="{{ $field->name }}">
+                @foreach ($field->options as $value => $optionLabel)
+                    <flux:pillbox.option value="{{ $value }}">{{ $optionLabel }}</flux:pillbox.option>
+                @endforeach
+            </flux:pillbox>
             <flux:error name="{{ $wireModel }}" />
         </flux:field>
     @elseif ($field instanceof Relationship)

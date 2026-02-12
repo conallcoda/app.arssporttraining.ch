@@ -17,6 +17,7 @@ use App\Data\Exercise\ExerciseType;
 use App\Models\Exercise\Exercise;
 use App\Models\Tag;
 use Illuminate\Contracts\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class ExerciseList extends AbstractModelList
 {
@@ -27,7 +28,12 @@ class ExerciseList extends AbstractModelList
 
     protected function getBaseQuery(): Builder
     {
-        return Exercise::query()->with(['categories', 'equipment', 'modifiers']);
+        return Exercise::query()->with(['category', 'equipment', 'modifiers']);
+    }
+
+    protected function dataFromModel(Model $model): AbstractData
+    {
+        return ExerciseData::fromExercise($model);
     }
 
     protected function createDataFromForm(array $formData): AbstractData
@@ -52,9 +58,12 @@ class ExerciseList extends AbstractModelList
                     ->label('Name')
                     ->width('w-1/3')
                     ->modal(),
-                Badge::make('categories')
-                    ->label('Categories')
-                    ->source(fn (ExerciseData $data) => $tagBadges($data, 'categories')),
+                Badge::make('category')
+                    ->label('Category')
+                    ->source(fn (ExerciseData $data) => $data->category
+                        ? [['label' => $tagNames[$data->category] ?? '?', 'modalField' => 'category']]
+                        : []
+                    ),
                 Badge::make('equipment')
                     ->label('Equipment')
                     ->source(fn (ExerciseData $data) => $tagBadges($data, 'equipment')),

@@ -4,6 +4,7 @@ namespace App\Data\Exercise;
 
 use App\Cms\Data\AbstractData;
 use App\Cms\Form\Concerns\InteractsWithForms;
+use App\Cms\Form\Fields\Category;
 use App\Cms\Form\Fields\Tags;
 use App\Cms\Form\Form;
 use App\Cms\Models\Contracts\HasForms;
@@ -20,7 +21,7 @@ class ExerciseData extends AbstractData implements HasForms
         public string $name,
         public ExerciseType $type,
         public ?ExerciseConfig $config = null,
-        public array $categories = [],
+        public ?int $category = null,
         public array $equipment = [],
         public array $modifiers = [],
         public ?Carbon $updatedAt = null,
@@ -33,7 +34,7 @@ class ExerciseData extends AbstractData implements HasForms
             name: $exercise->name,
             type: $exercise->type ?? ExerciseType::Strength,
             config: $exercise->config,
-            categories: self::mapTagIds($exercise, 'categories'),
+            category: $exercise->category_id,
             equipment: self::mapTagIds($exercise, 'equipment'),
             modifiers: self::mapTagIds($exercise, 'modifiers'),
             updatedAt: $exercise->updated_at,
@@ -58,13 +59,13 @@ class ExerciseData extends AbstractData implements HasForms
                 'name' => $this->name,
                 'type' => $this->type,
                 'config' => $this->config?->toArray() ?? [],
+                'category_id' => $this->category,
             ]
         );
 
         $this->id = $exercise->id;
 
         $tagIds = collect([
-            ...$this->categories,
             ...$this->equipment,
             ...$this->modifiers,
         ])->filter()->all();
@@ -78,7 +79,7 @@ class ExerciseData extends AbstractData implements HasForms
             ->fieldset('General', [
                 Fields\ExerciseName::make('name')->required(),
                 Fields\ExerciseType::make('type')->required(),
-                Tags::make('categories', 'exercise_category')->label('Categories')->asTree()->withOptions(),
+                Category::make('category', 'exercise_category')->label('Category')->withOptions(),
                 Tags::make('equipment', 'exercise_equipment')->label('Equipment')->withOptions(),
                 Tags::make('modifiers', 'exercise_modifiers')->label('Modifiers')->withOptions(),
             ])

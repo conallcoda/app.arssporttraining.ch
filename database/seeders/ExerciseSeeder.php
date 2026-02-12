@@ -47,8 +47,10 @@ class ExerciseSeeder extends Seeder
             );
 
             if (in_array($name, ['Back Squat', 'Front Squat'])) {
+                $category = Tag::firstOrCreate(['name' => 'Squat', 'scope' => 'exercise_category']);
+                $exercise->update(['category_id' => $category->id]);
+
                 $this->attachTags($exercise, [
-                    'exercise_category' => ['Squat'],
                     'exercise_equipment' => ['BB'],
                 ]);
             }
