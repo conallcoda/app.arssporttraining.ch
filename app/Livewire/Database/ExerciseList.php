@@ -47,8 +47,8 @@ class ExerciseList extends AbstractModelList
             ->whereIn('scope', ['exercise_category', 'exercise_equipment', 'exercise_modifiers'])
             ->pluck('name', 'id');
 
-        $tagBadges = fn (ExerciseData $data, string $field) => collect($data->{$field})
-            ->map(fn (int $id) => ['label' => $tagNames[$id] ?? '?', 'modalField' => $field])
+        $tagBadges = fn(ExerciseData $data, string $field) => collect($data->{$field})
+            ->map(fn(int $id) => ['label' => $tagNames[$id] ?? '?', 'modalField' => $field])
             ->all();
 
         return Table::make()
@@ -60,32 +60,28 @@ class ExerciseList extends AbstractModelList
                     ->modal(),
                 Badge::make('category')
                     ->label('Category')
-                    ->source(fn (ExerciseData $data) => $data->category
-                        ? [['label' => $tagNames[$data->category] ?? '?', 'modalField' => 'category']]
-                        : []
+                    ->source(
+                        fn(ExerciseData $data) => $data->category
+                            ? [['label' => $tagNames[$data->category] ?? '?', 'modalField' => 'category']]
+                            : []
                     ),
                 Badge::make('equipment')
                     ->label('Equipment')
-                    ->source(fn (ExerciseData $data) => $tagBadges($data, 'equipment')),
+                    ->source(fn(ExerciseData $data) => $tagBadges($data, 'equipment')),
                 Badge::make('modifiers')
                     ->label('Modifiers')
-                    ->source(fn (ExerciseData $data) => $tagBadges($data, 'modifiers')),
-                Badge::make('type')
-                    ->label('Type')
-                    ->width('w-1/6')
-                    ->enum(ExerciseType::class)
-                    ->modal(),
+                    ->source(fn(ExerciseData $data) => $tagBadges($data, 'modifiers')),
                 Badge::make('defaults')
                     ->label('Defaults')
-                    ->source(fn (ExerciseData $data) => $data->getDefaultsBadges()),
+                    ->source(fn(ExerciseData $data) => $data->getDefaultsBadges()),
                 Ago::make('updatedAt')->label('Last Changed'),
             ])
             ->sortable(['id', 'name', 'type', 'updatedAt'])
             ->filters([
                 TableFilter::callback('search', function (Builder $query, mixed $value): void {
                     $query->where(function (Builder $subQuery) use ($value): void {
-                        $subQuery->where('name', 'like', '%'.$value.'%')
-                            ->orWhere('type', 'like', '%'.$value.'%');
+                        $subQuery->where('name', 'like', '%' . $value . '%')
+                            ->orWhere('type', 'like', '%' . $value . '%');
                     });
                 })
                     ->field(
@@ -99,7 +95,7 @@ class ExerciseList extends AbstractModelList
                             ->label('Type')
                             ->options(
                                 collect(ExerciseType::cases())
-                                    ->mapWithKeys(fn (ExerciseType $case) => [$case->value => $case->label()])
+                                    ->mapWithKeys(fn(ExerciseType $case) => [$case->value => $case->label()])
                                     ->toArray()
                             )
                             ->placeholder('All types')
