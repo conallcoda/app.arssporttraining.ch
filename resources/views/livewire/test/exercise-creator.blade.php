@@ -3,12 +3,16 @@
         <div class="space-y-4">
             <flux:heading size="lg">Exercise Creator</flux:heading>
             <form class="space-y-4">
-                @foreach ($this->fieldsets as $fieldset)
-                    <x-cms.form.fieldset
-                        :fieldset="$fieldset"
-                        :prefix="$fieldset->prefix ?? 'data'"
-                        :showLegend="true"
-                    />
+                @foreach ($this->fieldsets as $item)
+                    @if ($item instanceof \App\Cms\Form\FormFieldsetGroup)
+                        <x-cms.form.fieldset-tabs :group="$item" />
+                    @else
+                        <x-cms.form.fieldset
+                            :fieldset="$item"
+                            :prefix="$item->prefix ?? 'data'"
+                            :showLegend="true"
+                        />
+                    @endif
                 @endforeach
             </form>
         </div>
@@ -36,6 +40,8 @@
             @else
                 @php
                     $grid = $this->previewGrid;
+                    $showMeasuredInputs = in_array('weight', $data['settings'] ?? [])
+                        && ($data['weight']['mode'] ?? 'manual') === 'automatic';
                 @endphp
 
                 @if (count($grid->rows) === 0)
@@ -44,6 +50,55 @@
                     </div>
                 @else
                     <flux:heading size="lg">{{ $data['name'] ?? 'Untitled' }}</flux:heading>
+
+                    @if ($showMeasuredInputs)
+                        <x-section title="Target" class="w-fit">
+                            <div class="space-y-3">
+                                <div class="flex items-end gap-3">
+                                    <flux:field class="w-36">
+                                        <flux:label>Measured Reps</flux:label>
+                                        <flux:input.group>
+                                            <flux:input wire:model.live.debounce.500ms="measuredReps" type="number" min="1" max="15" step="1" />
+                                            <flux:input.group.suffix>rep(s)</flux:input.group.suffix>
+                                        </flux:input.group>
+                                    </flux:field>
+
+                                    <flux:field class="w-36">
+                                        <flux:label>Measured Weight</flux:label>
+                                        <flux:input.group>
+                                            <flux:input wire:model.live.debounce.500ms="measuredWeight" type="number" min="0" step="0.5" />
+                                            <flux:input.group.suffix>kg</flux:input.group.suffix>
+                                        </flux:input.group>
+                                    </flux:field>
+
+                                    <flux:field>
+                                        <flux:label>Starting 1RM</flux:label>
+                                        <div class="h-10 px-4 flex items-center justify-center rounded-lg bg-amber-500/15 text-amber-400 font-medium text-sm">
+                                            {{ $grid->summary ? $grid->summary['starting1RM'] . 'kg' : 'N/A' }}
+                                        </div>
+                                    </flux:field>
+                                </div>
+
+                                <div class="flex items-end gap-3">
+                                    <flux:field class="w-[19.5rem]">
+                                        <flux:label>Target Goal</flux:label>
+                                        <flux:input.group>
+                                            <flux:input wire:model.live.debounce.500ms="targetGoal" type="number" min="0" max="999" step="1" />
+                                            <flux:input.group.suffix>%</flux:input.group.suffix>
+                                        </flux:input.group>
+                                    </flux:field>
+
+                                    <flux:field>
+                                        <flux:label>Target 1RM</flux:label>
+                                        <div class="h-10 px-4 flex items-center justify-center rounded-lg bg-green-500/15 text-green-400 font-medium text-sm">
+                                            {{ $grid->summary ? $grid->summary['target1RM'] . 'kg' : 'N/A' }}
+                                        </div>
+                                    </flux:field>
+                                </div>
+                            </div>
+                        </x-section>
+                    @endif
+
                     <div class="overflow-x-auto text-sm">
                         <table class="border-collapse border border-zinc-300 dark:border-zinc-600 table-fixed">
                             <thead>
@@ -53,6 +108,9 @@
                                     @for ($i = 0; $i < $grid->setCount; $i++)
                                         <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 w-16">{{ $grid->setLabel }} {{ $i + 1 }}</th>
                                     @endfor
+                                    @foreach ($grid->weekColumns as $weekCol)
+                                        <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 w-16">{{ $weekCol->label }}</th>
+                                    @endforeach
                                 </tr>
                             </thead>
                             <tbody>
@@ -73,6 +131,14 @@
                                                     {{ $row->cells[$week][$set] ?? '-' }}
                                                 </td>
                                             @endfor
+                                            @if ($rowIdx === 0)
+                                                @foreach ($grid->weekColumns as $weekCol)
+                                                    <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $weekCol->color }}"
+                                                        rowspan="{{ count($grid->rows) }}">
+                                                        {{ $weekCol->cells[$week] ?? '-' }}
+                                                    </td>
+                                                @endforeach
+                                            @endif
                                         </tr>
                                     @endforeach
                                 @endfor

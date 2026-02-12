@@ -2,24 +2,11 @@
 
 namespace App\Livewire\Test\Data\Strategies\Reps;
 
+use App\Livewire\Test\Data\Settings\RepsSetting;
+
 class PairedRepStrategy
 {
-    public function __construct(
-        private int $startingReps = 10,
-        private int $stepDownInterval = 2,
-        private int $decrement = 2,
-        private int $minimum = 1,
-    ) {}
-
-    public static function fromConfig(array $config): self
-    {
-        return new self(
-            startingReps: (int) ($config['default'] ?? 10),
-            stepDownInterval: max(1, (int) ($config['stepDownInterval'] ?? 2)),
-            decrement: (int) ($config['decrement'] ?? 2),
-            minimum: max(1, (int) ($config['minimum'] ?? 1)),
-        );
-    }
+    public function __construct(private RepsSetting $setting) {}
 
     /**
      * @param  array<int, int>  $setsPerWeek
@@ -42,22 +29,22 @@ class PairedRepStrategy
     private function calculateReps(int $weekIndex, int $setIndex): int
     {
         $anchorReps = $this->anchorRepsForWeek($weekIndex);
-        $topTierReps = $anchorReps + $this->decrement;
+        $topTierReps = $anchorReps + $this->setting->decrement;
 
         return max(
-            $topTierReps - (intdiv($setIndex, 2) * $this->decrement),
-            $this->minimum,
+            $topTierReps - (intdiv($setIndex, 2) * $this->setting->decrement),
+            $this->setting->minimum,
         );
     }
 
     private function anchorRepsForWeek(int $weekIndex): int
     {
-        $baseReps = $this->startingReps - $this->decrement;
-        $drops = intdiv($weekIndex, $this->stepDownInterval);
+        $baseReps = $this->setting->default - $this->setting->decrement;
+        $drops = intdiv($weekIndex, max(1, $this->setting->stepDownInterval));
 
         return max(
-            $baseReps - ($drops * $this->decrement),
-            $this->minimum,
+            $baseReps - ($drops * $this->setting->decrement),
+            $this->setting->minimum,
         );
     }
 }

@@ -6,6 +6,11 @@ use App\Cms\Form\Fields;
 
 class PaceSetting extends AbstractSetting
 {
+    public function __construct(
+        public string $default = '5:00',
+        public string $applyPer = 'session',
+    ) {}
+
     public static function fields(): array
     {
         return [
@@ -15,6 +20,7 @@ class PaceSetting extends AbstractSetting
                 ->defaultUnit('mm:ss')
                 ->suffix('mm:ss/km')
                 ->live(),
+            ApplyPerField::make(),
         ];
     }
 }

@@ -6,6 +6,11 @@ use App\Cms\Form\Fields;
 
 class WattsSetting extends AbstractSetting
 {
+    public function __construct(
+        public int $default = 100,
+        public string $applyPer = 'session',
+    ) {}
+
     public static function fields(): array
     {
         return [
@@ -15,6 +20,7 @@ class WattsSetting extends AbstractSetting
                 ->min(0)
                 ->suffix('W')
                 ->live(),
+            ApplyPerField::make(),
         ];
     }
 }

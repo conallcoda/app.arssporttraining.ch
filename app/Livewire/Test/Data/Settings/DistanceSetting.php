@@ -6,6 +6,12 @@ use App\Cms\Form\Fields;
 
 class DistanceSetting extends AbstractSetting
 {
+    public function __construct(
+        public string $unit = 'meters',
+        public int|float $default = 500,
+        public string $applyPer = 'session',
+    ) {}
+
     public static function fields(): array
     {
         return [
@@ -29,6 +35,7 @@ class DistanceSetting extends AbstractSetting
                     'meters' => 'm',
                     'kilometers' => 'km',
                 ]),
+            ApplyPerField::make(),
         ];
     }
 }

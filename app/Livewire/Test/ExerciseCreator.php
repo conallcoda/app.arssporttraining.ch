@@ -6,6 +6,7 @@ use App\Cms\Form\Form;
 use App\Cms\Livewire\Concerns\InteractsWithFormData;
 use App\Livewire\Test\Data\Preview\ExercisePreviewBuilder;
 use App\Livewire\Test\Data\Preview\PreviewGrid;
+use App\Livewire\Test\Data\Strategies\Weight\MeasuredData;
 use App\Livewire\Test\Data\TestExerciseData;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -21,6 +22,12 @@ class ExerciseCreator extends Component
     public array $data = [];
 
     public string $activeTab = 'preview';
+
+    public ?int $measuredReps = 8;
+
+    public ?float $measuredWeight = 52;
+
+    public ?int $targetGoal = 7;
 
     public function mount(): void
     {
@@ -46,7 +53,13 @@ class ExerciseCreator extends Component
     #[Computed]
     public function previewGrid(): PreviewGrid
     {
-        return ExercisePreviewBuilder::build($this->data);
+        $measuredData = new MeasuredData(
+            measuredReps: $this->measuredReps,
+            measuredWeight: $this->measuredWeight,
+            targetGoal: $this->targetGoal,
+        );
+
+        return ExercisePreviewBuilder::build($this->data, $measuredData);
     }
 
     public function updatedDataSettings(): void

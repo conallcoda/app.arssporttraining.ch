@@ -2,22 +2,11 @@
 
 namespace App\Livewire\Test\Data\Strategies\Sets;
 
+use App\Livewire\Test\Data\Settings\SetsSetting;
+
 class DeloadSetsStrategy
 {
-    public function __construct(
-        private int $baseSets = 4,
-        private string $deload = 'none',
-        private int $deloadBy = 1,
-    ) {}
-
-    public static function fromConfig(array $config): self
-    {
-        return new self(
-            baseSets: max(0, (int) ($config['default'] ?? 4)),
-            deload: $config['deload'] ?? 'none',
-            deloadBy: max(0, (int) ($config['deloadBy'] ?? 1)),
-        );
-    }
+    public function __construct(private SetsSetting $setting) {}
 
     /** @return array<int, int> */
     public function generate(int $weeks): array
@@ -38,22 +27,22 @@ class DeloadSetsStrategy
 
     private function getSetsForWeek(int $weekIndex): int
     {
-        if ($this->deload === 'none') {
-            return $this->baseSets;
+        if ($this->setting->deload === 'none') {
+            return $this->setting->default;
         }
 
         $weekNumber = $weekIndex + 1;
 
-        $isDeloadWeek = match ($this->deload) {
+        $isDeloadWeek = match ($this->setting->deload) {
             'odd' => $weekNumber % 2 === 1,
             'even' => $weekNumber % 2 === 0,
             default => false,
         };
 
         if ($isDeloadWeek) {
-            return max(0, $this->baseSets - $this->deloadBy);
+            return max(0, $this->setting->default - $this->setting->deloadBy);
         }
 
-        return $this->baseSets;
+        return $this->setting->default;
     }
 }

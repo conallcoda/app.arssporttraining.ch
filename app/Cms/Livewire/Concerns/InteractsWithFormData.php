@@ -6,11 +6,20 @@ use App\Cms\Form\Field;
 use App\Cms\Form\Fields\Relationship;
 use App\Cms\Form\Fields\Repeater;
 use App\Cms\Form\FormFieldset;
+use App\Cms\Form\FormFieldsetGroup;
 use Illuminate\Support\Arr;
 
 trait InteractsWithFormData
 {
     public array $conditionalDataStash = [];
+
+    /** @return FormFieldset[] */
+    protected function flatFieldsets(): array
+    {
+        return collect($this->fieldsets)
+            ->flatMap(fn ($item) => $item instanceof FormFieldsetGroup ? $item->fieldsets : [$item])
+            ->all();
+    }
 
     public function updated(string $property, mixed $value): void
     {
@@ -34,7 +43,7 @@ trait InteractsWithFormData
 
     protected function syncConditionalFieldData(): void
     {
-        foreach ($this->fieldsets as $fieldset) {
+        foreach ($this->flatFieldsets() as $fieldset) {
             $prefix = $this->getFieldsetDataPrefix($fieldset);
 
             foreach ($fieldset->hiddenFieldNames as $name) {
@@ -130,7 +139,7 @@ trait InteractsWithFormData
 
     protected function getAllFields(): array
     {
-        return collect($this->fieldsets)
+        return collect($this->flatFieldsets())
             ->flatMap(fn (FormFieldset $fs) => $fs->fields)
             ->all();
     }
@@ -139,7 +148,7 @@ trait InteractsWithFormData
     {
         $rules = [];
 
-        foreach ($this->fieldsets as $fieldset) {
+        foreach ($this->flatFieldsets() as $fieldset) {
             $prefix = $fieldset->prefix ?? 'data';
             $fieldRules = Field::buildValidationRules($fieldset->fields, $prefix.'.');
             $rules = array_merge($rules, $fieldRules);
@@ -152,7 +161,7 @@ trait InteractsWithFormData
     {
         $defaults = [];
 
-        foreach ($this->fieldsets as $fieldset) {
+        foreach ($this->flatFieldsets() as $fieldset) {
             $fieldDefaults = Field::buildDefaults($fieldset->fields);
 
             if ($fieldset->prefix && $fieldset->prefix !== 'data') {

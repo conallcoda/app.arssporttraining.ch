@@ -6,6 +6,15 @@ use App\Cms\Form\Fields;
 
 class RepsSetting extends AbstractSetting
 {
+    public function __construct(
+        public string $mode = 'automatic',
+        public int $default = 10,
+        public int $stepDownInterval = 2,
+        public int $decrement = 2,
+        public int $minimum = 1,
+        public string $applyPer = 'session',
+    ) {}
+
     public static function fields(): array
     {
         return [
@@ -44,6 +53,7 @@ class RepsSetting extends AbstractSetting
                 ->suffix('rep(s)')
                 ->live()
                 ->show('mode == "automatic"'),
+            ApplyPerField::make(),
         ];
     }
 }

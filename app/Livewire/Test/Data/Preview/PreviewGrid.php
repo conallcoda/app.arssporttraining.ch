@@ -10,5 +10,9 @@ class PreviewGrid
         public int $weekCount,
         public int $setCount,
         public string $setLabel = 'Set',
+        /** @var PreviewGridRow[] */
+        public array $weekColumns = [],
+        /** @var array{starting1RM: float, target1RM: float, targetGoal: int}|null */
+        public ?array $summary = null,
     ) {}
 }

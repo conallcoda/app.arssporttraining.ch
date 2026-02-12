@@ -8,7 +8,7 @@ class PreviewGridRow
         public string $field,
         public string $label,
         public string $color,
-        /** @var array<int, array<int, string|int|float>> */
+        /** @var array<int, array<int, string|int|float>>|array<int, string|int|float> */
         public array $cells = [],
     ) {}
 }

@@ -10,22 +10,37 @@
                 input = $el.querySelector(`[data-field='${field}']`);
             }
             if (!input) return;
-            const trigger = input.querySelector('[data-flux-pillbox-trigger]');
-            if (trigger) {
-                trigger.click();
-            } else {
-                input.focus();
+            const panel = input.closest('[data-flux-tab-panel]');
+            if (panel) {
+                const panelName = panel.getAttribute('name');
+                const tabGroup = panel.closest('[data-flux-tab-group]');
+                if (tabGroup && panelName) {
+                    const tab = tabGroup.querySelector(`[data-flux-tab][name='${panelName}']`);
+                    if (tab) tab.click();
+                }
             }
+            $nextTick(() => {
+                const trigger = input.querySelector('[data-flux-pillbox-trigger]');
+                if (trigger) {
+                    trigger.click();
+                } else {
+                    input.focus();
+                }
+            });
         })">
         <div class="space-y-6">
             <flux:heading size="lg">{{ $activeTitle ?? $title }}</flux:heading>
             <form wire:submit="submit" class="space-y-4">
-                @foreach ($this->fieldsets as $fieldset)
-                    <x-cms.form.fieldset
-                        :fieldset="$fieldset"
-                        :prefix="$fieldset->prefix ?? 'data'"
-                        :showLegend="count($this->fieldsets) > 1"
-                    />
+                @foreach ($this->fieldsets as $item)
+                    @if ($item instanceof \App\Cms\Form\FormFieldsetGroup)
+                        <x-cms.form.fieldset-tabs :group="$item" />
+                    @else
+                        <x-cms.form.fieldset
+                            :fieldset="$item"
+                            :prefix="$item->prefix ?? 'data'"
+                            :showLegend="count($this->fieldsets) > 1"
+                        />
+                    @endif
                 @endforeach
                 <div class="flex gap-2 pt-4">
                     <flux:button type="submit" variant="primary" class="flex-1">{{ $submitLabel }}</flux:button>

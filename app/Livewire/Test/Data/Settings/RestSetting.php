@@ -6,6 +6,11 @@ use App\Cms\Form\Fields;
 
 class RestSetting extends AbstractSetting
 {
+    public function __construct(
+        public int $default = 60,
+        public string $applyPer = 'week',
+    ) {}
+
     public static function fields(): array
     {
         return [
@@ -15,6 +20,7 @@ class RestSetting extends AbstractSetting
                 ->min(0)
                 ->suffix('sec')
                 ->live(),
+            ApplyPerField::make('week'),
         ];
     }
 }

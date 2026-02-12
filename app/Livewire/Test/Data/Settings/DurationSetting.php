@@ -6,6 +6,12 @@ use App\Cms\Form\Fields;
 
 class DurationSetting extends AbstractSetting
 {
+    public function __construct(
+        public string $unit = 'seconds',
+        public int|string $default = 60,
+        public string $applyPer = 'session',
+    ) {}
+
     public static function fields(): array
     {
         return [
@@ -27,6 +33,7 @@ class DurationSetting extends AbstractSetting
                 ])
                 ->unit('unit')
                 ->live(),
+            ApplyPerField::make(),
         ];
     }
 }

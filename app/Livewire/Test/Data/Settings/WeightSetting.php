@@ -6,6 +6,13 @@ use App\Cms\Form\Fields;
 
 class WeightSetting extends AbstractSetting
 {
+    public function __construct(
+        public string $mode = 'automatic',
+        public int $oneRepMaxModifier = 100,
+        public float $default = 5,
+        public string $applyPer = 'session',
+    ) {}
+
     public static function fields(): array
     {
         return [
@@ -27,6 +34,7 @@ class WeightSetting extends AbstractSetting
                 ->default(5)
                 ->live()
                 ->show('mode == "manual"'),
+            ApplyPerField::make(),
         ];
     }
 }

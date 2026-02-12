@@ -7,6 +7,7 @@ use App\Cms\Form\Concerns\InteractsWithForms;
 use App\Cms\Form\Fields;
 use App\Cms\Form\Form;
 use App\Cms\Models\Contracts\HasForms;
+use App\Form\Fields\Exercise as ExerciseFields;
 
 /**
  * @property array<ExerciseSetting> $settings
@@ -18,6 +19,9 @@ class TestExerciseData extends AbstractData implements HasForms
     public function __construct(
         public ?int $id,
         public string $name,
+        public ?int $category = null,
+        public array $equipment = [],
+        public array $modifiers = [],
         public array $settings = [],
     ) {}
 
@@ -25,10 +29,15 @@ class TestExerciseData extends AbstractData implements HasForms
     {
         $form = Form::make()
             ->fieldset('General', [
-                Fields\Text::make('name')->label('Name')->default('Test Exercise')->live(),
+                ExerciseFields\ExerciseName::make('name')->live(),
+                Fields\Category::make('category', 'exercise_category')->label('Category')->withOptions(),
+                Fields\Tags::make('equipment', 'exercise_equipment')->label('Equipment')->withOptions(),
+                Fields\Tags::make('modifiers', 'exercise_modifiers')->label('Modifiers')->withOptions(),
                 Fields\Pillbox::make('settings')->label('Settings')->enum(ExerciseSetting::class)->default(['reps', 'weight'])->live(),
             ])
             ->fieldset('Sets', Settings\SetsSetting::fields(), 'data.sets');
+
+        $settingNames = ['sets'];
 
         foreach (ExerciseSetting::settingMap() as $settingKey => $settingClass) {
             $form->fieldset(
@@ -37,7 +46,10 @@ class TestExerciseData extends AbstractData implements HasForms
                     ? ['fields' => $settingClass::fields(), 'prefix' => "data.{$settingKey}"]
                     : null,
             );
+            $settingNames[] = $settingClass::getName();
         }
+
+        $form->fieldsetTabs($settingNames, 'Settings', sortByDataKey: 'settings');
 
         return $form;
     }

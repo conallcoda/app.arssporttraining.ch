@@ -11,6 +11,8 @@ class Form
 
     protected array $fieldsets = [];
 
+    protected array $fieldsetTabGroups = [];
+
     protected array $discriminators = [];
 
     public static function make(): static
@@ -55,6 +57,17 @@ class Form
     public function discriminator(string $field, string $target): static
     {
         $this->discriminators[$field] = $target;
+
+        return $this;
+    }
+
+    public function fieldsetTabs(array $labels, ?string $label = null, ?string $sortByDataKey = null): static
+    {
+        $this->fieldsetTabGroups[] = [
+            'keys' => array_map(fn (string $l) => Str::snake($l), $labels),
+            'label' => $label,
+            'sortByDataKey' => $sortByDataKey,
+        ];
 
         return $this;
     }
@@ -104,7 +117,7 @@ class Form
             ];
         }
 
-        return collect($this->fieldsets)->map(function (array $config, string $key) use ($data, $evaluator) {
+        $fieldsets = collect($this->fieldsets)->map(function (array $config, string $key) use ($data, $evaluator) {
             if (isset($config['resolver'])) {
                 $resolved = ($config['resolver'])($data);
 
@@ -142,6 +155,64 @@ class Form
 
             return $fieldset;
         })->filter()->values()->all();
+
+        if (! empty($this->fieldsetTabGroups)) {
+            $fieldsets = $this->applyTabGroups($fieldsets, $data);
+        }
+
+        return $fieldsets;
+    }
+
+    protected function applyTabGroups(array $fieldsets, array $data): array
+    {
+        foreach ($this->fieldsetTabGroups as $group) {
+            $groupKeys = $group['keys'];
+            $groupLabel = $group['label'] ?? null;
+            $sortByDataKey = $group['sortByDataKey'] ?? null;
+            $groupFieldsets = [];
+            $insertIndex = null;
+
+            foreach ($fieldsets as $index => $fieldset) {
+                if ($fieldset instanceof FormFieldset && in_array($fieldset->name, $groupKeys)) {
+                    $groupFieldsets[] = $fieldset;
+                    if ($insertIndex === null) {
+                        $insertIndex = $index;
+                    }
+                }
+            }
+
+            if (empty($groupFieldsets) || $insertIndex === null) {
+                continue;
+            }
+
+            if ($sortByDataKey && isset($data[$sortByDataKey]) && is_array($data[$sortByDataKey])) {
+                $order = $data[$sortByDataKey];
+                usort($groupFieldsets, function (FormFieldset $a, FormFieldset $b) use ($order) {
+                    $posA = array_search($a->name, $order);
+                    $posB = array_search($b->name, $order);
+
+                    if ($posA === false && $posB === false) {
+                        return 0;
+                    }
+                    if ($posA === false) {
+                        return -1;
+                    }
+                    if ($posB === false) {
+                        return 1;
+                    }
+
+                    return $posA <=> $posB;
+                });
+            }
+
+            $fieldsets = array_values(array_filter($fieldsets, function ($fs) use ($groupKeys) {
+                return ! ($fs instanceof FormFieldset && in_array($fs->name, $groupKeys));
+            }));
+
+            array_splice($fieldsets, $insertIndex, 0, [FormFieldsetGroup::make($groupFieldsets, $groupLabel)]);
+        }
+
+        return $fieldsets;
     }
 
     protected function resolveFieldDataContext(array $data, ?string $prefix): array
