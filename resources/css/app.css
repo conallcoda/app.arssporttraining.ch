@@ -6,8 +6,136 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source inline("bg-blue-500 bg-green-500 bg-emerald-500 bg-teal-500 bg-cyan-500 bg-sky-500 bg-indigo-500 bg-violet-500 bg-purple-500 bg-pink-500 bg-rose-500 bg-red-500 bg-orange-500 bg-amber-500 bg-yellow-500 bg-lime-500");
 
+@import '../../node_modules/treeselectjs/dist/treeselectjs.css';
+
 @theme {
     --font-sans: Inter, sans-serif;
+}
+
+/* TreeSelectJS — Flux UI overrides */
+.treeselect-input {
+    @apply bg-white dark:bg-white/10 border border-zinc-200 border-b-zinc-300/80 dark:border-white/10 rounded-lg shadow-xs min-h-10 text-sm leading-5;
+    padding: 0.4375rem 2.5rem 0.4375rem 0.4375rem;
+}
+
+.treeselect-input--focused {
+    outline: auto;
+    outline-color: Highlight;
+    outline-color: -webkit-focus-ring-color;
+    outline-offset: 2px;
+}
+
+.treeselect-input__tags-element {
+    @apply flex items-center bg-zinc-400/15 dark:bg-zinc-400/40 text-zinc-700 dark:text-zinc-200 cursor-default rounded-md text-sm leading-4;
+    padding: 0.25rem 0.5rem;
+}
+
+.treeselect-input__tags-element:hover {
+    @apply bg-zinc-400/25 dark:bg-zinc-400/50;
+}
+
+.treeselect-input__tags-name {
+    @apply font-medium;
+}
+
+.treeselect-input__tags-cross {
+    @apply flex items-center text-zinc-400 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200;
+    padding: calc(0.25rem - 1px) 0.25rem;
+    margin: calc(-0.25rem + 1px) -0.5rem calc(-0.25rem + 1px) 0;
+}
+
+.treeselect-input__tags-cross svg,
+.treeselect-input__tags-element:hover .treeselect-input__tags-cross svg {
+    @apply size-4 shrink-0 fill-current;
+    stroke: none;
+}
+
+.treeselect-input__edit {
+    @apply text-sm bg-transparent dark:text-white;
+}
+
+.treeselect-input__edit::placeholder {
+    @apply text-zinc-400;
+}
+
+.treeselect-input__clear {
+    @apply hidden;
+}
+
+.treeselect-input__arrow svg {
+    @apply stroke-zinc-300 dark:stroke-white/60;
+}
+
+.treeselect-input__arrow:hover svg {
+    @apply stroke-zinc-800 dark:stroke-white;
+}
+
+.treeselect-list {
+    @apply border border-zinc-200 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 shadow-xs max-h-80 p-[0.3125rem];
+}
+
+.treeselect-list__item {
+    @apply rounded-md text-sm font-medium text-zinc-800 dark:text-white h-[1.875rem] px-2;
+}
+
+.treeselect-list__item--focused {
+    @apply !bg-zinc-100 dark:!bg-zinc-600;
+}
+
+.treeselect-list__item--checked {
+    @apply bg-zinc-100 dark:bg-zinc-600;
+}
+
+.treeselect-list.treeselect-list--single-select .treeselect-list__item--single-selected {
+    @apply bg-zinc-100 dark:bg-zinc-600;
+}
+
+.treeselect-list__item-checkbox-container {
+    @apply border-zinc-300 dark:border-zinc-500 rounded dark:bg-white/10;
+}
+
+.treeselect-list__item--checked .treeselect-list__item-checkbox-container,
+.treeselect-list__item--partial-checked .treeselect-list__item-checkbox-container {
+    @apply bg-zinc-800 dark:bg-white border-zinc-800 dark:border-white;
+}
+
+.dark .treeselect-list__item--checked .treeselect-list__item-checkbox-container svg,
+.dark .treeselect-list__item--partial-checked .treeselect-list__item-checkbox-container svg {
+    @apply stroke-zinc-800;
+}
+
+.treeselect-list__item-icon svg {
+    @apply stroke-zinc-400;
+}
+
+.treeselect-list__item-icon:hover svg {
+    @apply stroke-zinc-600 dark:stroke-zinc-200;
+}
+
+.treeselect-list__item-label {
+    @apply text-sm;
+}
+
+.treeselect-list__empty-text {
+    @apply text-sm text-zinc-500 dark:text-zinc-400;
+}
+
+.treeselect-input--opened.treeselect-input--bottom {
+    @apply border-b-transparent rounded-b-none;
+}
+
+.treeselect-input--opened.treeselect-input--top {
+    @apply border-t-transparent rounded-t-none;
+}
+
+.treeselect-list--bottom,
+.treeselect-list--bottom-to-body {
+    @apply rounded-t-none;
+}
+
+.treeselect-list--top,
+.treeselect-list--top-to-body {
+    @apply rounded-b-none;
 }
 
 @custom-variant dark (&:where(.dark, .dark *));

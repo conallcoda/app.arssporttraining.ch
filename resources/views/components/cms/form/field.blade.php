@@ -270,12 +270,25 @@
                     <x-cms.form.help-tooltip :content="$field->helpText" position="top" />
                 @endif
             </div>
-            <flux:pillbox wire:model="{{ $wireModel }}" multiple searchable placeholder="{{ $field->getPlaceholder() }}"
-                data-field="{{ $field->name }}">
-                @foreach ($field->options as $value => $optionLabel)
-                    <flux:pillbox.option value="{{ $value }}">{{ $optionLabel }}</flux:pillbox.option>
-                @endforeach
-            </flux:pillbox>
+            @if ($field->useTree)
+                <div
+                    x-data="tree_select"
+                    data-options="{{ json_encode($field->treeOptions) }}"
+                    data-value="{{ json_encode(data_get($this, $wireModel, [])) }}"
+                    data-placeholder="{{ $field->getPlaceholder() }}"
+                    data-wire-model="{{ $wireModel }}"
+                    wire:ignore
+                >
+                    <div data-tree-select-container></div>
+                </div>
+            @else
+                <flux:pillbox wire:model="{{ $wireModel }}" multiple searchable placeholder="{{ $field->getPlaceholder() }}"
+                    data-field="{{ $field->name }}">
+                    @foreach ($field->options as $value => $optionLabel)
+                        <flux:pillbox.option value="{{ $value }}">{{ $optionLabel }}</flux:pillbox.option>
+                    @endforeach
+                </flux:pillbox>
+            @endif
             <flux:error name="{{ $wireModel }}" />
         </flux:field>
     @elseif ($field instanceof Relationship)

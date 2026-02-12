@@ -78,7 +78,7 @@ class ExerciseData extends AbstractData implements HasForms
             ->fieldset('General', [
                 Fields\ExerciseName::make('name')->required(),
                 Fields\ExerciseType::make('type')->required(),
-                Tags::make('categories', 'exercise_category')->label('Categories')->withOptions(),
+                Tags::make('categories', 'exercise_category')->label('Categories')->asTree()->withOptions(),
                 Tags::make('equipment', 'exercise_equipment')->label('Equipment')->withOptions(),
                 Tags::make('modifiers', 'exercise_modifiers')->label('Modifiers')->withOptions(),
             ])
