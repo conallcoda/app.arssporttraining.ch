@@ -26,6 +26,10 @@ class Exercise extends Model implements Taggable
         'category_id',
     ];
 
+    protected $attributes = [
+        'config' => '{"settings":[],"overrides":{"cells":[],"weeks":[]}}',
+    ];
+
     protected function casts(): array
     {
         return [

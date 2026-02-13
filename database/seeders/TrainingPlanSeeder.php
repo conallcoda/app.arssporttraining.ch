@@ -25,61 +25,32 @@ class TrainingPlanSeeder extends Seeder
 
         $programs = [];
 
-        $programs[] = $this->createStrengthAutomaticProgram($plan);
-        $programs[] = $this->createStrengthManualProgram($plan);
+        $programs[] = $this->createStrengthProgram($plan);
         $programs[] = $this->createConditioningProgram($plan);
-        $programs[] = $this->createTimedProgram($plan);
         $programs[] = $this->createCardioProgram($plan);
 
         $this->initializeScheduleWithPrograms($plan, $programs);
     }
 
-    private function createStrengthAutomaticProgram(TrainingPlan $plan): TrainingPlanProgram
+    private function createStrengthProgram(TrainingPlan $plan): TrainingPlanProgram
     {
         $program = TrainingPlanProgram::create([
             'training_plan_id' => $plan->id,
-            'name' => 'Strength Auto',
+            'name' => 'Strength',
         ]);
 
-        $exercises = Exercise::where('type', 'strength_automatic')->take(2)->get();
+        $exercises = Exercise::whereJsonContains('config->settings', 'weight')->take(3)->get();
 
         $attachData = [];
         foreach ($exercises as $index => $exercise) {
-            $config = $exercise->config?->strength_automatic;
+            $configArray = json_decode($exercise->getRawOriginal('config') ?? '{}', true) ?: [];
             $attachData[$exercise->id] = [
                 'sort' => $index,
                 'config' => [
-                    'oneRepMaxModifier' => $config?->oneRepMaxModifier ?? 100,
-                    'startingReps' => $config?->startingReps ?? 12,
-                    'tempo' => $config?->tempo ?? '3010',
-                    'rest' => $config?->rest ?? 30,
-                ],
-            ];
-        }
-        $program->exercises()->attach($attachData);
-
-        return $program;
-    }
-
-    private function createStrengthManualProgram(TrainingPlan $plan): TrainingPlanProgram
-    {
-        $program = TrainingPlanProgram::create([
-            'training_plan_id' => $plan->id,
-            'name' => 'Strength Manual',
-        ]);
-
-        $exercises = Exercise::where('type', 'strength_manual')->take(2)->get();
-
-        $attachData = [];
-        foreach ($exercises as $index => $exercise) {
-            $config = $exercise->config?->strength_manual;
-            $attachData[$exercise->id] = [
-                'sort' => $index,
-                'config' => [
-                    'startingWeight' => $config?->startingWeight ?? 0,
-                    'startingReps' => $config?->startingReps ?? 12,
-                    'tempo' => $config?->tempo ?? '3010',
-                    'rest' => $config?->rest ?? 30,
+                    'oneRepMaxModifier' => $configArray['weight']['oneRepMaxModifier'] ?? 100,
+                    'startingReps' => $configArray['reps']['default'] ?? 12,
+                    'tempo' => $configArray['tempo']['default'] ?? '3010',
+                    'rest' => $configArray['rest']['default'] ?? 30,
                 ],
             ];
         }
@@ -95,42 +66,16 @@ class TrainingPlanSeeder extends Seeder
             'name' => 'Conditioning',
         ]);
 
-        $exercises = Exercise::where('type', 'conditioning')->take(2)->get();
+        $exercises = Exercise::whereJsonContains('config->settings', 'duration')->take(2)->get();
 
         $attachData = [];
         foreach ($exercises as $index => $exercise) {
-            $config = $exercise->config?->conditioning;
+            $configArray = json_decode($exercise->getRawOriginal('config') ?? '{}', true) ?: [];
             $attachData[$exercise->id] = [
                 'sort' => $index,
                 'config' => [
-                    'sets' => 3,
-                    'rest' => $config?->rest ?? 30,
-                ],
-            ];
-        }
-        $program->exercises()->attach($attachData);
-
-        return $program;
-    }
-
-    private function createTimedProgram(TrainingPlan $plan): TrainingPlanProgram
-    {
-        $program = TrainingPlanProgram::create([
-            'training_plan_id' => $plan->id,
-            'name' => 'Timed',
-        ]);
-
-        $exercises = Exercise::where('type', 'timed')->take(2)->get();
-
-        $attachData = [];
-        foreach ($exercises as $index => $exercise) {
-            $config = $exercise->config?->timed;
-            $attachData[$exercise->id] = [
-                'sort' => $index,
-                'config' => [
-                    'duration' => $config?->duration ?? 60,
-                    'sets' => 3,
-                    'rest' => $config?->rest ?? 30,
+                    'sets' => $configArray['sets']['default'] ?? 3,
+                    'rest' => $configArray['rest']['default'] ?? 30,
                 ],
             ];
         }
@@ -146,16 +91,15 @@ class TrainingPlanSeeder extends Seeder
             'name' => 'Cardio',
         ]);
 
-        $exercises = Exercise::where('type', 'cardio')->take(2)->get();
+        $exercises = Exercise::whereJsonContains('config->settings', 'pace')->take(2)->get();
 
         $attachData = [];
         foreach ($exercises as $index => $exercise) {
-            $config = $exercise->config?->cardio;
+            $configArray = json_decode($exercise->getRawOriginal('config') ?? '{}', true) ?: [];
             $attachData[$exercise->id] = [
                 'sort' => $index,
                 'config' => [
-                    'pace' => $config?->pace ?? '00:00',
-                    'watts' => $config?->watts ?? 0,
+                    'pace' => $configArray['pace']['default'] ?? '00:00',
                 ],
             ];
         }
