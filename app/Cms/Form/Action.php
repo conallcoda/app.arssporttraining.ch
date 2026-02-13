@@ -34,6 +34,8 @@ class Action
 
     public ?string $disabledWhen = null;
 
+    public ?string $formComponent = null;
+
     public ?Closure $prepareData = null;
 
     public function __construct(
@@ -126,6 +128,13 @@ class Action
     public function disabledWhen(string $condition): static
     {
         $this->disabledWhen = $condition;
+
+        return $this;
+    }
+
+    public function formComponent(string $component): static
+    {
+        $this->formComponent = $component;
 
         return $this;
     }

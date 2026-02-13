@@ -80,8 +80,17 @@
     @endif
 
     @foreach ($this->formModals as $modal)
-        <livewire:cms.form-modal :name="$modal['name']" :title="$modal['title']" :form-data-class="$modal['formDataClass']"
-            :submit-label="$modal['submitLabel']" />
+        @if ($modal['formComponent'])
+            @livewire($modal['formComponent'], [
+                'name' => $modal['name'],
+                'title' => $modal['title'],
+                'formDataClass' => $modal['formDataClass'],
+                'submitLabel' => $modal['submitLabel'],
+            ], key($modal['name']))
+        @else
+            <livewire:cms.form-modal :name="$modal['name']" :title="$modal['title']" :form-data-class="$modal['formDataClass']"
+                :submit-label="$modal['submitLabel']" />
+        @endif
     @endforeach
 
     @foreach ($this->confirmModals as $confirmAction)

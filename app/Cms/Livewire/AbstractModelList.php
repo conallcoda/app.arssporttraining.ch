@@ -181,6 +181,7 @@ abstract class AbstractModelList extends Component
                 'title' => $action->modalTitle,
                 'formDataClass' => $action->formDataClass,
                 'submitLabel' => $action->submitLabel ?? 'Save',
+                'formComponent' => $action->formComponent,
             ];
         }
 
