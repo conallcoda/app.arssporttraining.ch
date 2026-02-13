@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->string('type');
             $table->string('name');
-            $table->string('video_url');
+            $table->string('video_url')->nullable();
             $table->text('instructions')->nullable();
             $table->json('config');
             $table->timestamps();

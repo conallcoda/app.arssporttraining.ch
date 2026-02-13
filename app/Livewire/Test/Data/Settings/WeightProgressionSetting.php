@@ -39,9 +39,4 @@ class WeightProgressionSetting extends AbstractSetting
                 ->live(),
         ];
     }
-
-    public static function view(): string
-    {
-        return 'components.cms.form.custom.weight-progression';
-    }
 }

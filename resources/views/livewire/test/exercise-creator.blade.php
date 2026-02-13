@@ -30,9 +30,6 @@
             @else
                 @php
                     $grid = $this->previewGrid;
-                    $showMeasuredInputs =
-                        in_array('weight', $data['settings'] ?? []) &&
-                        ($data['weight']['mode'] ?? 'manual') === 'automatic';
                     $hasOverrides = count($data['overrides']['cells'] ?? []) > 0 || count($data['overrides']['weeks'] ?? []) > 0;
                 @endphp
 
@@ -41,12 +38,6 @@
                         Select settings to see preview.
                     </div>
                 @else
-                    @if ($showMeasuredInputs)
-                        <x-section title="Target" class="w-fit">
-                            @include('components.cms.form.custom.weight-progression')
-                        </x-section>
-                    @endif
-
                     <div class="w-fit space-y-2" x-data="{ expanded: false }">
                         <div class="flex items-center justify-between">
                             <flux:heading size="lg">{{ $data['name'] ?? 'Untitled' }}</flux:heading>
@@ -64,7 +55,7 @@
                             </flux:dropdown>
                         </div>
 
-                    <div class="overflow-x-auto text-sm" wire:key="preview-grid-{{ implode('-', $data['settings'] ?? []) }}">
+                    <div class="overflow-x-auto text-sm" wire:key="preview-grid-{{ $grid->setCount }}-{{ $grid->weekCount }}-{{ count($grid->rows) }}-{{ $grid->sessionsPerWeek }}-{{ count($grid->weekColumns) }}">
                         <table class="border-collapse border border-zinc-300 dark:border-zinc-600 table-fixed">
                             <thead>
                                 <tr class="bg-zinc-100 dark:bg-zinc-800">
@@ -94,7 +85,7 @@
                             <tbody x-show="!expanded">
                                 @for ($week = 0; $week < $grid->weekCount; $week++)
                                     @foreach ($grid->rows as $rowIdx => $row)
-                                        <tr>
+                                        <tr wire:key="collapsed-w{{ $week }}-r{{ $rowIdx }}">
                                             @if ($rowIdx === 0)
                                                 <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle text-center"
                                                     rowspan="{{ count($grid->rows) }}">
@@ -224,7 +215,7 @@
                                     @for ($session = 0; $session < $grid->sessionsPerWeek; $session++)
                                         @foreach ($grid->rows as $rowIdx => $row)
                                             @php $isFirstRow = $rowIdx === 0; @endphp
-                                            <tr>
+                                            <tr wire:key="expanded-w{{ $week }}-s{{ $session }}-r{{ $rowIdx }}">
                                                 @if ($session === 0 && $isFirstRow)
                                                     <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle text-center"
                                                         rowspan="{{ $grid->sessionsPerWeek * count($grid->rows) }}">

@@ -73,7 +73,23 @@ class Form
             'sortByDataKey' => $sortByDataKey,
             'headerFields' => $headerFields ?? [],
             'headerPrefix' => $headerPrefix,
+            'appendKeys' => [],
         ];
+
+        return $this;
+    }
+
+    public function appendToFieldsetTabs(string $groupLabel, array $labels): static
+    {
+        $newKeys = array_map(fn (string $l) => Str::snake($l), $labels);
+
+        foreach ($this->fieldsetTabGroups as &$group) {
+            if ($group['label'] === $groupLabel) {
+                $group['keys'] = array_merge($group['keys'], $newKeys);
+                $group['appendKeys'] = array_merge($group['appendKeys'] ?? [], $newKeys);
+                break;
+            }
+        }
 
         return $this;
     }
@@ -196,9 +212,15 @@ class Form
             $groupFieldsets = [];
             $insertIndex = null;
 
-            foreach ($fieldsets as $index => $fieldset) {
-                if ($fieldset instanceof FormFieldset && in_array($fieldset->name, $groupKeys)) {
-                    $groupFieldsets[] = $fieldset;
+            foreach ($fieldsets as $index => $item) {
+                $itemName = match (true) {
+                    $item instanceof FormFieldset => $item->name,
+                    $item instanceof FormFieldsetGroup => $item->name,
+                    default => null,
+                };
+
+                if ($itemName !== null && in_array($itemName, $groupKeys)) {
+                    $groupFieldsets[] = $item;
                     if ($insertIndex === null) {
                         $insertIndex = $index;
                     }
@@ -211,7 +233,22 @@ class Form
 
             if ($sortByDataKey && isset($data[$sortByDataKey]) && is_array($data[$sortByDataKey])) {
                 $order = $data[$sortByDataKey];
-                usort($groupFieldsets, function (FormFieldset $a, FormFieldset $b) use ($order) {
+                $appendKeys = $group['appendKeys'] ?? [];
+
+                usort($groupFieldsets, function (FormFieldset|FormFieldsetGroup $a, FormFieldset|FormFieldsetGroup $b) use ($order, $appendKeys) {
+                    $aIsAppended = in_array($a->name, $appendKeys);
+                    $bIsAppended = in_array($b->name, $appendKeys);
+
+                    if ($aIsAppended && ! $bIsAppended) {
+                        return 1;
+                    }
+                    if (! $aIsAppended && $bIsAppended) {
+                        return -1;
+                    }
+                    if ($aIsAppended && $bIsAppended) {
+                        return 0;
+                    }
+
                     $posA = array_search($a->name, $order);
                     $posB = array_search($b->name, $order);
 
@@ -229,8 +266,14 @@ class Form
                 });
             }
 
-            $fieldsets = array_values(array_filter($fieldsets, function ($fs) use ($groupKeys) {
-                return ! ($fs instanceof FormFieldset && in_array($fs->name, $groupKeys));
+            $fieldsets = array_values(array_filter($fieldsets, function ($item) use ($groupKeys) {
+                $itemName = match (true) {
+                    $item instanceof FormFieldset => $item->name,
+                    $item instanceof FormFieldsetGroup => $item->name,
+                    default => null,
+                };
+
+                return $itemName === null || ! in_array($itemName, $groupKeys);
             }));
 
             array_splice($fieldsets, $insertIndex, 0, [FormFieldsetGroup::make($groupFieldsets, $groupLabel, $headerFields, $headerPrefix)]);

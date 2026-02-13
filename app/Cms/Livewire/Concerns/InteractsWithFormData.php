@@ -17,23 +17,30 @@ trait InteractsWithFormData
     protected function flatFieldsets(): array
     {
         return collect($this->fieldsets)
-            ->flatMap(function ($item) {
-                if (! $item instanceof FormFieldsetGroup) {
-                    return [$item];
-                }
-
-                $fieldsets = $item->fieldsets;
-
-                if (! empty($item->headerFields)) {
-                    $headerFieldset = FormFieldset::make('__header_'.$item->label)
-                        ->fields($item->headerFields)
-                        ->prefix($item->headerPrefix);
-                    array_unshift($fieldsets, $headerFieldset);
-                }
-
-                return $fieldsets;
-            })
+            ->flatMap(fn ($item) => $this->flattenItem($item))
             ->all();
+    }
+
+    /** @return FormFieldset[] */
+    protected function flattenItem(FormFieldset|FormFieldsetGroup $item): array
+    {
+        if ($item instanceof FormFieldset) {
+            return [$item];
+        }
+
+        $result = [];
+
+        if (! empty($item->headerFields)) {
+            $result[] = FormFieldset::make('__header_'.$item->label)
+                ->fields($item->headerFields)
+                ->prefix($item->headerPrefix);
+        }
+
+        foreach ($item->fieldsets as $child) {
+            array_push($result, ...$this->flattenItem($child));
+        }
+
+        return $result;
     }
 
     public function updated(string $property, mixed $value): void

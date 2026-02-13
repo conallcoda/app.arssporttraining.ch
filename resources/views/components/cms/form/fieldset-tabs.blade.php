@@ -1,10 +1,11 @@
-@props(['group'])
+@props(['group', 'nested' => false])
 
 @php
-    $tabKey = implode('-', array_map(fn($fs) => $fs->name, $group->fieldsets));
+    $tabKey = implode('-', array_map(fn($item) => $item->name, $group->fieldsets));
+    $showWrapper = !$nested && $group->label;
 @endphp
 
-@if ($group->label)
+@if ($showWrapper)
     <fieldset class="min-w-0 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 space-y-4 [&>legend+*]:!mt-0">
         <legend class="mb-0 px-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
             {{ $group->label }}</legend>
@@ -13,14 +14,18 @@
         @endforeach
         <flux:tab.group wire:key="tab-group-{{ $tabKey }}">
             <flux:tabs scrollable>
-                @foreach ($group->fieldsets as $fieldset)
-                    <flux:tab :name="$fieldset->name">{{ $fieldset->label }}</flux:tab>
+                @foreach ($group->fieldsets as $item)
+                    <flux:tab :name="$item->name">{{ $item->label }}</flux:tab>
                 @endforeach
             </flux:tabs>
 
-            @foreach ($group->fieldsets as $fieldset)
-                <flux:tab.panel :name="$fieldset->name">
-                    <x-cms.form.fieldset :fieldset="$fieldset" :prefix="$fieldset->prefix ?? 'data'" :showLegend="false" />
+            @foreach ($group->fieldsets as $item)
+                <flux:tab.panel :name="$item->name">
+                    @if ($item instanceof \App\Cms\Form\FormFieldsetGroup)
+                        <x-cms.form.fieldset-tabs :group="$item" :nested="true" />
+                    @else
+                        <x-cms.form.fieldset :fieldset="$item" :prefix="$item->prefix ?? 'data'" :showLegend="false" />
+                    @endif
                 </flux:tab.panel>
             @endforeach
         </flux:tab.group>
@@ -32,14 +37,18 @@
         @endforeach
         <flux:tab.group wire:key="tab-group-{{ $tabKey }}">
             <flux:tabs scrollable>
-                @foreach ($group->fieldsets as $fieldset)
-                    <flux:tab :name="$fieldset->name">{{ $fieldset->label }}</flux:tab>
+                @foreach ($group->fieldsets as $item)
+                    <flux:tab :name="$item->name">{{ $item->label }}</flux:tab>
                 @endforeach
             </flux:tabs>
 
-            @foreach ($group->fieldsets as $fieldset)
-                <flux:tab.panel :name="$fieldset->name">
-                    <x-cms.form.fieldset :fieldset="$fieldset" :prefix="$fieldset->prefix ?? 'data'" :showLegend="false" />
+            @foreach ($group->fieldsets as $item)
+                <flux:tab.panel :name="$item->name">
+                    @if ($item instanceof \App\Cms\Form\FormFieldsetGroup)
+                        <x-cms.form.fieldset-tabs :group="$item" :nested="true" />
+                    @else
+                        <x-cms.form.fieldset :fieldset="$item" :prefix="$item->prefix ?? 'data'" :showLegend="false" />
+                    @endif
                 </flux:tab.panel>
             @endforeach
         </flux:tab.group>

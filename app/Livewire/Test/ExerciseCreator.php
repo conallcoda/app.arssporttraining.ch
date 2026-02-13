@@ -8,6 +8,7 @@ use App\Livewire\Test\Data\Preview\ExercisePreviewBuilder;
 use App\Livewire\Test\Data\Preview\GridOverrides;
 use App\Livewire\Test\Data\Preview\PreviewGrid;
 use App\Livewire\Test\Data\Preview\StrategyOrchestrator;
+use App\Livewire\Test\Data\Settings\PreviewSetting;
 use App\Livewire\Test\Data\Settings\WeightProgressionSetting;
 use App\Livewire\Test\Data\TestExerciseData;
 use Livewire\Attributes\Computed;
@@ -21,31 +22,44 @@ class ExerciseCreator extends Component
 {
     use InteractsWithFormData;
 
-    private const SESSIONS_PER_WEEK = 2;
+    private const DEFAULT_WEEKS = 5;
+
+    private const DEFAULT_SESSIONS_PER_WEEK = 1;
 
     public array $data = [];
 
     public string $activeTab = 'preview';
-
-    public ?int $measuredReps = 8;
-
-    public ?float $measuredWeight = 52;
-
-    public ?int $targetGoal = 7;
 
     public function mount(): void
     {
         $this->data = $this->buildDefaultsFromFieldsets();
         unset($this->fieldsets);
         $this->data = array_replace_recursive($this->buildDefaultsFromFieldsets(), $this->data);
+
+        $this->data['progression'] = array_merge($this->data['progression'] ?? [], [
+            'weeks' => self::DEFAULT_WEEKS,
+            'sessionsPerWeek' => self::DEFAULT_SESSIONS_PER_WEEK,
+            'measuredReps' => 8,
+            'measuredWeight' => 52,
+            'targetGoal' => 7,
+        ]);
+
+        unset($this->fieldsets);
     }
 
     #[Computed]
     public function formConfig(): Form
     {
         $definition = TestExerciseData::getForm();
+        $form = $definition instanceof Form ? $definition : Form::fields($definition);
 
-        return $definition instanceof Form ? $definition : Form::fields($definition);
+        $form->fieldset(
+            'Preview',
+            fn (array $data) => ['fields' => PreviewSetting::fields($data), 'prefix' => 'data.progression'],
+        );
+        $form->appendToFieldsetTabs('Settings', ['Preview']);
+
+        return $form;
     }
 
     #[Computed]
@@ -57,10 +71,11 @@ class ExerciseCreator extends Component
     #[Computed]
     public function previewGrid(): PreviewGrid
     {
+        $progression = $this->data['progression'] ?? [];
         $measuredData = new WeightProgressionSetting(
-            measuredReps: $this->measuredReps,
-            measuredWeight: $this->measuredWeight,
-            targetGoal: $this->targetGoal,
+            measuredReps: $progression['measuredReps'] ?? null,
+            measuredWeight: $progression['measuredWeight'] ?? null,
+            targetGoal: $progression['targetGoal'] ?? null,
         );
 
         $overrides = GridOverrides::fromArrays(
@@ -68,7 +83,10 @@ class ExerciseCreator extends Component
             $this->data['overrides']['weeks'] ?? [],
         );
 
-        return ExercisePreviewBuilder::build($this->data, $measuredData, 5, $overrides, self::SESSIONS_PER_WEEK);
+        $weeks = (int) ($progression['weeks'] ?? self::DEFAULT_WEEKS);
+        $sessionsPerWeek = (int) ($progression['sessionsPerWeek'] ?? self::DEFAULT_SESSIONS_PER_WEEK);
+
+        return ExercisePreviewBuilder::build($this->data, $measuredData, $weeks, $overrides, $sessionsPerWeek);
     }
 
     public function updateCellOverride(int $weekIndex, int $setIndex, string $field, mixed $value, int $session, bool $applyToAll = false): void
@@ -76,7 +94,8 @@ class ExerciseCreator extends Component
         $defaultValue = $this->getDefaultCellValue($field, $weekIndex, $setIndex);
         $valuesMatch = $this->cellValuesMatch($value, $defaultValue);
 
-        $sessions = $applyToAll ? range(0, self::SESSIONS_PER_WEEK - 1) : [$session];
+        $sessionsPerWeek = (int) ($this->data['progression']['sessionsPerWeek'] ?? self::DEFAULT_SESSIONS_PER_WEEK);
+        $sessions = $applyToAll ? range(0, $sessionsPerWeek - 1) : [$session];
 
         foreach ($sessions as $s) {
             if ($valuesMatch) {
@@ -120,6 +139,11 @@ class ExerciseCreator extends Component
         $this->data['overrides'] = ['cells' => [], 'weeks' => []];
     }
 
+    public function updatedDataProgression(): void
+    {
+        unset($this->previewGrid);
+    }
+
     public function render()
     {
         return view('livewire.test.exercise-creator');
@@ -127,13 +151,15 @@ class ExerciseCreator extends Component
 
     private function getDefaultCellValue(string $field, int $weekIndex, int $setIndex): mixed
     {
+        $progression = $this->data['progression'] ?? [];
         $measuredData = new WeightProgressionSetting(
-            measuredReps: $this->measuredReps,
-            measuredWeight: $this->measuredWeight,
-            targetGoal: $this->targetGoal,
+            measuredReps: $progression['measuredReps'] ?? null,
+            measuredWeight: $progression['measuredWeight'] ?? null,
+            targetGoal: $progression['targetGoal'] ?? null,
         );
 
-        $orchestrator = new StrategyOrchestrator($this->data, $measuredData, 5);
+        $weeks = (int) ($progression['weeks'] ?? self::DEFAULT_WEEKS);
+        $orchestrator = new StrategyOrchestrator($this->data, $measuredData, $weeks);
         $state = $orchestrator->execute();
 
         return $state->getCellValue($field, $weekIndex, $setIndex);
