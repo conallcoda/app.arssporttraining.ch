@@ -232,8 +232,9 @@ class Form
                 continue;
             }
 
-            if ($sortByDataKey && isset($data[$sortByDataKey]) && is_array($data[$sortByDataKey])) {
-                $order = $data[$sortByDataKey];
+            $sortValues = $sortByDataKey ? data_get($data, $sortByDataKey) : null;
+            if ($sortValues !== null && is_array($sortValues)) {
+                $order = $sortValues;
                 $appendKeys = $group['appendKeys'] ?? [];
 
                 usort($groupFieldsets, function (FormFieldset|FormFieldsetGroup $a, FormFieldset|FormFieldsetGroup $b) use ($order, $appendKeys) {

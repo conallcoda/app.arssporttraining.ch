@@ -41,7 +41,7 @@
                     @elseif ($showPreview)
                         @php
                             $grid = $this->previewGrid;
-                            $hasOverrides = count($data['overrides']['cells'] ?? []) > 0 || count($data['overrides']['weeks'] ?? []) > 0;
+                            $hasOverrides = count($data['config']['overrides']['cells'] ?? []) > 0 || count($data['config']['overrides']['weeks'] ?? []) > 0;
                         @endphp
 
                         @if (count($grid->rows) === 0)

@@ -83,7 +83,7 @@ class ExerciseForm extends FormModal
 
         $form->fieldset(
             'Preview',
-            fn(array $data) => ['fields' => PreviewSetting::fields($data), 'prefix' => 'data.progression'],
+            fn (array $data) => ['fields' => PreviewSetting::fields($data), 'prefix' => 'data.progression'],
         );
         $form->appendToFieldsetTabs('Settings', ['Preview']);
 
@@ -101,14 +101,14 @@ class ExerciseForm extends FormModal
         );
 
         $overrides = GridOverrides::fromArrays(
-            $this->data['overrides']['cells'] ?? [],
-            $this->data['overrides']['weeks'] ?? [],
+            $this->data['config']['overrides']['cells'] ?? [],
+            $this->data['config']['overrides']['weeks'] ?? [],
         );
 
         $weeks = (int) ($progression['weeks'] ?? $this->defaultWeeks);
         $sessionsPerWeek = (int) ($progression['sessionsPerWeek'] ?? $this->defaultSessionsPerWeek);
 
-        return ExercisePreviewBuilder::build($this->data, $measuredData, $weeks, $overrides, $sessionsPerWeek);
+        return ExercisePreviewBuilder::build($this->data['config'], $measuredData, $weeks, $overrides, $sessionsPerWeek);
     }
 
     public function updateCellOverride(int $weekIndex, int $setIndex, string $field, mixed $value, int $session, bool $applyToAll = false): void
@@ -132,7 +132,7 @@ class ExerciseForm extends FormModal
 
     public function updateWeekOverride(int $weekIndex, string $field, mixed $value): void
     {
-        $config = $this->data[$field] ?? [];
+        $config = $this->data['config'][$field] ?? [];
         $defaultValue = $config['default'] ?? null;
         $valuesMatch = $this->weekValuesMatch($value, $defaultValue, $field);
 
@@ -147,18 +147,18 @@ class ExerciseForm extends FormModal
 
     public function resetOverrides(): void
     {
-        $this->data['overrides'] = ['cells' => [], 'weeks' => []];
+        $this->data['config']['overrides'] = ['cells' => [], 'weeks' => []];
         unset($this->previewGrid);
     }
 
-    public function updatedDataSettings(): void
+    public function updatedDataConfigSettings(): void
     {
         unset($this->fieldsets);
         unset($this->previewGrid);
-        $settings = $this->data['settings'];
+        $settings = $this->data['config']['settings'];
         $this->data = array_replace_recursive($this->buildDefaultsFromFieldsets(), $this->data);
-        $this->data['settings'] = $settings;
-        $this->data['overrides'] = ['cells' => [], 'weeks' => []];
+        $this->data['config']['settings'] = $settings;
+        $this->data['config']['overrides'] = ['cells' => [], 'weeks' => []];
     }
 
     public function updatedDataProgression(): void
@@ -192,7 +192,7 @@ class ExerciseForm extends FormModal
         );
 
         $weeks = (int) ($progression['weeks'] ?? $this->defaultWeeks);
-        $orchestrator = new StrategyOrchestrator($this->data, $measuredData, $weeks);
+        $orchestrator = new StrategyOrchestrator($this->data['config'], $measuredData, $weeks);
         $state = $orchestrator->execute();
 
         return $state->getCellValue($field, $weekIndex, $setIndex);
@@ -200,17 +200,17 @@ class ExerciseForm extends FormModal
 
     private function setCellOverride(int $week, int $session, int $set, string $field, mixed $value): void
     {
-        $cells = $this->data['overrides']['cells'] ?? [];
+        $cells = $this->data['config']['overrides']['cells'] ?? [];
 
         foreach ($cells as $index => $override) {
             if ($override['week'] === $week && $override['session'] === $session && $override['set'] === $set) {
-                $this->data['overrides']['cells'][$index]['data'][$field] = $value;
+                $this->data['config']['overrides']['cells'][$index]['data'][$field] = $value;
 
                 return;
             }
         }
 
-        $this->data['overrides']['cells'][] = [
+        $this->data['config']['overrides']['cells'][] = [
             'week' => $week,
             'session' => $session,
             'set' => $set,
@@ -220,14 +220,14 @@ class ExerciseForm extends FormModal
 
     private function removeCellOverride(int $week, int $session, int $set, string $field): void
     {
-        $cells = $this->data['overrides']['cells'] ?? [];
+        $cells = $this->data['config']['overrides']['cells'] ?? [];
 
         foreach ($cells as $index => $override) {
             if ($override['week'] === $week && $override['session'] === $session && $override['set'] === $set && isset($override['data'][$field])) {
-                unset($this->data['overrides']['cells'][$index]['data'][$field]);
+                unset($this->data['config']['overrides']['cells'][$index]['data'][$field]);
 
-                if (empty($this->data['overrides']['cells'][$index]['data'])) {
-                    array_splice($this->data['overrides']['cells'], $index, 1);
+                if (empty($this->data['config']['overrides']['cells'][$index]['data'])) {
+                    array_splice($this->data['config']['overrides']['cells'], $index, 1);
                 }
 
                 return;
@@ -237,17 +237,17 @@ class ExerciseForm extends FormModal
 
     private function setWeekOverride(int $week, string $field, mixed $value): void
     {
-        $weeks = $this->data['overrides']['weeks'] ?? [];
+        $weeks = $this->data['config']['overrides']['weeks'] ?? [];
 
         foreach ($weeks as $index => $override) {
             if ($override['week'] === $week) {
-                $this->data['overrides']['weeks'][$index]['data'][$field] = $value;
+                $this->data['config']['overrides']['weeks'][$index]['data'][$field] = $value;
 
                 return;
             }
         }
 
-        $this->data['overrides']['weeks'][] = [
+        $this->data['config']['overrides']['weeks'][] = [
             'week' => $week,
             'data' => [$field => $value],
         ];
@@ -255,14 +255,14 @@ class ExerciseForm extends FormModal
 
     private function removeWeekOverride(int $week, string $field): void
     {
-        $weeks = $this->data['overrides']['weeks'] ?? [];
+        $weeks = $this->data['config']['overrides']['weeks'] ?? [];
 
         foreach ($weeks as $index => $override) {
             if ($override['week'] === $week && isset($override['data'][$field])) {
-                unset($this->data['overrides']['weeks'][$index]['data'][$field]);
+                unset($this->data['config']['overrides']['weeks'][$index]['data'][$field]);
 
-                if (empty($this->data['overrides']['weeks'][$index]['data'])) {
-                    array_splice($this->data['overrides']['weeks'], $index, 1);
+                if (empty($this->data['config']['overrides']['weeks'][$index]['data'])) {
+                    array_splice($this->data['config']['overrides']['weeks'], $index, 1);
                 }
 
                 return;

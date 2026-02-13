@@ -27,8 +27,8 @@ class PreviewSetting
                 ->live(),
         ];
 
-        $hasAutomaticWeight = in_array('weight', $data['settings'] ?? [])
-            && ($data['weight']['mode'] ?? 'manual') === 'automatic';
+        $hasAutomaticWeight = in_array('weight', $data['config']['settings'] ?? [])
+            && ($data['config']['weight']['mode'] ?? 'manual') === 'automatic';
 
         if ($hasAutomaticWeight) {
             $fields = array_merge($fields, WeightProgressionSetting::fields());
