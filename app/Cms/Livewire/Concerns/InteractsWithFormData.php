@@ -17,7 +17,22 @@ trait InteractsWithFormData
     protected function flatFieldsets(): array
     {
         return collect($this->fieldsets)
-            ->flatMap(fn ($item) => $item instanceof FormFieldsetGroup ? $item->fieldsets : [$item])
+            ->flatMap(function ($item) {
+                if (! $item instanceof FormFieldsetGroup) {
+                    return [$item];
+                }
+
+                $fieldsets = $item->fieldsets;
+
+                if (! empty($item->headerFields)) {
+                    $headerFieldset = FormFieldset::make('__header_'.$item->label)
+                        ->fields($item->headerFields)
+                        ->prefix($item->headerPrefix);
+                    array_unshift($fieldsets, $headerFieldset);
+                }
+
+                return $fieldsets;
+            })
             ->all();
     }
 

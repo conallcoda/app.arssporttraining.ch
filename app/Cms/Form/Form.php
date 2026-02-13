@@ -61,12 +61,14 @@ class Form
         return $this;
     }
 
-    public function fieldsetTabs(array $labels, ?string $label = null, ?string $sortByDataKey = null): static
+    public function fieldsetTabs(array $labels, ?string $label = null, ?string $sortByDataKey = null, ?array $headerFields = null, ?string $headerPrefix = null): static
     {
         $this->fieldsetTabGroups[] = [
             'keys' => array_map(fn (string $l) => Str::snake($l), $labels),
             'label' => $label,
             'sortByDataKey' => $sortByDataKey,
+            'headerFields' => $headerFields ?? [],
+            'headerPrefix' => $headerPrefix,
         ];
 
         return $this;
@@ -78,11 +80,19 @@ class Form
             return $this->fields;
         }
 
-        return collect($this->fieldsets)
+        $fields = collect($this->fieldsets)
             ->reject(fn (array $config) => isset($config['resolver']))
             ->flatMap(fn (array $config) => $config['fields'] ?? [])
             ->values()
             ->all();
+
+        foreach ($this->fieldsetTabGroups as $group) {
+            if (! empty($group['headerFields'])) {
+                array_push($fields, ...$group['headerFields']);
+            }
+        }
+
+        return $fields;
     }
 
     public function getFieldsets(): array
@@ -169,6 +179,8 @@ class Form
             $groupKeys = $group['keys'];
             $groupLabel = $group['label'] ?? null;
             $sortByDataKey = $group['sortByDataKey'] ?? null;
+            $headerFields = $group['headerFields'] ?? [];
+            $headerPrefix = $group['headerPrefix'] ?? null;
             $groupFieldsets = [];
             $insertIndex = null;
 
@@ -209,7 +221,7 @@ class Form
                 return ! ($fs instanceof FormFieldset && in_array($fs->name, $groupKeys));
             }));
 
-            array_splice($fieldsets, $insertIndex, 0, [FormFieldsetGroup::make($groupFieldsets, $groupLabel)]);
+            array_splice($fieldsets, $insertIndex, 0, [FormFieldsetGroup::make($groupFieldsets, $groupLabel, $headerFields, $headerPrefix)]);
         }
 
         return $fieldsets;

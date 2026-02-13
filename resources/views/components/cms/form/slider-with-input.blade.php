@@ -8,6 +8,7 @@
     'ticks' => [],
     'inputMin' => null,
     'inputMax' => null,
+    'required' => false,
 ])
 
 @php
@@ -16,7 +17,7 @@
 @endphp
 
 <flux:field>
-    <flux:label>{{ $label }}</flux:label>
+    <flux:label :badge="$required ? 'Required' : null">{{ $label }}</flux:label>
     <div class="flex items-center gap-4 -mt-2">
         <flux:slider :wire:model.live="$model" :min="$min" :max="$max" :step="$step">
             @foreach ($ticks as $tick)

@@ -2,6 +2,8 @@
 @use('App\Cms\Form\Fields\Number')
 @use('App\Cms\Form\Fields\Duration')
 @use('App\Cms\Form\Fields\Text')
+@use('App\Cms\Form\Fields\Url')
+@use('App\Cms\Form\Fields\Textarea')
 @use('App\Cms\Form\Fields\Date')
 @use('App\Cms\Form\Fields\RadioSegmented')
 @use('App\Cms\Form\Fields\Pillbox')
@@ -47,7 +49,7 @@
         @endphp
         <flux:field>
             <div class="flex items-center gap-1 mb-2">
-                <flux:label>{{ $field->getLabel() }}</flux:label>
+                <flux:label :badge="$field->required ? 'Required' : null">{{ $field->getLabel() }}</flux:label>
                 @if ($field->helpText)
                     <x-cms.form.help-tooltip :content="$field->helpText" position="top" />
                 @endif
@@ -68,7 +70,7 @@
     @elseif ($field instanceof Number)
         <flux:field>
             <div class="flex items-center gap-1 mb-2">
-                <flux:label>{{ $field->getLabel() }}</flux:label>
+                <flux:label :badge="$field->required ? 'Required' : null">{{ $field->getLabel() }}</flux:label>
                 @if ($field->helpText)
                     <x-cms.form.help-tooltip :content="$field->helpText" position="top" />
                 @endif
@@ -116,7 +118,7 @@
         @endphp
         <flux:field>
             <div class="flex items-center gap-1 mb-2">
-                <flux:label>{{ $field->getLabel() }}</flux:label>
+                <flux:label :badge="$field->required ? 'Required' : null">{{ $field->getLabel() }}</flux:label>
             </div>
             <flux:input.group>
                 @if ($isMasked)
@@ -147,7 +149,7 @@
     @elseif ($field instanceof Text)
         <flux:field>
             <div class="flex items-center gap-1 mb-2">
-                <flux:label>{{ $field->getLabel() }}</flux:label>
+                <flux:label :badge="$field->required ? 'Required' : null">{{ $field->getLabel() }}</flux:label>
                 @if ($field->helpText)
                     <x-cms.form.help-tooltip :content="$field->helpText" position="top" />
                 @endif
@@ -196,10 +198,48 @@
             @endif
             <flux:error name="{{ $wireModel }}" />
         </flux:field>
+    @elseif ($field instanceof Url)
+        <flux:field>
+            <div class="flex items-center gap-1 mb-2">
+                <flux:label :badge="$field->required ? 'Required' : null">{{ $field->getLabel() }}</flux:label>
+            </div>
+            @if ($field->live)
+                <flux:input wire:model.live="{{ $wireModel }}" type="url"
+                    data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
+            @else
+                <flux:input wire:model="{{ $wireModel }}" type="url"
+                    data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
+            @endif
+            <flux:error name="{{ $wireModel }}" />
+        </flux:field>
+    @elseif ($field instanceof Textarea)
+        <flux:field>
+            <div class="flex items-center gap-1 mb-2">
+                <flux:label :badge="$field->required ? 'Required' : null">{{ $field->getLabel() }}</flux:label>
+            </div>
+            @if ($field->live)
+                @if ($field->autosize)
+                    <flux:textarea wire:model.live="{{ $wireModel }}" rows="auto"
+                        data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
+                @else
+                    <flux:textarea wire:model.live="{{ $wireModel }}"
+                        data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
+                @endif
+            @else
+                @if ($field->autosize)
+                    <flux:textarea wire:model="{{ $wireModel }}" rows="auto"
+                        data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
+                @else
+                    <flux:textarea wire:model="{{ $wireModel }}"
+                        data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
+                @endif
+            @endif
+            <flux:error name="{{ $wireModel }}" />
+        </flux:field>
     @elseif ($field instanceof Date)
         <flux:field>
             <div class="flex items-center gap-1 mb-2">
-                <flux:label>{{ $field->getLabel() }}</flux:label>
+                <flux:label :badge="$field->required ? 'Required' : null">{{ $field->getLabel() }}</flux:label>
                 @if ($field->helpText)
                     <x-cms.form.help-tooltip :content="$field->helpText" position="top" />
                 @endif
@@ -215,7 +255,7 @@
         @php $currentValue = data_get($this, $wireModel) ?? $field->default; @endphp
         <flux:field>
             <div class="flex items-center gap-1 mb-2">
-                <flux:label>{{ $field->getLabel() }}</flux:label>
+                <flux:label :badge="$field->required ? 'Required' : null">{{ $field->getLabel() }}</flux:label>
                 @if ($field->helpText)
                     <x-cms.form.help-tooltip :content="$field->helpText" position="top" />
                 @endif
@@ -238,7 +278,7 @@
     @elseif ($field instanceof Pillbox)
         <flux:field>
             <div class="flex items-center gap-1 mb-2">
-                <flux:label>{{ $field->getLabel() }}</flux:label>
+                <flux:label :badge="$field->required ? 'Required' : null">{{ $field->getLabel() }}</flux:label>
                 @if ($field->helpText)
                     <x-cms.form.help-tooltip :content="$field->helpText" position="top" />
                 @endif
@@ -262,7 +302,7 @@
         </flux:field>
     @elseif ($field instanceof Slider)
         <x-cms.form.slider-with-input :label="$field->getLabel()" :model="$wireModel" :min="$field->min" :max="$field->max"
-            :step="$field->step" :suffix="$resolvedSuffix" :ticks="$field->ticks" />
+            :step="$field->step" :suffix="$resolvedSuffix" :ticks="$field->ticks" :required="$field->required" />
     @elseif ($field instanceof Tree)
         @php
             $treeValue = data_get($this, $wireModel);
@@ -272,7 +312,7 @@
         @endphp
         <flux:field>
             <div class="flex items-center gap-1 mb-2">
-                <flux:label>{{ $field->getLabel() }}</flux:label>
+                <flux:label :badge="$field->required ? 'Required' : null">{{ $field->getLabel() }}</flux:label>
                 @if ($field->helpText)
                     <x-cms.form.help-tooltip :content="$field->helpText" position="top" />
                 @endif
@@ -287,7 +327,7 @@
     @elseif ($field instanceof Tags)
         <flux:field>
             <div class="flex items-center gap-1 mb-2">
-                <flux:label>{{ $field->getLabel() }}</flux:label>
+                <flux:label :badge="$field->required ? 'Required' : null">{{ $field->getLabel() }}</flux:label>
                 @if ($field->helpText)
                     <x-cms.form.help-tooltip :content="$field->helpText" position="top" />
                 @endif
@@ -305,7 +345,7 @@
             <div class="space-y-3">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-1">
-                        <flux:label>{{ $field->getLabel() }}</flux:label>
+                        <flux:label :badge="$field->required ? 'Required' : null">{{ $field->getLabel() }}</flux:label>
                         @if ($field->helpText)
                             <x-cms.form.help-tooltip :content="$field->helpText" position="top" />
                         @endif
@@ -386,7 +426,7 @@
             <div class="space-y-3">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-1">
-                        <flux:label>{{ $field->getLabel() }}</flux:label>
+                        <flux:label :badge="$field->required ? 'Required' : null">{{ $field->getLabel() }}</flux:label>
                         @if ($field->helpText)
                             <x-cms.form.help-tooltip :content="$field->helpText" position="top" />
                         @endif

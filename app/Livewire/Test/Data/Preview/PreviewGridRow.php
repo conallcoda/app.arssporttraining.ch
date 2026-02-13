@@ -16,6 +16,7 @@ class PreviewGridRow
         public ?CellInputMeta $inputMeta = null,
         /** @var array<int, array<int, bool>>|array<int, bool> */
         public array $editableMap = [],
+        public bool $lastSessionOnly = false,
     ) {}
 
     public function isCellEditable(int $week, ?int $set = null): bool

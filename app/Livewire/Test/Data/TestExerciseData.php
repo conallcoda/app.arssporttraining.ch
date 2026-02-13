@@ -22,6 +22,8 @@ class TestExerciseData extends AbstractData implements HasForms
         public ?int $category = null,
         public array $equipment = [],
         public array $modifiers = [],
+        public ?string $videoUrl = null,
+        public ?string $instructions = null,
         public array $settings = [],
         /** @var array{cells: array<int, array{week: int, session: int, set: int, data: array<string, mixed>}>, weeks: array<int, array{week: int, data: array<string, mixed>}>} */
         public array $overrides = ['cells' => [], 'weeks' => []],
@@ -35,23 +37,30 @@ class TestExerciseData extends AbstractData implements HasForms
                 Fields\Category::make('category', 'exercise_category')->label('Category')->withOptions(),
                 Fields\Tags::make('equipment', 'exercise_equipment')->label('Equipment')->withOptions(),
                 Fields\Tags::make('modifiers', 'exercise_modifiers')->label('Modifiers')->withOptions(),
-                Fields\Pillbox::make('settings')->label('Settings')->enum(ExerciseSetting::class)->default(['reps', 'weight'])->live(),
+            ])
+            ->fieldset('Instructions', [
+                Fields\Url::make('videoUrl')->label('Video URL')->placeholder('https://'),
+                Fields\Textarea::make('instructions')->label('Instructions')->placeholder('Enter exercise instructions...'),
             ])
             ->fieldset('Sets', Settings\SetsSetting::fields(), 'data.sets');
 
         $settingNames = ['sets'];
 
+        $settingsField =           Fields\Pillbox::make('settings')->label('Settings')->enum(ExerciseSetting::class)->default(['reps', 'weight'])->live();
+
         foreach (ExerciseSetting::settingMap() as $settingKey => $settingClass) {
             $form->fieldset(
                 $settingClass::getName(),
-                fn (array $data) => in_array($settingKey, $data['settings'] ?? [])
+                fn(array $data) => in_array($settingKey, $data['settings'] ?? [])
                     ? ['fields' => $settingClass::fields(), 'prefix' => "data.{$settingKey}"]
                     : null,
             );
             $settingNames[] = $settingClass::getName();
         }
 
-        $form->fieldsetTabs($settingNames, 'Settings', sortByDataKey: 'settings');
+        $form->fieldsetTabs($settingNames, 'Settings', sortByDataKey: 'settings', headerFields: [
+            $settingsField
+        ]);
 
         return $form;
     }

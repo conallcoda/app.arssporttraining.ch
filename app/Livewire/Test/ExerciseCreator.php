@@ -71,12 +71,14 @@ class ExerciseCreator extends Component
         return ExercisePreviewBuilder::build($this->data, $measuredData, 5, $overrides, self::SESSIONS_PER_WEEK);
     }
 
-    public function updateCellOverride(int $weekIndex, int $setIndex, string $field, mixed $value): void
+    public function updateCellOverride(int $weekIndex, int $setIndex, string $field, mixed $value, int $session, bool $applyToAll = false): void
     {
         $defaultValue = $this->getDefaultCellValue($field, $weekIndex, $setIndex);
         $valuesMatch = $this->cellValuesMatch($value, $defaultValue);
 
-        for ($s = 0; $s < self::SESSIONS_PER_WEEK; $s++) {
+        $sessions = $applyToAll ? range(0, self::SESSIONS_PER_WEEK - 1) : [$session];
+
+        foreach ($sessions as $s) {
             if ($valuesMatch) {
                 $this->removeCellOverride($weekIndex, $s, $setIndex, $field);
             } else {

@@ -179,10 +179,11 @@ class ExercisePreviewBuilder
 
             $rows[] = new PreviewGridRow(
                 field: 'oneRepMax',
-                label: '1RM',
+                label: '1RM (kg)',
                 color: self::ONE_REP_MAX_COLOR,
                 cells: $state->getGrid('oneRepMax'),
                 editableMap: self::buildEditableMap('oneRepMax', $weeks, $maxSets, $state),
+                lastSessionOnly: true,
             );
 
             return $rows;

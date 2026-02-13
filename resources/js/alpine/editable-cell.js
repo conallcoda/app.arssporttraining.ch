@@ -7,6 +7,8 @@ document.addEventListener('alpine:init', () => {
         cellEditType: '',
         cellWeek: 0,
         cellSet: 0,
+        cellSession: 0,
+        cellApplyToAll: false,
 
         init() {
             this.mask = this.$el.getAttribute('data-mask') || '';
@@ -14,6 +16,8 @@ document.addEventListener('alpine:init', () => {
             this.cellEditType = this.$el.getAttribute('data-edit-type') || 'cell';
             this.cellWeek = parseInt(this.$el.getAttribute('data-week') || '0', 10);
             this.cellSet = parseInt(this.$el.getAttribute('data-set') || '0', 10);
+            this.cellSession = parseInt(this.$el.getAttribute('data-session') || '0', 10);
+            this.cellApplyToAll = this.$el.getAttribute('data-apply-to-all') === 'true';
         },
 
         startEditing() {
@@ -54,7 +58,7 @@ document.addEventListener('alpine:init', () => {
             if (this.cellEditType === 'week') {
                 this.$wire.updateWeekOverride(this.cellWeek, this.cellField, parsedValue);
             } else {
-                this.$wire.updateCellOverride(this.cellWeek, this.cellSet, this.cellField, parsedValue);
+                this.$wire.updateCellOverride(this.cellWeek, this.cellSet, this.cellField, parsedValue, this.cellSession, this.cellApplyToAll);
             }
         },
 
