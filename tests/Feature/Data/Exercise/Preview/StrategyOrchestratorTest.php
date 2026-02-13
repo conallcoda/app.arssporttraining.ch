@@ -1,7 +1,7 @@
 <?php
 
-use App\Livewire\Test\Data\Preview\StrategyOrchestrator;
-use App\Livewire\Test\Data\Settings\WeightProgressionSetting;
+use App\Data\Exercise\Preview\StrategyOrchestrator;
+use App\Data\Exercise\Settings\WeightProgressionSetting;
 
 it('populates sets per week from sets config', function () {
     $data = [

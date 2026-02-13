@@ -1,9 +1,9 @@
 <?php
 
-use App\Livewire\Test\Data\Preview\GridState;
-use App\Livewire\Test\Data\Settings\WeightProgressionSetting;
-use App\Livewire\Test\Data\Settings\WeightSetting;
-use App\Livewire\Test\Data\Strategies\Weight\OneRepMaxFixedStrategy;
+use App\Data\Exercise\Preview\GridState;
+use App\Data\Exercise\Settings\WeightProgressionSetting;
+use App\Data\Exercise\Settings\WeightSetting;
+use App\Data\Exercise\Strategies\Weight\OneRepMaxFixedStrategy;
 use App\Training\Reference\RepPercentageTable;
 
 function buildStateWithReps(array $setsPerWeek, array $reps): GridState

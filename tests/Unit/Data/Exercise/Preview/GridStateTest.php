@@ -1,6 +1,6 @@
 <?php
 
-use App\Livewire\Test\Data\Preview\GridState;
+use App\Data\Exercise\Preview\GridState;
 
 it('stores and retrieves sets per week', function () {
     $state = new GridState;
