@@ -214,13 +214,18 @@
                                         @if ($column->source)
                                             @php $sourceBadges = $column->getSourceData($item); @endphp
                                             @foreach ($sourceBadges as $badge)
-                                                <flux:badge size="sm" class="cursor-pointer"
-                                                    x-on:click="Livewire.dispatch('open-{{ $this->editModalName }}', {
-                                                        data: {{ Js::from($item->toArray()) }},
-                                                        title: 'Edit {{ $entityName }}',
-                                                        focusField: '{{ $badge['modalField'] }}'
-                                                    })">
-                                                    {{ $badge['label'] }}</flux:badge>
+                                                @if (isset($badge['modalField']))
+                                                    <flux:badge size="sm" class="cursor-pointer"
+                                                        x-on:click="Livewire.dispatch('open-{{ $this->editModalName }}', {
+                                                            data: {{ Js::from($item->toArray()) }},
+                                                            title: 'Edit {{ $entityName }}',
+                                                            focusField: '{{ $badge['modalField'] }}'
+                                                        })">
+                                                        {{ $badge['label'] }}</flux:badge>
+                                                @else
+                                                    <flux:badge size="sm">
+                                                        {{ $badge['label'] }}</flux:badge>
+                                                @endif
                                             @endforeach
                                         @else
                                             @php

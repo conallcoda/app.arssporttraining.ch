@@ -20,6 +20,7 @@ class TrainingPlanProgram extends Model
 
     protected $fillable = [
         'training_plan_id',
+        'program_category_id',
         'name',
         'sort',
     ];
@@ -27,6 +28,11 @@ class TrainingPlanProgram extends Model
     public function trainingPlan(): BelongsTo
     {
         return $this->belongsTo(TrainingPlan::class);
+    }
+
+    public function programCategory(): BelongsTo
+    {
+        return $this->belongsTo(ProgramCategory::class);
     }
 
     public function exercises(): BelongsToMany

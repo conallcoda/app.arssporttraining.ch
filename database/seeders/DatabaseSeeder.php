@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             ExerciseSeeder::class,
             TagSeeder::class,
             ExerciseExternalSeeder::class,
+            ProgramCategorySeeder::class,
             TrainingPlanSeeder::class,
         ]);
     }
