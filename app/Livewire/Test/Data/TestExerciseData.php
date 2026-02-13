@@ -33,7 +33,7 @@ class TestExerciseData extends AbstractData implements HasForms
     {
         $form = Form::make()
             ->fieldset('General', [
-                ExerciseFields\ExerciseName::make('name')->live(),
+                Fields\Text::make('name')->live(),
                 Fields\Category::make('category', 'exercise_category')->label('Category')->withOptions(),
                 Fields\Tags::make('equipment', 'exercise_equipment')->label('Equipment')->withOptions(),
                 Fields\Tags::make('modifiers', 'exercise_modifiers')->label('Modifiers')->withOptions(),
@@ -46,12 +46,12 @@ class TestExerciseData extends AbstractData implements HasForms
 
         $settingNames = ['sets'];
 
-        $settingsField = Fields\Pillbox::make('settings')->label('Settings')->enum(ExerciseSetting::class)->default(['reps', 'weight'])->live();
+        $settingsField = Fields\Pillbox::make('settings')->label('Settings')->enum(ExerciseSetting::class)->default(['reps', 'weight', 'tempo', 'rest'])->live();
 
         foreach (ExerciseSetting::settingMap() as $settingKey => $settingClass) {
             $form->fieldset(
                 $settingClass::getName(),
-                fn (array $data) => in_array($settingKey, $data['settings'] ?? [])
+                fn(array $data) => in_array($settingKey, $data['settings'] ?? [])
                     ? ['fields' => $settingClass::fields(), 'prefix' => "data.{$settingKey}"]
                     : null,
             );

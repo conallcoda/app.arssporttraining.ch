@@ -1,5 +1,5 @@
 <div>
-    <flux:modal :name="$name" :flyout="$flyout" :class="$flyout ? $width : ''"
+    <flux:modal :name="$name" :flyout="$flyout" :class="$maxWidth"
         x-on:focus-field.window="$nextTick(() => {
             const field = $event.detail.field;
             const index = $event.detail.index;

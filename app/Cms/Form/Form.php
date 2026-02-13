@@ -65,7 +65,7 @@ class Form
         return $this;
     }
 
-    public function fieldsetTabs(array $labels, ?string $label = null, ?string $sortByDataKey = null, ?array $headerFields = null, ?string $headerPrefix = null): static
+    public function fieldsetTabs(array $labels, ?string $label = null, ?string $sortByDataKey = null, ?array $headerFields = null, ?string $headerPrefix = null, bool $scrollableTabs = true): static
     {
         $this->fieldsetTabGroups[] = [
             'keys' => array_map(fn (string $l) => Str::snake($l), $labels),
@@ -74,6 +74,7 @@ class Form
             'headerFields' => $headerFields ?? [],
             'headerPrefix' => $headerPrefix,
             'appendKeys' => [],
+            'scrollableTabs' => $scrollableTabs,
         ];
 
         return $this;
@@ -276,7 +277,10 @@ class Form
                 return $itemName === null || ! in_array($itemName, $groupKeys);
             }));
 
-            array_splice($fieldsets, $insertIndex, 0, [FormFieldsetGroup::make($groupFieldsets, $groupLabel, $headerFields, $headerPrefix)]);
+            $fieldsetGroup = FormFieldsetGroup::make($groupFieldsets, $groupLabel, $headerFields, $headerPrefix)
+                ->scrollableTabs($group['scrollableTabs'] ?? true);
+
+            array_splice($fieldsets, $insertIndex, 0, [$fieldsetGroup]);
         }
 
         return $fieldsets;

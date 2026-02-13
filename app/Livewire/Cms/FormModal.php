@@ -27,7 +27,7 @@ class FormModal extends Component
 
     public bool $flyout = true;
 
-    public string $width = 'w-96';
+    public string $maxWidth = 'max-w-sm';
 
     public ?string $activeTitle = null;
 
@@ -40,7 +40,7 @@ class FormModal extends Component
         string $submitLabel = 'Save',
         string $cancelLabel = 'Cancel',
         bool $flyout = true,
-        string $width = 'w-96',
+        string $maxWidth = 'max-w-sm',
     ): void {
         $this->name = $name;
         $this->title = $title;
@@ -48,7 +48,7 @@ class FormModal extends Component
         $this->submitLabel = $submitLabel;
         $this->cancelLabel = $cancelLabel;
         $this->flyout = $flyout;
-        $this->width = $width;
+        $this->maxWidth = $maxWidth;
         $this->data = $this->buildDefaultsFromFieldsets();
     }
 

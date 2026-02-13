@@ -16,6 +16,10 @@ class FormFieldsetGroup
 
     public ?string $headerPrefix = null;
 
+    public bool $scrollableTabs = true;
+
+    public ?string $class = null;
+
     public static function make(array $fieldsets, ?string $label = null, array $headerFields = [], ?string $headerPrefix = null): static
     {
         $group = new static;
@@ -26,5 +30,19 @@ class FormFieldsetGroup
         $group->headerPrefix = $headerPrefix;
 
         return $group;
+    }
+
+    public function scrollableTabs(bool $scrollable = true): static
+    {
+        $this->scrollableTabs = $scrollable;
+
+        return $this;
+    }
+
+    public function class(string $class): static
+    {
+        $this->class = $class;
+
+        return $this;
     }
 }
