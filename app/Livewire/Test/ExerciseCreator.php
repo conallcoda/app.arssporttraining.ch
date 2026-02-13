@@ -16,7 +16,7 @@ class ExerciseCreator extends Component
 
     public bool $showPreview = true;
 
-    public bool $showData = true;
+    public bool $showData = false;
 
     public bool $flyout = true;
 

@@ -22,7 +22,7 @@
                     </form>
                 </div>
 
-                <div class="space-y-4">
+                <div class="space-y-4 min-w-0">
                     @if ($showPreview && $showData)
                         <div class="flex items-center gap-2">
                             <flux:button size="sm" wire:click="$set('activeTab', 'preview')"
@@ -49,7 +49,7 @@
                                 Select settings to see preview.
                             </div>
                         @else
-                            <div class="w-fit space-y-2" x-data="{ expanded: false }">
+                            <div class="space-y-2" x-data="{ expanded: false }">
                                 <div class="flex items-center justify-between">
                                     <flux:heading size="lg">{{ $data['name'] ?? 'Untitled' }}</flux:heading>
                                     <flux:dropdown>

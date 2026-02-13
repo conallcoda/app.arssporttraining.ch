@@ -22,7 +22,7 @@ class ExerciseForm extends FormModal
 
     public bool $showPreview = true;
 
-    public bool $showData = true;
+    public bool $showData = false;
 
     public string $activeTab = 'preview';
 
@@ -33,7 +33,7 @@ class ExerciseForm extends FormModal
         string $submitLabel = 'Save',
         string $cancelLabel = 'Cancel',
         bool $flyout = true,
-        string $maxWidth = 'max-w-[83.333%]',
+        string $maxWidth = 'max-w-[83.333%] overflow-x-hidden',
         int $defaultWeeks = 5,
         int $defaultSessionsPerWeek = 1,
         bool $showPreview = true,
@@ -83,7 +83,7 @@ class ExerciseForm extends FormModal
 
         $form->fieldset(
             'Preview',
-            fn (array $data) => ['fields' => PreviewSetting::fields($data), 'prefix' => 'data.progression'],
+            fn(array $data) => ['fields' => PreviewSetting::fields($data), 'prefix' => 'data.progression'],
         );
         $form->appendToFieldsetTabs('Settings', ['Preview']);
 
