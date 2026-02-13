@@ -6,7 +6,6 @@ use App\Cms\Models\Concerns\HasQueryBuilder;
 use App\Cms\Models\Concerns\HasTags;
 use App\Cms\Models\Contracts\Taggable;
 use App\Data\Exercise\ExerciseConfig;
-use App\Data\Exercise\ExerciseType;
 use App\Models\Tag;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,7 +20,8 @@ class Exercise extends Model implements Taggable
 
     protected $fillable = [
         'name',
-        'type',
+        'video_url',
+        'instructions',
         'config',
         'category_id',
     ];
@@ -29,7 +29,6 @@ class Exercise extends Model implements Taggable
     protected function casts(): array
     {
         return [
-            'type' => ExerciseType::class,
             'config' => ExerciseConfig::class,
         ];
     }
