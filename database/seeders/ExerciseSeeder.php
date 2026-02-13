@@ -5,45 +5,27 @@ namespace Database\Seeders;
 use App\Models\Exercise\Exercise;
 use App\Models\Tag;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Artisan;
 
 class ExerciseSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->seedStrengthAutomatic();
-        $this->seedStrengthManual();
-        $this->seedConditioning();
-        $this->seedTimed();
-        $this->seedCardio();
+        $this->seedExercises();
     }
 
-    protected function seedStrengthAutomatic(): void
+    protected function seedExercises(): void
     {
-        $defaults = [
-            'oneRepMaxModifier' => 100,
-            'startingReps' => 12,
-            'tempo' => '3010',
-            'rest' => 30,
-        ];
-
         $exercises = [
-            'Back Squat' => [],
-            'Front Squat' => ['oneRepMaxModifier' => 85],
-            'Deadlift Narrow' => ['oneRepMaxModifier' => 105],
-            'Deadlift Wide' => ['oneRepMaxModifier' => 85],
-            'Row' => ['oneRepMaxModifier' => 105],
+            ...self::strengthExercises(),
+            ...self::conditioningExercises(),
+            ...self::durationExercises(),
+            ...self::cardioExercises(),
         ];
 
-        foreach ($exercises as $name => $overrides) {
+        foreach ($exercises as $name => $config) {
             $exercise = Exercise::firstOrCreate(
                 ['name' => $name],
-                [
-                    'type' => 'strength_automatic',
-                    'config' => [
-                        'strength_automatic' => array_merge($defaults, $overrides),
-                    ],
-                ]
+                ['config' => $config]
             );
 
             if (in_array($name, ['Back Squat', 'Front Squat'])) {
@@ -57,132 +39,129 @@ class ExerciseSeeder extends Seeder
         }
     }
 
-    protected function seedStrengthManual(): void
+    /** @return array<string, array<string, mixed>> */
+    private static function strengthExercises(): array
     {
-        $defaults = [
-            'startingWeight' => 0,
-            'startingReps' => 12,
-            'tempo' => '3010',
-            'rest' => 30,
+        $autoBase = [
+            'settings' => ['reps', 'weight', 'tempo', 'rest'],
+            'sets' => ['default' => 4, 'deload' => 'none', 'deloadBy' => 1, 'label' => 'Set'],
+            'reps' => ['mode' => 'auto', 'default' => 8, 'stepDownInterval' => 2, 'decrement' => 2, 'minimum' => 4, 'applyPer' => 'session'],
+            'weight' => ['mode' => 'auto', 'oneRepMaxModifier' => 100, 'default' => 0, 'applyPer' => 'session'],
+            'tempo' => ['default' => '3010', 'applyPer' => 'session'],
+            'rest' => ['default' => 30, 'applyPer' => 'session'],
+            'overrides' => ['cells' => [], 'weeks' => []],
         ];
 
-        $exercises = [
-            'Dumbbell Lateral Raise' => ['startingWeight' => 8, 'startingReps' => 15],
-            'Cable Face Pull' => ['startingWeight' => 15, 'rest' => 45],
-            'Barbell Hip Thrust' => ['startingWeight' => 60, 'startingReps' => 10, 'rest' => 60],
+        return [
+            'Back Squat' => $autoBase,
+            'Front Squat' => array_replace_recursive($autoBase, [
+                'weight' => ['oneRepMaxModifier' => 85],
+            ]),
+            'Deadlift Narrow' => array_replace_recursive($autoBase, [
+                'weight' => ['oneRepMaxModifier' => 105],
+            ]),
+            'Row' => array_replace_recursive($autoBase, [
+                'weight' => ['oneRepMaxModifier' => 105],
+            ]),
+            'Dumbbell Lateral Raise' => [
+                'settings' => ['reps', 'weight', 'tempo', 'rest'],
+                'sets' => ['default' => 3, 'deload' => 'none', 'deloadBy' => 1, 'label' => 'Set'],
+                'reps' => ['mode' => 'manual', 'default' => 15, 'applyPer' => 'session'],
+                'weight' => ['mode' => 'manual', 'default' => 8, 'applyPer' => 'session'],
+                'tempo' => ['default' => '3010', 'applyPer' => 'session'],
+                'rest' => ['default' => 30, 'applyPer' => 'session'],
+                'overrides' => ['cells' => [], 'weeks' => []],
+            ],
+            'Cable Face Pull' => [
+                'settings' => ['reps', 'weight', 'tempo', 'rest'],
+                'sets' => ['default' => 3, 'deload' => 'none', 'deloadBy' => 1, 'label' => 'Set'],
+                'reps' => ['mode' => 'manual', 'default' => 15, 'applyPer' => 'session'],
+                'weight' => ['mode' => 'manual', 'default' => 15, 'applyPer' => 'session'],
+                'tempo' => ['default' => '3010', 'applyPer' => 'session'],
+                'rest' => ['default' => 45, 'applyPer' => 'session'],
+                'overrides' => ['cells' => [], 'weeks' => []],
+            ],
+            'Barbell Hip Thrust' => [
+                'settings' => ['reps', 'weight', 'tempo', 'rest'],
+                'sets' => ['default' => 4, 'deload' => 'none', 'deloadBy' => 1, 'label' => 'Set'],
+                'reps' => ['mode' => 'manual', 'default' => 10, 'applyPer' => 'session'],
+                'weight' => ['mode' => 'manual', 'default' => 60, 'applyPer' => 'session'],
+                'tempo' => ['default' => '3010', 'applyPer' => 'session'],
+                'rest' => ['default' => 60, 'applyPer' => 'session'],
+                'overrides' => ['cells' => [], 'weeks' => []],
+            ],
         ];
-
-        foreach ($exercises as $name => $overrides) {
-            Exercise::firstOrCreate(
-                ['name' => $name],
-                [
-                    'type' => 'strength_manual',
-                    'config' => [
-                        'strength_manual' => array_merge($defaults, $overrides),
-                    ],
-                ]
-            );
-        }
     }
 
-    protected function seedConditioning(): void
+    /** @return array<string, array<string, mixed>> */
+    private static function conditioningExercises(): array
     {
-        $repsExercises = [
-            'Kettlebell Swings' => ['reps' => 20, 'rest' => 30],
-            'Box Jumps' => ['reps' => 10, 'rest' => 45],
+        return [
+            'Kettlebell Swings' => [
+                'settings' => ['reps', 'rest'],
+                'sets' => ['default' => 3, 'deload' => 'none', 'deloadBy' => 1, 'label' => 'Set'],
+                'reps' => ['mode' => 'manual', 'default' => 20, 'applyPer' => 'session'],
+                'rest' => ['default' => 30, 'applyPer' => 'session'],
+                'overrides' => ['cells' => [], 'weeks' => []],
+            ],
+            'Box Jumps' => [
+                'settings' => ['reps', 'rest'],
+                'sets' => ['default' => 3, 'deload' => 'none', 'deloadBy' => 1, 'label' => 'Set'],
+                'reps' => ['mode' => 'manual', 'default' => 10, 'applyPer' => 'session'],
+                'rest' => ['default' => 45, 'applyPer' => 'session'],
+                'overrides' => ['cells' => [], 'weeks' => []],
+            ],
         ];
-
-        foreach ($repsExercises as $name => $config) {
-            Exercise::firstOrCreate(
-                ['name' => $name],
-                [
-                    'type' => 'conditioning',
-                    'config' => [
-                        'conditioning' => array_merge(['mode' => 'reps', 'duration' => 0], $config),
-                    ],
-                ]
-            );
-        }
-
-        $timeExercises = [
-            'Battle Ropes' => ['duration' => 30, 'rest' => 30],
-            'Assault Bike Intervals' => ['duration' => 20, 'rest' => 40],
-        ];
-
-        foreach ($timeExercises as $name => $config) {
-            Exercise::firstOrCreate(
-                ['name' => $name],
-                [
-                    'type' => 'conditioning',
-                    'config' => [
-                        'conditioning' => array_merge(['mode' => 'time', 'reps' => 0], $config),
-                    ],
-                ]
-            );
-        }
     }
 
-    protected function seedTimed(): void
+    /** @return array<string, array<string, mixed>> */
+    private static function durationExercises(): array
     {
-        $exercises = [
-            'Plank' => ['duration' => 60, 'rest' => 30],
-            'Wall Sit' => ['duration' => 45, 'rest' => 30],
-            'Dead Hang' => ['duration' => 30, 'rest' => 60],
+        $base = [
+            'settings' => ['duration', 'rest'],
+            'sets' => ['default' => 3, 'deload' => 'none', 'deloadBy' => 1, 'label' => 'Set'],
+            'duration' => ['unit' => 'seconds', 'default' => 30],
+            'rest' => ['default' => 30, 'applyPer' => 'session'],
+            'overrides' => ['cells' => [], 'weeks' => []],
         ];
 
-        foreach ($exercises as $name => $config) {
-            Exercise::firstOrCreate(
-                ['name' => $name],
-                [
-                    'type' => 'timed',
-                    'config' => [
-                        'timed' => $config,
-                    ],
-                ]
-            );
-        }
+        return [
+            'Battle Ropes' => $base,
+            'Plank' => array_replace_recursive($base, [
+                'duration' => ['default' => 60],
+            ]),
+            'Wall Sit' => array_replace_recursive($base, [
+                'duration' => ['default' => 45],
+            ]),
+            'Dead Hang' => array_replace_recursive($base, [
+                'duration' => ['default' => 30],
+                'rest' => ['default' => 60],
+            ]),
+        ];
     }
 
-    protected function seedCardio(): void
+    /** @return array<string, array<string, mixed>> */
+    private static function cardioExercises(): array
     {
-        $distanceExercises = [
-            'Treadmill Run' => ['distance' => 5000, 'pace' => '05:00', 'watts' => 0],
-            'Rowing' => ['distance' => 2000, 'pace' => '02:00', 'watts' => 150],
+        return [
+            'Treadmill Run' => [
+                'settings' => ['distance', 'pace'],
+                'sets' => ['default' => 1, 'deload' => 'none', 'deloadBy' => 1, 'label' => 'Set'],
+                'distance' => ['unit' => 'meters', 'default' => 5000],
+                'pace' => ['default' => '05:00'],
+                'overrides' => ['cells' => [], 'weeks' => []],
+            ],
+            'Rowing' => [
+                'settings' => ['distance', 'pace'],
+                'sets' => ['default' => 1, 'deload' => 'none', 'deloadBy' => 1, 'label' => 'Set'],
+                'distance' => ['unit' => 'meters', 'default' => 2000],
+                'pace' => ['default' => '02:00'],
+                'overrides' => ['cells' => [], 'weeks' => []],
+            ],
         ];
-
-        foreach ($distanceExercises as $name => $config) {
-            Exercise::firstOrCreate(
-                ['name' => $name],
-                [
-                    'type' => 'cardio',
-                    'config' => [
-                        'cardio' => array_merge(['mode' => 'distance', 'duration' => 0], $config),
-                    ],
-                ]
-            );
-        }
-
-        $timeExercises = [
-            'Steady State Cycling' => ['duration' => 1800, 'pace' => '00:00', 'watts' => 180],
-            'Incline Walk' => ['duration' => 1200, 'pace' => '00:00', 'watts' => 0],
-        ];
-
-        foreach ($timeExercises as $name => $config) {
-            Exercise::firstOrCreate(
-                ['name' => $name],
-                [
-                    'type' => 'cardio',
-                    'config' => [
-                        'cardio' => array_merge(['mode' => 'time', 'distance' => 0], $config),
-                    ],
-                ]
-            );
-        }
     }
 
-    /**
-     * @param  array<string, list<string>>  $scopedTags
-     */
+    /** @param array<string, list<string>> $scopedTags */
     protected function attachTags(Exercise $exercise, array $scopedTags): void
     {
         $tagIds = [];
@@ -197,10 +176,5 @@ class ExerciseSeeder extends Seeder
         }
 
         $exercise->tags()->syncWithoutDetaching($tagIds);
-    }
-
-    public function runOld(): void
-    {
-        Artisan::call('exercise:import');
     }
 }

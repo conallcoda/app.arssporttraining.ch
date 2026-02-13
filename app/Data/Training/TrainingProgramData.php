@@ -91,16 +91,16 @@ class TrainingProgramData extends AbstractData implements HasForms
             if (in_array($exerciseId, $exercisesToAdd)) {
                 $exercise = Exercise::find($exerciseId);
                 if ($exercise) {
-                    $defaults = $exercise->config?->strength_automatic;
+                    $configArray = json_decode($exercise->getRawOriginal('config') ?? '{}', true) ?: [];
                     TrainingPlanProgramExercise::create([
                         'training_plan_program_id' => $program->id,
                         'exercise_id' => $exerciseId,
                         'sort' => $sort,
                         'config' => [
-                            'oneRepMaxModifier' => $defaults?->oneRepMaxModifier ?? 100,
-                            'startingReps' => $defaults?->startingReps ?? 12,
-                            'tempo' => $defaults?->tempo ?? '3010',
-                            'rest' => $defaults?->rest ?? 30,
+                            'oneRepMaxModifier' => $configArray['weight']['oneRepMaxModifier'] ?? 100,
+                            'startingReps' => $configArray['reps']['default'] ?? 12,
+                            'tempo' => $configArray['tempo']['default'] ?? '3010',
+                            'rest' => $configArray['rest']['default'] ?? 30,
                         ],
                     ]);
                 }
