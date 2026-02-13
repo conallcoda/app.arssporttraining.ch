@@ -3,7 +3,7 @@
 namespace App\Livewire\Test\Data\Preview;
 
 use App\Livewire\Test\Data\ExerciseSetting;
-use App\Livewire\Test\Data\Strategies\Weight\MeasuredData;
+use App\Livewire\Test\Data\Settings\WeightProgressionSetting;
 
 class ExercisePreviewBuilder
 {
@@ -50,7 +50,7 @@ class ExercisePreviewBuilder
 
     public static function build(
         array $data,
-        ?MeasuredData $measuredData = null,
+        ?WeightProgressionSetting $measuredData = null,
         int $weeks = self::DEFAULT_WEEKS,
         ?GridOverrides $overrides = null,
         int $sessionsPerWeek = 1,

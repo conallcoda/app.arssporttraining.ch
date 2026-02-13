@@ -1,7 +1,7 @@
 <?php
 
 use App\Livewire\Test\Data\Preview\StrategyOrchestrator;
-use App\Livewire\Test\Data\Strategies\Weight\MeasuredData;
+use App\Livewire\Test\Data\Settings\WeightProgressionSetting;
 
 it('populates sets per week from sets config', function () {
     $data = [
@@ -77,7 +77,7 @@ it('skips reps when not in settings', function () {
         'weight' => ['mode' => 'automatic', 'oneRepMaxModifier' => 100, 'applyPer' => 'session'],
     ];
 
-    $measuredData = new MeasuredData(measuredReps: 10, measuredWeight: 52, targetGoal: 7);
+    $measuredData = new WeightProgressionSetting(measuredReps: 10, measuredWeight: 52, targetGoal: 7);
 
     $orchestrator = new StrategyOrchestrator($data, $measuredData, weeks: 3);
     $state = $orchestrator->execute();
@@ -105,7 +105,7 @@ it('populates weight grid when reps and weight are both configured', function ()
         ],
     ];
 
-    $measuredData = new MeasuredData(measuredReps: 10, measuredWeight: 52, targetGoal: 7);
+    $measuredData = new WeightProgressionSetting(measuredReps: 10, measuredWeight: 52, targetGoal: 7);
 
     $orchestrator = new StrategyOrchestrator($data, $measuredData, weeks: 5);
     $state = $orchestrator->execute();
@@ -161,7 +161,7 @@ it('skips weight phase when weight mode is manual', function () {
         ],
     ];
 
-    $measuredData = new MeasuredData(measuredReps: 10, measuredWeight: 52, targetGoal: 7);
+    $measuredData = new WeightProgressionSetting(measuredReps: 10, measuredWeight: 52, targetGoal: 7);
 
     $orchestrator = new StrategyOrchestrator($data, $measuredData, weeks: 3);
     $state = $orchestrator->execute();

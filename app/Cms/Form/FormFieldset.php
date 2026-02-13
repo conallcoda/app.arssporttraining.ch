@@ -20,6 +20,10 @@ class FormFieldset
 
     public array $hiddenFieldNames = [];
 
+    public ?string $view = null;
+
+    public array $viewData = [];
+
     public function __construct(string $name)
     {
         $this->name = $name;
@@ -54,6 +58,20 @@ class FormFieldset
     public function collapsible(bool $collapsible = true): static
     {
         $this->collapsible = $collapsible;
+
+        return $this;
+    }
+
+    public function view(string $view): static
+    {
+        $this->view = $view;
+
+        return $this;
+    }
+
+    public function viewData(array $data): static
+    {
+        $this->viewData = $data;
 
         return $this;
     }

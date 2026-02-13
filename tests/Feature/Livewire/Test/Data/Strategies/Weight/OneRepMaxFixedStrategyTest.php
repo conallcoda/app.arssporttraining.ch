@@ -1,8 +1,8 @@
 <?php
 
 use App\Livewire\Test\Data\Preview\GridState;
+use App\Livewire\Test\Data\Settings\WeightProgressionSetting;
 use App\Livewire\Test\Data\Settings\WeightSetting;
-use App\Livewire\Test\Data\Strategies\Weight\MeasuredData;
 use App\Livewire\Test\Data\Strategies\Weight\OneRepMaxFixedStrategy;
 use App\Training\Reference\RepPercentageTable;
 
@@ -17,7 +17,7 @@ function buildStateWithReps(array $setsPerWeek, array $reps): GridState
 
 it('returns null when measured data is incomplete', function () {
     $setting = WeightSetting::from(['mode' => 'automatic', 'oneRepMaxModifier' => 100]);
-    $measuredData = new MeasuredData;
+    $measuredData = new WeightProgressionSetting;
     $state = new GridState;
     $state->setSetsPerWeek([4, 4]);
 
@@ -28,7 +28,7 @@ it('returns null when measured data is incomplete', function () {
 
 it('adjusts anchor weight based on last set reps', function () {
     $setting = WeightSetting::from(['mode' => 'automatic', 'oneRepMaxModifier' => 100]);
-    $measuredData = new MeasuredData(measuredReps: 10, measuredWeight: 52, targetGoal: 7);
+    $measuredData = new WeightProgressionSetting(measuredReps: 10, measuredWeight: 52, targetGoal: 7);
 
     $setsPerWeek = [3, 4, 3, 4, 3];
     $reps = [
@@ -60,7 +60,7 @@ it('adjusts anchor weight based on last set reps', function () {
 
 it('uses rep percentage of 1.0 when reps grid has no data for last set', function () {
     $setting = WeightSetting::from(['mode' => 'automatic', 'oneRepMaxModifier' => 100]);
-    $measuredData = new MeasuredData(measuredReps: 1, measuredWeight: 100, targetGoal: 0);
+    $measuredData = new WeightProgressionSetting(measuredReps: 1, measuredWeight: 100, targetGoal: 0);
 
     $state = new GridState;
     $state->setSetsPerWeek([2, 2]);
@@ -74,7 +74,7 @@ it('uses rep percentage of 1.0 when reps grid has no data for last set', functio
 
 it('writes weight grid and metadata to state', function () {
     $setting = WeightSetting::from(['mode' => 'automatic', 'oneRepMaxModifier' => 100]);
-    $measuredData = new MeasuredData(measuredReps: 10, measuredWeight: 52, targetGoal: 7);
+    $measuredData = new WeightProgressionSetting(measuredReps: 10, measuredWeight: 52, targetGoal: 7);
 
     $setsPerWeek = [3, 4, 3, 4, 3];
     $reps = [
@@ -100,7 +100,7 @@ it('writes weight grid and metadata to state', function () {
 
 it('places 1RM value only in the last set of the last week', function () {
     $setting = WeightSetting::from(['mode' => 'automatic', 'oneRepMaxModifier' => 100]);
-    $measuredData = new MeasuredData(measuredReps: 10, measuredWeight: 52, targetGoal: 7);
+    $measuredData = new WeightProgressionSetting(measuredReps: 10, measuredWeight: 52, targetGoal: 7);
 
     $setsPerWeek = [3, 3, 3];
     $reps = [
@@ -126,7 +126,7 @@ it('places 1RM value only in the last set of the last week', function () {
 
 it('produces weights that increase week over week for the last set', function () {
     $setting = WeightSetting::from(['mode' => 'automatic', 'oneRepMaxModifier' => 100]);
-    $measuredData = new MeasuredData(measuredReps: 10, measuredWeight: 52, targetGoal: 7);
+    $measuredData = new WeightProgressionSetting(measuredReps: 10, measuredWeight: 52, targetGoal: 7);
 
     $setsPerWeek = [4, 4, 4, 4, 4];
     $reps = [

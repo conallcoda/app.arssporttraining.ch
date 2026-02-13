@@ -12,8 +12,9 @@ return new class extends Migration
             $table->id();
             $table->string('type');
             $table->string('name');
-            $table->json('instructions')->nullable();
-            $table->schemalessAttributes('config');
+            $table->string('video_url');
+            $table->text('instructions')->nullable();
+            $table->json('config');
             $table->timestamps();
             $table->softDeletes();
         });

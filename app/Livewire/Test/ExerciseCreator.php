@@ -8,7 +8,7 @@ use App\Livewire\Test\Data\Preview\ExercisePreviewBuilder;
 use App\Livewire\Test\Data\Preview\GridOverrides;
 use App\Livewire\Test\Data\Preview\PreviewGrid;
 use App\Livewire\Test\Data\Preview\StrategyOrchestrator;
-use App\Livewire\Test\Data\Strategies\Weight\MeasuredData;
+use App\Livewire\Test\Data\Settings\WeightProgressionSetting;
 use App\Livewire\Test\Data\TestExerciseData;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -57,7 +57,7 @@ class ExerciseCreator extends Component
     #[Computed]
     public function previewGrid(): PreviewGrid
     {
-        $measuredData = new MeasuredData(
+        $measuredData = new WeightProgressionSetting(
             measuredReps: $this->measuredReps,
             measuredWeight: $this->measuredWeight,
             targetGoal: $this->targetGoal,
@@ -127,7 +127,7 @@ class ExerciseCreator extends Component
 
     private function getDefaultCellValue(string $field, int $weekIndex, int $setIndex): mixed
     {
-        $measuredData = new MeasuredData(
+        $measuredData = new WeightProgressionSetting(
             measuredReps: $this->measuredReps,
             measuredWeight: $this->measuredWeight,
             targetGoal: $this->targetGoal,

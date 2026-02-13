@@ -49,9 +49,14 @@ abstract class AbstractSetting extends AbstractData implements HasForms
         return [];
     }
 
+    public static function view(): ?string
+    {
+        return null;
+    }
+
     public static function getForm(): Form|array
     {
         return Form::make()
-            ->fieldset(static::getName(), static::fields());
+            ->fieldset(static::getName(), static::fields(), view: static::view());
     }
 }

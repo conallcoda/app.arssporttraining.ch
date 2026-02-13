@@ -32,7 +32,7 @@ class Form
         return $this;
     }
 
-    public function fieldset(string $label, array|Closure $fieldsOrResolver, ?string $prefix = null, ?string $show = null): static
+    public function fieldset(string $label, array|Closure $fieldsOrResolver, ?string $prefix = null, ?string $show = null, ?string $view = null, array $viewData = []): static
     {
         $key = Str::snake($label);
 
@@ -41,6 +41,8 @@ class Form
                 'label' => $label,
                 'resolver' => $fieldsOrResolver,
                 'showExpression' => $show,
+                'view' => $view,
+                'viewData' => $viewData,
             ];
         } else {
             $this->fieldsets[$key] = [
@@ -48,6 +50,8 @@ class Form
                 'fields' => $fieldsOrResolver,
                 'prefix' => $prefix,
                 'showExpression' => $show,
+                'view' => $view,
+                'viewData' => $viewData,
             ];
         }
 
@@ -144,6 +148,14 @@ class Form
                     ->label($config['label'])
                     ->fields($config['fields'])
                     ->prefix($config['prefix'] ?? null);
+            }
+
+            if (! empty($config['view'])) {
+                $fieldset->view($config['view']);
+            }
+
+            if (! empty($config['viewData'])) {
+                $fieldset->viewData($config['viewData']);
             }
 
             if (! empty($config['showExpression'])) {

@@ -4,14 +4,16 @@ namespace App\Livewire\Test\Data\Strategies\Weight;
 
 use App\Livewire\Test\Data\Preview\DefinesEditability;
 use App\Livewire\Test\Data\Preview\GridState;
+use App\Livewire\Test\Data\Settings\WeightProgressionSetting;
 use App\Livewire\Test\Data\Settings\WeightSetting;
+use App\Training\Reference\OneRepMaxConversion;
 use App\Training\Reference\RepPercentageTable;
 
 class OneRepMaxFixedStrategy implements DefinesEditability
 {
     public function __construct(
         private WeightSetting $setting,
-        private MeasuredData $measuredData,
+        private WeightProgressionSetting $measuredData,
     ) {}
 
     public function isEditable(string $field, int $week, int $set, GridState $state): bool
@@ -67,12 +69,14 @@ class OneRepMaxFixedStrategy implements DefinesEditability
     /** @return array{starting1RM: float, target1RM: float, targetGoal: int} */
     private function buildSummary(float $target1RM): array
     {
-        $repPercentage = RepPercentageTable::getPercentage($this->measuredData->measuredReps);
-        $estimated1RM = $this->measuredData->measuredWeight / $repPercentage;
-        $exercise1RM = $estimated1RM * ($this->setting->oneRepMaxModifier / 100);
+        $starting1RM = OneRepMaxConversion::estimatedOneRepMax(
+            $this->measuredData->measuredReps,
+            $this->measuredData->measuredWeight,
+            $this->setting->oneRepMaxModifier,
+        );
 
         return [
-            'starting1RM' => round($exercise1RM, 1),
+            'starting1RM' => $starting1RM,
             'target1RM' => round($target1RM, 1),
             'targetGoal' => $this->measuredData->targetGoal ?? 0,
         ];
@@ -80,11 +84,13 @@ class OneRepMaxFixedStrategy implements DefinesEditability
 
     private function calculateTarget1RM(): float
     {
-        $repPercentage = RepPercentageTable::getPercentage($this->measuredData->measuredReps);
-        $estimated1RM = $this->measuredData->measuredWeight / $repPercentage;
-        $exercise1RM = $estimated1RM * ($this->setting->oneRepMaxModifier / 100);
+        $starting1RM = OneRepMaxConversion::estimatedOneRepMax(
+            $this->measuredData->measuredReps,
+            $this->measuredData->measuredWeight,
+            $this->setting->oneRepMaxModifier,
+        );
 
-        return $exercise1RM * (1 + ($this->measuredData->targetGoal ?? 0) / 100);
+        return OneRepMaxConversion::targetOneRepMax($starting1RM, $this->measuredData->targetGoal ?? 0);
     }
 
     /**

@@ -4,17 +4,17 @@ namespace App\Livewire\Test\Data\Preview;
 
 use App\Livewire\Test\Data\Settings\RepsSetting;
 use App\Livewire\Test\Data\Settings\SetsSetting;
+use App\Livewire\Test\Data\Settings\WeightProgressionSetting;
 use App\Livewire\Test\Data\Settings\WeightSetting;
 use App\Livewire\Test\Data\Strategies\Reps\PairedRepStrategy;
 use App\Livewire\Test\Data\Strategies\Sets\DeloadSetsStrategy;
-use App\Livewire\Test\Data\Strategies\Weight\MeasuredData;
 use App\Livewire\Test\Data\Strategies\Weight\OneRepMaxFixedStrategy;
 
 class StrategyOrchestrator
 {
     public function __construct(
         private array $data,
-        private ?MeasuredData $measuredData = null,
+        private ?WeightProgressionSetting $measuredData = null,
         private int $weeks = 5,
         private ?GridOverrides $overrides = null,
     ) {}
