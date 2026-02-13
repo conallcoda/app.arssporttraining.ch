@@ -20,7 +20,7 @@
         </flux:button>
     </div>
 
-    <livewire:test.exercise-form
+    <livewire:database.exercise-form
         wire:key="exercise-form-{{ $defaultWeeks }}-{{ $defaultSessionsPerWeek }}-{{ (int) $showPreview }}-{{ (int) $showData }}-{{ (int) $flyout }}-{{ $maxWidth }}"
         name="exercise-form"
         :default-weeks="$defaultWeeks"
