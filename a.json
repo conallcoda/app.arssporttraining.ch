@@ -1,51 +1,44 @@
 {
-    "default": {
-        "schedule": {
-            "startDate": "2026-02-02",
-            "weeks": [
-                {
-                    "id": "default_0",
-                    "linkedTo": null,
-                    "sort": 0,
-                    "slots": [
-                        { "day": 0, "slot": 0, "programId": 1 },
-                        { "day": 2, "slot": 0, "programId": 2 },
-                        { "day": 4, "slot": 0, "programId": 1, "isLinked": true }
-                    ]
-                },
-                {
-                    "id": "default_1",
-                    "linkedTo": "default_0",
-                    "sort": 1,
-                    "slots": []
-                },
-                {
-                    "id": "default_2",
-                    "linkedTo": "default_0",
-                    "sort": 2,
-                    "slots": []
-                },
-                {
-                    "id": "default_3",
-                    "linkedTo": "default_0",
-                    "sort": 3,
-                    "slots": []
-                },
-                {
-                    "id": "default_4",
-                    "linkedTo": "default_0",
-                    "sort": 4,
-                    "slots": []
-                }
-            ]
-        }
+    "settings": [
+        "reps",
+        "weight",
+        "tempo",
+        "rest"
+    ],
+    "overrides": {
+        "cells": [],
+        "weeks": []
     },
-    "users": {
-        "5": {
-            "schedule": {
-                "startDate": "2026-02-09",
-                "weeks": []
-            }
-        }
+    "sets": {
+        "deload": "odd",
+        "deloadBy": 1,
+        "label": "Set",
+        "default": 5
+    },
+    "distance": null,
+    "duration": null,
+    "pace": null,
+    "reps": {
+        "mode": "automatic",
+        "default": 10,
+        "stepDownInterval": 2,
+        "decrement": 2,
+        "minimum": 1,
+        "applyPer": "session"
+    },
+    "rest": {
+        "default": 60,
+        "applyPer": "week"
+    },
+    "tempo": {
+        "default": "3010",
+        "applyPer": "week"
+    },
+    "watts": null,
+    "weight": {
+        "mode": "automatic",
+        "oneRepMaxModifier": 100,
+        "default": 5,
+        "applyPer": "session"
     }
 }

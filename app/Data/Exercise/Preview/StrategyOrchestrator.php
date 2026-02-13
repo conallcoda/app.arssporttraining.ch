@@ -6,6 +6,7 @@ use App\Data\Exercise\Settings\RepsSetting;
 use App\Data\Exercise\Settings\SetsSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Exercise\Settings\WeightSetting;
+use App\Data\Exercise\Strategies\Contracts\DefinesEditability;
 use App\Data\Exercise\Strategies\Reps\PairedRepStrategy;
 use App\Data\Exercise\Strategies\Sets\DeloadSetsStrategy;
 use App\Data\Exercise\Strategies\Weight\OneRepMaxFixedStrategy;

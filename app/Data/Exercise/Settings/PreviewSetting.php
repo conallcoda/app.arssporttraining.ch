@@ -4,8 +4,16 @@ namespace App\Data\Exercise\Settings;
 
 use App\Cms\Form\Fields;
 
-class PreviewSetting
+class PreviewSetting extends AbstractSetting
 {
+    public function __construct(
+        public int $weeks = 5,
+        public int $sessionsPerWeek = 1,
+        public ?int $measuredReps = null,
+        public ?float $measuredWeight = null,
+        public ?int $targetGoal = null,
+    ) {}
+
     public static function fields(array $data = []): array
     {
         $fields = [

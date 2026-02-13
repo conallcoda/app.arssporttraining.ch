@@ -2,6 +2,8 @@
 
 namespace App\Data\Exercise\Preview;
 
+use App\Data\Exercise\Strategies\Contracts\DefinesEditability;
+
 class GridState
 {
     /** @var array<int, int> */

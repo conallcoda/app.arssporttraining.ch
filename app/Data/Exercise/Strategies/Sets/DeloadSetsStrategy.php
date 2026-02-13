@@ -2,9 +2,9 @@
 
 namespace App\Data\Exercise\Strategies\Sets;
 
-use App\Data\Exercise\Preview\DefinesEditability;
 use App\Data\Exercise\Preview\GridState;
 use App\Data\Exercise\Settings\SetsSetting;
+use App\Data\Exercise\Strategies\Contracts\DefinesEditability;
 
 class DeloadSetsStrategy implements DefinesEditability
 {

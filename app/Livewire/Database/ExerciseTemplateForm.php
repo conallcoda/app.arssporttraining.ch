@@ -3,20 +3,20 @@
 namespace App\Livewire\Database;
 
 use App\Cms\Form\Form;
-use App\Data\Exercise\ExerciseData;
+use App\Data\Exercise\ExerciseTemplateData;
 use App\Data\Exercise\Settings\PreviewSetting;
 use App\Livewire\Cms\FormModal;
 use App\Livewire\Concerns\InteractsWithPreview;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
 
-class ExerciseForm extends FormModal
+class ExerciseTemplateForm extends FormModal
 {
     use InteractsWithPreview;
 
     public function mount(
-        string $name = 'exercise-form',
-        string $title = 'Exercise',
+        string $name = 'exercise-template-form',
+        string $title = 'Exercise Template',
         ?string $formDataClass = null,
         string $submitLabel = 'Save',
         string $cancelLabel = 'Cancel',
@@ -58,7 +58,7 @@ class ExerciseForm extends FormModal
     #[Computed]
     public function formConfig(): Form
     {
-        $definition = ExerciseData::getForm();
+        $definition = ExerciseTemplateData::getForm();
         $form = $definition instanceof Form ? $definition : Form::fields($definition);
 
         $form->fieldset(

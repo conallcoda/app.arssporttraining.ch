@@ -66,7 +66,7 @@
                                     </flux:dropdown>
                                 </div>
 
-                            <div class="overflow-x-auto text-sm" wire:key="preview-grid-{{ $grid->setCount }}-{{ $grid->weekCount }}-{{ count($grid->rows) }}-{{ $grid->sessionsPerWeek }}-{{ count($grid->weekColumns) }}">
+                            <div class="overflow-x-auto text-sm" wire:key="preview-grid-{{ md5(json_encode($data['config'])) }}">
                                 <table class="border-collapse border border-zinc-300 dark:border-zinc-600 table-fixed">
                                     <thead>
                                         <tr class="bg-zinc-100 dark:bg-zinc-800">

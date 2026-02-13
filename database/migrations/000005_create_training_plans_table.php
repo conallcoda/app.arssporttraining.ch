@@ -39,9 +39,20 @@ return new class extends Migration
             $table->unique(['training_plan_id', 'user_id']);
         });
 
+        Schema::create('program_categories', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('color')->nullable();
+            $table->unsignedInteger('sort')->default(0);
+            $table->json('config')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
         Schema::create('training_plan_programs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('training_plan_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('program_category_id')->nullable()->constrained()->nullOnDelete();
             $table->string('name');
             $table->unsignedInteger('sort')->default(0);
             $table->json('config')->nullable();
@@ -68,6 +79,7 @@ return new class extends Migration
     {
         Schema::dropIfExists('training_plan_program_exercises');
         Schema::dropIfExists('training_plan_programs');
+        Schema::dropIfExists('program_categories');
         Schema::dropIfExists('training_plan_user');
         Schema::dropIfExists('training_plan_user_group');
         Schema::dropIfExists('training_plans');

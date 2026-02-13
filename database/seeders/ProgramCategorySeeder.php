@@ -9,21 +9,26 @@ class ProgramCategorySeeder extends Seeder
 {
     public function run(): void
     {
+
+
+
         $categories = [
-            'Strength',
-            'Jump',
-            'Core',
-            'Endurance',
-            'Coordination',
-            'Recovery',
-            'Miscellaneous',
+            'Strength'    => 'red',
+            'Jump'        => 'amber',
+            'Core'        => 'blue',
+            'Endurance'   => 'purple',
+            'Coordination' => 'orange',
+            'Recovery'    => 'green',
+            'Miscellaneous' => 'gray',
         ];
 
-        foreach ($categories as $sort => $name) {
+        $sort = 0;
+        foreach ($categories as $name => $color) {
             ProgramCategory::updateOrCreate(
                 ['name' => $name],
-                ['sort' => $sort],
+                ['sort' => $sort, 'color' => $color],
             );
+            $sort++;
         }
     }
 }

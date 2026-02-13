@@ -2,7 +2,9 @@
 
 namespace App\Data\Exercise\Preview;
 
-class CellInputMeta
+use App\Cms\Data\AbstractData;
+
+class CellInputMeta extends AbstractData
 {
     public function __construct(
         public string $inputType = 'number',

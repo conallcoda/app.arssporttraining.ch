@@ -2,7 +2,9 @@
 
 namespace App\Data\Exercise\Preview;
 
-class PreviewGridRow
+use App\Cms\Data\AbstractData;
+
+class PreviewGridRow extends AbstractData
 {
     public function __construct(
         public string $field,

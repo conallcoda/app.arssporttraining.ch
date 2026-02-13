@@ -2,10 +2,10 @@
 
 namespace App\Data\Exercise\Strategies\Weight;
 
-use App\Data\Exercise\Preview\DefinesEditability;
 use App\Data\Exercise\Preview\GridState;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Exercise\Settings\WeightSetting;
+use App\Data\Exercise\Strategies\Contracts\DefinesEditability;
 use App\Training\Reference\OneRepMaxConversion;
 use App\Training\Reference\RepPercentageTable;
 

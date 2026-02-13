@@ -8,12 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('exercises_external', function (Blueprint $table) {
+        Schema::create('exercise_templates', function (Blueprint $table) {
             $table->id();
-            $table->string('source')->index();
             $table->string('name');
-            $table->foreignId('category_id')->nullable()->constrained('tags')->nullOnDelete();
-            $table->string('video_url')->nullable();
+            $table->json('config');
             $table->timestamps();
             $table->softDeletes();
         });
@@ -21,6 +19,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('exercises_external');
+        Schema::dropIfExists('exercise_templates');
     }
 };

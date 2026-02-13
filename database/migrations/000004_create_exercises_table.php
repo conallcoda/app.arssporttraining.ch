@@ -10,8 +10,8 @@ return new class extends Migration
     {
         Schema::create('exercises', function (Blueprint $table) {
             $table->id();
-            $table->string('type');
             $table->string('name');
+            $table->foreignId('category_id')->nullable()->constrained('tags')->nullOnDelete();
             $table->string('video_url')->nullable();
             $table->text('instructions')->nullable();
             $table->json('config');

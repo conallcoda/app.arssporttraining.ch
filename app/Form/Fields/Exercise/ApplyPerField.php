@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Data\Exercise\Settings;
+namespace App\Form\Fields\Exercise;
 
 use App\Cms\Form\Fields;
 

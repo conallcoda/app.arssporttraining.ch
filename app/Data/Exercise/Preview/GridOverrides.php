@@ -2,7 +2,9 @@
 
 namespace App\Data\Exercise\Preview;
 
-class GridOverrides
+use App\Cms\Data\AbstractData;
+
+class GridOverrides extends AbstractData
 {
     public function __construct(
         /** @var CellOverride[] */
@@ -18,8 +20,8 @@ class GridOverrides
     public static function fromArrays(array $cells = [], array $weeks = []): self
     {
         return new self(
-            cells: array_map(fn (array $c) => CellOverride::fromArray($c), $cells),
-            weeks: array_map(fn (array $w) => WeekOverride::fromArray($w), $weeks),
+            cells: array_map(fn (array $c) => CellOverride::from($c), $cells),
+            weeks: array_map(fn (array $w) => WeekOverride::from($w), $weeks),
         );
     }
 

@@ -1,6 +1,8 @@
 <?php
 
-namespace App\Data\Exercise\Preview;
+namespace App\Data\Exercise\Strategies\Contracts;
+
+use App\Data\Exercise\Preview\GridState;
 
 interface DefinesEditability
 {

@@ -22,18 +22,9 @@ class ExerciseExternal extends Model implements Taggable
     protected $fillable = [
         'source',
         'name',
-        'short_name',
-        'template',
         'video_url',
         'category_id',
     ];
-
-    protected function casts(): array
-    {
-        return [
-            'template' => ExerciseExternalTemplate::class,
-        ];
-    }
 
     public function category(): BelongsTo
     {
