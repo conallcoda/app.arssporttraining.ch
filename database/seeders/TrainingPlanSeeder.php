@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Data\Training\DefaultTrainingProgramData;
 use App\Models\Exercise\Exercise;
 use App\Models\TrainingPlan;
 use App\Models\TrainingPlanProgram;
@@ -17,9 +16,6 @@ class TrainingPlanSeeder extends Seeder
         $plan = TrainingPlan::create([
             'name' => 'Default Training Plan',
         ]);
-
-        $defaultData = new DefaultTrainingProgramData;
-        $defaultData->persist($plan);
 
         $plan->userGroups()->attach(UserGroup::first(), ['sort' => 0]);
 

@@ -45,7 +45,6 @@
             <flux:tab name="athletes">Athletes</flux:tab>
             <flux:tab name="schedule">Schedule</flux:tab>
             <flux:tab name="plan">Plan</flux:tab>
-            <flux:tab name="export">Export</flux:tab>
         </flux:tabs>
 
         <flux:tab.panel name="athletes">
@@ -63,9 +62,5 @@
                 wire:key="plan-{{ $this->getDataKey() }}" />
         </flux:tab.panel>
 
-        <flux:tab.panel name="export">
-            <livewire:training.view.export :training-plan="$trainingPlan" :programs="$programs" :users="$users"
-                wire:key="export-{{ $this->getDataKey() }}" />
-        </flux:tab.panel>
     </flux:tab.group>
 </flux:main>

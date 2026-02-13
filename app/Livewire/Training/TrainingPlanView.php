@@ -2,11 +2,9 @@
 
 namespace App\Livewire\Training;
 
-use App\Data\Training\DefaultTrainingProgramData;
 use App\Models\TrainingPlan;
 use App\Models\TrainingPlanProgram;
 use Illuminate\Database\Eloquent\Collection;
-use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
@@ -71,12 +69,6 @@ class TrainingPlanView extends Component
     {
         $this->loadAthleteIds();
         $this->loadUsers();
-    }
-
-    #[Computed]
-    public function defaultAthleteData(): DefaultTrainingProgramData
-    {
-        return DefaultTrainingProgramData::fromTrainingPlan($this->trainingPlan);
     }
 
     public function getDataKey(?string $domain = null): string

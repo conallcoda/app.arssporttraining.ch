@@ -1,12 +1,51 @@
 {
-    "strength_automatic": null,
-    "strength_manual": null,
-    "conditioning": {
-        "mode": "reps",
-        "reps": 10,
-        "duration": 0,
-        "rest": 30
+    "default": {
+        "schedule": {
+            "startDate": "2026-02-02",
+            "weeks": [
+                {
+                    "id": "default_0",
+                    "linkedTo": null,
+                    "sort": 0,
+                    "slots": [
+                        { "day": 0, "slot": 0, "programId": 1 },
+                        { "day": 2, "slot": 0, "programId": 2 },
+                        { "day": 4, "slot": 0, "programId": 1, "isLinked": true }
+                    ]
+                },
+                {
+                    "id": "default_1",
+                    "linkedTo": "default_0",
+                    "sort": 1,
+                    "slots": []
+                },
+                {
+                    "id": "default_2",
+                    "linkedTo": "default_0",
+                    "sort": 2,
+                    "slots": []
+                },
+                {
+                    "id": "default_3",
+                    "linkedTo": "default_0",
+                    "sort": 3,
+                    "slots": []
+                },
+                {
+                    "id": "default_4",
+                    "linkedTo": "default_0",
+                    "sort": 4,
+                    "slots": []
+                }
+            ]
+        }
     },
-    "timed": null,
-    "cardio": null
+    "users": {
+        "5": {
+            "schedule": {
+                "startDate": "2026-02-09",
+                "weeks": []
+            }
+        }
+    }
 }

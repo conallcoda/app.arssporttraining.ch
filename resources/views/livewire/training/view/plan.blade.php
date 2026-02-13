@@ -11,20 +11,9 @@
             </div>
 
             @foreach ($this->users as $userItem)
-                @php
-                    $hasMeasuredData = $this->userHasMeasuredData($userItem->id);
-                    $overrideCount = $this->countUserOverrides($userItem->id);
-                    $isSelected = $user === $userItem->id;
-                @endphp
                 <flux:button wire:key="user-btn-{{ $userItem->id }}" wire:click="selectUser({{ $userItem->id }})"
-                    variant="{{ $isSelected ? 'primary' : 'ghost' }}" class="justify-start">
+                    variant="{{ $user === $userItem->id ? 'primary' : 'ghost' }}" class="justify-start">
                     <span class="flex-1 text-left">{{ $userItem->name }}</span>
-                    @if (!$hasMeasuredData)
-                        <flux:badge size="sm" color="red" class="{{ $isSelected ? '!bg-red-500 !text-white dark:!text-white' : '' }}">!</flux:badge>
-                    @endif
-                    @if ($overrideCount > 0)
-                        <flux:badge size="sm" class="{{ $isSelected ? 'bg-white/20 !text-white dark:!text-black' : '' }}">{{ $overrideCount }}</flux:badge>
-                    @endif
                 </flux:button>
             @endforeach
         </div>
@@ -37,232 +26,41 @@
             <flux:heading size="xl">{{ $this->selectedUser->name }}</flux:heading>
         @endif
 
-        <div class="flex gap-6">
-            @php
-                $scheduledPrograms = $this->programs->whereIn('id', $this->programIdsFromSchedule);
-                $hasAnyStrengthAuto = $scheduledPrograms->contains(fn ($p) =>
-                    $p->exercises->contains(fn ($e) => $e->type === \App\Data\Exercise\ExerciseType::StrengthAutomatic)
-                );
-            @endphp
+        <x-section title="Schedule">
+            @if ($user === null || $this->selectedUser)
+                <div class="space-y-4">
+                    <div class="flex items-end gap-3">
+                        <flux:field class="flex-1">
+                            <flux:label>Start Date</flux:label>
+                            <flux:select wire:model.live="startDate">
+                                @foreach ($this->weekOptions as $value => $label)
+                                    <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                        </flux:field>
 
-            @if ($hasAnyStrengthAuto)
-            <x-section title="Target" class="flex-1">
-                @if ($user === null)
-                    <div class="space-y-4">
-                        <div class="flex items-end gap-3">
-                            <flux:field class="flex-1">
-                                <flux:label>Measured Reps</flux:label>
-                                <flux:input.group class="{{ empty($measuredReps) ? '[&>*]:!bg-red-500/20' : '' }}">
-                                    <flux:input wire:model.live.debounce.500ms="measuredReps" type="number" min="1" max="15" step="1" />
-                                    <flux:input.group.suffix>rep(s)</flux:input.group.suffix>
-                                </flux:input.group>
-                            </flux:field>
-
-                            <flux:field class="flex-1">
-                                <flux:label>Measured Weight</flux:label>
-                                <flux:input.group class="{{ empty($measuredWeight) ? '[&>*]:!bg-red-500/20' : '' }}">
-                                    <flux:input wire:model.live.debounce.500ms="measuredWeight" type="number" min="0" step="0.5" />
-                                    <flux:input.group.suffix>kg</flux:input.group.suffix>
-                                </flux:input.group>
-                            </flux:field>
-
-                            <flux:field class="flex-1">
-                                <flux:label>Starting 1RM</flux:label>
-                                <div class="h-10 flex items-center justify-center rounded-lg bg-amber-500/15 text-amber-400 font-medium">
-                                    {{ $this->estimatedOneRepMax ? $this->estimatedOneRepMax . 'kg' : 'N/A' }}
-                                </div>
-                            </flux:field>
-                        </div>
-
-                        <div class="flex items-end gap-3">
-                            <flux:field class="flex-[2]">
-                                <flux:label>Target Goal</flux:label>
-                                <flux:input.group>
-                                    <flux:input wire:model.live.debounce.500ms="targetGoal" type="number" min="0" max="999" step="1" />
-                                    <flux:input.group.suffix>%</flux:input.group.suffix>
-                                </flux:input.group>
-                            </flux:field>
-
-                            <flux:field class="flex-1">
-                                <flux:label>Target 1RM</flux:label>
-                                <div class="h-10 flex items-center justify-center rounded-lg bg-green-500/15 text-green-400 font-medium">
-                                    {{ $this->targetOneRepMax ? $this->targetOneRepMax . 'kg' : 'N/A' }}
-                                </div>
-                            </flux:field>
-                        </div>
-                    </div>
-                @elseif ($this->selectedUser)
-                    <div class="space-y-4">
-                        <div class="flex items-end gap-3">
-                            <flux:field class="flex-1">
-                                <flux:label>Measured Reps</flux:label>
-                                <flux:input.group class="{{ empty($measuredReps) ? '[&>*]:!bg-red-500/20' : '' }}">
-                                    <flux:input wire:model.live.debounce.500ms="measuredReps" type="number" min="1" max="15" step="1" />
-                                    <flux:input.group.suffix>rep(s)</flux:input.group.suffix>
-                                </flux:input.group>
-                            </flux:field>
-
-                            <flux:field class="flex-1">
-                                <flux:label>Measured Weight</flux:label>
-                                <flux:input.group class="{{ empty($measuredWeight) ? '[&>*]:!bg-red-500/20' : '' }}">
-                                    <flux:input wire:model.live.debounce.500ms="measuredWeight" type="number" min="0" step="0.5" />
-                                    <flux:input.group.suffix>kg</flux:input.group.suffix>
-                                </flux:input.group>
-                            </flux:field>
-
-                            <flux:field class="flex-1">
-                                <flux:label>Starting 1RM</flux:label>
-                                <div class="h-10 flex items-center justify-center rounded-lg bg-amber-500/15 text-amber-400 font-medium">
-                                    {{ $this->estimatedOneRepMax ? $this->estimatedOneRepMax . 'kg' : 'N/A' }}
-                                </div>
-                            </flux:field>
-                        </div>
-
-                        <div class="flex items-end gap-3">
-                            <flux:field class="flex-[2]">
-                                <flux:label>Target Goal</flux:label>
-                                <flux:input.group>
-                                    <flux:input wire:model.live.debounce.500ms="targetGoal" type="number" min="0" max="999" step="1"
-                                        placeholder="{{ $this->getPlaceholder('targetGoal') }}" />
-                                    <flux:input.group.suffix>%</flux:input.group.suffix>
-                                </flux:input.group>
-                            </flux:field>
-
-                            <flux:field class="flex-1">
-                                <flux:label>Target 1RM</flux:label>
-                                <div class="h-10 flex items-center justify-center rounded-lg bg-green-500/15 text-green-400 font-medium">
-                                    {{ $this->targetOneRepMax ? $this->targetOneRepMax . 'kg' : 'N/A' }}
-                                </div>
-                            </flux:field>
-                        </div>
-                    </div>
-                @else
-                    <flux:text class="text-zinc-500">Select an athlete to view their plan.</flux:text>
-                @endif
-            </x-section>
-            @endif
-
-            <x-section title="Schedule" class="flex-1">
-                @if ($user === null || $this->selectedUser)
-                    <div class="space-y-4">
-                        <div class="flex items-end gap-3">
-                            <flux:field class="flex-1">
-                                <flux:label>Start Date</flux:label>
-                                <flux:select wire:model.live="startDate">
-                                    @foreach ($this->weekOptions as $value => $label)
-                                        <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
-                                    @endforeach
-                                </flux:select>
-                            </flux:field>
-
-                            <flux:field class="flex-1">
-                                <flux:label>Duration</flux:label>
-                                <div class="h-10 flex items-center justify-center rounded-lg bg-blue-500/15 text-blue-400 font-medium">
-                                    {{ $this->weeks }} weeks
-                                </div>
-                            </flux:field>
-                        </div>
-
-                        <flux:field>
-                            <flux:label>Programs</flux:label>
-                            <div class="flex flex-wrap gap-2">
-                                @forelse ($this->programs->whereIn('id', $this->programIdsFromSchedule) as $program)
-                                    <flux:badge>{{ $program->name }}</flux:badge>
-                                @empty
-                                    <flux:text class="text-zinc-500">No programs scheduled</flux:text>
-                                @endforelse
+                        <flux:field class="flex-1">
+                            <flux:label>Duration</flux:label>
+                            <div class="h-10 flex items-center justify-center rounded-lg bg-blue-500/15 text-blue-400 font-medium">
+                                {{ $this->weeks }} weeks
                             </div>
                         </flux:field>
                     </div>
-                @else
-                    <flux:text class="text-zinc-500">Select an athlete to view their plan.</flux:text>
-                @endif
-            </x-section>
-        </div>
 
-        @php
-            $scheduledProgramIds = $this->programIdsFromSchedule;
-            $scheduledProgramsKey = implode('-', $scheduledProgramIds) ?: 'none';
-            $hasMeasuredData = !empty($measuredReps) && !empty($measuredWeight);
-
-            $hasStrengthAutoExercises = false;
-            $hasNonMeasuredExercises = false;
-            foreach ($this->programs->whereIn('id', $scheduledProgramIds) as $program) {
-                foreach ($program->exercises as $ex) {
-                    $handler = $ex->type->getPlanHandler();
-                    if ($handler->needsMeasuredData()) {
-                        $hasStrengthAutoExercises = true;
-                    } else {
-                        $hasNonMeasuredExercises = true;
-                    }
-                }
-            }
-        @endphp
-
-        @if ($hasStrengthAutoExercises && !$hasMeasuredData)
-            <flux:callout color="red" icon="triangle-alert">
-                <flux:callout.heading>Missing measured data</flux:callout.heading>
-                <flux:callout.text>Enter measured reps and measured weight above to generate the strength (automatic) training plan.</flux:callout.text>
-            </flux:callout>
-        @endif
-
-        <div wire:key="programs-container-{{ $user ?? 'default' }}-{{ $scheduledProgramsKey }}">
-            @foreach ($this->programs as $program)
-                @if (!in_array($program->id, $scheduledProgramIds))
-                    @continue
-                @endif
-                <x-section wire:key="program-section-{{ $program->id }}" :title="$program->name" class="mb-6">
-                    @if ($program->exercises->count() > 0)
-                        <div class="flex flex-wrap gap-6">
-                            @foreach ($program->exercises as $exercise)
-                                @php
-                                    $handler = $this->getHandlerForExercise($exercise);
-
-                                    if ($handler->needsMeasuredData() && !$hasMeasuredData) {
-                                        continue;
-                                    }
-
-                                    $pivotConfig = $this->getPivotConfig($program->id, $exercise->id);
-                                    $config = $this->getExerciseConfig($exercise, $pivotConfig);
-                                    $block = $this->generateBlock($exercise, $pivotConfig, $program->id);
-                                    if ($block) {
-                                        $block = $this->applyCellOverrides($block, $exercise->id);
-                                    }
-
-                                    $gridDefinition = $handler->getGridDefinition($exercise);
-                                    $headerInfo = $handler->getHeaderInfo($block, $config);
-                                    $badges = $handler->getConfigBadges($config);
-                                    $settingsFields = $handler->getSettingsFields($exercise);
-
-                                    $cellOverrides = $this->getCellOverrides($exercise->id);
-                                    $userSpecificCellOverrides = $this->getUserSpecificCellOverrides($exercise->id);
-                                    $weekOverrides = $this->getWeekOverrides($exercise->id);
-                                    $userSpecificWeekOverrides = $this->getUserSpecificWeekOverrides($exercise->id);
-                                @endphp
-                                <x-training.exercise-block
-                                    wire:key="exercise-block-{{ $exercise->id }}-{{ $user ?? 'default' }}"
-                                    :block="$block"
-                                    :exercise="$exercise"
-                                    :exerciseId="$exercise->id"
-                                    :config="$config"
-                                    :gridDefinition="$gridDefinition"
-                                    :headerInfo="$headerInfo"
-                                    :badges="$badges"
-                                    :settingsFields="$settingsFields"
-                                    :cellOverrides="$cellOverrides"
-                                    :userSpecificCellOverrides="$userSpecificCellOverrides"
-                                    :weekOverrides="$weekOverrides"
-                                    :userSpecificWeekOverrides="$userSpecificWeekOverrides"
-                                    :isDefaultUser="$user === null"
-                                    :startDate="$startDate"
-                                />
-                            @endforeach
+                    <flux:field>
+                        <flux:label>Programs</flux:label>
+                        <div class="flex flex-wrap gap-2">
+                            @forelse ($this->programs->whereIn('id', $this->programIdsFromSchedule) as $program)
+                                <flux:badge>{{ $program->name }}</flux:badge>
+                            @empty
+                                <flux:text class="text-zinc-500">No programs scheduled</flux:text>
+                            @endforelse
                         </div>
-                    @else
-                        <flux:text class="text-zinc-500">No exercises in this program.</flux:text>
-                    @endif
-                </x-section>
-            @endforeach
-        </div>
+                    </flux:field>
+                </div>
+            @else
+                <flux:text class="text-zinc-500">Select an athlete to view their plan.</flux:text>
+            @endif
+        </x-section>
     </div>
 </div>
