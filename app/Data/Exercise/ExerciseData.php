@@ -4,11 +4,9 @@ namespace App\Data\Exercise;
 
 use App\Cms\Data\AbstractData;
 use App\Cms\Form\Concerns\InteractsWithForms;
-use App\Cms\Form\Fields\Category;
-use App\Cms\Form\Fields\Tags;
+use App\Cms\Form\Fields;
 use App\Cms\Form\Form;
 use App\Cms\Models\Contracts\HasForms;
-use App\Form\Fields\Exercise as Fields;
 use App\Models\Exercise\Exercise;
 use Carbon\Carbon;
 
@@ -19,11 +17,12 @@ class ExerciseData extends AbstractData implements HasForms
     public function __construct(
         public ?int $id,
         public string $name,
-        public ExerciseType $type,
-        public ?ExerciseConfig $config = null,
         public ?int $category = null,
         public array $equipment = [],
         public array $modifiers = [],
+        public ?string $videoUrl = null,
+        public ?string $instructions = null,
+        public ExerciseConfig $config = new ExerciseConfig,
         public ?Carbon $updatedAt = null,
     ) {}
 
@@ -32,11 +31,12 @@ class ExerciseData extends AbstractData implements HasForms
         return new self(
             id: $exercise->id,
             name: $exercise->name,
-            type: $exercise->type ?? ExerciseType::Strength,
-            config: $exercise->config,
             category: $exercise->category_id,
             equipment: self::mapTagIds($exercise, 'equipment'),
             modifiers: self::mapTagIds($exercise, 'modifiers'),
+            videoUrl: $exercise->video_url,
+            instructions: $exercise->instructions,
+            config: $exercise->config ?? new ExerciseConfig,
             updatedAt: $exercise->updated_at,
         );
     }
@@ -57,7 +57,8 @@ class ExerciseData extends AbstractData implements HasForms
             ['id' => $this->id],
             [
                 'name' => $this->name,
-                'type' => $this->type,
+                'video_url' => $this->videoUrl,
+                'instructions' => $this->instructions,
                 'config' => $this->config?->toArray() ?? [],
                 'category_id' => $this->category,
             ]
@@ -75,33 +76,34 @@ class ExerciseData extends AbstractData implements HasForms
 
     public static function getForm(): Form
     {
-        return Form::make()
+        $form = Form::make()
             ->fieldset('General', [
-                Fields\ExerciseName::make('name')->required(),
-                Fields\ExerciseType::make('type')->required(),
-                Category::make('category', 'exercise_category')->label('Category')->withOptions(),
-                Tags::make('equipment', 'exercise_equipment')->label('Equipment')->withOptions(),
-                Tags::make('modifiers', 'exercise_modifiers')->label('Modifiers')->withOptions(),
+                Fields\Text::make('name')->live(),
+                Fields\Category::make('category', 'exercise_category')->label('Category')->withOptions(),
+                Fields\Tags::make('equipment', 'exercise_equipment')->label('Equipment')->withOptions(),
+                Fields\Tags::make('modifiers', 'exercise_modifiers')->label('Modifiers')->withOptions(),
             ])
-            ->fieldset('Defaults', function (array $data): ?array {
-                $type = ExerciseType::tryFrom($data['type'] ?? null);
-                if (! $type) {
-                    return null;
-                }
+            ->fieldset('Instructions', [
+                Fields\Url::make('videoUrl')->label('Video URL')->placeholder('https://'),
+                Fields\Textarea::make('instructions')->label('Instructions')->placeholder('Enter exercise instructions...'),
+            ]);
 
-                $accessor = $type->getConfigAccessor();
-                $configData = $data['config'][$accessor] ?? [];
+        ExerciseConfig::addFormFieldsets($form);
 
-                return [
-                    'fields' => $type->getFields($configData),
-                    'prefix' => 'data.config.'.$accessor,
-                ];
-            })
-            ->discriminator('type', 'config');
+        $form->fieldsetTabs(['General', 'Instructions', 'Settings']);
+
+        return $form;
     }
 
     public function getDefaultsBadges(): array
     {
-        return $this->config?->toBadges($this->type) ?? [];
+        if (empty($this->config->settings)) {
+            return [];
+        }
+
+        return collect($this->config->settings)
+            ->map(fn (string $setting) => ['label' => ucfirst($setting)])
+            ->values()
+            ->all();
     }
 }
