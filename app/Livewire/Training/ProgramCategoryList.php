@@ -3,13 +3,13 @@
 namespace App\Livewire\Training;
 
 use App\Data\Training\ProgramCategoryData;
-use App\Form\Fields\Training\Program\Color;
 use App\Models\ProgramCategory;
 use Coda\Cms\Display\DisplayFields\ColorBadge;
 use Coda\Cms\Display\DisplayFields\Id;
 use Coda\Cms\Display\DisplayFields\Text;
 use Coda\Cms\Display\Table;
 use Coda\Cms\Livewire\AbstractModelList;
+use Coda\Cms\Support\ColorPalette;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 
 class ProgramCategoryList extends AbstractModelList
@@ -45,7 +45,7 @@ class ProgramCategoryList extends AbstractModelList
                     ->modal(),
                 ColorBadge::make('color')
                     ->label('Color')
-                    ->colorLabels(Color::AVAILABLE_COLORS),
+                    ->colorLabels(ColorPalette::COLORS),
             ]);
     }
 }

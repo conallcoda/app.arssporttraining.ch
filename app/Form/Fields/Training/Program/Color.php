@@ -3,36 +3,20 @@
 namespace App\Form\Fields\Training\Program;
 
 use Coda\Cms\Form\Fields\Select;
+use Coda\Cms\Support\ColorPalette;
 
 class Color extends Select
 {
     public const DEFAULT_COLOR = 'blue';
 
-    public const AVAILABLE_COLORS = [
-        'blue' => 'Blue',
-        'green' => 'Green',
-        'emerald' => 'Emerald',
-        'teal' => 'Teal',
-        'cyan' => 'Cyan',
-        'sky' => 'Sky',
-        'indigo' => 'Indigo',
-        'violet' => 'Violet',
-        'purple' => 'Purple',
-        'pink' => 'Pink',
-        'rose' => 'Rose',
-        'red' => 'Red',
-        'orange' => 'Orange',
-        'amber' => 'Amber',
-        'yellow' => 'Yellow',
-        'lime' => 'Lime',
-    ];
+    public const AVAILABLE_COLORS = ColorPalette::COLORS;
 
     public function __construct(string $name)
     {
         parent::__construct($name);
 
         $this->label = 'Color';
-        $this->options = self::AVAILABLE_COLORS;
+        $this->options = ColorPalette::COLORS;
         $this->default = self::DEFAULT_COLOR;
         $this->variant = 'listbox';
         $this->optionView = 'form.options.color';

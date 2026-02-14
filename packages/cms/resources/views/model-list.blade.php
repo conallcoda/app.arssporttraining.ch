@@ -270,7 +270,7 @@
                                 @elseif ($column instanceof ColorBadgeColumn)
                                     @php $colorValue = $item->{$column->field}; @endphp
                                     @if ($colorValue)
-                                        <flux:badge size="sm" style="background-color: var(--color-{{ $colorValue }}-500); color: white;">
+                                        <flux:badge size="sm" class="{{ \Coda\Cms\Support\ColorPalette::lightBadge($colorValue) }}">
                                             {{ $column->formatValue($colorValue) }}
                                         </flux:badge>
                                     @endif

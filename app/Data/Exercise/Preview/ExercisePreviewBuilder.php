@@ -4,6 +4,7 @@ namespace App\Data\Exercise\Preview;
 
 use App\Data\Exercise\ExerciseSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
+use Coda\Cms\Support\ColorPalette;
 
 class ExercisePreviewBuilder
 {
@@ -19,30 +20,6 @@ class ExercisePreviewBuilder
         'tempo',
         'rest',
     ];
-
-    private const ROW_COLORS = [
-        'bg-blue-50 dark:bg-blue-900/20',
-        'bg-green-50 dark:bg-green-900/20',
-        'bg-red-50 dark:bg-red-900/20',
-        'bg-purple-50 dark:bg-purple-900/20',
-        'bg-cyan-50 dark:bg-cyan-900/20',
-        'bg-orange-50 dark:bg-orange-900/20',
-        'bg-pink-50 dark:bg-pink-900/20',
-        'bg-amber-50 dark:bg-amber-900/20',
-    ];
-
-    private const OVERRIDE_ROW_COLORS = [
-        'bg-blue-200 dark:bg-blue-700/40',
-        'bg-green-200 dark:bg-green-700/40',
-        'bg-red-200 dark:bg-red-700/40',
-        'bg-purple-200 dark:bg-purple-700/40',
-        'bg-cyan-200 dark:bg-cyan-700/40',
-        'bg-orange-200 dark:bg-orange-700/40',
-        'bg-pink-200 dark:bg-pink-700/40',
-        'bg-amber-200 dark:bg-amber-700/40',
-    ];
-
-    private const ONE_REP_MAX_COLOR = 'bg-orange-50 dark:bg-orange-900/20';
 
     private const WEEK_COLUMN_COLOR = 'bg-zinc-100 dark:bg-zinc-700/30';
 
@@ -83,8 +60,9 @@ class ExercisePreviewBuilder
                 continue;
             }
 
-            $color = self::ROW_COLORS[$colorIndex] ?? 'bg-zinc-50 dark:bg-zinc-800/20';
-            $overrideColor = self::OVERRIDE_ROW_COLORS[$colorIndex] ?? 'bg-zinc-200 dark:bg-zinc-600/50';
+            $rowColorName = ColorPalette::ROW_COLORS[$colorIndex] ?? null;
+            $color = $rowColorName ? ColorPalette::light($rowColorName) : 'bg-zinc-50 dark:bg-zinc-800/20';
+            $overrideColor = $rowColorName ? ColorPalette::lightStrong($rowColorName) : 'bg-zinc-200 dark:bg-zinc-600/50';
             $colorIndex++;
 
             if ($setting === 'weight') {
@@ -180,7 +158,7 @@ class ExercisePreviewBuilder
             $rows[] = new PreviewGridRow(
                 field: 'oneRepMax',
                 label: '1RM (kg)',
-                color: self::ONE_REP_MAX_COLOR,
+                color: ColorPalette::light('orange'),
                 cells: $state->getGrid('oneRepMax'),
                 editableMap: self::buildEditableMap('oneRepMax', $weeks, $maxSets, $state),
                 lastSessionOnly: true,
