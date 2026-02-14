@@ -1,6 +1,8 @@
 @php
     use App\Cms\Display\DisplayFields\Badge as BadgeColumn;
+    use App\Cms\Display\DisplayFields\Breadcrumb as BreadcrumbColumn;
     use App\Cms\Display\DisplayFields\Relationship as RelationshipColumn;
+    use App\Cms\Display\DisplayFields\TextWithBadgeGroups as TextWithBadgeGroupsColumn;
     use App\Cms\Display\DisplayFields\View as ViewColumn;
     use App\Cms\Form\Fields\Select as SelectField;
 @endphp
@@ -250,6 +252,35 @@
                                             @endforeach
                                         @endif
                                     </div>
+                                @elseif ($column instanceof TextWithBadgeGroupsColumn)
+                                    <div class="py-1 flex flex-wrap items-center gap-1">
+                                        @if (property_exists($column, 'modalField') && $column->modalField)
+                                            <span class="cursor-pointer hover:underline mr-1"
+                                                x-on:click="Livewire.dispatch('open-{{ $this->editModalName }}', {
+                                                    data: {{ Js::from($item->toArray()) }},
+                                                    title: 'Edit {{ $entityName }}',
+                                                    focusField: '{{ $column->modalField }}'
+                                                })">
+                                                {{ $item->{$column->field} }}
+                                            </span>
+                                        @else
+                                            <span class="mr-1">{{ $item->{$column->field} }}</span>
+                                        @endif
+                                        @foreach ($column->getBadgeGroupData($item) as $group)
+                                            @foreach ($group['badges'] as $badge)
+                                                <flux:badge size="sm" :color="$group['color']">{{ $badge['label'] }}</flux:badge>
+                                            @endforeach
+                                        @endforeach
+                                    </div>
+                                @elseif ($column instanceof BreadcrumbColumn)
+                                    @php $segments = $column->getSegments($item); @endphp
+                                    @if (count($segments) > 0)
+                                        <flux:breadcrumbs class="!text-xs">
+                                            @foreach ($segments as $segment)
+                                                <flux:breadcrumbs.item separator="slash" class="!text-xs">{{ $segment }}</flux:breadcrumbs.item>
+                                            @endforeach
+                                        </flux:breadcrumbs>
+                                    @endif
                                 @elseif ($column instanceof ViewColumn)
                                     <div class="py-1 truncate">
                                         <a href="{{ route($column->getViewRouteName(), $model) }}"

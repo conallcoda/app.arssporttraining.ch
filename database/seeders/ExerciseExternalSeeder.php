@@ -10,21 +10,22 @@ class ExerciseExternalSeeder extends Seeder
 {
     public function run(): void
     {
+        ExerciseExternal::query()->where('source', 'kilo')->forceDelete();
+
         $data = require base_path('import/kilo/classified_exercises.php');
 
         $tagCache = [];
 
         foreach ($data['exercises'] as $exercise) {
-            $model = ExerciseExternal::firstOrCreate(
-                ['source' => 'kilo', 'name' => $exercise['short_name']],
-                [
-                    'video_url' => $exercise['url'] ?? null,
-                ],
-            );
+            $model = ExerciseExternal::create([
+                'source' => 'kilo',
+                'name' => $exercise['short_name'],
+                'video_url' => $exercise['url'] ?? null,
+            ]);
 
-            $firstCategory = $exercise['categories'][0] ?? null;
-            if ($firstCategory) {
-                $categoryTag = $this->resolveTag($tagCache, 'exercise_category', $firstCategory);
+            $leafCategory = end($exercise['categories']) ?: null;
+            if ($leafCategory) {
+                $categoryTag = $this->resolveTag($tagCache, 'exercise_category', $leafCategory);
                 $model->update(['category_id' => $categoryTag->id]);
             }
 
@@ -40,7 +41,7 @@ class ExerciseExternalSeeder extends Seeder
                 $tagIds[$tag->id] = ['sort' => $sort];
             }
 
-            $model->tags()->syncWithoutDetaching($tagIds);
+            $model->tags()->sync($tagIds);
         }
     }
 

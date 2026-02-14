@@ -5,6 +5,7 @@
         <flux:navbar.item href="/exercises/categories" :current="request()->is('exercises/categories')">Categories</flux:navbar.item>
         <flux:navbar.item href="/exercises/equipment" :current="request()->is('exercises/equipment')">Equipment</flux:navbar.item>
         <flux:navbar.item href="/exercises/modifiers" :current="request()->is('exercises/modifiers')">Modifiers</flux:navbar.item>
+        <flux:navbar.item href="/exercises/import" :current="request()->is('exercises/import')">Import</flux:navbar.item>
     </x-top-nav>
 </x-slot:navbar>
 
