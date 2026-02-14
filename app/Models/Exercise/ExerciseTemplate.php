@@ -2,8 +2,8 @@
 
 namespace App\Models\Exercise;
 
-use App\Cms\Models\Concerns\HasQueryBuilder;
 use App\Data\Exercise\ExerciseConfig;
+use Coda\Cms\Models\Concerns\HasQueryBuilder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 

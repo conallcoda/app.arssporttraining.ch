@@ -2,14 +2,14 @@
 
 namespace App\Livewire\Database;
 
-use App\Cms\Display\DisplayFields\Ago;
-use App\Cms\Display\DisplayFields\Id;
-use App\Cms\Display\DisplayFields\Text;
-use App\Cms\Display\Table;
-use App\Cms\Livewire\AbstractModelList;
 use App\Data\Athlete\AthleteData;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
+use Coda\Cms\Display\DisplayFields\Ago;
+use Coda\Cms\Display\DisplayFields\Id;
+use Coda\Cms\Display\DisplayFields\Text;
+use Coda\Cms\Display\Table;
+use Coda\Cms\Livewire\AbstractModelList;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 
 class AthleteList extends AbstractModelList

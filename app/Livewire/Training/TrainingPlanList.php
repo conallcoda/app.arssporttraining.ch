@@ -2,15 +2,15 @@
 
 namespace App\Livewire\Training;
 
-use App\Cms\Display\DisplayFields\Id;
-use App\Cms\Display\DisplayFields\Relationship;
-use App\Cms\Display\DisplayFields\View;
-use App\Cms\Display\Table;
-use App\Cms\Form\Action;
-use App\Cms\Form\DuplicateNameForm;
-use App\Cms\Livewire\AbstractModelList;
 use App\Data\Training\TrainingPlanData;
 use App\Models\TrainingPlan;
+use Coda\Cms\Display\DisplayFields\Id;
+use Coda\Cms\Display\DisplayFields\Relationship;
+use Coda\Cms\Display\DisplayFields\View;
+use Coda\Cms\Display\Table;
+use Coda\Cms\Form\Action;
+use Coda\Cms\Form\DuplicateNameForm;
+use Coda\Cms\Livewire\AbstractModelList;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 
 class TrainingPlanList extends AbstractModelList

@@ -2,7 +2,7 @@
 
 namespace App\Data\Training\Config\Schedule;
 
-use App\Cms\Data\AbstractConfig;
+use Coda\Cms\Data\AbstractConfig;
 use Spatie\LaravelData\Optional;
 
 /**

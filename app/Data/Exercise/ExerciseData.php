@@ -2,13 +2,13 @@
 
 namespace App\Data\Exercise;
 
-use App\Cms\Data\AbstractData;
-use App\Cms\Form\Concerns\InteractsWithForms;
-use App\Cms\Form\Fields;
-use App\Cms\Form\Form;
-use App\Cms\Models\Contracts\HasForms;
 use App\Models\Exercise\Exercise;
 use Carbon\Carbon;
+use Coda\Cms\Data\AbstractData;
+use Coda\Cms\Form\Concerns\InteractsWithForms;
+use Coda\Cms\Form\Fields;
+use Coda\Cms\Form\Form;
+use Coda\Cms\Models\Contracts\HasForms;
 
 class ExerciseData extends AbstractData implements HasForms
 {

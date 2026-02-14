@@ -2,15 +2,15 @@
 
 namespace App\Data\Athlete;
 
-use App\Cms\Data\AbstractData;
-use App\Cms\Form\Concerns\InteractsWithForms;
-use App\Cms\Form\Form;
-use App\Cms\Models\Contracts\HasForms;
 use App\Form\Fields\Athlete\Forename;
 use App\Form\Fields\Athlete\Surname;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
 use Carbon\Carbon;
+use Coda\Cms\Data\AbstractData;
+use Coda\Cms\Form\Concerns\InteractsWithForms;
+use Coda\Cms\Form\Form;
+use Coda\Cms\Models\Contracts\HasForms;
 
 class AthleteData extends AbstractData implements HasForms
 {

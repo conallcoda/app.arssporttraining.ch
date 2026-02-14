@@ -2,7 +2,7 @@
 
 namespace App\Form\Fields\Athlete;
 
-use App\Cms\Form\Fields\Number;
+use Coda\Cms\Form\Fields\Number;
 
 class MeasuredWeight extends Number
 {

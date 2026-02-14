@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use App\Cms\Models\Concerns\HasConfigData;
 use App\Models\Exercise\Exercise;
+use Coda\Cms\Models\Concerns\HasConfigData;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 

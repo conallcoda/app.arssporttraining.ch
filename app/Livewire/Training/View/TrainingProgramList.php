@@ -2,14 +2,14 @@
 
 namespace App\Livewire\Training\View;
 
-use App\Cms\Display\DisplayFields\Relationship;
-use App\Cms\Display\DisplayFields\Text;
-use App\Cms\Display\Table;
-use App\Cms\Livewire\AbstractModelList;
-use App\Cms\Livewire\Concerns\InteractsWithParentView;
 use App\Data\Training\TrainingProgramData;
 use App\Models\TrainingPlan;
 use App\Models\TrainingPlanProgram;
+use Coda\Cms\Display\DisplayFields\Relationship;
+use Coda\Cms\Display\DisplayFields\Text;
+use Coda\Cms\Display\Table;
+use Coda\Cms\Livewire\AbstractModelList;
+use Coda\Cms\Livewire\Concerns\InteractsWithParentView;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 

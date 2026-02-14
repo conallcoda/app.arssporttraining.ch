@@ -2,8 +2,8 @@
 
 namespace App\Form\Fields\Exercise;
 
-use App\Cms\Form\Fields\Relationship;
 use App\Models\Exercise\Exercise;
+use Coda\Cms\Form\Fields\Relationship;
 
 class Exercises extends Relationship
 {

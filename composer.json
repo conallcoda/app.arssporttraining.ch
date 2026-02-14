@@ -24,7 +24,8 @@
         "staudenmeir/laravel-adjacency-list": "^1.25",
         "symfony/expression-language": "^7.3",
         "symfony/http-client": "^7.3",
-        "symfony/mailgun-mailer": "^7.3"
+        "symfony/mailgun-mailer": "^7.3",
+        "coda/cms": "*"
     },
     "require-dev": {
         "barryvdh/laravel-debugbar": "^3.16",
@@ -108,6 +109,10 @@
     "minimum-stability": "dev",
     "prefer-stable": true,
     "repositories": {
+        "cms": {
+            "type": "path",
+            "url": "packages/cms"
+        },
         "flux-pro": {
             "type": "composer",
             "url": "https://composer.fluxui.dev"

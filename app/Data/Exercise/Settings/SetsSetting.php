@@ -2,7 +2,7 @@
 
 namespace App\Data\Exercise\Settings;
 
-use App\Cms\Form\Fields;
+use Coda\Cms\Form\Fields;
 
 class SetsSetting extends AbstractSetting
 {

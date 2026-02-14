@@ -2,10 +2,10 @@
 
 namespace App\Livewire\Training\View;
 
-use App\Cms\Livewire\Concerns\InteractsWithParentView;
 use App\Models\TrainingPlan;
 use App\Models\Users\User;
 use App\Support\WeekOptions;
+use Coda\Cms\Livewire\Concerns\InteractsWithParentView;
 use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;

@@ -3,11 +3,11 @@
 namespace App\Livewire\Database;
 
 use App\Actions\DeleteCategoryTree as DeleteAction;
-use App\Cms\Data\AbstractData;
-use App\Cms\Form\Action;
-use App\Cms\Livewire\AbstractModelTree;
 use App\Data\Category\CategoryData;
 use App\Models\Tag;
+use Coda\Cms\Data\AbstractData;
+use Coda\Cms\Form\Action;
+use Coda\Cms\Livewire\AbstractModelTree;
 use Flux\Flux;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;

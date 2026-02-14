@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Cms\Models\Concerns\HasQueryBuilder;
+use Coda\Cms\Models\Concerns\HasQueryBuilder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;

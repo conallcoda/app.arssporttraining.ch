@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "afd5e56d8c807eb5ac5a6f997b1fad48",
+    "content-hash": "6b639ffa01123be6090adf0f77d90a70",
     "packages": [
         {
             "name": "blade-ui-kit/blade-icons",
@@ -215,6 +215,38 @@
                 }
             ],
             "time": "2024-02-09T16:56:22+00:00"
+        },
+        {
+            "name": "coda/cms",
+            "version": "dev-new",
+            "dist": {
+                "type": "path",
+                "url": "packages/cms",
+                "reference": "91441fc76a0f274a9db250963628a19427369eed"
+            },
+            "require": {
+                "livewire/livewire": "^3.0 || ^4.0",
+                "php": "^8.2",
+                "spatie/laravel-data": "^4.0",
+                "spatie/laravel-query-builder": "^6.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Coda\\Cms\\CmsPackageServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Coda\\Cms\\": "src/"
+                }
+            },
+            "description": "Generic CMS framework for Laravel Livewire applications",
+            "transport-options": {
+                "relative": true
+            }
         },
         {
             "name": "composer/pcre",

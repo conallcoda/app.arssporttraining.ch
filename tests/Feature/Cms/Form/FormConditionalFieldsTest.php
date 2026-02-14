@@ -1,10 +1,10 @@
 <?php
 
-use App\Cms\Form\Field;
-use App\Cms\Form\Fields\Number;
-use App\Cms\Form\Fields\RadioSegmented;
-use App\Cms\Form\Fields\Text;
-use App\Cms\Form\Form;
+use Coda\Cms\Form\Field;
+use Coda\Cms\Form\Fields\Number;
+use Coda\Cms\Form\Fields\RadioSegmented;
+use Coda\Cms\Form\Fields\Text;
+use Coda\Cms\Form\Form;
 
 it('includes conditional field when expression matches', function () {
     $form = Form::make()

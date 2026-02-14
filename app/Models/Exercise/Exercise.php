@@ -2,11 +2,11 @@
 
 namespace App\Models\Exercise;
 
-use App\Cms\Models\Concerns\HasQueryBuilder;
-use App\Cms\Models\Concerns\HasTags;
-use App\Cms\Models\Contracts\Taggable;
 use App\Data\Exercise\ExerciseConfig;
 use App\Models\Tag;
+use Coda\Cms\Models\Concerns\HasQueryBuilder;
+use Coda\Cms\Models\Concerns\HasTags;
+use Coda\Cms\Models\Contracts\Taggable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;

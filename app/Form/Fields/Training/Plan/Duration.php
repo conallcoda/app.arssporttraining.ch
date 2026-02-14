@@ -2,7 +2,7 @@
 
 namespace App\Form\Fields\Training\Plan;
 
-use App\Cms\Form\Fields\Number;
+use Coda\Cms\Form\Fields\Number;
 
 class Duration extends Number
 {

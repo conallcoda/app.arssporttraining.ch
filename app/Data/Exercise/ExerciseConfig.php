@@ -2,9 +2,9 @@
 
 namespace App\Data\Exercise;
 
-use App\Cms\Data\AbstractData;
-use App\Cms\Form\Fields;
-use App\Cms\Form\Form;
+use Coda\Cms\Data\AbstractData;
+use Coda\Cms\Form\Fields;
+use Coda\Cms\Form\Form;
 
 class ExerciseConfig extends AbstractData
 {

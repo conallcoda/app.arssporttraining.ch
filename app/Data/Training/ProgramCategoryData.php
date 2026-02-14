@@ -2,13 +2,13 @@
 
 namespace App\Data\Training;
 
-use App\Cms\Data\AbstractData;
-use App\Cms\Form\Concerns\InteractsWithForms;
-use App\Cms\Form\Fields\Text;
-use App\Cms\Form\Form;
-use App\Cms\Models\Contracts\HasForms;
 use App\Form\Fields\Training\Program\Color;
 use App\Models\ProgramCategory;
+use Coda\Cms\Data\AbstractData;
+use Coda\Cms\Form\Concerns\InteractsWithForms;
+use Coda\Cms\Form\Fields\Text;
+use Coda\Cms\Form\Form;
+use Coda\Cms\Models\Contracts\HasForms;
 
 class ProgramCategoryData extends AbstractData implements HasForms
 {

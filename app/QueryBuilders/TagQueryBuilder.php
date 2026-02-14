@@ -2,7 +2,7 @@
 
 namespace App\QueryBuilders;
 
-use App\Cms\QueryBuilder\DefaultQueryBuilder;
+use Coda\Cms\QueryBuilder\DefaultQueryBuilder;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\AllowedSort;
 

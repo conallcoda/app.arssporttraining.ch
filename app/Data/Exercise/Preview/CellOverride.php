@@ -2,7 +2,7 @@
 
 namespace App\Data\Exercise\Preview;
 
-use App\Cms\Data\AbstractData;
+use Coda\Cms\Data\AbstractData;
 
 class CellOverride extends AbstractData
 {

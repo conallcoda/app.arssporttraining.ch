@@ -2,7 +2,7 @@
 
 namespace App\Form\Fields\Training\Program;
 
-use App\Cms\Form\Fields\Percentage;
+use Coda\Cms\Form\Fields\Percentage;
 
 class TargetGoal extends Percentage
 {

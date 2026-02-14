@@ -2,9 +2,9 @@
 
 namespace App\Data\Exercise\Settings;
 
-use App\Cms\Form\Fields;
 use App\Data\Exercise\Preview\CellInputMeta;
 use App\Form\Fields\Exercise\ApplyPerField;
+use Coda\Cms\Form\Fields;
 
 class TempoSetting extends AbstractSetting
 {

@@ -1,8 +1,8 @@
 <?php
 
-use App\Cms\Form\ConditionEvaluator;
-use App\Cms\Form\Fields\Number;
-use App\Cms\Form\Fields\Text;
+use Coda\Cms\Form\ConditionEvaluator;
+use Coda\Cms\Form\Fields\Number;
+use Coda\Cms\Form\Fields\Text;
 
 it('evaluates equality expression as true', function () {
     $evaluator = new ConditionEvaluator;

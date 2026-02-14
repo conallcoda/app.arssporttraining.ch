@@ -1,0 +1,23 @@
+{
+    "name": "coda/cms",
+    "description": "Generic CMS framework for Laravel Livewire applications",
+    "type": "library",
+    "autoload": {
+        "psr-4": {
+            "Coda\\Cms\\": "src/"
+        }
+    },
+    "require": {
+        "php": "^8.2",
+        "livewire/livewire": "^3.0 || ^4.0",
+        "spatie/laravel-data": "^4.0",
+        "spatie/laravel-query-builder": "^6.0"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Coda\\Cms\\CmsPackageServiceProvider"
+            ]
+        }
+    }
+}

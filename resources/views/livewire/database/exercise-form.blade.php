@@ -8,10 +8,10 @@
                 <div class="space-y-4">
                     <form wire:submit="submit" class="space-y-4">
                         @foreach ($this->fieldsets as $item)
-                            @if ($item instanceof \App\Cms\Form\FormFieldsetGroup)
-                                <x-cms.form.fieldset-tabs :group="$item" />
+                            @if ($item instanceof \Coda\Cms\Form\FormFieldsetGroup)
+                                <x-cms::form.fieldset-tabs :group="$item" />
                             @else
-                                <x-cms.form.fieldset :fieldset="$item" :prefix="$item->prefix ?? 'data'" :showLegend="true" />
+                                <x-cms::form.fieldset :fieldset="$item" :prefix="$item->prefix ?? 'data'" :showLegend="true" />
                             @endif
                         @endforeach
                         <div class="flex gap-2 pt-4">

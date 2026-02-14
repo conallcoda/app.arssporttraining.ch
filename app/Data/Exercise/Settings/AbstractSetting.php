@@ -2,11 +2,11 @@
 
 namespace App\Data\Exercise\Settings;
 
-use App\Cms\Data\AbstractData;
-use App\Cms\Form\Concerns\InteractsWithForms;
-use App\Cms\Form\Form;
-use App\Cms\Models\Contracts\HasForms;
 use App\Data\Exercise\Preview\CellInputMeta;
+use Coda\Cms\Data\AbstractData;
+use Coda\Cms\Form\Concerns\InteractsWithForms;
+use Coda\Cms\Form\Form;
+use Coda\Cms\Models\Contracts\HasForms;
 
 abstract class AbstractSetting extends AbstractData implements HasForms
 {

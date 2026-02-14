@@ -2,11 +2,11 @@
 
 namespace App\Livewire\Database;
 
-use App\Cms\Form\Form;
 use App\Data\Exercise\ExerciseData;
 use App\Data\Exercise\Settings\PreviewSetting;
-use App\Livewire\Cms\FormModal;
 use App\Livewire\Concerns\InteractsWithPreview;
+use Coda\Cms\Form\Form;
+use Coda\Cms\Livewire\FormModal;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
 

@@ -307,7 +307,7 @@
             <flux:heading size="lg">{{ $this->editingProgramId ? 'Edit' : 'Add' }} Program</flux:heading>
 
             @foreach ($this->fieldsets as $fieldset)
-                <x-cms.form.fieldset :fieldset="$fieldset" prefix="data" :showLegend="false" />
+                <x-cms::form.fieldset :fieldset="$fieldset" prefix="data" :showLegend="false" />
             @endforeach
 
             <div class="flex gap-2 pt-4">

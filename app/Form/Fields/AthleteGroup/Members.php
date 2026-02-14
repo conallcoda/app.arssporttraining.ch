@@ -2,9 +2,9 @@
 
 namespace App\Form\Fields\AthleteGroup;
 
-use App\Cms\Form\Fields\Relationship;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
+use Coda\Cms\Form\Fields\Relationship;
 
 class Members extends Relationship
 {

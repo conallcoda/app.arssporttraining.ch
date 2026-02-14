@@ -2,14 +2,14 @@
 
 namespace App\Data\Athlete;
 
-use App\Cms\Data\AbstractData;
-use App\Cms\Form\Concerns\InteractsWithForms;
-use App\Cms\Form\Form;
-use App\Cms\Models\Contracts\HasForms;
 use App\Form\Fields\AthleteGroup\GroupName;
 use App\Form\Fields\AthleteGroup\Members;
 use App\Models\Users\UserGroup;
 use Carbon\Carbon;
+use Coda\Cms\Data\AbstractData;
+use Coda\Cms\Form\Concerns\InteractsWithForms;
+use Coda\Cms\Form\Form;
+use Coda\Cms\Models\Contracts\HasForms;
 
 class AthleteGroupData extends AbstractData implements HasForms
 {

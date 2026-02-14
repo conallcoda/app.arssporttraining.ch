@@ -30,15 +30,7 @@
         </flux:sidebar.header>
 
         <flux:sidebar.nav>
-            <flux:sidebar.group expandable icon="database" heading="Database" class="grid">
-                <flux:sidebar.item icon="users" href="/athletes">Athletes</flux:sidebar.item>
-                <flux:sidebar.item icon="dumbbell" href="/exercises">Exercises</flux:sidebar.item>
-            </flux:sidebar.group>
-
-            <flux:sidebar.group expandable icon="trophy" heading="Training" class="grid">
-                <flux:sidebar.item icon="clipboard-list" href="/training-plans">Plans</flux:sidebar.item>
-                <flux:sidebar.item icon="settings" href="/training/program-categories">Settings</flux:sidebar.item>
-            </flux:sidebar.group>
+            <x-cms::sidebar-nav />
         </flux:sidebar.nav>
 
         <flux:sidebar.spacer />
@@ -67,6 +59,7 @@
 
     {{ $slot }}
 
+    <livewire:cms.component-portal />
     <flux:toast />
     @fluxScripts
 </body>

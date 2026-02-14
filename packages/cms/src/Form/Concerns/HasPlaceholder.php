@@ -1,0 +1,20 @@
+<?php
+
+namespace Coda\Cms\Form\Concerns;
+
+trait HasPlaceholder
+{
+    public ?string $placeholder = null;
+
+    public function placeholder(string $placeholder): static
+    {
+        $this->placeholder = $placeholder;
+
+        return $this;
+    }
+
+    public function getPlaceholder(): string
+    {
+        return $this->placeholder ?? $this->getLabel();
+    }
+}

@@ -2,8 +2,8 @@
 
 namespace App\Form\Fields\AthleteGroup;
 
-use App\Cms\Form\Fields\Pillbox;
 use App\Models\Users\UserGroup;
+use Coda\Cms\Form\Fields\Pillbox;
 
 class Groups extends Pillbox
 {

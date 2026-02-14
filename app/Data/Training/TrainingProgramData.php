@@ -2,16 +2,16 @@
 
 namespace App\Data\Training;
 
-use App\Cms\Data\AbstractData;
-use App\Cms\Form\Concerns\InteractsWithForms;
-use App\Cms\Form\Form;
-use App\Cms\Models\Contracts\HasForms;
 use App\Form\Fields\Exercise\Exercises;
 use App\Form\Fields\Training\Program\Color;
 use App\Form\Fields\Training\Program\ProgramName;
 use App\Models\Exercise\Exercise;
 use App\Models\TrainingPlanProgram;
 use App\Models\TrainingPlanProgramExercise;
+use Coda\Cms\Data\AbstractData;
+use Coda\Cms\Form\Concerns\InteractsWithForms;
+use Coda\Cms\Form\Form;
+use Coda\Cms\Models\Contracts\HasForms;
 
 class TrainingProgramData extends AbstractData implements HasForms
 {

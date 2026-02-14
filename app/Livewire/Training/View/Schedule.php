@@ -2,10 +2,6 @@
 
 namespace App\Livewire\Training\View;
 
-use App\Cms\Form\Field;
-use App\Cms\Form\Fields\Relationship;
-use App\Cms\Form\Form;
-use App\Cms\Form\FormFieldset;
 use App\Data\Training\Config\Schedule\ScheduleWeek;
 use App\Data\Training\Config\Schedule\ScheduleWeekCollection;
 use App\Data\Training\Config\TrainingPlanConfig;
@@ -13,6 +9,10 @@ use App\Data\Training\TrainingProgramData;
 use App\Form\Fields\Training\Program\Color;
 use App\Models\TrainingPlan;
 use App\Models\Users\User;
+use Coda\Cms\Form\Field;
+use Coda\Cms\Form\Fields\Relationship;
+use Coda\Cms\Form\Form;
+use Coda\Cms\Form\FormFieldset;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Computed;

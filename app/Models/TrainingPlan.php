@@ -2,10 +2,10 @@
 
 namespace App\Models;
 
-use App\Cms\Models\Concerns\HasConfigData;
-use App\Cms\Models\Concerns\SyncsSortableRelations;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
+use Coda\Cms\Models\Concerns\HasConfigData;
+use Coda\Cms\Models\Concerns\SyncsSortableRelations;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;

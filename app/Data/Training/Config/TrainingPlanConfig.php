@@ -2,8 +2,8 @@
 
 namespace App\Data\Training\Config;
 
-use App\Cms\Data\AbstractConfig;
 use App\Data\Training\Config\Schedule\DefaultScheduleConfig;
+use Coda\Cms\Data\AbstractConfig;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Optional;
 
