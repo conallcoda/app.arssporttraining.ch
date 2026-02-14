@@ -88,10 +88,10 @@ class ExerciseList extends AbstractModelList
             ]);
     }
 
-    protected function getAddAction(): Action
+    protected function getAddAction(): ?Action
     {
         return parent::getAddAction()
-            ->formComponent('database.exercise-form');
+            ?->formComponent('database.exercise-form');
     }
 
     protected function getEditAction(): Action
