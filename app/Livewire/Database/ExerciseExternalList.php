@@ -18,6 +18,7 @@ use App\Data\Exercise\ExerciseExternalData;
 use App\Data\Exercise\ExerciseImportData;
 use App\Models\Exercise\ExerciseExternal;
 use App\Models\Tag;
+use Flux\Flux;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
@@ -73,6 +74,9 @@ class ExerciseExternalList extends AbstractModelList
     {
         $importData = ExerciseImportData::from($data);
         $importData->persist();
+
+        $name = $data['name'] ?? $this->getEntityName();
+        Flux::toast(text: "{$name} imported", variant: 'success');
 
         $this->resetState();
         $this->refreshKey++;

@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 abstract class AbstractModelTree extends Component
@@ -25,6 +26,9 @@ abstract class AbstractModelTree extends Component
     public ?int $confirmingId = null;
 
     public ?string $confirmingAction = null;
+
+    #[Url]
+    public ?int $edit = null;
 
     public int $refreshKey = 0;
 
@@ -218,7 +222,14 @@ abstract class AbstractModelTree extends Component
             }
         }
 
+        $listeners["{$this->editModalName}.closed"] = 'handleModalClosed';
+
         return $listeners;
+    }
+
+    public function handleModalClosed(): void
+    {
+        $this->edit = null;
     }
 
     public function confirmAction(string $actionName, int $id): void
@@ -335,6 +346,10 @@ abstract class AbstractModelTree extends Component
         $dto = $this->createDataFromForm($data);
         $dto->persist();
 
+        $name = $data['name'] ?? $this->getEntityName();
+        $action = $isNew ? 'created' : 'updated';
+        Flux::toast(text: "{$name} {$action}", variant: 'success');
+
         if ($isNew) {
             $maxSort = $this->getBaseQuery()
                 ->where('parent_id', $dto->parentId ?? null)
@@ -346,6 +361,7 @@ abstract class AbstractModelTree extends Component
             $model->save();
         }
 
+        $this->edit = null;
         unset($this->treeItems, $this->flatTreeItems);
         $this->refreshKey++;
         $this->emit();
@@ -353,7 +369,11 @@ abstract class AbstractModelTree extends Component
 
     public function removeItem(int $id): void
     {
-        $this->getBaseQuery()->where('id', $id)->delete();
+        $model = $this->getBaseQuery()->findOrFail($id);
+        $name = $model->name ?? $this->getEntityName();
+        $model->delete();
+
+        Flux::toast(text: "{$name} deleted", variant: 'success');
 
         unset($this->treeItems, $this->flatTreeItems);
         $this->refreshKey++;
@@ -512,6 +532,35 @@ abstract class AbstractModelTree extends Component
     public function mount(): void
     {
         $this->data = $this->buildDefaultsFromFieldsets();
+
+        if ($this->edit !== null) {
+            $this->openEditFromUrl();
+        }
+    }
+
+    protected function openEditFromUrl(): void
+    {
+        $model = $this->getBaseQuery()->find($this->edit);
+
+        if (! $model) {
+            $this->edit = null;
+
+            return;
+        }
+
+        $data = $this->dataFromModel($model)->toArray();
+
+        $this->dispatch("open-{$this->editModalName}", data: $data, title: 'Edit '.$this->getEntityName());
+    }
+
+    public function startEdit(int $id): void
+    {
+        $this->edit = $id;
+
+        $model = $this->getBaseQuery()->findOrFail($id);
+        $data = $this->dataFromModel($model)->toArray();
+
+        $this->dispatch("open-{$this->editModalName}", data: $data, title: 'Edit '.$this->getEntityName());
     }
 
     protected function emit(): void {}

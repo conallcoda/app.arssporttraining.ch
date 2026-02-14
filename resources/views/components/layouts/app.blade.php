@@ -17,6 +17,7 @@
     <flux:main class="w-full !p-0">
         {{ $slot }}
     </flux:main>
+    <flux:toast />
     @fluxScripts
 </body>
 

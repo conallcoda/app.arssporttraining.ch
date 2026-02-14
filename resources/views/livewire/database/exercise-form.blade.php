@@ -1,5 +1,6 @@
 <div>
-    <flux:modal :name="$name" :flyout="$flyout" :class="$maxWidth">
+    <flux:modal :name="$name" :flyout="$flyout" :class="$maxWidth"
+        x-on:close="Livewire.dispatch('{{ $name }}.closed')">
         <div class="space-y-6">
             <flux:heading size="lg">{{ $activeTitle ?? $title }}</flux:heading>
 

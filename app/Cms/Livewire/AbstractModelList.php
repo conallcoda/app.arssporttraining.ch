@@ -39,6 +39,9 @@ abstract class AbstractModelList extends Component
     public bool $compact = false;
 
     #[Url]
+    public ?int $edit = null;
+
+    #[Url]
     public string $sort = '';
 
     #[Url]
@@ -244,7 +247,14 @@ abstract class AbstractModelList extends Component
             }
         }
 
+        $listeners["{$this->editModalName}.closed"] = 'handleModalClosed';
+
         return $listeners;
+    }
+
+    public function handleModalClosed(): void
+    {
+        $this->edit = null;
     }
 
     public function confirmAction(string $actionName, int $id): void
@@ -301,7 +311,11 @@ abstract class AbstractModelList extends Component
 
     public function removeItem(int $id): void
     {
-        $this->getBaseQuery()->where('id', $id)->delete();
+        $model = $this->getBaseQuery()->findOrFail($id);
+        $name = $model->name ?? $this->getEntityName();
+        $model->delete();
+
+        Flux::toast(text: "{$name} deleted", variant: 'success');
 
         $this->resetState();
         $this->refreshKey++;
@@ -553,6 +567,63 @@ abstract class AbstractModelList extends Component
     public function mount(): void
     {
         $this->data = $this->buildDefaultsFromFieldsets();
+
+        if ($this->edit !== null) {
+            $this->openEditFromUrl();
+        }
+    }
+
+    protected function openEditFromUrl(): void
+    {
+        $model = $this->getBaseQuery()->find($this->edit);
+
+        if (! $model) {
+            $this->edit = null;
+
+            return;
+        }
+
+        $page = $this->resolvePageForItem($this->edit);
+
+        if ($page === null) {
+            $this->edit = null;
+
+            return;
+        }
+
+        $this->setPage($page);
+
+        if ($page > 1 && (int) request()->query('page', 1) !== $page) {
+            $url = request()->fullUrlWithQuery(['page' => $page]);
+            $this->js('history.replaceState({}, "", '.json_encode($url).')');
+        }
+
+        $data = $this->dataFromModel($model)->toArray();
+
+        $this->dispatch("open-{$this->editModalName}", data: $data, title: 'Edit '.$this->getEntityName());
+    }
+
+    protected function resolvePageForItem(int $id): ?int
+    {
+        $allIds = $this->buildItemsQuery()->pluck('id');
+
+        $position = $allIds->search($id);
+
+        if ($position === false) {
+            return null;
+        }
+
+        return (int) ceil(($position + 1) / $this->getPerPage());
+    }
+
+    public function startEdit(int $id): void
+    {
+        $this->edit = $id;
+
+        $model = $this->getBaseQuery()->findOrFail($id);
+        $data = $this->dataFromModel($model)->toArray();
+
+        $this->dispatch("open-{$this->editModalName}", data: $data, title: 'Edit '.$this->getEntityName());
     }
 
     protected function getFormDefinition(): Form|array
@@ -612,8 +683,7 @@ abstract class AbstractModelList extends Component
             ->all();
     }
 
-    #[Computed(persist: false)]
-    public function items()
+    protected function buildItemsQuery()
     {
         $query = $this->getBaseQuery();
         $table = $this->resolveTable();
@@ -670,7 +740,13 @@ abstract class AbstractModelList extends Component
             $query->orderBy($this->getSortColumn());
         }
 
-        return $query->paginate($this->getPerPage());
+        return $query;
+    }
+
+    #[Computed(persist: false)]
+    public function items()
+    {
+        return $this->buildItemsQuery()->paginate($this->getPerPage());
     }
 
     public function handleFormSubmitted(array $data): void
@@ -679,6 +755,9 @@ abstract class AbstractModelList extends Component
         $model->persist();
 
         $isNew = empty($data['id']);
+        $name = $data['name'] ?? $this->getEntityName();
+        $action = $isNew ? 'created' : 'updated';
+        Flux::toast(text: "{$name} {$action}", variant: 'success');
 
         if ($isNew) {
             $totalItems = $this->getBaseQuery()->count();
@@ -686,6 +765,7 @@ abstract class AbstractModelList extends Component
             $this->setPage($lastPage);
         }
 
+        $this->edit = null;
         $this->resetState();
         $this->refreshKey++;
         $this->emit();

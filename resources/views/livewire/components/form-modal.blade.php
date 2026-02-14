@@ -1,5 +1,6 @@
 <div>
     <flux:modal :name="$name" :flyout="$flyout" :class="$maxWidth"
+        x-on:close="Livewire.dispatch('{{ $name }}.closed')"
         x-on:focus-field.window="$nextTick(() => {
             const field = $event.detail.field;
             const index = $event.detail.index;

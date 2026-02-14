@@ -88,7 +88,10 @@
                         <flux:table.cell class="text-right">
                             <div class="flex gap-0.5 justify-end">
                                 @foreach ($this->rowActions as $action)
-                                    @if ($action->isFormModal())
+                                    @if ($action->isFormModal() && $action->name === 'edit')
+                                        <flux:button variant="ghost" size="xs" icon="{{ $action->icon }}"
+                                            wire:click="startEdit({{ $item->id }})" />
+                                    @elseif ($action->isFormModal())
                                         <flux:button variant="ghost" size="xs" icon="{{ $action->icon }}"
                                             x-on:click="Livewire.dispatch('open-{{ $this->getModalNameForAction($action) }}', {
                                                 data: {{ Js::from($item->toArray()) }},

@@ -100,12 +100,17 @@ class CategoryTree extends AbstractModelTree
         $dto = $this->createDataFromForm($data);
         $dto->persist();
 
+        $name = $data['name'] ?? $this->getEntityName();
+        $action = $isNew ? 'created' : 'updated';
+        Flux::toast(text: "{$name} {$action}", variant: 'success');
+
         $this->normalizeAlphabeticalSortOrder($dto->parentId);
 
         if ($isNew && $dto->parentId === null) {
             $this->selectedTab = (string) $dto->id;
         }
 
+        $this->edit = null;
         unset($this->treeItems, $this->flatTreeItems, $this->filteredFlatTreeItems, $this->rootCategories, $this->selectedRootName);
         $this->refreshKey++;
     }
@@ -213,11 +218,14 @@ class CategoryTree extends AbstractModelTree
     public function removeItem(int $id): void
     {
         $tag = $this->getBaseQuery()->findOrFail($id);
+        $name = $tag->name ?? $this->getEntityName();
         $parentId = $tag->parent_id;
         $wasRoot = $parentId === null;
 
         $deleteAction = new DeleteAction;
         $deleteAction->execute($tag);
+
+        Flux::toast(text: "{$name} deleted", variant: 'success');
 
         $this->normalizeAlphabeticalSortOrder($parentId);
 
@@ -228,7 +236,6 @@ class CategoryTree extends AbstractModelTree
             $firstRoot = $this->getRootsQuery()->orderBy('name')->first();
             $this->selectedTab = $firstRoot ? (string) $firstRoot->id : null;
         }
-
     }
 
     #[Computed(persist: false)]
