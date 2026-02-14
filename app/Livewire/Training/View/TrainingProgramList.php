@@ -60,7 +60,6 @@ class TrainingProgramList extends AbstractModelList
 
     protected function emit(): void
     {
-        parent::emit();
         $this->notifyChanged('programs');
     }
 }

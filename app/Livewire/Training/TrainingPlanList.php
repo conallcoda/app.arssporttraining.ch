@@ -86,8 +86,7 @@ class TrainingPlanList extends AbstractModelList
             $newProgram->exercises()->sync($exercisesWithPivot);
         }
 
-        unset($this->items);
+        $this->resetState();
         $this->refreshKey++;
-        $this->emit();
     }
 }

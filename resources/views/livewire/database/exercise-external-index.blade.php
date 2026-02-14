@@ -12,4 +12,5 @@
 <flux:main>
     <flux:heading size="xl" level="1" class="mb-6">Import</flux:heading>
     <livewire:database.exercise-external-list />
+    <x-youtube-player-modal />
 </flux:main>

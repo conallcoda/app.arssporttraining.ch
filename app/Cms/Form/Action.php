@@ -38,6 +38,12 @@ class Action
 
     public ?Closure $prepareData = null;
 
+    public ?string $alpineEventName = null;
+
+    public ?Closure $alpineEventData = null;
+
+    public ?Closure $visibleWhen = null;
+
     public function __construct(
         public string $name,
         public string $label,
@@ -144,6 +150,45 @@ class Action
         $this->prepareData = $callback;
 
         return $this;
+    }
+
+    public function alpineEvent(string $eventName, Closure $dataCallback): static
+    {
+        $this->behavior = ActionBehavior::AlpineEvent;
+        $this->alpineEventName = $eventName;
+        $this->alpineEventData = $dataCallback;
+
+        return $this;
+    }
+
+    public function visibleWhen(Closure $callback): static
+    {
+        $this->visibleWhen = $callback;
+
+        return $this;
+    }
+
+    public function isAlpineEvent(): bool
+    {
+        return $this->behavior === ActionBehavior::AlpineEvent;
+    }
+
+    public function isVisible(mixed $item): bool
+    {
+        if ($this->visibleWhen === null) {
+            return true;
+        }
+
+        return ($this->visibleWhen)($item);
+    }
+
+    public function getAlpineEventData(mixed $item): array
+    {
+        if ($this->alpineEventData === null) {
+            return [];
+        }
+
+        return ($this->alpineEventData)($item);
     }
 
     public function resolveModalName(string $entitySlug): string

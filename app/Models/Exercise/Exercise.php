@@ -24,6 +24,7 @@ class Exercise extends Model implements Taggable
         'instructions',
         'config',
         'category_id',
+        'external_id',
     ];
 
     protected $attributes = [
@@ -40,6 +41,11 @@ class Exercise extends Model implements Taggable
     public function category(): BelongsTo
     {
         return $this->belongsTo(Tag::class, 'category_id');
+    }
+
+    public function external(): BelongsTo
+    {
+        return $this->belongsTo(ExerciseExternal::class, 'external_id');
     }
 
     public function equipment(): MorphToMany

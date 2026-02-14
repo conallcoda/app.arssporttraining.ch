@@ -446,16 +446,6 @@ abstract class AbstractModelTree extends Component
             ->toString();
     }
 
-    protected function getEventName(): string
-    {
-        return Str::plural($this->getEntitySlug()).'-updated';
-    }
-
-    protected function getEventDataKey(): string
-    {
-        return Str::plural($this->getEntitySlug());
-    }
-
     protected function getEntityName(): string
     {
         return Str::of(class_basename($this))
@@ -522,24 +512,9 @@ abstract class AbstractModelTree extends Component
     public function mount(): void
     {
         $this->data = $this->buildDefaultsFromFieldsets();
-        $this->emit();
     }
 
-    protected function emit(): void
-    {
-        $query = $this->getBaseQuery();
-
-        if ($relationships = $this->getFormRelationshipsToLoad()) {
-            $query->with($relationships);
-        }
-
-        $allItems = $query
-            ->get()
-            ->map(fn (Model $model) => $this->dataFromModel($model)->toArray())
-            ->all();
-
-        $this->dispatch($this->getEventName(), ...[$this->getEventDataKey() => $allItems]);
-    }
+    protected function emit(): void {}
 
     public function render(): View
     {

@@ -44,6 +44,8 @@ abstract class AbstractModelList extends Component
     #[Url]
     public array $filters = [];
 
+    protected ?Table $resolvedTable = null;
+
     abstract protected function getDataClass(): string;
 
     abstract protected function getBaseQuery(): Builder;
@@ -301,7 +303,7 @@ abstract class AbstractModelList extends Component
     {
         $this->getBaseQuery()->where('id', $id)->delete();
 
-        unset($this->items);
+        $this->resetState();
         $this->refreshKey++;
         $this->emit();
     }
@@ -332,7 +334,7 @@ abstract class AbstractModelList extends Component
         $item->{$sortColumn} = $currentSort - 1;
         $item->save();
 
-        unset($this->items);
+        $this->resetState();
         $this->refreshKey++;
         $this->emit();
     }
@@ -364,7 +366,7 @@ abstract class AbstractModelList extends Component
         $item->{$sortColumn} = $currentSort + 1;
         $item->save();
 
-        unset($this->items);
+        $this->resetState();
         $this->refreshKey++;
         $this->emit();
     }
@@ -476,14 +478,14 @@ abstract class AbstractModelList extends Component
     {
         unset($this->filters[$name]);
         $this->resetPage();
-        unset($this->items);
+        $this->resetState();
     }
 
     public function applyFilters(): void
     {
         $this->filters = array_filter($this->filters, fn (mixed $value) => $value !== '' && $value !== null);
         $this->resetPage();
-        unset($this->items);
+        $this->resetState();
         Flux::modal($this->getEntitySlug().'-filters')->close();
     }
 
@@ -491,7 +493,7 @@ abstract class AbstractModelList extends Component
     {
         $this->filters = [];
         $this->resetPage();
-        unset($this->items);
+        $this->resetState();
     }
 
     public function updatedFilters(): void
@@ -513,16 +515,6 @@ abstract class AbstractModelList extends Component
             ->toString();
     }
 
-    protected function getEventName(): string
-    {
-        return Str::plural($this->getEntitySlug()).'-updated';
-    }
-
-    protected function getEventDataKey(): string
-    {
-        return Str::plural($this->getEntitySlug());
-    }
-
     protected function getEntityName(): string
     {
         return Str::of(class_basename($this))
@@ -538,7 +530,13 @@ abstract class AbstractModelList extends Component
 
     protected function resolveTable(): Table
     {
-        return $this->getTable();
+        return $this->resolvedTable ??= $this->getTable();
+    }
+
+    protected function resetState(): void
+    {
+        unset($this->items);
+        $this->resolvedTable = null;
     }
 
     protected function getPerPage(): int
@@ -555,7 +553,6 @@ abstract class AbstractModelList extends Component
     public function mount(): void
     {
         $this->data = $this->buildDefaultsFromFieldsets();
-        $this->emit();
     }
 
     protected function getFormDefinition(): Form|array
@@ -689,26 +686,12 @@ abstract class AbstractModelList extends Component
             $this->setPage($lastPage);
         }
 
-        unset($this->items);
+        $this->resetState();
         $this->refreshKey++;
         $this->emit();
     }
 
-    protected function emit(): void
-    {
-        $query = $this->getBaseQuery();
-
-        if ($relationships = $this->getFormRelationshipsToLoad()) {
-            $query->with($relationships);
-        }
-
-        $allItems = $query
-            ->get()
-            ->map(fn (Model $model) => $this->dataFromModel($model)->toArray())
-            ->all();
-
-        $this->dispatch($this->getEventName(), ...[$this->getEventDataKey() => $allItems]);
-    }
+    protected function emit(): void {}
 
     public function render(): View
     {

@@ -27,4 +27,26 @@ class Tree extends Field
 
         return $this;
     }
+
+    /** @return array<int, string> */
+    public function flatOptions(string $separator = ' / '): array
+    {
+        $result = [];
+        $this->flattenBranch($this->treeOptions, [], $separator, $result);
+
+        return $result;
+    }
+
+    /** @param list<array{value: int, name: string, children: list<mixed>}> $nodes */
+    private function flattenBranch(array $nodes, array $path, string $separator, array &$result): void
+    {
+        foreach ($nodes as $node) {
+            $currentPath = [...$path, $node['name']];
+            $result[$node['value']] = implode($separator, $currentPath);
+
+            if (! empty($node['children'])) {
+                $this->flattenBranch($node['children'], $currentPath, $separator, $result);
+            }
+        }
+    }
 }

@@ -108,7 +108,6 @@ class CategoryTree extends AbstractModelTree
 
         unset($this->treeItems, $this->flatTreeItems, $this->filteredFlatTreeItems, $this->rootCategories, $this->selectedRootName);
         $this->refreshKey++;
-        $this->emit();
     }
 
     #[Computed(persist: false)]
@@ -200,7 +199,6 @@ class CategoryTree extends AbstractModelTree
 
         unset($this->treeItems, $this->flatTreeItems, $this->filteredFlatTreeItems, $this->rootCategories, $this->selectedRootName);
         $this->refreshKey++;
-        $this->emit();
     }
 
     public function confirmDeleteRoot(): void
@@ -231,7 +229,6 @@ class CategoryTree extends AbstractModelTree
             $this->selectedTab = $firstRoot ? (string) $firstRoot->id : null;
         }
 
-        $this->emit();
     }
 
     #[Computed(persist: false)]

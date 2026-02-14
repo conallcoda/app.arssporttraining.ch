@@ -4,7 +4,9 @@
     use App\Cms\Display\DisplayFields\Relationship as RelationshipColumn;
     use App\Cms\Display\DisplayFields\TextWithBadgeGroups as TextWithBadgeGroupsColumn;
     use App\Cms\Display\DisplayFields\View as ViewColumn;
+    use App\Cms\Form\Fields\Pillbox as PillboxField;
     use App\Cms\Form\Fields\Select as SelectField;
+    use App\Cms\Form\Fields\Tree;
 @endphp
 
 <div>
@@ -27,7 +29,19 @@
                             @if (array_key_exists($filterName, $this->filters) && $filterField)
                                 <flux:input.group>
                                     <flux:input.group.prefix>{{ $tableFilter->getLabel() }}</flux:input.group.prefix>
-                                    @if ($filterField instanceof SelectField)
+                                    @if ($filterField instanceof Tree)
+                                        <flux:select wire:model.live="filters.{{ $filterName }}" variant="combobox" size="sm" placeholder="{{ $filterField->getPlaceholder() }}">
+                                            @foreach ($filterField->flatOptions() as $optionValue => $optionLabel)
+                                                <flux:select.option value="{{ $optionValue }}">{{ $optionLabel }}</flux:select.option>
+                                            @endforeach
+                                        </flux:select>
+                                    @elseif ($filterField instanceof PillboxField)
+                                        <flux:select wire:model.live="filters.{{ $filterName }}" variant="listbox" size="sm" multiple searchable placeholder="{{ $filterField->getPlaceholder() }}">
+                                            @foreach ($filterField->options as $optionValue => $optionLabel)
+                                                <flux:select.option value="{{ $optionValue }}">{{ $optionLabel }}</flux:select.option>
+                                            @endforeach
+                                        </flux:select>
+                                    @elseif ($filterField instanceof SelectField)
                                         <flux:select wire:model.live="filters.{{ $filterName }}" size="sm">
                                             @foreach ($filterField->options as $optionValue => $optionLabel)
                                                 <flux:select.option value="{{ $optionValue }}">{{ $optionLabel }}</flux:select.option>
@@ -314,6 +328,10 @@
                         <flux:table.cell class="text-right">
                             <div class="flex gap-0.5 justify-end">
                                 @foreach ($this->rowActions as $action)
+                                    @if (! $action->isVisible($item))
+                                        @continue
+                                    @endif
+
                                     @if ($action->isFormModal())
                                         <flux:button variant="ghost" size="xs" icon="{{ $action->icon }}"
                                             x-on:click="Livewire.dispatch('open-{{ $this->getModalNameForAction($action) }}', {
@@ -324,6 +342,9 @@
                                         <flux:button variant="ghost" size="xs" icon="{{ $action->icon }}"
                                             wire:click="confirmAction('{{ $action->name }}', {{ $item->id }})"
                                             class="text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400" />
+                                    @elseif ($action->isAlpineEvent())
+                                        <flux:button variant="ghost" size="xs" icon="{{ $action->icon }}"
+                                            x-on:click="$dispatch('{{ $action->alpineEventName }}', {{ Js::from($action->getAlpineEventData($item)) }})" />
                                     @elseif ($action->isDirect())
                                         @php
                                             $disabled = match ($action->disabledWhen) {

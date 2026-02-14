@@ -9,9 +9,13 @@ use App\Cms\Display\DisplayFields\Id;
 use App\Cms\Display\DisplayFields\TextWithBadgeGroups;
 use App\Cms\Display\Table;
 use App\Cms\Display\TableFilter;
+use App\Cms\Form\Action;
+use App\Cms\Form\Fields\Category as CategoryField;
+use App\Cms\Form\Fields\Pillbox as PillboxField;
 use App\Cms\Form\Fields\Text as TextField;
 use App\Cms\Livewire\AbstractModelList;
 use App\Data\Exercise\ExerciseExternalData;
+use App\Data\Exercise\ExerciseImportData;
 use App\Models\Exercise\ExerciseExternal;
 use App\Models\Tag;
 use Illuminate\Contracts\Database\Eloquent\Builder;
@@ -42,8 +46,44 @@ class ExerciseExternalList extends AbstractModelList
     protected function getActions(): array
     {
         return [
+            Action::make('preview', 'Preview')
+                ->row()
+                ->icon('eye')
+                ->alpineEvent('open-youtube-player', fn (ExerciseExternalData $data) => ['url' => $data->videoUrl])
+                ->visibleWhen(fn (ExerciseExternalData $data) => self::isYouTubeUrl($data->videoUrl)),
             $this->getEditAction(),
+            Action::make('import', 'Import')
+                ->rowMenu()
+                ->icon('download')
+                ->formModal(ExerciseImportData::class, 'Import Exercise', 'Import')
+                ->handler('handleImportSubmitted')
+                ->prepareData(fn (ExerciseExternal $model) => [
+                    'externalId' => $model->id,
+                    'name' => $model->name,
+                    'category' => $model->category_id,
+                    'equipment' => $model->equipment->pluck('id')->all(),
+                    'modifiers' => $model->modifiers->pluck('id')->all(),
+                    'videoUrl' => $model->video_url,
+                ]),
         ];
+    }
+
+    public function handleImportSubmitted(array $data): void
+    {
+        $importData = ExerciseImportData::from($data);
+        $importData->persist();
+
+        $this->resetState();
+        $this->refreshKey++;
+    }
+
+    private static function isYouTubeUrl(?string $url): bool
+    {
+        if ($url === null || $url === '') {
+            return false;
+        }
+
+        return (bool) preg_match('/(?:youtube\.com\/watch\?.*v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/', $url);
     }
 
     protected function getTable(): Table
@@ -96,6 +136,62 @@ class ExerciseExternalList extends AbstractModelList
                     ->field(
                         TextField::make('search')
                             ->label('Search')
+                    ),
+                TableFilter::callback('category', function (Builder $query, mixed $value): void {
+                    if ($value === '' || $value === null) {
+                        return;
+                    }
+
+                    $descendantIds = Tag::findOrFail($value)
+                        ->descendantsAndSelf()
+                        ->pluck('id');
+
+                    $query->whereIn('category_id', $descendantIds);
+                })
+                    ->field(
+                        CategoryField::make('category', 'exercise_category')
+                            ->label('Category')
+                            ->withOptions()
+                    ),
+                TableFilter::callback('equipment', function (Builder $query, mixed $value): void {
+                    $ids = is_array($value) ? array_filter($value) : [];
+
+                    if (empty($ids)) {
+                        return;
+                    }
+
+                    $query->whereHas('equipment', fn (Builder $q) => $q->whereIn('tags.id', $ids));
+                })
+                    ->field(
+                        PillboxField::make('equipment')
+                            ->label('Equipment')
+                            ->options(
+                                Tag::query()
+                                    ->forScope('exercise_equipment')
+                                    ->orderBy('name')
+                                    ->pluck('name', 'id')
+                                    ->all()
+                            )
+                    ),
+                TableFilter::callback('modifiers', function (Builder $query, mixed $value): void {
+                    $ids = is_array($value) ? array_filter($value) : [];
+
+                    if (empty($ids)) {
+                        return;
+                    }
+
+                    $query->whereHas('modifiers', fn (Builder $q) => $q->whereIn('tags.id', $ids));
+                })
+                    ->field(
+                        PillboxField::make('modifiers')
+                            ->label('Modifiers')
+                            ->options(
+                                Tag::query()
+                                    ->forScope('exercise_modifiers')
+                                    ->orderBy('name')
+                                    ->pluck('name', 'id')
+                                    ->all()
+                            )
                     ),
             ]);
     }
