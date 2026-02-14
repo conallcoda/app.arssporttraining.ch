@@ -17,6 +17,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class EquipmentList extends AbstractModelList
 {
+    protected function urlPrefix(): string
+    {
+        return 'eql_';
+    }
+
     protected function getDataClass(): string
     {
         return EquipmentData::class;

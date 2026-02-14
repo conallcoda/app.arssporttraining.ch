@@ -17,6 +17,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class ModifiersList extends AbstractModelList
 {
+    protected function urlPrefix(): string
+    {
+        return 'ml_';
+    }
+
     protected function getDataClass(): string
     {
         return ModifierData::class;

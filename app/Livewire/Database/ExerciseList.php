@@ -20,6 +20,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class ExerciseList extends AbstractModelList
 {
+    protected function urlPrefix(): string
+    {
+        return 'el_';
+    }
+
     protected function getDataClass(): string
     {
         return ExerciseData::class;

@@ -19,6 +19,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class ExerciseTemplateList extends AbstractModelList
 {
+    protected function urlPrefix(): string
+    {
+        return 'etl_';
+    }
+
     protected function getDataClass(): string
     {
         return ExerciseTemplateData::class;

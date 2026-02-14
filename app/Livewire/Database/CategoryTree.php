@@ -16,6 +16,11 @@ use Livewire\Attributes\Computed;
 
 class CategoryTree extends AbstractModelTree
 {
+    protected function urlPrefix(): string
+    {
+        return 'ct_';
+    }
+
     public ?string $confirmDescription = null;
 
     public ?string $selectedTab = null;

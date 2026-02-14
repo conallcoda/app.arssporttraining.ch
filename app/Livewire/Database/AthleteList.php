@@ -14,6 +14,11 @@ use Illuminate\Contracts\Database\Eloquent\Builder;
 
 class AthleteList extends AbstractModelList
 {
+    protected function urlPrefix(): string
+    {
+        return 'al_';
+    }
+
     protected function getDataClass(): string
     {
         return AthleteData::class;

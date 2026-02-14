@@ -19,13 +19,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
-use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 abstract class AbstractModelList extends Component
 {
     use Concerns\InteractsWithFormData;
+    use Concerns\WithUrlPrefix;
     use WithPagination;
 
     public array $options = [];
@@ -40,13 +40,10 @@ abstract class AbstractModelList extends Component
 
     public bool $compact = false;
 
-    #[Url]
     public ?int $edit = null;
 
-    #[Url]
     public string $sort = '';
 
-    #[Url]
     public array $filters = [];
 
     protected ?Table $resolvedTable = null;
@@ -415,7 +412,7 @@ abstract class AbstractModelList extends Component
             $this->sort = $column;
         }
 
-        $this->resetPage();
+        $this->resetPage(pageName: $this->prefixedPageName());
     }
 
     protected function effectiveSort(): string
@@ -497,14 +494,14 @@ abstract class AbstractModelList extends Component
     public function clearFilter(string $name): void
     {
         unset($this->filters[$name]);
-        $this->resetPage();
+        $this->resetPage(pageName: $this->prefixedPageName());
         $this->resetState();
     }
 
     public function applyFilters(): void
     {
         $this->filters = array_filter($this->filters, fn (mixed $value) => $value !== '' && $value !== null);
-        $this->resetPage();
+        $this->resetPage(pageName: $this->prefixedPageName());
         $this->resetState();
         Flux::modal($this->getEntitySlug().'-filters')->close();
     }
@@ -512,13 +509,13 @@ abstract class AbstractModelList extends Component
     public function clearFilters(): void
     {
         $this->filters = [];
-        $this->resetPage();
+        $this->resetPage(pageName: $this->prefixedPageName());
         $this->resetState();
     }
 
     public function updatedFilters(): void
     {
-        $this->resetPage();
+        $this->resetPage(pageName: $this->prefixedPageName());
     }
 
     protected function createDataFromForm(array $formData): AbstractData
@@ -570,6 +567,15 @@ abstract class AbstractModelList extends Component
         return $this->resolveTable()->getColumns();
     }
 
+    protected function urlProperties(): array
+    {
+        return [
+            'edit' => ['except' => null],
+            'sort' => ['except' => ''],
+            'filters' => ['except' => []],
+        ];
+    }
+
     protected function getDefaultOptions(): array
     {
         return [
@@ -614,10 +620,11 @@ abstract class AbstractModelList extends Component
             return;
         }
 
-        $this->setPage($page);
+        $this->setPage($page, pageName: $this->prefixedPageName());
 
-        if ($page > 1 && (int) request()->query('page', 1) !== $page) {
-            $url = request()->fullUrlWithQuery(['page' => $page]);
+        $pageParam = $this->prefixedPageName();
+        if ($page > 1 && (int) request()->query($pageParam, 1) !== $page) {
+            $url = request()->fullUrlWithQuery([$pageParam => $page]);
             $this->js('history.replaceState({}, "", '.json_encode($url).')');
         }
 
@@ -769,7 +776,7 @@ abstract class AbstractModelList extends Component
     #[Computed(persist: false)]
     public function items()
     {
-        return $this->buildItemsQuery()->paginate($this->getPerPage());
+        return $this->buildItemsQuery()->paginate($this->getPerPage(), pageName: $this->prefixedPageName());
     }
 
     public function handleFormSubmitted(array $data): void
@@ -785,7 +792,7 @@ abstract class AbstractModelList extends Component
         if ($isNew) {
             $totalItems = $this->getBaseQuery()->count();
             $lastPage = (int) ceil($totalItems / $this->getPerPage());
-            $this->setPage($lastPage);
+            $this->setPage($lastPage, pageName: $this->prefixedPageName());
         }
 
         $this->edit = null;

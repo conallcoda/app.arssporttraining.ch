@@ -19,6 +19,8 @@ trait HasOptions
 
     protected bool $optionsResolved = false;
 
+    public ?string $optionView = null;
+
     protected ?string $cacheKey = null;
 
     public function options(array $options): static

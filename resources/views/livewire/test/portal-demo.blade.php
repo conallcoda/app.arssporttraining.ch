@@ -15,6 +15,7 @@
                     icon="list"
                     x-on:click="Livewire.dispatch('portal:open', {
                         component: 'database.exercise-list',
+                        props: { prefixUrl: true },
                         title: 'Browse Exercises',
                         variant: 'flyout'
                     })"
@@ -27,6 +28,7 @@
                     icon="users"
                     x-on:click="Livewire.dispatch('portal:open', {
                         component: 'database.athlete-list',
+                        props: { prefixUrl: true },
                         title: 'Browse Athletes',
                         variant: 'flyout'
                     })"
@@ -39,6 +41,7 @@
                     icon="folder-tree"
                     x-on:click="Livewire.dispatch('portal:open', {
                         component: 'database.category-tree',
+                        props: { prefixUrl: true },
                         title: 'Category Tree',
                         variant: 'flyout'
                     })"
@@ -51,6 +54,7 @@
                     icon="dumbbell"
                     x-on:click="Livewire.dispatch('portal:open', {
                         component: 'database.equipment-list',
+                        props: { prefixUrl: true },
                         title: 'Equipment',
                         variant: 'default'
                     })"
@@ -63,6 +67,7 @@
                     icon="sliders-horizontal"
                     x-on:click="Livewire.dispatch('portal:open', {
                         component: 'database.modifiers-list',
+                        props: { prefixUrl: true },
                         title: 'Modifiers',
                         variant: 'default'
                     })"
@@ -87,7 +92,7 @@
                     icon="eye"
                     x-on:click="Livewire.dispatch('portal:open', {
                         component: 'database.exercise-list',
-                        props: { options: { showAddButton: false } },
+                        props: { prefixUrl: true, options: { showAddButton: false } },
                         title: 'Exercises (read-only)',
                         variant: 'flyout'
                     })"
@@ -100,7 +105,7 @@
                     icon="minimize-2"
                     x-on:click="Livewire.dispatch('portal:open', {
                         component: 'database.athlete-list',
-                        props: { options: { showAddButton: false, compact: true } },
+                        props: { prefixUrl: true, options: { showAddButton: false, compact: true } },
                         title: 'Athletes (compact, read-only)',
                         variant: 'flyout'
                     })"
@@ -113,7 +118,7 @@
                     icon="folder-tree"
                     x-on:click="Livewire.dispatch('portal:open', {
                         component: 'database.category-tree',
-                        props: { options: { showAddButton: false } },
+                        props: { prefixUrl: true, options: { showAddButton: false } },
                         title: 'Categories (read-only)',
                         variant: 'flyout'
                     })"
@@ -135,12 +140,12 @@
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 <div class="border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 space-y-2">
                     <flux:heading size="base">Equipment List (default)</flux:heading>
-                    <livewire:database.equipment-list />
+                    <livewire:database.equipment-list :prefix-url="true" />
                 </div>
 
                 <div class="border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 space-y-2">
                     <flux:heading size="base">Equipment List (no add, compact)</flux:heading>
-                    <livewire:database.equipment-list :options="['showAddButton' => false, 'compact' => true]" />
+                    <livewire:database.equipment-list :options="['showAddButton' => false, 'compact' => true]" :prefix-url="true" />
                 </div>
             </div>
         </section>

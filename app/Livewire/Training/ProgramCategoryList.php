@@ -12,6 +12,11 @@ use Illuminate\Contracts\Database\Eloquent\Builder;
 
 class ProgramCategoryList extends AbstractModelList
 {
+    protected function urlPrefix(): string
+    {
+        return 'pcl_';
+    }
+
     protected function getDataClass(): string
     {
         return ProgramCategoryData::class;

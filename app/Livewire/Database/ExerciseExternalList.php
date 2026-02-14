@@ -24,6 +24,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class ExerciseExternalList extends AbstractModelList
 {
+    protected function urlPrefix(): string
+    {
+        return 'eel_';
+    }
+
     protected function getDataClass(): string
     {
         return ExerciseExternalData::class;

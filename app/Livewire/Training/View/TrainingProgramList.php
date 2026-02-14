@@ -19,6 +19,11 @@ class TrainingProgramList extends AbstractModelList
 
     public TrainingPlan $trainingPlan;
 
+    protected function urlPrefix(): string
+    {
+        return 'tprl_';
+    }
+
     protected function getDataClass(): string
     {
         return TrainingProgramData::class;

@@ -14,12 +14,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
-use Livewire\Attributes\Url;
 use Livewire\Component;
 
 abstract class AbstractModelTree extends Component
 {
     use Concerns\InteractsWithFormData;
+    use Concerns\WithUrlPrefix;
 
     public array $options = [];
 
@@ -29,7 +29,6 @@ abstract class AbstractModelTree extends Component
 
     public ?string $confirmingAction = null;
 
-    #[Url]
     public ?int $edit = null;
 
     public int $refreshKey = 0;
@@ -533,6 +532,13 @@ abstract class AbstractModelTree extends Component
             ->map(fn (Field $field) => $field->name)
             ->values()
             ->all();
+    }
+
+    protected function urlProperties(): array
+    {
+        return [
+            'edit' => ['except' => null],
+        ];
     }
 
     protected function getDefaultOptions(): array

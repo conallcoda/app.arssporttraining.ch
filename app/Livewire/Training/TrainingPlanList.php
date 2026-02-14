@@ -15,6 +15,11 @@ use Illuminate\Contracts\Database\Eloquent\Builder;
 
 class TrainingPlanList extends AbstractModelList
 {
+    protected function urlPrefix(): string
+    {
+        return 'tpl_';
+    }
+
     protected function getDataClass(): string
     {
         return TrainingPlanData::class;

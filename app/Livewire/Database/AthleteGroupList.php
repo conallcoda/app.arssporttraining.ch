@@ -13,6 +13,11 @@ use Illuminate\Contracts\Database\Eloquent\Builder;
 
 class AthleteGroupList extends AbstractModelList
 {
+    protected function urlPrefix(): string
+    {
+        return 'agl_';
+    }
+
     protected function getDataClass(): string
     {
         return AthleteGroupData::class;
