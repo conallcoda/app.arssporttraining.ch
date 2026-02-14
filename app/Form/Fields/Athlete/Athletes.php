@@ -19,7 +19,7 @@ class Athletes extends Pillbox
 
     public function withOptions(): static
     {
-        $this->options = User::where('type', UserTypeEnum::Athlete)
+        $this->optionLoader = fn () => User::where('type', UserTypeEnum::Athlete)
             ->orderBy('forename')
             ->orderBy('surname')
             ->get()

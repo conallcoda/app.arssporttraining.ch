@@ -23,13 +23,18 @@ class Category extends Tree
 
     public function withOptions(): static
     {
-        $allTags = Tag::query()
-            ->forScope($this->scope)
-            ->orderBy('name')
-            ->get();
+        $scope = $this->scope;
 
-        $grouped = $allTags->groupBy('parent_id');
-        $this->treeOptions = $this->buildBranch($grouped, null);
+        $this->optionLoader = function () use ($scope) {
+            $allTags = Tag::query()
+                ->forScope($scope)
+                ->orderBy('name')
+                ->get();
+
+            $grouped = $allTags->groupBy('parent_id');
+
+            return $this->buildBranch($grouped, null);
+        };
 
         return $this;
     }

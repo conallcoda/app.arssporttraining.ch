@@ -49,7 +49,6 @@ class FormModal extends Component
         $this->cancelLabel = $cancelLabel;
         $this->flyout = $flyout;
         $this->maxWidth = $maxWidth;
-        $this->data = $this->buildDefaultsFromFieldsets();
     }
 
     #[Computed]

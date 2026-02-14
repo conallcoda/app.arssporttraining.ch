@@ -18,7 +18,7 @@ class Groups extends Pillbox
 
     public function withOptions(): static
     {
-        $this->options = UserGroup::orderBy('name')
+        $this->optionLoader = fn () => UserGroup::orderBy('name')
             ->get()
             ->mapWithKeys(fn ($group) => [$group->id => $group->name])
             ->all();

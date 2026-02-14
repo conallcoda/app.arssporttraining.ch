@@ -53,9 +53,10 @@ class ExerciseExternalList extends AbstractModelList
                 ->visibleWhen(fn (ExerciseExternalData $data) => self::isYouTubeUrl($data->videoUrl)),
             $this->getEditAction(),
             Action::make('import', 'Import')
-                ->rowMenu()
-                ->icon('download')
+                ->row()
+                ->icon('upload')
                 ->formModal(ExerciseImportData::class, 'Import Exercise', 'Import')
+                ->formComponent('database.exercise-form')
                 ->handler('handleImportSubmitted')
                 ->prepareData(fn (ExerciseExternal $model) => [
                     'externalId' => $model->id,

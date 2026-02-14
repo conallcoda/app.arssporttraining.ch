@@ -25,7 +25,7 @@
 <div {{ $attributes }}>
     @if ($field instanceof Select)
         @php
-            $options = $field->options;
+            $options = $field->getOptions();
 
             if ($field->unique && isset($repeaterItems) && isset($currentIndex)) {
                 $selectedValues = collect($repeaterItems)
@@ -262,13 +262,13 @@
             </div>
             @if ($field->live)
                 <flux:radio.group wire:model.live="{{ $wireModel }}" variant="segmented" :value="$currentValue">
-                    @foreach ($field->options as $value => $optionLabel)
+                    @foreach ($field->getOptions() as $value => $optionLabel)
                         <flux:radio value="{{ $value }}" label="{{ $optionLabel }}" />
                     @endforeach
                 </flux:radio.group>
             @else
                 <flux:radio.group wire:model="{{ $wireModel }}" variant="segmented" :value="$currentValue">
-                    @foreach ($field->options as $value => $optionLabel)
+                    @foreach ($field->getOptions() as $value => $optionLabel)
                         <flux:radio value="{{ $value }}" label="{{ $optionLabel }}" />
                     @endforeach
                 </flux:radio.group>
@@ -286,14 +286,14 @@
             @if ($field->live)
                 <flux:pillbox wire:model.live="{{ $wireModel }}" multiple :searchable="$field->searchable"
                     :placeholder="$field->getPlaceholder()" data-field="{{ $field->name }}">
-                    @foreach ($field->options as $value => $optionLabel)
+                    @foreach ($field->getOptions() as $value => $optionLabel)
                         <flux:pillbox.option value="{{ $value }}">{{ $optionLabel }}</flux:pillbox.option>
                     @endforeach
                 </flux:pillbox>
             @else
                 <flux:pillbox wire:model="{{ $wireModel }}" multiple :searchable="$field->searchable"
                     :placeholder="$field->getPlaceholder()" data-field="{{ $field->name }}">
-                    @foreach ($field->options as $value => $optionLabel)
+                    @foreach ($field->getOptions() as $value => $optionLabel)
                         <flux:pillbox.option value="{{ $value }}">{{ $optionLabel }}</flux:pillbox.option>
                     @endforeach
                 </flux:pillbox>
@@ -307,7 +307,7 @@
         @php
             $treeValue = data_get($this, $wireModel);
             $treeValue = is_int($treeValue) ? (int) $treeValue : null;
-            $treeOptionsJson = json_encode($field->treeOptions);
+            $treeOptionsJson = json_encode($field->getTreeOptions());
             $treeKey = md5($treeOptionsJson);
         @endphp
         <flux:field>
@@ -334,7 +334,7 @@
             </div>
             <flux:pillbox wire:model="{{ $wireModel }}" multiple searchable
                 placeholder="{{ $field->getPlaceholder() }}" data-field="{{ $field->name }}">
-                @foreach ($field->options as $value => $optionLabel)
+                @foreach ($field->getOptions() as $value => $optionLabel)
                     <flux:pillbox.option value="{{ $value }}">{{ $optionLabel }}</flux:pillbox.option>
                 @endforeach
             </flux:pillbox>
@@ -372,7 +372,7 @@
                                 $isFirst = $index === 0;
                                 $isLast = $index === count($items) - 1;
                                 $currentValue = $item[$field->valueAttribute] ?? null;
-                                $filteredOptions = collect($field->options)
+                                $filteredOptions = collect($field->getOptions())
                                     ->filter(
                                         fn($label, $value) => $value == $currentValue ||
                                             !in_array((int) $value, $selectedIds, true),

@@ -19,7 +19,7 @@ class Exercises extends Relationship
 
     public function withOptions(): static
     {
-        $this->options = Exercise::query()
+        $this->optionLoader = fn () => Exercise::query()
             ->orderBy('name')
             ->get()
             ->mapWithKeys(fn ($exercise) => [$exercise->id => $exercise->name])

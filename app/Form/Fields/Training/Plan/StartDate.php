@@ -17,7 +17,7 @@ class StartDate extends Select
 
     public function withOptions(): static
     {
-        $this->options = WeekOptions::generate();
+        $this->optionLoader = fn () => WeekOptions::generate();
 
         return $this;
     }

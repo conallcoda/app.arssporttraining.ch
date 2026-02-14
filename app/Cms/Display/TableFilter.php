@@ -68,8 +68,12 @@ class TableFilter
 
     public function resolveDisplayValue(mixed $value): string
     {
-        if ($this->field && property_exists($this->field, 'options') && ! empty($this->field->options)) {
-            return $this->field->options[$value] ?? (string) $value;
+        if ($this->field && method_exists($this->field, 'getOptions')) {
+            $options = $this->field->getOptions();
+
+            if (! empty($options)) {
+                return $options[$value] ?? (string) $value;
+            }
         }
 
         return (string) $value;

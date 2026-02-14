@@ -26,23 +26,14 @@ class ExerciseImportData extends AbstractData implements HasForms
 
     public function persist(): void
     {
-        $exercise = Exercise::create([
-            'name' => $this->name,
-            'video_url' => $this->videoUrl,
-            'instructions' => $this->instructions,
-            'config' => $this->config?->toArray() ?? [],
-            'category_id' => $this->category,
-            'external_id' => $this->externalId,
-        ]);
+        $exerciseData = ExerciseData::fromImport($this);
+        $exerciseData->persist();
 
-        $this->id = $exercise->id;
+        $this->id = $exerciseData->id;
 
-        $tagIds = collect([
-            ...$this->equipment,
-            ...$this->modifiers,
-        ])->filter()->all();
-
-        $exercise->tags()->sync($tagIds);
+        if ($this->externalId) {
+            Exercise::where('id', $this->id)->update(['external_id' => $this->externalId]);
+        }
     }
 
     public static function getForm(): Form

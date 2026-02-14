@@ -7,7 +7,7 @@ use App\Cms\Form\Fields;
 class SetsSetting extends AbstractSetting
 {
     public function __construct(
-        public string $deload = 'odd',
+        public string $deload = 'none',
         public int $deloadBy = 1,
         public string $label = 'Set',
         public int $default = 4,

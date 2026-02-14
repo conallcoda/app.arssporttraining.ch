@@ -14,9 +14,21 @@ abstract class Field
     use HasLabel;
     use HasValidation;
 
+    private static array $optionCache = [];
+
     public string $name;
 
     public string $type;
+
+    public static function getCachedOptions(string $key): mixed
+    {
+        return self::$optionCache[$key] ?? null;
+    }
+
+    public static function setCachedOptions(string $key, mixed $value): void
+    {
+        self::$optionCache[$key] = $value;
+    }
 
     public function __construct(string $name)
     {

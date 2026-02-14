@@ -37,13 +37,13 @@
                                         </flux:select>
                                     @elseif ($filterField instanceof PillboxField)
                                         <flux:select wire:model.live="filters.{{ $filterName }}" variant="listbox" size="sm" multiple searchable placeholder="{{ $filterField->getPlaceholder() }}">
-                                            @foreach ($filterField->options as $optionValue => $optionLabel)
+                                            @foreach ($filterField->getOptions() as $optionValue => $optionLabel)
                                                 <flux:select.option value="{{ $optionValue }}">{{ $optionLabel }}</flux:select.option>
                                             @endforeach
                                         </flux:select>
                                     @elseif ($filterField instanceof SelectField)
                                         <flux:select wire:model.live="filters.{{ $filterName }}" size="sm">
-                                            @foreach ($filterField->options as $optionValue => $optionLabel)
+                                            @foreach ($filterField->getOptions() as $optionValue => $optionLabel)
                                                 <flux:select.option value="{{ $optionValue }}">{{ $optionLabel }}</flux:select.option>
                                             @endforeach
                                         </flux:select>
