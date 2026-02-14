@@ -346,6 +346,14 @@
                 @foreach ($field->getOptions() as $value => $optionLabel)
                     <flux:pillbox.option value="{{ $value }}">{{ $optionLabel }}</flux:pillbox.option>
                 @endforeach
+                @if ($field->creatable)
+                    <flux:pillbox.option.create
+                        x-on:click="$wire.createTag('{{ $field->name }}', $el.closest('[data-flux-options]').querySelector('[data-flux-pillbox-input]').value)"
+                        min-length="2"
+                    >
+                        Create new
+                    </flux:pillbox.option.create>
+                @endif
             </flux:pillbox>
             <flux:error name="{{ $wireModel }}" />
         </flux:field>

@@ -2,9 +2,11 @@
 
 namespace Coda\Cms\Livewire\Concerns;
 
+use App\Models\Tag;
 use Coda\Cms\Form\Field;
 use Coda\Cms\Form\Fields\Relationship;
 use Coda\Cms\Form\Fields\Repeater;
+use Coda\Cms\Form\Fields\Tags;
 use Coda\Cms\Form\FormFieldset;
 use Coda\Cms\Form\FormFieldsetGroup;
 use Illuminate\Support\Arr;
@@ -301,5 +303,42 @@ trait InteractsWithFormData
 
         unset($this->data[$fieldName][$index]);
         $this->data[$fieldName] = array_values($this->data[$fieldName]);
+    }
+
+    public function createTag(string $fieldName, string $name): void
+    {
+        $name = trim($name);
+
+        if ($name === '') {
+            return;
+        }
+
+        $field = collect($this->getAllFields())->firstWhere('name', $fieldName);
+
+        if (! $field instanceof Tags) {
+            return;
+        }
+
+        $tag = Tag::query()
+            ->forScope($field->scope)
+            ->where('name', $name)
+            ->first();
+
+        if (! $tag) {
+            $tag = Tag::create([
+                'name' => $name,
+                'scope' => $field->scope,
+            ]);
+        }
+
+        if (! isset($this->data[$fieldName])) {
+            $this->data[$fieldName] = [];
+        }
+
+        if (! in_array($tag->id, $this->data[$fieldName])) {
+            $this->data[$fieldName][] = $tag->id;
+        }
+
+        unset($this->fieldsets);
     }
 }

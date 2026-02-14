@@ -14,6 +14,8 @@ class Tags extends Field
 
     public string $scope;
 
+    public bool $creatable = false;
+
     public array $options = [];
 
     protected ?\Closure $optionLoader = null;
@@ -91,6 +93,13 @@ class Tags extends Field
     public function cached(?string $key = null): static
     {
         $this->cacheKey = $key;
+
+        return $this;
+    }
+
+    public function create(bool $creatable = true): static
+    {
+        $this->creatable = $creatable;
 
         return $this;
     }

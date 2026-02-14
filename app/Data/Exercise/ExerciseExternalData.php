@@ -99,8 +99,8 @@ class ExerciseExternalData extends AbstractData implements HasForms
             ->fieldset('General', [
                 Fields\Text::make('name')->label('Name'),
                 Fields\Category::make('category', 'exercise_category')->label('Category')->withOptions(),
-                Fields\Tags::make('equipment', 'exercise_equipment')->label('Equipment')->withOptions(),
-                Fields\Tags::make('modifiers', 'exercise_modifiers')->label('Modifiers')->withOptions(),
+                Fields\Tags::make('equipment', 'exercise_equipment')->label('Equipment')->withOptions()->create(),
+                Fields\Tags::make('modifiers', 'exercise_modifiers')->label('Modifiers')->withOptions()->create(),
                 Fields\Url::make('videoUrl')->label('Video URL')->placeholder('https://'),
             ]);
     }
