@@ -34,5 +34,7 @@ class Color extends Select
         $this->label = 'Color';
         $this->options = self::AVAILABLE_COLORS;
         $this->default = self::DEFAULT_COLOR;
+        $this->variant = 'listbox';
+        $this->optionView = 'form.options.color';
     }
 }

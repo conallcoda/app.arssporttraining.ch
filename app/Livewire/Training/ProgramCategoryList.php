@@ -3,7 +3,9 @@
 namespace App\Livewire\Training;
 
 use App\Data\Training\ProgramCategoryData;
+use App\Form\Fields\Training\Program\Color;
 use App\Models\ProgramCategory;
+use Coda\Cms\Display\DisplayFields\ColorBadge;
 use Coda\Cms\Display\DisplayFields\Id;
 use Coda\Cms\Display\DisplayFields\Text;
 use Coda\Cms\Display\Table;
@@ -41,8 +43,9 @@ class ProgramCategoryList extends AbstractModelList
                     ->label('Name')
                     ->width('w-1/2')
                     ->modal(),
-                Text::make('color')
-                    ->label('Color'),
+                ColorBadge::make('color')
+                    ->label('Color')
+                    ->colorLabels(Color::AVAILABLE_COLORS),
             ]);
     }
 }

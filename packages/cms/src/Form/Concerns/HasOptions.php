@@ -99,4 +99,11 @@ trait HasOptions
 
         return $this;
     }
+
+    public function optionView(string $view): static
+    {
+        $this->optionView = $view;
+
+        return $this;
+    }
 }

@@ -40,6 +40,9 @@
             }
 
             $selectVariant = $field->variant;
+            if ($field->optionView && !$selectVariant) {
+                $selectVariant = 'listbox';
+            }
             if ($field->multiple && !$selectVariant) {
                 $selectVariant = 'listbox';
             }
@@ -62,7 +65,13 @@
                     <flux:select.option value="">{{ $field->getPlaceholder() }}</flux:select.option>
                 @endif
                 @foreach ($options as $value => $optionLabel)
-                    <flux:select.option value="{{ $value }}">{{ $optionLabel }}</flux:select.option>
+                    @if ($field->optionView)
+                        <flux:select.option value="{{ $value }}">
+                            @include($field->optionView, ['value' => $value, 'label' => $optionLabel])
+                        </flux:select.option>
+                    @else
+                        <flux:select.option value="{{ $value }}">{{ $optionLabel }}</flux:select.option>
+                    @endif
                 @endforeach
             </flux:select>
             <flux:error name="{{ $wireModel }}" />

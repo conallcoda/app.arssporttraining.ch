@@ -1,6 +1,7 @@
 @php
     use Coda\Cms\Display\DisplayFields\Badge as BadgeColumn;
     use Coda\Cms\Display\DisplayFields\Breadcrumb as BreadcrumbColumn;
+    use Coda\Cms\Display\DisplayFields\ColorBadge as ColorBadgeColumn;
     use Coda\Cms\Display\DisplayFields\Relationship as RelationshipColumn;
     use Coda\Cms\Display\DisplayFields\TextWithBadgeGroups as TextWithBadgeGroupsColumn;
     use Coda\Cms\Display\DisplayFields\View as ViewColumn;
@@ -266,6 +267,13 @@
                                             @endforeach
                                         @endif
                                     </div>
+                                @elseif ($column instanceof ColorBadgeColumn)
+                                    @php $colorValue = $item->{$column->field}; @endphp
+                                    @if ($colorValue)
+                                        <flux:badge size="sm" style="background-color: var(--color-{{ $colorValue }}-500); color: white;">
+                                            {{ $column->formatValue($colorValue) }}
+                                        </flux:badge>
+                                    @endif
                                 @elseif ($column instanceof TextWithBadgeGroupsColumn)
                                     <div class="py-1 flex flex-wrap items-center gap-1">
                                         @if (property_exists($column, 'modalField') && $column->modalField)
