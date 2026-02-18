@@ -14,6 +14,6 @@ class MeasuredWeight extends Number
         $this->min = 0;
         $this->step = 0.5;
         $this->suffix = 'kg';
-        $this->default = 52;
+        $this->default = 50;
     }
 }

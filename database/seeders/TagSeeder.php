@@ -11,6 +11,7 @@ class TagSeeder extends Seeder
     {
         $this->seedMuscleGroups();
         $this->seedEquipment();
+        $this->seedExerciseModifiers();
     }
 
     protected function seedMuscleGroups(): void
@@ -49,6 +50,19 @@ class TagSeeder extends Seeder
         foreach ($tags as $name) {
             Tag::firstOrCreate(
                 ['name' => $name, 'scope' => 'equipment'],
+            );
+        }
+    }
+
+    protected function seedExerciseModifiers(): void
+    {
+        $tags = [
+            'Reverse',
+        ];
+
+        foreach ($tags as $name) {
+            Tag::firstOrCreate(
+                ['name' => $name, 'scope' => 'exercise_modifiers'],
             );
         }
     }

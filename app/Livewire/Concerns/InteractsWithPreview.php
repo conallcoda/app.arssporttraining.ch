@@ -38,9 +38,9 @@ trait InteractsWithPreview
         $this->data['config']['preview'] = array_merge($this->data['config']['preview'] ?? [], [
             'weeks' => $this->defaultWeeks,
             'sessionsPerWeek' => $this->defaultSessionsPerWeek,
-            'measuredReps' => 8,
-            'measuredWeight' => 52,
-            'targetGoal' => 7,
+            'measuredReps' => 1,
+            'measuredWeight' => 50,
+            'targetGoal' => 10,
         ]);
     }
 

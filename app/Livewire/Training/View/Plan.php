@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Training\View;
 
+use App\Data\Training\Config\TrainingPlanConfig;
 use App\Models\TrainingPlan;
 use App\Models\Users\User;
 use App\Support\WeekOptions;
@@ -70,75 +71,13 @@ class Plan extends Component
     #[Computed]
     public function scheduleWeeks(): array
     {
-        $defaultWeeks = $this->trainingPlan->config->get('default.schedule.weeks', []);
+        $config = TrainingPlanConfig::from($this->trainingPlan->config->all());
 
-        if ($this->user === null) {
-            return $defaultWeeks;
+        if ($this->user !== null && ! $config->isUserScheduleLocked($this->user)) {
+            return $config->userScheduleWeeks($this->user);
         }
 
-        $userOverrides = $this->trainingPlan->config->get("users.{$this->user}.schedule.weeks", []);
-
-        if (empty($userOverrides)) {
-            return $defaultWeeks;
-        }
-
-        $defaultWeekIds = collect($defaultWeeks)->pluck('id')->all();
-
-        $userOverridesCollection = collect($userOverrides);
-
-        $weeks = collect($defaultWeeks)->map(function ($week, $index) use ($userOverridesCollection) {
-            $weekId = $week['id'];
-            $override = $userOverridesCollection->firstWhere('id', $weekId);
-
-            if (! isset($week['sort'])) {
-                $week['sort'] = $index;
-            }
-
-            if (! $override) {
-                return $week;
-            }
-
-            if (! empty($override['removed'])) {
-                return null;
-            }
-
-            if (array_key_exists('linkedTo', $override)) {
-                $week['linkedTo'] = $override['linkedTo'];
-            }
-
-            if (! empty($override['slots'])) {
-                $week['slots'] = $this->mergeSlotOverrides($week['slots'] ?? [], $override['slots']);
-            }
-
-            return $week;
-        })->filter();
-
-        $userAddedWeeks = $userOverridesCollection
-            ->filter(fn ($override) => ! in_array($override['id'] ?? null, $defaultWeekIds));
-
-        return $weeks->merge($userAddedWeeks)
-            ->sortBy('sort')
-            ->values()
-            ->all();
-    }
-
-    protected function mergeSlotOverrides(array $baseSlots, array $overrideSlots): array
-    {
-        $result = $baseSlots;
-
-        foreach ($overrideSlots as $override) {
-            $day = $override['day'];
-            $slot = $override['slot'];
-            $programId = $override['programId'] ?? null;
-
-            $result = array_filter($result, fn ($s) => ! ($s['day'] === $day && $s['slot'] === $slot));
-
-            if ($programId !== null) {
-                $result[] = $override;
-            }
-        }
-
-        return array_values($result);
+        return $config->defaultScheduleWeeks();
     }
 
     #[Computed]
@@ -150,9 +89,10 @@ class Plan extends Component
         foreach ($weeks as $week) {
             $slots = $this->getResolvedSlotsForWeek($week, $weeks);
             foreach ($slots as $slot) {
-                $programId = $slot['programId'] ?? null;
-                if ($programId !== null && ! in_array($programId, $programIds)) {
-                    $programIds[] = $programId;
+                foreach ($slot['programs'] ?? [] as $programId) {
+                    if (! in_array($programId, $programIds)) {
+                        $programIds[] = $programId;
+                    }
                 }
             }
         }
@@ -162,7 +102,7 @@ class Plan extends Component
 
     protected function getResolvedSlotsForWeek(array $week, array $allWeeks): array
     {
-        if ($week['linkedTo'] === null) {
+        if (($week['linkedTo'] ?? null) === null) {
             return $week['slots'] ?? [];
         }
 
@@ -192,13 +132,14 @@ class Plan extends Component
 
     protected function loadStartDate(): void
     {
+        $config = TrainingPlanConfig::from($this->trainingPlan->config->all());
+
         if ($this->user === null) {
-            $startDate = $this->trainingPlan->config->get('default.schedule.startDate');
+            $startDate = $config->defaultScheduleStartDate();
             $this->startDate = ! empty($startDate) ? $startDate : WeekOptions::getCurrentWeekValue();
         } else {
-            $userStartDate = $this->trainingPlan->config->get("users.{$this->user}.schedule.startDate");
-            $defaultStartDate = $this->trainingPlan->config->get('default.schedule.startDate');
-            $this->startDate = ! empty($userStartDate) ? $userStartDate : (! empty($defaultStartDate) ? $defaultStartDate : WeekOptions::getCurrentWeekValue());
+            $startDate = $config->userScheduleStartDate($this->user);
+            $this->startDate = ! empty($startDate) ? $startDate : WeekOptions::getCurrentWeekValue();
         }
 
         unset($this->scheduleWeeks);
@@ -214,13 +155,7 @@ class Plan extends Component
         if ($this->user === null) {
             $this->trainingPlan->config->set('default.schedule.startDate', $this->startDate);
         } else {
-            $defaultStartDate = $this->trainingPlan->config->get('default.schedule.startDate');
-
-            if ($this->startDate === $defaultStartDate) {
-                $this->trainingPlan->config->forget("users.{$this->user}.schedule.startDate");
-            } else {
-                $this->trainingPlan->config->set("users.{$this->user}.schedule.startDate", $this->startDate);
-            }
+            $this->trainingPlan->config->set("users.{$this->user}.schedule.startDate", $this->startDate);
         }
 
         $this->trainingPlan->save();

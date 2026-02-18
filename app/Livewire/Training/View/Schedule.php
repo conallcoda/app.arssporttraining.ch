@@ -3,18 +3,19 @@
 namespace App\Livewire\Training\View;
 
 use App\Data\Training\Config\Schedule\ScheduleWeek;
-use App\Data\Training\Config\Schedule\ScheduleWeekCollection;
 use App\Data\Training\Config\TrainingPlanConfig;
 use App\Data\Training\TrainingProgramData;
 use App\Form\Fields\Training\Program\Color;
 use App\Models\TrainingPlan;
 use App\Models\Users\User;
+use App\Support\WeekOptions;
 use Coda\Cms\Form\Field;
 use Coda\Cms\Form\Fields\Relationship;
 use Coda\Cms\Form\Form;
 use Coda\Cms\Form\FormFieldset;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection as BaseCollection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
@@ -30,6 +31,8 @@ class Schedule extends Component
 
     #[Url(except: null, as: 'user')]
     public int|string|null $user = null;
+
+    public ?string $startDate = null;
 
     public ?string $removingWeekId = null;
 
@@ -52,6 +55,7 @@ class Schedule extends Component
     public function mount(): void
     {
         $this->resetProgramForm();
+        $this->loadStartDate();
     }
 
     public function updatingUser(mixed $value): ?int
@@ -76,7 +80,9 @@ class Schedule extends Component
     public function selectUser(?int $userId): void
     {
         $this->user = $userId;
+        $this->loadStartDate();
         unset($this->schedule);
+        unset($this->hasCustomSchedule);
     }
 
     #[Computed]
@@ -86,74 +92,33 @@ class Schedule extends Component
     }
 
     #[Computed]
-    public function defaultSchedule(): ScheduleWeekCollection
+    public function hasCustomSchedule(): bool
     {
-        return ScheduleWeekCollection::fromArray($this->config->defaultScheduleWeeks());
-    }
-
-    #[Computed]
-    public function schedule(): ScheduleWeekCollection
-    {
-        $defaultWeeks = $this->config->defaultScheduleWeeks();
-        $userOverrides = $this->user !== null
-            ? $this->config->userScheduleWeeks($this->user)
-            : [];
-
-        return ScheduleWeekCollection::fromArrays($defaultWeeks, $userOverrides);
-    }
-
-    public function hasUserSchedule(int $userId): bool
-    {
-        $userOverrides = $this->config->userScheduleWeeks($userId);
-
-        if (empty($userOverrides)) {
+        if ($this->user === null) {
             return false;
         }
 
-        $defaultWeekIds = $this->defaultSchedule->items()->pluck('id')->all();
-
-        return ScheduleWeekCollection::fromArray($userOverrides)->hasOverrides($defaultWeekIds);
+        return ! $this->config->isUserScheduleLocked($this->user);
     }
 
-    public function isViewingCustomSchedule(): bool
+    /** @return BaseCollection<int, ScheduleWeek> */
+    #[Computed]
+    public function schedule(): BaseCollection
     {
-        return $this->user !== null && $this->hasUserSchedule($this->user);
+        $weeks = ($this->user !== null && $this->hasCustomSchedule)
+            ? $this->config->userScheduleWeeks($this->user)
+            : $this->config->defaultScheduleWeeks();
+
+        return collect($weeks)->map(fn (array $week, int $index) => ScheduleWeek::from([
+            ...$week,
+            'sort' => $week['sort'] ?? $index,
+        ]));
     }
 
-    public function countUserScheduleChanges(int $userId): int
+    #[Computed]
+    public function weekOptions(): array
     {
-        $userOverrides = $this->config->userScheduleWeeks($userId);
-
-        if (empty($userOverrides)) {
-            return 0;
-        }
-
-        $defaultWeekIds = $this->defaultSchedule->items()->pluck('id')->all();
-        $count = 0;
-
-        foreach ($userOverrides as $weekOverride) {
-            $weekId = $weekOverride['id'] ?? null;
-
-            if (! in_array($weekId, $defaultWeekIds)) {
-                $count++;
-
-                continue;
-            }
-
-            if (! empty($weekOverride['removed'])) {
-                $count++;
-
-                continue;
-            }
-
-            if (array_key_exists('linkedTo', $weekOverride)) {
-                $count++;
-            }
-
-            $count += count($weekOverride['slots'] ?? []);
-        }
-
-        return $count;
+        return WeekOptions::generate();
     }
 
     #[Computed]
@@ -167,7 +132,7 @@ class Schedule extends Component
     #[Computed]
     public function availableWeeksForLinking(): array
     {
-        return $this->schedule->items()
+        return $this->schedule
             ->filter(fn (ScheduleWeek $week) => $week->linkedTo === null && $week->id !== $this->linkingWeekId)
             ->map(fn (ScheduleWeek $week, int $index) => [
                 'id' => $week->id,
@@ -201,7 +166,7 @@ class Schedule extends Component
             return $week->grid();
         }
 
-        $sourceWeek = $this->schedule->findById($week->linkedTo);
+        $sourceWeek = $this->schedule->firstWhere('id', $week->linkedTo);
 
         return $sourceWeek ? $this->getResolvedSlots($sourceWeek) : $week->grid();
     }
@@ -215,30 +180,6 @@ class Schedule extends Component
         $program = $this->programs->firstWhere('id', $programId);
 
         return $program?->programCategory?->color ?? Color::DEFAULT_COLOR;
-    }
-
-    public function getDefaultWeekLinkedTo(string $weekId): ?string
-    {
-        $week = $this->defaultSchedule->findById($weekId);
-
-        return $week?->linkedTo;
-    }
-
-    public function userHasUnlinkedWeek(string $weekId): bool
-    {
-        if ($this->user === null) {
-            return false;
-        }
-
-        $userWeeks = $this->config->userScheduleWeeks($this->user);
-
-        foreach ($userWeeks as $week) {
-            if (($week['id'] ?? null) === $weekId && array_key_exists('linkedTo', $week) && $week['linkedTo'] === null) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     public function openRemoveModal(string $weekId): void
@@ -261,7 +202,7 @@ class Schedule extends Component
     public function openLinkModal(string $weekId): void
     {
         $this->linkingWeekId = $weekId;
-        $week = $this->schedule->findById($weekId);
+        $week = $this->schedule->firstWhere('id', $weekId);
         $this->linkToWeekId = $week?->linkedTo;
         unset($this->availableWeeksForLinking);
         Flux::modal('link-week')->show();
@@ -283,23 +224,9 @@ class Schedule extends Component
         Flux::modal('link-week')->close();
     }
 
-    public function openAddProgramModal(string $weekId, int $day, int $slot): void
-    {
-        $week = $this->schedule->findById($weekId);
-        if ($week && $week->linkedTo !== null) {
-            return;
-        }
-
-        $this->resetProgramForm();
-        $this->assigningWeekId = $weekId;
-        $this->assigningDay = $day;
-        $this->assigningSlot = $slot;
-        Flux::modal('add-program')->show();
-    }
-
     public function editProgram(int $programId, string $weekId, int $day, int $slot): void
     {
-        $week = $this->schedule->findById($weekId);
+        $week = $this->schedule->firstWhere('id', $weekId);
         if ($week && $week->linkedTo !== null) {
             return;
         }
@@ -388,15 +315,7 @@ class Schedule extends Component
         $programId = $this->editingProgramId;
 
         if ($programId !== null) {
-            if ($this->user === null) {
-                $this->onScheduleEvent('remove-program-from-slots', ['programId' => $programId]);
-            } else {
-                $this->onScheduleEvent('clear-slot', [
-                    'weekId' => $this->assigningWeekId,
-                    'day' => $this->assigningDay,
-                    'slot' => $this->assigningSlot,
-                ]);
-            }
+            $this->onScheduleEvent('remove-program-from-slots', ['programId' => $programId]);
 
             if (! ScheduleHandler::isProgramUsedInConfig($this->trainingPlan, $programId, $this->users->pluck('id')->all())) {
                 $program = $this->programs->firstWhere('id', $programId);
@@ -421,6 +340,18 @@ class Schedule extends Component
         $this->assigningSlot = null;
         $this->linkingProgramId = null;
         $this->data = $this->buildDefaultsFromFieldsets();
+    }
+
+    public function updatedStartDate(): void
+    {
+        if ($this->user === null) {
+            $this->trainingPlan->config->set('default.schedule.startDate', $this->startDate);
+        } else {
+            $this->trainingPlan->config->set("users.{$this->user}.schedule.startDate", $this->startDate);
+        }
+
+        $this->trainingPlan->save();
+        $this->trainingPlan->refresh();
     }
 
     public function addRelationshipItem(string $fieldName): void
@@ -492,8 +423,29 @@ class Schedule extends Component
         $this->trainingPlan->refresh();
         unset($this->config);
         unset($this->schedule);
-        unset($this->defaultSchedule);
+        unset($this->hasCustomSchedule);
         unset($this->availableWeeksForLinking);
+
+        $this->loadStartDate();
+    }
+
+    protected function loadStartDate(): void
+    {
+        if ($this->user === null) {
+            $startDate = $this->trainingPlan->config->get('default.schedule.startDate');
+            $this->startDate = ! empty($startDate) ? $startDate : WeekOptions::getCurrentWeekValue();
+        } else {
+            $config = TrainingPlanConfig::from($this->trainingPlan->config->all());
+
+            if ($config->isUserScheduleLocked($this->user)) {
+                $defaultStartDate = $this->trainingPlan->config->get('default.schedule.startDate');
+                $this->startDate = ! empty($defaultStartDate) ? $defaultStartDate : WeekOptions::getCurrentWeekValue();
+            } else {
+                $userStartDate = $this->trainingPlan->config->get("users.{$this->user}.schedule.startDate");
+                $defaultStartDate = $this->trainingPlan->config->get('default.schedule.startDate');
+                $this->startDate = ! empty($userStartDate) ? $userStartDate : (! empty($defaultStartDate) ? $defaultStartDate : WeekOptions::getCurrentWeekValue());
+            }
+        }
     }
 
     protected function getAllFields(): array

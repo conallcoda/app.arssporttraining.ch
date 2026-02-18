@@ -58,6 +58,17 @@ class TrainingPlanConfig extends AbstractConfig
         return $this->default->schedule->startDate ?: null;
     }
 
+    public function isUserScheduleLocked(int $userId): bool
+    {
+        $user = $this->forUser($userId);
+
+        if ($user === null || $user->schedule instanceof Optional) {
+            return true;
+        }
+
+        return empty($user->schedule->weeks);
+    }
+
     public function userScheduleWeeks(int $userId): array
     {
         $user = $this->forUser($userId);
@@ -71,13 +82,17 @@ class TrainingPlanConfig extends AbstractConfig
 
     public function userScheduleStartDate(int $userId): ?string
     {
+        if ($this->isUserScheduleLocked($userId)) {
+            return $this->defaultScheduleStartDate();
+        }
+
         $user = $this->forUser($userId);
 
         if ($user === null || $user->schedule instanceof Optional) {
-            return null;
+            return $this->defaultScheduleStartDate();
         }
 
-        return $user->schedule->startDate ?: null;
+        return $user->schedule->startDate ?: $this->defaultScheduleStartDate();
     }
 
     public function setDefaultScheduleWeeks(array $weeks): void
@@ -100,6 +115,24 @@ class TrainingPlanConfig extends AbstractConfig
                 'startDate' => $user->schedule instanceof Optional ? '' : $user->schedule->startDate,
             ]);
         }
+    }
+
+    public function unlockUserSchedule(int $userId): void
+    {
+        $defaultWeeks = $this->defaultScheduleWeeks();
+        $defaultStartDate = $this->defaultScheduleStartDate() ?? '';
+
+        $this->users[$userId] = UserTrainingPlanConfig::from([
+            'schedule' => [
+                'weeks' => $defaultWeeks,
+                'startDate' => $defaultStartDate,
+            ],
+        ]);
+    }
+
+    public function lockUserSchedule(int $userId): void
+    {
+        unset($this->users[$userId]);
     }
 
     protected function toPlainArrays(array $items): array

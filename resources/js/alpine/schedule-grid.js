@@ -3,7 +3,6 @@ document.addEventListener('alpine:init', () => {
         draggedWeekId: null,
         draggedDay: null,
         draggedSlot: null,
-        draggedProgramId: null,
         isDraggingOver: null,
         isDropDisallowed: false,
         draggedCell: null,
@@ -16,7 +15,6 @@ document.addEventListener('alpine:init', () => {
             this.draggedWeekId = el.dataset.weekId;
             this.draggedDay = parseInt(el.dataset.day, 10);
             this.draggedSlot = parseInt(el.dataset.slot, 10);
-            this.draggedProgramId = parseInt(el.dataset.programId, 10);
             this.draggedCell = this.draggedWeekId + '-' + this.draggedDay + '-' + this.draggedSlot;
             event.dataTransfer.effectAllowed = 'move';
         },
@@ -45,7 +43,6 @@ document.addEventListener('alpine:init', () => {
             this.draggedWeekId = null;
             this.draggedDay = null;
             this.draggedSlot = null;
-            this.draggedProgramId = null;
             this.draggedCell = null;
             this.isDraggingOver = null;
             this.isDropDisallowed = false;
@@ -56,7 +53,7 @@ document.addEventListener('alpine:init', () => {
             const targetWeekId = el.dataset.weekId;
             const targetDay = parseInt(el.dataset.day, 10);
             const targetSlot = parseInt(el.dataset.slot, 10);
-            const targetProgramId = el.dataset.programId ? parseInt(el.dataset.programId, 10) : null;
+            const targetHasPrograms = !!el.dataset.hasPrograms;
 
             if (this.isDropDisallowed || !this.draggedWeekId) {
                 this.handleDragEnd();
@@ -72,7 +69,7 @@ document.addEventListener('alpine:init', () => {
                 return;
             }
 
-            if (targetProgramId !== null) {
+            if (targetHasPrograms) {
                 this.$wire.dispatch('schedule-event', {
                     type: 'swap-programs',
                     data: {

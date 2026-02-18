@@ -14,6 +14,6 @@ class MeasuredReps extends Number
         $this->min = 1;
         $this->step = 1;
         $this->suffix = 'reps';
-        $this->default = 8;
+        $this->default = 1;
     }
 }

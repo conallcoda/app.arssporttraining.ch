@@ -11,6 +11,6 @@ class TargetGoal extends Percentage
         parent::__construct($name);
 
         $this->label = 'Target Goal';
-        $this->default = 7;
+        $this->default = 10;
     }
 }

@@ -18,7 +18,7 @@
 @php
     $wireModel = $prefix ? "{$prefix}.{$field->name}" : $field->name;
     $resolvedSuffix = method_exists($field, 'resolveSuffix')
-        ? $field->resolveSuffix($prefix ? data_get($this, $prefix, []) : [])
+        ? $field->resolveSuffix($prefix ? (data_get($this, $prefix) ?? []) : [])
         : $resolvedSuffix ?? null;
 @endphp
 
@@ -121,7 +121,7 @@
         </flux:field>
     @elseif ($field instanceof Duration)
         @php
-            $siblingData = $prefix ? data_get($this, $prefix, []) : [];
+            $siblingData = $prefix ? (data_get($this, $prefix) ?? []) : [];
             $isMasked = $field->isMasked($siblingData);
             $mask = $field->resolveMask($siblingData);
         @endphp

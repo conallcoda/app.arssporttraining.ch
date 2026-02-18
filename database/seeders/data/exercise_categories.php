@@ -86,4 +86,5 @@ return [
         ],
     ],
     'Cardio' => [],
+    'Plyometrics' => [],
 ];

@@ -12,7 +12,11 @@ class PreviewSetting extends AbstractSetting
         public ?int $measuredReps = null,
         public ?float $measuredWeight = null,
         public ?int $targetGoal = null,
-    ) {}
+    ) {
+        $this->measuredReps ??= 1;
+        $this->measuredWeight ??= 50;
+        $this->targetGoal ??= 10;
+    }
 
     public static function fields(array $data = []): array
     {

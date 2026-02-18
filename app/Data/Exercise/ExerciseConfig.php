@@ -23,7 +23,15 @@ class ExerciseConfig extends AbstractData
         public ?Settings\WattsSetting $watts = null,
         public ?Settings\WeightSetting $weight = null,
         public Settings\PreviewSetting $preview = new Settings\PreviewSetting,
-    ) {}
+    ) {
+        $settingMap = ExerciseSetting::settingMap();
+
+        foreach ($this->settings as $key) {
+            if (isset($settingMap[$key]) && $this->{$key} === null) {
+                $this->{$key} = new ($settingMap[$key]);
+            }
+        }
+    }
 
     public static function addFormFieldsets(Form $form): void
     {

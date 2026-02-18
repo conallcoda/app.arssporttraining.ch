@@ -120,7 +120,7 @@ class TrainingPlanSeeder extends Seeder
 
         $slots = [];
         foreach ($programs as $index => $program) {
-            $slots[] = ['day' => $index, 'slot' => 0, 'programId' => $program->id];
+            $slots[] = ['day' => $index, 'slot' => 0, 'programs' => [$program->id]];
         }
 
         $weeks = [

@@ -295,6 +295,6 @@ class Form
 
         $nestedKey = str_replace('data.', '', $prefix);
 
-        return data_get($data, $nestedKey, []);
+        return data_get($data, $nestedKey) ?? [];
     }
 }
