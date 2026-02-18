@@ -52,7 +52,10 @@ class TrainingPlanView extends Component
     {
         $this->programs = TrainingPlanProgram::query()
             ->where('training_plan_id', $this->trainingPlan->id)
-            ->with(['exercises' => fn ($q) => $q->orderByPivot('sort')])
+            ->with([
+                'exercises' => fn ($q) => $q->orderByPivot('sort'),
+                'programCategory',
+            ])
             ->orderBy('sort')
             ->get();
     }

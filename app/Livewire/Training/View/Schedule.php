@@ -214,7 +214,7 @@ class Schedule extends Component
 
         $program = $this->programs->firstWhere('id', $programId);
 
-        return $program?->config->get('color', Color::DEFAULT_COLOR) ?? Color::DEFAULT_COLOR;
+        return $program?->programCategory?->color ?? Color::DEFAULT_COLOR;
     }
 
     public function getDefaultWeekLinkedTo(string $weekId): ?string

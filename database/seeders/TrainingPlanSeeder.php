@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Exercise\Exercise;
+use App\Models\ProgramCategory;
 use App\Models\TrainingPlan;
 use App\Models\TrainingPlanProgram;
 use App\Models\Users\User;
@@ -13,6 +14,8 @@ class TrainingPlanSeeder extends Seeder
 {
     public function run(): void
     {
+        $categories = ProgramCategory::pluck('id', 'name');
+
         $plan = TrainingPlan::create([
             'name' => 'Default Training Plan',
         ]);
@@ -25,18 +28,19 @@ class TrainingPlanSeeder extends Seeder
 
         $programs = [];
 
-        $programs[] = $this->createStrengthProgram($plan);
-        $programs[] = $this->createConditioningProgram($plan);
-        $programs[] = $this->createCardioProgram($plan);
+        $programs[] = $this->createStrengthProgram($plan, $categories->get('Strength'));
+        $programs[] = $this->createConditioningProgram($plan, $categories->get('Endurance'));
+        $programs[] = $this->createCardioProgram($plan, $categories->get('Coordination'));
 
         $this->initializeScheduleWithPrograms($plan, $programs);
     }
 
-    private function createStrengthProgram(TrainingPlan $plan): TrainingPlanProgram
+    private function createStrengthProgram(TrainingPlan $plan, ?int $categoryId): TrainingPlanProgram
     {
         $program = TrainingPlanProgram::create([
             'training_plan_id' => $plan->id,
             'name' => 'Strength',
+            'program_category_id' => $categoryId,
         ]);
 
         $exercises = Exercise::whereJsonContains('config->settings', 'weight')->take(3)->get();
@@ -59,11 +63,12 @@ class TrainingPlanSeeder extends Seeder
         return $program;
     }
 
-    private function createConditioningProgram(TrainingPlan $plan): TrainingPlanProgram
+    private function createConditioningProgram(TrainingPlan $plan, ?int $categoryId): TrainingPlanProgram
     {
         $program = TrainingPlanProgram::create([
             'training_plan_id' => $plan->id,
             'name' => 'Conditioning',
+            'program_category_id' => $categoryId,
         ]);
 
         $exercises = Exercise::whereJsonContains('config->settings', 'duration')->take(2)->get();
@@ -84,11 +89,12 @@ class TrainingPlanSeeder extends Seeder
         return $program;
     }
 
-    private function createCardioProgram(TrainingPlan $plan): TrainingPlanProgram
+    private function createCardioProgram(TrainingPlan $plan, ?int $categoryId): TrainingPlanProgram
     {
         $program = TrainingPlanProgram::create([
             'training_plan_id' => $plan->id,
             'name' => 'Cardio',
+            'program_category_id' => $categoryId,
         ]);
 
         $exercises = Exercise::whereJsonContains('config->settings', 'pace')->take(2)->get();

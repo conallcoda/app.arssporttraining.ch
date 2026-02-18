@@ -3,11 +3,12 @@
 namespace App\Data\Training;
 
 use App\Form\Fields\Exercise\Exercises;
-use App\Form\Fields\Training\Program\Color;
+use App\Form\Fields\Training\Program\ProgramCategory;
 use App\Form\Fields\Training\Program\ProgramName;
 use App\Models\Exercise\Exercise;
 use App\Models\TrainingPlanProgram;
 use App\Models\TrainingPlanProgramExercise;
+use Carbon\Carbon;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Form\Concerns\InteractsWithForms;
 use Coda\Cms\Form\Form;
@@ -21,13 +22,19 @@ class TrainingProgramData extends AbstractData implements HasForms
         public ?int $id,
         public ?int $training_plan_id,
         public string $name,
-        public string $color = Color::DEFAULT_COLOR,
+        public ?int $program_category_id = null,
+        public ?string $categoryName = null,
+        public ?string $categoryColor = null,
         public array $exercises = [],
+        public ?Carbon $updatedAt = null,
     ) {}
 
     public static function fromTrainingPlanProgram(TrainingPlanProgram $program): self
     {
-        $program->loadMissing(['exercises' => fn ($q) => $q->orderByPivot('sort')]);
+        $program->loadMissing([
+            'exercises' => fn ($q) => $q->orderByPivot('sort'),
+            'programCategory',
+        ]);
 
         $exercises = $program->exercises->map(fn ($exercise) => [
             'id' => $exercise->id,
@@ -39,8 +46,11 @@ class TrainingProgramData extends AbstractData implements HasForms
             id: $program->id,
             training_plan_id: $program->training_plan_id,
             name: $program->name ?? '',
-            color: $program->config->get('color', Color::DEFAULT_COLOR),
+            program_category_id: $program->program_category_id,
+            categoryName: $program->programCategory?->name,
+            categoryColor: $program->programCategory?->color,
             exercises: $exercises,
+            updatedAt: $program->updated_at,
         );
     }
 
@@ -49,6 +59,7 @@ class TrainingProgramData extends AbstractData implements HasForms
         $values = [
             'training_plan_id' => $this->training_plan_id,
             'name' => $this->name,
+            'program_category_id' => $this->program_category_id,
         ];
 
         if ($this->id === null) {
@@ -58,9 +69,6 @@ class TrainingProgramData extends AbstractData implements HasForms
         $program = TrainingPlanProgram::updateOrCreate(['id' => $this->id], $values);
 
         $this->id = $program->id;
-
-        $program->config->set('color', $this->color);
-        $program->save();
 
         $this->syncExercisesWithDefaults($program);
     }
@@ -117,7 +125,7 @@ class TrainingProgramData extends AbstractData implements HasForms
         return Form::make()
             ->fieldset('General', [
                 ProgramName::make('name'),
-                Color::make('color'),
+                ProgramCategory::make('program_category_id')->withOptions(),
                 Exercises::make('exercises')->withOptions(),
             ]);
     }

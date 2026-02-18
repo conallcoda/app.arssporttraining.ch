@@ -3,8 +3,11 @@
 namespace App\Livewire\Training\View;
 
 use App\Data\Training\TrainingProgramData;
+use App\Models\ProgramCategory;
 use App\Models\TrainingPlan;
 use App\Models\TrainingPlanProgram;
+use Coda\Cms\Display\DisplayFields\Ago;
+use Coda\Cms\Display\DisplayFields\ColorBadge;
 use Coda\Cms\Display\DisplayFields\Relationship;
 use Coda\Cms\Display\DisplayFields\Text;
 use Coda\Cms\Display\Table;
@@ -31,21 +34,34 @@ class TrainingProgramList extends AbstractModelList
 
     protected function isSortable(): bool
     {
-        return true;
+        return false;
     }
 
     protected function getBaseQuery(): Builder
     {
         return TrainingPlanProgram::query()
-            ->where('training_plan_id', $this->trainingPlan->id);
+            ->where('training_plan_programs.training_plan_id', $this->trainingPlan->id)
+            ->with('programCategory')
+            ->leftJoin('program_categories', 'training_plan_programs.program_category_id', '=', 'program_categories.id')
+            ->orderBy('program_categories.name')
+            ->orderBy('training_plan_programs.name')
+            ->select('training_plan_programs.*');
     }
 
     protected function getTable(): Table
     {
+        $colorLabels = ProgramCategory::query()
+            ->pluck('name', 'color')
+            ->all();
+
         return Table::make()
             ->columns([
                 Text::make('name')->label('Name')->modal(),
+                ColorBadge::make('categoryColor')
+                    ->label('Category')
+                    ->colorLabels($colorLabels),
                 Relationship::make('exercises')->label('Exercises')->modal()->width('w-full'),
+                Ago::make('updatedAt')->label('Last Changed'),
             ])
             ->limit(100);
     }
