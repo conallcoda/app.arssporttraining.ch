@@ -60,6 +60,7 @@
     {{ $slot }}
 
     <livewire:cms.component-portal />
+    <x-youtube-player-modal />
     <flux:toast />
     @fluxScripts
 </body>
