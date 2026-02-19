@@ -13,6 +13,7 @@ use Coda\Cms\Form\Field;
 use Coda\Cms\Form\Fields\Relationship;
 use Coda\Cms\Form\Form;
 use Coda\Cms\Form\FormFieldset;
+use Coda\Cms\Livewire\Concerns\InteractsWithParentView;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Collection as BaseCollection;
@@ -23,6 +24,8 @@ use Livewire\Component;
 
 class Schedule extends Component
 {
+    use InteractsWithParentView;
+
     public TrainingPlan $trainingPlan;
 
     public Collection $programs;
@@ -88,7 +91,7 @@ class Schedule extends Component
     #[Computed]
     public function config(): TrainingPlanConfig
     {
-        return TrainingPlanConfig::from($this->trainingPlan->config->all());
+        return $this->trainingPlan->config;
     }
 
     #[Computed]
@@ -252,26 +255,15 @@ class Schedule extends Component
     {
         $this->validate($this->buildValidationRulesFromFieldsets());
 
-        $programData = TrainingProgramData::from($this->data);
-        $programData->training_plan_id = $this->trainingPlan->id;
+        $this->notifyDataChanged('program', [
+            'data' => $this->data,
+            'editingProgramId' => $this->editingProgramId,
+            'assigningWeekId' => $this->assigningWeekId,
+            'assigningDay' => $this->assigningDay,
+            'assigningSlot' => $this->assigningSlot,
+            'userId' => $this->user,
+        ]);
 
-        if ($this->editingProgramId) {
-            $programData->id = $this->editingProgramId;
-        }
-
-        $programData->persist();
-
-        if ($this->assigningWeekId !== null && $this->assigningDay !== null && $this->assigningSlot !== null) {
-            $this->onScheduleEvent('assign-program', [
-                'weekId' => $this->assigningWeekId,
-                'day' => $this->assigningDay,
-                'slot' => $this->assigningSlot,
-                'programId' => $programData->id,
-            ]);
-        }
-
-        $this->programs = $this->trainingPlan->programs()->get();
-        unset($this->programOptions);
         $this->resetProgramForm();
         Flux::modal('add-program')->close();
     }
@@ -308,25 +300,15 @@ class Schedule extends Component
 
     public function removeFromSchedule(): void
     {
-        if ($this->assigningWeekId === null || $this->assigningDay === null || $this->assigningSlot === null) {
+        if ($this->editingProgramId === null) {
             return;
         }
 
-        $programId = $this->editingProgramId;
+        $this->notifyDataChanged('removeProgram', [
+            'programId' => $this->editingProgramId,
+            'userId' => $this->user,
+        ]);
 
-        if ($programId !== null) {
-            $this->onScheduleEvent('remove-program-from-slots', ['programId' => $programId]);
-
-            if (! ScheduleHandler::isProgramUsedInConfig($this->trainingPlan, $programId, $this->users->pluck('id')->all())) {
-                $program = $this->programs->firstWhere('id', $programId);
-                if ($program) {
-                    $program->delete();
-                    $this->programs = $this->programs->reject(fn ($p) => $p->id === $programId);
-                }
-            }
-        }
-
-        unset($this->programOptions);
         Flux::modal('delete-program')->close();
         Flux::modal('add-program')->close();
         $this->resetProgramForm();
@@ -344,14 +326,10 @@ class Schedule extends Component
 
     public function updatedStartDate(): void
     {
-        if ($this->user === null) {
-            $this->trainingPlan->config->set('default.schedule.startDate', $this->startDate);
-        } else {
-            $this->trainingPlan->config->set("users.{$this->user}.schedule.startDate", $this->startDate);
-        }
-
-        $this->trainingPlan->save();
-        $this->trainingPlan->refresh();
+        $this->notifyDataChanged('startDate', [
+            'userId' => $this->user,
+            'startDate' => $this->startDate,
+        ]);
     }
 
     public function addRelationshipItem(string $fieldName): void
@@ -417,35 +395,22 @@ class Schedule extends Component
     #[On('schedule-event')]
     public function onScheduleEvent(string $type, array $data = []): void
     {
-        $handler = new ScheduleHandler($this->trainingPlan, $this->user);
-        $handler->handle($type, $data);
-
-        $this->trainingPlan->refresh();
-        unset($this->config);
-        unset($this->schedule);
-        unset($this->hasCustomSchedule);
-        unset($this->availableWeeksForLinking);
-
-        $this->loadStartDate();
+        $this->notifyDataChanged('schedule', [
+            'type' => $type,
+            'data' => $data,
+            'userId' => $this->user,
+        ]);
     }
 
     protected function loadStartDate(): void
     {
-        if ($this->user === null) {
-            $startDate = $this->trainingPlan->config->get('default.schedule.startDate');
-            $this->startDate = ! empty($startDate) ? $startDate : WeekOptions::getCurrentWeekValue();
-        } else {
-            $config = TrainingPlanConfig::from($this->trainingPlan->config->all());
+        $config = $this->trainingPlan->config;
 
-            if ($config->isUserScheduleLocked($this->user)) {
-                $defaultStartDate = $this->trainingPlan->config->get('default.schedule.startDate');
-                $this->startDate = ! empty($defaultStartDate) ? $defaultStartDate : WeekOptions::getCurrentWeekValue();
-            } else {
-                $userStartDate = $this->trainingPlan->config->get("users.{$this->user}.schedule.startDate");
-                $defaultStartDate = $this->trainingPlan->config->get('default.schedule.startDate');
-                $this->startDate = ! empty($userStartDate) ? $userStartDate : (! empty($defaultStartDate) ? $defaultStartDate : WeekOptions::getCurrentWeekValue());
-            }
-        }
+        $startDate = $this->user === null
+            ? $config->defaultScheduleStartDate()
+            : $config->userScheduleStartDate($this->user);
+
+        $this->startDate = ! empty($startDate) ? $startDate : WeekOptions::getCurrentWeekValue();
     }
 
     protected function getAllFields(): array

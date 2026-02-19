@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Data\Training\Config\TrainingPlanConfig;
 use App\Models\Exercise\Exercise;
 use App\Models\ProgramCategory;
 use App\Models\Tag;
@@ -34,7 +35,7 @@ class ExampleTrainingPlanSeeder extends Seeder
         $this->createJumpSchool1($plan, $programCategories->get('Jump'));
         $this->createJumpSchool2($plan, $programCategories->get('Jump'));
 
-        $plan->config->set('default.schedule', ['weeks' => [], 'startDate' => '']);
+        $plan->config = TrainingPlanConfig::initialize();
         $plan->save();
     }
 

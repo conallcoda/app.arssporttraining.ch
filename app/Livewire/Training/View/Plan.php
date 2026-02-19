@@ -2,14 +2,12 @@
 
 namespace App\Livewire\Training\View;
 
-use App\Data\Training\Config\TrainingPlanConfig;
 use App\Models\TrainingPlan;
 use App\Models\Users\User;
 use App\Support\WeekOptions;
 use Coda\Cms\Livewire\Concerns\InteractsWithParentView;
 use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Computed;
-use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 
@@ -48,16 +46,6 @@ class Plan extends Component
         $this->loadStartDate();
     }
 
-    #[On('child-changed')]
-    public function handleChildChanged(string $domain): void
-    {
-        if ($domain === 'schedule') {
-            $this->trainingPlan->refresh();
-            unset($this->scheduleWeeks);
-            unset($this->programIdsFromSchedule);
-        }
-    }
-
     #[Computed]
     public function selectedUser(): ?User
     {
@@ -71,7 +59,7 @@ class Plan extends Component
     #[Computed]
     public function scheduleWeeks(): array
     {
-        $config = TrainingPlanConfig::from($this->trainingPlan->config->all());
+        $config = $this->trainingPlan->config;
 
         if ($this->user !== null && ! $config->isUserScheduleLocked($this->user)) {
             return $config->userScheduleWeeks($this->user);
@@ -132,15 +120,13 @@ class Plan extends Component
 
     protected function loadStartDate(): void
     {
-        $config = TrainingPlanConfig::from($this->trainingPlan->config->all());
+        $config = $this->trainingPlan->config;
 
-        if ($this->user === null) {
-            $startDate = $config->defaultScheduleStartDate();
-            $this->startDate = ! empty($startDate) ? $startDate : WeekOptions::getCurrentWeekValue();
-        } else {
-            $startDate = $config->userScheduleStartDate($this->user);
-            $this->startDate = ! empty($startDate) ? $startDate : WeekOptions::getCurrentWeekValue();
-        }
+        $startDate = $this->user === null
+            ? $config->defaultScheduleStartDate()
+            : $config->userScheduleStartDate($this->user);
+
+        $this->startDate = ! empty($startDate) ? $startDate : WeekOptions::getCurrentWeekValue();
 
         unset($this->scheduleWeeks);
         unset($this->programIdsFromSchedule);
@@ -152,14 +138,10 @@ class Plan extends Component
             return;
         }
 
-        if ($this->user === null) {
-            $this->trainingPlan->config->set('default.schedule.startDate', $this->startDate);
-        } else {
-            $this->trainingPlan->config->set("users.{$this->user}.schedule.startDate", $this->startDate);
-        }
-
-        $this->trainingPlan->save();
-        $this->trainingPlan->refresh();
+        $this->notifyDataChanged('startDate', [
+            'userId' => $this->user,
+            'startDate' => $this->startDate,
+        ]);
     }
 
     public function render()

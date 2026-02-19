@@ -60,7 +60,7 @@
 
         <flux:tab.panel name="schedule">
             <livewire:training.view.schedule :training-plan="$trainingPlan" :programs="$programs" :users="$users"
-                wire:key="schedule-{{ $this->getDataKey('programs') }}" />
+                wire:key="schedule-{{ $this->getDataKey() }}" />
         </flux:tab.panel>
 
         <flux:tab.panel name="plan">

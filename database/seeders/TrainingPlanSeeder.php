@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Data\Training\Config\TrainingPlanConfig;
 use App\Models\Exercise\Exercise;
 use App\Models\ProgramCategory;
 use App\Models\TrainingPlan;
@@ -141,7 +142,9 @@ class TrainingPlanSeeder extends Seeder
             ];
         }
 
-        $plan->config->set('default.schedule.weeks', $weeks);
+        $config = TrainingPlanConfig::initialize();
+        $config->setDefaultScheduleWeeks($weeks);
+        $plan->config = $config;
         $plan->save();
     }
 }

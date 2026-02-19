@@ -13,7 +13,7 @@ class ScheduleHandler
         protected TrainingPlan $trainingPlan,
         protected ?int $userId = null,
     ) {
-        $this->config = TrainingPlanConfig::from($this->trainingPlan->config->all());
+        $this->config = TrainingPlanConfig::from($this->trainingPlan->config->toArray());
     }
 
     public function handle(string $type, array $data = []): void
@@ -291,7 +291,7 @@ class ScheduleHandler
 
     public static function isProgramUsedInConfig(TrainingPlan $trainingPlan, int $programId, array $userIds): bool
     {
-        $config = TrainingPlanConfig::from($trainingPlan->config->all());
+        $config = $trainingPlan->config;
 
         foreach ($config->defaultScheduleWeeks() as $week) {
             foreach ($week['slots'] ?? [] as $slot) {
@@ -316,7 +316,7 @@ class ScheduleHandler
 
     protected function save(): void
     {
-        $this->trainingPlan->config = $this->config->toArray();
+        $this->trainingPlan->config = $this->config;
         $this->trainingPlan->save();
     }
 }

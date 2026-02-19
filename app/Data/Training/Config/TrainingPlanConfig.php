@@ -95,6 +95,28 @@ class TrainingPlanConfig extends AbstractConfig
         return $user->schedule->startDate ?: $this->defaultScheduleStartDate();
     }
 
+    public function setDefaultScheduleStartDate(string $startDate): void
+    {
+        $this->default->schedule = DefaultScheduleConfig::from([
+            'weeks' => $this->default->schedule instanceof Optional ? [] : ($this->default->schedule->weeks ?? []),
+            'startDate' => $startDate,
+        ]);
+    }
+
+    public function setUserScheduleStartDate(int $userId, string $startDate): void
+    {
+        $user = $this->forUser($userId);
+
+        if ($user === null) {
+            $this->users[$userId] = UserTrainingPlanConfig::from(['schedule' => ['weeks' => [], 'startDate' => $startDate]]);
+        } else {
+            $user->schedule = DefaultScheduleConfig::from([
+                'weeks' => $user->schedule instanceof Optional ? [] : ($user->schedule->weeks ?? []),
+                'startDate' => $startDate,
+            ]);
+        }
+    }
+
     public function setDefaultScheduleWeeks(array $weeks): void
     {
         $this->default->schedule = DefaultScheduleConfig::from([

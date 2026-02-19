@@ -292,8 +292,24 @@
                     <x-cms::form.help-tooltip :content="$field->helpText" position="top" />
                 @endif
             </div>
-            @if ($field->live)
+            @if ($field->live && $field->debounce)
+                <div wire:ignore>
+                    <flux:pillbox wire:model.live.debounce.300ms="{{ $wireModel }}" multiple :searchable="$field->searchable"
+                        :placeholder="$field->getPlaceholder()" data-field="{{ $field->name }}">
+                        @foreach ($field->getOptions() as $value => $optionLabel)
+                            <flux:pillbox.option value="{{ $value }}">{{ $optionLabel }}</flux:pillbox.option>
+                        @endforeach
+                    </flux:pillbox>
+                </div>
+            @elseif ($field->live)
                 <flux:pillbox wire:model.live="{{ $wireModel }}" multiple :searchable="$field->searchable"
+                    :placeholder="$field->getPlaceholder()" data-field="{{ $field->name }}">
+                    @foreach ($field->getOptions() as $value => $optionLabel)
+                        <flux:pillbox.option value="{{ $value }}">{{ $optionLabel }}</flux:pillbox.option>
+                    @endforeach
+                </flux:pillbox>
+            @elseif ($field->blur)
+                <flux:pillbox wire:model.blur="{{ $wireModel }}" multiple :searchable="$field->searchable"
                     :placeholder="$field->getPlaceholder()" data-field="{{ $field->name }}">
                     @foreach ($field->getOptions() as $value => $optionLabel)
                         <flux:pillbox.option value="{{ $value }}">{{ $optionLabel }}</flux:pillbox.option>

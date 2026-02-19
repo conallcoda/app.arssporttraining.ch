@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Training;
 
+use App\Data\Training\TrainingProgramData;
+use App\Livewire\Training\View\ScheduleHandler;
 use App\Models\TrainingPlan;
 use App\Models\TrainingPlanProgram;
 use Illuminate\Database\Eloquent\Collection;
@@ -90,6 +92,7 @@ class TrainingPlanView extends Component
                 ])->all()
             )),
             'users' => md5(json_encode($this->users->pluck('id')->all())),
+            'config' => md5(json_encode($this->trainingPlan->config->toArray())),
         ];
 
         if ($domain && isset($parts[$domain])) {
@@ -110,11 +113,7 @@ class TrainingPlanView extends Component
         $this->trainingPlan->refresh();
 
         match ($domain) {
-            'athletes' => $this->loadAthletes(),
             'programs' => $this->loadPrograms(),
-            'users' => $this->loadUsers(),
-            'plan' => $this->trainingPlan->refresh(),
-            'schedule' => $this->trainingPlan->refresh(),
             default => $this->loadAllData(),
         };
     }
@@ -122,7 +121,14 @@ class TrainingPlanView extends Component
     #[On('data-changed')]
     public function handleDataChanged(string $key, mixed $value): void
     {
-        //
+        match ($key) {
+            'athletes' => $this->saveAthletes($value),
+            'schedule' => $this->saveScheduleEvent($value),
+            'startDate' => $this->saveStartDate($value),
+            'program' => $this->saveProgram($value),
+            'removeProgram' => $this->removeProgram($value),
+            default => null,
+        };
     }
 
     #[On('refresh-requested')]
@@ -130,6 +136,112 @@ class TrainingPlanView extends Component
     {
         $this->trainingPlan->refresh();
         $this->loadAllData();
+    }
+
+    protected function saveAthletes(array $value): void
+    {
+        $userIds = $value['userIds'] ?? [];
+        $userGroupIds = $value['userGroupIds'] ?? [];
+
+        $this->trainingPlan->users()->sync(
+            $this->buildSyncDataWithSort(
+                $userIds,
+                $this->trainingPlan->users()->pluck('sort', 'user_id')->all()
+            )
+        );
+
+        $this->trainingPlan->userGroups()->sync(
+            $this->buildSyncDataWithSort(
+                $userGroupIds,
+                $this->trainingPlan->userGroups()->pluck('sort', 'user_group_id')->all()
+            )
+        );
+
+        $this->loadAthletes();
+    }
+
+    protected function buildSyncDataWithSort(array $ids, array $existingSorts): array
+    {
+        $maxSort = empty($existingSorts) ? -1 : max($existingSorts);
+        $result = [];
+
+        foreach ($ids as $id) {
+            if (isset($existingSorts[$id])) {
+                $result[$id] = ['sort' => $existingSorts[$id]];
+            } else {
+                $maxSort++;
+                $result[$id] = ['sort' => $maxSort];
+            }
+        }
+
+        return $result;
+    }
+
+    protected function saveScheduleEvent(array $value): void
+    {
+        $handler = new ScheduleHandler($this->trainingPlan, $value['userId'] ?? null);
+        $handler->handle($value['type'], $value['data'] ?? []);
+
+        $this->trainingPlan->refresh();
+    }
+
+    protected function saveStartDate(array $value): void
+    {
+        $config = $this->trainingPlan->config;
+        $userId = $value['userId'] ?? null;
+        $startDate = $value['startDate'];
+
+        if ($userId === null) {
+            $config->setDefaultScheduleStartDate($startDate);
+        } else {
+            $config->setUserScheduleStartDate($userId, $startDate);
+        }
+
+        $this->trainingPlan->config = $config;
+        $this->trainingPlan->save();
+        $this->trainingPlan->refresh();
+    }
+
+    protected function saveProgram(array $value): void
+    {
+        $programData = TrainingProgramData::from($value['data']);
+        $programData->training_plan_id = $this->trainingPlan->id;
+
+        if (! empty($value['editingProgramId'])) {
+            $programData->id = $value['editingProgramId'];
+        }
+
+        $programData->persist();
+
+        if (! empty($value['assigningWeekId']) && $value['assigningDay'] !== null && $value['assigningSlot'] !== null) {
+            $handler = new ScheduleHandler($this->trainingPlan, $value['userId'] ?? null);
+            $handler->handle('assign-program', [
+                'weekId' => $value['assigningWeekId'],
+                'day' => $value['assigningDay'],
+                'slot' => $value['assigningSlot'],
+                'programId' => $programData->id,
+            ]);
+        }
+
+        $this->trainingPlan->refresh();
+        $this->loadPrograms();
+    }
+
+    protected function removeProgram(array $value): void
+    {
+        $programId = $value['programId'];
+        $userId = $value['userId'] ?? null;
+
+        $handler = new ScheduleHandler($this->trainingPlan, $userId);
+        $handler->handle('remove-program-from-slots', ['programId' => $programId]);
+
+        $this->trainingPlan->refresh();
+
+        if (! ScheduleHandler::isProgramUsedInConfig($this->trainingPlan, $programId, $this->users->pluck('id')->all())) {
+            TrainingPlanProgram::find($programId)?->delete();
+        }
+
+        $this->loadPrograms();
     }
 
     public function updateName(string $name): void

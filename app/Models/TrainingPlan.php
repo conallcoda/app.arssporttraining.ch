@@ -2,11 +2,12 @@
 
 namespace App\Models;
 
+use App\Data\Training\Config\TrainingPlanConfig;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
-use Coda\Cms\Models\Concerns\HasConfigData;
 use Coda\Cms\Models\Concerns\SyncsSortableRelations;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,7 +15,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class TrainingPlan extends Model
 {
-    use HasConfigData;
     use SoftDeletes;
     use SyncsSortableRelations;
 
@@ -23,9 +23,16 @@ class TrainingPlan extends Model
         'config',
     ];
 
-    protected function casts(): array
+    protected function config(): Attribute
     {
-        return [];
+        return Attribute::make(
+            get: fn (?string $value) => $value
+                ? TrainingPlanConfig::from(json_decode($value, true))
+                : TrainingPlanConfig::initialize(),
+            set: fn (TrainingPlanConfig|array $value) => json_encode(
+                $value instanceof TrainingPlanConfig ? $value->toArray() : $value
+            ),
+        );
     }
 
     public function users(): BelongsToMany
