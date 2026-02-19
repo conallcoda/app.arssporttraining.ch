@@ -51,11 +51,13 @@ document.addEventListener('alpine:init', () => {
             if (inputType === 'number') {
                 parsedValue = step.includes('.') ? parseFloat(this.editValue) : parseInt(this.editValue, 10);
                 if (isNaN(parsedValue)) {
+                    window.Flux.toast({ text: 'Please enter a valid number', variant: 'danger' });
                     return;
                 }
             } else if (input && input.pattern) {
                 const regex = new RegExp('^' + input.pattern + '$');
                 if (!regex.test(this.editValue.trim())) {
+                    window.Flux.toast({ text: 'Please enter a valid value', variant: 'danger' });
                     return;
                 }
                 parsedValue = this.editValue.trim();
