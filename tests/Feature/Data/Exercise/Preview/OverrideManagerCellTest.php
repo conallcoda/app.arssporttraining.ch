@@ -85,3 +85,13 @@ it('computes default cell value via strategy orchestrator', function () {
 
     expect($defaultValue)->toBe(8);
 });
+
+it('sets a bilateral reps cell override', function () {
+    $overrides = OverrideManager::reset();
+    $config = buildCellTestConfig(8);
+
+    $overrides = OverrideManager::updateCellOverride($overrides, $config, 5, 1, 0, 0, 'reps', '10_10', 0);
+
+    expect($overrides['cells'])->toHaveCount(1);
+    expect($overrides['cells'][0]['data']['reps'])->toBe('10_10');
+});

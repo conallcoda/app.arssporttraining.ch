@@ -150,6 +150,9 @@
                                                                         @if ($row->inputMeta->maxlength !== null)
                                                                             maxlength="{{ $row->inputMeta->maxlength }}"
                                                                         @endif
+                                                                        @if ($row->inputMeta->pattern !== null)
+                                                                            pattern="{{ $row->inputMeta->pattern }}"
+                                                                        @endif
                                                                     @else
                                                                         type="number"
                                                                     @endif
@@ -201,6 +204,9 @@
                                                                             @endif
                                                                             @if ($weekCol->inputMeta->maxlength !== null)
                                                                                 maxlength="{{ $weekCol->inputMeta->maxlength }}"
+                                                                            @endif
+                                                                            @if ($weekCol->inputMeta->pattern !== null)
+                                                                                pattern="{{ $weekCol->inputMeta->pattern }}"
                                                                             @endif
                                                                         @else
                                                                             type="text"

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Data\Exercise\BilateralReps;
 use App\Data\Training\Config\TrainingPlanConfig;
 use App\Models\Exercise\Exercise;
 use App\Models\ProgramCategory;
@@ -53,7 +54,7 @@ class TrainingPlanSeeder extends Seeder
                 'sort' => $index,
                 'config' => [
                     'oneRepMaxModifier' => $configArray['weight']['oneRepMaxModifier'] ?? 100,
-                    'startingReps' => $configArray['reps']['default'] ?? 12,
+                    'startingReps' => BilateralReps::parse($configArray['reps']['default'] ?? 12)->total(),
                     'tempo' => $configArray['tempo']['default'] ?? '3010',
                     'rest' => $configArray['rest']['default'] ?? 30,
                 ],

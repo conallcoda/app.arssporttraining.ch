@@ -19,7 +19,21 @@ class TrainingPlanConfig extends AbstractConfig
 
     public static function initialize(): self
     {
-        return self::from(['default' => []]);
+        $weeks = array_map(fn (int $i) => [
+            'id' => "default_{$i}",
+            'linkedTo' => $i > 0 ? 'default_0' : null,
+            'sort' => $i,
+            'slots' => [],
+        ], range(0, 4));
+
+        return self::from([
+            'default' => [
+                'schedule' => [
+                    'weeks' => $weeks,
+                    'startDate' => '',
+                ],
+            ],
+        ]);
     }
 
     public function forUser(int $userId): ?UserTrainingPlanConfig

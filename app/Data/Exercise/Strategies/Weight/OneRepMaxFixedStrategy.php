@@ -2,6 +2,7 @@
 
 namespace App\Data\Exercise\Strategies\Weight;
 
+use App\Data\Exercise\BilateralReps;
 use App\Data\Exercise\Preview\GridState;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Exercise\Settings\WeightSetting;
@@ -104,7 +105,8 @@ class OneRepMaxFixedStrategy implements DefinesEditability
         $lastSetIndex = $setsPerWeek[$lastWeekIndex] - 1;
 
         $lastSetReps = $state->getResolvedCellValue('reps', $lastWeekIndex, $lastSetIndex);
-        $repPercentage = RepPercentageTable::getPercentage((int) ($lastSetReps ?? 1));
+        $totalReps = BilateralReps::parse($lastSetReps ?? 1)->total();
+        $repPercentage = RepPercentageTable::getPercentage($totalReps);
         $anchorWeight = $target1RM * $repPercentage;
 
         $targets[$lastWeekIndex] = $anchorWeight;

@@ -53,6 +53,12 @@ document.addEventListener('alpine:init', () => {
                 if (isNaN(parsedValue)) {
                     return;
                 }
+            } else if (input && input.pattern) {
+                const regex = new RegExp('^' + input.pattern + '$');
+                if (!regex.test(this.editValue.trim())) {
+                    return;
+                }
+                parsedValue = this.editValue.trim();
             }
 
             if (this.cellEditType === 'week') {

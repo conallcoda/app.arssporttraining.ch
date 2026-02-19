@@ -2,6 +2,7 @@
 
 namespace App\Data\Training;
 
+use App\Data\Exercise\BilateralReps;
 use App\Form\Fields\Exercise\Exercises;
 use App\Form\Fields\Training\Program\ProgramCategory;
 use App\Form\Fields\Training\Program\ProgramName;
@@ -106,7 +107,7 @@ class TrainingProgramData extends AbstractData implements HasForms
                         'sort' => $sort,
                         'config' => [
                             'oneRepMaxModifier' => $configArray['weight']['oneRepMaxModifier'] ?? 100,
-                            'startingReps' => $configArray['reps']['default'] ?? 12,
+                            'startingReps' => BilateralReps::parse($configArray['reps']['default'] ?? 12)->total(),
                             'tempo' => $configArray['tempo']['default'] ?? '3010',
                             'rest' => $configArray['rest']['default'] ?? 30,
                         ],

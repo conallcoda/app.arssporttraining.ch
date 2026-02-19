@@ -23,9 +23,12 @@ class WeightProgressionSetting extends AbstractSetting
     public static function fields(): array
     {
         return [
-            Fields\Reps::make('measuredReps')
+            Fields\Number::make('measuredReps')
                 ->label('Measured Reps')
+                ->min(1)
                 ->max(15)
+                ->step(1)
+                ->suffix('rep(s)')
                 ->live(),
             Fields\Weight::make('measuredWeight')
                 ->label('Measured Weight')

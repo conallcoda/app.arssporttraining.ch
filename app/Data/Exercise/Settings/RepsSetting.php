@@ -10,7 +10,7 @@ class RepsSetting extends AbstractSetting
 {
     public function __construct(
         public string $mode = 'automatic',
-        public int $default = 10,
+        public string|int $default = 10,
         public int $stepDownInterval = 2,
         public int $decrement = 2,
         public int $minimum = 1,
@@ -20,9 +20,9 @@ class RepsSetting extends AbstractSetting
     public static function inputMeta(array $config = []): CellInputMeta
     {
         return new CellInputMeta(
-            inputType: 'number',
-            inputStep: '1',
-            min: 1,
+            inputType: 'text',
+            maxlength: 7,
+            pattern: '\d+(_\d+)?',
         );
     }
 
@@ -48,14 +48,20 @@ class RepsSetting extends AbstractSetting
                 ->suffix('week(s)')
                 ->live()
                 ->show('mode == "automatic"'),
-            Fields\Reps::make('decrement')
+            Fields\Number::make('decrement')
                 ->label('Rep Decrement')
                 ->default(2)
+                ->min(0)
+                ->step(1)
+                ->suffix('rep(s)')
                 ->live()
                 ->show('mode == "automatic"'),
-            Fields\Reps::make('minimum')
+            Fields\Number::make('minimum')
                 ->label('Minimum Reps')
                 ->default(1)
+                ->min(1)
+                ->step(1)
+                ->suffix('rep(s)')
                 ->live()
                 ->show('mode == "automatic"'),
             ApplyPerField::make()

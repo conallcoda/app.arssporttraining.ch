@@ -169,6 +169,47 @@ it('skips weight phase when weight mode is manual', function () {
     expect($state->hasGrid('weight'))->toBeFalse();
 });
 
+it('populates manual reps grid with bilateral default value', function () {
+    $data = [
+        'sets' => ['deload' => 'none', 'default' => 3, 'label' => 'Set'],
+        'settings' => ['reps'],
+        'reps' => [
+            'mode' => 'manual',
+            'default' => '15_15',
+            'applyPer' => 'session',
+        ],
+    ];
+
+    $orchestrator = new StrategyOrchestrator($data, weeks: 2);
+    $state = $orchestrator->execute();
+
+    expect($state->hasGrid('reps'))->toBeTrue();
+    expect($state->getCellValue('reps', 0, 0))->toBe('15_15');
+    expect($state->getCellValue('reps', 1, 2))->toBe('15_15');
+});
+
+it('populates automatic reps grid with bilateral default', function () {
+    $data = [
+        'sets' => ['deload' => 'none', 'default' => 4, 'label' => 'Set'],
+        'settings' => ['reps'],
+        'reps' => [
+            'mode' => 'automatic',
+            'default' => '15_15',
+            'stepDownInterval' => 2,
+            'decrement' => 2,
+            'minimum' => 1,
+            'applyPer' => 'session',
+        ],
+    ];
+
+    $orchestrator = new StrategyOrchestrator($data, weeks: 3);
+    $state = $orchestrator->execute();
+
+    expect($state->hasGrid('reps'))->toBeTrue();
+    $cell = $state->getCellValue('reps', 0, 0);
+    expect($cell)->toContain('_');
+});
+
 it('skips reps when applyPer is week', function () {
     $data = [
         'sets' => ['deload' => 'none', 'default' => 4, 'label' => 'Set'],

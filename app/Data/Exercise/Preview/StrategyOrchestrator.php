@@ -68,7 +68,8 @@ class StrategyOrchestrator
             return;
         }
 
-        $defaultReps = (int) ($config['default'] ?? 10);
+        $rawDefault = $config['default'] ?? 10;
+        $defaultReps = is_string($rawDefault) && str_contains($rawDefault, '_') ? $rawDefault : (int) $rawDefault;
         $state->setGrid('reps', $this->fillGrid($state, $defaultReps));
     }
 

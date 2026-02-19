@@ -13,5 +13,6 @@ class CellInputMeta extends AbstractData
         public ?int $max = null,
         public ?int $maxlength = null,
         public ?string $mask = null,
+        public ?string $pattern = null,
     ) {}
 }

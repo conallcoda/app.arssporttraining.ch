@@ -148,3 +148,22 @@ it('produces weights that increase week over week for the last set', function ()
             ->toBeGreaterThanOrEqual($result['weights'][$week - 1][$prevLastSet]);
     }
 });
+
+it('uses total reps from bilateral notation for weight calculation', function () {
+    $setting = WeightSetting::from(['mode' => 'automatic', 'oneRepMaxModifier' => 100]);
+    $measuredData = new WeightProgressionSetting(measuredReps: 10, measuredWeight: 52, targetGoal: 7);
+
+    $setsPerWeek = [3, 3, 3];
+    $reps = [
+        ['5_5', '5_5', '4_4'],
+        ['4_4', '4_4', '3_3'],
+        ['3_3', '3_3', '2_2'],
+    ];
+    $state = buildStateWithReps($setsPerWeek, $reps);
+
+    $strategy = new OneRepMaxFixedStrategy($setting, $measuredData);
+    $result = $strategy->generate(3, $state);
+
+    expect($result)->not->toBeNull();
+    expect(RepPercentageTable::getPercentage(4))->toBe(0.91);
+});
