@@ -34,8 +34,7 @@ class RestSetting extends AbstractSetting
                 ->label('Default Rest')
                 ->default(60)
                 ->min(0)
-                ->suffix('sec')
-                ->live(),
+                ->suffix('sec'),
             ApplyPerField::make('week'),
         ];
     }

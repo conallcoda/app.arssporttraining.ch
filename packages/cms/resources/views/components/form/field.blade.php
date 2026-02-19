@@ -58,7 +58,7 @@
                 @endif
             </div>
             <flux:select :wire:model.live="$field->live ? $wireModel : null"
-                :wire:model="!$field->live ? $wireModel : null" placeholder="{{ $field->getPlaceholder() }}"
+                :wire:model.blur="!$field->live ? $wireModel : null" placeholder="{{ $field->getPlaceholder() }}"
                 data-field="{{ $field->name }}" :variant="$selectVariant" :multiple="$field->multiple"
                 :searchable="$field->searchable" :clearable="$field->clearable" :size="$field->size">
                 @if (!$field->multiple)
@@ -96,7 +96,7 @@
                             min="{{ $field->min ?? '' }}" max="{{ $field->max ?? '' }}"
                             step="{{ $field->step ?? '' }}" />
                     @else
-                        <flux:input wire:model="{{ $wireModel }}" type="number" data-field="{{ $field->name }}"
+                        <flux:input wire:model.blur="{{ $wireModel }}" type="number" data-field="{{ $field->name }}"
                             placeholder="{{ $field->getPlaceholder() }}" min="{{ $field->min ?? '' }}"
                             max="{{ $field->max ?? '' }}" step="{{ $field->step ?? '' }}" />
                     @endif
@@ -112,7 +112,7 @@
                         placeholder="{{ $field->getPlaceholder() }}" min="{{ $field->min ?? '' }}"
                         max="{{ $field->max ?? '' }}" step="{{ $field->step ?? '' }}" />
                 @else
-                    <flux:input wire:model="{{ $wireModel }}" type="number" data-field="{{ $field->name }}"
+                    <flux:input wire:model.blur="{{ $wireModel }}" type="number" data-field="{{ $field->name }}"
                         placeholder="{{ $field->getPlaceholder() }}" min="{{ $field->min ?? '' }}"
                         max="{{ $field->max ?? '' }}" step="{{ $field->step ?? '' }}" />
                 @endif
@@ -136,7 +136,7 @@
                             <flux:input wire:model.live="{{ $wireModel }}" type="text"
                                 data-field="{{ $field->name }}" placeholder="00:00" />
                         @else
-                            <flux:input wire:model="{{ $wireModel }}" type="text"
+                            <flux:input wire:model.blur="{{ $wireModel }}" type="text"
                                 data-field="{{ $field->name }}" placeholder="00:00" />
                         @endif
                     </div>
@@ -146,7 +146,7 @@
                             data-field="{{ $field->name }}" min="{{ $field->min ?? '' }}"
                             max="{{ $field->max ?? '' }}" step="{{ $field->step ?? '' }}" />
                     @else
-                        <flux:input wire:model="{{ $wireModel }}" type="number" data-field="{{ $field->name }}"
+                        <flux:input wire:model.blur="{{ $wireModel }}" type="number" data-field="{{ $field->name }}"
                             min="{{ $field->min ?? '' }}" max="{{ $field->max ?? '' }}"
                             step="{{ $field->step ?? '' }}" />
                     @endif
@@ -171,7 +171,7 @@
                                 <flux:input wire:model.live="{{ $wireModel }}" type="text"
                                     data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
                             @else
-                                <flux:input wire:model="{{ $wireModel }}" type="text"
+                                <flux:input wire:model.blur="{{ $wireModel }}" type="text"
                                     data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
                             @endif
                         </div>
@@ -180,7 +180,7 @@
                             <flux:input wire:model.live="{{ $wireModel }}" type="text"
                                 data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
                         @else
-                            <flux:input wire:model="{{ $wireModel }}" type="text"
+                            <flux:input wire:model.blur="{{ $wireModel }}" type="text"
                                 data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
                         @endif
                     @endif
@@ -192,7 +192,7 @@
                         <flux:input wire:model.live="{{ $wireModel }}" type="text"
                             data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
                     @else
-                        <flux:input wire:model="{{ $wireModel }}" type="text"
+                        <flux:input wire:model.blur="{{ $wireModel }}" type="text"
                             data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
                     @endif
                 </div>
@@ -201,7 +201,7 @@
                     <flux:input wire:model.live="{{ $wireModel }}" type="text"
                         data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
                 @else
-                    <flux:input wire:model="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
+                    <flux:input wire:model.blur="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
                         placeholder="{{ $field->getPlaceholder() }}" />
                 @endif
             @endif
@@ -216,7 +216,7 @@
                 <flux:input wire:model.live="{{ $wireModel }}" type="url"
                     data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
             @else
-                <flux:input wire:model="{{ $wireModel }}" type="url"
+                <flux:input wire:model.blur="{{ $wireModel }}" type="url"
                     data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
             @endif
             <flux:error name="{{ $wireModel }}" />
@@ -236,10 +236,10 @@
                 @endif
             @else
                 @if ($field->autosize)
-                    <flux:textarea wire:model="{{ $wireModel }}" rows="auto"
+                    <flux:textarea wire:model.blur="{{ $wireModel }}" rows="auto"
                         data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
                 @else
-                    <flux:textarea wire:model="{{ $wireModel }}"
+                    <flux:textarea wire:model.blur="{{ $wireModel }}"
                         data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
                 @endif
             @endif
@@ -256,7 +256,7 @@
             @if ($field->live)
                 <flux:date-picker wire:model.live="{{ $wireModel }}" data-field="{{ $field->name }}" />
             @else
-                <flux:date-picker wire:model="{{ $wireModel }}" data-field="{{ $field->name }}" />
+                <flux:date-picker wire:model.blur="{{ $wireModel }}" data-field="{{ $field->name }}" />
             @endif
             <flux:error name="{{ $wireModel }}" />
         </flux:field>
@@ -276,7 +276,7 @@
                     @endforeach
                 </flux:radio.group>
             @else
-                <flux:radio.group wire:model="{{ $wireModel }}" variant="segmented" :value="$currentValue">
+                <flux:radio.group wire:model.blur="{{ $wireModel }}" variant="segmented" :value="$currentValue">
                     @foreach ($field->getOptions() as $value => $optionLabel)
                         <flux:radio value="{{ $value }}" label="{{ $optionLabel }}" />
                     @endforeach
@@ -316,7 +316,7 @@
                     @endforeach
                 </flux:pillbox>
             @else
-                <flux:pillbox wire:model="{{ $wireModel }}" multiple :searchable="$field->searchable"
+                <flux:pillbox wire:model.blur="{{ $wireModel }}" multiple :searchable="$field->searchable"
                     :placeholder="$field->getPlaceholder()" data-field="{{ $field->name }}">
                     @foreach ($field->getOptions() as $value => $optionLabel)
                         <flux:pillbox.option value="{{ $value }}">{{ $optionLabel }}</flux:pillbox.option>
@@ -357,7 +357,7 @@
                     <x-cms::form.help-tooltip :content="$field->helpText" position="top" />
                 @endif
             </div>
-            <flux:pillbox wire:model="{{ $wireModel }}" multiple searchable
+            <flux:pillbox wire:model.blur="{{ $wireModel }}" multiple searchable
                 placeholder="{{ $field->getPlaceholder() }}" data-field="{{ $field->name }}">
                 @foreach ($field->getOptions() as $value => $optionLabel)
                     <flux:pillbox.option value="{{ $value }}">{{ $optionLabel }}</flux:pillbox.option>
@@ -416,7 +416,7 @@
                                 wire:key="{{ $field->name }}-{{ $index }}">
                                 <div class="flex-1">
                                     <flux:select
-                                        wire:model="{{ $wireModel }}.{{ $index }}.{{ $field->valueAttribute }}"
+                                        wire:model.blur="{{ $wireModel }}.{{ $index }}.{{ $field->valueAttribute }}"
                                         placeholder="{{ $field->getPlaceholder() }}" size="sm"
                                         data-field="{{ $field->name }}" data-index="{{ $index }}">
                                         <flux:select.option value="">{{ $field->getPlaceholder() }}

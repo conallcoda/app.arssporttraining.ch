@@ -28,15 +28,12 @@ class WeightProgressionSetting extends AbstractSetting
                 ->min(1)
                 ->max(15)
                 ->step(1)
-                ->suffix('rep(s)')
-                ->live(),
+                ->suffix('rep(s)'),
             Fields\Weight::make('measuredWeight')
-                ->label('Measured Weight')
-                ->live(),
+                ->label('Measured Weight'),
             Fields\Percentage::make('targetGoal')
                 ->label('Target Goal')
-                ->default(0)
-                ->live(),
+                ->default(0),
         ];
     }
 }

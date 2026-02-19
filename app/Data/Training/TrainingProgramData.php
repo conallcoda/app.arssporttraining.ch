@@ -3,6 +3,12 @@
 namespace App\Data\Training;
 
 use App\Data\Exercise\BilateralReps;
+use App\Data\Exercise\Settings\RepsSetting;
+use App\Data\Exercise\Settings\RestSetting;
+use App\Data\Exercise\Settings\TempoSetting;
+use App\Data\Exercise\Settings\WeightSetting;
+use App\Data\Training\Config\ExerciseOverrides;
+use App\Data\Training\Config\PlanExerciseConfig;
 use App\Form\Fields\Exercise\Exercises;
 use App\Form\Fields\Training\Program\ProgramCategory;
 use App\Form\Fields\Training\Program\ProgramName;
@@ -105,12 +111,22 @@ class TrainingProgramData extends AbstractData implements HasForms
                         'training_plan_program_id' => $program->id,
                         'exercise_id' => $exerciseId,
                         'sort' => $sort,
-                        'config' => [
-                            'oneRepMaxModifier' => $configArray['weight']['oneRepMaxModifier'] ?? 100,
-                            'startingReps' => BilateralReps::parse($configArray['reps']['default'] ?? 12)->total(),
-                            'tempo' => $configArray['tempo']['default'] ?? '3010',
-                            'rest' => $configArray['rest']['default'] ?? 30,
-                        ],
+                        'config' => new PlanExerciseConfig(
+                            plan: new ExerciseOverrides(
+                                weight: new WeightSetting(
+                                    oneRepMaxModifier: $configArray['weight']['oneRepMaxModifier'] ?? 100,
+                                ),
+                                reps: new RepsSetting(
+                                    default: BilateralReps::parse($configArray['reps']['default'] ?? 12)->total(),
+                                ),
+                                tempo: new TempoSetting(
+                                    default: $configArray['tempo']['default'] ?? '3010',
+                                ),
+                                rest: new RestSetting(
+                                    default: $configArray['rest']['default'] ?? 30,
+                                ),
+                            ),
+                        ),
                     ]);
                 }
             } else {

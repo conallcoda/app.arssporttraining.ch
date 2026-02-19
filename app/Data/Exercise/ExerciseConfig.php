@@ -16,6 +16,8 @@ class ExerciseConfig extends AbstractData
         public Settings\SetsSetting $sets = new Settings\SetsSetting,
         public ?Settings\DistanceSetting $distance = null,
         public ?Settings\DurationSetting $duration = null,
+        public ?Settings\HeartRateSetting $heartRate = null,
+        public ?Settings\HeartRateZoneSetting $heartRateZone = null,
         public ?Settings\PaceSetting $pace = null,
         public ?Settings\RepsSetting $reps = null,
         public ?Settings\RestSetting $rest = null,

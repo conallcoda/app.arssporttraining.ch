@@ -62,5 +62,55 @@
                 <flux:text class="text-zinc-500">Select an athlete to view their plan.</flux:text>
             @endif
         </x-section>
+
+        @if (($user === null || $this->selectedUser) && $this->programCategories->isNotEmpty())
+            <div class="flex flex-wrap gap-2">
+                @foreach ($this->programCategories as $category)
+                    @if ($selectedCategoryId === $category->id)
+                        <flux:badge
+                            wire:key="cat-{{ $category->id }}"
+                            wire:click="selectCategory({{ $category->id }})"
+                            as="button"
+                            variant="solid"
+                            color="{{ $category->color }}"
+                        >
+                            {{ $category->name }}
+                        </flux:badge>
+                    @else
+                        <flux:badge
+                            wire:key="cat-{{ $category->id }}"
+                            wire:click="selectCategory({{ $category->id }})"
+                            as="button"
+                            color="{{ $category->color }}"
+                        >
+                            {{ $category->name }}
+                        </flux:badge>
+                    @endif
+                @endforeach
+            </div>
+
+            @foreach ($this->programsForCategory as $program)
+                <div wire:key="program-{{ $program->id }}" class="space-y-4">
+                    <flux:heading size="lg">{{ $program->name }}</flux:heading>
+
+                    @foreach ($program->exercises as $exercise)
+                        <livewire:training.view.plan-exercise-grid
+                            :key="'grid-' . $exercise->pivot->id . '-' . ($user ?? 'default')"
+                            :pivotId="$exercise->pivot->id"
+                            :exerciseId="$exercise->id"
+                            :userId="$user"
+                            :weeks="$this->weeks"
+                            :sessionsPerWeek="$this->sessionsPerWeekByProgram[$program->id] ?? 1"
+                        />
+                    @endforeach
+
+                    @if ($program->exercises->isEmpty())
+                        <flux:text class="text-zinc-500">No exercises in this program.</flux:text>
+                    @endif
+                </div>
+            @endforeach
+        @endif
     </div>
+
+    <livewire:training.view.plan-exercise-settings-form />
 </div>

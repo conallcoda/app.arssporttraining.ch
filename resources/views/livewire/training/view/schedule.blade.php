@@ -275,7 +275,8 @@
         </div>
     </flux:modal>
 
-    <flux:modal name="add-program" flyout class="w-96">
+    <flux:modal name="add-program" flyout class="w-96"
+        x-on:keydown.enter="handleModalEnterSubmit($event, $wire, 'saveProgram')">
         <form wire:submit="saveProgram" class="space-y-6">
             <flux:heading size="lg">{{ $this->editingProgramId ? 'Edit' : 'Add' }} Program</flux:heading>
 

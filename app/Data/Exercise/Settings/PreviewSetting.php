@@ -27,16 +27,14 @@ class PreviewSetting extends AbstractSetting
                 ->max(12)
                 ->step(1)
                 ->default(5)
-                ->suffix('week(s)')
-                ->live(),
+                ->suffix('week(s)'),
             Fields\Number::make('sessionsPerWeek')
                 ->label('Sessions Per Week')
                 ->min(1)
                 ->max(7)
                 ->step(1)
                 ->default(1)
-                ->suffix('session(s)')
-                ->live(),
+                ->suffix('session(s)'),
         ];
 
         $hasAutomaticWeight = in_array('weight', $data['config']['settings'] ?? [])

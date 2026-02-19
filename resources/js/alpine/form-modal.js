@@ -49,6 +49,14 @@ window.focusModalField = function (modalEl, field, index) {
     }
 };
 
+window.handleModalEnterSubmit = function (event, wire, method) {
+    if (event.target.tagName === 'TEXTAREA') return;
+    if (event.target.closest('[x-data="editable_cell"]')) return;
+    if (event.target.closest('[aria-expanded="true"]')) return;
+    event.preventDefault();
+    wire[method || 'submit']();
+};
+
 document.addEventListener('alpine:init', () => {
     Alpine.data('form_modal', (modalName) => ({
         modalName: modalName,

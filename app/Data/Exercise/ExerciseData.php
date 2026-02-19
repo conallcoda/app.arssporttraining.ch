@@ -104,7 +104,7 @@ class ExerciseData extends AbstractData implements HasForms
     {
         $form = Form::make()
             ->fieldset('General', [
-                Fields\Text::make('name')->live(),
+                Fields\Text::make('name'),
                 Fields\Category::make('category', 'exercise_category')->label('Category')->withOptions(),
                 Fields\Tags::make('equipment', 'exercise_equipment')->label('Equipment')->withOptions()->create(),
                 Fields\Tags::make('modifiers', 'exercise_modifiers')->label('Modifiers')->withOptions()->create(),

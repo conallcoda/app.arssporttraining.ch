@@ -17,6 +17,8 @@ class ExercisePreviewBuilder
         'duration',
         'pace',
         'watts',
+        'heartRate',
+        'heartRateZone',
         'tempo',
         'rest',
     ];

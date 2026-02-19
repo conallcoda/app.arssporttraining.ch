@@ -24,6 +24,9 @@ document.addEventListener('alpine:init', () => {
         openVideo(url) {
             const id = this.extractVideoId(url);
             if (!id) {
+                if (url) {
+                    window.open(url, '_blank');
+                }
                 return;
             }
 

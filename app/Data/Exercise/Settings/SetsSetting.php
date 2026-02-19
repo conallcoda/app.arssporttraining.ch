@@ -29,17 +29,13 @@ class SetsSetting extends AbstractSetting
                 ->label('Deload By')
                 ->min(1)
                 ->default(1)
-                ->live()
                 ->show('deload != "none"'),
             Fields\Text::make('label')
                 ->label('Label')
                 ->default('Set')
-                ->live()
-                ->show('deload != "none"')
                 ->suffix('set(s)'),
             Fields\Sets::make('default')
-                ->label('Default')
-                ->live(),
+                ->label('Default'),
         ];
     }
 }

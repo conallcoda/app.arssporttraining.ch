@@ -29,8 +29,7 @@ class WattsSetting extends AbstractSetting
                 ->label('Default Watts')
                 ->default(100)
                 ->min(0)
-                ->suffix('W')
-                ->live(),
+                ->suffix('W'),
             ApplyPerField::make(),
         ];
     }

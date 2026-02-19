@@ -28,7 +28,7 @@ class Athletes extends Component
         $this->userGroups = $userGroupIds;
     }
 
-    public function updated(string $property): void
+    public function save(): void
     {
         $this->notifyDataChanged('athletes', [
             'userIds' => $this->users,
@@ -39,8 +39,8 @@ class Athletes extends Component
     public function getFields(): array
     {
         return [
-            AthletesField::make('users')->withOptions()->live()->debounce(300),
-            Groups::make('userGroups')->withOptions()->live()->debounce(300),
+            AthletesField::make('users')->withOptions(),
+            Groups::make('userGroups')->withOptions(),
         ];
     }
 

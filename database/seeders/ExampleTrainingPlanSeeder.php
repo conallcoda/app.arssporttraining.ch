@@ -8,6 +8,8 @@ use App\Models\ProgramCategory;
 use App\Models\Tag;
 use App\Models\TrainingPlan;
 use App\Models\TrainingPlanProgram;
+use App\Models\Users\User;
+use App\Models\Users\UserGroup;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
 
@@ -29,17 +31,23 @@ class ExampleTrainingPlanSeeder extends Seeder
 
         $plan = TrainingPlan::create(['name' => 'Example']);
 
-        $this->createStrength1A($plan, $programCategories->get('Strength'));
-        $this->createStrength1B($plan, $programCategories->get('Strength'));
-        $this->createCore($plan, $programCategories->get('Core'));
-        $this->createJumpSchool1($plan, $programCategories->get('Jump'));
-        $this->createJumpSchool2($plan, $programCategories->get('Jump'));
+        $plan->userGroups()->attach(UserGroup::first(), ['sort' => 0]);
 
-        $plan->config = TrainingPlanConfig::initialize();
-        $plan->save();
+        $users = User::latest('id')->take(2)->pluck('id');
+        $usersWithSort = $users->mapWithKeys(fn ($id, $index) => [$id => ['sort' => $index]])->all();
+        $plan->users()->attach($usersWithSort);
+
+        $programs = [];
+        $programs[] = $this->createStrength1A($plan, $programCategories->get('Strength'));
+        $programs[] = $this->createStrength1B($plan, $programCategories->get('Strength'));
+        $programs[] = $this->createCore($plan, $programCategories->get('Core'));
+        $programs[] = $this->createJumpSchool1($plan, $programCategories->get('Jump'));
+        $programs[] = $this->createJumpSchool2($plan, $programCategories->get('Jump'));
+
+        $this->initializeScheduleWithPrograms($plan, $programs);
     }
 
-    private function createStrength1A(TrainingPlan $plan, ?int $categoryId): void
+    private function createStrength1A(TrainingPlan $plan, ?int $categoryId): TrainingPlanProgram
     {
         $program = TrainingPlanProgram::create([
             'training_plan_id' => $plan->id,
@@ -52,25 +60,25 @@ class ExampleTrainingPlanSeeder extends Seeder
                 'name' => 'Back Squat',
                 'category' => 'Squat',
                 'equipment' => ['BB'],
-                'modifiers' => ['Back'],
-                'config' => $this->strengthConfig(default: 12, weight: 30, tempo: '2010', rest: 120),
+                'modifiers' => [],
+                'config' => $this->strengthAutoConfig(default: 12, oneRepMaxModifier: 100, tempo: '2010', rest: 120),
             ],
             [
                 'name' => 'Wide Deadlift',
                 'category' => 'Deadlift',
                 'equipment' => ['BB'],
                 'modifiers' => ['Wide Stance'],
-                'config' => $this->strengthConfig(default: 12, weight: 30, tempo: '1010', rest: 120),
+                'config' => $this->strengthAutoConfig(default: 12, oneRepMaxModifier: 85, tempo: '1010', rest: 120),
             ],
             [
-                'name' => 'Reverse Lunge with Dumbbells',
+                'name' => 'Reverse Lunge',
                 'category' => 'Lunge',
                 'equipment' => ['DB'],
-                'modifiers' => ['Reverse'],
+                'modifiers' => [],
                 'config' => $this->strengthConfig(default: 14, weight: 0, tempo: '1010', rest: 120),
             ],
             [
-                'name' => 'Single-Leg Dynamic Bridge on Heels',
+                'name' => 'Single-Leg Dynamic Bridge',
                 'category' => 'Hip Extension',
                 'equipment' => [],
                 'modifiers' => ['One-Leg', 'Heel Elevated'],
@@ -87,7 +95,7 @@ class ExampleTrainingPlanSeeder extends Seeder
                 'name' => 'Eccentric Pull-Ups',
                 'category' => 'Pull-Up',
                 'equipment' => [],
-                'modifiers' => ['Eccentric Only'],
+                'modifiers' => [],
                 'config' => [
                     'settings' => ['duration', 'weight', 'tempo', 'rest'],
                     'duration' => ['unit' => 'seconds', 'default' => 30],
@@ -99,9 +107,11 @@ class ExampleTrainingPlanSeeder extends Seeder
         ];
 
         $this->seedExercises($program, $exercises);
+
+        return $program;
     }
 
-    private function createStrength1B(TrainingPlan $plan, ?int $categoryId): void
+    private function createStrength1B(TrainingPlan $plan, ?int $categoryId): TrainingPlanProgram
     {
         $program = TrainingPlanProgram::create([
             'training_plan_id' => $plan->id,
@@ -110,33 +120,23 @@ class ExampleTrainingPlanSeeder extends Seeder
         ]);
 
         $exercises = [
-            [
-                'name' => 'Jump School',
-                'category' => 'Plyometrics',
-                'equipment' => [],
-                'modifiers' => [],
-                'config' => [
-                    'settings' => ['reps'],
-                    'reps' => ['mode' => 'manual', 'default' => 1],
-                    'sets' => ['default' => 1],
-                ],
-            ],
+
             [
                 'name' => 'Front Squat',
                 'category' => 'Squat',
                 'equipment' => ['BB'],
                 'modifiers' => ['Front'],
-                'config' => $this->strengthConfig(default: 12, weight: 22, tempo: '2010', rest: 120),
+                'config' => $this->strengthAutoConfig(default: 12, oneRepMaxModifier: 85, tempo: '2010', rest: 120),
             ],
             [
-                'name' => 'Hamstring Curl (Machine)',
+                'name' => 'Hamstring Curl',
                 'category' => 'Leg Curl',
                 'equipment' => ['Leg Curl Machine'],
                 'modifiers' => [],
                 'config' => $this->strengthConfig(default: 14, weight: 0, tempo: '2010', rest: 120),
             ],
             [
-                'name' => 'Step-Up on Bench with Dumbbells',
+                'name' => 'Step-Up on Bench',
                 'category' => 'Step-Up',
                 'equipment' => ['DB'],
                 'modifiers' => [],
@@ -150,7 +150,7 @@ class ExampleTrainingPlanSeeder extends Seeder
                 'config' => $this->strengthConfig(default: 12, weight: 0, tempo: '3010', rest: 120),
             ],
             [
-                'name' => 'Kneeling Landmine Press',
+                'name' => 'Landmine Press',
                 'category' => 'Overhead Press',
                 'equipment' => ['BB'],
                 'modifiers' => ['Kneeling'],
@@ -159,9 +159,11 @@ class ExampleTrainingPlanSeeder extends Seeder
         ];
 
         $this->seedExercises($program, $exercises);
+
+        return $program;
     }
 
-    private function createCore(TrainingPlan $plan, ?int $categoryId): void
+    private function createCore(TrainingPlan $plan, ?int $categoryId): TrainingPlanProgram
     {
         $program = TrainingPlanProgram::create([
             'training_plan_id' => $plan->id,
@@ -215,9 +217,11 @@ class ExampleTrainingPlanSeeder extends Seeder
         ];
 
         $this->seedExercises($program, $exercises);
+
+        return $program;
     }
 
-    private function createJumpSchool1(TrainingPlan $plan, ?int $categoryId): void
+    private function createJumpSchool1(TrainingPlan $plan, ?int $categoryId): TrainingPlanProgram
     {
         $program = TrainingPlanProgram::create([
             'training_plan_id' => $plan->id,
@@ -257,9 +261,11 @@ class ExampleTrainingPlanSeeder extends Seeder
         ];
 
         $this->seedExercises($program, $exercises);
+
+        return $program;
     }
 
-    private function createJumpSchool2(TrainingPlan $plan, ?int $categoryId): void
+    private function createJumpSchool2(TrainingPlan $plan, ?int $categoryId): TrainingPlanProgram
     {
         $program = TrainingPlanProgram::create([
             'training_plan_id' => $plan->id,
@@ -313,6 +319,52 @@ class ExampleTrainingPlanSeeder extends Seeder
         ];
 
         $this->seedExercises($program, $exercises);
+
+        return $program;
+    }
+
+    /** @param array<int, TrainingPlanProgram> $programs */
+    private function initializeScheduleWithPrograms(TrainingPlan $plan, array $programs): void
+    {
+        [$strength1A, $strength1B, $core, $jumpSchool1, $jumpSchool2] = $programs;
+
+        $week1Id = 'default_0';
+
+        $slots = [
+            ['day' => 0, 'slot' => 0, 'programs' => [$strength1A->id]],
+            ['day' => 0, 'slot' => 1, 'programs' => [$core->id]],
+            ['day' => 1, 'slot' => 0, 'programs' => [$jumpSchool1->id]],
+            ['day' => 2, 'slot' => 0, 'programs' => [$strength1B->id]],
+            ['day' => 3, 'slot' => 0, 'programs' => [$jumpSchool2->id]],
+            ['day' => 3, 'slot' => 1, 'programs' => [$core->id]],
+            ['day' => 4, 'slot' => 0, 'programs' => [$strength1A->id]],
+            ['day' => 4, 'slot' => 1, 'programs' => [$jumpSchool1->id]],
+            ['day' => 5, 'slot' => 0, 'programs' => [$strength1B->id]],
+            ['day' => 5, 'slot' => 1, 'programs' => [$jumpSchool2->id]],
+        ];
+
+        $weeks = [
+            [
+                'id' => $week1Id,
+                'linkedTo' => null,
+                'slots' => $slots,
+                'sort' => 0,
+            ],
+        ];
+
+        for ($i = 1; $i < 5; $i++) {
+            $weeks[] = [
+                'id' => "default_{$i}",
+                'linkedTo' => $week1Id,
+                'slots' => [],
+                'sort' => $i,
+            ];
+        }
+
+        $config = TrainingPlanConfig::initialize();
+        $config->setDefaultScheduleWeeks($weeks);
+        $plan->config = $config;
+        $plan->save();
     }
 
     /** @param array<int, array{name: string, category: string, equipment: list<string>, modifiers: list<string>, config: array<string, mixed>}> $exercises */
@@ -353,6 +405,18 @@ class ExampleTrainingPlanSeeder extends Seeder
             'settings' => ['reps', 'weight', 'tempo', 'rest'],
             'reps' => ['default' => $default],
             'weight' => ['mode' => 'manual', 'default' => $weight],
+            'tempo' => ['default' => $tempo],
+            'rest' => ['default' => $rest],
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function strengthAutoConfig(int $default, int $oneRepMaxModifier, string $tempo, int $rest): array
+    {
+        return [
+            'settings' => ['reps', 'weight', 'tempo', 'rest'],
+            'reps' => ['default' => $default],
+            'weight' => ['mode' => 'automatic', 'oneRepMaxModifier' => $oneRepMaxModifier],
             'tempo' => ['default' => $tempo],
             'rest' => ['default' => $rest],
         ];

@@ -48,7 +48,6 @@ class DistanceSetting extends AbstractSetting
                     'kilometers' => 1,
                 ])
                 ->min(0)
-                ->live()
                 ->suffixMap(static::unitLabel()),
             ApplyPerField::make(),
         ];

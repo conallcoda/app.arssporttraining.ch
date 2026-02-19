@@ -57,8 +57,7 @@ class DurationSetting extends AbstractSetting
                     'minutes' => 1,
                     'mm:ss' => '1:00',
                 ])
-                ->unit('unit')
-                ->live(),
+                ->unit('unit'),
             ApplyPerField::make(),
         ];
     }

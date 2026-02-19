@@ -34,8 +34,7 @@ class PaceSetting extends AbstractSetting
                 ->label('Default Pace')
                 ->default('5:00')
                 ->defaultUnit('mm:ss')
-                ->suffix(static::unitLabel())
-                ->live(),
+                ->suffix(static::unitLabel()),
             ApplyPerField::make(),
         ];
     }

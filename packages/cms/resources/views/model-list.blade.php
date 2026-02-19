@@ -290,7 +290,18 @@
                                         @endif
                                         @foreach ($column->getBadgeGroupData($item) as $group)
                                             @foreach ($group['badges'] as $badge)
-                                                <flux:badge size="sm" :color="$group['color']">{{ $badge['label'] }}</flux:badge>
+                                                @if (isset($badge['modalField']))
+                                                    <flux:badge size="sm" :color="$group['color']" class="cursor-pointer"
+                                                        x-on:click="Livewire.dispatch('open-{{ $this->editModalName }}', {
+                                                            data: {{ Js::from($item->toArray()) }},
+                                                            title: 'Edit {{ $entityName }}',
+                                                            focusField: '{{ $badge['modalField'] }}'
+                                                        })">
+                                                        {{ $badge['label'] }}
+                                                    </flux:badge>
+                                                @else
+                                                    <flux:badge size="sm" :color="$group['color']">{{ $badge['label'] }}</flux:badge>
+                                                @endif
                                             @endforeach
                                         @endforeach
                                     </div>

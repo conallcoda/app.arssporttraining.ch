@@ -6,6 +6,8 @@ enum ExerciseSetting: string
 {
     case Distance = 'distance';
     case Duration = 'duration';
+    case HeartRate = 'heartRate';
+    case HeartRateZone = 'heartRateZone';
     case Pace = 'pace';
     case Reps = 'reps';
     case Rest = 'rest';
@@ -19,6 +21,8 @@ enum ExerciseSetting: string
         return match ($this) {
             self::Distance => Settings\DistanceSetting::class,
             self::Duration => Settings\DurationSetting::class,
+            self::HeartRate => Settings\HeartRateSetting::class,
+            self::HeartRateZone => Settings\HeartRateZoneSetting::class,
             self::Pace => Settings\PaceSetting::class,
             self::Reps => Settings\RepsSetting::class,
             self::Rest => Settings\RestSetting::class,

@@ -1,7 +1,8 @@
 <div>
     <flux:modal :name="$name" :flyout="$flyout" :class="$maxWidth"
         x-on:close="Livewire.dispatch('{{ $name }}.closed')"
-        x-on:focus-field.window="setTimeout(() => focusModalField($el, $event.detail.field, $event.detail.index), 150)">
+        x-on:focus-field.window="setTimeout(() => focusModalField($el, $event.detail.field, $event.detail.index), 150)"
+        x-on:keydown.enter="handleModalEnterSubmit($event, $wire)">
         <div class="space-y-6">
             <flux:heading size="lg">{{ $activeTitle ?? $title }}</flux:heading>
             @if ($openCount > 0)

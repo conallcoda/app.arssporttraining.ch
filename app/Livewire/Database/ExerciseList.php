@@ -9,7 +9,7 @@ use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Display\DisplayFields\Ago;
 use Coda\Cms\Display\DisplayFields\Badge;
 use Coda\Cms\Display\DisplayFields\Id;
-use Coda\Cms\Display\DisplayFields\Text;
+use Coda\Cms\Display\DisplayFields\TextWithBadgeGroups;
 use Coda\Cms\Display\Table;
 use Coda\Cms\Display\TableFilter;
 use Coda\Cms\Form\Action;
@@ -58,10 +58,19 @@ class ExerciseList extends AbstractModelList
         return Table::make()
             ->columns([
                 Id::make(),
-                Text::make('name')
-                    ->label('Name')
-                    ->width('w-1/3')
-                    ->modal(),
+                TextWithBadgeGroups::make('name')
+                    ->label('Exercise')
+                    ->modal()
+                    ->badgeGroup(
+                        'equipment',
+                        fn (ExerciseData $data) => $tagBadges($data, 'equipment'),
+                        'blue',
+                    )
+                    ->badgeGroup(
+                        'modifiers',
+                        fn (ExerciseData $data) => $tagBadges($data, 'modifiers'),
+                        '',
+                    ),
                 Badge::make('category')
                     ->label('Category')
                     ->source(
@@ -69,14 +78,8 @@ class ExerciseList extends AbstractModelList
                             ? [['label' => $tagNames[$data->category] ?? '?', 'modalField' => 'category']]
                             : []
                     ),
-                Badge::make('equipment')
-                    ->label('Equipment')
-                    ->source(fn (ExerciseData $data) => $tagBadges($data, 'equipment')),
-                Badge::make('modifiers')
-                    ->label('Modifiers')
-                    ->source(fn (ExerciseData $data) => $tagBadges($data, 'modifiers')),
-                Badge::make('defaults')
-                    ->label('Defaults')
+                Badge::make('settings')
+                    ->label('Settings')
                     ->source(fn (ExerciseData $data) => $data->getDefaultsBadges()),
                 Ago::make('updatedAt')->label('Last Changed'),
             ])
@@ -91,6 +94,20 @@ class ExerciseList extends AbstractModelList
                             ->placeholder('Search exercises...')
                     ),
             ]);
+    }
+
+    protected function getActions(): array
+    {
+        return array_filter([
+            Action::make('preview', 'Preview')
+                ->row()
+                ->icon('eye')
+                ->alpineEvent('open-youtube-player', fn (ExerciseData $data) => ['url' => $data->videoUrl])
+                ->visibleWhen(fn (ExerciseData $data) => $data->videoUrl !== null && $data->videoUrl !== ''),
+            $this->getAddAction(),
+            $this->getEditAction(),
+            $this->getDeleteAction(),
+        ]);
     }
 
     protected function getAddAction(): ?Action

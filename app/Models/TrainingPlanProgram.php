@@ -39,7 +39,7 @@ class TrainingPlanProgram extends Model
     {
         return $this->belongsToMany(Exercise::class, 'training_plan_program_exercises')
             ->using(TrainingPlanProgramExercise::class)
-            ->withPivot(['sort', 'config'])
+            ->withPivot(['id', 'sort', 'config'])
             ->orderByPivot('sort')
             ->withTimestamps();
     }

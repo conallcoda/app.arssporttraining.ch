@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Training\View;
 
+use App\Models\ProgramCategory;
 use App\Models\TrainingPlan;
 use App\Models\Users\User;
 use App\Support\WeekOptions;
@@ -26,6 +27,8 @@ class Plan extends Component
 
     public ?string $startDate = null;
 
+    public ?int $selectedCategoryId = null;
+
     public function updatingUser(mixed $value): ?int
     {
         if ($value === null || $value === '') {
@@ -44,6 +47,16 @@ class Plan extends Component
         $this->programs = $programs;
         $this->users = $users;
         $this->loadStartDate();
+        $this->initializeSelectedCategory();
+    }
+
+    protected function initializeSelectedCategory(): void
+    {
+        $categories = $this->programCategories;
+
+        if ($categories->isNotEmpty() && $this->selectedCategoryId === null) {
+            $this->selectedCategoryId = $categories->first()->id;
+        }
     }
 
     #[Computed]
@@ -111,11 +124,73 @@ class Plan extends Component
         return WeekOptions::generate();
     }
 
+    #[Computed]
+    public function programCategories(): Collection
+    {
+        $scheduledProgramIds = $this->programIdsFromSchedule;
+        $scheduledPrograms = $this->programs->whereIn('id', $scheduledProgramIds);
+
+        $categoryIds = $scheduledPrograms
+            ->pluck('program_category_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        return ProgramCategory::whereIn('id', $categoryIds)
+            ->orderBy('sort')
+            ->get();
+    }
+
+    #[Computed]
+    public function programsForCategory(): Collection
+    {
+        if ($this->selectedCategoryId === null) {
+            return new Collection;
+        }
+
+        $scheduledProgramIds = $this->programIdsFromSchedule;
+
+        return $this->programs
+            ->where('program_category_id', $this->selectedCategoryId)
+            ->whereIn('id', $scheduledProgramIds)
+            ->load(['exercises' => fn ($q) => $q->orderByPivot('sort')])
+            ->values();
+    }
+
+    #[Computed]
+    public function sessionsPerWeekByProgram(): array
+    {
+        $weeks = $this->scheduleWeeks;
+        $templateWeek = collect($weeks)->first(fn (array $w) => ($w['linkedTo'] ?? null) === null) ?? ($weeks[0] ?? null);
+
+        if ($templateWeek === null) {
+            return [];
+        }
+
+        $slots = $templateWeek['slots'] ?? [];
+        $counts = [];
+
+        foreach ($slots as $slot) {
+            foreach ($slot['programs'] ?? [] as $programId) {
+                $counts[$programId] = ($counts[$programId] ?? 0) + 1;
+            }
+        }
+
+        return $counts;
+    }
+
     public function selectUser(?int $userId): void
     {
         $this->user = $userId;
         $this->loadStartDate();
+        $this->clearCategoryComputedProperties();
         $this->dispatch('plan-user-changed', userId: $userId);
+    }
+
+    public function selectCategory(int $categoryId): void
+    {
+        $this->selectedCategoryId = $categoryId;
+        unset($this->programsForCategory);
     }
 
     protected function loadStartDate(): void
@@ -130,6 +205,13 @@ class Plan extends Component
 
         unset($this->scheduleWeeks);
         unset($this->programIdsFromSchedule);
+    }
+
+    protected function clearCategoryComputedProperties(): void
+    {
+        unset($this->programCategories);
+        unset($this->programsForCategory);
+        unset($this->sessionsPerWeekByProgram);
     }
 
     public function updated(string $property): void

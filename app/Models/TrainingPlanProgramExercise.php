@@ -2,15 +2,13 @@
 
 namespace App\Models;
 
+use App\Data\Training\Config\PlanExerciseConfig;
 use App\Models\Exercise\Exercise;
-use Coda\Cms\Models\Concerns\HasConfigData;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 
 class TrainingPlanProgramExercise extends Pivot
 {
-    use HasConfigData;
-
     protected $table = 'training_plan_program_exercises';
 
     public $incrementing = true;
@@ -21,6 +19,13 @@ class TrainingPlanProgramExercise extends Pivot
         'sort',
         'config',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'config' => PlanExerciseConfig::class,
+        ];
+    }
 
     public function program(): BelongsTo
     {

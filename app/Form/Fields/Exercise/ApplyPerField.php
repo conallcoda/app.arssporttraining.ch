@@ -14,7 +14,6 @@ class ApplyPerField
                 'session' => 'Session',
                 'week' => 'Week',
             ])
-            ->default($default)
-            ->live();
+            ->default($default);
     }
 }
