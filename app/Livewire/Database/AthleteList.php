@@ -46,6 +46,7 @@ class AthleteList extends AbstractModelList
                     ->modal(),
                 Ago::make('updatedAt')->label('Last Changed'),
             ])
+            ->sortable(['id', 'forename', 'surname', 'updatedAt'])
             ->filters([
                 TableFilter::callback('search', function (Builder $query, mixed $value): void {
                     $query->where(function (Builder $q) use ($value): void {

@@ -3,6 +3,7 @@
 namespace App\Models\Users;
 
 use Coda\Cms\Models\Concerns\HasConfigData;
+use Coda\Cms\Models\Concerns\HasQueryBuilder;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -13,7 +14,7 @@ use Illuminate\Support\Str;
 
 class User extends Authenticatable
 {
-    use HasConfigData, HasFactory, Notifiable, SoftDeletes;
+    use HasConfigData, HasFactory, HasQueryBuilder, Notifiable, SoftDeletes;
 
     protected static function newFactory(): UserFactory
     {

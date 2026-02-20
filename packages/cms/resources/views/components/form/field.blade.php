@@ -61,7 +61,7 @@
                 :wire:model.live.blur="!$field->live ? $wireModel : null" placeholder="{{ $field->getPlaceholder() }}"
                 data-field="{{ $field->name }}" :variant="$selectVariant" :multiple="$field->multiple"
                 :searchable="$field->searchable" :clearable="$field->clearable" :size="$field->size">
-                @if (!$field->multiple)
+                @if (!$field->multiple && !$field->clearable)
                     <flux:select.option value="">{{ $field->getPlaceholder() }}</flux:select.option>
                 @endif
                 @foreach ($options as $value => $optionLabel)

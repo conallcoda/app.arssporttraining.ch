@@ -27,7 +27,9 @@ class ExerciseTemplateSeeder extends Seeder
 
         return [
             'Strength (Automatic)' => array_replace_recursive($base, [
-                'weight' => ['default' => 0],
+                'weight' => ['mode' => 'automatic'],
+                'reps' => ['mode' => 'automatic'],
+                'sets' => ['deload' => 'odd'],
             ]),
             'Strength (Manual)' => array_replace_recursive($base, [
                 'weight' => ['mode' => 'manual'],

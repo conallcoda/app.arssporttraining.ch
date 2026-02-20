@@ -40,7 +40,13 @@ class AthleteGroupList extends AbstractModelList
             ])
             ->filters([
                 TableFilter::callback('search', function (Builder $query, mixed $value): void {
-                    $query->where('name', 'like', '%'.$value.'%');
+                    $query->where(function (Builder $query) use ($value): void {
+                        $query->where('name', 'like', '%'.$value.'%')
+                            ->orWhereHas('members', function (Builder $query) use ($value): void {
+                                $query->where('forename', 'like', '%'.$value.'%')
+                                    ->orWhere('surname', 'like', '%'.$value.'%');
+                            });
+                    });
                 })
                     ->field(
                         TextField::make('search')

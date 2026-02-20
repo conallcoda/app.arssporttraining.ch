@@ -12,6 +12,7 @@ enum ExerciseSetting: string
     case Reps = 'reps';
     case Rest = 'rest';
     case Tempo = 'tempo';
+    case Note = 'note';
     case Watts = 'watts';
     case Weight = 'weight';
 
@@ -33,6 +34,7 @@ enum ExerciseSetting: string
             self::HeartRate => Settings\HeartRateSetting::class,
             self::HeartRateZone => Settings\HeartRateZoneSetting::class,
             self::Pace => Settings\PaceSetting::class,
+            self::Note => Settings\NoteSetting::class,
             self::Reps => Settings\RepsSetting::class,
             self::Rest => Settings\RestSetting::class,
             self::Tempo => Settings\TempoSetting::class,

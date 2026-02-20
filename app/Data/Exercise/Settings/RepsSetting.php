@@ -14,6 +14,7 @@ class RepsSetting extends AbstractSetting
         public int $stepDownInterval = 2,
         public int $decrement = 2,
         public int $minimum = 1,
+        public string $label = '',
         public string $applyPer = 'session',
     ) {}
 
@@ -60,6 +61,10 @@ class RepsSetting extends AbstractSetting
                 ->step(1)
                 ->suffix('rep(s)')
                 ->show('mode == "automatic"'),
+            Fields\Text::make('label')
+                ->label('Label')
+                ->placeholder('Reps')
+                ->default(''),
             ApplyPerField::make()
                 ->show('mode == "manual"'),
         ];

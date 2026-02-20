@@ -3,6 +3,7 @@
 namespace App\Data\Exercise;
 
 use App\Models\Exercise\Exercise;
+use App\Models\Exercise\ExerciseTemplate;
 use Carbon\Carbon;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Form\Concerns\InteractsWithForms;
@@ -24,6 +25,7 @@ class ExerciseData extends AbstractData implements HasForms
         public ?string $instructions = null,
         public ExerciseConfig $config = new ExerciseConfig,
         public ?Carbon $updatedAt = null,
+        public ?int $template = null,
     ) {}
 
     public static function fromImport(ExerciseImportData $importData): self
@@ -64,6 +66,7 @@ class ExerciseData extends AbstractData implements HasForms
             instructions: $exercise->instructions,
             config: $exercise->config ?? new ExerciseConfig,
             updatedAt: $exercise->updated_at,
+            template: $exercise->template_id,
         );
     }
 
@@ -87,6 +90,7 @@ class ExerciseData extends AbstractData implements HasForms
                 'instructions' => $this->instructions,
                 'config' => $this->config?->toArray() ?? [],
                 'category_id' => $this->category,
+                'template_id' => $this->template,
             ]
         );
 
@@ -106,6 +110,13 @@ class ExerciseData extends AbstractData implements HasForms
             ->fieldset('General', [
                 Fields\Text::make('name'),
                 Fields\Category::make('category', 'exercise_category')->label('Category')->withOptions(),
+                Fields\Select::make('template')
+                    ->label('Template')
+                    ->options(ExerciseTemplate::query()->orderBy('name')->pluck('name', 'id')->all())
+                    ->variant('listbox')
+                    ->searchable()
+                    ->clearable()
+                    ->live(),
                 Fields\Tags::make('equipment', 'exercise_equipment')->label('Equipment')->withOptions()->create(),
                 Fields\Tags::make('modifiers', 'exercise_modifiers')->label('Modifiers')->withOptions()->create(),
             ])

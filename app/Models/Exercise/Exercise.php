@@ -25,6 +25,7 @@ class Exercise extends Model implements Taggable
         'config',
         'category_id',
         'external_id',
+        'template_id',
     ];
 
     protected $attributes = [
@@ -41,6 +42,11 @@ class Exercise extends Model implements Taggable
     public function category(): BelongsTo
     {
         return $this->belongsTo(Tag::class, 'category_id');
+    }
+
+    public function template(): BelongsTo
+    {
+        return $this->belongsTo(ExerciseTemplate::class);
     }
 
     public function external(): BelongsTo

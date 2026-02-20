@@ -22,6 +22,7 @@ class ExerciseImportData extends AbstractData implements HasForms
         public ?string $videoUrl = null,
         public ?string $instructions = null,
         public ExerciseConfig $config = new ExerciseConfig,
+        public ?int $template = null,
     ) {}
 
     public function persist(): void

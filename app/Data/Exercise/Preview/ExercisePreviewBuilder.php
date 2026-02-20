@@ -241,6 +241,10 @@ class ExercisePreviewBuilder
 
     private static function resolveLabel(string $setting, array $config): string
     {
+        if (! empty($config['label'])) {
+            return $config['label'];
+        }
+
         $enum = ExerciseSetting::tryFrom($setting);
         $label = $enum?->label() ?? ucfirst($setting);
 

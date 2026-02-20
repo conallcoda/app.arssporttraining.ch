@@ -127,7 +127,7 @@ class ExerciseExternalList extends AbstractModelList
                     ->source(fn (ExerciseExternalData $data) => $data->categoryPath),
                 Ago::make('updatedAt')->label('Last Changed'),
             ])
-            ->sortable(['id', 'updatedAt'])
+            ->sortable(['id', 'name', 'updatedAt'])
             ->filters([
                 TableFilter::callback('search', function (Builder $query, mixed $value): void {
                     $terms = array_filter(explode(' ', trim($value)));

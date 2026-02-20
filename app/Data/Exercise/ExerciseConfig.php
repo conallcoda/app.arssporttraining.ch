@@ -41,7 +41,7 @@ class ExerciseConfig extends AbstractData
 
         $settingNames = ['sets'];
 
-        $settingsField = Fields\Pillbox::make('settings')->label('Settings')->enum(ExerciseSetting::class)->rules('array')->default(['reps', 'weight', 'tempo', 'rest'])->live();
+        $settingsField = Fields\Pillbox::make('settings')->label('Settings')->enum(ExerciseSetting::class)->rules('array')->default(['reps'])->live();
 
         foreach (ExerciseSetting::settingMap() as $settingKey => $settingClass) {
             $form->fieldset(

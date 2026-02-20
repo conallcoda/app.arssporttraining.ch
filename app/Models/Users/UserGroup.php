@@ -3,6 +3,7 @@
 namespace App\Models\Users;
 
 use Coda\Cms\Models\Concerns\HasConfigData;
+use Coda\Cms\Models\Concerns\HasQueryBuilder;
 use Coda\Cms\Models\Concerns\SyncsSortableRelations;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class UserGroup extends Model
 {
-    use HasConfigData, SoftDeletes, SyncsSortableRelations;
+    use HasConfigData, HasQueryBuilder, SoftDeletes, SyncsSortableRelations;
 
     protected $fillable = [
         'name',
