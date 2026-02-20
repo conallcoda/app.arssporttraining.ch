@@ -254,16 +254,14 @@ class TrainingPlanView extends Component
     protected function removeProgram(array $value): void
     {
         $programId = $value['programId'];
-        $userId = $value['userId'] ?? null;
 
-        $handler = new ScheduleHandler($this->trainingPlan, $userId);
-        $handler->handle('remove-program-from-slots', ['programId' => $programId]);
-
+        $config = $this->trainingPlan->config;
+        $config->removeProgramFromAllSchedules($programId);
+        $this->trainingPlan->config = $config;
+        $this->trainingPlan->save();
         $this->trainingPlan->refresh();
 
-        if (! ScheduleHandler::isProgramUsedInConfig($this->trainingPlan, $programId, $this->users->pluck('id')->all())) {
-            TrainingPlanProgram::find($programId)?->delete();
-        }
+        TrainingPlanProgram::find($programId)?->delete();
 
         $this->loadPrograms();
     }

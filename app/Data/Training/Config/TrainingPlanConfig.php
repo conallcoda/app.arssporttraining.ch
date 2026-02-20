@@ -399,6 +399,42 @@ class TrainingPlanConfig extends AbstractConfig
         return count($exercises);
     }
 
+    public function removeProgramFromAllSchedules(int $programId): void
+    {
+        $defaultWeeks = $this->stripProgramFromWeeks($this->defaultScheduleWeeks(), $programId);
+        $this->setDefaultScheduleWeeks($defaultWeeks);
+
+        foreach (array_keys($this->users) as $userId) {
+            $userWeeks = $this->userScheduleWeeks($userId);
+            if (empty($userWeeks)) {
+                continue;
+            }
+            $cleanedWeeks = $this->stripProgramFromWeeks($userWeeks, $programId);
+            $this->setUserScheduleWeeks($userId, $cleanedWeeks);
+        }
+    }
+
+    protected function stripProgramFromWeeks(array $weeks, int $programId): array
+    {
+        foreach ($weeks as &$week) {
+            if (($week['linkedTo'] ?? null) !== null) {
+                continue;
+            }
+
+            $slots = $week['slots'] ?? [];
+            foreach ($slots as &$slot) {
+                $slot['programs'] = array_values(array_filter(
+                    $slot['programs'] ?? [],
+                    fn (int $id) => $id !== $programId
+                ));
+            }
+
+            $week['slots'] = array_values(array_filter($slots, fn (array $s) => ! empty($s['programs'] ?? [])));
+        }
+
+        return $weeks;
+    }
+
     public function resetAll(): void
     {
         $this->resetDefaults();

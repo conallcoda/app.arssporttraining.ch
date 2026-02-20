@@ -79,6 +79,16 @@ class TrainingProgramList extends AbstractModelList
         return $data;
     }
 
+    public function removeItem(int $id): void
+    {
+        $config = $this->trainingPlan->config;
+        $config->removeProgramFromAllSchedules($id);
+        $this->trainingPlan->config = $config;
+        $this->trainingPlan->save();
+
+        parent::removeItem($id);
+    }
+
     protected function getFormModalMaxWidth(): string
     {
         return 'max-w-lg';

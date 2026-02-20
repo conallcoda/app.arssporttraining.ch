@@ -3,9 +3,16 @@
 namespace App\Data\Training;
 
 use App\Data\Exercise\BilateralReps;
+use App\Data\Exercise\Settings\DistanceSetting;
+use App\Data\Exercise\Settings\DurationSetting;
+use App\Data\Exercise\Settings\HeartRateSetting;
+use App\Data\Exercise\Settings\HeartRateZoneSetting;
+use App\Data\Exercise\Settings\PaceSetting;
 use App\Data\Exercise\Settings\RepsSetting;
 use App\Data\Exercise\Settings\RestSetting;
+use App\Data\Exercise\Settings\SetsSetting;
 use App\Data\Exercise\Settings\TempoSetting;
+use App\Data\Exercise\Settings\WattsSetting;
 use App\Data\Exercise\Settings\WeightSetting;
 use App\Data\Training\Config\ExerciseOverrides;
 use App\Form\Fields\Exercise\Exercises;
@@ -123,18 +130,63 @@ class TrainingProgramData extends AbstractData implements HasForms
 
                     $configArray = json_decode($exercise->getRawOriginal('config') ?? '{}', true) ?: [];
                     $config->setDefaultExerciseOverrides($exerciseId, new ExerciseOverrides(
-                        weight: new WeightSetting(
+                        settings: $configArray['settings'] ?? null,
+                        sets: isset($configArray['sets']) ? new SetsSetting(
+                            deload: $configArray['sets']['deload'] ?? 'none',
+                            deloadBy: $configArray['sets']['deloadBy'] ?? 1,
+                            label: $configArray['sets']['label'] ?? 'Set',
+                            default: $configArray['sets']['default'] ?? 4,
+                        ) : null,
+                        reps: isset($configArray['reps']) ? new RepsSetting(
+                            mode: $configArray['reps']['mode'] ?? 'manual',
+                            default: BilateralReps::parse($configArray['reps']['default'] ?? 10)->total(),
+                            stepDownInterval: $configArray['reps']['stepDownInterval'] ?? 2,
+                            decrement: $configArray['reps']['decrement'] ?? 2,
+                            minimum: $configArray['reps']['minimum'] ?? 1,
+                            label: $configArray['reps']['label'] ?? '',
+                            applyPer: $configArray['reps']['applyPer'] ?? 'session',
+                        ) : null,
+                        weight: isset($configArray['weight']) ? new WeightSetting(
+                            mode: $configArray['weight']['mode'] ?? 'manual',
                             oneRepMaxModifier: $configArray['weight']['oneRepMaxModifier'] ?? 100,
-                        ),
-                        reps: new RepsSetting(
-                            default: BilateralReps::parse($configArray['reps']['default'] ?? 12)->total(),
-                        ),
-                        tempo: new TempoSetting(
+                            default: (float) ($configArray['weight']['default'] ?? 5),
+                            applyPer: $configArray['weight']['applyPer'] ?? 'session',
+                        ) : null,
+                        tempo: isset($configArray['tempo']) ? new TempoSetting(
                             default: $configArray['tempo']['default'] ?? '3010',
-                        ),
-                        rest: new RestSetting(
-                            default: $configArray['rest']['default'] ?? 30,
-                        ),
+                            applyPer: $configArray['tempo']['applyPer'] ?? 'week',
+                        ) : null,
+                        rest: isset($configArray['rest']) ? new RestSetting(
+                            default: $configArray['rest']['default'] ?? 60,
+                            applyPer: $configArray['rest']['applyPer'] ?? 'week',
+                        ) : null,
+                        distance: isset($configArray['distance']) ? new DistanceSetting(
+                            unit: $configArray['distance']['unit'] ?? 'meters',
+                            default: $configArray['distance']['default'] ?? 500,
+                            applyPer: $configArray['distance']['applyPer'] ?? 'session',
+                        ) : null,
+                        duration: isset($configArray['duration']) ? new DurationSetting(
+                            unit: $configArray['duration']['unit'] ?? 'seconds',
+                            default: $configArray['duration']['default'] ?? 60,
+                            applyPer: $configArray['duration']['applyPer'] ?? 'session',
+                        ) : null,
+                        heartRate: isset($configArray['heartRate']) ? new HeartRateSetting(
+                            default: $configArray['heartRate']['default'] ?? '140',
+                            applyPer: $configArray['heartRate']['applyPer'] ?? 'session',
+                        ) : null,
+                        heartRateZone: isset($configArray['heartRateZone']) ? new HeartRateZoneSetting(
+                            default: $configArray['heartRateZone']['default'] ?? '3',
+                            applyPer: $configArray['heartRateZone']['applyPer'] ?? 'session',
+                        ) : null,
+                        pace: isset($configArray['pace']) ? new PaceSetting(
+                            default: $configArray['pace']['default'] ?? '5:00',
+                            applyPer: $configArray['pace']['applyPer'] ?? 'session',
+                        ) : null,
+                        watts: isset($configArray['watts']) ? new WattsSetting(
+                            default: $configArray['watts']['default'] ?? 100,
+                            applyPer: $configArray['watts']['applyPer'] ?? 'session',
+                        ) : null,
+                        gridOverrides: $configArray['overrides'] ?? ['cells' => [], 'weeks' => []],
                     ));
                     $configChanged = true;
                 }

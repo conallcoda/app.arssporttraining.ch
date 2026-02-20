@@ -275,7 +275,7 @@ class Schedule extends Component
         $this->assigningWeekId = $weekId;
         $this->assigningDay = $day;
         $this->assigningSlot = $slot;
-        $this->linkingProgramId = null;
+        $this->linkingProgramId = array_key_first($this->programOptions);
         Flux::modal('link-program')->show();
     }
 
