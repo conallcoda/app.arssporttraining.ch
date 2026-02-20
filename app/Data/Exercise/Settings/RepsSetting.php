@@ -9,7 +9,7 @@ use Coda\Cms\Form\Fields;
 class RepsSetting extends AbstractSetting
 {
     public function __construct(
-        public string $mode = 'automatic',
+        public string $mode = 'manual',
         public string|int $default = 10,
         public int $stepDownInterval = 2,
         public int $decrement = 2,
@@ -35,7 +35,7 @@ class RepsSetting extends AbstractSetting
                     'automatic' => 'Automatic',
                     'manual' => 'Manual',
                 ])
-                ->default('automatic')
+                ->default('manual')
                 ->live(),
             Fields\Reps::make('default')
                 ->label('Default Reps')

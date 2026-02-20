@@ -222,6 +222,32 @@ class Plan extends Component
         return $this->trainingPlan->config->hasUserOverrides();
     }
 
+    #[Computed]
+    public function hasSelectedUserOverrides(): bool
+    {
+        if ($this->user === null) {
+            return false;
+        }
+
+        return $this->trainingPlan->config->hasExerciseOverridesForUser($this->user);
+    }
+
+    /** @return array<int, int> */
+    #[Computed]
+    public function userOverrideCounts(): array
+    {
+        $counts = [];
+
+        foreach ($this->users as $userItem) {
+            $count = $this->trainingPlan->config->exerciseOverrideCountForUser($userItem->id);
+            if ($count > 0) {
+                $counts[$userItem->id] = $count;
+            }
+        }
+
+        return $counts;
+    }
+
     public function confirmResetDefaultSettings(): void
     {
         Flux::modal('reset-default-settings')->show();
@@ -250,6 +276,26 @@ class Plan extends Component
         $this->loadTarget();
         $this->clearCategoryComputedProperties();
         unset($this->hasUserOverrides);
+        unset($this->userOverrideCounts);
+    }
+
+    public function confirmResetSelectedUserSettings(): void
+    {
+        Flux::modal('reset-selected-user-settings')->show();
+    }
+
+    public function resetSelectedUserSettings(): void
+    {
+        $this->notifyDataChanged('resetSingleUserSettings', [
+            'userId' => $this->user,
+        ]);
+        Flux::modal('reset-selected-user-settings')->close();
+        $this->loadStartDate();
+        $this->loadTarget();
+        $this->clearCategoryComputedProperties();
+        unset($this->hasSelectedUserOverrides);
+        unset($this->userOverrideCounts);
+        $this->dispatch('plan-overrides-reset');
     }
 
     public function selectUser(?int $userId): void
@@ -304,6 +350,16 @@ class Plan extends Component
         unset($this->programCategories);
         unset($this->programsForCategory);
         unset($this->sessionsPerWeekByProgram);
+    }
+
+    #[\Livewire\Attributes\On('exercise-overrides-changed')]
+    public function onExerciseOverridesChanged(): void
+    {
+        $this->trainingPlan->refresh();
+        unset($this->hasDefaultOverrides);
+        unset($this->hasUserOverrides);
+        unset($this->hasSelectedUserOverrides);
+        unset($this->userOverrideCounts);
     }
 
     public function updated(string $property): void

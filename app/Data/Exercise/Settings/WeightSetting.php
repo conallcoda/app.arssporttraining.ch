@@ -9,7 +9,7 @@ use Coda\Cms\Form\Fields;
 class WeightSetting extends AbstractSetting
 {
     public function __construct(
-        public string $mode = 'automatic',
+        public string $mode = 'manual',
         public int $oneRepMaxModifier = 100,
         public float $default = 5,
         public string $applyPer = 'session',
@@ -38,7 +38,7 @@ class WeightSetting extends AbstractSetting
                     'automatic' => 'Automatic',
                     'manual' => 'Manual',
                 ])
-                ->default('automatic')
+                ->default('manual')
                 ->live(),
             Fields\Percentage::make('oneRepMaxModifier')
                 ->label('1RM Modifier')

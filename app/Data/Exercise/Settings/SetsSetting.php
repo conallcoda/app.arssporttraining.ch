@@ -23,7 +23,7 @@ class SetsSetting extends AbstractSetting
                     'even' => 'Even Weeks',
                     'none' => 'No Deload',
                 ])
-                ->default('odd')
+                ->default('none')
                 ->live(),
             Fields\Sets::make('deloadBy')
                 ->label('Deload By')

@@ -82,4 +82,23 @@ class ExerciseTemplateList extends AbstractModelList
         return parent::getEditAction()
             ->formComponent('database.exercise-template-form');
     }
+
+    protected function getExtraActions(): array
+    {
+        return [
+            Action::make('duplicate', 'Duplicate')
+                ->rowMenu()
+                ->icon('copy')
+                ->formModal(ExerciseTemplateData::class, 'Duplicate Exercise Template')
+                ->formComponent('database.exercise-template-form')
+                ->prepareData(function (ExerciseTemplate $model): array {
+                    $data = ExerciseTemplateData::fromTemplate($model)->toArray();
+                    $data['id'] = null;
+                    $data['name'] = $data['name'].' (copy)';
+
+                    return $data;
+                })
+                ->handler('handleFormSubmitted'),
+        ];
+    }
 }

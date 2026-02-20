@@ -271,32 +271,13 @@
                 <flux:button variant="primary" wire:click="confirmLinkProgram">
                     Link
                 </flux:button>
-            </div>
-        </div>
-    </flux:modal>
-
-    <flux:modal name="add-program" flyout class="w-96"
-        x-on:keydown.enter="handleModalEnterSubmit($event, $wire, 'saveProgram')">
-        <form wire:submit="saveProgram" class="space-y-6">
-            <flux:heading size="lg">{{ $this->editingProgramId ? 'Edit' : 'Add' }} Program</flux:heading>
-
-            @foreach ($this->fieldsets as $fieldset)
-                <x-cms::form.fieldset :fieldset="$fieldset" prefix="data" :showLegend="false" />
-            @endforeach
-
-            <div class="flex gap-2 pt-4">
-                <flux:button type="submit" variant="primary" class="flex-1">
-                    {{ $this->editingProgramId ? 'Save' : 'Add' }} Program
-                </flux:button>
-                <flux:modal.close>
-                    <flux:button variant="ghost">Cancel</flux:button>
-                </flux:modal.close>
-                @if ($this->editingProgramId)
-                    <flux:button type="button" variant="ghost" icon="trash-2" wire:click="confirmDeleteProgram"
+                @if ($linkingProgramId)
+                    <flux:button variant="ghost" icon="trash-2" wire:click="removeFromSchedule"
+                        wire:confirm="Are you sure you want to remove {{ $this->programOptions[$linkingProgramId] ?? 'this program' }} from this slot?"
                         class="text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400" />
                 @endif
             </div>
-        </form>
+        </div>
     </flux:modal>
 
     <flux:modal name="reset-schedule" class="min-w-[22rem]">
@@ -319,24 +300,4 @@
         </div>
     </flux:modal>
 
-    <flux:modal name="delete-program" class="min-w-[22rem]">
-        <div class="space-y-6">
-            <div>
-                <flux:heading size="lg">Delete Program?</flux:heading>
-                <flux:text class="mt-2">
-                    You're about to delete this program.<br>
-                    This action cannot be reversed.
-                </flux:text>
-            </div>
-            <div class="flex gap-2">
-                <flux:spacer />
-                <flux:modal.close>
-                    <flux:button variant="ghost">Cancel</flux:button>
-                </flux:modal.close>
-                <flux:button variant="danger" wire:click="removeFromSchedule">
-                    Delete
-                </flux:button>
-            </div>
-        </div>
-    </flux:modal>
 </div>

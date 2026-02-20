@@ -28,6 +28,7 @@ class ScheduleHandler
             'move-program' => $this->moveProgram($data['weekId'], $data['fromDay'], $data['fromSlot'], $data['toDay'], $data['toSlot']),
             'swap-programs' => $this->swapPrograms($data['week1Id'], $data['day1'], $data['slot1'], $data['week2Id'], $data['day2'], $data['slot2']),
             'remove-program-from-slots' => $this->removeProgramFromSlots($data['programId']),
+            'unassign-program' => $this->unassignProgram($data['weekId'], $data['day'], $data['slot'], $data['programId']),
             'lock-schedule' => $this->lockSchedule(),
         };
 
@@ -217,6 +218,28 @@ class ScheduleHandler
             }
 
             $week['slots'] = $this->filterNonEmptySlots($week['slots'] ?? []);
+        }
+
+        $this->setWeeks($weeks);
+    }
+
+    protected function unassignProgram(string $weekId, int $day, int $slot, int $programId): void
+    {
+        $weeks = $this->getWeeks();
+
+        foreach ($weeks as &$week) {
+            if ($week['id'] !== $weekId) {
+                continue;
+            }
+
+            $existing = $this->findSlot($week['slots'] ?? [], $day, $slot);
+            $programs = array_values(array_filter(
+                $existing['programs'] ?? [],
+                fn (int $id) => $id !== $programId
+            ));
+
+            $this->setSlot($week['slots'], $day, $slot, $programs);
+            break;
         }
 
         $this->setWeeks($weeks);

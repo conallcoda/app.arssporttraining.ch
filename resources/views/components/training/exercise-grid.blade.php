@@ -87,7 +87,10 @@
                         @endphp
                         @for ($i = 0; $i < $grid->setCount; $i++)
                             <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 {{ $setColWidth }} whitespace-nowrap">
-                                {{ $grid->setLabel }} {{ $i + 1 }}</th>
+                                @if ($grid->setCount > 1)
+                                    {{ $grid->setLabel }} {{ $i + 1 }}
+                                @endif
+                            </th>
                         @endfor
                         @foreach ($grid->weekColumns as $weekCol)
                             <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 w-16 whitespace-nowrap">

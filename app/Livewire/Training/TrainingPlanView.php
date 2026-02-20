@@ -130,6 +130,7 @@ class TrainingPlanView extends Component
             'target' => $this->saveTarget($value),
             'resetDefaults' => $this->resetDefaults(),
             'resetUserSettings' => $this->resetUserSettings(),
+            'resetSingleUserSettings' => $this->resetSingleUserSettings($value),
             'resetAll' => $this->resetAll(),
             default => null,
         };
@@ -284,6 +285,21 @@ class TrainingPlanView extends Component
         $this->trainingPlan->save();
         $this->trainingPlan->refresh();
         $this->loadAllData();
+    }
+
+    protected function resetSingleUserSettings(array $value): void
+    {
+        $userId = $value['userId'] ?? null;
+
+        if ($userId === null) {
+            return;
+        }
+
+        $config = $this->trainingPlan->config;
+        $config->resetSingleUserExerciseOverrides($userId);
+        $this->trainingPlan->config = $config;
+        $this->trainingPlan->save();
+        $this->trainingPlan->refresh();
     }
 
     protected function resetAll(): void

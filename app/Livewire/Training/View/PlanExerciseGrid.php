@@ -16,6 +16,7 @@ use App\Models\Exercise\Exercise;
 use App\Models\TrainingPlan;
 use Coda\Cms\Livewire\Concerns\InteractsWithParentView;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Reactive;
 use Livewire\Component;
 
 class PlanExerciseGrid extends Component
@@ -38,6 +39,15 @@ class PlanExerciseGrid extends Component
 
     /** @var array<int, array{label: string, color: string}> */
     public array $exerciseBadges = [];
+
+    #[Reactive]
+    public ?int $planMeasuredReps = null;
+
+    #[Reactive]
+    public ?float $planMeasuredWeight = null;
+
+    #[Reactive]
+    public int|float $planTargetGoal = 10;
 
     public function mount(
         int $trainingPlanId,
@@ -108,18 +118,22 @@ class PlanExerciseGrid extends Component
         return $base->overrides;
     }
 
+    protected function getPlanMeasuredData(): WeightProgressionSetting
+    {
+        return new WeightProgressionSetting(
+            measuredReps: $this->planMeasuredReps,
+            measuredWeight: $this->planMeasuredWeight,
+            targetGoal: $this->planTargetGoal,
+        );
+    }
+
     protected function getEffectiveCellDefault(string $field, int $weekIndex, int $setIndex): mixed
     {
         $effectiveConfig = $this->getEffectiveConfig();
         $baseOverrides = $this->getBaseGridOverrides();
-        $preview = $effectiveConfig['preview'] ?? [];
-        $measuredData = new WeightProgressionSetting(
-            measuredReps: $preview['measuredReps'] ?? null,
-            measuredWeight: $preview['measuredWeight'] ?? null,
-            targetGoal: $preview['targetGoal'] ?? null,
-        );
+        $measuredData = $this->getPlanMeasuredData();
 
-        $weeks = (int) ($preview['weeks'] ?? $this->weeks);
+        $weeks = $this->weeks;
         $overrides = GridOverrides::fromArrays(
             $baseOverrides['cells'] ?? [],
             $baseOverrides['weeks'] ?? [],
@@ -148,16 +162,31 @@ class PlanExerciseGrid extends Component
     }
 
     #[Computed]
-    public function previewGrid(): PreviewGrid
+    public function requiresMeasuredData(): bool
     {
         $effectiveConfig = $this->getEffectiveConfig();
 
-        $preview = $effectiveConfig['preview'] ?? [];
-        $measuredData = new WeightProgressionSetting(
-            measuredReps: $preview['measuredReps'] ?? null,
-            measuredWeight: $preview['measuredWeight'] ?? null,
-            targetGoal: $preview['targetGoal'] ?? null,
-        );
+        return in_array('weight', $effectiveConfig['settings'] ?? [])
+            && ($effectiveConfig['weight']['mode'] ?? 'manual') === 'automatic';
+    }
+
+    #[Computed]
+    public function hasMeasuredData(): bool
+    {
+        return $this->getPlanMeasuredData()->isComplete();
+    }
+
+    #[Computed]
+    public function configFingerprint(): string
+    {
+        return md5(json_encode($this->getEffectiveConfig()));
+    }
+
+    #[Computed]
+    public function previewGrid(): PreviewGrid
+    {
+        $effectiveConfig = $this->getEffectiveConfig();
+        $measuredData = $this->getPlanMeasuredData();
 
         $overrides = GridOverrides::fromArrays(
             $effectiveConfig['overrides']['cells'] ?? [],
@@ -216,7 +245,7 @@ class PlanExerciseGrid extends Component
         );
 
         $this->saveOverrides($overrides);
-        unset($this->previewGrid);
+        unset($this->configFingerprint, $this->previewGrid);
     }
 
     public function updateWeekOverride(int $weekIndex, string $field, mixed $value): void
@@ -234,7 +263,7 @@ class PlanExerciseGrid extends Component
         );
 
         $this->saveOverrides($overrides);
-        unset($this->previewGrid);
+        unset($this->configFingerprint, $this->previewGrid);
     }
 
     public function resetOverrides(): void
@@ -243,7 +272,13 @@ class PlanExerciseGrid extends Component
         $overrides->gridOverrides = OverrideManager::reset();
 
         $this->saveOverrides($overrides);
-        unset($this->previewGrid);
+        unset($this->configFingerprint, $this->previewGrid);
+    }
+
+    #[\Livewire\Attributes\On('plan-overrides-reset')]
+    public function onPlanOverridesReset(): void
+    {
+        unset($this->configFingerprint, $this->previewGrid);
     }
 
     public function openSettingsForm(): void
@@ -297,7 +332,7 @@ class PlanExerciseGrid extends Component
         }
 
         $this->saveOverrides($overrides);
-        unset($this->previewGrid);
+        unset($this->configFingerprint, $this->previewGrid);
     }
 
     protected function saveOverrides(ExerciseOverrides $overrides): void
@@ -314,7 +349,7 @@ class PlanExerciseGrid extends Component
         $trainingPlan->config = $config;
         $trainingPlan->save();
 
-        $this->notifyChanged('config');
+        $this->dispatch('exercise-overrides-changed');
     }
 
     public function render()

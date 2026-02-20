@@ -11,9 +11,18 @@
             </div>
 
             @foreach ($this->users as $userItem)
+                @php
+                    $isSelected = $user === $userItem->id;
+                    $overrideCount = $this->userOverrideCounts[$userItem->id] ?? 0;
+                @endphp
                 <flux:button wire:key="user-btn-{{ $userItem->id }}" wire:click="selectUser({{ $userItem->id }})"
-                    variant="{{ $user === $userItem->id ? 'primary' : 'ghost' }}" class="justify-start">
+                    variant="{{ $isSelected ? 'primary' : 'ghost' }}" class="justify-start">
                     <span class="flex-1 text-left">{{ $userItem->name }}</span>
+                    @if ($overrideCount > 0 && $isSelected)
+                        <flux:badge size="sm" color="lime" class="!text-green-700">{{ $overrideCount }}</flux:badge>
+                    @elseif ($overrideCount > 0)
+                        <flux:badge size="sm" color="lime">{{ $overrideCount }}</flux:badge>
+                    @endif
                 </flux:button>
             @endforeach
         </div>
@@ -35,7 +44,13 @@
                 </div>
             </div>
         @elseif ($this->selectedUser)
-            <flux:heading size="xl">{{ $this->selectedUser->name }}</flux:heading>
+            <div class="flex items-center justify-between">
+                <flux:heading size="xl">{{ $this->selectedUser->name }}</flux:heading>
+                <flux:button wire:click="confirmResetSelectedUserSettings" variant="primary" size="sm" icon="rotate-ccw"
+                    :disabled="! $this->hasSelectedUserOverrides">
+                    Reset User Settings
+                </flux:button>
+            </div>
         @endif
 
         <div class="flex gap-6">
@@ -167,7 +182,7 @@
 
             @foreach ($this->programsForCategory as $program)
                 <div wire:key="program-{{ $program->id }}" class="space-y-4">
-                    <flux:heading size="lg">{{ $program->name }}</flux:heading>
+                    <flux:heading level="3" size="lg">{{ $program->name }}</flux:heading>
 
                     <div class="flex flex-wrap gap-4">
                         @foreach ($program->exercises as $exercise)
@@ -178,6 +193,9 @@
                                 :userId="$user"
                                 :weeks="$this->weeks"
                                 :sessionsPerWeek="$this->sessionsPerWeekByProgram[$program->id] ?? 1"
+                                :planMeasuredReps="$measuredReps"
+                                :planMeasuredWeight="$measuredWeight"
+                                :planTargetGoal="$targetGoal"
                             />
                         @endforeach
                     </div>
@@ -227,6 +245,26 @@
                 </flux:modal.close>
                 <flux:button variant="danger" wire:click="resetUserSettings">
                     Reset User Settings
+                </flux:button>
+            </div>
+        </div>
+    </flux:modal>
+
+    <flux:modal name="reset-selected-user-settings" class="min-w-[22rem]">
+        <div class="space-y-6">
+            <div>
+                <flux:heading size="lg">Reset User Settings?</flux:heading>
+                <flux:text class="mt-2">
+                    This will remove all exercise overrides and settings for {{ $this->selectedUser?->name ?? 'this user' }}, resetting them back to the default plan.
+                </flux:text>
+            </div>
+            <div class="flex gap-2">
+                <flux:spacer />
+                <flux:modal.close>
+                    <flux:button variant="ghost">Cancel</flux:button>
+                </flux:modal.close>
+                <flux:button variant="danger" wire:click="resetSelectedUserSettings">
+                    Reset Settings
                 </flux:button>
             </div>
         </div>

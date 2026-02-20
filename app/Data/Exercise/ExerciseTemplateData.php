@@ -48,7 +48,7 @@ class ExerciseTemplateData extends AbstractData implements HasForms
     {
         $form = Form::make()
             ->fieldset('General', [
-                Fields\Text::make('name'),
+                Fields\Text::make('name')->required(),
             ]);
 
         ExerciseConfig::addFormFieldsets($form);

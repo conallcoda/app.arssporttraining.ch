@@ -370,6 +370,35 @@ class TrainingPlanConfig extends AbstractConfig
         }
     }
 
+    public function resetSingleUserExerciseOverrides(int $userId): void
+    {
+        $user = $this->forUser($userId);
+
+        if ($user === null) {
+            return;
+        }
+
+        $user->exercises = [];
+    }
+
+    public function hasExerciseOverridesForUser(int $userId): bool
+    {
+        return $this->exerciseOverrideCountForUser($userId) > 0;
+    }
+
+    public function exerciseOverrideCountForUser(int $userId): int
+    {
+        $user = $this->forUser($userId);
+
+        if ($user === null) {
+            return 0;
+        }
+
+        $exercises = $user instanceof UserTrainingPlanConfig ? $user->exercises : ($user['exercises'] ?? []);
+
+        return count($exercises);
+    }
+
     public function resetAll(): void
     {
         $this->resetDefaults();

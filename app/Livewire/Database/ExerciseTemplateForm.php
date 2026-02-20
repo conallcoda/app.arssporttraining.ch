@@ -51,6 +51,11 @@ class ExerciseTemplateForm extends FormModal
 
         unset($this->fieldsets);
         $this->data = array_replace_recursive($this->buildDefaultsFromFieldsets(), $this->data);
+
+        if (isset($data['config']['settings'])) {
+            $this->data['config']['settings'] = $data['config']['settings'];
+        }
+
         $this->openPreview($data);
         unset($this->fieldsets);
     }

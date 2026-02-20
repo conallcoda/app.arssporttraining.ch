@@ -245,21 +245,12 @@ class Schedule extends Component
             return;
         }
 
-        $program = $this->programs->firstWhere('id', $programId);
-        if (! $program) {
-            return;
-        }
-
         $this->assigningWeekId = $weekId;
         $this->assigningDay = $day;
         $this->assigningSlot = $slot;
-        $this->editingProgramId = $programId;
+        $this->linkingProgramId = $programId;
 
-        $programData = TrainingProgramData::fromTrainingPlanProgram($program);
-        $this->data = $programData->toArray();
-        $this->ensureRelationshipItemsHaveKeys();
-
-        Flux::modal('add-program')->show();
+        Flux::modal('link-program')->show();
     }
 
     public function saveProgram(): void
@@ -304,24 +295,20 @@ class Schedule extends Component
         Flux::modal('link-program')->close();
     }
 
-    public function confirmDeleteProgram(): void
-    {
-        Flux::modal('delete-program')->show();
-    }
-
     public function removeFromSchedule(): void
     {
-        if ($this->editingProgramId === null) {
+        if ($this->linkingProgramId === null || $this->assigningWeekId === null || $this->assigningDay === null || $this->assigningSlot === null) {
             return;
         }
 
-        $this->notifyDataChanged('removeProgram', [
-            'programId' => $this->editingProgramId,
-            'userId' => $this->user,
+        $this->onScheduleEvent('unassign-program', [
+            'weekId' => $this->assigningWeekId,
+            'day' => $this->assigningDay,
+            'slot' => $this->assigningSlot,
+            'programId' => $this->linkingProgramId,
         ]);
 
-        Flux::modal('delete-program')->close();
-        Flux::modal('add-program')->close();
+        Flux::modal('link-program')->close();
         $this->resetProgramForm();
     }
 
