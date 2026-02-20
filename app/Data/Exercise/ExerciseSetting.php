@@ -15,6 +15,15 @@ enum ExerciseSetting: string
     case Watts = 'watts';
     case Weight = 'weight';
 
+    public function label(): string
+    {
+        return match ($this) {
+            self::HeartRate => 'Heart Rate',
+            self::HeartRateZone => 'Heart Rate Zone',
+            default => ucfirst($this->value),
+        };
+    }
+
     /** @return class-string<Settings\AbstractSetting>|null */
     public function settingClass(): ?string
     {

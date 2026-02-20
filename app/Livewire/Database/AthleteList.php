@@ -9,6 +9,8 @@ use Coda\Cms\Display\DisplayFields\Ago;
 use Coda\Cms\Display\DisplayFields\Id;
 use Coda\Cms\Display\DisplayFields\Text;
 use Coda\Cms\Display\Table;
+use Coda\Cms\Display\TableFilter;
+use Coda\Cms\Form\Fields\Text as TextField;
 use Coda\Cms\Livewire\AbstractModelList;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 
@@ -43,6 +45,19 @@ class AthleteList extends AbstractModelList
                     ->width('w-1/3')
                     ->modal(),
                 Ago::make('updatedAt')->label('Last Changed'),
+            ])
+            ->filters([
+                TableFilter::callback('search', function (Builder $query, mixed $value): void {
+                    $query->where(function (Builder $q) use ($value): void {
+                        $q->where('forename', 'like', '%'.$value.'%')
+                            ->orWhere('surname', 'like', '%'.$value.'%');
+                    });
+                })
+                    ->field(
+                        TextField::make('search')
+                            ->label('Search')
+                            ->placeholder('Search athletes...')
+                    ),
             ]);
     }
 }

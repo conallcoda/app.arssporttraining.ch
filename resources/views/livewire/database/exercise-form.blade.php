@@ -8,7 +8,7 @@
 
             <div class="grid grid-cols-[minmax(420px,2fr)_3fr] gap-8">
                 <div class="space-y-4">
-                    <form wire:submit="submit" class="space-y-4">
+                    <form wire:submit="submit" class="space-y-4" wire:key="form-{{ $openCount }}">
                         @foreach ($this->fieldsets as $item)
                             @if ($item instanceof \Coda\Cms\Form\FormFieldsetGroup)
                                 <x-cms::form.fieldset-tabs :group="$item" />

@@ -12,9 +12,11 @@ abstract class AbstractSetting extends AbstractData implements HasForms
 {
     use InteractsWithForms;
 
-    public static function getName()
+    public static function getName(): string
     {
-        return str_replace('Setting', '', class_basename(static::class));
+        $name = str_replace('Setting', '', class_basename(static::class));
+
+        return preg_replace('/([a-z])([A-Z])/', '$1 $2', $name);
     }
 
     public static function unitLabel(): string|array|null

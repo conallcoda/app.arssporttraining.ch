@@ -241,8 +241,8 @@ class ExercisePreviewBuilder
 
     private static function resolveLabel(string $setting, array $config): string
     {
-        $label = ucfirst($setting);
         $enum = ExerciseSetting::tryFrom($setting);
+        $label = $enum?->label() ?? ucfirst($setting);
 
         if ($enum?->settingClass()) {
             $unit = $enum->settingClass()::resolveUnitLabel($config);

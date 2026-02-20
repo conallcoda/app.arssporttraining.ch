@@ -8,7 +8,7 @@
     'editable' => true,
 ])
 
-@if (count($grid->rows) === 0)
+@if (count($grid->rows) === 0 && count($grid->weekColumns) === 0)
     <div class="text-center text-zinc-500 dark:text-zinc-400 py-8">
         No settings configured for this exercise.
     </div>
@@ -74,7 +74,9 @@
                     <tr class="bg-zinc-100 dark:bg-zinc-800">
                         <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 w-20">Week</th>
                         <th class="border border-zinc-300 dark:border-zinc-600 px-2 py-2 w-12" x-show="expanded" x-cloak>Session</th>
-                        <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2"></th>
+                        @if (count($grid->rows) > 0)
+                            <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2"></th>
+                        @endif
                         @php
                             $labelLen = mb_strlen($grid->setLabel);
                             $setColWidth = match(true) {
@@ -85,13 +87,15 @@
                                 default => 'w-44',
                             };
                         @endphp
-                        @for ($i = 0; $i < $grid->setCount; $i++)
-                            <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 {{ $setColWidth }} whitespace-nowrap">
-                                @if ($grid->setCount > 1)
-                                    {{ $grid->setLabel }} {{ $i + 1 }}
-                                @endif
-                            </th>
-                        @endfor
+                        @if (count($grid->rows) > 0)
+                            @for ($i = 0; $i < $grid->setCount; $i++)
+                                <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 {{ $setColWidth }} whitespace-nowrap">
+                                    @if ($grid->setCount > 1)
+                                        {{ $grid->setLabel }} {{ $i + 1 }}
+                                    @endif
+                                </th>
+                            @endfor
+                        @endif
                         @foreach ($grid->weekColumns as $weekCol)
                             <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 w-16 whitespace-nowrap">
                                 {{ $weekCol->label }}</th>
@@ -100,89 +104,163 @@
                 </thead>
                 <tbody x-show="!expanded">
                     @for ($week = 0; $week < $grid->weekCount; $week++)
-                        @foreach ($grid->rows as $rowIdx => $row)
-                            <tr wire:key="collapsed-w{{ $week }}-r{{ $rowIdx }}">
-                                @if ($rowIdx === 0)
-                                    <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle text-center"
-                                        rowspan="{{ count($grid->rows) }}">
-                                        <div>TW{{ $week + 1 }}</div>
-                                        @if ($grid->sessionsPerWeek > 1)
-                                            <div class="text-[10px] font-normal text-zinc-400 dark:text-zinc-500 whitespace-nowrap">({{ $grid->sessionsPerWeek }} sessions)</div>
-                                        @endif
-                                    </td>
-                                @endif
-                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-medium whitespace-nowrap {{ $row->color }}">
-                                    {{ $row->label }}
+                        @if (count($grid->rows) === 0)
+                            <tr wire:key="collapsed-w{{ $week }}-weekonly">
+                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle text-center">
+                                    <div>TW{{ $week + 1 }}</div>
+                                    @if ($grid->sessionsPerWeek > 1)
+                                        <div class="text-[10px] font-normal text-zinc-400 dark:text-zinc-500 whitespace-nowrap">({{ $grid->sessionsPerWeek }} sessions)</div>
+                                    @endif
                                 </td>
-                                @for ($set = 0; $set < $grid->setCount; $set++)
+                                @foreach ($grid->weekColumns as $weekCol)
                                     @php
-                                        $cellValue = $row->cells[$week][$set] ?? '-';
-                                        $cellOverridden = $row->overrides[$week][$set] ?? false;
+                                        $wcValue = $weekCol->cells[$week] ?? '-';
+                                        $wcOverridden = $weekCol->overrides[$week] ?? false;
                                     @endphp
-                                    @if ($editable && $row->isCellEditable($week, $set) && $cellValue !== '-')
-                                        @if ($cellOverridden)
-                                            <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $row->overrideColor }}"
+                                    @if ($editable && $weekCol->isCellEditable($week))
+                                        @if ($wcOverridden)
+                                            <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $weekCol->overrideColor }}"
                                         @else
-                                            <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $row->color }}"
+                                            <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $weekCol->color }}"
                                         @endif
                                             x-data="editable_cell"
-                                            data-edit-type="cell"
-                                            data-field="{{ $row->field }}"
+                                            data-edit-type="week"
+                                            data-field="{{ $weekCol->field }}"
                                             data-week="{{ $week }}"
-                                            data-set="{{ $set }}"
-                                            data-session="{{ $grid->sessionsPerWeek - 1 }}"
-                                            data-apply-to-all="true"
-                                            @if ($row->inputMeta && $row->inputMeta->mask)
-                                                data-mask="{{ $row->inputMeta->mask }}"
+                                            @if ($weekCol->inputMeta && $weekCol->inputMeta->mask)
+                                                data-mask="{{ $weekCol->inputMeta->mask }}"
                                             @endif
                                             @click="startEditing()">
-                                            <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $cellValue }}</span>
-                                            <x-training.exercise-grid-input :meta="$row->inputMeta" :value="$cellValue" size="sm" />
+                                            <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $wcValue }}</span>
+                                            <x-training.exercise-grid-input :meta="$weekCol->inputMeta" :value="$wcValue" size="xs" type="text" />
                                         </td>
                                     @else
-                                        <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $row->color }}">
-                                            {{ $cellValue }}
+                                        <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $weekCol->color }}">
+                                            {{ $wcValue }}
                                         </td>
                                     @endif
-                                @endfor
-                                @if ($rowIdx === 0)
-                                    @foreach ($grid->weekColumns as $weekCol)
-                                        @php
-                                            $wcValue = $weekCol->cells[$week] ?? '-';
-                                            $wcOverridden = $weekCol->overrides[$week] ?? false;
-                                        @endphp
-                                        @if ($editable && $weekCol->isCellEditable($week))
-                                            @if ($wcOverridden)
-                                                <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $weekCol->overrideColor }}"
-                                            @else
-                                                <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $weekCol->color }}"
+                                @endforeach
+                            </tr>
+                        @else
+                            @foreach ($grid->rows as $rowIdx => $row)
+                                <tr wire:key="collapsed-w{{ $week }}-r{{ $rowIdx }}">
+                                    @if ($rowIdx === 0)
+                                        <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle text-center"
+                                            rowspan="{{ count($grid->rows) }}">
+                                            <div>TW{{ $week + 1 }}</div>
+                                            @if ($grid->sessionsPerWeek > 1)
+                                                <div class="text-[10px] font-normal text-zinc-400 dark:text-zinc-500 whitespace-nowrap">({{ $grid->sessionsPerWeek }} sessions)</div>
                                             @endif
-                                                rowspan="{{ count($grid->rows) }}"
+                                        </td>
+                                    @endif
+                                    <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-medium whitespace-nowrap {{ $row->color }}">
+                                        {{ $row->label }}
+                                    </td>
+                                    @for ($set = 0; $set < $grid->setCount; $set++)
+                                        @php
+                                            $cellValue = $row->cells[$week][$set] ?? '-';
+                                            $cellOverridden = $row->overrides[$week][$set] ?? false;
+                                        @endphp
+                                        @if ($editable && $row->isCellEditable($week, $set) && $cellValue !== '-')
+                                            @if ($cellOverridden)
+                                                <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $row->overrideColor }}"
+                                            @else
+                                                <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $row->color }}"
+                                            @endif
                                                 x-data="editable_cell"
-                                                data-edit-type="week"
-                                                data-field="{{ $weekCol->field }}"
+                                                data-edit-type="cell"
+                                                data-field="{{ $row->field }}"
                                                 data-week="{{ $week }}"
-                                                @if ($weekCol->inputMeta && $weekCol->inputMeta->mask)
-                                                    data-mask="{{ $weekCol->inputMeta->mask }}"
+                                                data-set="{{ $set }}"
+                                                data-session="{{ $grid->sessionsPerWeek - 1 }}"
+                                                data-apply-to-all="true"
+                                                @if ($row->inputMeta && $row->inputMeta->mask)
+                                                    data-mask="{{ $row->inputMeta->mask }}"
                                                 @endif
                                                 @click="startEditing()">
-                                                <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $wcValue }}</span>
-                                                <x-training.exercise-grid-input :meta="$weekCol->inputMeta" :value="$wcValue" size="xs" type="text" />
+                                                <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $cellValue }}</span>
+                                                <x-training.exercise-grid-input :meta="$row->inputMeta" :value="$cellValue" size="sm" />
                                             </td>
                                         @else
-                                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $weekCol->color }}"
-                                                rowspan="{{ count($grid->rows) }}">
-                                                {{ $wcValue }}
+                                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $row->color }}">
+                                                {{ $cellValue }}
                                             </td>
                                         @endif
-                                    @endforeach
-                                @endif
-                            </tr>
-                        @endforeach
+                                    @endfor
+                                    @if ($rowIdx === 0)
+                                        @foreach ($grid->weekColumns as $weekCol)
+                                            @php
+                                                $wcValue = $weekCol->cells[$week] ?? '-';
+                                                $wcOverridden = $weekCol->overrides[$week] ?? false;
+                                            @endphp
+                                            @if ($editable && $weekCol->isCellEditable($week))
+                                                @if ($wcOverridden)
+                                                    <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $weekCol->overrideColor }}"
+                                                @else
+                                                    <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $weekCol->color }}"
+                                                @endif
+                                                    rowspan="{{ count($grid->rows) }}"
+                                                    x-data="editable_cell"
+                                                    data-edit-type="week"
+                                                    data-field="{{ $weekCol->field }}"
+                                                    data-week="{{ $week }}"
+                                                    @if ($weekCol->inputMeta && $weekCol->inputMeta->mask)
+                                                        data-mask="{{ $weekCol->inputMeta->mask }}"
+                                                    @endif
+                                                    @click="startEditing()">
+                                                    <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $wcValue }}</span>
+                                                    <x-training.exercise-grid-input :meta="$weekCol->inputMeta" :value="$wcValue" size="xs" type="text" />
+                                                </td>
+                                            @else
+                                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $weekCol->color }}"
+                                                    rowspan="{{ count($grid->rows) }}">
+                                                    {{ $wcValue }}
+                                                </td>
+                                            @endif
+                                        @endforeach
+                                    @endif
+                                </tr>
+                            @endforeach
+                        @endif
                     @endfor
                 </tbody>
                 <tbody x-show="expanded" x-cloak>
                     @for ($week = 0; $week < $grid->weekCount; $week++)
+                        @if (count($grid->rows) === 0)
+                            <tr wire:key="expanded-w{{ $week }}-weekonly">
+                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle text-center">
+                                    <div>TW{{ $week + 1 }}</div>
+                                </td>
+                                @foreach ($grid->weekColumns as $weekCol)
+                                    @php
+                                        $wcValue = $weekCol->cells[$week] ?? '-';
+                                        $wcOverridden = $weekCol->overrides[$week] ?? false;
+                                    @endphp
+                                    @if ($editable && $weekCol->isCellEditable($week))
+                                        @if ($wcOverridden)
+                                            <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $weekCol->overrideColor }}"
+                                        @else
+                                            <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $weekCol->color }}"
+                                        @endif
+                                            x-data="editable_cell"
+                                            data-edit-type="week"
+                                            data-field="{{ $weekCol->field }}"
+                                            data-week="{{ $week }}"
+                                            @if ($weekCol->inputMeta && $weekCol->inputMeta->mask)
+                                                data-mask="{{ $weekCol->inputMeta->mask }}"
+                                            @endif
+                                            @click="startEditing()">
+                                            <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $wcValue }}</span>
+                                            <x-training.exercise-grid-input :meta="$weekCol->inputMeta" :value="$wcValue" size="xs" type="text" />
+                                        </td>
+                                    @else
+                                        <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $weekCol->color }}">
+                                            {{ $wcValue }}
+                                        </td>
+                                    @endif
+                                @endforeach
+                            </tr>
+                        @else
                         @for ($session = 0; $session < $grid->sessionsPerWeek; $session++)
                             @foreach ($grid->rows as $rowIdx => $row)
                                 @php $isFirstRow = $rowIdx === 0; @endphp
@@ -272,6 +350,7 @@
                                 </tr>
                             @endforeach
                         @endfor
+                        @endif
                     @endfor
                 </tbody>
             </table>

@@ -7,9 +7,9 @@ use Coda\Cms\Form\Fields;
 class WeightProgressionSetting extends AbstractSetting
 {
     public function __construct(
-        public ?int $measuredReps = null,
-        public ?float $measuredWeight = null,
-        public ?int $targetGoal = null,
+        public ?int $measuredReps = 1,
+        public ?float $measuredWeight = 50,
+        public ?int $targetGoal = 10,
     ) {}
 
     public function isComplete(): bool
@@ -28,12 +28,14 @@ class WeightProgressionSetting extends AbstractSetting
                 ->min(1)
                 ->max(15)
                 ->step(1)
+                ->default(1)
                 ->suffix('rep(s)'),
             Fields\Weight::make('measuredWeight')
-                ->label('Measured Weight'),
+                ->label('Measured Weight')
+                ->default(50),
             Fields\Percentage::make('targetGoal')
                 ->label('Target Goal')
-                ->default(0),
+                ->default(10),
         ];
     }
 }
