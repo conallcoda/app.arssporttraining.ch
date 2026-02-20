@@ -129,6 +129,7 @@ class TrainingPlanView extends Component
             'removeProgram' => $this->removeProgram($value),
             'target' => $this->saveTarget($value),
             'resetDefaults' => $this->resetDefaults(),
+            'resetUserSettings' => $this->resetUserSettings(),
             'resetAll' => $this->resetAll(),
             default => null,
         };
@@ -273,6 +274,16 @@ class TrainingPlanView extends Component
         $this->trainingPlan->config = $config;
         $this->trainingPlan->save();
         $this->trainingPlan->refresh();
+    }
+
+    protected function resetUserSettings(): void
+    {
+        $config = $this->trainingPlan->config;
+        $config->resetUserSettings();
+        $this->trainingPlan->config = $config;
+        $this->trainingPlan->save();
+        $this->trainingPlan->refresh();
+        $this->loadAllData();
     }
 
     protected function resetAll(): void

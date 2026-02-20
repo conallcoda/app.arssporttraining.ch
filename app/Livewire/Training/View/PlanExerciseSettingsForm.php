@@ -14,7 +14,7 @@ use Livewire\Attributes\On;
 
 class PlanExerciseSettingsForm extends FormModal
 {
-    public ?int $contextPivotId = null;
+    public ?int $contextExerciseId = null;
 
     public ?int $contextUserId = null;
 
@@ -65,10 +65,15 @@ class PlanExerciseSettingsForm extends FormModal
         return $fieldsets;
     }
 
+    public function getListeners(): array
+    {
+        return [];
+    }
+
     #[On('open-plan-exercise-settings')]
     public function openForExercise(array $data): void
     {
-        $this->contextPivotId = $data['pivotId'] ?? null;
+        $this->contextExerciseId = $data['exerciseId'] ?? null;
         $this->contextUserId = $data['userId'] ?? null;
 
         $config = $data['config'] ?? [];
@@ -110,7 +115,7 @@ class PlanExerciseSettingsForm extends FormModal
 
         $this->dispatch('plan-exercise-settings.saved', data: [
             'config' => $this->data['config'],
-            'pivotId' => $this->contextPivotId,
+            'exerciseId' => $this->contextExerciseId,
             'userId' => $this->contextUserId,
         ]);
     }

@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Data\Training\Config\PlanExerciseConfig;
 use App\Models\Exercise\Exercise;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\Pivot;
@@ -17,15 +16,7 @@ class TrainingPlanProgramExercise extends Pivot
         'training_plan_program_id',
         'exercise_id',
         'sort',
-        'config',
     ];
-
-    protected function casts(): array
-    {
-        return [
-            'config' => PlanExerciseConfig::class,
-        ];
-    }
 
     public function program(): BelongsTo
     {

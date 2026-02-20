@@ -8,7 +8,6 @@ use App\Models\ProgramCategory;
 use App\Models\Tag;
 use App\Models\TrainingPlan;
 use App\Models\TrainingPlanProgram;
-use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
@@ -31,11 +30,8 @@ class ExampleTrainingPlanSeeder extends Seeder
 
         $plan = TrainingPlan::create(['name' => 'Example']);
 
-        $plan->userGroups()->attach(UserGroup::first(), ['sort' => 0]);
-
-        $users = User::latest('id')->take(2)->pluck('id');
-        $usersWithSort = $users->mapWithKeys(fn ($id, $index) => [$id => ['sort' => $index]])->all();
-        $plan->users()->attach($usersWithSort);
+        $threeAmigos = UserGroup::where('name', 'Three Amigos')->first();
+        $plan->userGroups()->attach($threeAmigos, ['sort' => 0]);
 
         $programs = [];
         $programs[] = $this->createStrength1A($plan, $programCategories->get('Strength'));
@@ -391,7 +387,6 @@ class ExampleTrainingPlanSeeder extends Seeder
 
             $attachData[$exercise->id] = [
                 'sort' => $index,
-                'config' => [],
             ];
         }
 

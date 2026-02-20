@@ -12,5 +12,7 @@ class UserTrainingPlanConfig extends AbstractConfig
     public function __construct(
         public DefaultScheduleConfig|Optional $schedule,
         public TargetConfig|Optional $target,
+        /** @var array<int, ExerciseOverrides> */
+        public array $exercises = [],
     ) {}
 }

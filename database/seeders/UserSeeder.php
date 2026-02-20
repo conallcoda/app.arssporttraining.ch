@@ -4,45 +4,39 @@ namespace Database\Seeders;
 
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
+use App\Models\Users\UserTypeEnum;
 use Illuminate\Database\Seeder;
 
 class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        $class11 = UserGroup::create(['name' => 'Class 11']);
-        $class12 = UserGroup::create(['name' => 'Class 12']);
-        $class13 = UserGroup::create(['name' => 'Class 13']);
+        $data = require database_path('seeders/data/athletes.php');
 
-        User::factory()->admin()->create([
-            'forename' => 'Admin',
-            'surname' => 'User',
-            'email' => 'dev@dev.dev',
-        ]);
+        $usersByName = collect();
 
-        User::factory()->coach()->count(3)->create();
+        foreach ($data['users'] as $userData) {
+            $type = UserTypeEnum::from($userData['type']);
 
-        $weights = [52, 55, 57, 60, 102, 105, 107.5, 115, 122.5, 52, 55, 57, 60, 102, 105, 107.5, 115, 122.5, 52, 55, 57, 60, 102, 105, 107.5, 115, 122.5, 52, 55, 57, 60, 102, 105, 107.5, 115, 122.5];
+            $user = User::factory()->state([
+                'forename' => $userData['forename'],
+                'surname' => $userData['surname'],
+                'type' => $type,
+            ])->create();
 
-        $athletes = collect();
-        foreach ($weights as $weight) {
-            $athletes->push(User::factory()->athlete()->create([
-                'config' => [
-                    'test_reps' => 1,
-                    'test_weight' => $weight,
-                    'target_modifier' => 100.0,
-                ],
-            ]));
+            $usersByName->put("{$userData['forename']} {$userData['surname']}", $user);
         }
 
-        $class11->members()->attach(
-            $athletes->slice(0, 3)->values()->mapWithKeys(fn ($user, $index) => [$user->id => ['sort' => $index]])
-        );
-        $class12->members()->attach(
-            $athletes->slice(3, 10)->values()->mapWithKeys(fn ($user, $index) => [$user->id => ['sort' => $index]])
-        );
-        $class13->members()->attach(
-            $athletes->slice(13, 6)->values()->mapWithKeys(fn ($user, $index) => [$user->id => ['sort' => $index]])
-        );
+        foreach ($data['groups'] as $groupName => $members) {
+            $group = UserGroup::create(['name' => $groupName]);
+
+            $memberIds = collect($members)
+                ->values()
+                ->mapWithKeys(fn (string $name, int $index) => [
+                    $usersByName->get($name)->id => ['sort' => $index],
+                ]);
+
+            $group->members()->attach($memberIds);
+        }
     }
 }

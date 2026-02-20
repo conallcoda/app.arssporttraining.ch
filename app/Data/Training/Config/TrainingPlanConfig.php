@@ -264,28 +264,116 @@ class TrainingPlanConfig extends AbstractConfig
         }
     }
 
+    public function defaultExerciseOverrides(int $exerciseId): ExerciseOverrides
+    {
+        $data = $this->default->exercises[$exerciseId] ?? null;
+
+        if ($data === null) {
+            return new ExerciseOverrides;
+        }
+
+        if ($data instanceof ExerciseOverrides) {
+            return $data;
+        }
+
+        $overrides = ExerciseOverrides::from($data);
+        $this->default->exercises[$exerciseId] = $overrides;
+
+        return $overrides;
+    }
+
+    public function userExerciseOverrides(int $exerciseId, int $userId): ExerciseOverrides
+    {
+        $user = $this->forUser($userId);
+
+        if ($user === null) {
+            return new ExerciseOverrides;
+        }
+
+        $data = $user->exercises[$exerciseId] ?? null;
+
+        if ($data === null) {
+            return new ExerciseOverrides;
+        }
+
+        if ($data instanceof ExerciseOverrides) {
+            return $data;
+        }
+
+        $overrides = ExerciseOverrides::from($data);
+        $user->exercises[$exerciseId] = $overrides;
+
+        return $overrides;
+    }
+
+    public function setDefaultExerciseOverrides(int $exerciseId, ExerciseOverrides $overrides): void
+    {
+        $this->default->exercises[$exerciseId] = $overrides;
+    }
+
+    public function setUserExerciseOverrides(int $exerciseId, int $userId, ExerciseOverrides $overrides): void
+    {
+        $user = $this->forUser($userId);
+
+        if ($user === null) {
+            $this->users[$userId] = UserTrainingPlanConfig::from([
+                'exercises' => [$exerciseId => $overrides->toArray()],
+            ]);
+        } else {
+            $user->exercises[$exerciseId] = $overrides;
+        }
+    }
+
+    public function removeExerciseOverrides(int $exerciseId): void
+    {
+        unset($this->default->exercises[$exerciseId]);
+
+        foreach ($this->users as &$user) {
+            if ($user instanceof UserTrainingPlanConfig) {
+                unset($user->exercises[$exerciseId]);
+            } elseif (is_array($user)) {
+                unset($user['exercises'][$exerciseId]);
+            }
+        }
+    }
+
     public function hasDefaultOverrides(): bool
     {
-        $initialized = self::initialize();
-
-        return json_encode($this->default->toArray()) !== json_encode($initialized->default->toArray());
+        return ! empty($this->default->exercises);
     }
 
     public function hasUserOverrides(): bool
     {
-        return ! empty($this->users);
+        foreach ($this->users as $user) {
+            $exercises = $user instanceof UserTrainingPlanConfig ? $user->exercises : ($user['exercises'] ?? []);
+            if (! empty($exercises)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function resetDefaults(): void
     {
-        $initialized = self::initialize();
-        $this->default = $initialized->default;
+        $this->default->exercises = [];
+    }
+
+    public function resetUserSettings(): void
+    {
+        foreach ($this->users as &$user) {
+            if ($user instanceof UserTrainingPlanConfig) {
+                $user->exercises = [];
+            } elseif (is_array($user)) {
+                $user['exercises'] = [];
+            }
+        }
     }
 
     public function resetAll(): void
     {
         $this->resetDefaults();
-        $this->users = [];
+        $this->resetUserSettings();
     }
 
     protected function toPlainArrays(array $items): array

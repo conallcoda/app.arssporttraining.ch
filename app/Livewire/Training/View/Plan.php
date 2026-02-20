@@ -8,8 +8,8 @@ use App\Models\Users\User;
 use App\Support\WeekOptions;
 use App\Training\Reference\OneRepMaxConversion;
 use Coda\Cms\Livewire\Concerns\InteractsWithParentView;
-use Illuminate\Database\Eloquent\Collection;
 use Flux\Flux;
+use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -222,34 +222,33 @@ class Plan extends Component
         return $this->trainingPlan->config->hasUserOverrides();
     }
 
-    public function confirmResetDefaults(): void
+    public function confirmResetDefaultSettings(): void
     {
-        Flux::modal('reset-defaults')->show();
+        Flux::modal('reset-default-settings')->show();
     }
 
-    public function resetDefaults(): void
+    public function resetDefaultSettings(): void
     {
         $this->notifyDataChanged('resetDefaults', []);
-        Flux::modal('reset-defaults')->close();
+        Flux::modal('reset-default-settings')->close();
         $this->loadStartDate();
         $this->loadTarget();
         $this->clearCategoryComputedProperties();
         unset($this->hasDefaultOverrides);
     }
 
-    public function confirmResetAll(): void
+    public function confirmResetUserSettings(): void
     {
-        Flux::modal('reset-all')->show();
+        Flux::modal('reset-user-settings')->show();
     }
 
-    public function resetAll(): void
+    public function resetUserSettings(): void
     {
-        $this->notifyDataChanged('resetAll', []);
-        Flux::modal('reset-all')->close();
+        $this->notifyDataChanged('resetUserSettings', []);
+        Flux::modal('reset-user-settings')->close();
         $this->loadStartDate();
         $this->loadTarget();
         $this->clearCategoryComputedProperties();
-        unset($this->hasDefaultOverrides);
         unset($this->hasUserOverrides);
     }
 

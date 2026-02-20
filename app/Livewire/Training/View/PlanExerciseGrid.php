@@ -11,15 +11,18 @@ use App\Data\Exercise\Preview\StrategyOrchestrator;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Training\Config\EffectiveExerciseConfig;
 use App\Data\Training\Config\ExerciseOverrides;
-use App\Data\Training\Config\PlanExerciseConfig;
+use App\Data\Training\Config\TrainingPlanConfig;
 use App\Models\Exercise\Exercise;
-use App\Models\TrainingPlanProgramExercise;
+use App\Models\TrainingPlan;
+use Coda\Cms\Livewire\Concerns\InteractsWithParentView;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 
 class PlanExerciseGrid extends Component
 {
-    public int $pivotId;
+    use InteractsWithParentView;
+
+    public int $trainingPlanId;
 
     public int $exerciseId;
 
@@ -33,19 +36,17 @@ class PlanExerciseGrid extends Component
 
     public array $exerciseConfigArray = [];
 
-    public array $pivotConfigArray = [];
-
     /** @var array<int, array{label: string, color: string}> */
     public array $exerciseBadges = [];
 
     public function mount(
-        int $pivotId,
+        int $trainingPlanId,
         int $exerciseId,
         ?int $userId,
         int $weeks,
         int $sessionsPerWeek,
     ): void {
-        $this->pivotId = $pivotId;
+        $this->trainingPlanId = $trainingPlanId;
         $this->exerciseId = $exerciseId;
         $this->userId = $userId;
         $this->weeks = $weeks;
@@ -55,25 +56,11 @@ class PlanExerciseGrid extends Component
         $this->exerciseName = $exercise->name;
         $this->exerciseConfigArray = $exercise->config->toArray();
         $this->exerciseBadges = $this->buildExerciseBadges($exercise);
-
-        $pivot = TrainingPlanProgramExercise::findOrFail($pivotId);
-        $this->pivotConfigArray = $this->resolvePivotConfig($pivot)->toArray();
     }
 
-    protected function resolvePivotConfig(TrainingPlanProgramExercise $pivot): PlanExerciseConfig
+    protected function getTrainingPlanConfig(): TrainingPlanConfig
     {
-        $config = $pivot->config;
-
-        if ($config instanceof PlanExerciseConfig) {
-            return $config;
-        }
-
-        return new PlanExerciseConfig;
-    }
-
-    protected function getPlanExerciseConfig(): PlanExerciseConfig
-    {
-        return PlanExerciseConfig::from($this->pivotConfigArray);
+        return TrainingPlan::findOrFail($this->trainingPlanId)->config;
     }
 
     protected function getExerciseConfig(): ExerciseConfig
@@ -83,25 +70,28 @@ class PlanExerciseGrid extends Component
 
     protected function getCurrentOverrides(): ExerciseOverrides
     {
-        $config = $this->getPlanExerciseConfig();
+        $config = $this->getTrainingPlanConfig();
 
         if ($this->userId !== null) {
-            return $config->forUser($this->userId);
+            return $config->userExerciseOverrides($this->exerciseId, $this->userId);
         }
 
-        return $config->plan;
+        return $config->defaultExerciseOverrides($this->exerciseId);
     }
 
     protected function getEffectiveConfig(): array
     {
         $base = $this->getExerciseConfig();
-        $planConfig = $this->getPlanExerciseConfig();
+        $config = $this->getTrainingPlanConfig();
+        $planOverrides = $config->defaultExerciseOverrides($this->exerciseId);
 
         if ($this->userId !== null) {
-            return EffectiveExerciseConfig::resolve($base, $planConfig->plan, $planConfig->forUser($this->userId));
+            $userOverrides = $config->userExerciseOverrides($this->exerciseId, $this->userId);
+
+            return EffectiveExerciseConfig::resolve($base, $planOverrides, $userOverrides);
         }
 
-        return EffectiveExerciseConfig::resolve($base, $planConfig->plan);
+        return EffectiveExerciseConfig::resolve($base, $planOverrides);
     }
 
     protected function getBaseGridOverrides(): array
@@ -109,9 +99,10 @@ class PlanExerciseGrid extends Component
         $base = $this->getExerciseConfig();
 
         if ($this->userId !== null) {
-            $planConfig = $this->getPlanExerciseConfig();
+            $config = $this->getTrainingPlanConfig();
+            $planOverrides = $config->defaultExerciseOverrides($this->exerciseId);
 
-            return EffectiveExerciseConfig::mergeGridOverrides($base->overrides, $planConfig->plan->gridOverrides);
+            return EffectiveExerciseConfig::mergeGridOverrides($base->overrides, $planOverrides->gridOverrides);
         }
 
         return $base->overrides;
@@ -261,7 +252,7 @@ class PlanExerciseGrid extends Component
 
         $this->dispatch('open-plan-exercise-settings', data: [
             'config' => $effectiveConfig,
-            'pivotId' => $this->pivotId,
+            'exerciseId' => $this->exerciseId,
             'userId' => $this->userId,
             'exerciseName' => $this->exerciseName,
         ]);
@@ -271,7 +262,7 @@ class PlanExerciseGrid extends Component
     #[\Livewire\Attributes\On('plan-exercise-settings.saved')]
     public function onSettingsSaved(array $data): void
     {
-        if (($data['pivotId'] ?? null) !== $this->pivotId) {
+        if (($data['exerciseId'] ?? null) !== $this->exerciseId) {
             return;
         }
 
@@ -286,7 +277,11 @@ class PlanExerciseGrid extends Component
             $overrides->settings = $settingsConfig['settings'];
         }
 
-        $settingKeys = ['sets', 'reps', 'weight', 'tempo', 'rest', 'distance', 'duration', 'pace', 'watts'];
+        if (isset($settingsConfig['sets'])) {
+            $overrides->sets = \App\Data\Exercise\Settings\SetsSetting::from($settingsConfig['sets']);
+        }
+
+        $settingKeys = ['reps', 'weight', 'tempo', 'rest', 'distance', 'duration', 'heartRate', 'heartRateZone', 'pace', 'watts'];
 
         foreach ($settingKeys as $key) {
             if (isset($settingsConfig[$key])) {
@@ -307,19 +302,19 @@ class PlanExerciseGrid extends Component
 
     protected function saveOverrides(ExerciseOverrides $overrides): void
     {
-        $pivot = TrainingPlanProgramExercise::findOrFail($this->pivotId);
-        $config = $this->resolvePivotConfig($pivot);
+        $trainingPlan = TrainingPlan::findOrFail($this->trainingPlanId);
+        $config = $trainingPlan->config;
 
         if ($this->userId !== null) {
-            $config->setUserOverrides($this->userId, $overrides);
+            $config->setUserExerciseOverrides($this->exerciseId, $this->userId, $overrides);
         } else {
-            $config->plan = $overrides;
+            $config->setDefaultExerciseOverrides($this->exerciseId, $overrides);
         }
 
-        $pivot->config = $config;
-        $pivot->save();
+        $trainingPlan->config = $config;
+        $trainingPlan->save();
 
-        $this->pivotConfigArray = $config->toArray();
+        $this->notifyChanged('config');
     }
 
     public function render()

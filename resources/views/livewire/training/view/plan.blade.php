@@ -24,13 +24,13 @@
             <div class="flex items-center justify-between">
                 <flux:heading size="xl">Default</flux:heading>
                 <div class="flex gap-2">
-                    <flux:button wire:click="confirmResetDefaults" variant="primary" size="sm" icon="rotate-ccw"
+                    <flux:button wire:click="confirmResetDefaultSettings" variant="primary" size="sm" icon="rotate-ccw"
                         :disabled="! $this->hasDefaultOverrides">
-                        Reset Defaults
+                        Reset Default Settings
                     </flux:button>
-                    <flux:button wire:click="confirmResetAll" variant="primary" size="sm" icon="rotate-ccw"
-                        :disabled="! $this->hasUserOverrides && ! $this->hasDefaultOverrides">
-                        Reset All
+                    <flux:button wire:click="confirmResetUserSettings" variant="primary" size="sm" icon="rotate-ccw"
+                        :disabled="! $this->hasUserOverrides">
+                        Reset User Settings
                     </flux:button>
                 </div>
             </div>
@@ -172,8 +172,8 @@
                     <div class="flex flex-wrap gap-4">
                         @foreach ($program->exercises as $exercise)
                             <livewire:training.view.plan-exercise-grid
-                                :key="'grid-' . $exercise->pivot->id . '-' . ($user ?? 'default')"
-                                :pivotId="$exercise->pivot->id"
+                                :key="'grid-' . $exercise->id . '-' . ($user ?? 'default')"
+                                :trainingPlanId="$trainingPlan->id"
                                 :exerciseId="$exercise->id"
                                 :userId="$user"
                                 :weeks="$this->weeks"
@@ -192,10 +192,10 @@
 
     <livewire:training.view.plan-exercise-settings-form />
 
-    <flux:modal name="reset-defaults" class="min-w-[22rem]">
+    <flux:modal name="reset-default-settings" class="min-w-[22rem]">
         <div class="space-y-6">
             <div>
-                <flux:heading size="lg">Reset Defaults?</flux:heading>
+                <flux:heading size="lg">Reset Default Settings?</flux:heading>
                 <flux:text class="mt-2">
                     This will remove all default overrides and settings, resetting the default plan to its initial state.
                 </flux:text>
@@ -205,19 +205,19 @@
                 <flux:modal.close>
                     <flux:button variant="ghost">Cancel</flux:button>
                 </flux:modal.close>
-                <flux:button variant="danger" wire:click="resetDefaults">
-                    Reset Defaults
+                <flux:button variant="danger" wire:click="resetDefaultSettings">
+                    Reset Default Settings
                 </flux:button>
             </div>
         </div>
     </flux:modal>
 
-    <flux:modal name="reset-all" class="min-w-[22rem]">
+    <flux:modal name="reset-user-settings" class="min-w-[22rem]">
         <div class="space-y-6">
             <div>
-                <flux:heading size="lg">Reset All?</flux:heading>
+                <flux:heading size="lg">Reset User Settings?</flux:heading>
                 <flux:text class="mt-2">
-                    This will remove all user-specific overrides and settings, as well as all default overrides, resetting the entire plan to its initial state.
+                    This will remove all user-specific overrides and settings, resetting all users back to the default plan.
                 </flux:text>
             </div>
             <div class="flex gap-2">
@@ -225,8 +225,8 @@
                 <flux:modal.close>
                     <flux:button variant="ghost">Cancel</flux:button>
                 </flux:modal.close>
-                <flux:button variant="danger" wire:click="resetAll">
-                    Reset All
+                <flux:button variant="danger" wire:click="resetUserSettings">
+                    Reset User Settings
                 </flux:button>
             </div>
         </div>

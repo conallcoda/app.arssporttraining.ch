@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Data\Exercise\BilateralReps;
 use App\Data\Training\Config\TrainingPlanConfig;
 use App\Models\Exercise\Exercise;
 use App\Models\ProgramCategory;
@@ -49,16 +48,7 @@ class TrainingPlanSeeder extends Seeder
 
         $attachData = [];
         foreach ($exercises as $index => $exercise) {
-            $configArray = json_decode($exercise->getRawOriginal('config') ?? '{}', true) ?: [];
-            $attachData[$exercise->id] = [
-                'sort' => $index,
-                'config' => [
-                    'oneRepMaxModifier' => $configArray['weight']['oneRepMaxModifier'] ?? 100,
-                    'startingReps' => BilateralReps::parse($configArray['reps']['default'] ?? 12)->total(),
-                    'tempo' => $configArray['tempo']['default'] ?? '3010',
-                    'rest' => $configArray['rest']['default'] ?? 30,
-                ],
-            ];
+            $attachData[$exercise->id] = ['sort' => $index];
         }
         $program->exercises()->attach($attachData);
 
@@ -77,14 +67,7 @@ class TrainingPlanSeeder extends Seeder
 
         $attachData = [];
         foreach ($exercises as $index => $exercise) {
-            $configArray = json_decode($exercise->getRawOriginal('config') ?? '{}', true) ?: [];
-            $attachData[$exercise->id] = [
-                'sort' => $index,
-                'config' => [
-                    'sets' => $configArray['sets']['default'] ?? 3,
-                    'rest' => $configArray['rest']['default'] ?? 30,
-                ],
-            ];
+            $attachData[$exercise->id] = ['sort' => $index];
         }
         $program->exercises()->attach($attachData);
 
@@ -103,13 +86,7 @@ class TrainingPlanSeeder extends Seeder
 
         $attachData = [];
         foreach ($exercises as $index => $exercise) {
-            $configArray = json_decode($exercise->getRawOriginal('config') ?? '{}', true) ?: [];
-            $attachData[$exercise->id] = [
-                'sort' => $index,
-                'config' => [
-                    'pace' => $configArray['pace']['default'] ?? '00:00',
-                ],
-            ];
+            $attachData[$exercise->id] = ['sort' => $index];
         }
         $program->exercises()->attach($attachData);
 
