@@ -190,6 +190,7 @@ abstract class AbstractModelList extends Component
                 'formDataClass' => $action->formDataClass,
                 'submitLabel' => $action->submitLabel ?? 'Save',
                 'formComponent' => $action->formComponent,
+                'maxWidth' => $this->getFormModalMaxWidth(),
             ];
         }
 
@@ -799,6 +800,11 @@ abstract class AbstractModelList extends Component
         $this->resetState();
         $this->refreshKey++;
         $this->emit();
+    }
+
+    protected function getFormModalMaxWidth(): string
+    {
+        return 'max-w-sm';
     }
 
     protected function emit(): void {}

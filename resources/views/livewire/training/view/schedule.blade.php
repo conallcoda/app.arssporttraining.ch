@@ -35,8 +35,8 @@
             <div class="flex items-center justify-between">
                 <flux:heading size="xl">{{ $this->selectedUser->name }}</flux:heading>
                 @if ($this->hasCustomSchedule)
-                    <flux:button wire:click="$dispatch('schedule-event', { type: 'lock-schedule' })"
-                        variant="ghost" size="sm" icon="rotate-ccw">
+                    <flux:button wire:click="confirmResetSchedule"
+                        variant="primary" size="sm" icon="rotate-ccw">
                         Reset
                     </flux:button>
                 @endif
@@ -297,6 +297,26 @@
                 @endif
             </div>
         </form>
+    </flux:modal>
+
+    <flux:modal name="reset-schedule" class="min-w-[22rem]">
+        <div class="space-y-6">
+            <div>
+                <flux:heading size="lg">Reset Schedule?</flux:heading>
+                <flux:text class="mt-2">
+                    This will remove all user-specific programs and reset to the default schedule.
+                </flux:text>
+            </div>
+            <div class="flex gap-2">
+                <flux:spacer />
+                <flux:modal.close>
+                    <flux:button variant="ghost">Cancel</flux:button>
+                </flux:modal.close>
+                <flux:button variant="danger" wire:click="resetSchedule">
+                    Reset
+                </flux:button>
+            </div>
+        </div>
     </flux:modal>
 
     <flux:modal name="delete-program" class="min-w-[22rem]">

@@ -106,7 +106,7 @@
             ], key($modal['name']))
         @else
             <livewire:cms.form-modal :name="$modal['name']" :title="$modal['title']" :form-data-class="$modal['formDataClass']"
-                :submit-label="$modal['submitLabel']" />
+                :submit-label="$modal['submitLabel']" :max-width="$modal['maxWidth']" />
         @endif
     @endforeach
 

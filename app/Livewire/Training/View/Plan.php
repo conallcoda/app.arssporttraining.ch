@@ -6,8 +6,10 @@ use App\Models\ProgramCategory;
 use App\Models\TrainingPlan;
 use App\Models\Users\User;
 use App\Support\WeekOptions;
+use App\Training\Reference\OneRepMaxConversion;
 use Coda\Cms\Livewire\Concerns\InteractsWithParentView;
 use Illuminate\Database\Eloquent\Collection;
+use Flux\Flux;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -29,6 +31,12 @@ class Plan extends Component
 
     public ?int $selectedCategoryId = null;
 
+    public ?int $measuredReps = null;
+
+    public ?float $measuredWeight = null;
+
+    public int|float $targetGoal = 10;
+
     public function updatingUser(mixed $value): ?int
     {
         if ($value === null || $value === '') {
@@ -47,6 +55,7 @@ class Plan extends Component
         $this->programs = $programs;
         $this->users = $users;
         $this->loadStartDate();
+        $this->loadTarget();
         $this->initializeSelectedCategory();
     }
 
@@ -179,10 +188,76 @@ class Plan extends Component
         return $counts;
     }
 
+    #[Computed]
+    public function starting1RM(): ?float
+    {
+        if ($this->measuredReps === null || $this->measuredWeight === null) {
+            return null;
+        }
+
+        return OneRepMaxConversion::estimatedOneRepMax($this->measuredReps, $this->measuredWeight);
+    }
+
+    #[Computed]
+    public function target1RM(): ?float
+    {
+        $starting = $this->starting1RM;
+
+        if ($starting === null) {
+            return null;
+        }
+
+        return OneRepMaxConversion::targetOneRepMax($starting, $this->targetGoal);
+    }
+
+    #[Computed]
+    public function hasDefaultOverrides(): bool
+    {
+        return $this->trainingPlan->config->hasDefaultOverrides();
+    }
+
+    #[Computed]
+    public function hasUserOverrides(): bool
+    {
+        return $this->trainingPlan->config->hasUserOverrides();
+    }
+
+    public function confirmResetDefaults(): void
+    {
+        Flux::modal('reset-defaults')->show();
+    }
+
+    public function resetDefaults(): void
+    {
+        $this->notifyDataChanged('resetDefaults', []);
+        Flux::modal('reset-defaults')->close();
+        $this->loadStartDate();
+        $this->loadTarget();
+        $this->clearCategoryComputedProperties();
+        unset($this->hasDefaultOverrides);
+    }
+
+    public function confirmResetAll(): void
+    {
+        Flux::modal('reset-all')->show();
+    }
+
+    public function resetAll(): void
+    {
+        $this->notifyDataChanged('resetAll', []);
+        Flux::modal('reset-all')->close();
+        $this->loadStartDate();
+        $this->loadTarget();
+        $this->clearCategoryComputedProperties();
+        unset($this->hasDefaultOverrides);
+        unset($this->hasUserOverrides);
+    }
+
     public function selectUser(?int $userId): void
     {
         $this->user = $userId;
         $this->loadStartDate();
+        $this->loadTarget();
         $this->clearCategoryComputedProperties();
         $this->dispatch('plan-user-changed', userId: $userId);
     }
@@ -207,6 +282,24 @@ class Plan extends Component
         unset($this->programIdsFromSchedule);
     }
 
+    protected function loadTarget(): void
+    {
+        $config = $this->trainingPlan->config;
+
+        if ($this->user === null) {
+            $this->measuredReps = $config->defaultTargetMeasuredReps() ?? 1;
+            $this->measuredWeight = $config->defaultTargetMeasuredWeight() ?? 50;
+            $this->targetGoal = $config->defaultTargetGoal();
+        } else {
+            $this->measuredReps = $config->userTargetMeasuredReps($this->user);
+            $this->measuredWeight = $config->userTargetMeasuredWeight($this->user);
+            $this->targetGoal = $config->userTargetGoal($this->user);
+        }
+
+        unset($this->starting1RM);
+        unset($this->target1RM);
+    }
+
     protected function clearCategoryComputedProperties(): void
     {
         unset($this->programCategories);
@@ -216,14 +309,26 @@ class Plan extends Component
 
     public function updated(string $property): void
     {
-        if ($property !== 'startDate') {
+        if ($property === 'startDate') {
+            $this->notifyDataChanged('startDate', [
+                'userId' => $this->user,
+                'startDate' => $this->startDate,
+            ]);
+
             return;
         }
 
-        $this->notifyDataChanged('startDate', [
-            'userId' => $this->user,
-            'startDate' => $this->startDate,
-        ]);
+        if (in_array($property, ['measuredReps', 'measuredWeight', 'targetGoal'])) {
+            unset($this->starting1RM);
+            unset($this->target1RM);
+
+            $this->notifyDataChanged('target', [
+                'userId' => $this->user,
+                'measuredReps' => $this->measuredReps,
+                'measuredWeight' => $this->measuredWeight,
+                'targetGoal' => $this->targetGoal,
+            ]);
+        }
     }
 
     public function render()

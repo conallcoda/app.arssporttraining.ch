@@ -185,6 +185,17 @@ class Schedule extends Component
         return $program?->programCategory?->color ?? Color::DEFAULT_COLOR;
     }
 
+    public function confirmResetSchedule(): void
+    {
+        Flux::modal('reset-schedule')->show();
+    }
+
+    public function resetSchedule(): void
+    {
+        $this->onScheduleEvent('lock-schedule', []);
+        Flux::modal('reset-schedule')->close();
+    }
+
     public function openRemoveModal(string $weekId): void
     {
         $this->removingWeekId = $weekId;

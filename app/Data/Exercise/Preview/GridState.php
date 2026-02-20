@@ -17,6 +17,8 @@ class GridState
 
     private ?GridOverrides $overrides = null;
 
+    private ?GridOverrides $highlightOverrides = null;
+
     /** @var array<DefinesEditability> */
     private array $editabilityStrategies = [];
 
@@ -94,6 +96,11 @@ class GridState
         return $this->overrides;
     }
 
+    public function setHighlightOverrides(GridOverrides $highlightOverrides): void
+    {
+        $this->highlightOverrides = $highlightOverrides;
+    }
+
     public function getResolvedCellValue(string $setting, int $weekIndex, int $setIndex): mixed
     {
         if ($this->overrides !== null) {
@@ -109,11 +116,13 @@ class GridState
 
     public function isCellOverridden(string $setting, int $weekIndex, int $setIndex): bool
     {
-        if ($this->overrides === null) {
+        $overrides = $this->highlightOverrides ?? $this->overrides;
+
+        if ($overrides === null) {
             return false;
         }
 
-        return $this->overrides->hasCellOverride($weekIndex, $setIndex, $setting);
+        return $overrides->hasCellOverride($weekIndex, $setIndex, $setting);
     }
 
     public function getResolvedWeekValue(string $setting, int $weekIndex, mixed $default): mixed
@@ -131,11 +140,13 @@ class GridState
 
     public function isWeekOverridden(string $setting, int $weekIndex): bool
     {
-        if ($this->overrides === null) {
+        $overrides = $this->highlightOverrides ?? $this->overrides;
+
+        if ($overrides === null) {
             return false;
         }
 
-        return $this->overrides->hasWeekOverride($weekIndex, $setting);
+        return $overrides->hasWeekOverride($weekIndex, $setting);
     }
 
     public function addEditabilityStrategy(DefinesEditability $strategy): void

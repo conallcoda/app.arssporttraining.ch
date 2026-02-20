@@ -1,4 +1,9 @@
 
+## Important Version Notes
+
+- This project uses **Livewire 4** (v4.1.2), NOT Livewire 3. The boost guidelines below incorrectly state v3.
+- In Livewire 4, `wire:model.blur` only syncs client-side state on blur — it does NOT send a network request. To send a network request on blur (v3 behavior), use `wire:model.live.blur`.
+
 ## Coding Rules
 
 - Never add comments inline or to methods or classes

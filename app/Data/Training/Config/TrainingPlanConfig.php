@@ -3,6 +3,7 @@
 namespace App\Data\Training\Config;
 
 use App\Data\Training\Config\Schedule\DefaultScheduleConfig;
+use App\Data\Training\Config\Target\TargetConfig;
 use Coda\Cms\Data\AbstractConfig;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Optional;
@@ -31,6 +32,11 @@ class TrainingPlanConfig extends AbstractConfig
                 'schedule' => [
                     'weeks' => $weeks,
                     'startDate' => '',
+                ],
+                'target' => [
+                    'measuredReps' => 1,
+                    'measuredWeight' => 50,
+                    'targetGoal' => 10,
                 ],
             ],
         ]);
@@ -169,6 +175,117 @@ class TrainingPlanConfig extends AbstractConfig
     public function lockUserSchedule(int $userId): void
     {
         unset($this->users[$userId]);
+    }
+
+    public function defaultTarget(): ?TargetConfig
+    {
+        if ($this->default->target instanceof Optional) {
+            return null;
+        }
+
+        return $this->default->target;
+    }
+
+    public function defaultTargetMeasuredReps(): ?int
+    {
+        return $this->defaultTarget()?->measuredReps;
+    }
+
+    public function defaultTargetMeasuredWeight(): ?float
+    {
+        return $this->defaultTarget()?->measuredWeight;
+    }
+
+    public function defaultTargetGoal(): int|float
+    {
+        return $this->defaultTarget()?->targetGoal ?? 10;
+    }
+
+    public function userTargetMeasuredReps(int $userId): ?int
+    {
+        $user = $this->forUser($userId);
+
+        if ($user === null || $user->target instanceof Optional) {
+            return null;
+        }
+
+        return $user->target->measuredReps;
+    }
+
+    public function userTargetMeasuredWeight(int $userId): ?float
+    {
+        $user = $this->forUser($userId);
+
+        if ($user === null || $user->target instanceof Optional) {
+            return null;
+        }
+
+        return $user->target->measuredWeight;
+    }
+
+    public function userTargetGoal(int $userId): int|float
+    {
+        $user = $this->forUser($userId);
+
+        if ($user === null || $user->target instanceof Optional) {
+            return $this->defaultTargetGoal();
+        }
+
+        return $user->target->targetGoal ?? $this->defaultTargetGoal();
+    }
+
+    public function setDefaultTarget(?int $measuredReps, ?float $measuredWeight, int|float $targetGoal): void
+    {
+        $this->default->target = TargetConfig::from([
+            'measuredReps' => $measuredReps,
+            'measuredWeight' => $measuredWeight,
+            'targetGoal' => $targetGoal,
+        ]);
+    }
+
+    public function setUserTarget(int $userId, ?int $measuredReps, ?float $measuredWeight, int|float $targetGoal): void
+    {
+        $user = $this->forUser($userId);
+
+        if ($user === null) {
+            $this->users[$userId] = UserTrainingPlanConfig::from([
+                'target' => [
+                    'measuredReps' => $measuredReps,
+                    'measuredWeight' => $measuredWeight,
+                    'targetGoal' => $targetGoal,
+                ],
+            ]);
+        } else {
+            $user->target = TargetConfig::from([
+                'measuredReps' => $measuredReps,
+                'measuredWeight' => $measuredWeight,
+                'targetGoal' => $targetGoal,
+            ]);
+        }
+    }
+
+    public function hasDefaultOverrides(): bool
+    {
+        $initialized = self::initialize();
+
+        return json_encode($this->default->toArray()) !== json_encode($initialized->default->toArray());
+    }
+
+    public function hasUserOverrides(): bool
+    {
+        return ! empty($this->users);
+    }
+
+    public function resetDefaults(): void
+    {
+        $initialized = self::initialize();
+        $this->default = $initialized->default;
+    }
+
+    public function resetAll(): void
+    {
+        $this->resetDefaults();
+        $this->users = [];
     }
 
     protected function toPlainArrays(array $items): array

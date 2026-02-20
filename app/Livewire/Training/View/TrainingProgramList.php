@@ -79,6 +79,11 @@ class TrainingProgramList extends AbstractModelList
         return $data;
     }
 
+    protected function getFormModalMaxWidth(): string
+    {
+        return 'max-w-lg';
+    }
+
     protected function emit(): void
     {
         $this->notifyChanged('programs');

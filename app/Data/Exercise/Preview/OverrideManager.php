@@ -21,8 +21,9 @@ class OverrideManager
         mixed $value,
         int $session,
         bool $applyToAll = false,
+        mixed $effectiveDefault = null,
     ): array {
-        $defaultValue = self::getDefaultCellValue($config, $defaultWeeks, $field, $weekIndex, $setIndex);
+        $defaultValue = $effectiveDefault ?? self::getDefaultCellValue($config, $defaultWeeks, $field, $weekIndex, $setIndex);
         $valuesMatch = self::cellValuesMatch($value, $defaultValue);
 
         $sessionsPerWeek = (int) ($config['preview']['sessionsPerWeek'] ?? $defaultSessionsPerWeek);
@@ -49,9 +50,10 @@ class OverrideManager
         int $weekIndex,
         string $field,
         mixed $value,
+        mixed $effectiveDefault = null,
     ): array {
         $fieldConfig = $config[$field] ?? [];
-        $defaultValue = $fieldConfig['default'] ?? null;
+        $defaultValue = $effectiveDefault ?? ($fieldConfig['default'] ?? null);
         $valuesMatch = self::weekValuesMatch($value, $defaultValue, $field);
 
         if ($valuesMatch) {

@@ -7,6 +7,7 @@ use App\Data\Exercise\Preview\ExercisePreviewBuilder;
 use App\Data\Exercise\Preview\GridOverrides;
 use App\Data\Exercise\Preview\OverrideManager;
 use App\Data\Exercise\Preview\PreviewGrid;
+use App\Data\Exercise\Preview\StrategyOrchestrator;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Training\Config\EffectiveExerciseConfig;
 use App\Data\Training\Config\ExerciseOverrides;
@@ -34,6 +35,9 @@ class PlanExerciseGrid extends Component
 
     public array $pivotConfigArray = [];
 
+    /** @var array<int, array{label: string, color: string}> */
+    public array $exerciseBadges = [];
+
     public function mount(
         int $pivotId,
         int $exerciseId,
@@ -47,9 +51,10 @@ class PlanExerciseGrid extends Component
         $this->weeks = $weeks;
         $this->sessionsPerWeek = $sessionsPerWeek;
 
-        $exercise = Exercise::findOrFail($exerciseId);
+        $exercise = Exercise::with(['equipment', 'modifiers'])->findOrFail($exerciseId);
         $this->exerciseName = $exercise->name;
         $this->exerciseConfigArray = $exercise->config->toArray();
+        $this->exerciseBadges = $this->buildExerciseBadges($exercise);
 
         $pivot = TrainingPlanProgramExercise::findOrFail($pivotId);
         $this->pivotConfigArray = $this->resolvePivotConfig($pivot)->toArray();
@@ -99,6 +104,58 @@ class PlanExerciseGrid extends Component
         return EffectiveExerciseConfig::resolve($base, $planConfig->plan);
     }
 
+    protected function getBaseGridOverrides(): array
+    {
+        $base = $this->getExerciseConfig();
+
+        if ($this->userId !== null) {
+            $planConfig = $this->getPlanExerciseConfig();
+
+            return EffectiveExerciseConfig::mergeGridOverrides($base->overrides, $planConfig->plan->gridOverrides);
+        }
+
+        return $base->overrides;
+    }
+
+    protected function getEffectiveCellDefault(string $field, int $weekIndex, int $setIndex): mixed
+    {
+        $effectiveConfig = $this->getEffectiveConfig();
+        $baseOverrides = $this->getBaseGridOverrides();
+        $preview = $effectiveConfig['preview'] ?? [];
+        $measuredData = new WeightProgressionSetting(
+            measuredReps: $preview['measuredReps'] ?? null,
+            measuredWeight: $preview['measuredWeight'] ?? null,
+            targetGoal: $preview['targetGoal'] ?? null,
+        );
+
+        $weeks = (int) ($preview['weeks'] ?? $this->weeks);
+        $overrides = GridOverrides::fromArrays(
+            $baseOverrides['cells'] ?? [],
+            $baseOverrides['weeks'] ?? [],
+        );
+        $orchestrator = new StrategyOrchestrator($effectiveConfig, $measuredData, $weeks, $overrides);
+        $state = $orchestrator->execute();
+
+        return $state->getResolvedCellValue($field, $weekIndex, $setIndex);
+    }
+
+    protected function getEffectiveWeekDefault(string $field, int $weekIndex): mixed
+    {
+        $effectiveConfig = $this->getEffectiveConfig();
+        $baseOverrides = $this->getBaseGridOverrides();
+        $overrides = GridOverrides::fromArrays(
+            $baseOverrides['cells'] ?? [],
+            $baseOverrides['weeks'] ?? [],
+        );
+
+        $weekValue = $overrides->getWeekOverrideValue($weekIndex, $field);
+        if ($weekValue !== null) {
+            return $weekValue;
+        }
+
+        return $effectiveConfig[$field]['default'] ?? null;
+    }
+
     #[Computed]
     public function previewGrid(): PreviewGrid
     {
@@ -111,8 +168,13 @@ class PlanExerciseGrid extends Component
             targetGoal: $preview['targetGoal'] ?? null,
         );
 
-        $currentOverrides = $this->getCurrentOverrides();
         $overrides = GridOverrides::fromArrays(
+            $effectiveConfig['overrides']['cells'] ?? [],
+            $effectiveConfig['overrides']['weeks'] ?? [],
+        );
+
+        $currentOverrides = $this->getCurrentOverrides();
+        $highlightOverrides = GridOverrides::fromArrays(
             $currentOverrides->gridOverrides['cells'] ?? [],
             $currentOverrides->gridOverrides['weeks'] ?? [],
         );
@@ -123,33 +185,21 @@ class PlanExerciseGrid extends Component
             $this->weeks,
             $overrides,
             $this->sessionsPerWeek,
+            $highlightOverrides,
         );
     }
 
-    #[Computed]
-    public function badges(): array
+    /** @return array<int, array{label: string, color: string}> */
+    protected function buildExerciseBadges(Exercise $exercise): array
     {
-        $effectiveConfig = $this->getEffectiveConfig();
         $badges = [];
 
-        $sets = $effectiveConfig['sets'] ?? [];
-        if (! empty($sets['count'])) {
-            $badges[] = $sets['count'].' sets';
+        foreach ($exercise->equipment as $tag) {
+            $badges[] = ['label' => $tag->name, 'color' => 'blue'];
         }
 
-        foreach ($effectiveConfig['settings'] ?? [] as $setting) {
-            $config = $effectiveConfig[$setting] ?? [];
-            $default = $config['default'] ?? null;
-
-            if ($default !== null && $default !== '' && $default !== 0) {
-                $label = match ($setting) {
-                    'reps' => $default.' reps',
-                    'tempo' => (string) $default,
-                    'rest' => $default.'s',
-                    default => ucfirst($setting).': '.$default,
-                };
-                $badges[] = $label;
-            }
+        foreach ($exercise->modifiers as $tag) {
+            $badges[] = ['label' => $tag->name, 'color' => ''];
         }
 
         return $badges;
@@ -158,6 +208,7 @@ class PlanExerciseGrid extends Component
     public function updateCellOverride(int $weekIndex, int $setIndex, string $field, mixed $value, int $session, bool $applyToAll = false): void
     {
         $overrides = $this->getCurrentOverrides();
+        $effectiveDefault = $this->getEffectiveCellDefault($field, $weekIndex, $setIndex);
 
         $overrides->gridOverrides = OverrideManager::updateCellOverride(
             $overrides->gridOverrides,
@@ -170,15 +221,17 @@ class PlanExerciseGrid extends Component
             $value,
             $session,
             $applyToAll,
+            $effectiveDefault,
         );
 
         $this->saveOverrides($overrides);
-        unset($this->previewGrid, $this->badges);
+        unset($this->previewGrid);
     }
 
     public function updateWeekOverride(int $weekIndex, string $field, mixed $value): void
     {
         $overrides = $this->getCurrentOverrides();
+        $effectiveDefault = $this->getEffectiveWeekDefault($field, $weekIndex);
 
         $overrides->gridOverrides = OverrideManager::updateWeekOverride(
             $overrides->gridOverrides,
@@ -186,10 +239,11 @@ class PlanExerciseGrid extends Component
             $weekIndex,
             $field,
             $value,
+            $effectiveDefault,
         );
 
         $this->saveOverrides($overrides);
-        unset($this->previewGrid, $this->badges);
+        unset($this->previewGrid);
     }
 
     public function resetOverrides(): void
@@ -198,7 +252,7 @@ class PlanExerciseGrid extends Component
         $overrides->gridOverrides = OverrideManager::reset();
 
         $this->saveOverrides($overrides);
-        unset($this->previewGrid, $this->badges);
+        unset($this->previewGrid);
     }
 
     public function openSettingsForm(): void
@@ -243,8 +297,12 @@ class PlanExerciseGrid extends Component
             }
         }
 
+        if (isset($settingsConfig['overrides'])) {
+            $overrides->gridOverrides = $settingsConfig['overrides'];
+        }
+
         $this->saveOverrides($overrides);
-        unset($this->previewGrid, $this->badges);
+        unset($this->previewGrid);
     }
 
     protected function saveOverrides(ExerciseOverrides $overrides): void

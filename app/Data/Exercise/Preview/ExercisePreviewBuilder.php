@@ -33,9 +33,14 @@ class ExercisePreviewBuilder
         int $weeks = self::DEFAULT_WEEKS,
         ?GridOverrides $overrides = null,
         int $sessionsPerWeek = 1,
+        ?GridOverrides $highlightOverrides = null,
     ): PreviewGrid {
         $orchestrator = new StrategyOrchestrator($data, $measuredData, $weeks, $overrides);
         $state = $orchestrator->execute();
+
+        if ($highlightOverrides !== null) {
+            $state->setHighlightOverrides($highlightOverrides);
+        }
 
         $settings = $data['settings'] ?? [];
 
@@ -77,13 +82,19 @@ class ExercisePreviewBuilder
             }
         }
 
+        $summary = $state->getMetadata('weight', 'summary');
+
+        if ($summary !== null) {
+            $summary['modifier'] = $data['weight']['oneRepMaxModifier'] ?? 100;
+        }
+
         return new PreviewGrid(
             rows: $rows,
             weekCount: $weeks,
             setCount: $state->maxSets(),
             setLabel: ($data['sets']['label'] ?? 'Set'),
             weekColumns: $weekColumns,
-            summary: $state->getMetadata('weight', 'summary'),
+            summary: $summary,
             sessionsPerWeek: $sessionsPerWeek,
         );
     }

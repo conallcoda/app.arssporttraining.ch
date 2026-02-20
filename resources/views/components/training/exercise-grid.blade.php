@@ -4,6 +4,7 @@
     'summary' => null,
     'badges' => [],
     'showMenu' => true,
+    'showHeader' => true,
     'editable' => true,
 ])
 
@@ -12,44 +13,60 @@
         No settings configured for this exercise.
     </div>
 @else
-    <div class="space-y-2 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4" x-data="{ expanded: false }">
-        <div class="flex items-center justify-between">
-            <div class="space-y-1">
-                <flux:heading size="lg">{{ $name }}</flux:heading>
+    <div class="{{ $showHeader ? 'space-y-2 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4' : 'space-y-2' }}" x-data="{ expanded: false }">
+        @if ($showHeader)
+            <div class="flex items-center justify-between">
+                <div class="space-y-1">
+                    <flux:heading size="lg">{{ $name }}</flux:heading>
 
-                @if ($summary)
-                    <div class="text-sm">
-                        <span class="text-green-400">{{ $summary['starting1RM'] ?? '' }}kg</span>
-                        <span class="text-zinc-500 dark:text-zinc-400">&rarr;</span>
-                        <span class="text-green-400">{{ $summary['target1RM'] ?? '' }}kg</span>
-                    </div>
-                @endif
+                    @if ($summary)
+                        @php
+                            $modifier = $summary['modifier'] ?? 100;
+                            $modifierOffset = $modifier - 100;
+                            $modifierLabel = ($modifierOffset >= 0 ? '+' : '') . $modifierOffset . '%';
 
-                @if (! empty($badges))
-                    <div class="flex flex-wrap gap-1">
-                        @foreach ($badges as $badge)
-                            <flux:badge size="sm">{{ $badge }}</flux:badge>
-                        @endforeach
-                    </div>
+                            $targetGoal = $summary['targetGoal'] ?? 0;
+                            $goalLabel = ($targetGoal >= 0 ? '+' : '') . $targetGoal . '%';
+                        @endphp
+                        <div class="text-sm flex items-center gap-1">
+                            <span class="text-emerald-400">{{ $summary['starting1RM'] ?? '' }}kg</span>
+                            <span class="text-zinc-500">({{ $modifierLabel }})</span>
+                            <span class="text-zinc-500 dark:text-zinc-400">&rarr;</span>
+                            <span class="text-emerald-400">{{ $summary['target1RM'] ?? '' }}kg</span>
+                            <span class="text-zinc-500">({{ $goalLabel }})</span>
+                        </div>
+                    @endif
+
+                    @if (! empty($badges))
+                        <div class="flex flex-wrap gap-1">
+                            @foreach ($badges as $badge)
+                                @if (is_array($badge))
+                                    <flux:badge size="sm" color="{{ $badge['color'] ?? '' }}">{{ $badge['label'] }}</flux:badge>
+                                @else
+                                    <flux:badge size="sm">{{ $badge }}</flux:badge>
+                                @endif
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+
+                @if ($showMenu)
+                    <flux:dropdown>
+                        <flux:button variant="ghost" size="sm" icon="ellipsis" class="!p-1" />
+                        <flux:menu>
+                            <div x-show="!expanded">
+                                <flux:menu.item icon="unfold-vertical" x-on:click="expanded = true">Expand</flux:menu.item>
+                            </div>
+                            <div x-show="expanded" x-cloak>
+                                <flux:menu.item icon="fold-vertical" x-on:click="expanded = false">Collapse</flux:menu.item>
+                            </div>
+                            <flux:menu.item icon="pencil" wire:click="openSettingsForm">Edit Settings</flux:menu.item>
+                            <flux:menu.item icon="rotate-ccw" wire:click="resetOverrides">Reset Overrides</flux:menu.item>
+                        </flux:menu>
+                    </flux:dropdown>
                 @endif
             </div>
-
-            @if ($showMenu)
-                <flux:dropdown>
-                    <flux:button variant="ghost" size="sm" icon="ellipsis" class="!p-1" />
-                    <flux:menu>
-                        <div x-show="!expanded">
-                            <flux:menu.item icon="unfold-vertical" x-on:click="expanded = true">Expand</flux:menu.item>
-                        </div>
-                        <div x-show="expanded" x-cloak>
-                            <flux:menu.item icon="fold-vertical" x-on:click="expanded = false">Collapse</flux:menu.item>
-                        </div>
-                        <flux:menu.item icon="pencil" wire:click="openSettingsForm">Edit Settings</flux:menu.item>
-                        <flux:menu.item icon="rotate-ccw" wire:click="resetOverrides">Reset Overrides</flux:menu.item>
-                    </flux:menu>
-                </flux:dropdown>
-            @endif
-        </div>
+        @endif
 
         <div class="overflow-x-auto text-sm">
             <table class="border-collapse border border-zinc-300 dark:border-zinc-600 table-fixed">

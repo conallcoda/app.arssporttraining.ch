@@ -127,6 +127,9 @@ class TrainingPlanView extends Component
             'startDate' => $this->saveStartDate($value),
             'program' => $this->saveProgram($value),
             'removeProgram' => $this->removeProgram($value),
+            'target' => $this->saveTarget($value),
+            'resetDefaults' => $this->resetDefaults(),
+            'resetAll' => $this->resetAll(),
             default => null,
         };
     }
@@ -202,6 +205,25 @@ class TrainingPlanView extends Component
         $this->trainingPlan->refresh();
     }
 
+    protected function saveTarget(array $value): void
+    {
+        $config = $this->trainingPlan->config;
+        $userId = $value['userId'] ?? null;
+        $measuredReps = $value['measuredReps'] ?? null;
+        $measuredWeight = $value['measuredWeight'] ?? null;
+        $targetGoal = $value['targetGoal'] ?? 10;
+
+        if ($userId === null) {
+            $config->setDefaultTarget($measuredReps, $measuredWeight, $targetGoal);
+        } else {
+            $config->setUserTarget($userId, $measuredReps, $measuredWeight, $targetGoal);
+        }
+
+        $this->trainingPlan->config = $config;
+        $this->trainingPlan->save();
+        $this->trainingPlan->refresh();
+    }
+
     protected function saveProgram(array $value): void
     {
         $programData = TrainingProgramData::from($value['data']);
@@ -242,6 +264,25 @@ class TrainingPlanView extends Component
         }
 
         $this->loadPrograms();
+    }
+
+    protected function resetDefaults(): void
+    {
+        $config = $this->trainingPlan->config;
+        $config->resetDefaults();
+        $this->trainingPlan->config = $config;
+        $this->trainingPlan->save();
+        $this->trainingPlan->refresh();
+    }
+
+    protected function resetAll(): void
+    {
+        $config = $this->trainingPlan->config;
+        $config->resetAll();
+        $this->trainingPlan->config = $config;
+        $this->trainingPlan->save();
+        $this->trainingPlan->refresh();
+        $this->loadAllData();
     }
 
     public function updateName(string $name): void
