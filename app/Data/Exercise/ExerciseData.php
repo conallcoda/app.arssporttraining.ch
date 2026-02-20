@@ -30,18 +30,6 @@ class ExerciseData extends AbstractData implements HasForms
 
     public static function fromImport(ExerciseImportData $importData): self
     {
-        $config = new ExerciseConfig(
-            settings: ['reps', 'weight', 'tempo', 'rest'],
-        );
-
-        foreach ($config->settings as $settingKey) {
-            $setting = ExerciseSetting::tryFrom($settingKey);
-
-            if ($setting && $settingClass = $setting->settingClass()) {
-                $config->{$settingKey} = new $settingClass;
-            }
-        }
-
         return new self(
             id: null,
             name: $importData->name,
@@ -50,7 +38,8 @@ class ExerciseData extends AbstractData implements HasForms
             modifiers: $importData->modifiers,
             videoUrl: $importData->videoUrl,
             instructions: $importData->instructions,
-            config: $config,
+            config: $importData->config,
+            template: $importData->template,
         );
     }
 
