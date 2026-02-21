@@ -54,7 +54,7 @@
         @endif
 
         <div class="flex gap-6">
-            <x-section title="Target" class="flex-1">
+            <x-section title="Target" class="w-[55%]">
                 @if ($user === null || $this->selectedUser)
                     <div class="space-y-4">
                         <div class="flex items-end gap-3">
@@ -73,9 +73,21 @@
                                     <flux:input.group.suffix>kg</flux:input.group.suffix>
                                 </flux:input.group>
                             </flux:field>
+                        </div>
 
-                            <flux:field class="flex-1">
-                                <flux:label>Starting 1RM</flux:label>
+                        <div>
+                            <flux:field>
+                                <flux:label>Target Goal</flux:label>
+                                <flux:input.group>
+                                    <flux:input wire:model.live.blur="targetGoal" type="number" min="0" step="1" />
+                                    <flux:input.group.suffix>%</flux:input.group.suffix>
+                                </flux:input.group>
+                            </flux:field>
+                        </div>
+
+                        <div class="flex items-end gap-3">
+                            <div class="flex-1">
+                                <flux:label class="mb-1.5">Starting 1RM</flux:label>
                                 @if ($this->starting1RM !== null)
                                     <div class="h-10 flex items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400 font-medium">
                                         {{ $this->starting1RM }}kg
@@ -85,20 +97,10 @@
                                         --
                                     </div>
                                 @endif
-                            </flux:field>
-                        </div>
+                            </div>
 
-                        <div class="flex items-end gap-3">
-                            <flux:field class="flex-[2_1_0%]">
-                                <flux:label>Target Goal</flux:label>
-                                <flux:input.group>
-                                    <flux:input wire:model.live.blur="targetGoal" type="number" min="0" step="1" />
-                                    <flux:input.group.suffix>%</flux:input.group.suffix>
-                                </flux:input.group>
-                            </flux:field>
-
-                            <flux:field class="flex-1">
-                                <flux:label>Target 1RM</flux:label>
+                            <div class="flex-1">
+                                <flux:label class="mb-1.5">Target 1RM</flux:label>
                                 @if ($this->target1RM !== null)
                                     <div class="h-10 flex items-center justify-center rounded-lg bg-amber-500/15 text-amber-400 font-medium">
                                         {{ $this->target1RM }}kg
@@ -108,7 +110,7 @@
                                         --
                                     </div>
                                 @endif
-                            </flux:field>
+                            </div>
                         </div>
                     </div>
                 @else
@@ -116,7 +118,7 @@
                 @endif
             </x-section>
 
-            <x-section title="Schedule" class="flex-1">
+            <x-section title="Schedule" class="w-[45%]">
                 @if ($user === null || $this->selectedUser)
                     <div class="space-y-4">
                         <div class="flex items-end gap-3">
