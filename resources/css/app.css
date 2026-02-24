@@ -141,6 +141,11 @@
     @apply rounded-b-none;
 }
 
+[data-flux-modal] > dialog::backdrop {
+    background-color: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 .scrollbar-none::-webkit-scrollbar {
