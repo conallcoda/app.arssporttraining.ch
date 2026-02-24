@@ -176,6 +176,26 @@ class PlanExerciseGrid extends Component
         return $this->getPlanMeasuredData()->isComplete();
     }
 
+    /** @return list<array{label: string, modalField: string, overridden: bool}> */
+    #[Computed]
+    public function settingBadges(): array
+    {
+        $config = ExerciseConfig::from($this->getEffectiveConfig());
+        $currentOverrides = $this->getCurrentOverrides();
+
+        return collect($config->settings)
+            ->filter(fn (string $setting) => $config->{$setting} !== null)
+            ->flatMap(function (string $setting) use ($config, $currentOverrides) {
+                $overridden = $currentOverrides->hasSettingOverride($setting);
+
+                return collect($config->{$setting}->badges())
+                    ->map(fn (array $badge) => array_merge($badge, ['overridden' => $overridden]))
+                    ->all();
+            })
+            ->values()
+            ->all();
+    }
+
     #[Computed]
     public function configFingerprint(): string
     {
@@ -281,7 +301,7 @@ class PlanExerciseGrid extends Component
         unset($this->configFingerprint, $this->previewGrid);
     }
 
-    public function openSettingsForm(): void
+    public function openSettingsForm(?string $focusField = null): void
     {
         $effectiveConfig = $this->getEffectiveConfig();
 
@@ -290,7 +310,22 @@ class PlanExerciseGrid extends Component
             'exerciseId' => $this->exerciseId,
             'userId' => $this->userId,
             'exerciseName' => $this->exerciseName,
+            'focusField' => $focusField,
         ]);
+    }
+
+    protected function getParentConfig(): array
+    {
+        $base = $this->getExerciseConfig();
+
+        if ($this->userId !== null) {
+            $config = $this->getTrainingPlanConfig();
+            $planOverrides = $config->defaultExerciseOverrides($this->exerciseId);
+
+            return EffectiveExerciseConfig::resolve($base, $planOverrides);
+        }
+
+        return $base->toArray();
     }
 
     /** @param array<string, mixed> $data */
@@ -306,23 +341,26 @@ class PlanExerciseGrid extends Component
         }
 
         $settingsConfig = $data['config'] ?? [];
+        $parentConfig = $this->getParentConfig();
         $overrides = $this->getCurrentOverrides();
 
-        if (isset($settingsConfig['settings'])) {
-            $overrides->settings = $settingsConfig['settings'];
-        }
+        $overrides->settings = ($settingsConfig['settings'] ?? null) == ($parentConfig['settings'] ?? null)
+            ? null
+            : ($settingsConfig['settings'] ?? null);
 
-        if (isset($settingsConfig['sets'])) {
-            $overrides->sets = \App\Data\Exercise\Settings\SetsSetting::from($settingsConfig['sets']);
-        }
+        $overrides->sets = ($settingsConfig['sets'] ?? null) == ($parentConfig['sets'] ?? null)
+            ? null
+            : \App\Data\Exercise\Settings\SetsSetting::from($settingsConfig['sets']);
 
         $settingKeys = ['reps', 'weight', 'tempo', 'rest', 'distance', 'duration', 'heartRate', 'heartRateZone', 'pace', 'watts'];
 
         foreach ($settingKeys as $key) {
-            if (isset($settingsConfig[$key])) {
+            if (($settingsConfig[$key] ?? null) == ($parentConfig[$key] ?? null)) {
+                $overrides->{$key} = null;
+            } else {
                 $enum = \App\Data\Exercise\ExerciseSetting::tryFrom($key);
                 if ($enum && $settingClass = $enum->settingClass()) {
-                    $overrides->{$key} = $settingClass::from($settingsConfig[$key]);
+                    $overrides->{$key} = isset($settingsConfig[$key]) ? $settingClass::from($settingsConfig[$key]) : null;
                 }
             }
         }
@@ -332,7 +370,7 @@ class PlanExerciseGrid extends Component
         }
 
         $this->saveOverrides($overrides);
-        unset($this->configFingerprint, $this->previewGrid);
+        unset($this->configFingerprint, $this->previewGrid, $this->settingBadges);
     }
 
     protected function saveOverrides(ExerciseOverrides $overrides): void

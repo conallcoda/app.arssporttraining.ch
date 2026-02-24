@@ -84,7 +84,7 @@ class PlanExerciseSettingsForm extends FormModal
             'config' => $config,
         ];
 
-        $this->open($formData, $exerciseName);
+        $this->open($formData, $exerciseName, $data['focusField'] ?? null);
     }
 
     public function open(array $data = [], ?string $title = null, ?string $focusField = null, ?int $focusIndex = null): void

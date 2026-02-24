@@ -27,6 +27,14 @@ class RepsSetting extends AbstractSetting
         );
     }
 
+    /** @return list<array{label: string, modalField: string}> */
+    public function badges(): array
+    {
+        return [
+            ['label' => $this->default.' reps', 'modalField' => static::fieldsetKey()],
+        ];
+    }
+
     public static function fields(): array
     {
         return [

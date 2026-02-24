@@ -11,6 +11,18 @@
                         </div>
                     @endif
 
+                    @if (! empty($this->settingBadges))
+                        <div class="flex flex-wrap gap-1 {{ empty($exerciseBadges) ? 'mt-3' : '' }}">
+                            @foreach ($this->settingBadges as $badge)
+                                @if ($badge['overridden'])
+                                    <flux:badge size="sm" color="green" class="cursor-pointer" wire:click="openSettingsForm('{{ $badge['modalField'] }}')">{{ $badge['label'] }}*</flux:badge>
+                                @else
+                                    <flux:badge size="sm" class="cursor-pointer" wire:click="openSettingsForm('{{ $badge['modalField'] }}')">{{ $badge['label'] }}</flux:badge>
+                                @endif
+                            @endforeach
+                        </div>
+                    @endif
+
                     @if (! $this->requiresMeasuredData || $this->hasMeasuredData)
                         @if ($this->previewGrid->summary)
                             @php

@@ -13,6 +13,11 @@ class WattsSetting extends AbstractSetting
         public string $applyPer = 'session',
     ) {}
 
+    public static function unitLabel(): string
+    {
+        return 'W';
+    }
+
     public static function inputMeta(array $config = []): CellInputMeta
     {
         return new CellInputMeta(

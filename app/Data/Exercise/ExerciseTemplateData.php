@@ -65,7 +65,8 @@ class ExerciseTemplateData extends AbstractData implements HasForms
         }
 
         return collect($this->config->settings)
-            ->map(fn (string $setting) => ['label' => ExerciseSetting::tryFrom($setting)?->label() ?? ucfirst($setting), 'modalField' => $setting])
+            ->filter(fn (string $setting) => $this->config->{$setting} !== null)
+            ->flatMap(fn (string $setting) => $this->config->{$setting}->badges())
             ->values()
             ->all();
     }

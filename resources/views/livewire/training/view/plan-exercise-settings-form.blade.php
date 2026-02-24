@@ -1,6 +1,14 @@
 <div>
     <flux:modal :name="$name" :flyout="$flyout" :class="$maxWidth"
         x-on:close="Livewire.dispatch('{{ $name }}.closed')"
+        x-on:focus-field.window="
+            const content = $el.querySelector('.space-y-6');
+            content.style.visibility = 'hidden';
+            setTimeout(() => {
+                focusModalField($el, $event.detail.field, $event.detail.index);
+                content.style.visibility = 'visible';
+            }, 150)
+        "
         x-on:keydown.enter="handleModalEnterSubmit($event, $wire)">
         <div class="space-y-6">
             <flux:heading size="lg">{{ $activeTitle ?? $title }}</flux:heading>

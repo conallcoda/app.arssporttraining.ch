@@ -60,7 +60,7 @@
                         <div class="flex items-end gap-3">
                             <flux:field class="flex-1">
                                 <flux:label>Measured Reps</flux:label>
-                                <flux:input.group>
+                                <flux:input.group wire:ignore>
                                     <flux:input wire:model.live.blur="measuredReps" type="number" min="1" step="1" />
                                     <flux:input.group.suffix>rep(s)</flux:input.group.suffix>
                                 </flux:input.group>
@@ -68,7 +68,7 @@
 
                             <flux:field class="flex-1">
                                 <flux:label>Measured Weight</flux:label>
-                                <flux:input.group>
+                                <flux:input.group wire:ignore>
                                     <flux:input wire:model.live.blur="measuredWeight" type="number" min="0" step="0.5" />
                                     <flux:input.group.suffix>kg</flux:input.group.suffix>
                                 </flux:input.group>
@@ -78,7 +78,7 @@
                         <div>
                             <flux:field>
                                 <flux:label>Target Goal</flux:label>
-                                <flux:input.group>
+                                <flux:input.group wire:ignore>
                                     <flux:input wire:model.live.blur="targetGoal" type="number" min="0" step="1" />
                                     <flux:input.group.suffix>%</flux:input.group.suffix>
                                 </flux:input.group>

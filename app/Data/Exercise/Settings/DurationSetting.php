@@ -38,6 +38,20 @@ class DurationSetting extends AbstractSetting
         );
     }
 
+    /** @return list<array{label: string, modalField: string}> */
+    public function badges(): array
+    {
+        if ($this->default === null || $this->default === '' || $this->default === 0 || $this->default === '0:00') {
+            return [];
+        }
+
+        $unitLabel = $this->unit === 'mm:ss' ? '' : (static::resolveUnitLabel($this->toArray()) ?? '');
+
+        return [
+            ['label' => $this->default.$unitLabel, 'modalField' => static::fieldsetKey()],
+        ];
+    }
+
     public static function fields(): array
     {
         return [

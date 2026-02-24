@@ -14,12 +14,12 @@ class DatabaseSeeder extends Seeder
         $this->call([
             UserSeeder::class,
             ExerciseCategorySeeder::class,
-            // ExerciseSeeder::class,
+            ExerciseSeeder::class,
             TagSeeder::class,
             ExerciseTemplateSeeder::class,
             ExerciseExternalSeeder::class,
             ProgramCategorySeeder::class,
-            // ExampleTrainingPlanSeeder::class,
+            ExampleTrainingPlanSeeder::class,
         ]);
     }
 }

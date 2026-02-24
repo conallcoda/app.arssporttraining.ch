@@ -27,6 +27,18 @@ class PaceSetting extends AbstractSetting
         );
     }
 
+    /** @return list<array{label: string, modalField: string}> */
+    public function badges(): array
+    {
+        if ($this->default === '' || $this->default === '0:00') {
+            return [];
+        }
+
+        return [
+            ['label' => $this->default.'/km', 'modalField' => static::fieldsetKey()],
+        ];
+    }
+
     public static function fields(): array
     {
         return [

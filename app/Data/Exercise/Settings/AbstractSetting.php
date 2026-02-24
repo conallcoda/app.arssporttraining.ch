@@ -7,6 +7,7 @@ use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Form\Concerns\InteractsWithForms;
 use Coda\Cms\Form\Form;
 use Coda\Cms\Models\Contracts\HasForms;
+use Illuminate\Support\Str;
 
 abstract class AbstractSetting extends AbstractData implements HasForms
 {
@@ -54,6 +55,31 @@ abstract class AbstractSetting extends AbstractData implements HasForms
     public static function view(): ?string
     {
         return null;
+    }
+
+    public static function fieldsetKey(): string
+    {
+        return Str::snake(static::getName());
+    }
+
+    /** @return list<array{label: string, modalField: string}> */
+    public function badges(): array
+    {
+        if (! property_exists($this, 'default')) {
+            return [];
+        }
+
+        $default = $this->default;
+
+        if ($default === null || $default === '') {
+            return [];
+        }
+
+        $unitLabel = static::resolveUnitLabel($this->toArray()) ?? '';
+
+        return [
+            ['label' => $default.$unitLabel, 'modalField' => static::fieldsetKey()],
+        ];
     }
 
     public static function getForm(): Form|array

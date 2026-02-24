@@ -29,6 +29,20 @@ class WeightSetting extends AbstractSetting
         );
     }
 
+    /** @return list<array{label: string, modalField: string}> */
+    public function badges(): array
+    {
+        if ($this->mode === 'automatic') {
+            return [
+                ['label' => $this->oneRepMaxModifier.'%', 'modalField' => static::fieldsetKey()],
+            ];
+        }
+
+        return [
+            ['label' => $this->default.'kg', 'modalField' => static::fieldsetKey()],
+        ];
+    }
+
     public static function fields(): array
     {
         return [
