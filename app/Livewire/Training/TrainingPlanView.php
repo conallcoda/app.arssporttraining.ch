@@ -134,6 +134,8 @@ class TrainingPlanView extends Component
             'resetAll' => $this->resetAll(),
             default => null,
         };
+
+        $this->dispatch('parent-data-saved');
     }
 
     #[On('refresh-requested')]

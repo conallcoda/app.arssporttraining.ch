@@ -27,6 +27,7 @@ class ScheduleHandler
             'clear-slot' => $this->saveSlotChange($data['weekId'], $data['day'], $data['slot'], []),
             'move-program' => $this->moveProgram($data['weekId'], $data['fromDay'], $data['fromSlot'], $data['toDay'], $data['toSlot']),
             'move-single-program' => $this->moveSingleProgram($data['programId'], $data['fromWeekId'], $data['fromDay'], $data['fromSlot'], $data['toWeekId'], $data['toDay'], $data['toSlot']),
+            'reorder-slot-program' => $this->reorderSlotProgram($data['weekId'], $data['day'], $data['slot'], $data['programId'], $data['targetProgramId'], $data['position']),
             'swap-programs' => $this->swapPrograms($data['week1Id'], $data['day1'], $data['slot1'], $data['week2Id'], $data['day2'], $data['slot2']),
             'remove-program-from-slots' => $this->removeProgramFromSlots($data['programId']),
             'unassign-program' => $this->unassignProgram($data['weekId'], $data['day'], $data['slot'], $data['programId']),
@@ -189,6 +190,37 @@ class ScheduleHandler
     {
         $this->unassignProgram($fromWeekId, $fromDay, $fromSlot, $programId);
         $this->assignProgram($toWeekId, $toDay, $toSlot, $programId);
+    }
+
+    protected function reorderSlotProgram(string $weekId, int $day, int $slot, int $programId, int $targetProgramId, string $position): void
+    {
+        $weeks = $this->getWeeks();
+
+        foreach ($weeks as &$week) {
+            if ($week['id'] !== $weekId) {
+                continue;
+            }
+
+            $existing = $this->findSlot($week['slots'] ?? [], $day, $slot);
+            $programs = $existing['programs'] ?? [];
+
+            $programs = array_values(array_filter($programs, fn (int $id) => $id !== $programId));
+
+            $targetIndex = array_search($targetProgramId, $programs);
+            if ($targetIndex === false) {
+                $programs[] = $programId;
+            } else {
+                if ($position === 'after') {
+                    $targetIndex++;
+                }
+                array_splice($programs, $targetIndex, 0, [$programId]);
+            }
+
+            $this->setSlot($week['slots'], $day, $slot, $programs);
+            break;
+        }
+
+        $this->setWeeks($weeks);
     }
 
     protected function swapPrograms(string $week1Id, int $day1, int $slot1, string $week2Id, int $day2, int $slot2): void

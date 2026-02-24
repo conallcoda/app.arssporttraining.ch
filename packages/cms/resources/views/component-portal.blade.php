@@ -3,6 +3,7 @@
         <flux:modal
             :name="$item['id']"
             :variant="$item['variant']"
+            :class="$item['class'] ?? ''"
             x-init="$nextTick(() => $flux.modal('{{ $item['id'] }}').show())"
             x-on:close="$wire.removeFromStack('{{ $item['id'] }}')"
         >

@@ -4,6 +4,7 @@ namespace App\Livewire\Training\View;
 
 use App\Models\ProgramCategory;
 use App\Models\TrainingPlan;
+use App\Models\TrainingPlanProgram;
 use App\Models\Users\User;
 use App\Support\WeekOptions;
 use App\Training\Reference\OneRepMaxConversion;
@@ -11,6 +12,7 @@ use Coda\Cms\Livewire\Concerns\InteractsWithParentView;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 
@@ -352,10 +354,33 @@ class Plan extends Component
         unset($this->sessionsPerWeekByProgram);
     }
 
-    #[\Livewire\Attributes\On('exercise-overrides-changed')]
+    #[On('exercise-overrides-changed')]
     public function onExerciseOverridesChanged(): void
     {
         $this->trainingPlan->refresh();
+        unset($this->hasDefaultOverrides);
+        unset($this->hasUserOverrides);
+        unset($this->hasSelectedUserOverrides);
+        unset($this->userOverrideCounts);
+    }
+
+    #[On('parent-data-saved')]
+    public function onParentDataSaved(): void
+    {
+        $this->trainingPlan->refresh();
+        $this->programs = TrainingPlanProgram::query()
+            ->where('training_plan_id', $this->trainingPlan->id)
+            ->with([
+                'exercises' => fn ($q) => $q->orderByPivot('sort'),
+                'programCategory',
+            ])
+            ->orderBy('sort')
+            ->get();
+
+        $this->loadStartDate();
+        $this->loadTarget();
+        $this->clearCategoryComputedProperties();
+        unset($this->weeks);
         unset($this->hasDefaultOverrides);
         unset($this->hasUserOverrides);
         unset($this->hasSelectedUserOverrides);

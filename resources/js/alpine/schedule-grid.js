@@ -7,6 +7,9 @@ document.addEventListener('alpine:init', () => {
         isDraggingOver: null,
         isDropDisallowed: false,
         draggedProgram: null,
+        dropTargetKey: null,
+        dropTargetProgramId: null,
+        dropPosition: null,
 
         init() {
         },
@@ -22,16 +25,40 @@ document.addEventListener('alpine:init', () => {
         },
 
         handleDragOver(event) {
-            const el = event.currentTarget;
-            const targetWeekId = el.dataset.weekId;
-            const targetDay = parseInt(el.dataset.day, 10);
-            const targetSlot = parseInt(el.dataset.slot, 10);
+            const td = event.currentTarget;
+            const targetWeekId = td.dataset.weekId;
+            const targetDay = parseInt(td.dataset.day, 10);
+            const targetSlot = parseInt(td.dataset.slot, 10);
 
             const targetCell = targetWeekId + '-' + targetDay + '-' + targetSlot;
+            const sourceCell = this.draggedWeekId + '-' + this.draggedDay + '-' + this.draggedSlot;
+
             this.isDraggingOver = targetCell;
 
-            const sourceCell = this.draggedWeekId + '-' + this.draggedDay + '-' + this.draggedSlot;
-            this.isDropDisallowed = sourceCell === targetCell;
+            const programEl = event.target.closest('[data-program-id]');
+            if (programEl && programEl.closest('td') === td) {
+                const hoveredProgramId = parseInt(programEl.dataset.programId, 10);
+                const hoveredKey = targetCell + '-' + hoveredProgramId;
+
+                if (hoveredKey !== this.draggedProgram) {
+                    const rect = programEl.getBoundingClientRect();
+                    const midY = rect.top + rect.height / 2;
+                    this.dropTargetKey = hoveredKey;
+                    this.dropTargetProgramId = hoveredProgramId;
+                    this.dropPosition = event.clientY < midY ? 'before' : 'after';
+                    this.isDropDisallowed = false;
+                } else {
+                    this.dropTargetKey = null;
+                    this.dropTargetProgramId = null;
+                    this.dropPosition = null;
+                    this.isDropDisallowed = true;
+                }
+            } else {
+                this.dropTargetKey = null;
+                this.dropTargetProgramId = null;
+                this.dropPosition = null;
+                this.isDropDisallowed = (sourceCell === targetCell);
+            }
 
             event.dataTransfer.dropEffect = this.isDropDisallowed ? 'none' : 'move';
         },
@@ -39,6 +66,9 @@ document.addEventListener('alpine:init', () => {
         handleDragLeave() {
             this.isDraggingOver = null;
             this.isDropDisallowed = false;
+            this.dropTargetKey = null;
+            this.dropTargetProgramId = null;
+            this.dropPosition = null;
         },
 
         handleDragEnd() {
@@ -49,13 +79,16 @@ document.addEventListener('alpine:init', () => {
             this.draggedProgram = null;
             this.isDraggingOver = null;
             this.isDropDisallowed = false;
+            this.dropTargetKey = null;
+            this.dropTargetProgramId = null;
+            this.dropPosition = null;
         },
 
         handleDrop(event) {
-            const el = event.currentTarget;
-            const targetWeekId = el.dataset.weekId;
-            const targetDay = parseInt(el.dataset.day, 10);
-            const targetSlot = parseInt(el.dataset.slot, 10);
+            const td = event.currentTarget;
+            const targetWeekId = td.dataset.weekId;
+            const targetDay = parseInt(td.dataset.day, 10);
+            const targetSlot = parseInt(td.dataset.slot, 10);
 
             if (this.isDropDisallowed || !this.draggedWeekId || !this.draggedProgramId) {
                 this.handleDragEnd();
@@ -67,22 +100,33 @@ document.addEventListener('alpine:init', () => {
                               this.draggedSlot === targetSlot;
 
             if (isSameCell) {
-                this.handleDragEnd();
-                return;
-            }
-
-            this.$wire.dispatch('schedule-event', {
-                type: 'move-single-program',
-                data: {
-                    programId: this.draggedProgramId,
-                    fromWeekId: this.draggedWeekId,
-                    fromDay: this.draggedDay,
-                    fromSlot: this.draggedSlot,
-                    toWeekId: targetWeekId,
-                    toDay: targetDay,
-                    toSlot: targetSlot
+                if (this.dropTargetProgramId !== null && this.dropPosition) {
+                    this.$wire.dispatch('schedule-event', {
+                        type: 'reorder-slot-program',
+                        data: {
+                            weekId: this.draggedWeekId,
+                            day: this.draggedDay,
+                            slot: this.draggedSlot,
+                            programId: this.draggedProgramId,
+                            targetProgramId: this.dropTargetProgramId,
+                            position: this.dropPosition
+                        }
+                    });
                 }
-            });
+            } else {
+                this.$wire.dispatch('schedule-event', {
+                    type: 'move-single-program',
+                    data: {
+                        programId: this.draggedProgramId,
+                        fromWeekId: this.draggedWeekId,
+                        fromDay: this.draggedDay,
+                        fromSlot: this.draggedSlot,
+                        toWeekId: targetWeekId,
+                        toDay: targetDay,
+                        toSlot: targetSlot
+                    }
+                });
+            }
 
             this.handleDragEnd();
         },

@@ -141,9 +141,13 @@
                                                         $programDragId = $cellId . '-' . $programId;
                                                     @endphp
                                                     @if (!$isReadOnly)
-                                                        <div class="flex items-center justify-center rounded px-2 py-1 text-xs font-medium cursor-pointer"
+                                                        <div class="flex items-center justify-center rounded px-2 py-1 text-xs font-medium cursor-pointer border-y-2 border-transparent"
                                                             style="{{ \Coda\Cms\Support\ColorPalette::solid($programColor) }}"
-                                                            :class="{ 'opacity-50 scale-95': draggedProgram === '{{ $programDragId }}' }"
+                                                            :class="{
+                                                                'opacity-50 scale-95': draggedProgram === '{{ $programDragId }}',
+                                                                '!border-t-blue-500': dropTargetKey === '{{ $programDragId }}' && dropPosition === 'before',
+                                                                '!border-b-blue-500': dropTargetKey === '{{ $programDragId }}' && dropPosition === 'after'
+                                                            }"
                                                             draggable="true"
                                                             data-week-id="{{ $week->id }}"
                                                             data-day="{{ $dayIndex }}"

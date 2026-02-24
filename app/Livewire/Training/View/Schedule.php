@@ -7,6 +7,7 @@ use App\Data\Training\Config\TrainingPlanConfig;
 use App\Data\Training\TrainingProgramData;
 use App\Form\Fields\Training\Program\Color;
 use App\Models\TrainingPlan;
+use App\Models\TrainingPlanProgram;
 use App\Models\Users\User;
 use App\Support\WeekOptions;
 use Coda\Cms\Form\Form;
@@ -54,8 +55,20 @@ class Schedule extends Component
 
     public array $data = [];
 
-    public function mount(): void
+    public function mount(?int $trainingPlanId = null): void
     {
+        if ($trainingPlanId !== null && ! isset($this->trainingPlan)) {
+            $this->trainingPlan = TrainingPlan::findOrFail($trainingPlanId);
+        }
+
+        if (! isset($this->programs) || $this->programs->isEmpty()) {
+            $this->loadPrograms();
+        }
+
+        if (! isset($this->users) || $this->users->isEmpty()) {
+            $this->loadUsers();
+        }
+
         $this->resetProgramForm();
         $this->loadStartDate();
     }
@@ -387,6 +400,37 @@ class Schedule extends Component
             'data' => $data,
             'userId' => $this->user,
         ]);
+    }
+
+    protected function loadPrograms(): void
+    {
+        $this->programs = TrainingPlanProgram::query()
+            ->where('training_plan_id', $this->trainingPlan->id)
+            ->with([
+                'exercises' => fn ($q) => $q->orderByPivot('sort'),
+                'programCategory',
+            ])
+            ->orderBy('sort')
+            ->get();
+    }
+
+    protected function loadUsers(): void
+    {
+        $this->users = $this->trainingPlan->allUsers()
+            ->orderBy('forename')
+            ->orderBy('surname')
+            ->get();
+    }
+
+    #[On('parent-data-saved')]
+    public function onParentDataSaved(): void
+    {
+        $this->trainingPlan->refresh();
+        $this->loadPrograms();
+        unset($this->schedule);
+        unset($this->hasCustomSchedule);
+        unset($this->config);
+        unset($this->programOptions);
     }
 
     protected function loadStartDate(): void

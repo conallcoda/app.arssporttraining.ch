@@ -133,7 +133,16 @@
 
                             <flux:field class="flex-1">
                                 <flux:label>Duration</flux:label>
-                                <div class="h-10 flex items-center justify-center rounded-lg bg-blue-500/15 text-blue-400 font-medium">
+                                <div
+                                    class="h-10 flex items-center justify-center rounded-lg bg-blue-500/15 text-blue-400 font-medium cursor-pointer hover:bg-blue-500/25 transition-colors"
+                                    x-on:click="Livewire.dispatch('portal:open', {
+                                        component: 'training.view.schedule',
+                                        props: { trainingPlanId: {{ $trainingPlan->id }} },
+                                        title: 'Schedule',
+                                        variant: '',
+                                        class: 'min-w-[70rem]'
+                                    })"
+                                >
                                     {{ $this->weeks }} weeks
                                 </div>
                             </flux:field>
@@ -143,7 +152,18 @@
                             <flux:label>Programs</flux:label>
                             <div class="flex flex-wrap gap-2">
                                 @forelse ($this->programs->whereIn('id', $this->programIdsFromSchedule) as $program)
-                                    <flux:badge>{{ $program->name }}</flux:badge>
+                                    <flux:badge
+                                        as="button"
+                                        x-on:click="Livewire.dispatch('portal:open', {
+                                            component: 'training.view.program-editor',
+                                            props: { trainingPlanId: {{ $trainingPlan->id }}, programId: {{ $program->id }} },
+                                            title: 'Edit Program',
+                                            variant: 'flyout',
+                                            class: 'max-w-lg'
+                                        })"
+                                    >
+                                        {{ $program->name }}
+                                    </flux:badge>
                                 @empty
                                     <flux:text class="text-zinc-500">No programs scheduled</flux:text>
                                 @endforelse

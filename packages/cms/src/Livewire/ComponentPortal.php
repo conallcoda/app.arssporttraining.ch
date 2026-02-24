@@ -11,7 +11,7 @@ class ComponentPortal extends Component
     public array $stack = [];
 
     #[On('portal:open')]
-    public function open(string $component, array $props = [], string $title = '', string $variant = 'flyout'): void
+    public function open(string $component, array $props = [], string $title = '', string $variant = 'flyout', string $class = ''): void
     {
         $id = uniqid('portal-');
 
@@ -21,6 +21,7 @@ class ComponentPortal extends Component
             'props' => $props,
             'title' => $title,
             'variant' => $variant,
+            'class' => $class,
         ];
     }
 
