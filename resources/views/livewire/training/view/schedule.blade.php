@@ -1,4 +1,4 @@
-<div x-data="schedule_grid()" class="flex gap-6">
+<div x-data="schedule_grid()" class="flex gap-6 focus:outline-none">
     <x-section title="Schedules" class="w-64 shrink-0 sticky top-4 self-start">
         <div class="flex flex-col gap-1">
             <flux:button wire:click="selectUser(null)" variant="{{ $user === null ? 'primary' : 'ghost' }}"
@@ -133,30 +133,50 @@
                                                 @dragover.prevent="handleDragOver($event)"
                                                 @dragleave="handleDragLeave()"
                                                 @drop.prevent="handleDrop($event)" @endif>
-                                            <div class="h-full flex flex-col items-stretch justify-center gap-0.5"
-                                                :class="{ 'opacity-50 scale-95': draggedCell === '{{ $cellId }}' }"
-                                                @if (!$isReadOnly && $hasPrograms) draggable="true"
-                                                    data-week-id="{{ $week->id }}"
-                                                    data-day="{{ $dayIndex }}"
-                                                    data-slot="{{ $slotKey }}"
-                                                    @dragstart="handleDragStart($event)"
-                                                    @dragend="handleDragEnd()" @endif>
+                                            <div class="h-full flex flex-col items-stretch justify-center gap-0.5">
                                                 @foreach ($slotPrograms as $programId)
                                                     @php
                                                         $programName = $this->programOptions[$programId] ?? '?';
                                                         $programColor = $this->getProgramColor($programId);
+                                                        $programDragId = $cellId . '-' . $programId;
                                                     @endphp
-                                                    <div class="flex items-center justify-center rounded px-2 py-1 text-xs font-medium {{ $isReadOnly ? '' : 'cursor-pointer' }}"
-                                                        style="{{ \Coda\Cms\Support\ColorPalette::solid($programColor) }}"
-                                                        @if (!$isReadOnly) wire:click="editProgram({{ $programId }}, '{{ $week->id }}', {{ $dayIndex }}, {{ $slotKey }})" @endif>
-                                                        <span class="truncate">{{ $programName }}</span>
-                                                    </div>
+                                                    @if (!$isReadOnly)
+                                                        <div class="flex items-center justify-center rounded px-2 py-1 text-xs font-medium cursor-pointer"
+                                                            style="{{ \Coda\Cms\Support\ColorPalette::solid($programColor) }}"
+                                                            :class="{ 'opacity-50 scale-95': draggedProgram === '{{ $programDragId }}' }"
+                                                            draggable="true"
+                                                            data-week-id="{{ $week->id }}"
+                                                            data-day="{{ $dayIndex }}"
+                                                            data-slot="{{ $slotKey }}"
+                                                            data-program-id="{{ $programId }}"
+                                                            @dragstart="handleDragStart($event)"
+                                                            @dragend="handleDragEnd()"
+                                                            wire:click="openEditProgramModal({{ $programId }}, '{{ $week->id }}', {{ $dayIndex }}, {{ $slotKey }})">
+                                                            <span class="truncate">{{ $programName }}</span>
+                                                        </div>
+                                                    @else
+                                                        <div class="flex items-center justify-center rounded px-2 py-1 text-xs font-medium"
+                                                            style="{{ \Coda\Cms\Support\ColorPalette::solid($programColor) }}">
+                                                            <span class="truncate">{{ $programName }}</span>
+                                                        </div>
+                                                    @endif
                                                 @endforeach
                                                 @if (!$isReadOnly)
                                                     <div class="flex items-center justify-center text-zinc-400 dark:text-zinc-600">
-                                                        <flux:button variant="ghost" size="xs" icon="plus"
-                                                            class="!text-zinc-400 dark:!text-zinc-600 hover:!text-zinc-600 dark:hover:!text-zinc-400"
-                                                            wire:click="openLinkProgramModal('{{ $week->id }}', {{ $dayIndex }}, {{ $slotKey }})" />
+                                                        <flux:dropdown>
+                                                            <flux:button variant="ghost" size="xs" icon="plus"
+                                                                class="!text-zinc-400 dark:!text-zinc-600 hover:!text-zinc-600 dark:hover:!text-zinc-400" />
+                                                            <flux:menu>
+                                                                <flux:menu.item icon="plus"
+                                                                    wire:click="openCreateProgramModal('{{ $week->id }}', {{ $dayIndex }}, {{ $slotKey }})">
+                                                                    Create
+                                                                </flux:menu.item>
+                                                                <flux:menu.item icon="link"
+                                                                    wire:click="openLinkProgramModal('{{ $week->id }}', {{ $dayIndex }}, {{ $slotKey }})">
+                                                                    Link
+                                                                </flux:menu.item>
+                                                            </flux:menu>
+                                                        </flux:dropdown>
                                                     </div>
                                                 @endif
                                             </div>
@@ -259,8 +279,9 @@
             <flux:text class="text-sm text-zinc-600 dark:text-zinc-400">
                 Select an existing program to place in this slot.
             </flux:text>
+            @php $filteredOptions = $this->availableProgramOptionsForSlot(); @endphp
             <flux:select wire:model="linkingProgramId" placeholder="Select a program...">
-                @foreach ($this->programOptions as $id => $name)
+                @foreach ($filteredOptions as $id => $name)
                     <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
                 @endforeach
             </flux:select>
@@ -271,12 +292,37 @@
                 <flux:button variant="primary" wire:click="confirmLinkProgram">
                     Link
                 </flux:button>
-                @if ($linkingProgramId)
-                    <flux:button variant="ghost" icon="trash-2" wire:click="removeFromSchedule"
-                        wire:confirm="Are you sure you want to remove {{ $this->programOptions[$linkingProgramId] ?? 'this program' }} from this slot?"
-                        class="text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400" />
-                @endif
             </div>
+        </div>
+    </flux:modal>
+
+    <flux:modal name="add-program" flyout class="max-w-lg">
+        <div class="space-y-6">
+            <flux:heading size="lg">
+                {{ $editingProgramId ? 'Edit Program' : 'Create Program' }}
+            </flux:heading>
+            <form wire:submit="saveProgram" class="space-y-4">
+                @foreach ($this->fieldsets as $item)
+                    <x-cms::form.fieldset
+                        :fieldset="$item"
+                        :prefix="$item->prefix ?? 'data'"
+                        :showLegend="count($this->fieldsets) > 1"
+                    />
+                @endforeach
+                <div class="flex gap-2 pt-4">
+                    <flux:button type="submit" variant="primary" class="flex-1">
+                        {{ $editingProgramId ? 'Save' : 'Create' }}
+                    </flux:button>
+                    <flux:modal.close>
+                        <flux:button variant="ghost">Cancel</flux:button>
+                    </flux:modal.close>
+                    @if ($editingProgramId)
+                        <flux:button variant="ghost" icon="trash-2" wire:click="removeFromSchedule"
+                            wire:confirm="Are you sure you want to remove this program from the slot?"
+                            class="text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400" />
+                    @endif
+                </div>
+            </form>
         </div>
     </flux:modal>
 

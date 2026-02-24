@@ -26,6 +26,7 @@ class ScheduleHandler
             'assign-program' => $this->assignProgram($data['weekId'], $data['day'], $data['slot'], $data['programId']),
             'clear-slot' => $this->saveSlotChange($data['weekId'], $data['day'], $data['slot'], []),
             'move-program' => $this->moveProgram($data['weekId'], $data['fromDay'], $data['fromSlot'], $data['toDay'], $data['toSlot']),
+            'move-single-program' => $this->moveSingleProgram($data['programId'], $data['fromWeekId'], $data['fromDay'], $data['fromSlot'], $data['toWeekId'], $data['toDay'], $data['toSlot']),
             'swap-programs' => $this->swapPrograms($data['week1Id'], $data['day1'], $data['slot1'], $data['week2Id'], $data['day2'], $data['slot2']),
             'remove-program-from-slots' => $this->removeProgramFromSlots($data['programId']),
             'unassign-program' => $this->unassignProgram($data['weekId'], $data['day'], $data['slot'], $data['programId']),
@@ -182,6 +183,12 @@ class ScheduleHandler
 
         $this->saveSlotChange($weekId, $fromDay, $fromSlot, []);
         $this->saveSlotChange($weekId, $toDay, $toSlot, $programs);
+    }
+
+    protected function moveSingleProgram(int $programId, string $fromWeekId, int $fromDay, int $fromSlot, string $toWeekId, int $toDay, int $toSlot): void
+    {
+        $this->unassignProgram($fromWeekId, $fromDay, $fromSlot, $programId);
+        $this->assignProgram($toWeekId, $toDay, $toSlot, $programId);
     }
 
     protected function swapPrograms(string $week1Id, int $day1, int $slot1, string $week2Id, int $day2, int $slot2): void

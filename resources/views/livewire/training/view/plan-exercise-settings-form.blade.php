@@ -1,4 +1,4 @@
-<div>
+<div class="focus:outline-none">
     <flux:modal :name="$name" :flyout="$flyout" :class="$maxWidth"
         x-on:close="Livewire.dispatch('{{ $name }}.closed')"
         x-on:focus-field.window="

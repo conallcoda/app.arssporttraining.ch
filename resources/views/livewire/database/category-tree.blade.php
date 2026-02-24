@@ -1,4 +1,4 @@
-<div x-data="model_tree">
+<div x-data="model_tree" class="focus:outline-none">
     <div class="flex items-center justify-between mb-3">
         <div></div>
         <div class="flex gap-2">

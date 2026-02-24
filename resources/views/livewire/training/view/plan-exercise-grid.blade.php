@@ -1,7 +1,7 @@
-<div>
+<div x-data="{ hiding: false }" x-show="!hiding">
     <x-section :title="$exerciseName">
         @if ($disabled)
-            <flux:button variant="primary" size="sm" wire:click="toggleDisabled" class="!-mt-1">Enable</flux:button>
+            <flux:button variant="primary" size="sm" wire:click="toggleDisabled" x-on:click="hiding = true" class="!-mt-1">Enable</flux:button>
         @else
             <div wire:key="grid-content-{{ $exerciseId }}-{{ $this->configFingerprint }}">
                 <div class="flex items-start justify-between !-mt-2">
@@ -53,7 +53,7 @@
                         <flux:menu>
                             <flux:menu.item icon="pencil" wire:click="openSettingsForm">Edit Settings</flux:menu.item>
                             <flux:menu.item icon="rotate-ccw" wire:click="resetOverrides">Reset Overrides</flux:menu.item>
-                            <flux:menu.item icon="eye-off" wire:click="toggleDisabled">Disable</flux:menu.item>
+                            <flux:menu.item icon="eye-off" wire:click="toggleDisabled" x-on:click="hiding = true">Disable</flux:menu.item>
                         </flux:menu>
                     </flux:dropdown>
                 </div>

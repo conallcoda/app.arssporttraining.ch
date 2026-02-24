@@ -395,19 +395,31 @@ class PlanExerciseGrid extends Component
             ? null
             : ($settingsConfig['settings'] ?? null);
 
-        $overrides->sets = ($settingsConfig['sets'] ?? null) == ($parentConfig['sets'] ?? null)
+        $formSets = $settingsConfig['sets'] ?? null;
+        $parentSets = $parentConfig['sets'] ?? null;
+        if (is_array($formSets) && is_array($parentSets)) {
+            $formSets = array_merge($parentSets, $formSets);
+        }
+        $overrides->sets = $formSets == $parentSets
             ? null
-            : \App\Data\Exercise\Settings\SetsSetting::from($settingsConfig['sets']);
+            : \App\Data\Exercise\Settings\SetsSetting::from($formSets);
 
         $settingKeys = ['reps', 'weight', 'tempo', 'rest', 'distance', 'duration', 'heartRate', 'heartRateZone', 'pace', 'watts'];
 
         foreach ($settingKeys as $key) {
-            if (($settingsConfig[$key] ?? null) == ($parentConfig[$key] ?? null)) {
+            $formValue = $settingsConfig[$key] ?? null;
+            $parentValue = $parentConfig[$key] ?? null;
+
+            if (is_array($formValue) && is_array($parentValue)) {
+                $formValue = array_merge($parentValue, $formValue);
+            }
+
+            if ($formValue == $parentValue) {
                 $overrides->{$key} = null;
             } else {
                 $enum = \App\Data\Exercise\ExerciseSetting::tryFrom($key);
                 if ($enum && $settingClass = $enum->settingClass()) {
-                    $overrides->{$key} = isset($settingsConfig[$key]) ? $settingClass::from($settingsConfig[$key]) : null;
+                    $overrides->{$key} = isset($formValue) ? $settingClass::from($formValue) : null;
                 }
             }
         }

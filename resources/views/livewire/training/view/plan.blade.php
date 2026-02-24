@@ -1,4 +1,4 @@
-<div class="flex gap-6">
+<div class="flex gap-6 focus:outline-none">
     <x-section title="Plans" class="w-64 shrink-0 sticky top-4 self-start">
         <div class="flex flex-col gap-1">
             <flux:button wire:click="selectUser(null)" variant="{{ $user === null ? 'primary' : 'ghost' }}"
@@ -201,7 +201,7 @@
                         <div class="flex flex-wrap gap-4">
                             @foreach ($disabledExercises as $exercise)
                                 <livewire:training.view.plan-exercise-grid
-                                    :key="'grid-' . $exercise->id . '-' . ($user ?? 'default')"
+                                    :key="'grid-' . $exercise->id . '-' . ($user ?? 'default') . '-disabled'"
                                     :trainingPlanId="$trainingPlan->id"
                                     :exerciseId="$exercise->id"
                                     :userId="$user"
@@ -220,7 +220,7 @@
                         <div class="flex flex-wrap gap-4">
                             @foreach ($enabledExercises as $exercise)
                                 <livewire:training.view.plan-exercise-grid
-                                    :key="'grid-' . $exercise->id . '-' . ($user ?? 'default')"
+                                    :key="'grid-' . $exercise->id . '-' . ($user ?? 'default') . '-enabled'"
                                     :trainingPlanId="$trainingPlan->id"
                                     :exerciseId="$exercise->id"
                                     :userId="$user"
