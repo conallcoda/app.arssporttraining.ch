@@ -34,6 +34,17 @@ class EffectiveExerciseConfig
         return self::mergeGridOverrides(...$layers);
     }
 
+    public static function resolveDisabled(
+        ExerciseOverrides $planOverrides,
+        ?ExerciseOverrides $userOverrides = null,
+    ): bool {
+        if ($userOverrides !== null && $userOverrides->disabled !== null) {
+            return $userOverrides->disabled;
+        }
+
+        return $planOverrides->disabled ?? false;
+    }
+
     private static function applyOverrideLayer(array $config, ExerciseOverrides $overrides): array
     {
         if ($overrides->settings !== null) {

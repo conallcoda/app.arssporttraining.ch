@@ -183,24 +183,57 @@
             </div>
 
             @foreach ($this->programsForCategory as $program)
+                @php
+                    $config = $trainingPlan->config;
+                    [$enabledExercises, $disabledExercises] = $program->exercises->partition(function ($exercise) use ($config, $user) {
+                        $planOverrides = $config->defaultExerciseOverrides($exercise->id);
+                        if ($user !== null) {
+                            $userOverrides = $config->userExerciseOverrides($exercise->id, $user);
+                            return ! \App\Data\Training\Config\EffectiveExerciseConfig::resolveDisabled($planOverrides, $userOverrides);
+                        }
+                        return ! ($planOverrides->disabled ?? false);
+                    });
+                @endphp
                 <div wire:key="program-{{ $program->id }}" class="space-y-4">
                     <flux:heading level="3" size="lg">{{ $program->name }}</flux:heading>
 
-                    <div class="flex flex-wrap gap-4">
-                        @foreach ($program->exercises as $exercise)
-                            <livewire:training.view.plan-exercise-grid
-                                :key="'grid-' . $exercise->id . '-' . ($user ?? 'default')"
-                                :trainingPlanId="$trainingPlan->id"
-                                :exerciseId="$exercise->id"
-                                :userId="$user"
-                                :weeks="$this->weeks"
-                                :sessionsPerWeek="$this->sessionsPerWeekByProgram[$program->id] ?? 1"
-                                :planMeasuredReps="$measuredReps"
-                                :planMeasuredWeight="$measuredWeight"
-                                :planTargetGoal="$targetGoal"
-                            />
-                        @endforeach
-                    </div>
+                    @if ($disabledExercises->isNotEmpty())
+                        <div class="flex flex-wrap gap-4">
+                            @foreach ($disabledExercises as $exercise)
+                                <livewire:training.view.plan-exercise-grid
+                                    :key="'grid-' . $exercise->id . '-' . ($user ?? 'default')"
+                                    :trainingPlanId="$trainingPlan->id"
+                                    :exerciseId="$exercise->id"
+                                    :userId="$user"
+                                    :disabled="true"
+                                    :weeks="$this->weeks"
+                                    :sessionsPerWeek="$this->sessionsPerWeekByProgram[$program->id] ?? 1"
+                                    :planMeasuredReps="$measuredReps"
+                                    :planMeasuredWeight="$measuredWeight"
+                                    :planTargetGoal="$targetGoal"
+                                />
+                            @endforeach
+                        </div>
+                    @endif
+
+                    @if ($enabledExercises->isNotEmpty())
+                        <div class="flex flex-wrap gap-4">
+                            @foreach ($enabledExercises as $exercise)
+                                <livewire:training.view.plan-exercise-grid
+                                    :key="'grid-' . $exercise->id . '-' . ($user ?? 'default')"
+                                    :trainingPlanId="$trainingPlan->id"
+                                    :exerciseId="$exercise->id"
+                                    :userId="$user"
+                                    :disabled="false"
+                                    :weeks="$this->weeks"
+                                    :sessionsPerWeek="$this->sessionsPerWeekByProgram[$program->id] ?? 1"
+                                    :planMeasuredReps="$measuredReps"
+                                    :planMeasuredWeight="$measuredWeight"
+                                    :planTargetGoal="$targetGoal"
+                                />
+                            @endforeach
+                        </div>
+                    @endif
 
                     @if ($program->exercises->isEmpty())
                         <flux:text class="text-zinc-500">No exercises in this program.</flux:text>

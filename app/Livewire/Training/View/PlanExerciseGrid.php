@@ -41,6 +41,9 @@ class PlanExerciseGrid extends Component
     public array $exerciseBadges = [];
 
     #[Reactive]
+    public bool $disabled = false;
+
+    #[Reactive]
     public ?int $planMeasuredReps = null;
 
     #[Reactive]
@@ -159,6 +162,50 @@ class PlanExerciseGrid extends Component
         }
 
         return $effectiveConfig[$field]['default'] ?? null;
+    }
+
+    #[Computed]
+    public function isDisabled(): bool
+    {
+        $config = $this->getTrainingPlanConfig();
+        $planOverrides = $config->defaultExerciseOverrides($this->exerciseId);
+
+        if ($this->userId !== null) {
+            $userOverrides = $config->userExerciseOverrides($this->exerciseId, $this->userId);
+
+            return EffectiveExerciseConfig::resolveDisabled($planOverrides, $userOverrides);
+        }
+
+        return $planOverrides->disabled ?? false;
+    }
+
+    #[Computed]
+    public function isDisabledByDefault(): bool
+    {
+        $config = $this->getTrainingPlanConfig();
+        $planOverrides = $config->defaultExerciseOverrides($this->exerciseId);
+
+        return $planOverrides->disabled ?? false;
+    }
+
+    public function toggleDisabled(): void
+    {
+        $overrides = $this->getCurrentOverrides();
+
+        if ($this->userId !== null) {
+            $currentlyDisabled = $this->isDisabled;
+            $overrides->disabled = $currentlyDisabled ? false : true;
+
+            $defaultDisabled = $this->isDisabledByDefault;
+            if ($overrides->disabled === $defaultDisabled) {
+                $overrides->disabled = null;
+            }
+        } else {
+            $overrides->disabled = ! ($overrides->disabled ?? false) ?: null;
+        }
+
+        $this->saveOverrides($overrides);
+        unset($this->isDisabled, $this->isDisabledByDefault, $this->configFingerprint, $this->previewGrid);
     }
 
     #[Computed]

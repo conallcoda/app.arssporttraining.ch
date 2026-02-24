@@ -33,6 +33,7 @@ class ExerciseOverrides extends AbstractData
         public ?WattsSetting $watts = null,
         /** @var array{cells: array, weeks: array} */
         public array $gridOverrides = ['cells' => [], 'weeks' => []],
+        public ?bool $disabled = null,
     ) {}
 
     public function hasSettingOverride(string $setting): bool
