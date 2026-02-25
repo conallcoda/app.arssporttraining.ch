@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Data\Training\Config\TrainingPlanConfig;
+use App\Models\Contracts\Plannable;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use Coda\Cms\Models\Concerns\SyncsSortableRelations;
@@ -10,10 +11,10 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class TrainingPlan extends Model
+class TrainingPlan extends Model implements Plannable
 {
     use SoftDeletes;
     use SyncsSortableRelations;
@@ -53,9 +54,14 @@ class TrainingPlan extends Model
             ->withTimestamps();
     }
 
-    public function programs(): HasMany
+    public function programs(): MorphMany
     {
-        return $this->hasMany(TrainingPlanProgram::class);
+        return $this->morphMany(TrainingPlanProgram::class, 'plannable');
+    }
+
+    public function isTemplate(): bool
+    {
+        return false;
     }
 
     public function allUsers(): Builder

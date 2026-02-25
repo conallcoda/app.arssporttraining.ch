@@ -39,7 +39,8 @@ class TrainingPlanSeeder extends Seeder
     private function createStrengthProgram(TrainingPlan $plan, ?int $categoryId): TrainingPlanProgram
     {
         $program = TrainingPlanProgram::create([
-            'training_plan_id' => $plan->id,
+            'plannable_type' => TrainingPlan::class,
+            'plannable_id' => $plan->id,
             'name' => 'Strength',
             'program_category_id' => $categoryId,
         ]);
@@ -58,7 +59,8 @@ class TrainingPlanSeeder extends Seeder
     private function createConditioningProgram(TrainingPlan $plan, ?int $categoryId): TrainingPlanProgram
     {
         $program = TrainingPlanProgram::create([
-            'training_plan_id' => $plan->id,
+            'plannable_type' => TrainingPlan::class,
+            'plannable_id' => $plan->id,
             'name' => 'Conditioning',
             'program_category_id' => $categoryId,
         ]);
@@ -77,7 +79,8 @@ class TrainingPlanSeeder extends Seeder
     private function createCardioProgram(TrainingPlan $plan, ?int $categoryId): TrainingPlanProgram
     {
         $program = TrainingPlanProgram::create([
-            'training_plan_id' => $plan->id,
+            'plannable_type' => TrainingPlan::class,
+            'plannable_id' => $plan->id,
             'name' => 'Cardio',
             'program_category_id' => $categoryId,
         ]);

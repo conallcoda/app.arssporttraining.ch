@@ -1,35 +1,37 @@
 <div class="flex gap-6 focus:outline-none">
-    <x-section title="Plans" class="w-64 shrink-0 sticky top-4 self-start">
-        <div class="flex flex-col gap-1">
-            <flux:button wire:click="selectUser(null)" variant="{{ $user === null ? 'primary' : 'ghost' }}"
-                class="justify-start">
-                <span class="flex-1 text-left">Default</span>
-            </flux:button>
-
-            <div class="mx-3">
-                <flux:separator class="my-2" variant="subtle" />
-            </div>
-
-            @foreach ($this->users as $userItem)
-                @php
-                    $isSelected = $user === $userItem->id;
-                    $overrideCount = $this->userOverrideCounts[$userItem->id] ?? 0;
-                @endphp
-                <flux:button wire:key="user-btn-{{ $userItem->id }}" wire:click="selectUser({{ $userItem->id }})"
-                    variant="{{ $isSelected ? 'primary' : 'ghost' }}" class="justify-start">
-                    <span class="flex-1 text-left">{{ $userItem->name }}</span>
-                    @if ($overrideCount > 0 && $isSelected)
-                        <flux:badge size="sm" color="lime" class="!text-green-700">{{ $overrideCount }}</flux:badge>
-                    @elseif ($overrideCount > 0)
-                        <flux:badge size="sm" color="lime">{{ $overrideCount }}</flux:badge>
-                    @endif
+    @if ($users->isNotEmpty())
+        <x-section title="Plans" class="w-64 shrink-0 sticky top-4 self-start">
+            <div class="flex flex-col gap-1">
+                <flux:button wire:click="selectUser(null)" variant="{{ $user === null ? 'primary' : 'ghost' }}"
+                    class="justify-start">
+                    <span class="flex-1 text-left">Default</span>
                 </flux:button>
-            @endforeach
-        </div>
-    </x-section>
+
+                <div class="mx-3">
+                    <flux:separator class="my-2" variant="subtle" />
+                </div>
+
+                @foreach ($this->users as $userItem)
+                    @php
+                        $isSelected = $user === $userItem->id;
+                        $overrideCount = $this->userOverrideCounts[$userItem->id] ?? 0;
+                    @endphp
+                    <flux:button wire:key="user-btn-{{ $userItem->id }}" wire:click="selectUser({{ $userItem->id }})"
+                        variant="{{ $isSelected ? 'primary' : 'ghost' }}" class="justify-start">
+                        <span class="flex-1 text-left">{{ $userItem->name }}</span>
+                        @if ($overrideCount > 0 && $isSelected)
+                            <flux:badge size="sm" color="lime" class="!text-green-700">{{ $overrideCount }}</flux:badge>
+                        @elseif ($overrideCount > 0)
+                            <flux:badge size="sm" color="lime">{{ $overrideCount }}</flux:badge>
+                        @endif
+                    </flux:button>
+                @endforeach
+            </div>
+        </x-section>
+    @endif
 
     <div class="flex-1 space-y-6">
-        @if ($user === null)
+        @if ($user === null && ! $trainingPlan->isTemplate())
             <div class="flex items-center justify-between">
                 <flux:heading size="xl">Default</flux:heading>
                 <div class="flex gap-2">
@@ -37,10 +39,12 @@
                         :disabled="! $this->hasDefaultOverrides">
                         Reset Default Settings
                     </flux:button>
-                    <flux:button wire:click="confirmResetUserSettings" variant="primary" size="sm" icon="rotate-ccw"
-                        :disabled="! $this->hasUserOverrides">
-                        Reset User Settings
-                    </flux:button>
+                    @if ($users->isNotEmpty())
+                        <flux:button wire:click="confirmResetUserSettings" variant="primary" size="sm" icon="rotate-ccw"
+                            :disabled="! $this->hasUserOverrides">
+                            Reset User Settings
+                        </flux:button>
+                    @endif
                 </div>
             </div>
         @elseif ($this->selectedUser)
@@ -122,14 +126,16 @@
                 @if ($user === null || $this->selectedUser)
                     <div class="space-y-4">
                         <div class="flex items-end gap-3">
-                            <flux:field class="flex-1">
-                                <flux:label>Start Date</flux:label>
-                                <flux:select wire:model.live="startDate">
-                                    @foreach ($this->weekOptions as $value => $label)
-                                        <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
-                                    @endforeach
-                                </flux:select>
-                            </flux:field>
+                            @if ($users->isNotEmpty())
+                                <flux:field class="flex-1">
+                                    <flux:label>Start Date</flux:label>
+                                    <flux:select wire:model.live="startDate">
+                                        @foreach ($this->weekOptions as $value => $label)
+                                            <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
+                                        @endforeach
+                                    </flux:select>
+                                </flux:field>
+                            @endif
 
                             <flux:field class="flex-1">
                                 <flux:label>Duration</flux:label>
@@ -137,7 +143,7 @@
                                     class="h-10 flex items-center justify-center rounded-lg bg-blue-500/15 text-blue-400 font-medium cursor-pointer hover:bg-blue-500/25 transition-colors"
                                     x-on:click="Livewire.dispatch('portal:open', {
                                         component: 'training.view.schedule',
-                                        props: { trainingPlanId: {{ $trainingPlan->id }} },
+                                        props: { trainingPlanId: {{ $trainingPlan->id }}, planType: '{{ addslashes(get_class($trainingPlan)) }}' },
                                         title: 'Schedule',
                                         variant: '',
                                         class: 'min-w-[70rem]'
@@ -156,7 +162,7 @@
                                         as="button"
                                         x-on:click="Livewire.dispatch('portal:open', {
                                             component: 'training.view.program-editor',
-                                            props: { trainingPlanId: {{ $trainingPlan->id }}, programId: {{ $program->id }} },
+                                            props: { trainingPlanId: {{ $trainingPlan->id }}, planType: '{{ addslashes(get_class($trainingPlan)) }}', programId: {{ $program->id }} },
                                             title: 'Edit Program',
                                             variant: 'flyout',
                                             class: 'max-w-lg'
@@ -223,6 +229,7 @@
                                 <livewire:training.view.plan-exercise-grid
                                     :key="'grid-' . $exercise->id . '-' . ($user ?? 'default') . '-disabled'"
                                     :trainingPlanId="$trainingPlan->id"
+                                    :planType="get_class($trainingPlan)"
                                     :exerciseId="$exercise->id"
                                     :userId="$user"
                                     :disabled="true"
@@ -242,6 +249,7 @@
                                 <livewire:training.view.plan-exercise-grid
                                     :key="'grid-' . $exercise->id . '-' . ($user ?? 'default') . '-enabled'"
                                     :trainingPlanId="$trainingPlan->id"
+                                    :planType="get_class($trainingPlan)"
                                     :exerciseId="$exercise->id"
                                     :userId="$user"
                                     :disabled="false"

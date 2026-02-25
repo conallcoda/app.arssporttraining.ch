@@ -4,7 +4,6 @@ namespace App\Livewire\Training\View;
 
 use App\Data\Training\TrainingProgramData;
 use App\Models\ProgramCategory;
-use App\Models\TrainingPlan;
 use App\Models\TrainingPlanProgram;
 use Coda\Cms\Display\DisplayFields\Ago;
 use Coda\Cms\Display\DisplayFields\ColorBadge;
@@ -20,7 +19,7 @@ class TrainingProgramList extends AbstractModelList
 {
     use InteractsWithParentView;
 
-    public TrainingPlan $trainingPlan;
+    public Model $trainingPlan;
 
     protected function urlPrefix(): string
     {
@@ -40,7 +39,8 @@ class TrainingProgramList extends AbstractModelList
     protected function getBaseQuery(): Builder
     {
         return TrainingPlanProgram::query()
-            ->where('training_plan_programs.training_plan_id', $this->trainingPlan->id)
+            ->where('training_plan_programs.plannable_type', get_class($this->trainingPlan))
+            ->where('training_plan_programs.plannable_id', $this->trainingPlan->id)
             ->with('programCategory')
             ->leftJoin('program_categories', 'training_plan_programs.program_category_id', '=', 'program_categories.id')
             ->orderBy('program_categories.name')
@@ -74,7 +74,8 @@ class TrainingProgramList extends AbstractModelList
     protected function createDataFromForm(array $formData): TrainingProgramData
     {
         $data = TrainingProgramData::from($formData);
-        $data->training_plan_id = $this->trainingPlan->id;
+        $data->plannable_type = get_class($this->trainingPlan);
+        $data->plannable_id = $this->trainingPlan->id;
 
         return $data;
     }

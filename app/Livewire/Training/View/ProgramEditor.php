@@ -17,6 +17,8 @@ class ProgramEditor extends Component
 
     public int $trainingPlanId;
 
+    public string $planType = \App\Models\TrainingPlan::class;
+
     public ?int $programId = null;
 
     public array $data = [];
@@ -37,7 +39,8 @@ class ProgramEditor extends Component
     {
         $program = TrainingPlanProgram::query()
             ->where('id', $this->programId)
-            ->where('training_plan_id', $this->trainingPlanId)
+            ->where('plannable_type', $this->planType)
+            ->where('plannable_id', $this->trainingPlanId)
             ->with(['exercises' => fn ($q) => $q->orderByPivot('sort')])
             ->firstOrFail();
 

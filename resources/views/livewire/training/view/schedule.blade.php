@@ -1,35 +1,37 @@
 <div x-data="schedule_grid()" class="flex gap-6 focus:outline-none">
-    <x-section title="Schedules" class="w-64 shrink-0 sticky top-4 self-start">
-        <div class="flex flex-col gap-1">
-            <flux:button wire:click="selectUser(null)" variant="{{ $user === null ? 'primary' : 'ghost' }}"
-                class="justify-start">
-                <span class="flex-1 text-left">Default</span>
-            </flux:button>
-
-            <div class="mx-3">
-                <flux:separator class="my-2" variant="subtle" />
-            </div>
-
-            @foreach ($this->users as $userItem)
-                @php
-                    $isSelected = $user === $userItem->id;
-                    $hasCustom = ! $this->config->isUserScheduleLocked($userItem->id);
-                @endphp
-                <flux:button wire:key="user-btn-{{ $userItem->id }}" wire:click="selectUser({{ $userItem->id }})"
-                    variant="{{ $isSelected ? 'primary' : 'ghost' }}" class="justify-start">
-                    <span class="flex-1 text-left">{{ $userItem->name }}</span>
-                    @if ($hasCustom && $isSelected)
-                        <flux:badge size="sm" color="lime" class="!text-green-700">Custom</flux:badge>
-                    @elseif ($hasCustom)
-                        <flux:badge size="sm" color="lime">Custom</flux:badge>
-                    @endif
+    @if ($users->isNotEmpty())
+        <x-section title="Schedules" class="w-64 shrink-0 sticky top-4 self-start">
+            <div class="flex flex-col gap-1">
+                <flux:button wire:click="selectUser(null)" variant="{{ $user === null ? 'primary' : 'ghost' }}"
+                    class="justify-start">
+                    <span class="flex-1 text-left">Default</span>
                 </flux:button>
-            @endforeach
-        </div>
-    </x-section>
+
+                <div class="mx-3">
+                    <flux:separator class="my-2" variant="subtle" />
+                </div>
+
+                @foreach ($this->users as $userItem)
+                    @php
+                        $isSelected = $user === $userItem->id;
+                        $hasCustom = ! $this->config->isUserScheduleLocked($userItem->id);
+                    @endphp
+                    <flux:button wire:key="user-btn-{{ $userItem->id }}" wire:click="selectUser({{ $userItem->id }})"
+                        variant="{{ $isSelected ? 'primary' : 'ghost' }}" class="justify-start">
+                        <span class="flex-1 text-left">{{ $userItem->name }}</span>
+                        @if ($hasCustom && $isSelected)
+                            <flux:badge size="sm" color="lime" class="!text-green-700">Custom</flux:badge>
+                        @elseif ($hasCustom)
+                            <flux:badge size="sm" color="lime">Custom</flux:badge>
+                        @endif
+                    </flux:button>
+                @endforeach
+            </div>
+        </x-section>
+    @endif
 
     <div class="flex-1 space-y-6">
-        @if ($user === null)
+        @if ($user === null && ! $trainingPlan->isTemplate())
             <flux:heading size="xl">Default Schedule</flux:heading>
         @elseif ($this->selectedUser)
             <div class="flex items-center justify-between">
@@ -43,17 +45,19 @@
             </div>
         @endif
 
-        <x-section title="Start Date" class="!py-3">
-            <div class="flex items-end gap-3">
-                <flux:field class="flex-1">
-                    <flux:select wire:model.live="startDate">
-                        @foreach ($this->weekOptions as $value => $label)
-                            <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
-                        @endforeach
-                    </flux:select>
-                </flux:field>
-            </div>
-        </x-section>
+        @if ($users->isNotEmpty())
+            <x-section title="Start Date" class="!py-3">
+                <div class="flex items-end gap-3">
+                    <flux:field class="flex-1">
+                        <flux:select wire:model.live="startDate">
+                            @foreach ($this->weekOptions as $value => $label)
+                                <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
+                            @endforeach
+                        </flux:select>
+                    </flux:field>
+                </div>
+            </x-section>
+        @endif
 
         <x-section title="Weekly Schedule" class="!p-0">
             <div class="overflow-x-auto">

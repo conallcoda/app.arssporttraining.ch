@@ -3,7 +3,6 @@
 namespace App\Livewire\Training\View;
 
 use App\Models\ProgramCategory;
-use App\Models\TrainingPlan;
 use App\Models\TrainingPlanProgram;
 use App\Models\Users\User;
 use App\Support\WeekOptions;
@@ -11,6 +10,7 @@ use App\Training\Reference\OneRepMaxConversion;
 use Coda\Cms\Livewire\Concerns\InteractsWithParentView;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
@@ -20,7 +20,7 @@ class Plan extends Component
 {
     use InteractsWithParentView;
 
-    public TrainingPlan $trainingPlan;
+    public Model $trainingPlan;
 
     public Collection $programs;
 
@@ -49,7 +49,7 @@ class Plan extends Component
     }
 
     public function mount(
-        TrainingPlan $trainingPlan,
+        Model $trainingPlan,
         Collection $programs,
         Collection $users,
     ): void {
@@ -369,7 +369,8 @@ class Plan extends Component
     {
         $this->trainingPlan->refresh();
         $this->programs = TrainingPlanProgram::query()
-            ->where('training_plan_id', $this->trainingPlan->id)
+            ->where('plannable_type', get_class($this->trainingPlan))
+            ->where('plannable_id', $this->trainingPlan->id)
             ->with([
                 'exercises' => fn ($q) => $q->orderByPivot('sort'),
                 'programCategory',

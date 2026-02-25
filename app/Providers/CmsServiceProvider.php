@@ -10,6 +10,7 @@ use App\Cms\Modules\ExerciseExternalModule;
 use App\Cms\Modules\ExerciseModule;
 use App\Cms\Modules\ExerciseTemplateModule;
 use App\Cms\Modules\ModifiersModule;
+use App\Cms\Modules\PlanTemplateModule;
 use App\Cms\Modules\ProgramCategoryModule;
 use App\Cms\Modules\TrainingPlanModule;
 use Coda\Cms\Navigation\SidebarGroup;
@@ -33,6 +34,7 @@ class CmsServiceProvider extends ServiceProvider
         $registry->register(new ModifiersModule);
         $registry->register(new ExerciseExternalModule);
         $registry->register(new TrainingPlanModule);
+        $registry->register(new PlanTemplateModule);
         $registry->register(new ProgramCategoryModule);
 
         $registry->setNavigation([
@@ -53,6 +55,7 @@ class CmsServiceProvider extends ServiceProvider
             SidebarGroup::make('training', 'Training')->icon('trophy')->items([
                 SidebarItem::make('Plans', 'training-plan-index')->icon('clipboard-list')->tabs([
                     Tab::make('Training Plans', 'training-plan-index'),
+                    Tab::make('Templates', 'plan-template-index'),
                 ]),
                 SidebarItem::make('Settings', 'program-category-index')->icon('settings')->tabs([
                     Tab::make('Program Categories', 'program-category-index'),

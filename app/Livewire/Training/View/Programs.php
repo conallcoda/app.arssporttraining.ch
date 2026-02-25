@@ -2,14 +2,14 @@
 
 namespace App\Livewire\Training\View;
 
-use App\Models\TrainingPlan;
+use Illuminate\Database\Eloquent\Model;
 use Livewire\Component;
 
 class Programs extends Component
 {
-    public TrainingPlan $trainingPlan;
+    public Model $trainingPlan;
 
-    public function mount(TrainingPlan $trainingPlan): void
+    public function mount(Model $trainingPlan): void
     {
         $this->trainingPlan = $trainingPlan;
     }

@@ -2,18 +2,18 @@
 
 namespace App\Livewire\Training\View;
 
-use App\Data\Training\Config\TrainingPlanConfig;
-use App\Models\TrainingPlan;
+use Illuminate\Database\Eloquent\Model;
 
 class ScheduleHandler
 {
-    protected TrainingPlanConfig $config;
+    protected $config;
 
     public function __construct(
-        protected TrainingPlan $trainingPlan,
+        protected Model $trainingPlan,
         protected ?int $userId = null,
     ) {
-        $this->config = TrainingPlanConfig::from($this->trainingPlan->config->toArray());
+        $configClass = get_class($this->trainingPlan->config);
+        $this->config = $configClass::from($this->trainingPlan->config->toArray());
     }
 
     public function handle(string $type, array $data = []): void
@@ -351,7 +351,7 @@ class ScheduleHandler
         return null;
     }
 
-    public static function isProgramUsedInConfig(TrainingPlan $trainingPlan, int $programId, array $userIds): bool
+    public static function isProgramUsedInConfig(Model $trainingPlan, int $programId, array $userIds): bool
     {
         $config = $trainingPlan->config;
 

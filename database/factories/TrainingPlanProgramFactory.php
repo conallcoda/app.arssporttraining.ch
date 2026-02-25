@@ -16,7 +16,8 @@ class TrainingPlanProgramFactory extends Factory
     public function definition(): array
     {
         return [
-            'training_plan_id' => TrainingPlan::factory(),
+            'plannable_type' => TrainingPlan::class,
+            'plannable_id' => TrainingPlan::factory(),
             'name' => fake()->words(2, true),
         ];
     }

@@ -53,7 +53,8 @@ class TrainingPlanView extends Component
     protected function loadPrograms(): void
     {
         $this->programs = TrainingPlanProgram::query()
-            ->where('training_plan_id', $this->trainingPlan->id)
+            ->where('plannable_type', TrainingPlan::class)
+            ->where('plannable_id', $this->trainingPlan->id)
             ->with([
                 'exercises' => fn ($q) => $q->orderByPivot('sort'),
                 'programCategory',
@@ -231,7 +232,8 @@ class TrainingPlanView extends Component
     protected function saveProgram(array $value): void
     {
         $programData = TrainingProgramData::from($value['data']);
-        $programData->training_plan_id = $this->trainingPlan->id;
+        $programData->plannable_type = TrainingPlan::class;
+        $programData->plannable_id = $this->trainingPlan->id;
 
         if (! empty($value['editingProgramId'])) {
             $programData->id = $value['editingProgramId'];
@@ -320,6 +322,8 @@ class TrainingPlanView extends Component
 
     public function render()
     {
-        return view('livewire.training.training-plan-view');
+        return view('livewire.training.training-plan-view', [
+            'isTemplate' => false,
+        ]);
     }
 }

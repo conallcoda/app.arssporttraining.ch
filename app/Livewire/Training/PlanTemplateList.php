@@ -2,8 +2,8 @@
 
 namespace App\Livewire\Training;
 
-use App\Data\Training\TrainingPlanData;
-use App\Models\TrainingPlan;
+use App\Data\Training\PlanTemplateData;
+use App\Models\PlanTemplate;
 use Coda\Cms\Display\DisplayFields\Id;
 use Coda\Cms\Display\DisplayFields\Relationship;
 use Coda\Cms\Display\DisplayFields\View;
@@ -13,21 +13,21 @@ use Coda\Cms\Form\DuplicateNameForm;
 use Coda\Cms\Livewire\AbstractModelList;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 
-class TrainingPlanList extends AbstractModelList
+class PlanTemplateList extends AbstractModelList
 {
     protected function urlPrefix(): string
     {
-        return 'tpl_';
+        return 'ptl_';
     }
 
     protected function getDataClass(): string
     {
-        return TrainingPlanData::class;
+        return PlanTemplateData::class;
     }
 
     protected function getBaseQuery(): Builder
     {
-        return TrainingPlan::query();
+        return PlanTemplate::query()->with('programs');
     }
 
     protected function getTable(): Table
@@ -35,9 +35,8 @@ class TrainingPlanList extends AbstractModelList
         return Table::make()
             ->columns([
                 Id::make(),
-                View::make('name', TrainingPlanView::class)->label('Name'),
-                Relationship::make('users')->label('Athletes'),
-                Relationship::make('userGroups')->label('Athlete Groups'),
+                View::make('name', PlanTemplateView::class)->label('Name'),
+                Relationship::make('programs')->label('Programs'),
             ])
             ->actions([
                 Action::make('duplicate', 'Duplicate')
@@ -45,7 +44,7 @@ class TrainingPlanList extends AbstractModelList
                     ->icon('copy')
                     ->formModal(DuplicateNameForm::class, 'Duplicate '.$this->getEntityName(), 'Duplicate')
                     ->handler('handleDuplicateSubmitted')
-                    ->prepareData(fn (TrainingPlan $model) => [
+                    ->prepareData(fn (PlanTemplate $model) => [
                         'id' => $model->id,
                         'name' => ($model->name ?? '').' (Copy)',
                     ]),
@@ -58,28 +57,16 @@ class TrainingPlanList extends AbstractModelList
             return;
         }
 
-        $original = TrainingPlan::with(['users', 'userGroups', 'programs.exercises'])->findOrFail($data['id']);
+        $original = PlanTemplate::with(['programs.exercises'])->findOrFail($data['id']);
 
-        $newPlan = $original->replicate();
-        $newPlan->name = $data['name'] ?? $original->name.' (Copy)';
-        $newPlan->save();
-
-        $usersWithSort = [];
-        foreach ($original->users as $user) {
-            $usersWithSort[$user->id] = ['sort' => $user->pivot->sort];
-        }
-        $newPlan->users()->sync($usersWithSort);
-
-        $groupsWithSort = [];
-        foreach ($original->userGroups as $group) {
-            $groupsWithSort[$group->id] = ['sort' => $group->pivot->sort];
-        }
-        $newPlan->userGroups()->sync($groupsWithSort);
+        $newTemplate = $original->replicate();
+        $newTemplate->name = $data['name'] ?? $original->name.' (Copy)';
+        $newTemplate->save();
 
         foreach ($original->programs as $program) {
             $newProgram = $program->replicate();
-            $newProgram->plannable_type = TrainingPlan::class;
-            $newProgram->plannable_id = $newPlan->id;
+            $newProgram->plannable_type = PlanTemplate::class;
+            $newProgram->plannable_id = $newTemplate->id;
             $newProgram->save();
 
             $exercisesWithPivot = [];

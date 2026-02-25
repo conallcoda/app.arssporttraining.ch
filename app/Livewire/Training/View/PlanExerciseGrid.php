@@ -11,7 +11,6 @@ use App\Data\Exercise\Preview\StrategyOrchestrator;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Training\Config\EffectiveExerciseConfig;
 use App\Data\Training\Config\ExerciseOverrides;
-use App\Data\Training\Config\TrainingPlanConfig;
 use App\Models\Exercise\Exercise;
 use App\Models\TrainingPlan;
 use Coda\Cms\Livewire\Concerns\InteractsWithParentView;
@@ -24,6 +23,8 @@ class PlanExerciseGrid extends Component
     use InteractsWithParentView;
 
     public int $trainingPlanId;
+
+    public string $planType = TrainingPlan::class;
 
     public int $exerciseId;
 
@@ -71,9 +72,9 @@ class PlanExerciseGrid extends Component
         $this->exerciseBadges = $this->buildExerciseBadges($exercise);
     }
 
-    protected function getTrainingPlanConfig(): TrainingPlanConfig
+    protected function getTrainingPlanConfig()
     {
-        return TrainingPlan::findOrFail($this->trainingPlanId)->config;
+        return $this->planType::findOrFail($this->trainingPlanId)->config;
     }
 
     protected function getExerciseConfig(): ExerciseConfig
@@ -434,7 +435,7 @@ class PlanExerciseGrid extends Component
 
     protected function saveOverrides(ExerciseOverrides $overrides): void
     {
-        $trainingPlan = TrainingPlan::findOrFail($this->trainingPlanId);
+        $trainingPlan = $this->planType::findOrFail($this->trainingPlanId);
         $config = $trainingPlan->config;
 
         if ($this->userId !== null) {

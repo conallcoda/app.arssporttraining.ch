@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class TrainingPlanProgram extends Model
@@ -19,15 +20,16 @@ class TrainingPlanProgram extends Model
     use SyncsSortableRelations;
 
     protected $fillable = [
-        'training_plan_id',
+        'plannable_type',
+        'plannable_id',
         'program_category_id',
         'name',
         'sort',
     ];
 
-    public function trainingPlan(): BelongsTo
+    public function plannable(): MorphTo
     {
-        return $this->belongsTo(TrainingPlan::class);
+        return $this->morphTo();
     }
 
     public function programCategory(): BelongsTo

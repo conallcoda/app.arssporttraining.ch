@@ -46,7 +46,8 @@ class ExampleTrainingPlanSeeder extends Seeder
     private function createStrength1A(TrainingPlan $plan, ?int $categoryId): TrainingPlanProgram
     {
         $program = TrainingPlanProgram::create([
-            'training_plan_id' => $plan->id,
+            'plannable_type' => TrainingPlan::class,
+            'plannable_id' => $plan->id,
             'name' => 'Strength 1A',
             'program_category_id' => $categoryId,
         ]);
@@ -110,7 +111,8 @@ class ExampleTrainingPlanSeeder extends Seeder
     private function createStrength1B(TrainingPlan $plan, ?int $categoryId): TrainingPlanProgram
     {
         $program = TrainingPlanProgram::create([
-            'training_plan_id' => $plan->id,
+            'plannable_type' => TrainingPlan::class,
+            'plannable_id' => $plan->id,
             'name' => 'Strength 1B',
             'program_category_id' => $categoryId,
         ]);
@@ -162,7 +164,8 @@ class ExampleTrainingPlanSeeder extends Seeder
     private function createCore(TrainingPlan $plan, ?int $categoryId): TrainingPlanProgram
     {
         $program = TrainingPlanProgram::create([
-            'training_plan_id' => $plan->id,
+            'plannable_type' => TrainingPlan::class,
+            'plannable_id' => $plan->id,
             'name' => 'Core',
             'program_category_id' => $categoryId,
         ]);
@@ -220,7 +223,8 @@ class ExampleTrainingPlanSeeder extends Seeder
     private function createJumpSchool1(TrainingPlan $plan, ?int $categoryId): TrainingPlanProgram
     {
         $program = TrainingPlanProgram::create([
-            'training_plan_id' => $plan->id,
+            'plannable_type' => TrainingPlan::class,
+            'plannable_id' => $plan->id,
             'name' => 'Jump School 1',
             'program_category_id' => $categoryId,
         ]);
@@ -264,7 +268,8 @@ class ExampleTrainingPlanSeeder extends Seeder
     private function createJumpSchool2(TrainingPlan $plan, ?int $categoryId): TrainingPlanProgram
     {
         $program = TrainingPlanProgram::create([
-            'training_plan_id' => $plan->id,
+            'plannable_type' => TrainingPlan::class,
+            'plannable_id' => $plan->id,
             'name' => 'Jump School 2',
             'program_category_id' => $categoryId,
         ]);

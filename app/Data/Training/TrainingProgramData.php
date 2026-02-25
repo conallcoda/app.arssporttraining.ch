@@ -19,7 +19,6 @@ use App\Form\Fields\Exercise\Exercises;
 use App\Form\Fields\Training\Program\ProgramCategory;
 use App\Form\Fields\Training\Program\ProgramName;
 use App\Models\Exercise\Exercise;
-use App\Models\TrainingPlan;
 use App\Models\TrainingPlanProgram;
 use App\Models\TrainingPlanProgramExercise;
 use Carbon\Carbon;
@@ -27,6 +26,7 @@ use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Form\Concerns\InteractsWithForms;
 use Coda\Cms\Form\Form;
 use Coda\Cms\Models\Contracts\HasForms;
+use Illuminate\Database\Eloquent\Model;
 
 class TrainingProgramData extends AbstractData implements HasForms
 {
@@ -34,8 +34,9 @@ class TrainingProgramData extends AbstractData implements HasForms
 
     public function __construct(
         public ?int $id,
-        public ?int $training_plan_id,
-        public string $name,
+        public ?string $plannable_type = null,
+        public ?int $plannable_id = null,
+        public string $name = '',
         public ?int $program_category_id = null,
         public ?string $categoryName = null,
         public ?string $categoryColor = null,
@@ -58,7 +59,8 @@ class TrainingProgramData extends AbstractData implements HasForms
 
         return new self(
             id: $program->id,
-            training_plan_id: $program->training_plan_id,
+            plannable_type: $program->plannable_type,
+            plannable_id: $program->plannable_id,
             name: $program->name ?? '',
             program_category_id: $program->program_category_id,
             categoryName: $program->programCategory?->name,
@@ -71,13 +73,15 @@ class TrainingProgramData extends AbstractData implements HasForms
     public function persist(): void
     {
         $values = [
-            'training_plan_id' => $this->training_plan_id,
+            'plannable_type' => $this->plannable_type,
+            'plannable_id' => $this->plannable_id,
             'name' => $this->name,
             'program_category_id' => $this->program_category_id,
         ];
 
         if ($this->id === null) {
-            $values['sort'] = (TrainingPlanProgram::where('training_plan_id', $this->training_plan_id)->max('sort') ?? -1) + 1;
+            $values['sort'] = (TrainingPlanProgram::where('plannable_type', $this->plannable_type)
+                ->where('plannable_id', $this->plannable_id)->max('sort') ?? -1) + 1;
         }
 
         $program = TrainingPlanProgram::updateOrCreate(['id' => $this->id], $values);
@@ -102,8 +106,9 @@ class TrainingProgramData extends AbstractData implements HasForms
             ->whereIn('exercise_id', $exercisesToRemove)
             ->delete();
 
-        $trainingPlan = TrainingPlan::findOrFail($this->training_plan_id);
-        $config = $trainingPlan->config;
+        /** @var Model $parent */
+        $parent = $this->plannable_type::findOrFail($this->plannable_id);
+        $config = $parent->config;
         $configChanged = false;
 
         foreach ($exercisesToRemove as $exerciseId) {
@@ -198,8 +203,8 @@ class TrainingProgramData extends AbstractData implements HasForms
         }
 
         if ($configChanged) {
-            $trainingPlan->config = $config;
-            $trainingPlan->save();
+            $parent->config = $config;
+            $parent->save();
         }
     }
 

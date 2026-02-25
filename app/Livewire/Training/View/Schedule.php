@@ -3,7 +3,6 @@
 namespace App\Livewire\Training\View;
 
 use App\Data\Training\Config\Schedule\ScheduleWeek;
-use App\Data\Training\Config\TrainingPlanConfig;
 use App\Data\Training\TrainingProgramData;
 use App\Form\Fields\Training\Program\Color;
 use App\Models\TrainingPlan;
@@ -15,6 +14,7 @@ use Coda\Cms\Livewire\Concerns\InteractsWithFormData;
 use Coda\Cms\Livewire\Concerns\InteractsWithParentView;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection as BaseCollection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
@@ -26,7 +26,7 @@ class Schedule extends Component
     use InteractsWithFormData;
     use InteractsWithParentView;
 
-    public TrainingPlan $trainingPlan;
+    public Model $trainingPlan;
 
     public Collection $programs;
 
@@ -53,12 +53,18 @@ class Schedule extends Component
 
     public ?int $editingProgramId = null;
 
+    public string $planType = TrainingPlan::class;
+
     public array $data = [];
 
-    public function mount(?int $trainingPlanId = null): void
+    public function mount(?int $trainingPlanId = null, ?string $planType = null): void
     {
+        if ($planType !== null) {
+            $this->planType = $planType;
+        }
+
         if ($trainingPlanId !== null && ! isset($this->trainingPlan)) {
-            $this->trainingPlan = TrainingPlan::findOrFail($trainingPlanId);
+            $this->trainingPlan = $this->planType::findOrFail($trainingPlanId);
         }
 
         if (! isset($this->programs) || $this->programs->isEmpty()) {
@@ -101,7 +107,7 @@ class Schedule extends Component
     }
 
     #[Computed]
-    public function config(): TrainingPlanConfig
+    public function config()
     {
         return $this->trainingPlan->config;
     }
@@ -405,7 +411,8 @@ class Schedule extends Component
     protected function loadPrograms(): void
     {
         $this->programs = TrainingPlanProgram::query()
-            ->where('training_plan_id', $this->trainingPlan->id)
+            ->where('plannable_type', get_class($this->trainingPlan))
+            ->where('plannable_id', $this->trainingPlan->id)
             ->with([
                 'exercises' => fn ($q) => $q->orderByPivot('sort'),
                 'programCategory',
@@ -416,6 +423,10 @@ class Schedule extends Component
 
     protected function loadUsers(): void
     {
+        if ($this->trainingPlan->isTemplate()) {
+            return;
+        }
+
         $this->users = $this->trainingPlan->allUsers()
             ->orderBy('forename')
             ->orderBy('surname')
