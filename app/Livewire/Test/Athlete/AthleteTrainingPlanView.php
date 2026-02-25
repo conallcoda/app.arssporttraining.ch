@@ -23,7 +23,7 @@ class AthleteTrainingPlanView extends Component
 
     public ?int $selectedDay = null;
 
-    public string $viewMode = 'list';
+    public string $viewMode = 'calendar';
 
     public function mount(TrainingPlan $trainingPlan): void
     {
