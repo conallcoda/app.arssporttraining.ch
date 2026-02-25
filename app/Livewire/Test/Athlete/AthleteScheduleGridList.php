@@ -12,7 +12,7 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
-class AthleteScheduleGrid extends Component
+class AthleteScheduleGridList extends Component
 {
     public TrainingPlan $trainingPlan;
 
@@ -107,6 +107,6 @@ class AthleteScheduleGrid extends Component
 
     public function render()
     {
-        return view('livewire.test.athlete.athlete-schedule-grid');
+        return view('livewire.test.athlete.athlete-schedule-grid-list');
     }
 }

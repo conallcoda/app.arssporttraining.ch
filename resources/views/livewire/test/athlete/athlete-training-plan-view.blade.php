@@ -53,7 +53,7 @@
                 <flux:text class="text-zinc-500 dark:text-zinc-400">No sessions scheduled for this day.</flux:text>
             @endforelse
         @else
-            <livewire:test.athlete.athlete-schedule-grid :trainingPlan="$trainingPlan" :key="'grid-' . ($this->selectedAthleteId ?? 'none')" />
+            <livewire:test.athlete.athlete-schedule-grid-list :trainingPlan="$trainingPlan" :key="'grid-list-' . ($this->selectedAthleteId ?? 'none')" />
         @endif
     @elseif (!$this->selectedAthleteId)
         <flux:text class="text-zinc-500 dark:text-zinc-400">Select an athlete to view their training plan.</flux:text>
