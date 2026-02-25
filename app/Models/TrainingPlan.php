@@ -6,6 +6,7 @@ use App\Data\Training\Config\TrainingPlanConfig;
 use App\Models\Contracts\Plannable;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
+use App\Support\WeekOptions;
 use Coda\Cms\Models\Concerns\SyncsSortableRelations;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -23,6 +24,18 @@ class TrainingPlan extends Model implements Plannable
         'name',
         'config',
     ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (TrainingPlan $model) {
+            $config = $model->config;
+
+            if (empty($config->defaultScheduleStartDate())) {
+                $config->setDefaultScheduleStartDate(WeekOptions::getCurrentWeekValue());
+                $model->config = $config;
+            }
+        });
+    }
 
     protected function config(): Attribute
     {
