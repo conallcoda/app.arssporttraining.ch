@@ -62,7 +62,15 @@
                                                                 @if (!empty($exercises))
                                                                     <ul class="py-1 space-y-0.5">
                                                                         @foreach ($exercises as $exercise)
-                                                                            <li class="px-3 py-1 text-zinc-600 dark:text-zinc-300">{{ $exercise['name'] }}</li>
+                                                                            <li wire:key="exercise-{{ $exercise['id'] }}" class="px-3 py-1">
+                                                                                <button
+                                                                                    wire:click="openExercise({{ $exercise['id'] }}, {{ $programId }}, '{{ $week->id }}', {{ $dayIndex }}, {{ $slotKey }})"
+                                                                                    type="button"
+                                                                                    class="text-left text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:underline"
+                                                                                >
+                                                                                    {{ $exercise['name'] }}
+                                                                                </button>
+                                                                            </li>
                                                                         @endforeach
                                                                     </ul>
                                                                 @else
@@ -83,4 +91,6 @@
             </div>
         </div>
     @endforeach
+
+    <x-athlete.exercise-detail-modal />
 </div>
