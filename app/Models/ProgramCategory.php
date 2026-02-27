@@ -30,6 +30,6 @@ class ProgramCategory extends Model
 
     public function programs(): HasMany
     {
-        return $this->hasMany(ExercisePlanProgram::class);
+        return $this->hasMany(ExerciseProgram::class);
     }
 }

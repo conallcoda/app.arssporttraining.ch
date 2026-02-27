@@ -3,15 +3,14 @@
 namespace App\Models;
 
 use App\Data\Training\Config\ExercisePlanConfig;
-use App\Models\Contracts\Plannable;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;
 use Coda\Cms\Models\Concerns\SyncsSortableRelations;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class ExercisePlan extends Model implements Plannable
+class ExercisePlan extends Model
 {
     use HasQueryBuilder;
     use SoftDeletes;
@@ -36,9 +35,39 @@ class ExercisePlan extends Model implements Plannable
         );
     }
 
-    public function programs(): MorphMany
+    public function programIds(): array
     {
-        return $this->morphMany(ExercisePlanProgram::class, 'plannable');
+        $ids = [];
+
+        foreach ($this->config->defaultScheduleWeeks() as $week) {
+            $slots = $week['slots'] ?? [];
+            if (isset($week['linkedTo']) && $week['linkedTo'] !== null) {
+                continue;
+            }
+            foreach ($slots as $slot) {
+                foreach ($slot['programs'] ?? [] as $programId) {
+                    if (! in_array($programId, $ids)) {
+                        $ids[] = $programId;
+                    }
+                }
+            }
+        }
+
+        return $ids;
+    }
+
+    public function programs(): Collection
+    {
+        $ids = $this->programIds();
+
+        if (empty($ids)) {
+            return new Collection;
+        }
+
+        return ExerciseProgram::whereIn('id', $ids)
+            ->with(['exercises' => fn ($q) => $q->orderByPivot('sort'), 'programCategory'])
+            ->orderBy('name')
+            ->get();
     }
 
     public function isTemplate(): bool

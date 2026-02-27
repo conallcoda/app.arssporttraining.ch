@@ -2,10 +2,10 @@
 
 namespace App\Livewire\Training;
 
-use App\Data\Training\ProgramData;
+use App\Data\Training\ExerciseProgramData;
 use App\Livewire\Training\View\ScheduleHandler;
 use App\Models\ExercisePlan;
-use App\Models\ExercisePlanProgram;
+use App\Models\ExerciseProgram;
 use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
@@ -35,14 +35,20 @@ class ExercisePlanView extends Component
 
     protected function loadPrograms(): void
     {
-        $this->programs = ExercisePlanProgram::query()
-            ->where('plannable_type', ExercisePlan::class)
-            ->where('plannable_id', $this->exercisePlan->id)
+        $ids = $this->exercisePlan->programIds();
+
+        if (empty($ids)) {
+            $this->programs = new Collection;
+
+            return;
+        }
+
+        $this->programs = ExerciseProgram::whereIn('id', $ids)
             ->with([
                 'exercises' => fn ($q) => $q->orderByPivot('sort'),
                 'programCategory',
             ])
-            ->orderBy('sort')
+            ->orderBy('name')
             ->get();
     }
 
@@ -90,7 +96,6 @@ class ExercisePlanView extends Component
             'schedule' => $this->saveScheduleEvent($value),
             'startDate' => $this->saveStartDate($value),
             'program' => $this->saveProgram($value),
-            'removeProgram' => $this->removeProgram($value),
             'target' => $this->saveTarget($value),
             'resetDefaults' => $this->resetDefaults(),
             'resetAll' => $this->resetAll(),
@@ -140,9 +145,7 @@ class ExercisePlanView extends Component
 
     protected function saveProgram(array $value): void
     {
-        $programData = ProgramData::from($value['data']);
-        $programData->plannable_type = ExercisePlan::class;
-        $programData->plannable_id = $this->exercisePlan->id;
+        $programData = ExerciseProgramData::from($value['data']);
 
         if (! empty($value['editingProgramId'])) {
             $programData->id = $value['editingProgramId'];
@@ -161,21 +164,6 @@ class ExercisePlanView extends Component
         }
 
         $this->exercisePlan->refresh();
-        $this->loadPrograms();
-    }
-
-    protected function removeProgram(array $value): void
-    {
-        $programId = $value['programId'];
-
-        $config = $this->exercisePlan->config;
-        $config->removeProgramFromAllSchedules($programId);
-        $this->exercisePlan->config = $config;
-        $this->exercisePlan->save();
-        $this->exercisePlan->refresh();
-
-        ExercisePlanProgram::find($programId)?->delete();
-
         $this->loadPrograms();
     }
 

@@ -3,10 +3,10 @@
 namespace App\Livewire\Training\View;
 
 use App\Data\Training\Config\Schedule\ScheduleWeek;
-use App\Data\Training\ProgramData;
+use App\Data\Training\ExerciseProgramData;
 use App\Form\Fields\Training\Program\Color;
 use App\Models\ExercisePlan;
-use App\Models\ExercisePlanProgram;
+use App\Models\ExerciseProgram;
 use App\Models\Users\User;
 use App\Support\WeekOptions;
 use Coda\Cms\Form\Form;
@@ -145,9 +145,11 @@ class Schedule extends Component
     #[Computed]
     public function programOptions(): array
     {
-        return $this->programs->mapWithKeys(fn ($program) => [
-            $program->id => $program->name,
-        ])->all();
+        return ExerciseProgram::query()
+            ->with('programCategory')
+            ->orderBy('name')
+            ->pluck('name', 'id')
+            ->all();
     }
 
     public function availableProgramOptionsForSlot(): array
@@ -185,7 +187,7 @@ class Schedule extends Component
     #[Computed]
     public function formConfig(): Form
     {
-        return ProgramData::getForm();
+        return ExerciseProgramData::getForm();
     }
 
     #[Computed]
@@ -291,7 +293,7 @@ class Schedule extends Component
             return;
         }
 
-        $program = $this->programs->firstWhere('id', $programId);
+        $program = ExerciseProgram::with(['exercises' => fn ($q) => $q->orderByPivot('sort')])->find($programId);
         if (! $program) {
             return;
         }
@@ -410,14 +412,20 @@ class Schedule extends Component
 
     protected function loadPrograms(): void
     {
-        $this->programs = ExercisePlanProgram::query()
-            ->where('plannable_type', get_class($this->exercisePlan))
-            ->where('plannable_id', $this->exercisePlan->id)
+        $ids = $this->exercisePlan->programIds();
+
+        if (empty($ids)) {
+            $this->programs = new Collection;
+
+            return;
+        }
+
+        $this->programs = ExerciseProgram::whereIn('id', $ids)
             ->with([
                 'exercises' => fn ($q) => $q->orderByPivot('sort'),
                 'programCategory',
             ])
-            ->orderBy('sort')
+            ->orderBy('name')
             ->get();
     }
 

@@ -2,9 +2,9 @@
 
 namespace App\Livewire\Training\View;
 
-use App\Data\Training\ProgramData;
+use App\Data\Training\ExerciseProgramData;
+use App\Models\ExerciseProgram;
 use App\Models\ProgramCategory;
-use App\Models\ExercisePlanProgram;
 use Coda\Cms\Display\DisplayFields\Ago;
 use Coda\Cms\Display\DisplayFields\ColorBadge;
 use Coda\Cms\Display\DisplayFields\Relationship;
@@ -28,7 +28,7 @@ class ProgramList extends AbstractModelList
 
     protected function getDataClass(): string
     {
-        return ProgramData::class;
+        return ExerciseProgramData::class;
     }
 
     protected function isSortable(): bool
@@ -38,14 +38,15 @@ class ProgramList extends AbstractModelList
 
     protected function getBaseQuery(): Builder
     {
-        return ExercisePlanProgram::query()
-            ->where('exercise_plan_programs.plannable_type', get_class($this->exercisePlan))
-            ->where('exercise_plan_programs.plannable_id', $this->exercisePlan->id)
+        $ids = $this->exercisePlan->programIds();
+
+        return ExerciseProgram::query()
+            ->whereIn('exercise_programs.id', $ids)
             ->with('programCategory')
-            ->leftJoin('program_categories', 'exercise_plan_programs.program_category_id', '=', 'program_categories.id')
+            ->leftJoin('program_categories', 'exercise_programs.program_category_id', '=', 'program_categories.id')
             ->orderBy('program_categories.name')
-            ->orderBy('exercise_plan_programs.name')
-            ->select('exercise_plan_programs.*');
+            ->orderBy('exercise_programs.name')
+            ->select('exercise_programs.*');
     }
 
     protected function getTable(): Table
@@ -66,18 +67,14 @@ class ProgramList extends AbstractModelList
             ->limit(100);
     }
 
-    protected function dataFromModel(Model $model): ProgramData
+    protected function dataFromModel(Model $model): ExerciseProgramData
     {
-        return ProgramData::fromExercisePlanProgram($model);
+        return ExerciseProgramData::fromModel($model);
     }
 
-    protected function createDataFromForm(array $formData): ProgramData
+    protected function createDataFromForm(array $formData): ExerciseProgramData
     {
-        $data = ProgramData::from($formData);
-        $data->plannable_type = get_class($this->exercisePlan);
-        $data->plannable_id = $this->exercisePlan->id;
-
-        return $data;
+        return ExerciseProgramData::from($formData);
     }
 
     public function removeItem(int $id): void
@@ -87,7 +84,8 @@ class ProgramList extends AbstractModelList
         $this->exercisePlan->config = $config;
         $this->exercisePlan->save();
 
-        parent::removeItem($id);
+        $this->resetState();
+        $this->refreshKey++;
     }
 
     protected function getFormModalMaxWidth(): string

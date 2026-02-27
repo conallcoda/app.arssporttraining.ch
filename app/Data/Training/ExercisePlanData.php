@@ -16,23 +16,13 @@ class ExercisePlanData extends AbstractData implements HasForms
     public function __construct(
         public ?int $id,
         public string $name,
-        public array $programs = [],
     ) {}
 
     public static function fromExercisePlan(ExercisePlan $exercisePlan): self
     {
-        $programs = [];
-        if ($exercisePlan->relationLoaded('programs')) {
-            $programs = $exercisePlan->programs->map(fn ($program) => [
-                'id' => $program->id,
-                'name' => $program->name,
-            ])->all();
-        }
-
         return new self(
             id: $exercisePlan->id,
             name: $exercisePlan->name ?? '',
-            programs: $programs,
         );
     }
 

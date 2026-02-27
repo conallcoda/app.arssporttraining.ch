@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Training\View;
 
-use App\Models\ExercisePlanProgram;
+use App\Models\ExerciseProgram;
 use App\Models\ProgramCategory;
 use App\Models\Users\User;
 use App\Support\WeekOptions;
@@ -368,15 +368,16 @@ class Plan extends Component
     public function onParentDataSaved(): void
     {
         $this->exercisePlan->refresh();
-        $this->programs = ExercisePlanProgram::query()
-            ->where('plannable_type', get_class($this->exercisePlan))
-            ->where('plannable_id', $this->exercisePlan->id)
-            ->with([
-                'exercises' => fn ($q) => $q->orderByPivot('sort'),
-                'programCategory',
-            ])
-            ->orderBy('sort')
-            ->get();
+        $ids = $this->exercisePlan->programIds();
+        $this->programs = empty($ids)
+            ? new Collection
+            : ExerciseProgram::whereIn('id', $ids)
+                ->with([
+                    'exercises' => fn ($q) => $q->orderByPivot('sort'),
+                    'programCategory',
+                ])
+                ->orderBy('name')
+                ->get();
 
         $this->loadStartDate();
         $this->loadTarget();
