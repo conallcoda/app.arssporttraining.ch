@@ -26,19 +26,28 @@ class Plan extends Component
 
     public Collection $users;
 
+    public ?int $selectedProgramId = null;
+
+    // TODO: deprecated
     #[Url(except: null, as: 'user')]
     public int|string|null $user = null;
 
+    // TODO: deprecated
     public ?string $startDate = null;
 
+    // TODO: deprecated
     public ?int $selectedCategoryId = null;
 
+    // TODO: deprecated
     public ?int $measuredReps = null;
 
+    // TODO: deprecated
     public ?float $measuredWeight = null;
 
+    // TODO: deprecated
     public int|float $targetGoal = 10;
 
+    // TODO: deprecated
     public function updatingUser(mixed $value): ?int
     {
         if ($value === null || $value === '') {
@@ -58,18 +67,46 @@ class Plan extends Component
         $this->users = $users;
         $this->loadStartDate();
         $this->loadTarget();
-        $this->initializeSelectedCategory();
+        $this->initializeSelectedProgram();
     }
 
-    protected function initializeSelectedCategory(): void
+    protected function initializeSelectedProgram(): void
     {
-        $categories = $this->programCategories;
+        $programs = $this->scheduledPrograms;
 
-        if ($categories->isNotEmpty() && $this->selectedCategoryId === null) {
-            $this->selectedCategoryId = $categories->first()->id;
+        if ($programs->isNotEmpty() && $this->selectedProgramId === null) {
+            $this->selectedProgramId = $programs->first()->id;
         }
     }
 
+    #[Computed]
+    public function scheduledPrograms(): Collection
+    {
+        $scheduledProgramIds = $this->programIdsFromSchedule;
+
+        return $this->programs
+            ->whereIn('id', $scheduledProgramIds)
+            ->load(['exercises' => fn ($q) => $q->orderByPivot('sort'), 'programCategory'])
+            ->values();
+    }
+
+    #[Computed]
+    public function selectedProgram(): ?ExerciseProgram
+    {
+        if ($this->selectedProgramId === null) {
+            return null;
+        }
+
+        return $this->scheduledPrograms->firstWhere('id', $this->selectedProgramId);
+    }
+
+    public function selectProgram(int $programId): void
+    {
+        $this->selectedProgramId = $programId;
+        unset($this->selectedProgram);
+    }
+
+    // TODO: deprecated
     #[Computed]
     public function selectedUser(): ?User
     {
@@ -129,12 +166,14 @@ class Plan extends Component
         return count($this->scheduleWeeks);
     }
 
+    // TODO: deprecated
     #[Computed]
     public function weekOptions(): array
     {
         return WeekOptions::generate();
     }
 
+    // TODO: deprecated
     #[Computed]
     public function programCategories(): Collection
     {
@@ -152,6 +191,7 @@ class Plan extends Component
             ->get();
     }
 
+    // TODO: deprecated
     #[Computed]
     public function programsForCategory(): Collection
     {
@@ -190,6 +230,7 @@ class Plan extends Component
         return $counts;
     }
 
+    // TODO: deprecated
     #[Computed]
     public function starting1RM(): ?float
     {
@@ -200,6 +241,7 @@ class Plan extends Component
         return OneRepMaxConversion::estimatedOneRepMax($this->measuredReps, $this->measuredWeight);
     }
 
+    // TODO: deprecated
     #[Computed]
     public function target1RM(): ?float
     {
@@ -212,18 +254,21 @@ class Plan extends Component
         return OneRepMaxConversion::targetOneRepMax($starting, $this->targetGoal);
     }
 
+    // TODO: deprecated
     #[Computed]
     public function hasDefaultOverrides(): bool
     {
         return $this->exercisePlan->config->hasDefaultOverrides();
     }
 
+    // TODO: deprecated
     #[Computed]
     public function hasUserOverrides(): bool
     {
         return $this->exercisePlan->config->hasUserOverrides();
     }
 
+    // TODO: deprecated
     #[Computed]
     public function hasSelectedUserOverrides(): bool
     {
@@ -234,6 +279,7 @@ class Plan extends Component
         return $this->exercisePlan->config->hasExerciseOverridesForUser($this->user);
     }
 
+    // TODO: deprecated
     /** @return array<int, int> */
     #[Computed]
     public function userOverrideCounts(): array
@@ -250,42 +296,48 @@ class Plan extends Component
         return $counts;
     }
 
+    // TODO: deprecated
     public function confirmResetDefaultSettings(): void
     {
         Flux::modal('reset-default-settings')->show();
     }
 
+    // TODO: deprecated
     public function resetDefaultSettings(): void
     {
         $this->notifyDataChanged('resetDefaults', []);
         Flux::modal('reset-default-settings')->close();
         $this->loadStartDate();
         $this->loadTarget();
-        $this->clearCategoryComputedProperties();
+        $this->clearComputedProperties();
         unset($this->hasDefaultOverrides);
     }
 
+    // TODO: deprecated
     public function confirmResetUserSettings(): void
     {
         Flux::modal('reset-user-settings')->show();
     }
 
+    // TODO: deprecated
     public function resetUserSettings(): void
     {
         $this->notifyDataChanged('resetUserSettings', []);
         Flux::modal('reset-user-settings')->close();
         $this->loadStartDate();
         $this->loadTarget();
-        $this->clearCategoryComputedProperties();
+        $this->clearComputedProperties();
         unset($this->hasUserOverrides);
         unset($this->userOverrideCounts);
     }
 
+    // TODO: deprecated
     public function confirmResetSelectedUserSettings(): void
     {
         Flux::modal('reset-selected-user-settings')->show();
     }
 
+    // TODO: deprecated
     public function resetSelectedUserSettings(): void
     {
         $this->notifyDataChanged('resetSingleUserSettings', [
@@ -294,27 +346,30 @@ class Plan extends Component
         Flux::modal('reset-selected-user-settings')->close();
         $this->loadStartDate();
         $this->loadTarget();
-        $this->clearCategoryComputedProperties();
+        $this->clearComputedProperties();
         unset($this->hasSelectedUserOverrides);
         unset($this->userOverrideCounts);
         $this->dispatch('plan-overrides-reset');
     }
 
+    // TODO: deprecated
     public function selectUser(?int $userId): void
     {
         $this->user = $userId;
         $this->loadStartDate();
         $this->loadTarget();
-        $this->clearCategoryComputedProperties();
+        $this->clearComputedProperties();
         $this->dispatch('plan-user-changed', userId: $userId);
     }
 
+    // TODO: deprecated
     public function selectCategory(int $categoryId): void
     {
         $this->selectedCategoryId = $categoryId;
         unset($this->programsForCategory);
     }
 
+    // TODO: deprecated
     protected function loadStartDate(): void
     {
         $config = $this->exercisePlan->config;
@@ -329,6 +384,7 @@ class Plan extends Component
         unset($this->programIdsFromSchedule);
     }
 
+    // TODO: deprecated
     protected function loadTarget(): void
     {
         $config = $this->exercisePlan->config;
@@ -347,11 +403,13 @@ class Plan extends Component
         unset($this->target1RM);
     }
 
-    protected function clearCategoryComputedProperties(): void
+    protected function clearComputedProperties(): void
     {
+        unset($this->scheduledPrograms);
+        unset($this->selectedProgram);
+        unset($this->sessionsPerWeekByProgram);
         unset($this->programCategories);
         unset($this->programsForCategory);
-        unset($this->sessionsPerWeekByProgram);
     }
 
     #[On('exercise-overrides-changed')]
@@ -381,14 +439,17 @@ class Plan extends Component
 
         $this->loadStartDate();
         $this->loadTarget();
-        $this->clearCategoryComputedProperties();
+        $this->clearComputedProperties();
         unset($this->weeks);
         unset($this->hasDefaultOverrides);
         unset($this->hasUserOverrides);
         unset($this->hasSelectedUserOverrides);
         unset($this->userOverrideCounts);
+
+        $this->initializeSelectedProgram();
     }
 
+    // TODO: deprecated
     public function updated(string $property): void
     {
         if ($property === 'startDate') {

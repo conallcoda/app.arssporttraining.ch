@@ -146,12 +146,21 @@ class ExercisePlanView extends Component
     protected function saveProgram(array $value): void
     {
         $programData = ExerciseProgramData::from($value['data']);
+        $isNew = empty($value['editingProgramId']);
 
-        if (! empty($value['editingProgramId'])) {
+        if (! $isNew) {
             $programData->id = $value['editingProgramId'];
         }
 
         $programData->persist();
+
+        if ($isNew) {
+            $program = ExerciseProgram::find($programData->id);
+            if ($program && $program->owner_id === null) {
+                $program->owner()->associate($this->exercisePlan);
+                $program->save();
+            }
+        }
 
         if (! empty($value['assigningWeekId']) && $value['assigningDay'] !== null && $value['assigningSlot'] !== null) {
             $handler = new ScheduleHandler($this->exercisePlan);

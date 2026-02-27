@@ -289,8 +289,13 @@
             </flux:text>
             @php $filteredOptions = $this->availableProgramOptionsForSlot(); @endphp
             <flux:select wire:model="linkingProgramId" placeholder="Select a program...">
-                @foreach ($filteredOptions as $id => $name)
-                    <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
+                @foreach ($filteredOptions as $group => $options)
+                    @if (is_array($options))
+                        <flux:select.option disabled>— {{ $group }} —</flux:select.option>
+                        @foreach ($options as $id => $name)
+                            <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
+                        @endforeach
+                    @endif
                 @endforeach
             </flux:select>
             <div class="flex justify-end gap-2">

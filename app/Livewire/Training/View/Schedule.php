@@ -154,21 +154,47 @@ class Schedule extends Component
 
     public function availableProgramOptionsForSlot(): array
     {
-        if ($this->assigningWeekId === null || $this->assigningDay === null || $this->assigningSlot === null) {
-            return $this->programOptions;
+        $existingProgramIds = [];
+
+        if ($this->assigningWeekId !== null && $this->assigningDay !== null && $this->assigningSlot !== null) {
+            $week = $this->schedule->firstWhere('id', $this->assigningWeekId);
+            if ($week) {
+                $resolvedSlots = $this->getResolvedSlots($week);
+                $existingProgramIds = $resolvedSlots[$this->assigningDay][$this->assigningSlot]['programs'] ?? [];
+            }
         }
 
-        $week = $this->schedule->firstWhere('id', $this->assigningWeekId);
-        if (! $week) {
-            return $this->programOptions;
-        }
+        $ownerId = $this->exercisePlan->id;
+        $ownerType = get_class($this->exercisePlan);
 
-        $resolvedSlots = $this->getResolvedSlots($week);
-        $existingProgramIds = $resolvedSlots[$this->assigningDay][$this->assigningSlot]['programs'] ?? [];
+        $programs = ExerciseProgram::query()
+            ->with('programCategory')
+            ->orderBy('name')
+            ->get();
 
-        return collect($this->programOptions)
-            ->reject(fn ($name, $id) => in_array($id, $existingProgramIds, true))
+        $available = $programs->reject(fn ($p) => in_array($p->id, $existingProgramIds, true));
+
+        $owned = $available
+            ->filter(fn ($p) => $p->owner_type === $ownerType && $p->owner_id === $ownerId)
+            ->pluck('name', 'id')
             ->all();
+
+        $other = $available
+            ->filter(fn ($p) => $p->owner_type !== $ownerType || $p->owner_id !== $ownerId)
+            ->pluck('name', 'id')
+            ->all();
+
+        $groups = [];
+
+        if (! empty($owned)) {
+            $groups['This Plan'] = $owned;
+        }
+
+        if (! empty($other)) {
+            $groups['All Programs'] = $other;
+        }
+
+        return $groups;
     }
 
     #[Computed]
@@ -338,7 +364,11 @@ class Schedule extends Component
         $this->assigningWeekId = $weekId;
         $this->assigningDay = $day;
         $this->assigningSlot = $slot;
-        $this->linkingProgramId = array_key_first($this->availableProgramOptionsForSlot());
+
+        $options = $this->availableProgramOptionsForSlot();
+        $firstGroup = collect($options)->first();
+        $this->linkingProgramId = is_array($firstGroup) ? array_key_first($firstGroup) : null;
+
         Flux::modal('link-program')->show();
     }
 

@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ExerciseProgram extends Model
@@ -23,6 +24,9 @@ class ExerciseProgram extends Model
         'program_category_id',
         'sort',
         'config',
+        'owner_type',
+        'owner_id',
+        'visibility',
     ];
 
     protected function config(): Attribute
@@ -37,6 +41,11 @@ class ExerciseProgram extends Model
         );
     }
 
+    public function owner(): MorphTo
+    {
+        return $this->morphTo();
+    }
+
     public function programCategory(): BelongsTo
     {
         return $this->belongsTo(ProgramCategory::class);
@@ -49,5 +58,21 @@ class ExerciseProgram extends Model
             ->withPivot(['id', 'sort'])
             ->orderByPivot('sort')
             ->withTimestamps();
+    }
+
+    public function duplicate(): self
+    {
+        $clone = $this->replicate(['id']);
+        $clone->save();
+
+        foreach ($this->exercises()->withPivot('sort')->get() as $exercise) {
+            ExerciseProgramExercise::create([
+                'exercise_program_id' => $clone->id,
+                'exercise_id' => $exercise->id,
+                'sort' => $exercise->pivot->sort ?? 0,
+            ]);
+        }
+
+        return $clone;
     }
 }

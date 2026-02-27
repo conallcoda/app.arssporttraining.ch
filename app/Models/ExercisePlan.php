@@ -8,6 +8,7 @@ use Coda\Cms\Models\Concerns\SyncsSortableRelations;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ExercisePlan extends Model
@@ -68,6 +69,11 @@ class ExercisePlan extends Model
             ->with(['exercises' => fn ($q) => $q->orderByPivot('sort'), 'programCategory'])
             ->orderBy('name')
             ->get();
+    }
+
+    public function ownedPrograms(): MorphMany
+    {
+        return $this->morphMany(ExerciseProgram::class, 'owner');
     }
 
     public function isTemplate(): bool
