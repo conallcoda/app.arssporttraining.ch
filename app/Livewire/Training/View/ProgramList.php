@@ -2,9 +2,9 @@
 
 namespace App\Livewire\Training\View;
 
-use App\Data\Training\TrainingProgramData;
+use App\Data\Training\ProgramData;
 use App\Models\ProgramCategory;
-use App\Models\TrainingPlanProgram;
+use App\Models\ExercisePlanProgram;
 use Coda\Cms\Display\DisplayFields\Ago;
 use Coda\Cms\Display\DisplayFields\ColorBadge;
 use Coda\Cms\Display\DisplayFields\Relationship;
@@ -15,11 +15,11 @@ use Coda\Cms\Livewire\Concerns\InteractsWithParentView;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
-class TrainingProgramList extends AbstractModelList
+class ProgramList extends AbstractModelList
 {
     use InteractsWithParentView;
 
-    public Model $trainingPlan;
+    public Model $exercisePlan;
 
     protected function urlPrefix(): string
     {
@@ -28,7 +28,7 @@ class TrainingProgramList extends AbstractModelList
 
     protected function getDataClass(): string
     {
-        return TrainingProgramData::class;
+        return ProgramData::class;
     }
 
     protected function isSortable(): bool
@@ -38,14 +38,14 @@ class TrainingProgramList extends AbstractModelList
 
     protected function getBaseQuery(): Builder
     {
-        return TrainingPlanProgram::query()
-            ->where('training_plan_programs.plannable_type', get_class($this->trainingPlan))
-            ->where('training_plan_programs.plannable_id', $this->trainingPlan->id)
+        return ExercisePlanProgram::query()
+            ->where('exercise_plan_programs.plannable_type', get_class($this->exercisePlan))
+            ->where('exercise_plan_programs.plannable_id', $this->exercisePlan->id)
             ->with('programCategory')
-            ->leftJoin('program_categories', 'training_plan_programs.program_category_id', '=', 'program_categories.id')
+            ->leftJoin('program_categories', 'exercise_plan_programs.program_category_id', '=', 'program_categories.id')
             ->orderBy('program_categories.name')
-            ->orderBy('training_plan_programs.name')
-            ->select('training_plan_programs.*');
+            ->orderBy('exercise_plan_programs.name')
+            ->select('exercise_plan_programs.*');
     }
 
     protected function getTable(): Table
@@ -66,26 +66,26 @@ class TrainingProgramList extends AbstractModelList
             ->limit(100);
     }
 
-    protected function dataFromModel(Model $model): TrainingProgramData
+    protected function dataFromModel(Model $model): ProgramData
     {
-        return TrainingProgramData::fromTrainingPlanProgram($model);
+        return ProgramData::fromExercisePlanProgram($model);
     }
 
-    protected function createDataFromForm(array $formData): TrainingProgramData
+    protected function createDataFromForm(array $formData): ProgramData
     {
-        $data = TrainingProgramData::from($formData);
-        $data->plannable_type = get_class($this->trainingPlan);
-        $data->plannable_id = $this->trainingPlan->id;
+        $data = ProgramData::from($formData);
+        $data->plannable_type = get_class($this->exercisePlan);
+        $data->plannable_id = $this->exercisePlan->id;
 
         return $data;
     }
 
     public function removeItem(int $id): void
     {
-        $config = $this->trainingPlan->config;
+        $config = $this->exercisePlan->config;
         $config->removeProgramFromAllSchedules($id);
-        $this->trainingPlan->config = $config;
-        $this->trainingPlan->save();
+        $this->exercisePlan->config = $config;
+        $this->exercisePlan->save();
 
         parent::removeItem($id);
     }

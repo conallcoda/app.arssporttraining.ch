@@ -13,7 +13,6 @@ use App\Cms\Modules\ExerciseProgramModule;
 use App\Cms\Modules\ExerciseTemplateModule;
 use App\Cms\Modules\ModifiersModule;
 use App\Cms\Modules\ProgramCategoryModule;
-use App\Cms\Modules\TrainingPlanModule;
 use Coda\Cms\Navigation\SidebarGroup;
 use Coda\Cms\Navigation\SidebarItem;
 use Coda\Cms\Navigation\Tab;
@@ -34,7 +33,6 @@ class CmsServiceProvider extends ServiceProvider
         $registry->register(new EquipmentModule);
         $registry->register(new ModifiersModule);
         $registry->register(new ExerciseExternalModule);
-        $registry->register(new TrainingPlanModule);
         $registry->register(new ExercisePlanModule);
         $registry->register(new ProgramCategoryModule);
         $registry->register(new ExerciseProgramModule);
@@ -55,10 +53,9 @@ class CmsServiceProvider extends ServiceProvider
                 ]),
                 SidebarItem::make('Programs', 'exercise-program-index')->icon('layout-list')->tabs([
                     Tab::make('Programs', 'exercise-program-index'),
+                    Tab::make('Plans', 'exercise-plan-index'),
                     Tab::make('Categories', 'program-category-index'),
-                    Tab::make('Exercise Plans', 'exercise-plan-index'),
                 ]),
-                SidebarItem::make('Plans', 'training-plan-index')->icon('clipboard-list'),
             ]),
         ]);
     }

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Data\Training\Config\ExercisePlanConfig;
 use App\Models\Contracts\Plannable;
+use Coda\Cms\Models\Concerns\HasQueryBuilder;
 use Coda\Cms\Models\Concerns\SyncsSortableRelations;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ExercisePlan extends Model implements Plannable
 {
+    use HasQueryBuilder;
     use SoftDeletes;
     use SyncsSortableRelations;
 
@@ -36,7 +38,7 @@ class ExercisePlan extends Model implements Plannable
 
     public function programs(): MorphMany
     {
-        return $this->morphMany(TrainingPlanProgram::class, 'plannable');
+        return $this->morphMany(ExercisePlanProgram::class, 'plannable');
     }
 
     public function isTemplate(): bool

@@ -19,7 +19,7 @@ class ProgramCategoryModule extends Module
     {
         return [
             PageDefinition::make('program-category-index')
-                ->route('/training/program-categories')
+                ->route('/programs/categories')
                 ->title('ARS - Athlete Training // Program Categories')
                 ->heading('Program Categories')
                 ->content(['training.program-category-list']),

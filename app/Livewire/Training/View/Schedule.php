@@ -3,10 +3,10 @@
 namespace App\Livewire\Training\View;
 
 use App\Data\Training\Config\Schedule\ScheduleWeek;
-use App\Data\Training\TrainingProgramData;
+use App\Data\Training\ProgramData;
 use App\Form\Fields\Training\Program\Color;
-use App\Models\TrainingPlan;
-use App\Models\TrainingPlanProgram;
+use App\Models\ExercisePlan;
+use App\Models\ExercisePlanProgram;
 use App\Models\Users\User;
 use App\Support\WeekOptions;
 use Coda\Cms\Form\Form;
@@ -26,7 +26,7 @@ class Schedule extends Component
     use InteractsWithFormData;
     use InteractsWithParentView;
 
-    public Model $trainingPlan;
+    public Model $exercisePlan;
 
     public Collection $programs;
 
@@ -53,18 +53,18 @@ class Schedule extends Component
 
     public ?int $editingProgramId = null;
 
-    public string $planType = TrainingPlan::class;
+    public string $planType = ExercisePlan::class;
 
     public array $data = [];
 
-    public function mount(?int $trainingPlanId = null, ?string $planType = null): void
+    public function mount(?int $exercisePlanId = null, ?string $planType = null): void
     {
         if ($planType !== null) {
             $this->planType = $planType;
         }
 
-        if ($trainingPlanId !== null && ! isset($this->trainingPlan)) {
-            $this->trainingPlan = $this->planType::findOrFail($trainingPlanId);
+        if ($exercisePlanId !== null && ! isset($this->exercisePlan)) {
+            $this->exercisePlan = $this->planType::findOrFail($exercisePlanId);
         }
 
         if (! isset($this->programs) || $this->programs->isEmpty()) {
@@ -109,7 +109,7 @@ class Schedule extends Component
     #[Computed]
     public function config()
     {
-        return $this->trainingPlan->config;
+        return $this->exercisePlan->config;
     }
 
     #[Computed]
@@ -185,7 +185,7 @@ class Schedule extends Component
     #[Computed]
     public function formConfig(): Form
     {
-        return TrainingProgramData::getForm();
+        return ProgramData::getForm();
     }
 
     #[Computed]
@@ -410,9 +410,9 @@ class Schedule extends Component
 
     protected function loadPrograms(): void
     {
-        $this->programs = TrainingPlanProgram::query()
-            ->where('plannable_type', get_class($this->trainingPlan))
-            ->where('plannable_id', $this->trainingPlan->id)
+        $this->programs = ExercisePlanProgram::query()
+            ->where('plannable_type', get_class($this->exercisePlan))
+            ->where('plannable_id', $this->exercisePlan->id)
             ->with([
                 'exercises' => fn ($q) => $q->orderByPivot('sort'),
                 'programCategory',
@@ -423,11 +423,11 @@ class Schedule extends Component
 
     protected function loadUsers(): void
     {
-        if ($this->trainingPlan->isTemplate()) {
+        if ($this->exercisePlan->isTemplate()) {
             return;
         }
 
-        $this->users = $this->trainingPlan->allUsers()
+        $this->users = $this->exercisePlan->allUsers()
             ->orderBy('forename')
             ->orderBy('surname')
             ->get();
@@ -436,7 +436,7 @@ class Schedule extends Component
     #[On('parent-data-saved')]
     public function onParentDataSaved(): void
     {
-        $this->trainingPlan->refresh();
+        $this->exercisePlan->refresh();
         $this->loadPrograms();
         unset($this->schedule);
         unset($this->hasCustomSchedule);
@@ -446,7 +446,7 @@ class Schedule extends Component
 
     protected function loadStartDate(): void
     {
-        $config = $this->trainingPlan->config;
+        $config = $this->exercisePlan->config;
 
         $startDate = $this->user === null
             ? $config->defaultScheduleStartDate()

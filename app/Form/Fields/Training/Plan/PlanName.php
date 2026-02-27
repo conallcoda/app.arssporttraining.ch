@@ -11,7 +11,7 @@ class PlanName extends Text
         parent::__construct($name);
 
         $this->label = 'Name';
-        $this->placeholder = 'Training plan name';
+        $this->placeholder = 'Plan name';
         $this->required = true;
         $this->default = '';
         $this->validationRules = 'required|string|min:1';

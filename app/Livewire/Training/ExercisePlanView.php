@@ -2,10 +2,10 @@
 
 namespace App\Livewire\Training;
 
-use App\Data\Training\TrainingProgramData;
+use App\Data\Training\ProgramData;
 use App\Livewire\Training\View\ScheduleHandler;
 use App\Models\ExercisePlan;
-use App\Models\TrainingPlanProgram;
+use App\Models\ExercisePlanProgram;
 use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
@@ -14,7 +14,7 @@ use Livewire\Attributes\Url;
 use Livewire\Component;
 
 #[Layout('components.layouts.database')]
-#[Title('ARS - Athlete Training // Exercise Plan')]
+#[Title('ARS - Athlete Training // Plan')]
 class ExercisePlanView extends Component
 {
     #[Url]
@@ -35,7 +35,7 @@ class ExercisePlanView extends Component
 
     protected function loadPrograms(): void
     {
-        $this->programs = TrainingPlanProgram::query()
+        $this->programs = ExercisePlanProgram::query()
             ->where('plannable_type', ExercisePlan::class)
             ->where('plannable_id', $this->exercisePlan->id)
             ->with([
@@ -140,7 +140,7 @@ class ExercisePlanView extends Component
 
     protected function saveProgram(array $value): void
     {
-        $programData = TrainingProgramData::from($value['data']);
+        $programData = ProgramData::from($value['data']);
         $programData->plannable_type = ExercisePlan::class;
         $programData->plannable_id = $this->exercisePlan->id;
 
@@ -174,7 +174,7 @@ class ExercisePlanView extends Component
         $this->exercisePlan->save();
         $this->exercisePlan->refresh();
 
-        TrainingPlanProgram::find($programId)?->delete();
+        ExercisePlanProgram::find($programId)?->delete();
 
         $this->loadPrograms();
     }
@@ -204,15 +204,15 @@ class ExercisePlanView extends Component
         $this->exercisePlan->save();
     }
 
-    public function getTrainingPlan(): ExercisePlan
+    public function getExercisePlan(): ExercisePlan
     {
         return $this->exercisePlan;
     }
 
     public function render()
     {
-        return view('livewire.training.training-plan-view', [
-            'trainingPlan' => $this->exercisePlan,
+        return view('livewire.training.exercise-plan-view', [
+            'exercisePlan' => $this->exercisePlan,
             'isTemplate' => true,
         ]);
     }

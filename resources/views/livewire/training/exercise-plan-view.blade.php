@@ -1,20 +1,16 @@
 <x-slot:navbar>
     <x-top-nav>
-        @if ($isTemplate)
-            <flux:navbar.item href="/exercise-plans">Exercise Plans</flux:navbar.item>
-        @else
-            <flux:navbar.item href="/training-plans">Training Plans</flux:navbar.item>
-        @endif
+        <flux:navbar.item href="/programs/plans">Plans</flux:navbar.item>
         <span class="text-zinc-400 dark:text-zinc-500">/</span>
-        <flux:navbar.item current>{{ $trainingPlan->name }}</flux:navbar.item>
+        <flux:navbar.item current>{{ $exercisePlan->name }}</flux:navbar.item>
     </x-top-nav>
 </x-slot:navbar>
 
 <flux:main>
     <div x-data="{
         editing: false,
-        name: @js($trainingPlan->name),
-        originalName: @js($trainingPlan->name),
+        name: @js($exercisePlan->name),
+        originalName: @js($exercisePlan->name),
         startEditing() {
             this.editing = true;
             this.$nextTick(() => this.$refs.input.select());
@@ -46,27 +42,17 @@
 
     <flux:tab.group>
         <flux:tabs wire:model.live="tab">
-            @if (! $isTemplate)
-                <flux:tab name="athletes">Athletes</flux:tab>
-            @endif
             <flux:tab name="schedule">Schedule</flux:tab>
             <flux:tab name="plan">Plan</flux:tab>
         </flux:tabs>
 
-        @if (! $isTemplate)
-            <flux:tab.panel name="athletes">
-                <livewire:training.view.athletes :training-plan="$trainingPlan" :user-ids="$userIds" :user-group-ids="$userGroupIds"
-                    wire:key="athletes-{{ $this->getDataKey('athletes') }}" />
-            </flux:tab.panel>
-        @endif
-
         <flux:tab.panel name="schedule">
-            <livewire:training.view.schedule :training-plan="$trainingPlan" :programs="$programs" :users="$users"
+            <livewire:training.view.schedule :exercise-plan="$exercisePlan" :programs="$programs" :users="$users"
                 wire:key="schedule-{{ $this->getDataKey() }}" />
         </flux:tab.panel>
 
         <flux:tab.panel name="plan">
-            <livewire:training.view.plan :training-plan="$trainingPlan" :programs="$programs" :users="$users"
+            <livewire:training.view.plan :exercise-plan="$exercisePlan" :programs="$programs" :users="$users"
                 wire:key="plan-{{ $this->getDataKey() }}" />
         </flux:tab.panel>
 

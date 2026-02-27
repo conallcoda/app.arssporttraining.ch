@@ -31,7 +31,7 @@
     @endif
 
     <div class="flex-1 space-y-6">
-        @if ($user === null && ! $trainingPlan->isTemplate())
+        @if ($user === null && ! $exercisePlan->isTemplate())
             <flux:heading size="xl">Default Schedule</flux:heading>
         @elseif ($this->selectedUser)
             <div class="flex items-center justify-between">

@@ -20,14 +20,14 @@ class ExercisePlanModule extends Module
     {
         return [
             PageDefinition::make('exercise-plan-index')
-                ->route('/exercise-plans')
-                ->title('ARS - Athlete Training // Exercise Plans')
-                ->heading('Exercise Plans')
+                ->route('/programs/plans')
+                ->title('ARS - Athlete Training // Plans')
+                ->heading('Plans')
                 ->content(['training.exercise-plan-list']),
 
             PageDefinition::make('exercise-plan-view')
-                ->route('/exercise-plans/{exercisePlan}')
-                ->title('ARS - Athlete Training // Exercise Plan')
+                ->route('/programs/plans/{exercisePlan}')
+                ->title('ARS - Athlete Training // Plan')
                 ->component(ExercisePlanView::class),
         ];
     }

@@ -1,3 +1,3 @@
 <div>
-    <livewire:training.view.training-program-list :training-plan="$trainingPlan" />
+    <livewire:training.view.program-list :exercise-plan="$exercisePlan" />
 </div>

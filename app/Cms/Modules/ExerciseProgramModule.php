@@ -3,6 +3,7 @@
 namespace App\Cms\Modules;
 
 use App\Livewire\Training\ExerciseProgramList;
+use App\Livewire\Training\ExerciseProgramView;
 use Coda\Cms\ComponentDefinition;
 use Coda\Cms\ComponentType;
 use Coda\Cms\Module;
@@ -19,10 +20,15 @@ class ExerciseProgramModule extends Module
     {
         return [
             PageDefinition::make('exercise-program-index')
-                ->route('/training/exercise-programs')
+                ->route('/programs')
                 ->title('ARS - Athlete Training // Exercise Programs')
                 ->heading('Exercise Programs')
                 ->content(['training.exercise-program-list']),
+
+            PageDefinition::make('exercise-program-view')
+                ->route('/programs/{exerciseProgram}')
+                ->title('ARS - Athlete Training // Program')
+                ->component(ExerciseProgramView::class),
         ];
     }
 

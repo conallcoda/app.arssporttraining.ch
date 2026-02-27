@@ -31,7 +31,7 @@
     @endif
 
     <div class="flex-1 space-y-6">
-        @if ($user === null && ! $trainingPlan->isTemplate())
+        @if ($user === null && ! $exercisePlan->isTemplate())
             <div class="flex items-center justify-between">
                 <flux:heading size="xl">Default</flux:heading>
                 <div class="flex gap-2">
@@ -143,7 +143,7 @@
                                     class="h-10 flex items-center justify-center rounded-lg bg-blue-500/15 text-blue-400 font-medium cursor-pointer hover:bg-blue-500/25 transition-colors"
                                     x-on:click="Livewire.dispatch('portal:open', {
                                         component: 'training.view.schedule',
-                                        props: { trainingPlanId: {{ $trainingPlan->id }}, planType: '{{ addslashes(get_class($trainingPlan)) }}' },
+                                        props: { exercisePlanId: {{ $exercisePlan->id }}, planType: '{{ addslashes(get_class($exercisePlan)) }}' },
                                         title: 'Schedule',
                                         variant: '',
                                         class: 'min-w-[70rem]'
@@ -162,7 +162,7 @@
                                         as="button"
                                         x-on:click="Livewire.dispatch('portal:open', {
                                             component: 'training.view.program-editor',
-                                            props: { trainingPlanId: {{ $trainingPlan->id }}, planType: '{{ addslashes(get_class($trainingPlan)) }}', programId: {{ $program->id }} },
+                                            props: { exercisePlanId: {{ $exercisePlan->id }}, planType: '{{ addslashes(get_class($exercisePlan)) }}', programId: {{ $program->id }} },
                                             title: 'Edit Program',
                                             variant: 'flyout',
                                             class: 'max-w-lg'
@@ -210,7 +210,7 @@
 
             @foreach ($this->programsForCategory as $program)
                 @php
-                    $config = $trainingPlan->config;
+                    $config = $exercisePlan->config;
                     [$enabledExercises, $disabledExercises] = $program->exercises->partition(function ($exercise) use ($config, $user) {
                         $planOverrides = $config->defaultExerciseOverrides($exercise->id);
                         if ($user !== null) {
@@ -228,8 +228,8 @@
                             @foreach ($disabledExercises as $exercise)
                                 <livewire:training.view.plan-exercise-grid
                                     :key="'grid-' . $exercise->id . '-' . ($user ?? 'default') . '-disabled'"
-                                    :trainingPlanId="$trainingPlan->id"
-                                    :planType="get_class($trainingPlan)"
+                                    :exercisePlanId="$exercisePlan->id"
+                                    :planType="get_class($exercisePlan)"
                                     :exerciseId="$exercise->id"
                                     :userId="$user"
                                     :disabled="true"
@@ -248,8 +248,8 @@
                             @foreach ($enabledExercises as $exercise)
                                 <livewire:training.view.plan-exercise-grid
                                     :key="'grid-' . $exercise->id . '-' . ($user ?? 'default') . '-enabled'"
-                                    :trainingPlanId="$trainingPlan->id"
-                                    :planType="get_class($trainingPlan)"
+                                    :exercisePlanId="$exercisePlan->id"
+                                    :planType="get_class($exercisePlan)"
                                     :exerciseId="$exercise->id"
                                     :userId="$user"
                                     :disabled="false"

@@ -12,12 +12,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class TrainingPlanProgram extends Model
+class ExercisePlanProgram extends Model
 {
     use HasConfigData;
     use HasFactory;
     use SoftDeletes;
     use SyncsSortableRelations;
+
+    protected $table = 'exercise_plan_programs';
 
     protected $fillable = [
         'plannable_type',
@@ -39,8 +41,8 @@ class TrainingPlanProgram extends Model
 
     public function exercises(): BelongsToMany
     {
-        return $this->belongsToMany(Exercise::class, 'training_plan_program_exercises')
-            ->using(TrainingPlanProgramExercise::class)
+        return $this->belongsToMany(Exercise::class, 'exercise_plan_program_exercises')
+            ->using(ExercisePlanProgramExercise::class)
             ->withPivot(['id', 'sort'])
             ->orderByPivot('sort')
             ->withTimestamps();

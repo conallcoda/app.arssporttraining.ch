@@ -2,8 +2,8 @@
 
 namespace App\Livewire\Training\View;
 
-use App\Data\Training\TrainingProgramData;
-use App\Models\TrainingPlanProgram;
+use App\Data\Training\ProgramData;
+use App\Models\ExercisePlanProgram;
 use Coda\Cms\Form\Form;
 use Coda\Cms\Livewire\Concerns\InteractsWithFormData;
 use Coda\Cms\Livewire\Concerns\InteractsWithParentView;
@@ -15,17 +15,17 @@ class ProgramEditor extends Component
     use InteractsWithFormData;
     use InteractsWithParentView;
 
-    public int $trainingPlanId;
+    public int $exercisePlanId;
 
-    public string $planType = \App\Models\TrainingPlan::class;
+    public string $planType = \App\Models\ExercisePlan::class;
 
     public ?int $programId = null;
 
     public array $data = [];
 
-    public function mount(int $trainingPlanId, ?int $programId = null): void
+    public function mount(int $exercisePlanId, ?int $programId = null): void
     {
-        $this->trainingPlanId = $trainingPlanId;
+        $this->exercisePlanId = $exercisePlanId;
         $this->programId = $programId;
 
         if ($this->programId !== null) {
@@ -37,10 +37,10 @@ class ProgramEditor extends Component
 
     protected function loadProgramData(): void
     {
-        $program = TrainingPlanProgram::query()
+        $program = ExercisePlanProgram::query()
             ->where('id', $this->programId)
             ->where('plannable_type', $this->planType)
-            ->where('plannable_id', $this->trainingPlanId)
+            ->where('plannable_id', $this->exercisePlanId)
             ->with(['exercises' => fn ($q) => $q->orderByPivot('sort')])
             ->firstOrFail();
 
@@ -58,7 +58,7 @@ class ProgramEditor extends Component
     #[Computed]
     public function formConfig(): Form
     {
-        return TrainingProgramData::getForm();
+        return ProgramData::getForm();
     }
 
     #[Computed]

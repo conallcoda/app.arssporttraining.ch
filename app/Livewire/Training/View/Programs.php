@@ -7,11 +7,11 @@ use Livewire\Component;
 
 class Programs extends Component
 {
-    public Model $trainingPlan;
+    public Model $exercisePlan;
 
-    public function mount(Model $trainingPlan): void
+    public function mount(Model $exercisePlan): void
     {
-        $this->trainingPlan = $trainingPlan;
+        $this->exercisePlan = $exercisePlan;
     }
 
     public function render()

@@ -19,8 +19,8 @@ use App\Form\Fields\Exercise\Exercises;
 use App\Form\Fields\Training\Program\ProgramCategory;
 use App\Form\Fields\Training\Program\ProgramName;
 use App\Models\Exercise\Exercise;
-use App\Models\TrainingPlanProgram;
-use App\Models\TrainingPlanProgramExercise;
+use App\Models\ExercisePlanProgram;
+use App\Models\ExercisePlanProgramExercise;
 use Carbon\Carbon;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Form\Concerns\InteractsWithForms;
@@ -28,7 +28,7 @@ use Coda\Cms\Form\Form;
 use Coda\Cms\Models\Contracts\HasForms;
 use Illuminate\Database\Eloquent\Model;
 
-class TrainingProgramData extends AbstractData implements HasForms
+class ProgramData extends AbstractData implements HasForms
 {
     use InteractsWithForms;
 
@@ -44,7 +44,7 @@ class TrainingProgramData extends AbstractData implements HasForms
         public ?Carbon $updatedAt = null,
     ) {}
 
-    public static function fromTrainingPlanProgram(TrainingPlanProgram $program): self
+    public static function fromExercisePlanProgram(ExercisePlanProgram $program): self
     {
         $program->loadMissing([
             'exercises' => fn ($q) => $q->orderByPivot('sort'),
@@ -80,18 +80,18 @@ class TrainingProgramData extends AbstractData implements HasForms
         ];
 
         if ($this->id === null) {
-            $values['sort'] = (TrainingPlanProgram::where('plannable_type', $this->plannable_type)
+            $values['sort'] = (ExercisePlanProgram::where('plannable_type', $this->plannable_type)
                 ->where('plannable_id', $this->plannable_id)->max('sort') ?? -1) + 1;
         }
 
-        $program = TrainingPlanProgram::updateOrCreate(['id' => $this->id], $values);
+        $program = ExercisePlanProgram::updateOrCreate(['id' => $this->id], $values);
 
         $this->id = $program->id;
 
         $this->syncExercisesWithDefaults($program);
     }
 
-    protected function syncExercisesWithDefaults(TrainingPlanProgram $program): void
+    protected function syncExercisesWithDefaults(ExercisePlanProgram $program): void
     {
         $currentExerciseIds = $program->exercises()->pluck('exercises.id')->toArray();
         $newExerciseIds = collect($this->exercises)
@@ -102,7 +102,7 @@ class TrainingProgramData extends AbstractData implements HasForms
         $exercisesToAdd = array_diff($newExerciseIds, $currentExerciseIds);
         $exercisesToRemove = array_diff($currentExerciseIds, $newExerciseIds);
 
-        TrainingPlanProgramExercise::where('training_plan_program_id', $program->id)
+        ExercisePlanProgramExercise::where('exercise_plan_program_id', $program->id)
             ->whereIn('exercise_id', $exercisesToRemove)
             ->delete();
 
@@ -127,8 +127,8 @@ class TrainingProgramData extends AbstractData implements HasForms
             if (in_array($exerciseId, $exercisesToAdd)) {
                 $exercise = Exercise::find($exerciseId);
                 if ($exercise) {
-                    TrainingPlanProgramExercise::create([
-                        'training_plan_program_id' => $program->id,
+                    ExercisePlanProgramExercise::create([
+                        'exercise_plan_program_id' => $program->id,
                         'exercise_id' => $exerciseId,
                         'sort' => $sort,
                     ]);
@@ -196,7 +196,7 @@ class TrainingProgramData extends AbstractData implements HasForms
                     $configChanged = true;
                 }
             } else {
-                TrainingPlanProgramExercise::where('training_plan_program_id', $program->id)
+                ExercisePlanProgramExercise::where('exercise_plan_program_id', $program->id)
                     ->where('exercise_id', $exerciseId)
                     ->update(['sort' => $sort]);
             }

@@ -33,7 +33,7 @@ class DatabaseImportSeeder extends Seeder
         $tags = $this->loadFile('tags.php');
 
         foreach ($tags as $tag) {
-            Tag::withoutTimestamps(fn () => Tag::updateOrCreate(
+            Tag::updateOrCreate(
                 ['id' => $tag['id']],
                 [
                     'scope' => $tag['scope'],
@@ -43,14 +43,14 @@ class DatabaseImportSeeder extends Seeder
                     'parent_id' => null,
                     'sort_order' => $tag['sort_order'],
                 ],
-            ));
+            );
         }
 
         foreach ($tags as $tag) {
             if ($tag['parent_id'] !== null) {
-                Tag::withoutTimestamps(fn () => Tag::where('id', $tag['id'])->update([
+                Tag::where('id', $tag['id'])->update([
                     'parent_id' => $tag['parent_id'],
-                ]));
+                ]);
             }
         }
 
@@ -62,13 +62,13 @@ class DatabaseImportSeeder extends Seeder
         $templates = $this->loadFile('exercise_templates.php');
 
         foreach ($templates as $template) {
-            ExerciseTemplate::withoutTimestamps(fn () => ExerciseTemplate::updateOrCreate(
+            ExerciseTemplate::updateOrCreate(
                 ['id' => $template['id']],
                 [
                     'name' => $template['name'],
                     'config' => $template['config'],
                 ],
-            ));
+            );
         }
 
         $this->command->info('Imported '.count($templates).' exercise templates.');
@@ -82,7 +82,7 @@ class DatabaseImportSeeder extends Seeder
             $tags = $exercise['tags'] ?? [];
             unset($exercise['tags']);
 
-            $model = Exercise::withoutTimestamps(fn () => Exercise::updateOrCreate(
+            $model = Exercise::updateOrCreate(
                 ['id' => $exercise['id']],
                 [
                     'name' => $exercise['name'],
@@ -92,7 +92,7 @@ class DatabaseImportSeeder extends Seeder
                     'instructions' => $exercise['instructions'],
                     'config' => $exercise['config'],
                 ],
-            ));
+            );
 
             if (! empty($tags)) {
                 $syncData = [];
@@ -111,7 +111,7 @@ class DatabaseImportSeeder extends Seeder
         $categories = $this->loadFile('program_categories.php');
 
         foreach ($categories as $category) {
-            ProgramCategory::withoutTimestamps(fn () => ProgramCategory::updateOrCreate(
+            ProgramCategory::updateOrCreate(
                 ['id' => $category['id']],
                 [
                     'name' => $category['name'],
@@ -119,7 +119,7 @@ class DatabaseImportSeeder extends Seeder
                     'sort' => $category['sort'],
                     'config' => $category['config'],
                 ],
-            ));
+            );
         }
 
         $this->command->info('Imported '.count($categories).' program categories.');
@@ -133,14 +133,14 @@ class DatabaseImportSeeder extends Seeder
             $exercises = $program['exercises'] ?? [];
             unset($program['exercises']);
 
-            $model = ExerciseProgram::withoutTimestamps(fn () => ExerciseProgram::updateOrCreate(
+            $model = ExerciseProgram::updateOrCreate(
                 ['id' => $program['id']],
                 [
                     'name' => $program['name'],
                     'program_category_id' => $program['program_category_id'],
                     'sort' => $program['sort'],
                 ],
-            ));
+            );
 
             if (! empty($exercises)) {
                 $syncData = [];
@@ -159,13 +159,13 @@ class DatabaseImportSeeder extends Seeder
         $groups = $this->loadFile('user_groups.php');
 
         foreach ($groups as $group) {
-            UserGroup::withoutTimestamps(fn () => UserGroup::updateOrCreate(
+            UserGroup::updateOrCreate(
                 ['id' => $group['id']],
                 [
                     'name' => $group['name'],
                     'config' => $group['config'],
                 ],
-            ));
+            );
         }
 
         $this->command->info('Imported '.count($groups).' user groups.');
@@ -179,7 +179,7 @@ class DatabaseImportSeeder extends Seeder
             $groups = $user['groups'] ?? [];
             unset($user['groups']);
 
-            $model = User::withoutTimestamps(fn () => User::updateOrCreate(
+            $model = User::updateOrCreate(
                 ['id' => $user['id']],
                 [
                     'type' => $user['type'],
@@ -190,7 +190,7 @@ class DatabaseImportSeeder extends Seeder
                     'password' => $user['password'],
                     'config' => $user['config'],
                 ],
-            ));
+            );
 
             if (! empty($groups)) {
                 $syncData = [];

@@ -9,11 +9,11 @@ class ScheduleHandler
     protected $config;
 
     public function __construct(
-        protected Model $trainingPlan,
+        protected Model $exercisePlan,
         protected ?int $userId = null,
     ) {
-        $configClass = get_class($this->trainingPlan->config);
-        $this->config = $configClass::from($this->trainingPlan->config->toArray());
+        $configClass = get_class($this->exercisePlan->config);
+        $this->config = $configClass::from($this->exercisePlan->config->toArray());
     }
 
     public function handle(string $type, array $data = []): void
@@ -351,9 +351,9 @@ class ScheduleHandler
         return null;
     }
 
-    public static function isProgramUsedInConfig(Model $trainingPlan, int $programId, array $userIds): bool
+    public static function isProgramUsedInConfig(Model $exercisePlan, int $programId, array $userIds): bool
     {
-        $config = $trainingPlan->config;
+        $config = $exercisePlan->config;
 
         foreach ($config->defaultScheduleWeeks() as $week) {
             foreach ($week['slots'] ?? [] as $slot) {
@@ -378,7 +378,7 @@ class ScheduleHandler
 
     protected function save(): void
     {
-        $this->trainingPlan->config = $this->config;
-        $this->trainingPlan->save();
+        $this->exercisePlan->config = $this->config;
+        $this->exercisePlan->save();
     }
 }

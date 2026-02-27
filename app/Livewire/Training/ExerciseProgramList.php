@@ -9,7 +9,11 @@ use Coda\Cms\Display\DisplayFields\Ago;
 use Coda\Cms\Display\DisplayFields\ColorBadge;
 use Coda\Cms\Display\DisplayFields\Relationship;
 use Coda\Cms\Display\DisplayFields\Text;
+use Coda\Cms\Display\DisplayFields\View;
 use Coda\Cms\Display\Table;
+use Coda\Cms\Display\TableFilter;
+use Coda\Cms\Form\Fields\Select;
+use Coda\Cms\Form\Fields\Text as TextField;
 use Coda\Cms\Livewire\AbstractModelList;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 
@@ -30,14 +34,19 @@ class ExerciseProgramList extends AbstractModelList
         return ExerciseProgram::query()
             ->with('programCategory')
             ->leftJoin('program_categories', 'exercise_programs.program_category_id', '=', 'program_categories.id')
-            ->orderBy('program_categories.name')
-            ->orderBy('exercise_programs.name')
             ->select('exercise_programs.*');
     }
 
-    protected function isSortable(): bool
+    protected function buildItemsQuery()
     {
-        return false;
+        $query = parent::buildItemsQuery();
+
+        if ($this->sort === '') {
+            $query->orderBy('program_categories.name')
+                ->orderBy('exercise_programs.name');
+        }
+
+        return $query;
     }
 
     protected function getTable(): Table
@@ -46,14 +55,38 @@ class ExerciseProgramList extends AbstractModelList
             ->pluck('name', 'color')
             ->all();
 
+        $categoryOptions = ProgramCategory::query()
+            ->orderBy('name')
+            ->pluck('name', 'id')
+            ->all();
+
         return Table::make()
             ->columns([
-                Text::make('name')->label('Name')->modal(),
+                Text::make('id')->label('ID')->width('w-16')->prefix('#'),
+                View::make('name', ExerciseProgramView::class)->label('Name'),
                 ColorBadge::make('categoryColor')
                     ->label('Category')
                     ->colorLabels($colorLabels),
                 Relationship::make('exercises')->label('Exercises')->modal()->width('w-full'),
                 Ago::make('updatedAt')->label('Last Changed'),
+            ])
+            ->sortable(['id', 'name', 'updatedAt'])
+            ->filters([
+                TableFilter::callback('search', function (Builder $query, mixed $value): void {
+                    $query->where('exercise_programs.name', 'like', '%'.$value.'%');
+                })
+                    ->field(
+                        TextField::make('search')
+                            ->label('Search')
+                            ->placeholder('Search programs...')
+                    ),
+                TableFilter::exact('category', 'program_category_id')
+                    ->field(
+                        Select::make('category')
+                            ->label('Category')
+                            ->placeholder('All categories')
+                            ->options($categoryOptions)
+                    ),
             ])
             ->limit(100);
     }

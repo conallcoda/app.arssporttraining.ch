@@ -2,8 +2,8 @@
 
 namespace App\Livewire\Training\View;
 
+use App\Models\ExercisePlanProgram;
 use App\Models\ProgramCategory;
-use App\Models\TrainingPlanProgram;
 use App\Models\Users\User;
 use App\Support\WeekOptions;
 use App\Training\Reference\OneRepMaxConversion;
@@ -20,7 +20,7 @@ class Plan extends Component
 {
     use InteractsWithParentView;
 
-    public Model $trainingPlan;
+    public Model $exercisePlan;
 
     public Collection $programs;
 
@@ -49,11 +49,11 @@ class Plan extends Component
     }
 
     public function mount(
-        Model $trainingPlan,
+        Model $exercisePlan,
         Collection $programs,
         Collection $users,
     ): void {
-        $this->trainingPlan = $trainingPlan;
+        $this->exercisePlan = $exercisePlan;
         $this->programs = $programs;
         $this->users = $users;
         $this->loadStartDate();
@@ -83,7 +83,7 @@ class Plan extends Component
     #[Computed]
     public function scheduleWeeks(): array
     {
-        $config = $this->trainingPlan->config;
+        $config = $this->exercisePlan->config;
 
         if ($this->user !== null && ! $config->isUserScheduleLocked($this->user)) {
             return $config->userScheduleWeeks($this->user);
@@ -215,13 +215,13 @@ class Plan extends Component
     #[Computed]
     public function hasDefaultOverrides(): bool
     {
-        return $this->trainingPlan->config->hasDefaultOverrides();
+        return $this->exercisePlan->config->hasDefaultOverrides();
     }
 
     #[Computed]
     public function hasUserOverrides(): bool
     {
-        return $this->trainingPlan->config->hasUserOverrides();
+        return $this->exercisePlan->config->hasUserOverrides();
     }
 
     #[Computed]
@@ -231,7 +231,7 @@ class Plan extends Component
             return false;
         }
 
-        return $this->trainingPlan->config->hasExerciseOverridesForUser($this->user);
+        return $this->exercisePlan->config->hasExerciseOverridesForUser($this->user);
     }
 
     /** @return array<int, int> */
@@ -241,7 +241,7 @@ class Plan extends Component
         $counts = [];
 
         foreach ($this->users as $userItem) {
-            $count = $this->trainingPlan->config->exerciseOverrideCountForUser($userItem->id);
+            $count = $this->exercisePlan->config->exerciseOverrideCountForUser($userItem->id);
             if ($count > 0) {
                 $counts[$userItem->id] = $count;
             }
@@ -317,7 +317,7 @@ class Plan extends Component
 
     protected function loadStartDate(): void
     {
-        $config = $this->trainingPlan->config;
+        $config = $this->exercisePlan->config;
 
         $startDate = $this->user === null
             ? $config->defaultScheduleStartDate()
@@ -331,7 +331,7 @@ class Plan extends Component
 
     protected function loadTarget(): void
     {
-        $config = $this->trainingPlan->config;
+        $config = $this->exercisePlan->config;
 
         if ($this->user === null) {
             $this->measuredReps = $config->defaultTargetMeasuredReps() ?? 1;
@@ -357,7 +357,7 @@ class Plan extends Component
     #[On('exercise-overrides-changed')]
     public function onExerciseOverridesChanged(): void
     {
-        $this->trainingPlan->refresh();
+        $this->exercisePlan->refresh();
         unset($this->hasDefaultOverrides);
         unset($this->hasUserOverrides);
         unset($this->hasSelectedUserOverrides);
@@ -367,10 +367,10 @@ class Plan extends Component
     #[On('parent-data-saved')]
     public function onParentDataSaved(): void
     {
-        $this->trainingPlan->refresh();
-        $this->programs = TrainingPlanProgram::query()
-            ->where('plannable_type', get_class($this->trainingPlan))
-            ->where('plannable_id', $this->trainingPlan->id)
+        $this->exercisePlan->refresh();
+        $this->programs = ExercisePlanProgram::query()
+            ->where('plannable_type', get_class($this->exercisePlan))
+            ->where('plannable_id', $this->exercisePlan->id)
             ->with([
                 'exercises' => fn ($q) => $q->orderByPivot('sort'),
                 'programCategory',
