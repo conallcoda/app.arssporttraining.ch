@@ -1,7 +1,7 @@
 <x-slot:navbar>
     <x-top-nav>
         @if ($isTemplate)
-            <flux:navbar.item href="/plan-templates">Plan Templates</flux:navbar.item>
+            <flux:navbar.item href="/exercise-plans">Exercise Plans</flux:navbar.item>
         @else
             <flux:navbar.item href="/training-plans">Training Plans</flux:navbar.item>
         @endif
@@ -49,7 +49,6 @@
             @if (! $isTemplate)
                 <flux:tab name="athletes">Athletes</flux:tab>
             @endif
-            <flux:tab name="programs">Programs</flux:tab>
             <flux:tab name="schedule">Schedule</flux:tab>
             <flux:tab name="plan">Plan</flux:tab>
         </flux:tabs>
@@ -60,11 +59,6 @@
                     wire:key="athletes-{{ $this->getDataKey('athletes') }}" />
             </flux:tab.panel>
         @endif
-
-        <flux:tab.panel name="programs">
-            <livewire:training.view.programs :training-plan="$trainingPlan"
-                wire:key="programs-{{ $this->getDataKey('programs') }}" />
-        </flux:tab.panel>
 
         <flux:tab.panel name="schedule">
             <livewire:training.view.schedule :training-plan="$trainingPlan" :programs="$programs" :users="$users"

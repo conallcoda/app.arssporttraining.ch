@@ -4,6 +4,11 @@
 - This project uses **Livewire 4** (v4.1.2), NOT Livewire 3. The boost guidelines below incorrectly state v3.
 - In Livewire 4, `wire:model.blur` only syncs client-side state on blur — it does NOT send a network request. To send a network request on blur (v3 behavior), use `wire:model.live.blur`.
 
+## Database (MySQL CLI)
+
+- MySQL is provided by DBngin (MariaDB). The binary is at `/Users/Shared/DBngin/mariadb/10.11.6_arm/bin/mysql`.
+- Always connect via TCP: `-u root -h 127.0.0.1 -P 3306`
+
 ## Coding Rules
 
 - Never add comments inline or to methods or classes

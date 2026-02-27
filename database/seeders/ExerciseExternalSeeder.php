@@ -23,12 +23,6 @@ class ExerciseExternalSeeder extends Seeder
                 'video_url' => $exercise['url'] ?? null,
             ]);
 
-            $leafCategory = end($exercise['categories']) ?: null;
-            if ($leafCategory) {
-                $categoryTag = $this->resolveTag($tagCache, 'exercise_category', $leafCategory);
-                $model->update(['category_id' => $categoryTag->id]);
-            }
-
             $tagIds = [];
 
             foreach ($exercise['equipment'] as $sort => $item) {

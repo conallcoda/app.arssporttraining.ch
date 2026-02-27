@@ -92,11 +92,15 @@ class CalendarView extends Component
 
         $result = match ($direction) {
             'prev' => match ($this->currentView) {
+                'year' => $date->subYear(),
+                'two-month' => $date->subMonth(),
                 'month' => $date->subMonth(),
                 'week' => $date->subWeek(),
                 'day' => $date->subDay(),
             },
             'next' => match ($this->currentView) {
+                'year' => $date->addYear(),
+                'two-month' => $date->addMonth(),
                 'month' => $date->addMonth(),
                 'week' => $date->addWeek(),
                 'day' => $date->addDay(),

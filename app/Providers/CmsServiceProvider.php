@@ -8,9 +8,10 @@ use App\Cms\Modules\CategoryModule;
 use App\Cms\Modules\EquipmentModule;
 use App\Cms\Modules\ExerciseExternalModule;
 use App\Cms\Modules\ExerciseModule;
+use App\Cms\Modules\ExercisePlanModule;
+use App\Cms\Modules\ExerciseProgramModule;
 use App\Cms\Modules\ExerciseTemplateModule;
 use App\Cms\Modules\ModifiersModule;
-use App\Cms\Modules\PlanTemplateModule;
 use App\Cms\Modules\ProgramCategoryModule;
 use App\Cms\Modules\TrainingPlanModule;
 use Coda\Cms\Navigation\SidebarGroup;
@@ -34,15 +35,16 @@ class CmsServiceProvider extends ServiceProvider
         $registry->register(new ModifiersModule);
         $registry->register(new ExerciseExternalModule);
         $registry->register(new TrainingPlanModule);
-        $registry->register(new PlanTemplateModule);
+        $registry->register(new ExercisePlanModule);
         $registry->register(new ProgramCategoryModule);
+        $registry->register(new ExerciseProgramModule);
 
         $registry->setNavigation([
             SidebarGroup::make('database', 'Database')->icon('database')->items([
-                SidebarItem::make('Athletes', 'athlete-index')->icon('users')->tabs([
-                    Tab::make('Athletes', 'athlete-index'),
-                    Tab::make('Groups', 'athlete-group-index'),
-                ]),
+                SidebarItem::make('Athletes', 'athlete-index')->icon('users'),
+                SidebarItem::make('Groups', 'athlete-group-index')->icon('users'),
+            ]),
+            SidebarGroup::make('training', 'Training')->icon('trophy')->items([
                 SidebarItem::make('Exercises', 'exercise-index')->icon('dumbbell')->tabs([
                     Tab::make('Exercises', 'exercise-index'),
                     Tab::make('Templates', 'exercise-template-index'),
@@ -51,15 +53,12 @@ class CmsServiceProvider extends ServiceProvider
                     Tab::make('Modifiers', 'modifiers-index'),
                     Tab::make('Import', 'exercise-external-index'),
                 ]),
-            ]),
-            SidebarGroup::make('training', 'Training')->icon('trophy')->items([
-                SidebarItem::make('Plans', 'training-plan-index')->icon('clipboard-list')->tabs([
-                    Tab::make('Training Plans', 'training-plan-index'),
-                    Tab::make('Templates', 'plan-template-index'),
+                SidebarItem::make('Programs', 'exercise-program-index')->icon('layout-list')->tabs([
+                    Tab::make('Programs', 'exercise-program-index'),
+                    Tab::make('Categories', 'program-category-index'),
+                    Tab::make('Exercise Plans', 'exercise-plan-index'),
                 ]),
-                SidebarItem::make('Settings', 'program-category-index')->icon('settings')->tabs([
-                    Tab::make('Program Categories', 'program-category-index'),
-                ]),
+                SidebarItem::make('Plans', 'training-plan-index')->icon('clipboard-list'),
             ]),
         ]);
     }

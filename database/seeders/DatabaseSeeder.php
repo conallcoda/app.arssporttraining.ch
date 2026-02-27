@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use PhpOffice\PhpSpreadsheet\Calculation\Database;
 
 class DatabaseSeeder extends Seeder
 {
@@ -12,14 +13,15 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            UserSeeder::class,
-            ExerciseCategorySeeder::class,
-            ExerciseSeeder::class,
-            TagSeeder::class,
-            ExerciseTemplateSeeder::class,
+            // UserSeeder::class,
+
+            //    ExerciseCategorySeeder::class,
+            // ExerciseSeeder::class,
+            //    TagSeeder::class,
+            // ExerciseTemplateSeeder::class,
+            DatabaseImportSeeder::class,
             ExerciseExternalSeeder::class,
-            ProgramCategorySeeder::class,
-            ExampleTrainingPlanSeeder::class,
+
         ]);
     }
 }

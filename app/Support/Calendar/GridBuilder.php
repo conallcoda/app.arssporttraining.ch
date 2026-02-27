@@ -10,9 +10,11 @@ class GridBuilder
     public static function build(Carbon $date, string $view, int $firstDay = 1): array
     {
         return match ($view) {
+            'two-month' => TwoMonthGrid::build($date, $firstDay),
             'month' => MonthGrid::build($date, $firstDay),
             'week' => WeekGrid::build($date, $firstDay),
             'day' => DayGrid::build($date),
+            'year' => YearGrid::build($date),
             default => MonthGrid::build($date, $firstDay),
         };
     }
