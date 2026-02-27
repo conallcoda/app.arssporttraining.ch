@@ -63,7 +63,7 @@
         @if ($this->exercises->isNotEmpty())
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 @foreach ($this->exercises as $exercise)
-                    <div class="overflow-x-auto min-w-0">
+                    <div class="min-w-0">
                         <livewire:training.view.plan-exercise-grid
                             :key="'grid-' . $exercise->id . '-' . $weeks"
                             :exercisePlanId="$exerciseProgram->id"

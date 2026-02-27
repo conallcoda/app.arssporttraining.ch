@@ -27,6 +27,17 @@ class HeartRateZoneSetting extends AbstractSetting
         );
     }
 
+    public function badges(): array
+    {
+        if ($this->default === null || $this->default === '') {
+            return [];
+        }
+
+        return [
+            ['label' => 'Zone '.$this->default, 'modalField' => static::fieldsetKey()],
+        ];
+    }
+
     public static function fields(): array
     {
         return [
