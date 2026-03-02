@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Cms\Modules\AthleteGroupModule;
 use App\Cms\Modules\AthleteModule;
+use App\Cms\Modules\CalendarModule;
 use App\Cms\Modules\CategoryModule;
 use App\Cms\Modules\EquipmentModule;
 use App\Cms\Modules\ExerciseExternalModule;
@@ -36,6 +37,7 @@ class CmsServiceProvider extends ServiceProvider
         $registry->register(new ExercisePlanModule);
         $registry->register(new ProgramCategoryModule);
         $registry->register(new ExerciseProgramModule);
+        $registry->register(new CalendarModule);
 
         $registry->setNavigation([
             SidebarGroup::make('database', 'Database')->icon('database')->items([
@@ -56,6 +58,7 @@ class CmsServiceProvider extends ServiceProvider
                     Tab::make('Plans', 'exercise-plan-index'),
                     Tab::make('Categories', 'program-category-index'),
                 ]),
+                SidebarItem::make('Calendar', 'calendar-index')->icon('calendar'),
             ]),
         ]);
     }

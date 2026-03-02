@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(# Check the factory for stale references to non-existent models grep -n \"\"ExerciseExternalTemplate\"\" /Users/conalloreilly/Development/ars/athlete-training/database/factories/ExerciseExternalFactory.php # That references an Enum that may not exist find /Users/conalloreilly/Development/ars/athlete-training/app -name \"\"ExerciseExternalTemplate.php\"\" # Check for tests directory find /Users/conalloreilly/Development/ars/athlete-training/tests -type f)",
+      "Bash(# Check VoltServiceProvider \\(referenced in bootstrap/providers.php but not in app/Providers\\) find /Users/conalloreilly/Development/ars/athlete-training -name \"\"VoltServiceProvider.php\"\")"
+    ]
+  }
+}

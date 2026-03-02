@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use PhpOffice\PhpSpreadsheet\Calculation\Database;
 
 class DatabaseSeeder extends Seeder
 {
