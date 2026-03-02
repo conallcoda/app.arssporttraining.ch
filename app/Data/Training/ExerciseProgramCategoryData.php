@@ -3,14 +3,14 @@
 namespace App\Data\Training;
 
 use App\Form\Fields\Training\Program\Color;
-use App\Models\ProgramCategory;
+use App\Models\Exercise\ExerciseProgramCategory;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Form\Concerns\InteractsWithForms;
 use Coda\Cms\Form\Fields\Text;
 use Coda\Cms\Form\Form;
 use Coda\Cms\Models\Contracts\HasForms;
 
-class ProgramCategoryData extends AbstractData implements HasForms
+class ExerciseProgramCategoryData extends AbstractData implements HasForms
 {
     use InteractsWithForms;
 
@@ -25,7 +25,7 @@ class ProgramCategoryData extends AbstractData implements HasForms
     {
         $data = $payloads[0] ?? $payloads;
 
-        if ($data instanceof ProgramCategory) {
+        if ($data instanceof ExerciseProgramCategory) {
             return self::fromModel($data);
         }
 
@@ -37,7 +37,7 @@ class ProgramCategoryData extends AbstractData implements HasForms
         );
     }
 
-    public static function fromModel(ProgramCategory $category): static
+    public static function fromModel(ExerciseProgramCategory $category): static
     {
         return new static(
             id: $category->id,
@@ -49,7 +49,7 @@ class ProgramCategoryData extends AbstractData implements HasForms
 
     public function persist(): void
     {
-        $category = ProgramCategory::updateOrCreate(
+        $category = ExerciseProgramCategory::updateOrCreate(
             ['id' => $this->id],
             [
                 'name' => $this->name,

@@ -4,8 +4,8 @@ namespace App\Livewire\Training;
 
 use App\Data\Training\ExerciseProgramData;
 use App\Livewire\Training\View\ScheduleHandler;
-use App\Models\ExercisePlan;
-use App\Models\ExerciseProgram;
+use App\Models\Exercise\ExercisePlan;
+use App\Models\Exercise\ExerciseProgram;
 use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;

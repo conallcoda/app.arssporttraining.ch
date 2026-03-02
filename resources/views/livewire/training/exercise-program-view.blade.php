@@ -12,7 +12,7 @@
     <livewire:training.view.program-editor
         :exerciseProgram="$exerciseProgram"
         :planId="$exerciseProgram->id"
-        :planType="App\Models\ExerciseProgram::class"
+        :planType="App\Models\Exercise\ExerciseProgram::class"
         :showWeeksInput="true"
         wire:key="editor-{{ $exerciseProgram->id }}"
     />

@@ -2,7 +2,7 @@
 
 namespace App\Form\Fields\Training\Program;
 
-use App\Models\ProgramCategory as ProgramCategoryModel;
+use App\Models\Exercise\ExerciseProgramCategory as ProgramCategoryModel;
 use Coda\Cms\Form\Fields\Select;
 
 class ProgramCategory extends Select
@@ -14,7 +14,7 @@ class ProgramCategory extends Select
         $this->label = 'Category';
         $this->placeholder = 'Select a category';
         $this->required = true;
-        $this->validationRules = 'required|integer|exists:program_categories,id';
+        $this->validationRules = 'required|integer|exists:exercise_program_categories,id';
         $this->default = null;
         $this->variant = 'listbox';
     }

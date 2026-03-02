@@ -3,9 +3,9 @@
 namespace Database\Seeders;
 
 use App\Models\Exercise\Exercise;
+use App\Models\Exercise\ExerciseProgram;
+use App\Models\Exercise\ExerciseProgramCategory;
 use App\Models\Exercise\ExerciseTemplate;
-use App\Models\ExerciseProgram;
-use App\Models\ProgramCategory;
 use App\Models\Tag;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
@@ -111,7 +111,7 @@ class DatabaseImportSeeder extends Seeder
         $categories = $this->loadFile('program_categories.php');
 
         foreach ($categories as $category) {
-            ProgramCategory::updateOrCreate(
+            ExerciseProgramCategory::updateOrCreate(
                 ['id' => $category['id']],
                 [
                     'name' => $category['name'],

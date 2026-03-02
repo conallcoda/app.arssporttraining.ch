@@ -8,7 +8,7 @@ use Coda\Cms\ComponentType;
 use Coda\Cms\Module;
 use Coda\Cms\PageDefinition;
 
-class ProgramCategoryModule extends Module
+class ExerciseProgramCategoryModule extends Module
 {
     public function name(): string
     {

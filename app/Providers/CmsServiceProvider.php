@@ -10,10 +10,10 @@ use App\Cms\Modules\EquipmentModule;
 use App\Cms\Modules\ExerciseExternalModule;
 use App\Cms\Modules\ExerciseModule;
 use App\Cms\Modules\ExercisePlanModule;
+use App\Cms\Modules\ExerciseProgramCategoryModule;
 use App\Cms\Modules\ExerciseProgramModule;
 use App\Cms\Modules\ExerciseTemplateModule;
 use App\Cms\Modules\ModifiersModule;
-use App\Cms\Modules\ProgramCategoryModule;
 use Coda\Cms\Navigation\SidebarGroup;
 use Coda\Cms\Navigation\SidebarItem;
 use Coda\Cms\Navigation\Tab;
@@ -35,7 +35,7 @@ class CmsServiceProvider extends ServiceProvider
         $registry->register(new ModifiersModule);
         $registry->register(new ExerciseExternalModule);
         $registry->register(new ExercisePlanModule);
-        $registry->register(new ProgramCategoryModule);
+        $registry->register(new ExerciseProgramCategoryModule);
         $registry->register(new ExerciseProgramModule);
         $registry->register(new CalendarModule);
 

@@ -3,8 +3,8 @@
 namespace App\Livewire\Training;
 
 use App\Data\Training\ExerciseProgramData;
-use App\Models\ExerciseProgram;
-use App\Models\ProgramCategory;
+use App\Models\Exercise\ExerciseProgram;
+use App\Models\Exercise\ExerciseProgramCategory;
 use Coda\Cms\Display\DisplayFields\Ago;
 use Coda\Cms\Display\DisplayFields\ColorBadge;
 use Coda\Cms\Display\DisplayFields\Relationship;
@@ -33,7 +33,7 @@ class ExerciseProgramList extends AbstractModelList
     {
         return ExerciseProgram::query()
             ->with('programCategory')
-            ->leftJoin('program_categories', 'exercise_programs.program_category_id', '=', 'program_categories.id')
+            ->leftJoin('exercise_program_categories', 'exercise_programs.program_category_id', '=', 'exercise_program_categories.id')
             ->select('exercise_programs.*');
     }
 
@@ -42,7 +42,7 @@ class ExerciseProgramList extends AbstractModelList
         $query = parent::buildItemsQuery();
 
         if ($this->sort === '') {
-            $query->orderBy('program_categories.name')
+            $query->orderBy('exercise_program_categories.name')
                 ->orderBy('exercise_programs.name');
         }
 
@@ -51,11 +51,11 @@ class ExerciseProgramList extends AbstractModelList
 
     protected function getTable(): Table
     {
-        $colorLabels = ProgramCategory::query()
+        $colorLabels = ExerciseProgramCategory::query()
             ->pluck('name', 'color')
             ->all();
 
-        $categoryOptions = ProgramCategory::query()
+        $categoryOptions = ExerciseProgramCategory::query()
             ->orderBy('name')
             ->pluck('name', 'id')
             ->all();

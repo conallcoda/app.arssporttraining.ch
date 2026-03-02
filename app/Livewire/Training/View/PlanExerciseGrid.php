@@ -12,7 +12,7 @@ use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Training\Config\EffectiveExerciseConfig;
 use App\Data\Training\Config\ExerciseOverrides;
 use App\Models\Exercise\Exercise;
-use App\Models\ExercisePlan;
+use App\Models\Exercise\ExercisePlan;
 use Coda\Cms\Livewire\Concerns\InteractsWithParentView;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Reactive;

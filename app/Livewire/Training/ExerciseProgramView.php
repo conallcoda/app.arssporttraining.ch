@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Training;
 
-use App\Models\ExerciseProgram;
+use App\Models\Exercise\ExerciseProgram;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;

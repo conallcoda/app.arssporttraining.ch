@@ -1,8 +1,7 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Exercise;
 
-use App\Models\Exercise\Exercise;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 

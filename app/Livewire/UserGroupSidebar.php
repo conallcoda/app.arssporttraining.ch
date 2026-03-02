@@ -1,0 +1,113 @@
+<?php
+
+namespace App\Livewire;
+
+use App\Models\Users\UserGroup;
+use Illuminate\Database\Eloquent\Collection;
+use Livewire\Attributes\Computed;
+use Livewire\Component;
+
+class UserGroupSidebar extends Component
+{
+    public string $mode = 'single-athlete';
+
+    public ?string $navigateEvent = null;
+
+    /** @var list<array{group: int, user?: int}> */
+    public array $selected = [];
+
+    public function mount(string $mode = 'single-athlete', ?string $navigateEvent = null, ?int $initialGroup = null, ?int $initialUser = null): void
+    {
+        $this->mode = $mode;
+        $this->navigateEvent = $navigateEvent;
+
+        if ($initialGroup) {
+            $item = ['group' => $initialGroup];
+
+            if ($initialUser) {
+                $item['user'] = $initialUser;
+            }
+
+            $this->selected = [$item];
+        }
+    }
+
+    /** @return Collection<int, UserGroup> */
+    #[Computed]
+    public function groups(): Collection
+    {
+        return UserGroup::with('members')->get();
+    }
+
+    public function selectUser(int $groupId, int $userId): void
+    {
+        if ($this->mode === 'single-group') {
+            return;
+        }
+
+        $item = ['group' => $groupId, 'user' => $userId];
+
+        if ($this->mode === 'single-athlete') {
+            $this->selected = $this->isSelected($groupId, $userId) ? [] : [$item];
+        } else {
+            if ($this->isSelected($groupId, $userId)) {
+                $this->selected = array_values(array_filter(
+                    $this->selected,
+                    fn (array $s): bool => ! ($s['group'] === $groupId && ($s['user'] ?? null) === $userId)
+                ));
+            } else {
+                $this->selected[] = $item;
+            }
+        }
+
+        $this->dispatchSelectionChanged();
+    }
+
+    public function selectGroup(int $groupId): void
+    {
+        $item = ['group' => $groupId];
+
+        $this->selected = $this->isGroupSelected($groupId) ? [] : [$item];
+
+        $this->dispatchSelectionChanged();
+    }
+
+    public function isSelected(int $groupId, ?int $userId = null): bool
+    {
+        foreach ($this->selected as $s) {
+            if ($s['group'] === $groupId && ($s['user'] ?? null) === $userId) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function isGroupSelected(int $groupId): bool
+    {
+        foreach ($this->selected as $s) {
+            if ($s['group'] === $groupId && ! isset($s['user'])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function navigate(string $type, int $groupId, ?int $userId = null): void
+    {
+        if ($this->navigateEvent) {
+            $this->dispatch($this->navigateEvent, type: $type, group: $groupId, user: $userId);
+        }
+    }
+
+    protected function dispatchSelectionChanged(): void
+    {
+        $this->dispatch('sidebar-selection-changed', selected: $this->selected);
+    }
+
+    public function render()
+    {
+        return view('livewire.user-group-sidebar');
+    }
+}

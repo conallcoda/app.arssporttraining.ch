@@ -3,7 +3,7 @@
 namespace App\Livewire\Training;
 
 use App\Data\Training\ExercisePlanData;
-use App\Models\ExercisePlan;
+use App\Models\Exercise\ExercisePlan;
 use Coda\Cms\Display\DisplayFields\Id;
 use Coda\Cms\Display\DisplayFields\View;
 use Coda\Cms\Display\Table;

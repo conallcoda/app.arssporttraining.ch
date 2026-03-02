@@ -3,8 +3,8 @@
 namespace App\Console\Commands;
 
 use App\Models\Exercise\Exercise;
+use App\Models\Exercise\ExerciseProgramCategory;
 use App\Models\Exercise\ExerciseTemplate;
-use App\Models\ProgramCategory;
 use App\Models\Tag;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
@@ -121,10 +121,10 @@ class ExportDatabaseCommand extends Command
 
     private function exportProgramCategories(): void
     {
-        $categories = ProgramCategory::query()
+        $categories = ExerciseProgramCategory::query()
             ->orderBy('sort')
             ->get()
-            ->map(fn (ProgramCategory $category) => [
+            ->map(fn (ExerciseProgramCategory $category) => [
                 'id' => $category->id,
                 'name' => $category->name,
                 'color' => $category->color,

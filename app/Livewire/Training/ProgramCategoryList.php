@@ -2,8 +2,8 @@
 
 namespace App\Livewire\Training;
 
-use App\Data\Training\ProgramCategoryData;
-use App\Models\ProgramCategory;
+use App\Data\Training\ExerciseProgramCategoryData;
+use App\Models\Exercise\ExerciseProgramCategory;
 use Coda\Cms\Display\DisplayFields\ColorBadge;
 use Coda\Cms\Display\DisplayFields\Id;
 use Coda\Cms\Display\DisplayFields\Text;
@@ -23,12 +23,12 @@ class ProgramCategoryList extends AbstractModelList
 
     protected function getDataClass(): string
     {
-        return ProgramCategoryData::class;
+        return ExerciseProgramCategoryData::class;
     }
 
     protected function getBaseQuery(): Builder
     {
-        return ProgramCategory::query();
+        return ExerciseProgramCategory::query();
     }
 
     protected function isSortable(): bool

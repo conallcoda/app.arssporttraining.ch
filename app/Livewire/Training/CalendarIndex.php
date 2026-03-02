@@ -3,6 +3,8 @@
 namespace App\Livewire\Training;
 
 use App\Data\Training\Calendar\CalendarSettingsData;
+use App\Models\Users\User;
+use App\Models\Users\UserGroup;
 use App\Support\WeekOptions;
 use Carbon\Carbon;
 use Coda\Cms\Form\Form;
@@ -10,6 +12,7 @@ use Coda\Cms\Livewire\Concerns\InteractsWithFormData;
 use Flux\Flux;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -33,6 +36,12 @@ class CalendarIndex extends Component
 
     #[Url(except: '')]
     public string $end = '';
+
+    #[Url(except: '')]
+    public string $group = '';
+
+    #[Url(except: '')]
+    public string $user = '';
 
     public array $data = [];
 
@@ -113,6 +122,45 @@ class CalendarIndex extends Component
         Flux::modal('calendar-settings')->close();
     }
 
+    #[On('sidebar-selection-changed')]
+    public function onSidebarSelectionChanged(array $selected): void
+    {
+        $this->group = '';
+        $this->user = '';
+
+        if (count($selected) === 0) {
+            return;
+        }
+
+        $first = $selected[0];
+        $this->group = (string) $first['group'];
+
+        if (isset($first['user'])) {
+            $this->user = (string) $first['user'];
+        }
+
+        unset($this->selectionName);
+    }
+
+    #[Computed]
+    public function selectionName(): ?string
+    {
+        if ($this->user !== '') {
+            return User::find((int) $this->user)?->name;
+        }
+
+        if ($this->group !== '') {
+            return UserGroup::find((int) $this->group)?->name;
+        }
+
+        return null;
+    }
+
+    public function hasSelection(): bool
+    {
+        return $this->group !== '' || $this->user !== '';
+    }
+
     #[Computed]
     public function formConfig(): Form
     {
@@ -145,29 +193,6 @@ class CalendarIndex extends Component
         $end = ($this->end ? Carbon::parse($this->end) : $start->copy()->addMonth())->endOfWeek($this->weekEndsOn);
 
         return $start->format('d.m.Y').' – '.$end->format('d.m.Y');
-    }
-
-    #[Computed]
-    public function groups(): array
-    {
-        return [
-            [
-                'name' => 'Academy U16',
-                'athletes' => ['Liam Murphy', "Sean O'Brien", 'Cian Doyle'],
-            ],
-            [
-                'name' => 'Academy U18',
-                'athletes' => ['Aoife Kelly', 'Niamh Walsh', 'Roisin Brennan'],
-            ],
-            [
-                'name' => 'First Team',
-                'athletes' => ['Conor McCarthy', 'Eoin Flanagan', 'Patrick Dunne', 'Michael Regan'],
-            ],
-            [
-                'name' => 'Rehab',
-                'athletes' => ['Jack Gallagher', 'Tom Whelan'],
-            ],
-        ];
     }
 
     #[Computed]

@@ -2,15 +2,15 @@
 
 namespace Database\Factories;
 
-use App\Models\ProgramCategory;
+use App\Models\Exercise\ExerciseProgramCategory;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<ProgramCategory>
+ * @extends Factory<ExerciseProgramCategory>
  */
-class ProgramCategoryFactory extends Factory
+class ExerciseProgramCategoryFactory extends Factory
 {
-    protected $model = ProgramCategory::class;
+    protected $model = ExerciseProgramCategory::class;
 
     public function definition(): array
     {

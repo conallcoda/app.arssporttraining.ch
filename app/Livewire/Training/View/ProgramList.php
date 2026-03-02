@@ -3,8 +3,8 @@
 namespace App\Livewire\Training\View;
 
 use App\Data\Training\ExerciseProgramData;
-use App\Models\ExerciseProgram;
-use App\Models\ProgramCategory;
+use App\Models\Exercise\ExerciseProgram;
+use App\Models\Exercise\ExerciseProgramCategory;
 use Coda\Cms\Display\DisplayFields\Ago;
 use Coda\Cms\Display\DisplayFields\ColorBadge;
 use Coda\Cms\Display\DisplayFields\Relationship;
@@ -43,15 +43,15 @@ class ProgramList extends AbstractModelList
         return ExerciseProgram::query()
             ->whereIn('exercise_programs.id', $ids)
             ->with('programCategory')
-            ->leftJoin('program_categories', 'exercise_programs.program_category_id', '=', 'program_categories.id')
-            ->orderBy('program_categories.name')
+            ->leftJoin('exercise_program_categories', 'exercise_programs.program_category_id', '=', 'exercise_program_categories.id')
+            ->orderBy('exercise_program_categories.name')
             ->orderBy('exercise_programs.name')
             ->select('exercise_programs.*');
     }
 
     protected function getTable(): Table
     {
-        $colorLabels = ProgramCategory::query()
+        $colorLabels = ExerciseProgramCategory::query()
             ->pluck('name', 'color')
             ->all();
 

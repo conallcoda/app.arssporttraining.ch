@@ -5,7 +5,7 @@ namespace App\QueryBuilders;
 use Coda\Cms\QueryBuilder\DefaultQueryBuilder;
 use Spatie\QueryBuilder\AllowedFilter;
 
-class ProgramCategoryQueryBuilder extends DefaultQueryBuilder
+class ExerciseProgramCategoryQueryBuilder extends DefaultQueryBuilder
 {
     /** @return array<int, string|\Spatie\QueryBuilder\AllowedSort> */
     public function getDefinedSorts(): array

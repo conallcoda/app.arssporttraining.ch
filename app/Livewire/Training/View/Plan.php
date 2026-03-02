@@ -2,8 +2,8 @@
 
 namespace App\Livewire\Training\View;
 
-use App\Models\ExerciseProgram;
-use App\Models\ProgramCategory;
+use App\Models\Exercise\ExerciseProgram;
+use App\Models\Exercise\ExerciseProgramCategory;
 use App\Models\Users\User;
 use App\Support\WeekOptions;
 use App\Training\Reference\OneRepMaxConversion;
@@ -186,7 +186,7 @@ class Plan extends Component
             ->unique()
             ->values();
 
-        return ProgramCategory::whereIn('id', $categoryIds)
+        return ExerciseProgramCategory::whereIn('id', $categoryIds)
             ->orderBy('sort')
             ->get();
     }

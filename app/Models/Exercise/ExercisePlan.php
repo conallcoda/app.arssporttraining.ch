@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Exercise;
 
 use App\Data\Training\Config\ExercisePlanConfig;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;

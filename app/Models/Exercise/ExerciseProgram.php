@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Exercise;
 
 use App\Data\Training\Config\ExercisePlanConfig;
-use App\Models\Exercise\Exercise;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;
+use Database\Factories\ExerciseProgramFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -15,9 +15,16 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ExerciseProgram extends Model
 {
+    /** @use HasFactory<ExerciseProgramFactory> */
     use HasFactory;
+
     use HasQueryBuilder;
     use SoftDeletes;
+
+    protected static function newFactory(): ExerciseProgramFactory
+    {
+        return ExerciseProgramFactory::new();
+    }
 
     protected $fillable = [
         'name',
@@ -48,7 +55,7 @@ class ExerciseProgram extends Model
 
     public function programCategory(): BelongsTo
     {
-        return $this->belongsTo(ProgramCategory::class);
+        return $this->belongsTo(ExerciseProgramCategory::class, 'program_category_id');
     }
 
     public function exercises(): BelongsToMany
