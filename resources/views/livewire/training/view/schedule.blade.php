@@ -240,22 +240,13 @@
         </x-section>
     </div>
 
-    <flux:modal name="remove-week" class="w-80">
-        <div class="space-y-4">
-            <flux:heading size="lg">Remove Week</flux:heading>
-            <flux:text class="text-sm text-zinc-600 dark:text-zinc-400">
-                Are you sure you want to remove this week? This action cannot be undone.
-            </flux:text>
-            <div class="flex justify-end gap-2">
-                <flux:modal.close>
-                    <flux:button variant="ghost">Cancel</flux:button>
-                </flux:modal.close>
-                <flux:button variant="danger" wire:click="confirmRemoveWeek">
-                    Remove
-                </flux:button>
-            </div>
-        </div>
-    </flux:modal>
+    <x-cms::confirm-modal
+        name="remove-week"
+        heading="Remove Week"
+        description="Are you sure you want to remove this week? This action cannot be undone."
+        confirmLabel="Remove"
+        action="confirmRemoveWeek"
+    />
 
     <flux:modal name="link-week" class="w-80">
         <div class="space-y-4">
@@ -339,24 +330,12 @@
         </div>
     </flux:modal>
 
-    <flux:modal name="reset-schedule" class="min-w-[22rem]">
-        <div class="space-y-6">
-            <div>
-                <flux:heading size="lg">Reset Schedule?</flux:heading>
-                <flux:text class="mt-2">
-                    This will remove all user-specific programs and reset to the default schedule.
-                </flux:text>
-            </div>
-            <div class="flex gap-2">
-                <flux:spacer />
-                <flux:modal.close>
-                    <flux:button variant="ghost">Cancel</flux:button>
-                </flux:modal.close>
-                <flux:button variant="danger" wire:click="resetSchedule">
-                    Reset
-                </flux:button>
-            </div>
-        </div>
-    </flux:modal>
+    <x-cms::confirm-modal
+        name="reset-schedule"
+        heading="Reset Schedule?"
+        description="This will remove all user-specific programs and reset to the default schedule."
+        confirmLabel="Reset"
+        action="resetSchedule"
+    />
 
 </div>

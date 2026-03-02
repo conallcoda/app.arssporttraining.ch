@@ -113,26 +113,14 @@
 
     @foreach ($this->confirmModals as $confirmAction)
         @php $confirmModalName = $confirmAction->resolveModalName($entitySlug); @endphp
-        <flux:modal :name="$confirmModalName" class="min-w-[22rem]">
-            <div class="space-y-6">
-                <div>
-                    <flux:heading size="lg">{{ $confirmAction->confirmHeading }}</flux:heading>
-                    <flux:text class="mt-2">
-                        {!! nl2br(e($confirmAction->confirmDescription)) !!}
-                    </flux:text>
-                </div>
-                <div class="flex gap-2">
-                    <flux:spacer />
-                    <flux:modal.close>
-                        <flux:button variant="ghost">Cancel</flux:button>
-                    </flux:modal.close>
-                    <flux:button variant="{{ $confirmAction->confirmButtonVariant ?? 'danger' }}"
-                        wire:click="executeConfirmedAction">
-                        {{ $confirmAction->confirmButtonLabel }}
-                    </flux:button>
-                </div>
-            </div>
-        </flux:modal>
+        <x-cms::confirm-modal
+            :name="$confirmModalName"
+            :heading="$confirmAction->confirmHeading"
+            :description="$confirmAction->confirmDescription"
+            :confirmLabel="$confirmAction->confirmButtonLabel"
+            :variant="$confirmAction->confirmButtonVariant ?? 'danger'"
+            action="executeConfirmedAction"
+        />
     @endforeach
 
     @if ($this->items->isEmpty())

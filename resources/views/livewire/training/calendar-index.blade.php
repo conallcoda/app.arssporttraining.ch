@@ -153,24 +153,13 @@
         :showDelete="true"
     />
 
-    <flux:modal name="confirm-delete-program" class="min-w-[22rem]">
-        <div class="space-y-6">
-            <div>
-                <flux:heading size="lg">Remove program?</flux:heading>
-                <flux:text class="mt-2">
-                    You're about to remove this program from the calendar.<br>
-                    This action cannot be reversed.
-                </flux:text>
-            </div>
-            <div class="flex gap-2">
-                <flux:spacer />
-                <flux:modal.close>
-                    <flux:button variant="ghost">Cancel</flux:button>
-                </flux:modal.close>
-                <flux:button variant="danger" wire:click="deleteEditingTrainingProgram">Delete</flux:button>
-            </div>
-        </div>
-    </flux:modal>
+    <x-cms::confirm-modal
+        name="confirm-delete-program"
+        heading="Remove program?"
+        :description="\"You're about to remove this program from the calendar.\nThis action cannot be reversed.\""
+        confirmLabel="Delete"
+        action="deleteEditingTrainingProgram"
+    />
 
     <flux:modal name="add-content" variant="flyout" class="max-w-md">
         <div class="flex flex-col gap-4 p-2">
