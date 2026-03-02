@@ -3,6 +3,12 @@
 namespace App\Livewire\Training;
 
 use App\Data\Training\Calendar\CalendarSettingsData;
+use App\Data\Training\ExerciseProgramData;
+use App\Models\Exercise\Exercise;
+use App\Models\Exercise\ExercisePlan;
+use App\Models\Exercise\ExerciseProgram;
+use App\Models\Exercise\ExerciseProgramCategory;
+use App\Models\Exercise\TrainingProgram;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use App\Support\WeekOptions;
@@ -10,6 +16,7 @@ use Carbon\Carbon;
 use Coda\Cms\Form\Form;
 use Coda\Cms\Livewire\Concerns\InteractsWithFormData;
 use Flux\Flux;
+use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
@@ -63,6 +70,14 @@ class CalendarIndex extends Component
 
     public int $weekEndsOn;
 
+    public string $addContentSearch = '';
+
+    public string $addContentTab = 'plan';
+
+    public ?int $addExerciseCategoryId = null;
+
+    public ?int $editingTrainingProgramId = null;
+
     public function mount(): void
     {
         $this->weekStartsOn = (int) config('training.week_starts_on', Carbon::MONDAY);
@@ -96,6 +111,7 @@ class CalendarIndex extends Component
 
     public function openSettings(): void
     {
+        unset($this->formConfig, $this->fieldsets);
         $this->syncPendingFromCurrent();
         $this->data = ['mode' => $this->mode];
         $this->pendingOther = false;
@@ -139,7 +155,7 @@ class CalendarIndex extends Component
             $this->user = (string) $first['user'];
         }
 
-        unset($this->selectionName);
+        unset($this->selectionName, $this->programs);
     }
 
     #[Computed]
@@ -196,16 +212,21 @@ class CalendarIndex extends Component
     }
 
     #[Computed]
-    public function programs(): array
+    public function programs(): Collection
     {
-        return [
-            'Strength Phase 1',
-            'Speed & Agility',
-            'Conditioning A',
-            'Recovery Session',
-            'Upper Body Hypertrophy',
-            'Lower Body Power',
-        ];
+        if (! $this->hasSelection()) {
+            return collect();
+        }
+
+        $query = TrainingProgram::with(['program.programCategory', 'sourcePlan']);
+
+        if ($this->user !== '') {
+            $query->forUser((int) $this->group, (int) $this->user);
+        } else {
+            $query->forGroup((int) $this->group);
+        }
+
+        return $query->orderBy('sort')->get();
     }
 
     #[Computed]
@@ -449,6 +470,149 @@ class CalendarIndex extends Component
         if ($this->pendingEnd) {
             $this->pendingEnd = Carbon::parse($this->pendingEnd)->endOfWeek($this->weekEndsOn)->format('Y-m-d');
         }
+    }
+
+    public function openAddContent(): void
+    {
+        $this->addContentSearch = '';
+        $this->addContentTab = 'plan';
+        $this->addExerciseCategoryId = null;
+        Flux::modal('add-content')->show();
+    }
+
+    public function updatedAddContentTab(): void
+    {
+        $this->addContentSearch = '';
+        $this->addExerciseCategoryId = null;
+        unset($this->addContentOptions);
+    }
+
+    #[Computed]
+    public function categoryOptions(): array
+    {
+        return ExerciseProgramCategory::query()
+            ->orderBy('sort')
+            ->pluck('name', 'id')
+            ->all();
+    }
+
+    public function updatedAddContentSearch(): void
+    {
+        unset($this->addContentOptions);
+    }
+
+    #[Computed]
+    public function addContentOptions(): Collection
+    {
+        $search = trim($this->addContentSearch);
+
+        return match ($this->addContentTab) {
+            'plan' => ExercisePlan::query()
+                ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%"))
+                ->orderBy('name')
+                ->limit(20)
+                ->get(['id', 'name']),
+            'program' => ExerciseProgram::query()
+                ->with('programCategory:id,name,color')
+                ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%"))
+                ->orderBy('name')
+                ->limit(20)
+                ->get(['id', 'name', 'program_category_id']),
+            'exercise' => Exercise::query()
+                ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%"))
+                ->orderBy('name')
+                ->limit(20)
+                ->get(['id', 'name']),
+            default => collect(),
+        };
+    }
+
+    public function addFromPlan(int $planId): void
+    {
+        $plan = ExercisePlan::findOrFail($planId);
+        $groupId = (int) $this->group;
+        $userId = $this->user !== '' ? (int) $this->user : null;
+
+        TrainingProgram::importFromPlan($plan, $groupId, $userId);
+
+        unset($this->programs);
+        Flux::modal('add-content')->close();
+    }
+
+    public function addFromProgram(int $programId): void
+    {
+        $program = ExerciseProgram::findOrFail($programId);
+        $groupId = (int) $this->group;
+        $userId = $this->user !== '' ? (int) $this->user : null;
+
+        TrainingProgram::importProgram($program, $groupId, $userId);
+
+        unset($this->programs);
+        Flux::modal('add-content')->close();
+    }
+
+    public function addFromExercise(int $exerciseId): void
+    {
+        $this->validate([
+            'addExerciseCategoryId' => 'required|integer|exists:exercise_program_categories,id',
+        ]);
+
+        $exercise = Exercise::findOrFail($exerciseId);
+        $groupId = (int) $this->group;
+        $userId = $this->user !== '' ? (int) $this->user : null;
+
+        TrainingProgram::importExercise($exercise, $groupId, $userId, categoryId: $this->addExerciseCategoryId);
+
+        $this->addExerciseCategoryId = null;
+        unset($this->programs);
+        Flux::modal('add-content')->close();
+    }
+
+    public function removeTrainingProgram(int $trainingProgramId): void
+    {
+        TrainingProgram::findOrFail($trainingProgramId)->delete();
+        unset($this->programs);
+    }
+
+    public function openEditProgram(int $trainingProgramId): void
+    {
+        $trainingProgram = TrainingProgram::with('program.programCategory', 'program.exercises')->findOrFail($trainingProgramId);
+        $programData = ExerciseProgramData::fromModel($trainingProgram->program);
+
+        $this->editingTrainingProgramId = $trainingProgramId;
+
+        $this->dispatch('open-edit-program', data: $programData->toArray());
+    }
+
+    #[On('edit-program.submitted')]
+    public function handleEditProgramSubmitted(array $data): void
+    {
+        $trainingProgram = TrainingProgram::findOrFail($this->editingTrainingProgramId);
+
+        $programData = ExerciseProgramData::from([
+            'id' => $trainingProgram->exercise_program_id,
+            ...$data,
+        ]);
+        $programData->persist();
+
+        $this->editingTrainingProgramId = null;
+        unset($this->programs);
+    }
+
+    #[On('edit-program.delete-requested')]
+    public function handleEditProgramDeleteRequested(): void
+    {
+        Flux::modal('confirm-delete-program')->show();
+    }
+
+    public function deleteEditingTrainingProgram(): void
+    {
+        TrainingProgram::findOrFail($this->editingTrainingProgramId)->delete();
+
+        $this->editingTrainingProgramId = null;
+        unset($this->programs);
+        Flux::modal('confirm-delete-program')->close();
+        Flux::modal('edit-program')->close();
     }
 
     public function render()

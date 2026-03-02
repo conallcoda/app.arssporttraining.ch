@@ -29,6 +29,8 @@ class FormModal extends Component
 
     public string $maxWidth = 'max-w-sm';
 
+    public bool $showDelete = false;
+
     public ?string $activeTitle = null;
 
     public int $openCount = 0;
@@ -41,6 +43,7 @@ class FormModal extends Component
         string $cancelLabel = 'Cancel',
         bool $flyout = true,
         string $maxWidth = 'max-w-sm',
+        bool $showDelete = false,
     ): void {
         $this->name = $name;
         $this->title = $title;
@@ -49,6 +52,7 @@ class FormModal extends Component
         $this->cancelLabel = $cancelLabel;
         $this->flyout = $flyout;
         $this->maxWidth = $maxWidth;
+        $this->showDelete = $showDelete;
     }
 
     #[Computed]
@@ -116,6 +120,11 @@ class FormModal extends Component
         Flux::modal($this->name)->close();
 
         $this->dispatch("{$this->name}.submitted", data: $this->data);
+    }
+
+    public function requestDelete(): void
+    {
+        $this->dispatch("{$this->name}.delete-requested", data: $this->data);
     }
 
     public function cancel(): void

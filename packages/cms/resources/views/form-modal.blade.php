@@ -25,11 +25,15 @@
                             />
                         @endif
                     @endforeach
-                    <div class="flex gap-2 pt-4">
+                    <div class="flex items-center gap-2 pt-4">
                         <flux:button type="submit" variant="primary" class="flex-1">{{ $submitLabel }}</flux:button>
                         <flux:modal.close>
                             <flux:button variant="ghost">{{ $cancelLabel }}</flux:button>
                         </flux:modal.close>
+                        @if ($showDelete)
+                            <flux:spacer />
+                            <flux:button variant="ghost" icon="trash-2" wire:click="requestDelete" />
+                        @endif
                     </div>
                 </form>
             @endif
