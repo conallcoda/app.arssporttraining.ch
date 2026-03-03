@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Form\Concerns\InteractsWithForms;
 use Coda\Cms\Form\Fields;
+use Coda\Cms\Form\Fields\FileUpload;
 use Coda\Cms\Form\Form;
 use Coda\Cms\Models\Contracts\HasForms;
 
@@ -110,6 +111,11 @@ class ExerciseData extends AbstractData implements HasForms
                 Fields\Tags::make('modifiers', 'exercise_modifiers')->label('Modifiers')->withOptions()->create(),
             ])
             ->fieldset('Instructions', [
+                FileUpload::make('photos')
+                    ->label('Photos')
+                    ->multiple()
+                    ->collection('photos')
+                    ->dropzoneText('JPG, PNG up to 10MB'),
                 Fields\Url::make('videoUrl')->label('Video URL')->placeholder('https://'),
                 Fields\Textarea::make('instructions')->label('Instructions')->placeholder('Enter exercise instructions...'),
             ]);

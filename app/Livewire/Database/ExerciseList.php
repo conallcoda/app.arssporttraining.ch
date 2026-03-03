@@ -32,7 +32,7 @@ class ExerciseList extends AbstractModelList
 
     protected function getBaseQuery(): Builder
     {
-        return Exercise::query()->with(['category', 'equipment', 'modifiers']);
+        return Exercise::query()->with(['category', 'equipment', 'modifiers', 'media']);
     }
 
     protected function dataFromModel(Model $model): AbstractData

@@ -39,6 +39,9 @@ class CalendarIndex extends Component
     #[Url(except: '')]
     public string $end = '';
 
+    #[Url(except: 'program')]
+    public string $viewMode = 'program';
+
     #[Url(except: '')]
     public string $group = '';
 
@@ -76,6 +79,11 @@ class CalendarIndex extends Component
         );
     }
 
+    public function updatedViewMode(): void
+    {
+        unset($this->weekGridData);
+    }
+
     public function openCalendarRange(): void
     {
         $this->dispatch('open-calendar-range', data: $this->calendarSettings->toArray());
@@ -91,7 +99,7 @@ class CalendarIndex extends Component
         $this->start = $this->calendarSettings->start ?? '';
         $this->end = $this->calendarSettings->end ?? '';
 
-        unset($this->days, $this->weeks, $this->months, $this->title);
+        unset($this->days, $this->weeks, $this->months, $this->title, $this->weekGridData);
     }
 
     #[On('sidebar-selection-changed')]
@@ -111,7 +119,7 @@ class CalendarIndex extends Component
             $this->user = (string) $first['user'];
         }
 
-        unset($this->selectionName, $this->programs, $this->slotMap, $this->userOverrides, $this->overrideSlotMap, $this->slotState);
+        unset($this->selectionName, $this->programs, $this->slotMap, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData);
     }
 
     #[Computed]
@@ -390,6 +398,73 @@ class CalendarIndex extends Component
         return $states;
     }
 
+    #[Computed]
+    public function weekGridData(): array
+    {
+        [$start, $end] = $this->dateRange();
+        $programs = $this->programs;
+        $slotMap = $this->slotMap;
+        $weeks = [];
+        $current = $start->copy()->startOfWeek($this->weekStartsOn);
+
+        while ($current->lte($end)) {
+            $weekStart = $current->copy();
+            $days = [];
+
+            for ($d = 0; $d < 7; $d++) {
+                $day = $weekStart->copy()->addDays($d);
+                $dateStr = $day->format('Y-m-d');
+                $amPrograms = [];
+                $pmPrograms = [];
+
+                foreach ($programs as $program) {
+                    $amKey = $program->id.'-'.$dateStr.' 09:00:00';
+                    $pmKey = $program->id.'-'.$dateStr.' 14:00:00';
+                    $amActive = $slotMap[$amKey] ?? false;
+                    $pmActive = $slotMap[$pmKey] ?? false;
+
+                    if ($amActive) {
+                        $amPrograms[] = [
+                            'trainingProgramId' => $program->id,
+                            'name' => $program->program->name,
+                            'color' => $program->program->programCategory?->color,
+                            'time' => '09:00',
+                        ];
+                    }
+
+                    if ($pmActive) {
+                        $pmPrograms[] = [
+                            'trainingProgramId' => $program->id,
+                            'name' => $program->program->name,
+                            'color' => $program->program->programCategory?->color,
+                            'time' => '14:00',
+                        ];
+                    }
+                }
+
+                $days[] = [
+                    'date' => $dateStr,
+                    'day' => $day->day,
+                    'monthLabel' => $day->format('M'),
+                    'isToday' => $day->isToday(),
+                    'am' => $amPrograms,
+                    'pm' => $pmPrograms,
+                ];
+            }
+
+            $weeks[] = [
+                'key' => $current->isoWeekYear().'-W'.$current->isoWeek(),
+                'label' => 'W'.$current->isoWeek(),
+                'dateRange' => $weekStart->format('d M').' – '.$weekStart->copy()->addDays(6)->format('d M'),
+                'days' => $days,
+            ];
+
+            $current->addWeek();
+        }
+
+        return $weeks;
+    }
+
     public function toggleSlot(int $trainingProgramId, string $datetime): void
     {
         $program = TrainingProgram::findOrFail($trainingProgramId);
@@ -400,7 +475,7 @@ class CalendarIndex extends Component
             $this->toggleDirectSlot($trainingProgramId, $datetime);
         }
 
-        unset($this->programs, $this->slotMap, $this->userOverrides, $this->overrideSlotMap, $this->slotState);
+        unset($this->programs, $this->slotMap, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData);
     }
 
     protected function toggleDirectSlot(int $trainingProgramId, string $datetime): void
@@ -451,6 +526,70 @@ class CalendarIndex extends Component
             'datetime' => $datetime,
             'active' => ! $groupSlotActive,
         ]);
+    }
+
+    public function openWeekSlot(string $date, string $period): void
+    {
+        $startTime = $period === 'pm' ? '14:00' : '09:00';
+
+        $this->dispatch('open-week-slot', data: [
+            'date' => $date,
+            'start_time' => $startTime,
+            'groupId' => $this->group !== '' ? (int) $this->group : null,
+            'userId' => $this->user !== '' ? (int) $this->user : null,
+        ]);
+    }
+
+    public function editWeekSlot(int $trainingProgramId, string $date, string $startTime): void
+    {
+        $this->dispatch('open-week-slot', data: [
+            'date' => $date,
+            'start_time' => $startTime,
+            'training_program_id' => $trainingProgramId,
+            'groupId' => $this->group !== '' ? (int) $this->group : null,
+            'userId' => $this->user !== '' ? (int) $this->user : null,
+        ]);
+    }
+
+    #[On('week-slot.submitted')]
+    public function onWeekSlotSubmitted(array $data): void
+    {
+        $trainingProgramId = (int) $data['training_program_id'];
+        $datetime = $data['date'].' '.$data['start_time'].':00';
+
+        $existing = TrainingProgramSlot::withTrashed()
+            ->where('training_program_id', $trainingProgramId)
+            ->where('datetime', $datetime)
+            ->first();
+
+        if ($existing === null) {
+            TrainingProgramSlot::create([
+                'training_program_id' => $trainingProgramId,
+                'datetime' => $datetime,
+            ]);
+        } elseif ($existing->trashed()) {
+            $existing->restore();
+        }
+
+        unset($this->programs, $this->slotMap, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData);
+    }
+
+    #[On('week-slot.deleted')]
+    public function onWeekSlotDeleted(array $data): void
+    {
+        $trainingProgramId = (int) $data['training_program_id'];
+        $datetime = $data['date'].' '.$data['start_time'].':00';
+
+        $slot = TrainingProgramSlot::withTrashed()
+            ->where('training_program_id', $trainingProgramId)
+            ->where('datetime', $datetime)
+            ->first();
+
+        if ($slot !== null) {
+            $slot->forceDelete();
+        }
+
+        unset($this->programs, $this->slotMap, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData);
     }
 
     public function openAddContent(): void

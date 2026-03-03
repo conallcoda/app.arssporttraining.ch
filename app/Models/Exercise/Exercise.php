@@ -11,11 +11,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
-class Exercise extends Model implements Taggable
+class Exercise extends Model implements HasMedia, Taggable
 {
     use HasQueryBuilder;
     use HasTags;
+    use InteractsWithMedia;
     use SoftDeletes;
 
     protected $fillable = [
@@ -31,6 +34,11 @@ class Exercise extends Model implements Taggable
     protected $attributes = [
         'config' => '{"settings":[],"overrides":{"cells":[],"weeks":[]}}',
     ];
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('photos');
+    }
 
     protected function casts(): array
     {

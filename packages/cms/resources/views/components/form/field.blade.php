@@ -14,6 +14,7 @@
 @use('Coda\Cms\Form\Fields\Tree')
 @use('Coda\Cms\Form\Fields\Preset')
 @use('Coda\Cms\Form\Fields\Search')
+@use('Coda\Cms\Form\Fields\FileUpload')
 
 @props(['field', 'prefix' => null, 'repeaterItems' => null, 'currentIndex' => null])
 
@@ -594,5 +595,114 @@
                 <flux:icon.search variant="micro" />
             </x-slot:icon>
         </flux:input>
+    @elseif ($field instanceof FileUpload)
+        <flux:field>
+            <div class="flex items-center gap-1 mb-2">
+                <flux:label :badge="$field->required ? 'Required' : null">{{ $field->getLabel() }}</flux:label>
+                @if ($field->helpText)
+                    <x-cms::form.help-tooltip :content="$field->helpText" position="top" />
+                @endif
+            </div>
+            @if ($field->multiple)
+                <flux:file-upload wire:model="{{ $field->name }}" multiple label="">
+                    <flux:file-upload.dropzone
+                        heading="{{ $field->dropzoneHeading }}"
+                        text="{{ $field->dropzoneText }}"
+                        inline
+                    />
+                </flux:file-upload>
+            @else
+                <flux:file-upload wire:model="{{ $field->name }}" label="">
+                    <flux:file-upload.dropzone
+                        heading="{{ $field->dropzoneHeading }}"
+                        text="{{ $field->dropzoneText }}"
+                        inline
+                    />
+                </flux:file-upload>
+            @endif
+
+            @php
+                $existingItems = $this->existingMedia[$field->name] ?? [];
+                $newUploads = $this->{$field->name} ?? ($field->multiple ? [] : null);
+            @endphp
+
+            <div class="mt-3 flex flex-col gap-2">
+                @foreach ($existingItems as $media)
+                    <flux:file-item
+                        wire:key="existing-{{ $field->name }}-{{ $media['id'] }}"
+                        :heading="$media['name']"
+                        :image="$media['url']"
+                        :size="$media['size']"
+                    >
+                        <x-slot name="actions">
+                            <flux:file-item.remove wire:click="removeExistingMedia('{{ $field->name }}', {{ $media['id'] }})" />
+                        </x-slot>
+                    </flux:file-item>
+                @endforeach
+
+                @if (is_array($newUploads))
+                    @foreach ($newUploads as $index => $upload)
+                        @php
+                            $uploadExists = $upload->exists();
+                            $uploadName = $upload->getClientOriginalName();
+                            $uploadSize = $uploadExists ? $upload->getSize() : null;
+                            $uploadImage = ($uploadExists && $upload->isPreviewable()) ? $upload->temporaryUrl() : null;
+                        @endphp
+                        @if ($uploadImage)
+                            <flux:file-item
+                                wire:key="upload-{{ $field->name }}-{{ $index }}"
+                                :heading="$uploadName"
+                                :image="$uploadImage"
+                                :size="$uploadSize"
+                            >
+                                <x-slot name="actions">
+                                    <flux:file-item.remove wire:click="removeNewUpload('{{ $field->name }}', {{ $index }})" />
+                                </x-slot>
+                            </flux:file-item>
+                        @else
+                            <flux:file-item
+                                wire:key="upload-{{ $field->name }}-{{ $index }}"
+                                :heading="$uploadName"
+                                :size="$uploadSize"
+                            >
+                                <x-slot name="actions">
+                                    <flux:file-item.remove wire:click="removeNewUpload('{{ $field->name }}', {{ $index }})" />
+                                </x-slot>
+                            </flux:file-item>
+                        @endif
+                    @endforeach
+                @elseif ($newUploads)
+                    @php
+                        $uploadExists = $newUploads->exists();
+                        $uploadName = $newUploads->getClientOriginalName();
+                        $uploadSize = $uploadExists ? $newUploads->getSize() : null;
+                        $uploadImage = ($uploadExists && $newUploads->isPreviewable()) ? $newUploads->temporaryUrl() : null;
+                    @endphp
+                    @if ($uploadImage)
+                        <flux:file-item
+                            wire:key="upload-{{ $field->name }}-single"
+                            :heading="$uploadName"
+                            :image="$uploadImage"
+                            :size="$uploadSize"
+                        >
+                            <x-slot name="actions">
+                                <flux:file-item.remove wire:click="removeNewUpload('{{ $field->name }}', 0)" />
+                            </x-slot>
+                        </flux:file-item>
+                    @else
+                        <flux:file-item
+                            wire:key="upload-{{ $field->name }}-single"
+                            :heading="$uploadName"
+                            :size="$uploadSize"
+                        >
+                            <x-slot name="actions">
+                                <flux:file-item.remove wire:click="removeNewUpload('{{ $field->name }}', 0)" />
+                            </x-slot>
+                        </flux:file-item>
+                    @endif
+                @endif
+            </div>
+            <flux:error name="{{ $field->name }}" />
+        </flux:field>
     @endif
 </div>

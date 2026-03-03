@@ -45,6 +45,10 @@ abstract class Field
         $defaults = [];
 
         foreach ($fields as $field) {
+            if ($field->type === 'file-upload') {
+                continue;
+            }
+
             if (method_exists($field, 'resolveDefault')) {
                 $resolved = $field->resolveDefault($defaults);
 
@@ -64,6 +68,10 @@ abstract class Field
         $rules = [];
 
         foreach ($fields as $field) {
+            if ($field->type === 'file-upload') {
+                continue;
+            }
+
             if ($field->type === 'repeater') {
                 $childRules = self::buildValidationRules($field->schema, "{$prefix}{$field->name}.*.");
                 $rules = array_merge($rules, $childRules);
