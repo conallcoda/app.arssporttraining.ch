@@ -54,6 +54,11 @@ class ColorPalette
         return "!bg-{$color}-100 dark:!bg-{$color}-900/30 !text-{$color}-700 dark:!text-{$color}-300";
     }
 
+    public static function lightOpaque(string $color): string
+    {
+        return "bg-{$color}-50 dark:bg-{$color}-950";
+    }
+
     public static function lightStrong(string $color): string
     {
         return "bg-{$color}-200 dark:bg-{$color}-700/40";

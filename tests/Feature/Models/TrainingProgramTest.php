@@ -5,7 +5,7 @@ use App\Models\Exercise\ExercisePlan;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramCategory;
 use App\Models\Exercise\ExerciseProgramExercise;
-use App\Models\Exercise\TrainingProgram;
+use App\Models\Training\TrainingProgram;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -27,26 +27,19 @@ it('creates a training program for a group', function () {
     expect($tp->sourcePlan)->toBeNull();
 });
 
-it('creates a training program for a user with parent reference', function () {
+it('creates a training program for a user within a group', function () {
     $group = UserGroup::create(['name' => 'Team Alpha']);
     $user = User::factory()->athlete()->create();
     $program = ExerciseProgram::factory()->create();
 
-    $groupTp = TrainingProgram::create([
-        'group_id' => $group->id,
-        'exercise_program_id' => $program->id,
-    ]);
-
     $userTp = TrainingProgram::create([
-        'parent_id' => $groupTp->id,
         'group_id' => $group->id,
         'user_id' => $user->id,
         'exercise_program_id' => $program->id,
     ]);
 
-    expect($userTp->parent->id)->toBe($groupTp->id);
     expect($userTp->user->id)->toBe($user->id);
-    expect($groupTp->children)->toHaveCount(1);
+    expect($userTp->group->id)->toBe($group->id);
 });
 
 it('scopes for group returns only group-level entries', function () {

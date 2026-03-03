@@ -5,7 +5,6 @@ namespace App\Data\Training;
 use App\Form\Fields\Exercise\Exercises;
 use App\Form\Fields\Training\Program\ProgramCategory;
 use App\Form\Fields\Training\Program\ProgramName;
-use App\Form\Fields\Training\Program\Visibility;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
 use Carbon\Carbon;
@@ -27,7 +26,6 @@ class ExerciseProgramData extends AbstractData implements HasForms
         public array $exercises = [],
         public ?Carbon $updatedAt = null,
         public int $sort = 0,
-        public int $visibility = 1,
     ) {}
 
     public static function from(mixed ...$payloads): static
@@ -44,7 +42,6 @@ class ExerciseProgramData extends AbstractData implements HasForms
             program_category_id: isset($data['program_category_id']) ? (int) $data['program_category_id'] : null,
             exercises: $data['exercises'] ?? [],
             sort: (int) ($data['sort'] ?? 0),
-            visibility: (int) ($data['visibility'] ?? 1),
         );
     }
 
@@ -70,7 +67,6 @@ class ExerciseProgramData extends AbstractData implements HasForms
             exercises: $exercises,
             updatedAt: $program->updated_at,
             sort: $program->sort,
-            visibility: $program->visibility ?? 1,
         );
     }
 
@@ -82,7 +78,6 @@ class ExerciseProgramData extends AbstractData implements HasForms
                 'name' => $this->name,
                 'program_category_id' => $this->program_category_id,
                 'sort' => $this->sort,
-                'visibility' => $this->visibility,
             ]
         );
 
@@ -133,7 +128,6 @@ class ExerciseProgramData extends AbstractData implements HasForms
             ->fieldset('General', [
                 ProgramName::make('name'),
                 ProgramCategory::make('program_category_id')->withOptions(),
-                new Visibility('visibility'),
                 Exercises::make('exercises')->withOptions(),
             ]);
     }

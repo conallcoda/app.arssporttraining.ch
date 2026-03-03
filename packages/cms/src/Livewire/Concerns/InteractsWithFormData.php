@@ -279,6 +279,31 @@ trait InteractsWithFormData
         $this->data[$fieldName] = $items;
     }
 
+    public function reorderRelationshipItem(string $fieldName, int $sourceIndex, int $targetIndex): void
+    {
+        if (! isset($this->data[$fieldName])) {
+            return;
+        }
+
+        $items = $this->data[$fieldName];
+
+        if ($sourceIndex < 0 || $sourceIndex >= count($items) || $targetIndex < 0 || $targetIndex >= count($items)) {
+            return;
+        }
+
+        $moved = array_splice($items, $sourceIndex, 1);
+        array_splice($items, $targetIndex, 0, $moved);
+
+        $field = collect($this->getAllFields())->firstWhere('name', $fieldName);
+        if ($field?->sortable) {
+            foreach ($items as $i => $item) {
+                $items[$i]['sort'] = $i;
+            }
+        }
+
+        $this->data[$fieldName] = $items;
+    }
+
     public function addRepeaterItem(string $fieldName): void
     {
         if (! isset($this->data[$fieldName])) {

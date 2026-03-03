@@ -16,6 +16,8 @@ class UserGroupSidebar extends Component
     /** @var list<array{group: int, user?: int}> */
     public array $selected = [];
 
+    public string $search = '';
+
     public function mount(string $mode = 'single-athlete', ?string $navigateEvent = null, ?int $initialGroup = null, ?int $initialUser = null): void
     {
         $this->mode = $mode;
@@ -36,7 +38,39 @@ class UserGroupSidebar extends Component
     #[Computed]
     public function groups(): Collection
     {
-        return UserGroup::with('members')->get();
+        $query = UserGroup::with('members');
+
+        if ($this->search !== '') {
+            $search = $this->search;
+
+            $query->where(function ($q) use ($search): void {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhereHas('members', fn ($m) => $m->where('forename', 'like', "%{$search}%")
+                        ->orWhere('surname', 'like', "%{$search}%"));
+            });
+        }
+
+        return $query->get();
+    }
+
+    public function hasMatchingMember(UserGroup $group): bool
+    {
+        if ($this->search === '') {
+            return false;
+        }
+
+        return $group->members->contains(
+            fn ($member): bool => str_contains(mb_strtolower($member->name), mb_strtolower($this->search))
+        );
+    }
+
+    public function isMemberMatch($member): bool
+    {
+        if ($this->search === '') {
+            return false;
+        }
+
+        return str_contains(mb_strtolower($member->name), mb_strtolower($this->search));
     }
 
     public function selectUser(int $groupId, int $userId): void

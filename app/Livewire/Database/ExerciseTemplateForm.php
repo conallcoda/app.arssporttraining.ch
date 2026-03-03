@@ -22,6 +22,7 @@ class ExerciseTemplateForm extends FormModal
         string $cancelLabel = 'Cancel',
         bool $flyout = true,
         string $maxWidth = 'max-w-[83.333%] overflow-x-hidden',
+        bool $showDelete = false,
         int $defaultWeeks = 5,
         int $defaultSessionsPerWeek = 1,
         bool $showPreview = true,
@@ -37,6 +38,7 @@ class ExerciseTemplateForm extends FormModal
             cancelLabel: $cancelLabel,
             flyout: $flyout,
             maxWidth: $maxWidth,
+            showDelete: $showDelete,
         );
 
         unset($this->fieldsets);

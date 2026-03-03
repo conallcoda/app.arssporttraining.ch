@@ -1,7 +1,11 @@
 <?php
 
-namespace App\Models\Exercise;
+namespace App\Models\Training;
 
+use App\Models\Exercise\Exercise;
+use App\Models\Exercise\ExercisePlan;
+use App\Models\Exercise\ExerciseProgram;
+use App\Models\Exercise\ExerciseProgramExercise;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;
@@ -29,23 +33,12 @@ class TrainingProgram extends Model
     protected $table = 'training_programs';
 
     protected $fillable = [
-        'parent_id',
         'group_id',
         'user_id',
         'exercise_program_id',
         'source_plan_id',
         'sort',
     ];
-
-    public function parent(): BelongsTo
-    {
-        return $this->belongsTo(self::class, 'parent_id');
-    }
-
-    public function children(): HasMany
-    {
-        return $this->hasMany(self::class, 'parent_id');
-    }
 
     public function group(): BelongsTo
     {
@@ -67,6 +60,11 @@ class TrainingProgram extends Model
         return $this->belongsTo(ExercisePlan::class, 'source_plan_id');
     }
 
+    public function slots(): HasMany
+    {
+        return $this->hasMany(TrainingProgramSlot::class);
+    }
+
     public function scopeForGroup(Builder $query, int $groupId): Builder
     {
         return $query->where('group_id', $groupId)->whereNull('user_id');
@@ -77,7 +75,27 @@ class TrainingProgram extends Model
         return $query->where('group_id', $groupId)->where('user_id', $userId);
     }
 
-    public static function importFromPlan(ExercisePlan $plan, int $groupId, ?int $userId = null, ?int $parentId = null): void
+    public function isGroupLevel(): bool
+    {
+        return $this->user_id === null;
+    }
+
+    public static function findOrCreateOverride(self $groupProgram, int $userId): self
+    {
+        return static::firstOrCreate(
+            [
+                'group_id' => $groupProgram->group_id,
+                'user_id' => $userId,
+                'exercise_program_id' => $groupProgram->exercise_program_id,
+            ],
+            [
+                'source_plan_id' => $groupProgram->source_plan_id,
+                'sort' => $groupProgram->sort ?? 0,
+            ]
+        );
+    }
+
+    public static function importFromPlan(ExercisePlan $plan, int $groupId, ?int $userId = null): void
     {
         $maxSort = static::where('group_id', $groupId)
             ->when($userId, fn (Builder $q) => $q->where('user_id', $userId), fn (Builder $q) => $q->whereNull('user_id'))
@@ -87,18 +105,22 @@ class TrainingProgram extends Model
             $clone = $program->duplicate();
             $maxSort++;
 
-            static::create([
-                'parent_id' => $parentId,
+            $trainingProgram = static::create([
                 'group_id' => $groupId,
                 'user_id' => $userId,
                 'exercise_program_id' => $clone->id,
                 'source_plan_id' => $plan->id,
                 'sort' => $maxSort,
             ]);
+
+            $clone->update([
+                'owner_type' => static::class,
+                'owner_id' => $trainingProgram->id,
+            ]);
         }
     }
 
-    public static function importProgram(ExerciseProgram $program, int $groupId, ?int $userId = null, ?int $parentId = null): self
+    public static function importProgram(ExerciseProgram $program, int $groupId, ?int $userId = null): self
     {
         $clone = $program->duplicate();
 
@@ -106,16 +128,22 @@ class TrainingProgram extends Model
             ->when($userId, fn (Builder $q) => $q->where('user_id', $userId), fn (Builder $q) => $q->whereNull('user_id'))
             ->max('sort') ?? -1;
 
-        return static::create([
-            'parent_id' => $parentId,
+        $trainingProgram = static::create([
             'group_id' => $groupId,
             'user_id' => $userId,
             'exercise_program_id' => $clone->id,
             'sort' => $maxSort + 1,
         ]);
+
+        $clone->update([
+            'owner_type' => static::class,
+            'owner_id' => $trainingProgram->id,
+        ]);
+
+        return $trainingProgram;
     }
 
-    public static function importExercise(Exercise $exercise, int $groupId, ?int $userId = null, ?int $parentId = null, ?int $categoryId = null): self
+    public static function importExercise(Exercise $exercise, int $groupId, ?int $userId = null, ?int $categoryId = null): self
     {
         $program = ExerciseProgram::create([
             'name' => $exercise->name,
@@ -132,12 +160,18 @@ class TrainingProgram extends Model
             ->when($userId, fn (Builder $q) => $q->where('user_id', $userId), fn (Builder $q) => $q->whereNull('user_id'))
             ->max('sort') ?? -1;
 
-        return static::create([
-            'parent_id' => $parentId,
+        $trainingProgram = static::create([
             'group_id' => $groupId,
             'user_id' => $userId,
             'exercise_program_id' => $program->id,
             'sort' => $maxSort + 1,
         ]);
+
+        $program->update([
+            'owner_type' => static::class,
+            'owner_id' => $trainingProgram->id,
+        ]);
+
+        return $trainingProgram;
     }
 }

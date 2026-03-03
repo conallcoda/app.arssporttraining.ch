@@ -12,6 +12,8 @@
 @use('Coda\Cms\Form\Fields\Repeater')
 @use('Coda\Cms\Form\Fields\Tags')
 @use('Coda\Cms\Form\Fields\Tree')
+@use('Coda\Cms\Form\Fields\Preset')
+@use('Coda\Cms\Form\Fields\Search')
 
 @props(['field', 'prefix' => null, 'repeaterItems' => null, 'currentIndex' => null])
 
@@ -399,11 +401,13 @@
                 @endphp
 
                 @if (is_array($items) && count($items) > 0)
-                    <div class="space-y-2">
+                    @if ($field->sortable)
+                        <div class="space-y-2" x-data="sortable_items('{{ $field->name }}')">
+                    @else
+                        <div class="space-y-2">
+                    @endif
                         @foreach ($items as $index => $item)
                             @php
-                                $isFirst = $index === 0;
-                                $isLast = $index === count($items) - 1;
                                 $currentValue = $item[$field->valueAttribute] ?? null;
                                 $filteredOptions = collect($field->getOptions())
                                     ->filter(
@@ -412,8 +416,23 @@
                                     )
                                     ->toArray();
                             @endphp
-                            <div class="flex items-center gap-2"
-                                wire:key="{{ $field->name }}-{{ $index }}">
+                            @if ($field->sortable)
+                                <div class="flex items-center gap-2"
+                                    wire:key="{{ $field->name }}-{{ $index }}"
+                                    data-item-index="{{ $index }}"
+                                    @dragover="handleDragOver($event, {{ $index }})"
+                                    @dragleave="handleDragLeave($event)"
+                                    @drop="handleDrop($event, {{ $index }})">
+                                    <div draggable="true"
+                                        @dragstart="handleDragStart($event, {{ $index }})"
+                                        @dragend="handleDragEnd($event)"
+                                        class="shrink-0 cursor-grab active:cursor-grabbing text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">
+                                        <flux:icon.grip class="size-4" />
+                                    </div>
+                            @else
+                                <div class="flex items-center gap-2"
+                                    wire:key="{{ $field->name }}-{{ $index }}">
+                            @endif
                                 <div class="flex-1 min-w-0">
                                     <flux:select
                                         wire:model.live.blur="{{ $wireModel }}.{{ $index }}.{{ $field->valueAttribute }}"
@@ -427,18 +446,6 @@
                                     </flux:select>
                                 </div>
                                 <div class="flex gap-0.5">
-                                    @if ($field->sortable)
-                                        <flux:button type="button" size="xs" variant="ghost"
-                                            wire:click="moveRelationshipItem('{{ $field->name }}', {{ $index }}, -1)"
-                                            :disabled="$isFirst">
-                                            <x-lucide-chevron-up class="w-4 h-4" />
-                                        </flux:button>
-                                        <flux:button type="button" size="xs" variant="ghost"
-                                            wire:click="moveRelationshipItem('{{ $field->name }}', {{ $index }}, 1)"
-                                            :disabled="$isLast">
-                                            <x-lucide-chevron-down class="w-4 h-4" />
-                                        </flux:button>
-                                    @endif
                                     <flux:button type="button" size="xs" variant="ghost"
                                         wire:click="removeRelationshipItem('{{ $field->name }}', {{ $index }})">
                                         <x-lucide-trash-2 class="w-4 h-4" />
@@ -495,5 +502,97 @@
             </div>
             <flux:error name="{{ $wireModel }}" />
         </flux:field>
+    @elseif ($field instanceof Preset)
+        @php
+            $isMapped = $field->isMapped();
+            $currentValue = $isMapped ? null : data_get($this, $wireModel);
+            $anyPresetActive = $isMapped
+                ? collect($field->presets)->contains(fn($p) => collect($p['values'])->every(fn($v, $k) => data_get($this, "{$prefix}.{$k}") === $v))
+                : collect($field->presets)->contains(fn($p) => $p['value'] === $currentValue);
+        @endphp
+        <div x-data="{ showOther: {{ !$anyPresetActive && $field->hasOther() ? 'true' : 'false' }} }">
+            <div class="flex flex-wrap gap-1.5">
+                @foreach ($field->presets as $preset)
+                    @if ($isMapped)
+                        @php
+                            $setCommands = collect($preset['values'])
+                                ->map(fn($val, $key) => "\$wire.set('{$prefix}.{$key}', '{$val}')")
+                                ->implode('; ');
+                            $isActive = collect($preset['values'])
+                                ->every(fn($val, $key) => data_get($this, "{$prefix}.{$key}") === $val);
+                        @endphp
+                        @if ($isActive)
+                            <span class="inline-flex rounded-lg" x-bind:class="!showOther && 'bg-zinc-200 dark:bg-zinc-700'">
+                                <flux:button
+                                    x-on:click="{{ $setCommands }}; showOther = false"
+                                    variant="ghost"
+                                    size="sm"
+                                >
+                                    {{ $preset['label'] }}
+                                </flux:button>
+                            </span>
+                        @else
+                            <flux:button
+                                x-on:click="{{ $setCommands }}; showOther = false"
+                                variant="ghost"
+                                size="sm"
+                            >
+                                {{ $preset['label'] }}
+                            </flux:button>
+                        @endif
+                    @else
+                        @if ($preset['value'] === $currentValue)
+                            <span class="inline-flex rounded-lg" x-bind:class="!showOther && 'bg-zinc-200 dark:bg-zinc-700'">
+                                <flux:button
+                                    wire:click="$set('{{ $wireModel }}', '{{ $preset['value'] }}')"
+                                    x-on:click="showOther = false"
+                                    variant="ghost"
+                                    size="sm"
+                                >
+                                    {{ $preset['label'] }}
+                                </flux:button>
+                            </span>
+                        @else
+                            <flux:button
+                                wire:click="$set('{{ $wireModel }}', '{{ $preset['value'] }}')"
+                                x-on:click="showOther = false"
+                                variant="ghost"
+                                size="sm"
+                            >
+                                {{ $preset['label'] }}
+                            </flux:button>
+                        @endif
+                    @endif
+                @endforeach
+                @if ($field->hasOther())
+                    <span class="inline-flex rounded-lg" x-bind:class="showOther && 'bg-zinc-200 dark:bg-zinc-700'">
+                        <flux:button
+                            x-on:click="showOther = !showOther"
+                            variant="ghost"
+                            size="sm"
+                        >
+                            Other
+                        </flux:button>
+                    </span>
+                @endif
+            </div>
+            @if ($field->otherField)
+                <div x-show="showOther" x-cloak class="mt-3">
+                    <x-cms::form.field :field="$field->otherField" :prefix="$prefix" />
+                </div>
+            @elseif (!empty($field->otherFields))
+                <div x-show="showOther" x-cloak class="mt-3 flex items-end gap-3">
+                    @foreach ($field->otherFields as $otherField)
+                        <x-cms::form.field :field="$otherField" :prefix="$prefix" class="flex-1" />
+                    @endforeach
+                </div>
+            @endif
+        </div>
+    @elseif ($field instanceof Search)
+        <flux:input wire:model.live.debounce.300ms="{{ $wireModel }}" placeholder="{{ $field->getPlaceholder() }}" size="{{ $field->size }}" clearable>
+            <x-slot:icon>
+                <flux:icon.search variant="micro" />
+            </x-slot:icon>
+        </flux:input>
     @endif
 </div>

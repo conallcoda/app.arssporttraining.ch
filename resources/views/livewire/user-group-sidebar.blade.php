@@ -1,7 +1,10 @@
 <x-section title="Groups" class="w-64 shrink-0 sticky top-4 self-start max-h-[calc(100vh-6rem)] overflow-y-auto">
+    <div class="mb-3">
+        <x-cms::form.field :field="\Coda\Cms\Form\Fields\Search::make('search')" />
+    </div>
     <div class="flex flex-col gap-1">
         @foreach ($this->groups as $group)
-            <div x-data="{ open: false }" wire:key="group-{{ $group->id }}">
+            <div x-data="{ open: {{ $this->hasMatchingMember($group) ? 'true' : 'false' }} }" wire:key="group-{{ $group->id }}-{{ $search }}">
                 <div class="flex items-center">
                     <button
                         wire:click="selectGroup({{ $group->id }})"
@@ -30,6 +33,9 @@
                 <div x-show="open" x-collapse>
                         <div class="flex flex-col gap-0.5 pl-4 pt-1">
                             @foreach ($group->members as $member)
+                                @if ($search !== '' && $this->hasMatchingMember($group) && ! $this->isMemberMatch($member))
+                                    @continue
+                                @endif
                                 <div class="flex items-center gap-1" wire:key="member-{{ $group->id }}-{{ $member->id }}">
                                     @if ($mode === 'single-athlete' || $mode === 'multi-athlete')
                                         <button

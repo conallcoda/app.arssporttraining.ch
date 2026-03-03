@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Database;
 
-use App\Data\Modifier\ModifierData;
+use App\Data\Exercise\ExerciseModifierData;
 use App\Models\Tag;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Display\DisplayFields\Ago;
@@ -24,7 +24,7 @@ class ModifiersList extends AbstractModelList
 
     protected function getDataClass(): string
     {
-        return ModifierData::class;
+        return ExerciseModifierData::class;
     }
 
     protected function getBaseQuery(): Builder
@@ -34,12 +34,12 @@ class ModifiersList extends AbstractModelList
 
     protected function dataFromModel(Model $model): AbstractData
     {
-        return ModifierData::fromTag($model);
+        return ExerciseModifierData::fromTag($model);
     }
 
     protected function createDataFromForm(array $formData): AbstractData
     {
-        return ModifierData::from($formData);
+        return ExerciseModifierData::from($formData);
     }
 
     protected function getTable(): Table

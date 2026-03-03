@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Database;
 
-use App\Data\Equipment\EquipmentData;
+use App\Data\Exercise\ExerciseEquipmentData;
 use App\Models\Tag;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Display\DisplayFields\Ago;
@@ -24,7 +24,7 @@ class EquipmentList extends AbstractModelList
 
     protected function getDataClass(): string
     {
-        return EquipmentData::class;
+        return ExerciseEquipmentData::class;
     }
 
     protected function getBaseQuery(): Builder
@@ -34,12 +34,12 @@ class EquipmentList extends AbstractModelList
 
     protected function dataFromModel(Model $model): AbstractData
     {
-        return EquipmentData::fromTag($model);
+        return ExerciseEquipmentData::fromTag($model);
     }
 
     protected function createDataFromForm(array $formData): AbstractData
     {
-        return EquipmentData::from($formData);
+        return ExerciseEquipmentData::from($formData);
     }
 
     protected function getTable(): Table

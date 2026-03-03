@@ -26,6 +26,7 @@ class PlanExerciseSettingsForm extends FormModal
         string $cancelLabel = 'Cancel',
         bool $flyout = true,
         string $maxWidth = 'max-w-lg',
+        bool $showDelete = false,
     ): void {
         parent::mount(
             name: $name,
@@ -35,6 +36,7 @@ class PlanExerciseSettingsForm extends FormModal
             cancelLabel: $cancelLabel,
             flyout: $flyout,
             maxWidth: $maxWidth,
+            showDelete: $showDelete,
         );
 
         unset($this->fieldsets);

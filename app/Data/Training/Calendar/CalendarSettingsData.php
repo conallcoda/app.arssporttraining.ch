@@ -2,6 +2,7 @@
 
 namespace App\Data\Training\Calendar;
 
+use App\Form\Fields\Training\Calendar\CalendarPreset;
 use App\Form\Fields\Training\Calendar\Mode;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Form\Concerns\InteractsWithForms;
@@ -14,6 +15,9 @@ class CalendarSettingsData extends AbstractData implements HasForms
 
     public function __construct(
         public string $mode = 'month',
+        public ?string $date = null,
+        public ?string $start = null,
+        public ?string $end = null,
     ) {}
 
     public static function getForm(): Form
@@ -22,9 +26,9 @@ class CalendarSettingsData extends AbstractData implements HasForms
             ->fieldset('Settings', [
                 Mode::make('mode')->live(),
             ])
-            ->fieldset('Month', [], show: 'mode == "month"', view: 'livewire.training.calendar.month-presets')
-            ->fieldset('Week', [], show: 'mode == "week"', view: 'livewire.training.calendar.week-presets')
-            ->fieldset('Day', [], show: 'mode == "day"', view: 'livewire.training.calendar.day-picker')
-            ->fieldset('Range', [], show: 'mode == "range"', view: 'livewire.training.calendar.range-picker');
+            ->fieldset('Month', [CalendarPreset::month()], show: 'mode == "month"')
+            ->fieldset('Week', [CalendarPreset::week()], show: 'mode == "week"')
+            ->fieldset('Day', [CalendarPreset::day()], show: 'mode == "day"')
+            ->fieldset('Range', [CalendarPreset::range()], show: 'mode == "range"');
     }
 }

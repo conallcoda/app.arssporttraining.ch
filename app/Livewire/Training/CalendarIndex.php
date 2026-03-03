@@ -8,13 +8,12 @@ use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExercisePlan;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramCategory;
-use App\Models\Exercise\TrainingProgram;
+use App\Models\Training\TrainingProgram;
+use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use App\Support\WeekOptions;
 use Carbon\Carbon;
-use Coda\Cms\Form\Form;
-use Coda\Cms\Livewire\Concerns\InteractsWithFormData;
 use Flux\Flux;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
@@ -28,10 +27,6 @@ use Livewire\Component;
 #[Title('ARS - Athlete Training // Calendar')]
 class CalendarIndex extends Component
 {
-    use InteractsWithFormData {
-        InteractsWithFormData::updated as traitUpdated;
-    }
-
     #[Url]
     public string $mode = 'month';
 
@@ -50,21 +45,7 @@ class CalendarIndex extends Component
     #[Url(except: '')]
     public string $user = '';
 
-    public array $data = [];
-
-    public string $pendingMode = '';
-
-    public string $pendingDate = '';
-
-    public string $pendingStart = '';
-
-    public string $pendingEnd = '';
-
-    public bool $pendingOther = false;
-
-    public ?string $otherMonthDate = null;
-
-    public ?string $otherWeekDate = null;
+    public CalendarSettingsData $calendarSettings;
 
     public int $weekStartsOn;
 
@@ -84,58 +65,33 @@ class CalendarIndex extends Component
         $this->weekEndsOn = ($this->weekStartsOn + 6) % 7;
 
         if ($this->date === '') {
-            $this->date = Carbon::now()->format('Y-m-d');
+            $this->date = Carbon::now()->startOfMonth()->format('Y-m-d');
         }
 
-        $this->data = ['mode' => $this->mode];
-        $this->syncPendingFromCurrent();
+        $this->calendarSettings = new CalendarSettingsData(
+            mode: $this->mode,
+            date: $this->date,
+            start: $this->start ?: null,
+            end: $this->end ?: null,
+        );
     }
 
-    protected function syncPendingFromCurrent(): void
+    public function openCalendarRange(): void
     {
-        $this->pendingMode = $this->mode;
-        $this->pendingDate = $this->date;
-        $this->pendingStart = $this->start;
-        $this->pendingEnd = $this->end;
+        $this->dispatch('open-calendar-range', data: $this->calendarSettings->toArray());
     }
 
-    public function updated(string $property, mixed $value): void
+    #[On('calendar-range.submitted')]
+    public function onCalendarRangeSubmitted(array $data): void
     {
-        if ($property === 'data.mode') {
-            $this->pendingMode = $value;
-            $this->pendingOther = false;
-        }
+        $this->calendarSettings = CalendarSettingsData::from($data);
 
-        $this->traitUpdated($property, $value);
-    }
-
-    public function openSettings(): void
-    {
-        unset($this->formConfig, $this->fieldsets);
-        $this->syncPendingFromCurrent();
-        $this->data = ['mode' => $this->mode];
-        $this->pendingOther = false;
-        $this->otherMonthDate = null;
-        $this->otherWeekDate = null;
-        Flux::modal('calendar-settings')->show();
-    }
-
-    public function toggleOther(): void
-    {
-        $this->pendingOther = ! $this->pendingOther;
-    }
-
-    public function applySettings(): void
-    {
-        $this->mode = $this->pendingMode;
-        $this->date = $this->pendingDate;
-        $this->start = $this->pendingStart;
-        $this->end = $this->pendingEnd;
+        $this->mode = $this->calendarSettings->mode;
+        $this->date = $this->calendarSettings->date ?? $this->date;
+        $this->start = $this->calendarSettings->start ?? '';
+        $this->end = $this->calendarSettings->end ?? '';
 
         unset($this->days, $this->weeks, $this->months, $this->title);
-        unset($this->monthPresets, $this->weekPresets, $this->dayPresets, $this->rangePresets);
-
-        Flux::modal('calendar-settings')->close();
     }
 
     #[On('sidebar-selection-changed')]
@@ -155,7 +111,7 @@ class CalendarIndex extends Component
             $this->user = (string) $first['user'];
         }
 
-        unset($this->selectionName, $this->programs);
+        unset($this->selectionName, $this->programs, $this->slotMap, $this->userOverrides, $this->overrideSlotMap, $this->slotState);
     }
 
     #[Computed]
@@ -178,23 +134,11 @@ class CalendarIndex extends Component
     }
 
     #[Computed]
-    public function formConfig(): Form
-    {
-        return CalendarSettingsData::getForm();
-    }
-
-    #[Computed]
-    public function fieldsets(): array
-    {
-        return $this->formConfig->resolveFieldsets($this->data);
-    }
-
-    #[Computed]
     public function title(): string
     {
-        $date = Carbon::parse($this->date);
+        $date = Carbon::parse($this->calendarSettings->date);
 
-        return match ($this->mode) {
+        return match ($this->calendarSettings->mode) {
             'month' => $date->format('F Y'),
             'week' => 'W'.$date->isoWeek().' '.$date->isoWeekYear().' · '.$date->copy()->startOfWeek($this->weekStartsOn)->format('d M').' – '.$date->copy()->endOfWeek($this->weekEndsOn)->format('d M'),
             'day' => $date->format('d.m.Y'),
@@ -205,8 +149,9 @@ class CalendarIndex extends Component
 
     protected function rangeTitle(): string
     {
-        $start = ($this->start ? Carbon::parse($this->start) : Carbon::parse($this->date))->startOfWeek($this->weekStartsOn);
-        $end = ($this->end ? Carbon::parse($this->end) : $start->copy()->addMonth())->endOfWeek($this->weekEndsOn);
+        $date = $this->calendarSettings->date;
+        $start = ($this->calendarSettings->start ? Carbon::parse($this->calendarSettings->start) : Carbon::parse($date))->startOfWeek($this->weekStartsOn);
+        $end = ($this->calendarSettings->end ? Carbon::parse($this->calendarSettings->end) : $start->copy()->addMonth())->endOfWeek($this->weekEndsOn);
 
         return $start->format('d.m.Y').' – '.$end->format('d.m.Y');
     }
@@ -218,15 +163,75 @@ class CalendarIndex extends Component
             return collect();
         }
 
-        $query = TrainingProgram::with(['program.programCategory', 'sourcePlan']);
+        [$start, $end] = $this->dateRange();
 
-        if ($this->user !== '') {
-            $query->forUser((int) $this->group, (int) $this->user);
-        } else {
-            $query->forGroup((int) $this->group);
+        $eagerLoads = [
+            'program.programCategory',
+            'program.exercises',
+            'sourcePlan',
+            'slots' => fn ($q) => $q->withTrashed()->whereBetween('date', [$start, $end]),
+        ];
+
+        $groupPrograms = TrainingProgram::with($eagerLoads)
+            ->forGroup((int) $this->group)
+            ->orderBy('sort')
+            ->get();
+
+        if ($this->user === '') {
+            return $groupPrograms;
         }
 
-        return $query->orderBy('sort')->get();
+        $groupExerciseProgramIds = $groupPrograms->pluck('exercise_program_id')->toArray();
+
+        $independentUserPrograms = TrainingProgram::with($eagerLoads)
+            ->forUser((int) $this->group, (int) $this->user)
+            ->whereNotIn('exercise_program_id', $groupExerciseProgramIds)
+            ->orderBy('sort')
+            ->get();
+
+        return $groupPrograms->concat($independentUserPrograms);
+    }
+
+    #[Computed]
+    public function userOverrides(): Collection
+    {
+        if ($this->user === '' || ! $this->hasSelection()) {
+            return collect();
+        }
+
+        [$start, $end] = $this->dateRange();
+
+        $groupExerciseProgramIds = $this->programs
+            ->filter(fn (TrainingProgram $p) => $p->isGroupLevel())
+            ->pluck('exercise_program_id')
+            ->toArray();
+
+        if (empty($groupExerciseProgramIds)) {
+            return collect();
+        }
+
+        return TrainingProgram::with([
+            'slots' => fn ($q) => $q->whereBetween('date', [$start, $end]),
+        ])
+            ->forUser((int) $this->group, (int) $this->user)
+            ->whereIn('exercise_program_id', $groupExerciseProgramIds)
+            ->get()
+            ->keyBy('exercise_program_id');
+    }
+
+    #[Computed]
+    public function overrideSlotMap(): array
+    {
+        $map = [];
+
+        foreach ($this->userOverrides as $override) {
+            foreach ($override->slots as $slot) {
+                $key = $override->exercise_program_id.'-'.$slot->date->format('Y-m-d').'-'.$slot->slot;
+                $map[$key] = $slot->active;
+            }
+        }
+
+        return $map;
     }
 
     #[Computed]
@@ -238,6 +243,7 @@ class CalendarIndex extends Component
 
         while ($current->lte($end)) {
             $days[] = [
+                'date' => $current->format('Y-m-d'),
                 'day' => $current->day,
                 'label' => $current->format('D'),
                 'isToday' => $current->isToday(),
@@ -296,180 +302,159 @@ class CalendarIndex extends Component
     /** @return array{Carbon, Carbon} */
     protected function dateRange(): array
     {
-        $date = Carbon::parse($this->date);
+        $date = Carbon::parse($this->calendarSettings->date);
 
-        return match ($this->mode) {
+        return match ($this->calendarSettings->mode) {
             'month' => [$date->copy()->startOfMonth()->startOfWeek($this->weekStartsOn), $date->copy()->endOfMonth()->endOfWeek($this->weekEndsOn)],
             'week' => [$date->copy()->startOfWeek($this->weekStartsOn), $date->copy()->endOfWeek($this->weekEndsOn)],
             'day' => [$date->copy(), $date->copy()],
             'range' => [
-                ($this->start ? Carbon::parse($this->start) : $date->copy())->startOfWeek($this->weekStartsOn),
-                ($this->end ? Carbon::parse($this->end) : $date->copy()->addMonth())->endOfWeek($this->weekEndsOn),
+                ($this->calendarSettings->start ? Carbon::parse($this->calendarSettings->start) : $date->copy())->startOfWeek($this->weekStartsOn),
+                ($this->calendarSettings->end ? Carbon::parse($this->calendarSettings->end) : $date->copy()->addMonth())->endOfWeek($this->weekEndsOn),
             ],
             default => [$date->copy()->startOfMonth(), $date->copy()->endOfMonth()],
         };
     }
 
     #[Computed]
-    public function monthPresets(): array
+    public function slotMap(): array
     {
-        $now = Carbon::now();
-        $presets = [];
+        $map = [];
+        $isUserView = $this->user !== '';
+        $overrides = $isUserView ? $this->overrideSlotMap : [];
 
-        for ($i = -6; $i <= 6; $i++) {
-            $month = $now->copy()->addMonths($i);
-            $presets[] = [
-                'value' => $month->format('Y-m'),
-                'label' => $month->format('M y'),
-                'active' => Carbon::parse($this->pendingDate)->format('Y-m') === $month->format('Y-m'),
-            ];
+        foreach ($this->programs as $program) {
+            foreach ($program->slots as $slot) {
+                $key = $program->id.'-'.$slot->date->format('Y-m-d').'-'.$slot->slot;
+                $active = ! $slot->trashed();
+
+                if ($isUserView && $program->isGroupLevel()) {
+                    $overrideKey = $program->exercise_program_id.'-'.$slot->date->format('Y-m-d').'-'.$slot->slot;
+                    if (isset($overrides[$overrideKey])) {
+                        $active = (bool) $overrides[$overrideKey];
+                    }
+                }
+
+                $map[$key] = $active;
+            }
+
+            if ($isUserView && $program->isGroupLevel()) {
+                foreach ($overrides as $overrideKey => $overrideActive) {
+                    if (! str_starts_with($overrideKey, $program->exercise_program_id.'-')) {
+                        continue;
+                    }
+
+                    $suffix = substr($overrideKey, strlen($program->exercise_program_id.'-'));
+                    $mapKey = $program->id.'-'.$suffix;
+
+                    if (! isset($map[$mapKey]) && $overrideActive) {
+                        $map[$mapKey] = true;
+                    }
+                }
+            }
         }
 
-        return $presets;
+        return $map;
     }
 
     #[Computed]
-    public function weekPresets(): array
+    public function slotState(): array
     {
-        $now = Carbon::now();
-        $presets = [];
-
-        for ($i = -6; $i <= 6; $i++) {
-            $weekStart = $now->copy()->startOfWeek($this->weekStartsOn)->addWeeks($i);
-            $presets[] = [
-                'value' => $weekStart->format('Y-m-d'),
-                'label' => 'W'.$weekStart->isoWeek(),
-                'active' => Carbon::parse($this->pendingDate)->startOfWeek($this->weekStartsOn)->format('Y-m-d') === $weekStart->format('Y-m-d'),
-            ];
+        if ($this->user === '') {
+            return [];
         }
 
-        return $presets;
-    }
+        $states = [];
+        $overrides = $this->overrideSlotMap;
 
-    #[Computed]
-    public function dayPresets(): array
-    {
-        $now = Carbon::today();
-        $selected = Carbon::parse($this->pendingDate)->startOfDay();
-        $presets = [];
+        foreach ($this->programs as $program) {
+            if (! $program->isGroupLevel()) {
+                continue;
+            }
 
-        for ($i = -7; $i <= 7; $i++) {
-            $day = $now->copy()->addDays($i);
-            $label = $day->format('D d');
-            $suffix = match ($i) {
-                -1 => ' (Yesterday)',
-                0 => ' (Today)',
-                1 => ' (Tomorrow)',
-                default => '',
-            };
+            foreach ($this->days as $day) {
+                foreach ([0, 1] as $slotNum) {
+                    $key = $program->id.'-'.$day['date'].'-'.$slotNum;
+                    $overrideKey = $program->exercise_program_id.'-'.$day['date'].'-'.$slotNum;
 
-            $presets[] = [
-                'value' => $day->format('Y-m-d'),
-                'label' => $label.$suffix,
-                'active' => $selected->equalTo($day),
-            ];
+                    if (isset($overrides[$overrideKey])) {
+                        $states[$key] = 'overridden';
+                    } else {
+                        $states[$key] = 'inherited';
+                    }
+                }
+            }
         }
 
-        return $presets;
+        return $states;
     }
 
-    #[Computed]
-    public function rangePresets(): array
+    public function toggleSlot(int $trainingProgramId, string $date, int $slot): void
     {
-        $now = Carbon::now();
-        $presets = [];
+        $program = TrainingProgram::findOrFail($trainingProgramId);
 
-        for ($i = -3; $i <= 3; $i++) {
-            $originalStart = $now->copy()->addMonths($i)->startOfMonth();
-            $originalEnd = $now->copy()->addMonths($i + 1)->endOfMonth();
-            $start = $originalStart->copy()->startOfWeek($this->weekStartsOn);
-            $end = $originalEnd->copy()->endOfWeek($this->weekEndsOn);
-
-            $presets[] = [
-                'start' => $start->format('Y-m-d'),
-                'end' => $end->format('Y-m-d'),
-                'label' => $originalStart->format('M').' – '.$originalEnd->format('M y'),
-                'active' => $this->pendingStart === $start->format('Y-m-d') && $this->pendingEnd === $end->format('Y-m-d'),
-            ];
+        if ($this->user !== '' && $program->isGroupLevel()) {
+            $this->toggleOverrideSlot($program, $date, $slot);
+        } else {
+            $this->toggleDirectSlot($trainingProgramId, $date, $slot);
         }
 
-        return $presets;
+        unset($this->programs, $this->slotMap, $this->userOverrides, $this->overrideSlotMap, $this->slotState);
     }
 
-    public function selectMonth(string $yearMonth): void
+    protected function toggleDirectSlot(int $trainingProgramId, string $date, int $slot): void
     {
-        $this->pendingOther = false;
-        $this->otherMonthDate = null;
-        $this->resetValidation();
-        $date = Carbon::createFromFormat('Y-m', $yearMonth)->startOfMonth();
-        $this->pendingDate = $date->format('Y-m-d');
+        $existing = TrainingProgramSlot::withTrashed()
+            ->where('training_program_id', $trainingProgramId)
+            ->whereDate('date', $date)
+            ->where('slot', $slot)
+            ->first();
+
+        if ($existing === null) {
+            TrainingProgramSlot::create([
+                'training_program_id' => $trainingProgramId,
+                'date' => $date,
+                'slot' => $slot,
+            ]);
+        } elseif ($existing->trashed()) {
+            $existing->restore();
+        } else {
+            $existing->delete();
+        }
     }
 
-    public function selectWeek(string $monday): void
+    protected function toggleOverrideSlot(TrainingProgram $groupProgram, string $date, int $slot): void
     {
-        $this->pendingOther = false;
-        $this->otherWeekDate = null;
-        $this->resetValidation();
-        $this->pendingDate = $monday;
-    }
+        $overrideProgram = TrainingProgram::findOrCreateOverride($groupProgram, (int) $this->user);
 
-    public function selectDay(string $day): void
-    {
-        $this->pendingOther = false;
-        $this->pendingDate = $day;
-    }
+        $existingOverride = TrainingProgramSlot::query()
+            ->where('training_program_id', $overrideProgram->id)
+            ->whereDate('date', $date)
+            ->where('slot', $slot)
+            ->first();
 
-    public function selectRange(string $start, string $end): void
-    {
-        $this->pendingOther = false;
-        $this->pendingStart = Carbon::parse($start)->startOfWeek($this->weekStartsOn)->format('Y-m-d');
-        $this->pendingEnd = Carbon::parse($end)->endOfWeek($this->weekEndsOn)->format('Y-m-d');
-    }
+        if ($existingOverride !== null) {
+            $existingOverride->forceDelete();
 
-    public function updatedOtherMonthDate(?string $value): void
-    {
-        if (! $value) {
+            if ($overrideProgram->slots()->count() === 0) {
+                $overrideProgram->forceDelete();
+            }
+
             return;
         }
 
-        try {
-            $date = Carbon::parse($value);
-        } catch (\Exception) {
-            return;
-        }
+        $groupSlotActive = TrainingProgramSlot::query()
+            ->where('training_program_id', $groupProgram->id)
+            ->whereDate('date', $date)
+            ->where('slot', $slot)
+            ->exists();
 
-        $this->pendingDate = $date->startOfMonth()->format('Y-m-d');
-        $this->otherMonthDate = null;
-    }
-
-    public function updatedOtherWeekDate(?string $value): void
-    {
-        if (! $value) {
-            return;
-        }
-
-        try {
-            $date = Carbon::parse($value);
-        } catch (\Exception) {
-            return;
-        }
-
-        $this->pendingDate = $date->startOfWeek($this->weekStartsOn)->format('Y-m-d');
-        $this->otherWeekDate = null;
-    }
-
-    public function updatedPendingStart(): void
-    {
-        if ($this->pendingStart) {
-            $this->pendingStart = Carbon::parse($this->pendingStart)->startOfWeek($this->weekStartsOn)->format('Y-m-d');
-        }
-    }
-
-    public function updatedPendingEnd(): void
-    {
-        if ($this->pendingEnd) {
-            $this->pendingEnd = Carbon::parse($this->pendingEnd)->endOfWeek($this->weekEndsOn)->format('Y-m-d');
-        }
+        TrainingProgramSlot::create([
+            'training_program_id' => $overrideProgram->id,
+            'date' => $date,
+            'slot' => $slot,
+            'active' => ! $groupSlotActive,
+        ]);
     }
 
     public function openAddContent(): void
@@ -514,6 +499,8 @@ class CalendarIndex extends Component
                 ->get(['id', 'name']),
             'program' => ExerciseProgram::query()
                 ->with('programCategory:id,name,color')
+                ->whereNull('owner_id')
+                ->whereNull('owner_type')
                 ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%"))
                 ->orderBy('name')
                 ->limit(20)
@@ -568,15 +555,63 @@ class CalendarIndex extends Component
         Flux::modal('add-content')->close();
     }
 
+    public function reorderPrograms(int $sourceId, int $targetId): void
+    {
+        $source = TrainingProgram::find($sourceId);
+
+        if ($this->user !== '' && $source?->isGroupLevel()) {
+            return;
+        }
+
+        $query = TrainingProgram::query();
+
+        if ($this->user !== '') {
+            $query->forUser((int) $this->group, (int) $this->user)->whereNotIn(
+                'exercise_program_id',
+                TrainingProgram::forGroup((int) $this->group)->pluck('exercise_program_id')
+            );
+        } else {
+            $query->forGroup((int) $this->group);
+        }
+
+        $programs = $query->orderBy('sort')->get();
+        $sourceIndex = $programs->search(fn ($p) => $p->id === $sourceId);
+        $targetIndex = $programs->search(fn ($p) => $p->id === $targetId);
+
+        if ($sourceIndex === false || $targetIndex === false) {
+            return;
+        }
+
+        $moved = $programs->splice($sourceIndex, 1);
+        $programs->splice($targetIndex, 0, $moved);
+
+        $programs->values()->each(function (TrainingProgram $program, int $index) {
+            $program->update(['sort' => $index]);
+        });
+
+        unset($this->programs);
+    }
+
     public function removeTrainingProgram(int $trainingProgramId): void
     {
-        TrainingProgram::findOrFail($trainingProgramId)->delete();
+        $program = TrainingProgram::findOrFail($trainingProgramId);
+
+        if ($this->user !== '' && $program->isGroupLevel()) {
+            return;
+        }
+
+        $program->delete();
         unset($this->programs);
     }
 
     public function openEditProgram(int $trainingProgramId): void
     {
         $trainingProgram = TrainingProgram::with('program.programCategory', 'program.exercises')->findOrFail($trainingProgramId);
+
+        if ($this->user !== '' && $trainingProgram->isGroupLevel()) {
+            return;
+        }
+
         $programData = ExerciseProgramData::fromModel($trainingProgram->program);
 
         $this->editingTrainingProgramId = $trainingProgramId;
@@ -607,7 +642,13 @@ class CalendarIndex extends Component
 
     public function deleteEditingTrainingProgram(): void
     {
-        TrainingProgram::findOrFail($this->editingTrainingProgramId)->delete();
+        $program = TrainingProgram::findOrFail($this->editingTrainingProgramId);
+
+        if ($this->user !== '' && $program->isGroupLevel()) {
+            return;
+        }
+
+        $program->delete();
 
         $this->editingTrainingProgramId = null;
         unset($this->programs);

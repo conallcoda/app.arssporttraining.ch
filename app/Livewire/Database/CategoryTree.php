@@ -3,7 +3,7 @@
 namespace App\Livewire\Database;
 
 use App\Actions\DeleteCategoryTree as DeleteAction;
-use App\Data\Category\CategoryData;
+use App\Data\Exercise\ExerciseCategoryData;
 use App\Models\Tag;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Form\Action;
@@ -29,7 +29,7 @@ class CategoryTree extends AbstractModelTree
 
     protected function getDataClass(): string
     {
-        return CategoryData::class;
+        return ExerciseCategoryData::class;
     }
 
     protected function getBaseQuery(): Builder
@@ -46,7 +46,7 @@ class CategoryTree extends AbstractModelTree
 
     protected function dataFromModel(Model $model): AbstractData
     {
-        return CategoryData::fromTagTree($model);
+        return ExerciseCategoryData::fromTagTree($model);
     }
 
     protected function getSortActions(): array
@@ -60,7 +60,7 @@ class CategoryTree extends AbstractModelTree
             Action::make('addChild', 'Add Child')
                 ->rowMenu()
                 ->icon('plus')
-                ->formModal(CategoryData::class, 'Add Child Category')
+                ->formModal(ExerciseCategoryData::class, 'Add Child Category')
                 ->prepareData(fn (Tag $model, array $data) => [
                     'id' => null,
                     'parentId' => $model->id,
@@ -253,7 +253,7 @@ class CategoryTree extends AbstractModelTree
         $selectedId = (int) $this->selectedTab;
 
         $selectedRoot = collect($this->treeItems)
-            ->first(fn (CategoryData $item) => $item->id === $selectedId);
+            ->first(fn (ExerciseCategoryData $item) => $item->id === $selectedId);
 
         if (! $selectedRoot || empty($selectedRoot->children)) {
             return [];

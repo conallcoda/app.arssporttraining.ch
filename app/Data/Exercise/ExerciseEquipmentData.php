@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Data\Equipment;
+namespace App\Data\Exercise;
 
 use App\Models\Tag;
 use Carbon\Carbon;
@@ -10,7 +10,7 @@ use Coda\Cms\Form\Fields\Text;
 use Coda\Cms\Form\Form;
 use Coda\Cms\Models\Contracts\HasForms;
 
-class EquipmentData extends AbstractData implements HasForms
+class ExerciseEquipmentData extends AbstractData implements HasForms
 {
     use InteractsWithForms;
 

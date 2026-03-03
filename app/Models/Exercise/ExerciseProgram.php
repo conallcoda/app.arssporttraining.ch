@@ -33,7 +33,6 @@ class ExerciseProgram extends Model
         'config',
         'owner_type',
         'owner_id',
-        'visibility',
     ];
 
     protected function config(): Attribute
