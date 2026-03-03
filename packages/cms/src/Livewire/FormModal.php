@@ -4,14 +4,20 @@ namespace Coda\Cms\Livewire;
 
 use Coda\Cms\Form\Form;
 use Coda\Cms\Livewire\Concerns\InteractsWithFormData;
+use Coda\Cms\Livewire\Concerns\InteractsWithMediaUploads;
+use Coda\Cms\Models\Contracts\PersistsWithMedia;
 use Flux\Flux;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
+use Livewire\WithFileUploads;
+use Spatie\MediaLibrary\HasMedia;
 
 class FormModal extends Component
 {
     use InteractsWithFormData;
+    use InteractsWithMediaUploads;
+    use WithFileUploads;
 
     public array $data = [];
 
@@ -55,6 +61,11 @@ class FormModal extends Component
         $this->showDelete = $showDelete;
     }
 
+    protected function getFormDataClass(): ?string
+    {
+        return $this->formDataClass;
+    }
+
     #[Computed]
     public function formConfig(): Form
     {
@@ -90,6 +101,7 @@ class FormModal extends Component
     public function open(array $data = [], ?string $title = null, ?string $focusField = null, ?int $focusIndex = null): void
     {
         $this->activeTitle = $title;
+        $this->clearAllMediaState();
 
         unset($this->formConfig, $this->fieldsets);
         $this->openCount++;
@@ -103,6 +115,7 @@ class FormModal extends Component
         }
 
         $this->ensureRelationshipItemsHaveKeys();
+        $this->loadExistingMediaFromData();
 
         Flux::modal($this->name)->show();
 
@@ -111,15 +124,66 @@ class FormModal extends Component
         }
     }
 
+    protected function loadExistingMediaFromData(): void
+    {
+        if (! $this->hasFileUploadFields()) {
+            return;
+        }
+
+        if (empty($this->data['id'])) {
+            return;
+        }
+
+        $dataClass = $this->getFormDataClass();
+
+        if (! $dataClass || ! is_subclass_of($dataClass, PersistsWithMedia::class)) {
+            return;
+        }
+
+        $model = $dataClass::resolveModel((int) $this->data['id']);
+
+        if ($model instanceof HasMedia) {
+            $this->loadAllExistingMedia($model);
+        }
+    }
+
     public function submit(): void
     {
-        $this->validate($this->buildValidationRulesFromFieldsets(), [
+        $rules = array_merge(
+            $this->buildValidationRulesFromFieldsets(),
+            $this->buildMediaValidationRules()
+        );
+
+        $this->validate($rules, [
             'required' => 'This field is required.',
         ]);
 
+        $dataClass = $this->getFormDataClass();
+        $hasMedia = $this->hasFileUploadFields()
+            && $dataClass
+            && is_subclass_of($dataClass, PersistsWithMedia::class);
+
+        $submittedData = $this->data;
+
+        if ($hasMedia) {
+            $isNew = empty($this->data['id']);
+            $dataInstance = $dataClass::from($this->data);
+            $model = $dataInstance->persist();
+
+            if ($model instanceof HasMedia) {
+                $this->persistAllMedia($model);
+            }
+
+            $submittedData = array_merge($this->data, [
+                'id' => $dataInstance->id ?? $this->data['id'] ?? null,
+                '_persisted' => true,
+                '_isNew' => $isNew,
+            ]);
+        }
+
         Flux::modal($this->name)->close();
 
-        $this->dispatch("{$this->name}.submitted", data: $this->data);
+        $this->dispatch("{$this->name}.submitted", data: $submittedData);
     }
 
     public function requestDelete(): void

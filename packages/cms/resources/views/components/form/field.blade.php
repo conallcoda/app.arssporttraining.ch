@@ -596,6 +596,9 @@
             </x-slot:icon>
         </flux:input>
     @elseif ($field instanceof FileUpload)
+        @php
+            $mediaModel = "mediaUploads.{$field->name}";
+        @endphp
         <flux:field>
             <div class="flex items-center gap-1 mb-2">
                 <flux:label :badge="$field->required ? 'Required' : null">{{ $field->getLabel() }}</flux:label>
@@ -604,7 +607,7 @@
                 @endif
             </div>
             @if ($field->multiple)
-                <flux:file-upload wire:model="{{ $field->name }}" multiple label="">
+                <flux:file-upload wire:model="{{ $mediaModel }}" multiple>
                     <flux:file-upload.dropzone
                         heading="{{ $field->dropzoneHeading }}"
                         text="{{ $field->dropzoneText }}"
@@ -612,7 +615,7 @@
                     />
                 </flux:file-upload>
             @else
-                <flux:file-upload wire:model="{{ $field->name }}" label="">
+                <flux:file-upload wire:model="{{ $mediaModel }}">
                     <flux:file-upload.dropzone
                         heading="{{ $field->dropzoneHeading }}"
                         text="{{ $field->dropzoneText }}"
@@ -623,21 +626,23 @@
 
             @php
                 $existingItems = $this->existingMedia[$field->name] ?? [];
-                $newUploads = $this->{$field->name} ?? ($field->multiple ? [] : null);
+                $newUploads = $this->mediaUploads[$field->name] ?? ($field->multiple ? [] : null);
             @endphp
 
-            <div class="mt-3 flex flex-col gap-2">
+            <div class="mt-3 flex flex-col gap-2" x-data="{ previewUrl: null }">
                 @foreach ($existingItems as $media)
-                    <flux:file-item
-                        wire:key="existing-{{ $field->name }}-{{ $media['id'] }}"
-                        :heading="$media['name']"
-                        :image="$media['url']"
-                        :size="$media['size']"
-                    >
-                        <x-slot name="actions">
-                            <flux:file-item.remove wire:click="removeExistingMedia('{{ $field->name }}', {{ $media['id'] }})" />
-                        </x-slot>
-                    </flux:file-item>
+                    <div class="cursor-pointer" @click="previewUrl = '{{ $media['url'] }}'; $flux.modal('image-preview-{{ $field->name }}').show()">
+                        <flux:file-item
+                            wire:key="existing-{{ $field->name }}-{{ $media['id'] }}"
+                            :heading="$media['name']"
+                            :image="$media['url']"
+                            :size="$media['size']"
+                        >
+                            <x-slot name="actions">
+                                <flux:file-item.remove @click.stop wire:click="removeExistingMedia('{{ $field->name }}', {{ $media['id'] }})" />
+                            </x-slot>
+                        </flux:file-item>
+                    </div>
                 @endforeach
 
                 @if (is_array($newUploads))
@@ -649,16 +654,18 @@
                             $uploadImage = ($uploadExists && $upload->isPreviewable()) ? $upload->temporaryUrl() : null;
                         @endphp
                         @if ($uploadImage)
-                            <flux:file-item
-                                wire:key="upload-{{ $field->name }}-{{ $index }}"
-                                :heading="$uploadName"
-                                :image="$uploadImage"
-                                :size="$uploadSize"
-                            >
-                                <x-slot name="actions">
-                                    <flux:file-item.remove wire:click="removeNewUpload('{{ $field->name }}', {{ $index }})" />
-                                </x-slot>
-                            </flux:file-item>
+                            <div class="cursor-pointer" @click="previewUrl = '{{ $uploadImage }}'; $flux.modal('image-preview-{{ $field->name }}').show()">
+                                <flux:file-item
+                                    wire:key="upload-{{ $field->name }}-{{ $index }}"
+                                    :heading="$uploadName"
+                                    :image="$uploadImage"
+                                    :size="$uploadSize"
+                                >
+                                    <x-slot name="actions">
+                                        <flux:file-item.remove @click.stop wire:click="removeNewUpload('{{ $field->name }}', {{ $index }})" />
+                                    </x-slot>
+                                </flux:file-item>
+                            </div>
                         @else
                             <flux:file-item
                                 wire:key="upload-{{ $field->name }}-{{ $index }}"
@@ -666,7 +673,7 @@
                                 :size="$uploadSize"
                             >
                                 <x-slot name="actions">
-                                    <flux:file-item.remove wire:click="removeNewUpload('{{ $field->name }}', {{ $index }})" />
+                                    <flux:file-item.remove @click.stop wire:click="removeNewUpload('{{ $field->name }}', {{ $index }})" />
                                 </x-slot>
                             </flux:file-item>
                         @endif
@@ -679,16 +686,18 @@
                         $uploadImage = ($uploadExists && $newUploads->isPreviewable()) ? $newUploads->temporaryUrl() : null;
                     @endphp
                     @if ($uploadImage)
-                        <flux:file-item
-                            wire:key="upload-{{ $field->name }}-single"
-                            :heading="$uploadName"
-                            :image="$uploadImage"
-                            :size="$uploadSize"
-                        >
-                            <x-slot name="actions">
-                                <flux:file-item.remove wire:click="removeNewUpload('{{ $field->name }}', 0)" />
-                            </x-slot>
-                        </flux:file-item>
+                        <div class="cursor-pointer" @click="previewUrl = '{{ $uploadImage }}'; $flux.modal('image-preview-{{ $field->name }}').show()">
+                            <flux:file-item
+                                wire:key="upload-{{ $field->name }}-single"
+                                :heading="$uploadName"
+                                :image="$uploadImage"
+                                :size="$uploadSize"
+                            >
+                                <x-slot name="actions">
+                                    <flux:file-item.remove @click.stop wire:click="removeNewUpload('{{ $field->name }}', 0)" />
+                                </x-slot>
+                            </flux:file-item>
+                        </div>
                     @else
                         <flux:file-item
                             wire:key="upload-{{ $field->name }}-single"
@@ -696,13 +705,19 @@
                             :size="$uploadSize"
                         >
                             <x-slot name="actions">
-                                <flux:file-item.remove wire:click="removeNewUpload('{{ $field->name }}', 0)" />
+                                <flux:file-item.remove @click.stop wire:click="removeNewUpload('{{ $field->name }}', 0)" />
                             </x-slot>
                         </flux:file-item>
                     @endif
                 @endif
+
+                <flux:modal :name="'image-preview-' . $field->name" variant="bare" class="w-auto max-w-[90vw] bg-transparent! shadow-none!">
+                    <div class="flex items-center justify-center" @click="$flux.modal('image-preview-{{ $field->name }}').close()">
+                        <img :src="previewUrl" @click.stop class="max-h-[85vh] max-w-[85vw] rounded-lg object-contain" />
+                    </div>
+                </flux:modal>
             </div>
-            <flux:error name="{{ $field->name }}" />
+            <flux:error name="{{ $mediaModel }}" />
         </flux:field>
     @endif
 </div>

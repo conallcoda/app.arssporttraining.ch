@@ -782,10 +782,12 @@ abstract class AbstractModelList extends Component
 
     public function handleFormSubmitted(array $data): void
     {
-        $model = $this->createDataFromForm($data);
-        $model->persist();
+        if (empty($data['_persisted'])) {
+            $model = $this->createDataFromForm($data);
+            $model->persist();
+        }
 
-        $isNew = empty($data['id']);
+        $isNew = ! empty($data['_persisted']) ? ! empty($data['_isNew']) : empty($data['id']);
         $name = $data['name'] ?? $this->getEntityName();
         $action = $isNew ? 'created' : 'updated';
         Flux::toast(text: "{$name} {$action}", variant: 'success');

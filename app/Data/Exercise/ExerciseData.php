@@ -11,8 +11,10 @@ use Coda\Cms\Form\Fields;
 use Coda\Cms\Form\Fields\FileUpload;
 use Coda\Cms\Form\Form;
 use Coda\Cms\Models\Contracts\HasForms;
+use Coda\Cms\Models\Contracts\PersistsWithMedia;
+use Illuminate\Database\Eloquent\Model;
 
-class ExerciseData extends AbstractData implements HasForms
+class ExerciseData extends AbstractData implements HasForms, PersistsWithMedia
 {
     use InteractsWithForms;
 
@@ -70,7 +72,12 @@ class ExerciseData extends AbstractData implements HasForms
         return $exercise->{$relation}->pluck('id')->all();
     }
 
-    public function persist(): void
+    public static function resolveModel(int $id): ?Model
+    {
+        return Exercise::find($id);
+    }
+
+    public function persist(): Model
     {
         $exercise = Exercise::updateOrCreate(
             ['id' => $this->id],
@@ -92,13 +99,15 @@ class ExerciseData extends AbstractData implements HasForms
         ])->filter()->all();
 
         $exercise->tags()->sync($tagIds);
+
+        return $exercise;
     }
 
     public static function getForm(): Form
     {
         $form = Form::make()
             ->fieldset('General', [
-                Fields\Text::make('name'),
+                Fields\Text::make('name')->required(true),
                 Fields\Category::make('category', 'exercise_category')->label('Category')->withOptions(),
                 Fields\Select::make('template')
                     ->label('Template')

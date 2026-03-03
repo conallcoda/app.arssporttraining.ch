@@ -4,28 +4,25 @@ namespace App\Livewire\Database;
 
 use App\Data\Exercise\ExerciseData;
 use App\Data\Exercise\Settings\PreviewSetting;
-use App\Livewire\Concerns\InteractsWithMediaUploads;
 use App\Livewire\Concerns\InteractsWithPreview;
-use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseTemplate;
 use Coda\Cms\Form\Form;
 use Coda\Cms\Livewire\FormModal;
-use Flux\Flux;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
-use Livewire\WithFileUploads;
 
 class ExerciseForm extends FormModal
 {
-    use InteractsWithMediaUploads;
     use InteractsWithPreview;
-    use WithFileUploads;
-
-    public array $photos = [];
 
     public array $preTemplateConfig = [];
 
     private ?string $previousTemplateId = null;
+
+    protected function getFormDataClass(): ?string
+    {
+        return ExerciseData::class;
+    }
 
     public function mount(
         string $name = 'exercise-form',
@@ -63,7 +60,6 @@ class ExerciseForm extends FormModal
     public function open(array $data = [], ?string $title = null, ?string $focusField = null, ?int $focusIndex = null): void
     {
         $this->preTemplateConfig = [];
-        $this->clearMediaState('photos');
 
         parent::open($data, $title, $focusField, $focusIndex);
 
@@ -72,14 +68,6 @@ class ExerciseForm extends FormModal
 
         if (isset($data['config']['settings'])) {
             $this->data['config']['settings'] = $data['config']['settings'];
-        }
-
-        if (! empty($data['id'])) {
-            $exercise = Exercise::with('media')->find($data['id']);
-
-            if ($exercise) {
-                $this->loadExistingMedia('photos', $exercise, 'photos');
-            }
         }
 
         $this->openPreview($data);
@@ -136,32 +124,6 @@ class ExerciseForm extends FormModal
         $this->data['config']['settings'] = $settings;
 
         unset($this->fieldsets);
-    }
-
-    public function submit(): void
-    {
-        $this->validate(array_merge(
-            $this->buildValidationRulesFromFieldsets(),
-            ['photos.*' => ['image', 'max:10240']]
-        ), [
-            'required' => 'This field is required.',
-        ]);
-
-        $exerciseData = ExerciseData::from($this->data);
-        $exerciseData->persist();
-
-        $exercise = Exercise::find($exerciseData->id);
-
-        if ($exercise) {
-            $this->persistMedia('photos', $exercise, 'photos');
-        }
-
-        Flux::modal($this->name)->close();
-
-        $this->dispatch(
-            "{$this->name}.submitted",
-            data: array_merge($this->data, ['id' => $exerciseData->id])
-        );
     }
 
     #[Computed]

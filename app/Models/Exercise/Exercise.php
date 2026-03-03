@@ -6,7 +6,10 @@ use App\Data\Exercise\ExerciseConfig;
 use App\Models\Tag;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;
 use Coda\Cms\Models\Concerns\HasTags;
+use Coda\Cms\Models\Contracts\HasCollectionPaths;
 use Coda\Cms\Models\Contracts\Taggable;
+use Database\Factories\ExerciseFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
@@ -14,12 +17,18 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
-class Exercise extends Model implements HasMedia, Taggable
+class Exercise extends Model implements HasCollectionPaths, HasMedia, Taggable
 {
+    use HasFactory;
     use HasQueryBuilder;
     use HasTags;
     use InteractsWithMedia;
     use SoftDeletes;
+
+    protected static function newFactory(): ExerciseFactory
+    {
+        return ExerciseFactory::new();
+    }
 
     protected $fillable = [
         'name',
@@ -34,6 +43,14 @@ class Exercise extends Model implements HasMedia, Taggable
     protected $attributes = [
         'config' => '{"settings":[],"overrides":{"cells":[],"weeks":[]}}',
     ];
+
+    public function getCollectionBasePath(string $collectionName): ?string
+    {
+        return match ($collectionName) {
+            'photos' => 'exercises/'.$this->getKey(),
+            default => null,
+        };
+    }
 
     public function registerMediaCollections(): void
     {
