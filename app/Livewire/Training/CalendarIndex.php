@@ -28,7 +28,7 @@ use Livewire\Component;
 class CalendarIndex extends Component
 {
     #[Url]
-    public string $mode = 'month';
+    public string $period = 'month';
 
     #[Url]
     public string $date = '';
@@ -69,7 +69,7 @@ class CalendarIndex extends Component
         }
 
         $this->calendarSettings = new CalendarSettingsData(
-            mode: $this->mode,
+            period: $this->period,
             date: $this->date,
             start: $this->start ?: null,
             end: $this->end ?: null,
@@ -86,7 +86,7 @@ class CalendarIndex extends Component
     {
         $this->calendarSettings = CalendarSettingsData::from($data);
 
-        $this->mode = $this->calendarSettings->mode;
+        $this->period = $this->calendarSettings->period;
         $this->date = $this->calendarSettings->date ?? $this->date;
         $this->start = $this->calendarSettings->start ?? '';
         $this->end = $this->calendarSettings->end ?? '';
@@ -138,7 +138,7 @@ class CalendarIndex extends Component
     {
         $date = Carbon::parse($this->calendarSettings->date);
 
-        return match ($this->calendarSettings->mode) {
+        return match ($this->calendarSettings->period) {
             'month' => $date->format('F Y'),
             'week' => 'W'.$date->isoWeek().' '.$date->isoWeekYear().' · '.$date->copy()->startOfWeek($this->weekStartsOn)->format('d M').' – '.$date->copy()->endOfWeek($this->weekEndsOn)->format('d M'),
             'day' => $date->format('d.m.Y'),
@@ -169,7 +169,7 @@ class CalendarIndex extends Component
             'program.programCategory',
             'program.exercises',
             'sourcePlan',
-            'slots' => fn ($q) => $q->withTrashed()->whereBetween('date', [$start, $end]),
+            'slots' => fn ($q) => $q->withTrashed()->whereBetween('datetime', [$start->copy()->startOfDay(), $end->copy()->endOfDay()]),
         ];
 
         $groupPrograms = TrainingProgram::with($eagerLoads)
@@ -211,7 +211,7 @@ class CalendarIndex extends Component
         }
 
         return TrainingProgram::with([
-            'slots' => fn ($q) => $q->whereBetween('date', [$start, $end]),
+            'slots' => fn ($q) => $q->whereBetween('datetime', [$start->copy()->startOfDay(), $end->copy()->endOfDay()]),
         ])
             ->forUser((int) $this->group, (int) $this->user)
             ->whereIn('exercise_program_id', $groupExerciseProgramIds)
@@ -226,7 +226,7 @@ class CalendarIndex extends Component
 
         foreach ($this->userOverrides as $override) {
             foreach ($override->slots as $slot) {
-                $key = $override->exercise_program_id.'-'.$slot->date->format('Y-m-d').'-'.$slot->slot;
+                $key = $override->exercise_program_id.'-'.$slot->datetime->format('Y-m-d H:i:s');
                 $map[$key] = $slot->active;
             }
         }
@@ -304,7 +304,7 @@ class CalendarIndex extends Component
     {
         $date = Carbon::parse($this->calendarSettings->date);
 
-        return match ($this->calendarSettings->mode) {
+        return match ($this->calendarSettings->period) {
             'month' => [$date->copy()->startOfMonth()->startOfWeek($this->weekStartsOn), $date->copy()->endOfMonth()->endOfWeek($this->weekEndsOn)],
             'week' => [$date->copy()->startOfWeek($this->weekStartsOn), $date->copy()->endOfWeek($this->weekEndsOn)],
             'day' => [$date->copy(), $date->copy()],
@@ -325,11 +325,11 @@ class CalendarIndex extends Component
 
         foreach ($this->programs as $program) {
             foreach ($program->slots as $slot) {
-                $key = $program->id.'-'.$slot->date->format('Y-m-d').'-'.$slot->slot;
+                $key = $program->id.'-'.$slot->datetime->format('Y-m-d H:i:s');
                 $active = ! $slot->trashed();
 
                 if ($isUserView && $program->isGroupLevel()) {
-                    $overrideKey = $program->exercise_program_id.'-'.$slot->date->format('Y-m-d').'-'.$slot->slot;
+                    $overrideKey = $program->exercise_program_id.'-'.$slot->datetime->format('Y-m-d H:i:s');
                     if (isset($overrides[$overrideKey])) {
                         $active = (bool) $overrides[$overrideKey];
                     }
@@ -373,9 +373,10 @@ class CalendarIndex extends Component
             }
 
             foreach ($this->days as $day) {
-                foreach ([0, 1] as $slotNum) {
-                    $key = $program->id.'-'.$day['date'].'-'.$slotNum;
-                    $overrideKey = $program->exercise_program_id.'-'.$day['date'].'-'.$slotNum;
+                foreach (['09:00:00', '14:00:00'] as $time) {
+                    $dt = $day['date'].' '.$time;
+                    $key = $program->id.'-'.$dt;
+                    $overrideKey = $program->exercise_program_id.'-'.$dt;
 
                     if (isset($overrides[$overrideKey])) {
                         $states[$key] = 'overridden';
@@ -389,32 +390,30 @@ class CalendarIndex extends Component
         return $states;
     }
 
-    public function toggleSlot(int $trainingProgramId, string $date, int $slot): void
+    public function toggleSlot(int $trainingProgramId, string $datetime): void
     {
         $program = TrainingProgram::findOrFail($trainingProgramId);
 
         if ($this->user !== '' && $program->isGroupLevel()) {
-            $this->toggleOverrideSlot($program, $date, $slot);
+            $this->toggleOverrideSlot($program, $datetime);
         } else {
-            $this->toggleDirectSlot($trainingProgramId, $date, $slot);
+            $this->toggleDirectSlot($trainingProgramId, $datetime);
         }
 
         unset($this->programs, $this->slotMap, $this->userOverrides, $this->overrideSlotMap, $this->slotState);
     }
 
-    protected function toggleDirectSlot(int $trainingProgramId, string $date, int $slot): void
+    protected function toggleDirectSlot(int $trainingProgramId, string $datetime): void
     {
         $existing = TrainingProgramSlot::withTrashed()
             ->where('training_program_id', $trainingProgramId)
-            ->whereDate('date', $date)
-            ->where('slot', $slot)
+            ->where('datetime', $datetime)
             ->first();
 
         if ($existing === null) {
             TrainingProgramSlot::create([
                 'training_program_id' => $trainingProgramId,
-                'date' => $date,
-                'slot' => $slot,
+                'datetime' => $datetime,
             ]);
         } elseif ($existing->trashed()) {
             $existing->restore();
@@ -423,14 +422,13 @@ class CalendarIndex extends Component
         }
     }
 
-    protected function toggleOverrideSlot(TrainingProgram $groupProgram, string $date, int $slot): void
+    protected function toggleOverrideSlot(TrainingProgram $groupProgram, string $datetime): void
     {
         $overrideProgram = TrainingProgram::findOrCreateOverride($groupProgram, (int) $this->user);
 
         $existingOverride = TrainingProgramSlot::query()
             ->where('training_program_id', $overrideProgram->id)
-            ->whereDate('date', $date)
-            ->where('slot', $slot)
+            ->where('datetime', $datetime)
             ->first();
 
         if ($existingOverride !== null) {
@@ -445,14 +443,12 @@ class CalendarIndex extends Component
 
         $groupSlotActive = TrainingProgramSlot::query()
             ->where('training_program_id', $groupProgram->id)
-            ->whereDate('date', $date)
-            ->where('slot', $slot)
+            ->where('datetime', $datetime)
             ->exists();
 
         TrainingProgramSlot::create([
             'training_program_id' => $overrideProgram->id,
-            'date' => $date,
-            'slot' => $slot,
+            'datetime' => $datetime,
             'active' => ! $groupSlotActive,
         ]);
     }
@@ -553,43 +549,6 @@ class CalendarIndex extends Component
         $this->addExerciseCategoryId = null;
         unset($this->programs);
         Flux::modal('add-content')->close();
-    }
-
-    public function reorderPrograms(int $sourceId, int $targetId): void
-    {
-        $source = TrainingProgram::find($sourceId);
-
-        if ($this->user !== '' && $source?->isGroupLevel()) {
-            return;
-        }
-
-        $query = TrainingProgram::query();
-
-        if ($this->user !== '') {
-            $query->forUser((int) $this->group, (int) $this->user)->whereNotIn(
-                'exercise_program_id',
-                TrainingProgram::forGroup((int) $this->group)->pluck('exercise_program_id')
-            );
-        } else {
-            $query->forGroup((int) $this->group);
-        }
-
-        $programs = $query->orderBy('sort')->get();
-        $sourceIndex = $programs->search(fn ($p) => $p->id === $sourceId);
-        $targetIndex = $programs->search(fn ($p) => $p->id === $targetId);
-
-        if ($sourceIndex === false || $targetIndex === false) {
-            return;
-        }
-
-        $moved = $programs->splice($sourceIndex, 1);
-        $programs->splice($targetIndex, 0, $moved);
-
-        $programs->values()->each(function (TrainingProgram $program, int $index) {
-            $program->update(['sort' => $index]);
-        });
-
-        unset($this->programs);
     }
 
     public function removeTrainingProgram(int $trainingProgramId): void

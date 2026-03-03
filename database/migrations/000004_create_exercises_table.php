@@ -64,7 +64,6 @@ return new class extends Migration
             $table->string('name');
             $table->foreignId('program_category_id')->nullable()->constrained('exercise_program_categories')->nullOnDelete();
             $table->integer('sort')->default(0);
-            $table->tinyInteger('visibility')->default(1);
             $table->json('config')->nullable();
             $table->timestamps();
             $table->softDeletes();

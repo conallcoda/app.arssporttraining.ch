@@ -38,12 +38,11 @@ it('creates override with active=0 when toggling an inherited active slot', func
 
     TrainingProgramSlot::create([
         'training_program_id' => $groupTp->id,
-        'date' => '2026-04-01',
-        'slot' => 0,
+        'datetime' => '2026-04-01 09:00:00',
     ]);
 
     Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'user' => (string) $user->id])
-        ->call('toggleSlot', $groupTp->id, '2026-04-01', 0);
+        ->call('toggleSlot', $groupTp->id, '2026-04-01 09:00:00');
 
     $override = TrainingProgram::forUser($group->id, $user->id)
         ->where('exercise_program_id', $program->id)
@@ -65,7 +64,7 @@ it('creates override with active=1 when toggling a non-existent inherited slot',
     ]);
 
     Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'user' => (string) $user->id])
-        ->call('toggleSlot', $groupTp->id, '2026-04-01', 0);
+        ->call('toggleSlot', $groupTp->id, '2026-04-01 09:00:00');
 
     $override = TrainingProgram::forUser($group->id, $user->id)
         ->where('exercise_program_id', $program->id)
@@ -87,13 +86,12 @@ it('removes override when toggling an existing override slot', function () {
 
     TrainingProgramSlot::create([
         'training_program_id' => $groupTp->id,
-        'date' => '2026-04-01',
-        'slot' => 0,
+        'datetime' => '2026-04-01 09:00:00',
     ]);
 
     Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'user' => (string) $user->id])
-        ->call('toggleSlot', $groupTp->id, '2026-04-01', 0)
-        ->call('toggleSlot', $groupTp->id, '2026-04-01', 0);
+        ->call('toggleSlot', $groupTp->id, '2026-04-01 09:00:00')
+        ->call('toggleSlot', $groupTp->id, '2026-04-01 09:00:00');
 
     $override = TrainingProgram::forUser($group->id, $user->id)
         ->where('exercise_program_id', $program->id)
@@ -113,11 +111,11 @@ it('cleans up empty override program when last slot is removed', function () {
     ]);
 
     $component = Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'user' => (string) $user->id])
-        ->call('toggleSlot', $groupTp->id, '2026-04-01', 0);
+        ->call('toggleSlot', $groupTp->id, '2026-04-01 09:00:00');
 
     expect(TrainingProgram::forUser($group->id, $user->id)->count())->toBe(1);
 
-    $component->call('toggleSlot', $groupTp->id, '2026-04-01', 0);
+    $component->call('toggleSlot', $groupTp->id, '2026-04-01 09:00:00');
 
     expect(TrainingProgram::forUser($group->id, $user->id)->count())->toBe(0);
 });
@@ -163,7 +161,7 @@ it('uses direct toggle logic in group view', function () {
     ]);
 
     Livewire::test(CalendarIndex::class, ['group' => (string) $group->id])
-        ->call('toggleSlot', $groupTp->id, '2026-04-01', 0);
+        ->call('toggleSlot', $groupTp->id, '2026-04-01 09:00:00');
 
     expect(TrainingProgramSlot::where('training_program_id', $groupTp->id)->count())->toBe(1);
     expect(TrainingProgram::where('exercise_program_id', $program->id)->where('user_id', '!=', null)->count())->toBe(0);

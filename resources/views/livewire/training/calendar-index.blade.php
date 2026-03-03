@@ -11,19 +11,19 @@
         <div class="flex-1 min-w-0">
             <x-section title="Calendar" class="!p-0">
                 <div class="px-4 pt-3 pb-2 flex items-center justify-between">
-                    <flux:heading size="xl">
-                        @if ($this->selectionName)
-                            {{ $this->selectionName }}, {{ $this->title }}
-                        @else
-                            {{ $this->title }}
-                        @endif
-                    </flux:heading>
-                    <div class="flex items-center gap-1">
-                        @if ($this->hasSelection())
-                            <flux:button variant="ghost" icon="plus" size="sm" wire:click="openAddContent" />
-                        @endif
-                        <flux:button variant="ghost" icon="calendar" size="sm" wire:click="openCalendarRange" />
+                    <div class="flex items-center gap-2">
+                        <flux:heading size="xl">
+                            @if ($this->selectionName)
+                                {{ $this->selectionName }}, {{ $this->title }}
+                            @else
+                                {{ $this->title }}
+                            @endif
+                        </flux:heading>
+                        <flux:button variant="ghost" icon="pencil" size="sm" wire:click="openCalendarRange" />
                     </div>
+                    @if ($this->hasSelection())
+                        <flux:button variant="ghost" icon="plus" size="sm" wire:click="openAddContent" />
+                    @endif
                 </div>
 
                 @if ($this->hasSelection() && $this->programs->isNotEmpty())
@@ -71,35 +71,18 @@
                                     @endforeach
                                 </tr>
                             </thead>
-                            <tbody x-data="sortable_programs">
+                            <tbody>
                                 @foreach ($this->programs as $entry)
                                     <tr wire:key="program-{{ $entry->id }}-am">
                                         @php
                                             $isInherited = $this->user !== '' && $entry->isGroupLevel();
                                         @endphp
                                         <td rowspan="2" x-data="{ open: false }"
-                                            data-program-id="{{ $entry->id }}"
-                                            @dragover="handleDragOver($event, {{ $entry->id }})"
-                                            @dragleave="handleDragLeave($event)"
-                                            @drop="handleDrop($event, {{ $entry->id }})"
                                             class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-medium text-zinc-700 dark:text-zinc-300 whitespace-nowrap align-top min-w-[180px] {{ $entry->program->programCategory?->color ? \Coda\Cms\Support\ColorPalette::lightOpaque($entry->program->programCategory->color) : 'bg-white dark:bg-zinc-900' }}">
                                             <div class="flex items-center gap-2">
-                                                @if ($isInherited)
-                                                    <div class="shrink-0 text-zinc-300 dark:text-zinc-600">
-                                                        <flux:icon.users class="size-4" />
-                                                    </div>
-                                                @else
-                                                    <div draggable="true"
-                                                        @dragstart="handleDragStart($event, {{ $entry->id }})"
-                                                        @dragend="handleDragEnd($event)"
-                                                        class="shrink-0 cursor-grab active:cursor-grabbing text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">
-                                                        <flux:icon.grip class="size-4" />
-                                                    </div>
-                                                @endif
                                                 <div class="flex flex-col gap-0.5 flex-1 min-w-0">
                                                     @if ($isInherited)
                                                         <span class="text-zinc-500 dark:text-zinc-400">{{ $entry->program->name }}</span>
-                                                        <flux:badge size="sm" variant="outline" class="w-fit">Group</flux:badge>
                                                     @else
                                                         <button type="button" wire:click="openEditProgram({{ $entry->id }})"
                                                             class="text-left hover:underline">
@@ -140,32 +123,32 @@
                                         </td>
                                         @foreach ($this->days as $day)
                                             @php
-                                                $amKey = $entry->id . '-' . $day['date'] . '-0';
+                                                $amKey = $entry->id . '-' . $day['date'] . ' 09:00:00';
                                                 $amActive = $this->slotMap[$amKey] ?? false;
                                                 $amState = $this->slotState[$amKey] ?? 'direct';
                                             @endphp
                                             @if ($amActive && $amState === 'inherited')
-                                                <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }}', 0)"
+                                                <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }} 09:00:00')"
                                                     class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-emerald-400/30 dark:bg-emerald-500/20 cursor-pointer">
                                                     <div class="aspect-square"></div>
                                                 </td>
                                             @elseif ($amActive && $amState === 'overridden')
-                                                <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }}', 0)"
-                                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-sky-400/60 dark:bg-sky-500/40 cursor-pointer">
+                                                <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }} 09:00:00')"
+                                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-emerald-400/60 dark:bg-emerald-500/40 cursor-pointer">
                                                     <div class="aspect-square"></div>
                                                 </td>
                                             @elseif ($amActive)
-                                                <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }}', 0)"
+                                                <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }} 09:00:00')"
                                                     class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-emerald-400/60 dark:bg-emerald-500/40 cursor-pointer">
                                                     <div class="aspect-square"></div>
                                                 </td>
                                             @elseif (! $amActive && $amState === 'overridden')
-                                                <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }}', 0)"
+                                                <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }} 09:00:00')"
                                                     class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-red-200/30 dark:bg-red-900/10 cursor-pointer">
                                                     <div class="aspect-square"></div>
                                                 </td>
                                             @else
-                                                <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }}', 0)"
+                                                <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }} 09:00:00')"
                                                     class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer {{ $day['isToday'] ? 'bg-blue-50/50 dark:bg-blue-900/10' : ($day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '') }}">
                                                     <div class="aspect-square"></div>
                                                 </td>
@@ -179,32 +162,32 @@
                                         </td>
                                         @foreach ($this->days as $day)
                                             @php
-                                                $pmKey = $entry->id . '-' . $day['date'] . '-1';
+                                                $pmKey = $entry->id . '-' . $day['date'] . ' 14:00:00';
                                                 $pmActive = $this->slotMap[$pmKey] ?? false;
                                                 $pmState = $this->slotState[$pmKey] ?? 'direct';
                                             @endphp
                                             @if ($pmActive && $pmState === 'inherited')
-                                                <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }}', 1)"
+                                                <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }} 14:00:00')"
                                                     class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-emerald-400/30 dark:bg-emerald-500/20 cursor-pointer">
                                                     <div class="aspect-square"></div>
                                                 </td>
                                             @elseif ($pmActive && $pmState === 'overridden')
-                                                <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }}', 1)"
-                                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-sky-400/60 dark:bg-sky-500/40 cursor-pointer">
+                                                <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }} 14:00:00')"
+                                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-emerald-400/60 dark:bg-emerald-500/40 cursor-pointer">
                                                     <div class="aspect-square"></div>
                                                 </td>
                                             @elseif ($pmActive)
-                                                <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }}', 1)"
+                                                <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }} 14:00:00')"
                                                     class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-emerald-400/60 dark:bg-emerald-500/40 cursor-pointer">
                                                     <div class="aspect-square"></div>
                                                 </td>
                                             @elseif (! $pmActive && $pmState === 'overridden')
-                                                <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }}', 1)"
+                                                <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }} 14:00:00')"
                                                     class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-red-200/30 dark:bg-red-900/10 cursor-pointer">
                                                     <div class="aspect-square"></div>
                                                 </td>
                                             @else
-                                                <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }}', 1)"
+                                                <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }} 14:00:00')"
                                                     class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer {{ $day['isToday'] ? 'bg-blue-50/50 dark:bg-blue-900/10' : ($day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '') }}">
                                                     <div class="aspect-square"></div>
                                                 </td>

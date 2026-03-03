@@ -22,9 +22,7 @@ return new class extends Migration
         Schema::create('training_program_slots', function (Blueprint $table) {
             $table->id();
             $table->foreignId('training_program_id')->constrained('training_programs')->cascadeOnDelete();
-            $table->date('date');
-            $table->tinyInteger('slot');
-            $table->integer('sort')->default(0);
+            $table->dateTime('datetime');
             $table->boolean('active')->default(true);
             $table->json('config')->nullable();
             $table->timestamps();

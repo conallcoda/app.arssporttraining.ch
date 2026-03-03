@@ -3,7 +3,7 @@
 namespace App\Data\Training\Calendar;
 
 use App\Form\Fields\Training\Calendar\CalendarPreset;
-use App\Form\Fields\Training\Calendar\Mode;
+use App\Form\Fields\Training\Calendar\TimePeriod;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Form\Concerns\InteractsWithForms;
 use Coda\Cms\Form\Form;
@@ -14,7 +14,7 @@ class CalendarSettingsData extends AbstractData implements HasForms
     use InteractsWithForms;
 
     public function __construct(
-        public string $mode = 'month',
+        public string $period = 'month',
         public ?string $date = null,
         public ?string $start = null,
         public ?string $end = null,
@@ -24,11 +24,11 @@ class CalendarSettingsData extends AbstractData implements HasForms
     {
         return Form::make()
             ->fieldset('Settings', [
-                Mode::make('mode')->live(),
+                TimePeriod::make('period')->live(),
             ])
-            ->fieldset('Month', [CalendarPreset::month()], show: 'mode == "month"')
-            ->fieldset('Week', [CalendarPreset::week()], show: 'mode == "week"')
-            ->fieldset('Day', [CalendarPreset::day()], show: 'mode == "day"')
-            ->fieldset('Range', [CalendarPreset::range()], show: 'mode == "range"');
+            ->fieldset('Month', [CalendarPreset::month()], show: 'period == "month"')
+            ->fieldset('Week', [CalendarPreset::week()], show: 'period == "week"')
+            ->fieldset('Day', [CalendarPreset::day()], show: 'period == "day"')
+            ->fieldset('Range', [CalendarPreset::range()], show: 'period == "range"');
     }
 }

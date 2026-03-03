@@ -49,7 +49,7 @@ class CalendarRangeForm extends FormModal
         $this->openCount++;
 
         $this->data = [
-            'mode' => $data['mode'] ?? 'month',
+            'period' => $data['period'] ?? 'month',
             'date' => $data['date'] ?? Carbon::now()->format('Y-m-d'),
             'start' => $data['start'] ?? '',
             'end' => $data['end'] ?? '',
@@ -60,7 +60,7 @@ class CalendarRangeForm extends FormModal
 
     public function updated(string $property, mixed $value): void
     {
-        if ($property === 'data.mode') {
+        if ($property === 'data.period') {
             $this->snapDateToMode();
             unset($this->fieldsets);
         }
@@ -68,7 +68,7 @@ class CalendarRangeForm extends FormModal
         if ($property === 'data.date' && $value) {
             try {
                 $date = Carbon::parse($value);
-                $this->data['date'] = match ($this->data['mode'] ?? 'month') {
+                $this->data['date'] = match ($this->data['period'] ?? 'month') {
                     'month' => $date->startOfMonth()->format('Y-m-d'),
                     'week' => $date->startOfWeek($this->weekStartsOn)->format('Y-m-d'),
                     default => $date->format('Y-m-d'),
@@ -99,13 +99,13 @@ class CalendarRangeForm extends FormModal
         try {
             $date = Carbon::parse($this->data['date']);
 
-            if ($this->data['mode'] === 'range') {
+            if ($this->data['period'] === 'range') {
                 $this->snapToRangePreset($date);
 
                 return;
             }
 
-            $this->data['date'] = match ($this->data['mode']) {
+            $this->data['date'] = match ($this->data['period']) {
                 'month' => $date->startOfMonth()->format('Y-m-d'),
                 'week' => $date->startOfWeek($this->weekStartsOn)->format('Y-m-d'),
                 'day' => Carbon::today()->format('Y-m-d'),

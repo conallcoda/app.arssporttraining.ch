@@ -17,9 +17,7 @@ class TrainingProgramSlotFactory extends Factory
     {
         return [
             'training_program_id' => TrainingProgram::factory(),
-            'date' => fake()->date(),
-            'slot' => fake()->randomElement([0, 1]),
-            'sort' => 0,
+            'datetime' => fake()->dateTime(),
             'active' => true,
             'config' => null,
         ];

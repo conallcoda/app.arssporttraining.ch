@@ -26,9 +26,7 @@ class TrainingProgramSlot extends Model
 
     protected $fillable = [
         'training_program_id',
-        'date',
-        'slot',
-        'sort',
+        'datetime',
         'active',
         'config',
     ];
@@ -36,7 +34,7 @@ class TrainingProgramSlot extends Model
     protected function casts(): array
     {
         return [
-            'date' => 'date',
+            'datetime' => 'datetime',
             'active' => 'boolean',
             'config' => 'array',
         ];
