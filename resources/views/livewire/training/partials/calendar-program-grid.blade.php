@@ -1,21 +1,9 @@
-<div class="overflow-x-auto" style="--program-col-width: 180px"
-    x-data="{
-        updateColWidth() {
-            const th = $el.querySelector('thead th');
-            if (th) $el.style.setProperty('--program-col-width', th.offsetWidth + 'px');
-        }
-    }"
-    x-init="$nextTick(() => updateColWidth())"
-    x-on:resize.window="updateColWidth()"
->
+<div class="overflow-x-auto" x-data="{ clickTimer: null }">
     <table class="border-separate border-spacing-0 text-sm border-t border-l border-zinc-300 dark:border-zinc-600">
         <thead>
             <tr class="bg-zinc-50 dark:bg-zinc-800/50">
                 <th rowspan="3"
                     class="sticky left-0 z-10 bg-zinc-100 dark:bg-zinc-800 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 text-left min-w-[180px]">
-                </th>
-                <th rowspan="3"
-                    class="sticky left-[var(--program-col-width)] z-10 bg-zinc-100 dark:bg-zinc-800 border-r border-b border-zinc-300 dark:border-zinc-600 px-1.5 py-2">
                 </th>
                 @foreach ($this->months as $month)
                     <th colspan="{{ $month['colspan'] }}"
@@ -44,11 +32,11 @@
         </thead>
         <tbody>
             @foreach ($this->programs as $entry)
-                <tr wire:key="program-{{ $entry->id }}-am">
+                <tr wire:key="program-{{ $entry->id }}">
                     @php
                         $isInherited = $this->user !== '' && $entry->isGroupLevel();
                     @endphp
-                    <td rowspan="2" x-data="{ open: false }"
+                    <td x-data="{ open: false }"
                         class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-medium text-zinc-700 dark:text-zinc-300 whitespace-nowrap align-top min-w-[180px] {{ $entry->program->programCategory?->color ? \Coda\Cms\Support\ColorPalette::lightOpaque($entry->program->programCategory->color) : 'bg-white dark:bg-zinc-900' }}">
                         <div class="flex items-center gap-2">
                             <div class="flex flex-col gap-0.5 flex-1 min-w-0">
@@ -88,77 +76,47 @@
                             </div>
                         @endif
                     </td>
-                    <td
-                        class="sticky left-[var(--program-col-width)] z-10 bg-white dark:bg-zinc-900 border-r border-b border-zinc-300 dark:border-zinc-600 px-1.5 py-1 text-[10px] text-zinc-400 dark:text-zinc-500">
-                        AM
-                    </td>
                     @foreach ($this->days as $day)
                         @php
-                            $amKey = $entry->id . '-' . $day['date'] . ' 09:00:00';
-                            $amActive = $this->slotMap[$amKey] ?? false;
-                            $amState = $this->slotState[$amKey] ?? 'direct';
+                            $dateKey = $entry->id . '-' . $day['date'];
+                            $slotTime = $this->cellSlots[$dateKey] ?? null;
+                            $label = match ($slotTime) {
+                                '09:00' => 'AM',
+                                '14:00' => 'PM',
+                                null => null,
+                                default => $slotTime,
+                            };
+                            $activeState = 'direct';
+                            if ($slotTime !== null) {
+                                $fullKey = $entry->id . '-' . $day['date'] . ' ' . $slotTime . ':00';
+                                $activeState = $this->slotState[$fullKey] ?? 'direct';
+                            }
+                            $isEditing = $editingProgramId === $entry->id && $editingDate === $day['date'];
                         @endphp
-                        @if ($amActive && $amState === 'inherited')
-                            <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }} 09:00:00')"
+                        @if ($isEditing)
+                            <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 relative overflow-visible">
+                                <div class="absolute left-0 top-0 z-50 min-w-[140px]"
+                                    @click.outside="$wire.cancelEditing()"
+                                    @keydown.escape.window="$wire.cancelEditing()">
+                                    <flux:time-picker wire:model.live="editingCellTime" time-format="24-hour" :interval="15" />
+                                </div>
+                                <div class="aspect-square"></div>
+                            </td>
+                        @elseif ($label !== null && $activeState === 'inherited')
+                            <td @click="if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; return; } clickTimer = setTimeout(() => { $wire.cycleSlot({{ $entry->id }}, '{{ $day['date'] }}'); clickTimer = null; }, 200)"
+                                @dblclick.prevent="clearTimeout(clickTimer); clickTimer = null; $wire.startEditingCell({{ $entry->id }}, '{{ $day['date'] }}')"
                                 class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-emerald-400/30 dark:bg-emerald-500/20 cursor-pointer">
-                                <div class="aspect-square"></div>
+                                <div class="aspect-square flex items-center justify-center text-[10px] font-medium text-emerald-700 dark:text-emerald-300">{{ $label }}</div>
                             </td>
-                        @elseif ($amActive && $amState === 'overridden')
-                            <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }} 09:00:00')"
+                        @elseif ($label !== null)
+                            <td @click="if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; return; } clickTimer = setTimeout(() => { $wire.cycleSlot({{ $entry->id }}, '{{ $day['date'] }}'); clickTimer = null; }, 200)"
+                                @dblclick.prevent="clearTimeout(clickTimer); clickTimer = null; $wire.startEditingCell({{ $entry->id }}, '{{ $day['date'] }}')"
                                 class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-emerald-400/60 dark:bg-emerald-500/40 cursor-pointer">
-                                <div class="aspect-square"></div>
-                            </td>
-                        @elseif ($amActive)
-                            <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }} 09:00:00')"
-                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-emerald-400/60 dark:bg-emerald-500/40 cursor-pointer">
-                                <div class="aspect-square"></div>
-                            </td>
-                        @elseif (! $amActive && $amState === 'overridden')
-                            <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }} 09:00:00')"
-                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-red-200/30 dark:bg-red-900/10 cursor-pointer">
-                                <div class="aspect-square"></div>
+                                <div class="aspect-square flex items-center justify-center text-[10px] font-medium text-emerald-700 dark:text-emerald-300">{{ $label }}</div>
                             </td>
                         @else
-                            <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }} 09:00:00')"
-                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer {{ $day['isToday'] ? 'bg-blue-50/50 dark:bg-blue-900/10' : ($day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '') }}">
-                                <div class="aspect-square"></div>
-                            </td>
-                        @endif
-                    @endforeach
-                </tr>
-                <tr wire:key="program-{{ $entry->id }}-pm">
-                    <td
-                        class="sticky left-[var(--program-col-width)] z-10 bg-white dark:bg-zinc-900 border-r border-b border-zinc-300 dark:border-zinc-600 px-1.5 py-1 text-[10px] text-zinc-400 dark:text-zinc-500">
-                        PM
-                    </td>
-                    @foreach ($this->days as $day)
-                        @php
-                            $pmKey = $entry->id . '-' . $day['date'] . ' 14:00:00';
-                            $pmActive = $this->slotMap[$pmKey] ?? false;
-                            $pmState = $this->slotState[$pmKey] ?? 'direct';
-                        @endphp
-                        @if ($pmActive && $pmState === 'inherited')
-                            <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }} 14:00:00')"
-                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-emerald-400/30 dark:bg-emerald-500/20 cursor-pointer">
-                                <div class="aspect-square"></div>
-                            </td>
-                        @elseif ($pmActive && $pmState === 'overridden')
-                            <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }} 14:00:00')"
-                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-emerald-400/60 dark:bg-emerald-500/40 cursor-pointer">
-                                <div class="aspect-square"></div>
-                            </td>
-                        @elseif ($pmActive)
-                            <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }} 14:00:00')"
-                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-emerald-400/60 dark:bg-emerald-500/40 cursor-pointer">
-                                <div class="aspect-square"></div>
-                            </td>
-                        @elseif (! $pmActive && $pmState === 'overridden')
-                            <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }} 14:00:00')"
-                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-red-200/30 dark:bg-red-900/10 cursor-pointer">
-                                <div class="aspect-square"></div>
-                            </td>
-                        @else
-                            <td wire:click="toggleSlot({{ $entry->id }}, '{{ $day['date'] }} 14:00:00')"
+                            <td @click="if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; return; } clickTimer = setTimeout(() => { $wire.cycleSlot({{ $entry->id }}, '{{ $day['date'] }}'); clickTimer = null; }, 200)"
+                                @dblclick.prevent="clearTimeout(clickTimer); clickTimer = null; $wire.startEditingCell({{ $entry->id }}, '{{ $day['date'] }}')"
                                 class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer {{ $day['isToday'] ? 'bg-blue-50/50 dark:bg-blue-900/10' : ($day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '') }}">
                                 <div class="aspect-square"></div>
                             </td>
