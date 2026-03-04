@@ -11,7 +11,7 @@ use Livewire\Attributes\Computed;
 
 trait InteractsWithPreview
 {
-    public int $defaultWeeks = 5;
+    public int $defaultWeeks = 1;
 
     public int $defaultSessionsPerWeek = 1;
 
@@ -33,10 +33,18 @@ trait InteractsWithPreview
         $this->showData = $showData;
     }
 
+    protected function resolveDefaultWeeks(): int
+    {
+        $hasAutomaticWeight = in_array('weight', $this->data['config']['settings'] ?? [])
+            && ($this->data['config']['weight']['mode'] ?? 'manual') === 'automatic';
+
+        return $hasAutomaticWeight ? 5 : 1;
+    }
+
     protected function applyPreviewDefaults(): void
     {
         $this->data['config']['preview'] = array_merge($this->data['config']['preview'] ?? [], [
-            'weeks' => $this->defaultWeeks,
+            'weeks' => $this->resolveDefaultWeeks(),
             'sessionsPerWeek' => $this->defaultSessionsPerWeek,
             'measuredReps' => 1,
             'measuredWeight' => 50,
@@ -117,6 +125,13 @@ trait InteractsWithPreview
         $this->data = array_replace_recursive($this->buildDefaultsFromFieldsets(), $this->data);
         $this->data['config']['settings'] = $settings;
         $this->data['config']['overrides'] = OverrideManager::reset();
+        $this->data['config']['preview']['weeks'] = $this->resolveDefaultWeeks();
+    }
+
+    public function updatedDataConfigWeightMode(): void
+    {
+        unset($this->previewGrid);
+        $this->data['config']['preview']['weeks'] = $this->resolveDefaultWeeks();
     }
 
     public function updatedDataConfigPreview(): void

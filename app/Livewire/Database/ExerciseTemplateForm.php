@@ -23,7 +23,7 @@ class ExerciseTemplateForm extends FormModal
         bool $flyout = true,
         string $maxWidth = 'max-w-[83.333%] overflow-x-hidden',
         bool $showDelete = false,
-        int $defaultWeeks = 5,
+        int $defaultWeeks = 1,
         int $defaultSessionsPerWeek = 1,
         bool $showPreview = true,
         bool $showData = false,
