@@ -7,7 +7,6 @@ use App\Data\Training\ExerciseProgramData;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExercisePlan;
 use App\Models\Exercise\ExerciseProgram;
-use App\Models\Exercise\ExerciseProgramCategory;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\User;
@@ -57,8 +56,6 @@ class CalendarIndex extends Component
     public string $addContentSearch = '';
 
     public string $addContentTab = 'plan';
-
-    public ?int $addExerciseCategoryId = null;
 
     public ?int $editingTrainingProgramId = null;
 
@@ -125,7 +122,7 @@ class CalendarIndex extends Component
             $this->user = (string) $first['user'];
         }
 
-        unset($this->selectionName, $this->programs, $this->slotMap, $this->cellSlots, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData);
+        unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->cellSlots, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData);
     }
 
     #[Computed]
@@ -171,6 +168,19 @@ class CalendarIndex extends Component
     }
 
     #[Computed]
+    public function groupedPrograms(): Collection
+    {
+        return $this->programs->groupBy(
+            fn (TrainingProgram $entry) => $entry->program->exercise_category_id ?? 0
+        )->map(function (Collection $entries, int $categoryId) {
+            return [
+                'category' => $categoryId > 0 ? $entries->first()->program->exerciseCategory : null,
+                'entries' => $entries,
+            ];
+        });
+    }
+
+    #[Computed]
     public function programs(): Collection
     {
         if (! $this->hasSelection()) {
@@ -180,7 +190,7 @@ class CalendarIndex extends Component
         [$start, $end] = $this->dateRange();
 
         $eagerLoads = [
-            'program.programCategory',
+            'program.exerciseCategory',
             'program.exercises',
             'sourcePlan',
             'slots' => fn ($q) => $q->withTrashed()->whereBetween('datetime', [$start->copy()->startOfDay(), $end->copy()->endOfDay()]),
@@ -466,7 +476,7 @@ class CalendarIndex extends Component
                         $entry = [
                             'trainingProgramId' => $program->id,
                             'name' => $program->program->name,
-                            'color' => $program->program->programCategory?->color,
+                            'color' => $program->program->exerciseCategory?->color,
                             'time' => $time,
                         ];
 
@@ -536,7 +546,7 @@ class CalendarIndex extends Component
             $toggle($date.' '.$nextTime.':00');
         }
 
-        unset($this->programs, $this->slotMap, $this->cellSlots, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData);
+        unset($this->programs, $this->groupedPrograms, $this->slotMap, $this->cellSlots, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData);
     }
 
     public function startEditingCell(int $trainingProgramId, string $date): void
@@ -595,7 +605,7 @@ class CalendarIndex extends Component
 
         $toggle($date.' '.$time.':00');
 
-        unset($this->programs, $this->slotMap, $this->cellSlots, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData);
+        unset($this->programs, $this->groupedPrograms, $this->slotMap, $this->cellSlots, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData);
     }
 
     public function toggleSlot(int $trainingProgramId, string $datetime): void
@@ -608,7 +618,7 @@ class CalendarIndex extends Component
             $this->toggleDirectSlot($trainingProgramId, $datetime);
         }
 
-        unset($this->programs, $this->slotMap, $this->cellSlots, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData);
+        unset($this->programs, $this->groupedPrograms, $this->slotMap, $this->cellSlots, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData);
     }
 
     protected function toggleDirectSlot(int $trainingProgramId, string $datetime): void
@@ -704,7 +714,7 @@ class CalendarIndex extends Component
             $existing->restore();
         }
 
-        unset($this->programs, $this->slotMap, $this->cellSlots, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData);
+        unset($this->programs, $this->groupedPrograms, $this->slotMap, $this->cellSlots, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData);
     }
 
     #[On('week-slot.deleted')]
@@ -722,31 +732,20 @@ class CalendarIndex extends Component
             $slot->forceDelete();
         }
 
-        unset($this->programs, $this->slotMap, $this->cellSlots, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData);
+        unset($this->programs, $this->groupedPrograms, $this->slotMap, $this->cellSlots, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData);
     }
 
     public function openAddContent(): void
     {
         $this->addContentSearch = '';
         $this->addContentTab = 'plan';
-        $this->addExerciseCategoryId = null;
         Flux::modal('add-content')->show();
     }
 
     public function updatedAddContentTab(): void
     {
         $this->addContentSearch = '';
-        $this->addExerciseCategoryId = null;
         unset($this->addContentOptions);
-    }
-
-    #[Computed]
-    public function categoryOptions(): array
-    {
-        return ExerciseProgramCategory::query()
-            ->orderBy('sort')
-            ->pluck('name', 'id')
-            ->all();
     }
 
     public function updatedAddContentSearch(): void
@@ -766,13 +765,13 @@ class CalendarIndex extends Component
                 ->limit(20)
                 ->get(['id', 'name']),
             'program' => ExerciseProgram::query()
-                ->with('programCategory:id,name,color')
+                ->with('exerciseCategory:id,name,color')
                 ->whereNull('owner_id')
                 ->whereNull('owner_type')
                 ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%"))
                 ->orderBy('name')
                 ->limit(20)
-                ->get(['id', 'name', 'program_category_id']),
+                ->get(['id', 'name', 'exercise_category_id']),
             'exercise' => Exercise::query()
                 ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%"))
                 ->orderBy('name')
@@ -790,7 +789,7 @@ class CalendarIndex extends Component
 
         TrainingProgram::importFromPlan($plan, $groupId, $userId);
 
-        unset($this->programs);
+        unset($this->programs, $this->groupedPrograms);
         Flux::modal('add-content')->close();
     }
 
@@ -802,24 +801,19 @@ class CalendarIndex extends Component
 
         TrainingProgram::importProgram($program, $groupId, $userId);
 
-        unset($this->programs);
+        unset($this->programs, $this->groupedPrograms);
         Flux::modal('add-content')->close();
     }
 
     public function addFromExercise(int $exerciseId): void
     {
-        $this->validate([
-            'addExerciseCategoryId' => 'required|integer|exists:exercise_program_categories,id',
-        ]);
-
         $exercise = Exercise::findOrFail($exerciseId);
         $groupId = (int) $this->group;
         $userId = $this->user !== '' ? (int) $this->user : null;
 
-        TrainingProgram::importExercise($exercise, $groupId, $userId, categoryId: $this->addExerciseCategoryId);
+        TrainingProgram::importExercise($exercise, $groupId, $userId, categoryId: $exercise->category_id);
 
-        $this->addExerciseCategoryId = null;
-        unset($this->programs);
+        unset($this->programs, $this->groupedPrograms);
         Flux::modal('add-content')->close();
     }
 
@@ -832,12 +826,12 @@ class CalendarIndex extends Component
         }
 
         $program->delete();
-        unset($this->programs);
+        unset($this->programs, $this->groupedPrograms);
     }
 
     public function openEditProgram(int $trainingProgramId): void
     {
-        $trainingProgram = TrainingProgram::with('program.programCategory', 'program.exercises')->findOrFail($trainingProgramId);
+        $trainingProgram = TrainingProgram::with('program.exerciseCategory', 'program.exercises')->findOrFail($trainingProgramId);
 
         if ($this->user !== '' && $trainingProgram->isGroupLevel()) {
             return;
@@ -862,7 +856,7 @@ class CalendarIndex extends Component
         $programData->persist();
 
         $this->editingTrainingProgramId = null;
-        unset($this->programs);
+        unset($this->programs, $this->groupedPrograms);
     }
 
     #[On('edit-program.delete-requested')]
@@ -882,7 +876,7 @@ class CalendarIndex extends Component
         $program->delete();
 
         $this->editingTrainingProgramId = null;
-        unset($this->programs);
+        unset($this->programs, $this->groupedPrograms);
         Flux::modal('confirm-delete-program')->close();
         Flux::modal('edit-program')->close();
     }

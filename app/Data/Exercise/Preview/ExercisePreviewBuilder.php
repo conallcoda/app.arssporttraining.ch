@@ -185,7 +185,8 @@ class ExercisePreviewBuilder
         if ($mode === 'automatic') {
             $cells = self::fillGrid($weeks, $setsPerWeek, '-');
         } else {
-            $defaultWeight = (float) ($config['default'] ?? 0);
+            $rawDefault = $config['default'] ?? null;
+            $defaultWeight = ($rawDefault === null || $rawDefault === '') ? '-' : (float) $rawDefault;
             $cells = self::fillGrid($weeks, $setsPerWeek, $defaultWeight);
         }
 
@@ -217,7 +218,8 @@ class ExercisePreviewBuilder
 
     private static function buildWeekColumn(string $setting, array $config, int $weeks, GridState $state): PreviewGridRow
     {
-        $default = $config['default'] ?? '-';
+        $rawDefault = $config['default'] ?? null;
+        $default = ($rawDefault === null || $rawDefault === '') ? '-' : $rawDefault;
         $cells = [];
         $overrideMap = [];
 
@@ -292,7 +294,8 @@ class ExercisePreviewBuilder
      */
     private static function buildDefaultCells(array $config, int $weeks, array $setsPerWeek): array
     {
-        $default = $config['default'] ?? '-';
+        $rawDefault = $config['default'] ?? null;
+        $default = ($rawDefault === null || $rawDefault === '') ? '-' : $rawDefault;
 
         return self::fillGrid($weeks, $setsPerWeek, $default);
     }

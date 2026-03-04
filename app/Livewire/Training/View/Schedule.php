@@ -146,7 +146,7 @@ class Schedule extends Component
     public function programOptions(): array
     {
         return ExerciseProgram::query()
-            ->with('programCategory')
+            ->with('exerciseCategory')
             ->orderBy('name')
             ->pluck('name', 'id')
             ->all();
@@ -168,7 +168,7 @@ class Schedule extends Component
         $ownerType = get_class($this->exercisePlan);
 
         $programs = ExerciseProgram::query()
-            ->with('programCategory')
+            ->with('exerciseCategory')
             ->orderBy('name')
             ->get();
 
@@ -247,7 +247,7 @@ class Schedule extends Component
 
         $program = $this->programs->firstWhere('id', $programId);
 
-        return $program?->programCategory?->color ?? Color::DEFAULT_COLOR;
+        return $program?->exerciseCategory?->color ?? Color::DEFAULT_COLOR;
     }
 
     public function confirmResetSchedule(): void
@@ -331,7 +331,7 @@ class Schedule extends Component
 
         $this->data = [
             'name' => $program->name,
-            'program_category_id' => $program->program_category_id,
+            'exercise_category_id' => $program->exercise_category_id,
             'exercises' => $program->exercises->map(fn ($exercise) => [
                 'id' => $exercise->id,
                 '_key' => uniqid('item_', true),
@@ -453,7 +453,7 @@ class Schedule extends Component
         $this->programs = ExerciseProgram::whereIn('id', $ids)
             ->with([
                 'exercises' => fn ($q) => $q->orderByPivot('sort'),
-                'programCategory',
+                'exerciseCategory',
             ])
             ->orderBy('name')
             ->get();

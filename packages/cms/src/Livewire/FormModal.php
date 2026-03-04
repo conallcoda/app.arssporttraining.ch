@@ -158,6 +158,8 @@ class FormModal extends Component
             'required' => 'This field is required.',
         ]);
 
+        $this->data = self::castEmptyStringsToNull($this->data);
+
         $dataClass = $this->getFormDataClass();
         $hasMedia = $this->hasFileUploadFields()
             && $dataClass
@@ -196,6 +198,19 @@ class FormModal extends Component
         Flux::modal($this->name)->close();
 
         $this->dispatch("{$this->name}.cancelled");
+    }
+
+    protected static function castEmptyStringsToNull(array $data): array
+    {
+        foreach ($data as $key => $value) {
+            if (is_array($value)) {
+                $data[$key] = self::castEmptyStringsToNull($value);
+            } elseif ($value === '') {
+                $data[$key] = null;
+            }
+        }
+
+        return $data;
     }
 
     public function render(): View

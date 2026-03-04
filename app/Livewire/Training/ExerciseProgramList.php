@@ -4,7 +4,7 @@ namespace App\Livewire\Training;
 
 use App\Data\Training\ExerciseProgramData;
 use App\Models\Exercise\ExerciseProgram;
-use App\Models\Exercise\ExerciseProgramCategory;
+use App\Models\Tag;
 use Coda\Cms\Display\DisplayFields\Ago;
 use Coda\Cms\Display\DisplayFields\ColorBadge;
 use Coda\Cms\Display\DisplayFields\Relationship;
@@ -32,8 +32,10 @@ class ExerciseProgramList extends AbstractModelList
     protected function getBaseQuery(): Builder
     {
         return ExerciseProgram::query()
-            ->with('programCategory')
-            ->leftJoin('exercise_program_categories', 'exercise_programs.program_category_id', '=', 'exercise_program_categories.id')
+            ->whereNull('owner_id')
+            ->whereNull('owner_type')
+            ->with(['exerciseCategory'])
+            ->leftJoin('tags as exercise_category_tags', 'exercise_programs.exercise_category_id', '=', 'exercise_category_tags.id')
             ->select('exercise_programs.*');
     }
 
@@ -42,7 +44,7 @@ class ExerciseProgramList extends AbstractModelList
         $query = parent::buildItemsQuery();
 
         if ($this->sort === '') {
-            $query->orderBy('exercise_program_categories.name')
+            $query->orderBy('exercise_category_tags.name')
                 ->orderBy('exercise_programs.name');
         }
 
@@ -51,11 +53,15 @@ class ExerciseProgramList extends AbstractModelList
 
     protected function getTable(): Table
     {
-        $colorLabels = ExerciseProgramCategory::query()
+        $exerciseCategoryColorLabels = Tag::query()
+            ->forScope('exercise_category')
+            ->whereNull('parent_id')
             ->pluck('name', 'color')
             ->all();
 
-        $categoryOptions = ExerciseProgramCategory::query()
+        $exerciseCategoryOptions = Tag::query()
+            ->forScope('exercise_category')
+            ->whereNull('parent_id')
             ->orderBy('name')
             ->pluck('name', 'id')
             ->all();
@@ -64,9 +70,9 @@ class ExerciseProgramList extends AbstractModelList
             ->columns([
                 Text::make('id')->label('ID')->width('w-16')->prefix('#'),
                 View::make('name', ExerciseProgramView::class)->label('Name'),
-                ColorBadge::make('categoryColor')
+                ColorBadge::make('exerciseCategoryColor')
                     ->label('Category')
-                    ->colorLabels($colorLabels),
+                    ->colorLabels($exerciseCategoryColorLabels),
                 Relationship::make('exercises')->label('Exercises')->modal()->width('w-full'),
                 Ago::make('updatedAt')->label('Last Changed'),
             ])
@@ -80,12 +86,12 @@ class ExerciseProgramList extends AbstractModelList
                             ->label('Search')
                             ->placeholder('Search programs...')
                     ),
-                TableFilter::exact('category', 'program_category_id')
+                TableFilter::exact('category', 'exercise_category_id')
                     ->field(
                         Select::make('category')
                             ->label('Category')
                             ->placeholder('All categories')
-                            ->options($categoryOptions)
+                            ->options($exerciseCategoryOptions)
                     ),
             ])
             ->limit(100);

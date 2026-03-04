@@ -26,6 +26,7 @@ class Tag extends Model
         'name',
         'short_name',
         'slug',
+        'color',
     ];
 
     protected function casts(): array

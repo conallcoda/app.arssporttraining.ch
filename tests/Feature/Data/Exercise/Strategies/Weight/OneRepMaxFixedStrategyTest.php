@@ -17,7 +17,7 @@ function buildStateWithReps(array $setsPerWeek, array $reps): GridState
 
 it('returns null when measured data is incomplete', function () {
     $setting = WeightSetting::from(['mode' => 'automatic', 'oneRepMaxModifier' => 100]);
-    $measuredData = new WeightProgressionSetting;
+    $measuredData = new WeightProgressionSetting(measuredWeight: null);
     $state = new GridState;
     $state->setSetsPerWeek([4, 4]);
 

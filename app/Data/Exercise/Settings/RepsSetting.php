@@ -10,11 +10,11 @@ class RepsSetting extends AbstractSetting
 {
     public function __construct(
         public string $mode = 'manual',
-        public string|int $default = 10,
-        public int $stepDownInterval = 2,
-        public int $decrement = 2,
-        public int $minimum = 1,
-        public string $label = '',
+        public string|int|null $default = 10,
+        public ?int $stepDownInterval = 2,
+        public ?int $decrement = 2,
+        public ?int $minimum = 1,
+        public ?string $label = '',
         public string $applyPer = 'session',
     ) {}
 
@@ -30,6 +30,10 @@ class RepsSetting extends AbstractSetting
     /** @return list<array{label: string, modalField: string}> */
     public function badges(): array
     {
+        if ($this->default === null || $this->default === '') {
+            return [];
+        }
+
         return [
             ['label' => $this->default.' reps', 'modalField' => static::fieldsetKey()],
         ];

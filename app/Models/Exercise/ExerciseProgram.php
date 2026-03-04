@@ -3,6 +3,7 @@
 namespace App\Models\Exercise;
 
 use App\Data\Training\Config\ExercisePlanConfig;
+use App\Models\Tag;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;
 use Database\Factories\ExerciseProgramFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -28,7 +29,7 @@ class ExerciseProgram extends Model
 
     protected $fillable = [
         'name',
-        'program_category_id',
+        'exercise_category_id',
         'sort',
         'config',
         'owner_type',
@@ -52,9 +53,9 @@ class ExerciseProgram extends Model
         return $this->morphTo();
     }
 
-    public function programCategory(): BelongsTo
+    public function exerciseCategory(): BelongsTo
     {
-        return $this->belongsTo(ExerciseProgramCategory::class, 'program_category_id');
+        return $this->belongsTo(Tag::class, 'exercise_category_id');
     }
 
     public function exercises(): BelongsToMany

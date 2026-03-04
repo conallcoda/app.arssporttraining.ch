@@ -9,7 +9,7 @@ use Coda\Cms\Form\Fields;
 class WattsSetting extends AbstractSetting
 {
     public function __construct(
-        public int $default = 100,
+        public ?int $default = 100,
         public string $applyPer = 'session',
     ) {}
 

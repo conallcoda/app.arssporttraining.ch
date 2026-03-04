@@ -48,13 +48,6 @@ return [
             'tempo' => null,
             'watts' => null,
             'weight' => null,
-            'preview' => [
-                'weeks' => 5,
-                'sessionsPerWeek' => 1,
-                'measuredReps' => 1,
-                'measuredWeight' => 50,
-                'targetGoal' => 10,
-            ],
         ],
     ],
     [
@@ -115,13 +108,6 @@ return [
                 'default' => 5,
                 'applyPer' => 'session',
             ],
-            'preview' => [
-                'weeks' => 5,
-                'sessionsPerWeek' => 1,
-                'measuredReps' => 1,
-                'measuredWeight' => 50,
-                'targetGoal' => 10,
-            ],
         ],
     ],
     [
@@ -169,13 +155,6 @@ return [
             'tempo' => null,
             'watts' => null,
             'weight' => null,
-            'preview' => [
-                'weeks' => 5,
-                'sessionsPerWeek' => 1,
-                'measuredReps' => 1,
-                'measuredWeight' => 50,
-                'targetGoal' => 10,
-            ],
         ],
     ],
     [
@@ -238,7 +217,7 @@ return [
     ],
     [
         'id' => 2,
-        'name' => 'Strength (Manual)',
+        'name' => 'Strength (Manual Coach)',
         'config' => [
             'settings' => [
                 'reps',
@@ -285,12 +264,55 @@ return [
                 'default' => 5,
                 'applyPer' => 'session',
             ],
-            'preview' => [
-                'weeks' => 5,
-                'sessionsPerWeek' => 1,
-                'measuredReps' => 1,
-                'measuredWeight' => 50,
-                'targetGoal' => 10,
+        ],
+    ],
+    [
+        'id' => 9,
+        'name' => 'Strength (Manual Athlete)',
+        'config' => [
+            'settings' => [
+                'reps',
+                'weight',
+                'tempo',
+                'rest',
+            ],
+            'overrides' => [
+                'cells' => [],
+                'weeks' => [],
+            ],
+            'sets' => [
+                'deload' => 'none',
+                'deloadBy' => 1,
+                'label' => 'Set',
+                'default' => 4,
+            ],
+            'distance' => null,
+            'duration' => null,
+            'heartRate' => null,
+            'heartRateZone' => null,
+            'pace' => null,
+            'reps' => [
+                'mode' => 'manual',
+                'default' => 10,
+                'stepDownInterval' => 2,
+                'decrement' => 2,
+                'minimum' => 1,
+                'label' => '',
+                'applyPer' => 'session',
+            ],
+            'rest' => [
+                'default' => 60,
+                'applyPer' => 'week',
+            ],
+            'tempo' => [
+                'default' => '3010',
+                'applyPer' => 'week',
+            ],
+            'watts' => null,
+            'weight' => [
+                'mode' => 'manual',
+                'oneRepMaxModifier' => 100,
+                'applyPer' => 'session',
             ],
         ],
     ],

@@ -9,8 +9,8 @@ use Coda\Cms\Form\Fields;
 class NoteSetting extends AbstractSetting
 {
     public function __construct(
-        public string $default = '',
-        public string $label = '',
+        public ?string $default = '',
+        public ?string $label = '',
         public string $applyPer = 'session',
     ) {}
 

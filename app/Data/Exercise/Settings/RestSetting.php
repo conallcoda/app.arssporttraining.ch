@@ -9,7 +9,7 @@ use Coda\Cms\Form\Fields;
 class RestSetting extends AbstractSetting
 {
     public function __construct(
-        public int $default = 60,
+        public ?int $default = 60,
         public string $applyPer = 'week',
     ) {}
 

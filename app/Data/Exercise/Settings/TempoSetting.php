@@ -9,7 +9,7 @@ use Coda\Cms\Form\Fields;
 class TempoSetting extends AbstractSetting
 {
     public function __construct(
-        public string $default = '3010',
+        public ?string $default = '3010',
         public string $applyPer = 'week',
     ) {}
 

@@ -44,7 +44,7 @@ class DeloadSetsStrategy implements DefinesEditability
         };
 
         if ($isDeloadWeek) {
-            return max(0, $this->setting->default - $this->setting->deloadBy);
+            return max(0, $this->setting->default - ($this->setting->deloadBy ?? 1));
         }
 
         return $this->setting->default;

@@ -46,7 +46,7 @@ class ColorPalette
 
     public static function light(string $color): string
     {
-        return "bg-{$color}-50 dark:bg-{$color}-900/20";
+        return "bg-{$color}-100 dark:bg-{$color}-900/20";
     }
 
     public static function lightBadge(string $color): string
@@ -56,7 +56,12 @@ class ColorPalette
 
     public static function lightOpaque(string $color): string
     {
-        return "bg-{$color}-50 dark:bg-{$color}-950";
+        return "bg-{$color}-300 dark:bg-{$color}-950";
+    }
+
+    public static function lightOpaqueSubtle(string $color): string
+    {
+        return "bg-{$color}-200 dark:bg-{$color}-900";
     }
 
     public static function lightStrong(string $color): string

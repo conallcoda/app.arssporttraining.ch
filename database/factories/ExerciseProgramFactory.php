@@ -16,7 +16,6 @@ class ExerciseProgramFactory extends Factory
     {
         return [
             'name' => fake()->words(2, true),
-            'program_category_id' => null,
         ];
     }
 }

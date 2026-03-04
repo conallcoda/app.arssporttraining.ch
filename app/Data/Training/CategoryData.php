@@ -2,15 +2,17 @@
 
 namespace App\Data\Training;
 
-use App\Form\Fields\Training\Program\Color;
-use App\Models\Exercise\ExerciseProgramCategory;
+use App\Models\Tag;
+use Carbon\Carbon;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Form\Concerns\InteractsWithForms;
+use Coda\Cms\Form\Fields\Select;
 use Coda\Cms\Form\Fields\Text;
 use Coda\Cms\Form\Form;
 use Coda\Cms\Models\Contracts\HasForms;
+use Coda\Cms\Support\ColorPalette;
 
-class ExerciseProgramCategoryData extends AbstractData implements HasForms
+class CategoryData extends AbstractData implements HasForms
 {
     use InteractsWithForms;
 
@@ -18,47 +20,47 @@ class ExerciseProgramCategoryData extends AbstractData implements HasForms
         public ?int $id,
         public string $name,
         public ?string $color = null,
-        public int $sort = 0,
+        public ?Carbon $updatedAt = null,
     ) {}
+
+    public static function fromTag(Tag $tag): self
+    {
+        return new self(
+            id: $tag->id,
+            name: $tag->name,
+            color: $tag->color,
+            updatedAt: $tag->updated_at,
+        );
+    }
 
     public static function from(mixed ...$payloads): static
     {
         $data = $payloads[0] ?? $payloads;
 
-        if ($data instanceof ExerciseProgramCategory) {
-            return self::fromModel($data);
+        if ($data instanceof Tag) {
+            return self::fromTag($data);
         }
 
         return new static(
             id: $data['id'] ?? null,
             name: $data['name'] ?? '',
             color: $data['color'] ?? null,
-            sort: (int) ($data['sort'] ?? 0),
-        );
-    }
-
-    public static function fromModel(ExerciseProgramCategory $category): static
-    {
-        return new static(
-            id: $category->id,
-            name: $category->name,
-            color: $category->color,
-            sort: $category->sort,
         );
     }
 
     public function persist(): void
     {
-        $category = ExerciseProgramCategory::updateOrCreate(
+        $tag = Tag::updateOrCreate(
             ['id' => $this->id],
             [
                 'name' => $this->name,
                 'color' => $this->color,
-                'sort' => $this->sort,
+                'scope' => 'exercise_category',
+                'parent_id' => null,
             ]
         );
 
-        $this->id = $category->id;
+        $this->id = $tag->id;
     }
 
     public static function getForm(): Form
@@ -66,7 +68,7 @@ class ExerciseProgramCategoryData extends AbstractData implements HasForms
         return Form::make()
             ->fieldset('General', [
                 Text::make('name')->label('Name')->required(),
-                Color::make('color'),
+                Select::make('color')->label('Color')->placeholder('Select a color...')->options(ColorPalette::COLORS),
             ]);
     }
 }

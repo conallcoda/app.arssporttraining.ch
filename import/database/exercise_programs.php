@@ -4,7 +4,7 @@ return [
     [
         'id' => 1,
         'name' => 'Coordnation',
-        'program_category_id' => 12,
+        'exercise_category_id' => 324,
         'sort' => 0,
         'exercises' => [
             ['id' => 16, 'sort' => 0],
@@ -13,7 +13,7 @@ return [
     [
         'id' => 2,
         'name' => 'Core 1',
-        'program_category_id' => 8,
+        'exercise_category_id' => 373,
         'sort' => 0,
         'exercises' => [
             ['id' => 13, 'sort' => 0],
@@ -21,16 +21,9 @@ return [
         ],
     ],
     [
-        'id' => 3,
-        'name' => 'Holiday',
-        'program_category_id' => 11,
-        'sort' => 0,
-        'exercises' => [],
-    ],
-    [
         'id' => 4,
         'name' => 'Interval Bike Extensiv Indoor',
-        'program_category_id' => 14,
+        'exercise_category_id' => 371,
         'sort' => 0,
         'exercises' => [
             ['id' => 26, 'sort' => 0],
@@ -39,30 +32,16 @@ return [
     [
         'id' => 5,
         'name' => 'Interval Jogging Extensiv Indoor',
-        'program_category_id' => 14,
+        'exercise_category_id' => 371,
         'sort' => 0,
         'exercises' => [
             ['id' => 29, 'sort' => 0],
         ],
     ],
     [
-        'id' => 6,
-        'name' => 'Recovery',
-        'program_category_id' => 6,
-        'sort' => 0,
-        'exercises' => [],
-    ],
-    [
-        'id' => 7,
-        'name' => 'Injury Tim',
-        'program_category_id' => 10,
-        'sort' => 0,
-        'exercises' => [],
-    ],
-    [
         'id' => 8,
         'name' => 'Rehab ACL',
-        'program_category_id' => 10,
+        'exercise_category_id' => 347,
         'sort' => 0,
         'exercises' => [
             ['id' => 11, 'sort' => 0],
@@ -71,16 +50,9 @@ return [
         ],
     ],
     [
-        'id' => 9,
-        'name' => 'Ski',
-        'program_category_id' => 8,
-        'sort' => 0,
-        'exercises' => [],
-    ],
-    [
         'id' => 10,
-        'name' => '1A Strenght',
-        'program_category_id' => 1,
+        'name' => '1A Strength',
+        'exercise_category_id' => 323,
         'sort' => 0,
         'exercises' => [
             ['id' => 23, 'sort' => 0],
@@ -92,8 +64,8 @@ return [
     ],
     [
         'id' => 11,
-        'name' => '1B Strenght',
-        'program_category_id' => 1,
+        'name' => '1B Strength',
+        'exercise_category_id' => 323,
         'sort' => 0,
         'exercises' => [
             ['id' => 9, 'sort' => 0],
@@ -104,23 +76,16 @@ return [
     [
         'id' => 12,
         'name' => 'Explosive Strength Winter',
-        'program_category_id' => 1,
+        'exercise_category_id' => 323,
         'sort' => 0,
         'exercises' => [
             ['id' => 11, 'sort' => 0],
         ],
     ],
     [
-        'id' => 13,
-        'name' => 'Velocity',
-        'program_category_id' => 12,
-        'sort' => 0,
-        'exercises' => [],
-    ],
-    [
         'id' => 14,
         'name' => '1 A Kraft Warm up',
-        'program_category_id' => 9,
+        'exercise_category_id' => 323,
         'sort' => 0,
         'exercises' => [
             ['id' => 10, 'sort' => 0],

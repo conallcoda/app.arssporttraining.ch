@@ -35,21 +35,21 @@ class PairedRepStrategy
     private function calculateReps(int $weekIndex, int $setIndex, int $totalSets): BilateralReps
     {
         $anchorReps = $this->anchorRepsForWeek($weekIndex);
-        $topTierReps = $anchorReps->increment($this->setting->decrement);
+        $topTierReps = $anchorReps->increment($this->setting->decrement ?? 2);
         $midpoint = (int) ceil($totalSets / 2);
 
         $reps = $setIndex < $midpoint ? $topTierReps : $anchorReps;
 
-        return $reps->clampMinimum($this->setting->minimum);
+        return $reps->clampMinimum($this->setting->minimum ?? 1);
     }
 
     private function anchorRepsForWeek(int $weekIndex): BilateralReps
     {
-        $baseReps = BilateralReps::parse($this->setting->default)
-            ->decrement($this->setting->decrement);
-        $drops = intdiv($weekIndex, max(1, $this->setting->stepDownInterval));
+        $baseReps = BilateralReps::parse($this->setting->default ?? 10)
+            ->decrement($this->setting->decrement ?? 2);
+        $drops = intdiv($weekIndex, max(1, $this->setting->stepDownInterval ?? 2));
 
-        return $baseReps->decrement($drops * $this->setting->decrement)
-            ->clampMinimum($this->setting->minimum);
+        return $baseReps->decrement($drops * ($this->setting->decrement ?? 2))
+            ->clampMinimum($this->setting->minimum ?? 1);
     }
 }

@@ -3,7 +3,7 @@
 namespace App\Data\Training;
 
 use App\Form\Fields\Exercise\Exercises;
-use App\Form\Fields\Training\Program\ProgramCategory;
+use App\Form\Fields\Training\Program\ExerciseCategory;
 use App\Form\Fields\Training\Program\ProgramName;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
@@ -20,9 +20,9 @@ class ExerciseProgramData extends AbstractData implements HasForms
     public function __construct(
         public ?int $id,
         public string $name = '',
-        public ?int $program_category_id = null,
-        public ?string $categoryName = null,
-        public ?string $categoryColor = null,
+        public ?int $exercise_category_id = null,
+        public ?string $exerciseCategoryName = null,
+        public ?string $exerciseCategoryColor = null,
         public array $exercises = [],
         public ?Carbon $updatedAt = null,
         public int $sort = 0,
@@ -39,7 +39,7 @@ class ExerciseProgramData extends AbstractData implements HasForms
         return new static(
             id: $data['id'] ?? null,
             name: $data['name'] ?? '',
-            program_category_id: isset($data['program_category_id']) ? (int) $data['program_category_id'] : null,
+            exercise_category_id: isset($data['exercise_category_id']) ? (int) $data['exercise_category_id'] : null,
             exercises: $data['exercises'] ?? [],
             sort: (int) ($data['sort'] ?? 0),
         );
@@ -49,7 +49,7 @@ class ExerciseProgramData extends AbstractData implements HasForms
     {
         $program->loadMissing([
             'exercises' => fn ($q) => $q->orderByPivot('sort'),
-            'programCategory',
+            'exerciseCategory',
         ]);
 
         $exercises = $program->exercises->map(fn ($exercise) => [
@@ -61,9 +61,9 @@ class ExerciseProgramData extends AbstractData implements HasForms
         return new static(
             id: $program->id,
             name: $program->name,
-            program_category_id: $program->program_category_id,
-            categoryName: $program->programCategory?->name,
-            categoryColor: $program->programCategory?->color,
+            exercise_category_id: $program->exercise_category_id,
+            exerciseCategoryName: $program->exerciseCategory?->name,
+            exerciseCategoryColor: $program->exerciseCategory?->color,
             exercises: $exercises,
             updatedAt: $program->updated_at,
             sort: $program->sort,
@@ -76,7 +76,7 @@ class ExerciseProgramData extends AbstractData implements HasForms
             ['id' => $this->id],
             [
                 'name' => $this->name,
-                'program_category_id' => $this->program_category_id,
+                'exercise_category_id' => $this->exercise_category_id,
                 'sort' => $this->sort,
             ]
         );
@@ -127,7 +127,7 @@ class ExerciseProgramData extends AbstractData implements HasForms
         return Form::make()
             ->fieldset('General', [
                 ProgramName::make('name'),
-                ProgramCategory::make('program_category_id')->withOptions(),
+                ExerciseCategory::make('exercise_category_id')->withOptions(),
                 Exercises::make('exercises')->withOptions(),
             ]);
     }

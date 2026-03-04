@@ -3,8 +3,8 @@
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExercisePlan;
 use App\Models\Exercise\ExerciseProgram;
-use App\Models\Exercise\ExerciseProgramCategory;
 use App\Models\Exercise\ExerciseProgramExercise;
+use App\Models\Tag;
 use App\Models\Training\TrainingProgram;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
@@ -103,13 +103,13 @@ it('imports a program by duplicating it', function () {
 
 it('imports an exercise by wrapping it in a program with category', function () {
     $group = UserGroup::create(['name' => 'Team Alpha']);
-    $category = ExerciseProgramCategory::factory()->create(['name' => 'Strength']);
+    $category = Tag::create(['scope' => 'exercise_category', 'name' => 'Strength', 'slug' => 'strength-test']);
     $exercise = Exercise::create(['name' => 'Deadlift']);
 
     $tp = TrainingProgram::importExercise($exercise, $group->id, categoryId: $category->id);
 
     expect($tp->program->name)->toBe('Deadlift');
-    expect($tp->program->program_category_id)->toBe($category->id);
+    expect($tp->program->exercise_category_id)->toBe($category->id);
     expect($tp->program->exercises)->toHaveCount(1);
     expect($tp->program->exercises->first()->id)->toBe($exercise->id);
 });

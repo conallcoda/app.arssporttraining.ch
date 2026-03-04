@@ -46,7 +46,7 @@ class ExercisePlanView extends Component
         $this->programs = ExerciseProgram::whereIn('id', $ids)
             ->with([
                 'exercises' => fn ($q) => $q->orderByPivot('sort'),
-                'programCategory',
+                'exerciseCategory',
             ])
             ->orderBy('name')
             ->get();

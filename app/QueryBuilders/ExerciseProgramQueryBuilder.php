@@ -25,7 +25,7 @@ class ExerciseProgramQueryBuilder extends DefaultQueryBuilder
             AllowedFilter::callback('search', function ($query, $value): void {
                 $query->where('exercise_programs.name', 'like', '%'.$value.'%');
             }),
-            AllowedFilter::exact('category', 'program_category_id'),
+            AllowedFilter::exact('category', 'exercise_category_id'),
         ];
     }
 }

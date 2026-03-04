@@ -9,7 +9,7 @@ use Coda\Cms\Form\Fields;
 class HeartRateZoneSetting extends AbstractSetting
 {
     public function __construct(
-        public string $default = '3',
+        public ?string $default = '3',
         public string $applyPer = 'session',
     ) {}
 

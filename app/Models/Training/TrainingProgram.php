@@ -147,7 +147,7 @@ class TrainingProgram extends Model
     {
         $program = ExerciseProgram::create([
             'name' => $exercise->name,
-            'program_category_id' => $categoryId,
+            'exercise_category_id' => $categoryId,
         ]);
 
         ExerciseProgramExercise::create([

@@ -66,7 +66,7 @@ class ExercisePlan extends Model
         }
 
         return ExerciseProgram::whereIn('id', $ids)
-            ->with(['exercises' => fn ($q) => $q->orderByPivot('sort'), 'programCategory'])
+            ->with(['exercises' => fn ($q) => $q->orderByPivot('sort'), 'exerciseCategory'])
             ->orderBy('name')
             ->get();
     }

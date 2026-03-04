@@ -10,8 +10,8 @@ class WeightSetting extends AbstractSetting
 {
     public function __construct(
         public string $mode = 'manual',
-        public int $oneRepMaxModifier = 100,
-        public float $default = 5,
+        public ?int $oneRepMaxModifier = 100,
+        public ?float $default = 5,
         public string $applyPer = 'session',
     ) {}
 
@@ -33,9 +33,17 @@ class WeightSetting extends AbstractSetting
     public function badges(): array
     {
         if ($this->mode === 'automatic') {
+            if ($this->oneRepMaxModifier === null) {
+                return [];
+            }
+
             return [
                 ['label' => $this->oneRepMaxModifier.'%', 'modalField' => static::fieldsetKey()],
             ];
+        }
+
+        if ($this->default === null) {
+            return [];
         }
 
         return [

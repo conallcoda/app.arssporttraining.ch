@@ -5,12 +5,12 @@ namespace App\Providers;
 use App\Cms\Modules\AthleteGroupModule;
 use App\Cms\Modules\AthleteModule;
 use App\Cms\Modules\CalendarModule;
+use App\Cms\Modules\CategoryListModule;
 use App\Cms\Modules\CategoryModule;
 use App\Cms\Modules\EquipmentModule;
 use App\Cms\Modules\ExerciseExternalModule;
 use App\Cms\Modules\ExerciseModule;
 use App\Cms\Modules\ExercisePlanModule;
-use App\Cms\Modules\ExerciseProgramCategoryModule;
 use App\Cms\Modules\ExerciseProgramModule;
 use App\Cms\Modules\ExerciseTemplateModule;
 use App\Cms\Modules\ModifiersModule;
@@ -35,8 +35,8 @@ class CmsServiceProvider extends ServiceProvider
         $registry->register(new ModifiersModule);
         $registry->register(new ExerciseExternalModule);
         $registry->register(new ExercisePlanModule);
-        $registry->register(new ExerciseProgramCategoryModule);
         $registry->register(new ExerciseProgramModule);
+        $registry->register(new CategoryListModule);
         $registry->register(new CalendarModule);
 
         $registry->setNavigation([
@@ -56,8 +56,10 @@ class CmsServiceProvider extends ServiceProvider
                 SidebarItem::make('Programs', 'exercise-program-index')->icon('layout-list')->tabs([
                     Tab::make('Programs', 'exercise-program-index'),
                     Tab::make('Plans', 'exercise-plan-index'),
-                    Tab::make('Categories', 'program-category-index'),
                 ]),
+                SidebarItem::make('Categories', 'category-list-index')->icon('tag'),
+            ]),
+            SidebarGroup::make('calendar', 'Calendar')->icon('calendar')->items([
                 SidebarItem::make('Calendar', 'calendar-index')->icon('calendar'),
             ]),
         ]);

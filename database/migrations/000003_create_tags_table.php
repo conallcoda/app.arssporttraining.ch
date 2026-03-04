@@ -15,6 +15,7 @@ return new class extends Migration
             $table->string('short_name')->nullable();
             $table->string('slug');
             $table->foreignId('parent_id')->nullable()->constrained('tags')->nullOnDelete();
+            $table->string('color')->nullable();
             $table->unsignedInteger('sort_order')->default(0);
             $table->timestamps();
             $table->softDeletes();

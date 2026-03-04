@@ -10,7 +10,7 @@ class DurationSetting extends AbstractSetting
 {
     public function __construct(
         public string $unit = 'seconds',
-        public int|string $default = 60,
+        public int|string|null $default = 60,
         public string $applyPer = 'session',
     ) {}
 

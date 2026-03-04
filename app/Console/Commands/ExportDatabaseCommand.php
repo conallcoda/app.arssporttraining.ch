@@ -3,7 +3,6 @@
 namespace App\Console\Commands;
 
 use App\Models\Exercise\Exercise;
-use App\Models\Exercise\ExerciseProgramCategory;
 use App\Models\Exercise\ExerciseTemplate;
 use App\Models\Tag;
 use App\Models\Users\User;
@@ -29,7 +28,6 @@ class ExportDatabaseCommand extends Command
         $this->exportTags();
         $this->exportExerciseTemplates();
         $this->exportExercises();
-        $this->exportProgramCategories();
         $this->exportUserGroups();
         $this->exportUsers();
 
@@ -117,24 +115,6 @@ class ExportDatabaseCommand extends Command
 
         $this->writeFile('exercises.php', $exercises);
         $this->info('Exported '.count($exercises).' exercises.');
-    }
-
-    private function exportProgramCategories(): void
-    {
-        $categories = ExerciseProgramCategory::query()
-            ->orderBy('sort')
-            ->get()
-            ->map(fn (ExerciseProgramCategory $category) => [
-                'id' => $category->id,
-                'name' => $category->name,
-                'color' => $category->color,
-                'sort' => $category->sort,
-                'config' => json_decode($category->getRawOriginal('config'), true),
-            ])
-            ->all();
-
-        $this->writeFile('program_categories.php', $categories);
-        $this->info('Exported '.count($categories).' program categories.');
     }
 
     private function exportUserGroups(): void

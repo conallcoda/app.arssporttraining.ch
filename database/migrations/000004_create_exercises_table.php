@@ -27,16 +27,6 @@ return new class extends Migration
             $table->softDeletes();
         });
 
-        Schema::create('exercise_program_categories', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('color')->nullable();
-            $table->unsignedInteger('sort')->default(0);
-            $table->json('config')->nullable();
-            $table->timestamps();
-            $table->softDeletes();
-        });
-
         Schema::create('exercise_plans', function (Blueprint $table) {
             $table->id();
             $table->string('name');
@@ -62,7 +52,7 @@ return new class extends Migration
             $table->id();
             $table->nullableMorphs('owner');
             $table->string('name');
-            $table->foreignId('program_category_id')->nullable()->constrained('exercise_program_categories')->nullOnDelete();
+            $table->foreignId('exercise_category_id')->nullable()->constrained('tags')->nullOnDelete();
             $table->integer('sort')->default(0);
             $table->json('config')->nullable();
             $table->timestamps();
@@ -81,7 +71,6 @@ return new class extends Migration
             $table->id();
             $table->string('plannable_type');
             $table->unsignedBigInteger('plannable_id');
-            $table->foreignId('program_category_id')->nullable()->constrained('exercise_program_categories')->nullOnDelete();
             $table->string('name');
             $table->unsignedInteger('sort')->default(0);
             $table->json('config')->nullable();
@@ -111,7 +100,6 @@ return new class extends Migration
         Schema::dropIfExists('exercise_programs');
         Schema::dropIfExists('exercises');
         Schema::dropIfExists('exercise_plans');
-        Schema::dropIfExists('exercise_program_categories');
         Schema::dropIfExists('exercises_external');
         Schema::dropIfExists('exercise_templates');
     }

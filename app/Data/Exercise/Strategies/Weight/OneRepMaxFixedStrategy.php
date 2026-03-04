@@ -73,7 +73,7 @@ class OneRepMaxFixedStrategy implements DefinesEditability
         $starting1RM = OneRepMaxConversion::estimatedOneRepMax(
             $this->measuredData->measuredReps,
             $this->measuredData->measuredWeight,
-            $this->setting->oneRepMaxModifier,
+            $this->setting->oneRepMaxModifier ?? 100,
         );
 
         return [
@@ -88,7 +88,7 @@ class OneRepMaxFixedStrategy implements DefinesEditability
         $starting1RM = OneRepMaxConversion::estimatedOneRepMax(
             $this->measuredData->measuredReps,
             $this->measuredData->measuredWeight,
-            $this->setting->oneRepMaxModifier,
+            $this->setting->oneRepMaxModifier ?? 100,
         );
 
         return OneRepMaxConversion::targetOneRepMax($starting1RM, $this->measuredData->targetGoal ?? 0);

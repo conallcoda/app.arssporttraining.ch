@@ -3,7 +3,7 @@
         <div class="flex flex-wrap gap-2">
             @foreach ($this->scheduledPrograms as $program)
                 @php
-                    $color = $program->programCategory?->color ?? 'zinc';
+                    $color = $program->exerciseCategory?->color ?? 'zinc';
                     $isSelected = $selectedProgramId === $program->id;
                 @endphp
                 @if ($isSelected)

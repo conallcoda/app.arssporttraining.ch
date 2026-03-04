@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
-use App\Models\Exercise\ExerciseProgramCategory;
 use App\Models\Exercise\ExerciseTemplate;
 use App\Models\Tag;
 use App\Models\Users\User;
@@ -22,7 +21,6 @@ class DatabaseImportSeeder extends Seeder
         $this->seedTags();
         $this->seedExerciseTemplates();
         $this->seedExercises();
-        $this->seedProgramCategories();
         $this->seedExercisePrograms();
         $this->seedUserGroups();
         $this->seedUsers();
@@ -40,6 +38,7 @@ class DatabaseImportSeeder extends Seeder
                     'name' => $tag['name'],
                     'short_name' => $tag['short_name'],
                     'slug' => $tag['slug'],
+                    'color' => $tag['color'] ?? null,
                     'parent_id' => null,
                     'sort_order' => $tag['sort_order'],
                 ],
@@ -106,25 +105,6 @@ class DatabaseImportSeeder extends Seeder
         $this->command->info('Imported '.count($exercises).' exercises.');
     }
 
-    private function seedProgramCategories(): void
-    {
-        $categories = $this->loadFile('program_categories.php');
-
-        foreach ($categories as $category) {
-            ExerciseProgramCategory::updateOrCreate(
-                ['id' => $category['id']],
-                [
-                    'name' => $category['name'],
-                    'color' => $category['color'],
-                    'sort' => $category['sort'],
-                    'config' => $category['config'],
-                ],
-            );
-        }
-
-        $this->command->info('Imported '.count($categories).' program categories.');
-    }
-
     private function seedExercisePrograms(): void
     {
         $programs = $this->loadFile('exercise_programs.php');
@@ -137,7 +117,7 @@ class DatabaseImportSeeder extends Seeder
                 ['id' => $program['id']],
                 [
                     'name' => $program['name'],
-                    'program_category_id' => $program['program_category_id'],
+                    'exercise_category_id' => $program['exercise_category_id'] ?? null,
                     'sort' => $program['sort'],
                 ],
             );

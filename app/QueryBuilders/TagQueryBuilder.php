@@ -14,6 +14,7 @@ class TagQueryBuilder extends DefaultQueryBuilder
         return [
             'id',
             'name',
+            'color',
             AllowedSort::field('updatedAt', 'updated_at'),
         ];
     }

@@ -118,9 +118,9 @@
                             @foreach ($this->addContentOptions as $option)
                                 <button type="button" wire:click="addFromProgram({{ $option->id }})"
                                     class="flex items-center gap-2 px-3 py-2 text-sm text-left rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300">
-                                    @if ($option->programCategory?->color)
+                                    @if ($option->exerciseCategory?->color)
                                         <span class="w-2 h-2 rounded-full shrink-0"
-                                            style="{{ \Coda\Cms\Support\ColorPalette::solid($option->programCategory->color) }}"></span>
+                                            style="{{ \Coda\Cms\Support\ColorPalette::solid($option->exerciseCategory->color) }}"></span>
                                     @endif
                                     {{ $option->name }}
                                 </button>
@@ -134,17 +134,6 @@
 
                 <flux:tab.panel name="exercise" class="!px-0">
                     <div class="flex flex-col gap-3">
-                        <flux:field>
-                            <flux:label>Category</flux:label>
-                            <flux:select wire:model="addExerciseCategoryId" placeholder="Select a category...">
-                                @foreach ($this->categoryOptions as $id => $name)
-                                    <flux:select.option :value="$id">{{ $name }}</flux:select.option>
-                                @endforeach
-                            </flux:select>
-                            @error('addExerciseCategoryId')
-                                <flux:error>{{ $message }}</flux:error>
-                            @enderror
-                        </flux:field>
                         <x-cms::form.field :field="\Coda\Cms\Form\Fields\Search::make('addContentSearch')" />
                         <div class="flex flex-col gap-1 max-h-80 overflow-y-auto">
                             @foreach ($this->addContentOptions as $option)

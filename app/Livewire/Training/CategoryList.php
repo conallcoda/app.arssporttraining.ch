@@ -2,8 +2,10 @@
 
 namespace App\Livewire\Training;
 
-use App\Data\Training\ExerciseProgramCategoryData;
-use App\Models\Exercise\ExerciseProgramCategory;
+use App\Data\Training\CategoryData;
+use App\Models\Tag;
+use Coda\Cms\Data\AbstractData;
+use Coda\Cms\Display\DisplayFields\Ago;
 use Coda\Cms\Display\DisplayFields\ColorBadge;
 use Coda\Cms\Display\DisplayFields\Id;
 use Coda\Cms\Display\DisplayFields\Text;
@@ -13,27 +15,33 @@ use Coda\Cms\Form\Fields\Text as TextField;
 use Coda\Cms\Livewire\AbstractModelList;
 use Coda\Cms\Support\ColorPalette;
 use Illuminate\Contracts\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
-class ProgramCategoryList extends AbstractModelList
+class CategoryList extends AbstractModelList
 {
     protected function urlPrefix(): string
     {
-        return 'pcl_';
+        return 'cl_';
     }
 
     protected function getDataClass(): string
     {
-        return ExerciseProgramCategoryData::class;
+        return CategoryData::class;
     }
 
     protected function getBaseQuery(): Builder
     {
-        return ExerciseProgramCategory::query();
+        return Tag::query()->forScope('exercise_category')->whereNull('parent_id');
     }
 
-    protected function isSortable(): bool
+    protected function dataFromModel(Model $model): AbstractData
     {
-        return true;
+        return CategoryData::fromTag($model);
+    }
+
+    protected function createDataFromForm(array $formData): AbstractData
+    {
+        return CategoryData::from($formData);
     }
 
     protected function getTable(): Table
@@ -43,14 +51,15 @@ class ProgramCategoryList extends AbstractModelList
                 Id::make(),
                 Text::make('name')
                     ->label('Name')
-                    ->width('w-1/2')
+                    ->width('w-1/3')
                     ->modal(),
                 ColorBadge::make('color')
                     ->label('Color')
                     ->colorLabels(ColorPalette::COLORS),
+                Ago::make('updatedAt')->label('Last Changed'),
             ])
-            ->sortable(['id', 'name'])
-            ->defaultSort('name', 'asc')
+            ->sortable(['id', 'name', 'color', 'updatedAt'])
+            ->defaultSort('name')
             ->filters([
                 TableFilter::callback('search', function (Builder $query, mixed $value): void {
                     $query->where('name', 'like', '%'.$value.'%');

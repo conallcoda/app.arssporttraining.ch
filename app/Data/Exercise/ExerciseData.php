@@ -22,6 +22,7 @@ class ExerciseData extends AbstractData implements HasForms, PersistsWithMedia
         public ?int $id,
         public string $name,
         public ?int $category = null,
+        public ?string $categoryColor = null,
         public array $equipment = [],
         public array $modifiers = [],
         public ?string $videoUrl = null,
@@ -52,6 +53,7 @@ class ExerciseData extends AbstractData implements HasForms, PersistsWithMedia
             id: $exercise->id,
             name: $exercise->name,
             category: $exercise->category_id,
+            categoryColor: $exercise->category?->color,
             equipment: self::mapTagIds($exercise, 'equipment'),
             modifiers: self::mapTagIds($exercise, 'modifiers'),
             videoUrl: $exercise->video_url,
@@ -108,7 +110,7 @@ class ExerciseData extends AbstractData implements HasForms, PersistsWithMedia
         $form = Form::make()
             ->fieldset('General', [
                 Fields\Text::make('name')->required(true),
-                Fields\Category::make('category', 'exercise_category')->label('Category')->withOptions(),
+                Fields\Category::make('category', 'exercise_category')->label('Category')->required()->withOptions(),
                 Fields\Select::make('template')
                     ->label('Template')
                     ->options(ExerciseTemplate::query()->orderBy('name')->pluck('name', 'id')->all())

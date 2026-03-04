@@ -10,7 +10,7 @@ class DistanceSetting extends AbstractSetting
 {
     public function __construct(
         public string $unit = 'meters',
-        public int|float $default = 500,
+        public int|float|null $default = 500,
         public string $applyPer = 'session',
     ) {}
 

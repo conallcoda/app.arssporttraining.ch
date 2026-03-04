@@ -4,7 +4,7 @@ namespace App\Livewire\Training\View;
 
 use App\Data\Training\ExerciseProgramData;
 use App\Models\Exercise\ExerciseProgram;
-use App\Models\Exercise\ExerciseProgramCategory;
+use App\Models\Tag;
 use Coda\Cms\Display\DisplayFields\Ago;
 use Coda\Cms\Display\DisplayFields\ColorBadge;
 use Coda\Cms\Display\DisplayFields\Relationship;
@@ -42,23 +42,25 @@ class ProgramList extends AbstractModelList
 
         return ExerciseProgram::query()
             ->whereIn('exercise_programs.id', $ids)
-            ->with('programCategory')
-            ->leftJoin('exercise_program_categories', 'exercise_programs.program_category_id', '=', 'exercise_program_categories.id')
-            ->orderBy('exercise_program_categories.name')
+            ->with('exerciseCategory')
+            ->leftJoin('tags as exercise_category_tags', 'exercise_programs.exercise_category_id', '=', 'exercise_category_tags.id')
+            ->orderBy('exercise_category_tags.name')
             ->orderBy('exercise_programs.name')
             ->select('exercise_programs.*');
     }
 
     protected function getTable(): Table
     {
-        $colorLabels = ExerciseProgramCategory::query()
+        $colorLabels = Tag::query()
+            ->forScope('exercise_category')
+            ->whereNull('parent_id')
             ->pluck('name', 'color')
             ->all();
 
         return Table::make()
             ->columns([
                 Text::make('name')->label('Name')->modal(),
-                ColorBadge::make('categoryColor')
+                ColorBadge::make('exerciseCategoryColor')
                     ->label('Category')
                     ->colorLabels($colorLabels),
                 Relationship::make('exercises')->label('Exercises')->modal()->width('w-full'),

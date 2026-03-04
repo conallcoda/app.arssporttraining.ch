@@ -3,7 +3,7 @@
 namespace App\Livewire\Training\View;
 
 use App\Models\Exercise\ExerciseProgram;
-use App\Models\Exercise\ExerciseProgramCategory;
+use App\Models\Tag;
 use App\Models\Users\User;
 use App\Support\WeekOptions;
 use App\Training\Reference\OneRepMaxConversion;
@@ -86,7 +86,7 @@ class Plan extends Component
 
         return $this->programs
             ->whereIn('id', $scheduledProgramIds)
-            ->load(['exercises' => fn ($q) => $q->orderByPivot('sort'), 'programCategory'])
+            ->load(['exercises' => fn ($q) => $q->orderByPivot('sort'), 'exerciseCategory'])
             ->values();
     }
 
@@ -181,13 +181,13 @@ class Plan extends Component
         $scheduledPrograms = $this->programs->whereIn('id', $scheduledProgramIds);
 
         $categoryIds = $scheduledPrograms
-            ->pluck('program_category_id')
+            ->pluck('exercise_category_id')
             ->filter()
             ->unique()
             ->values();
 
-        return ExerciseProgramCategory::whereIn('id', $categoryIds)
-            ->orderBy('sort')
+        return Tag::whereIn('id', $categoryIds)
+            ->orderBy('sort_order')
             ->get();
     }
 
@@ -202,7 +202,7 @@ class Plan extends Component
         $scheduledProgramIds = $this->programIdsFromSchedule;
 
         return $this->programs
-            ->where('program_category_id', $this->selectedCategoryId)
+            ->where('exercise_category_id', $this->selectedCategoryId)
             ->whereIn('id', $scheduledProgramIds)
             ->load(['exercises' => fn ($q) => $q->orderByPivot('sort')])
             ->values();
@@ -432,7 +432,7 @@ class Plan extends Component
             : ExerciseProgram::whereIn('id', $ids)
                 ->with([
                     'exercises' => fn ($q) => $q->orderByPivot('sort'),
-                    'programCategory',
+                    'exerciseCategory',
                 ])
                 ->orderBy('name')
                 ->get();

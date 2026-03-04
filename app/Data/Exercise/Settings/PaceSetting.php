@@ -9,7 +9,7 @@ use Coda\Cms\Form\Fields;
 class PaceSetting extends AbstractSetting
 {
     public function __construct(
-        public string $default = '5:00',
+        public ?string $default = '5:00',
         public string $applyPer = 'session',
     ) {}
 
@@ -30,7 +30,7 @@ class PaceSetting extends AbstractSetting
     /** @return list<array{label: string, modalField: string}> */
     public function badges(): array
     {
-        if ($this->default === '' || $this->default === '0:00') {
+        if ($this->default === null || $this->default === '' || $this->default === '0:00') {
             return [];
         }
 

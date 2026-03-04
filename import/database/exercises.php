@@ -74,81 +74,9 @@ return [
         ],
     ],
     [
-        'id' => 25,
-        'name' => 'ATG Split Squat',
-        'category_id' => 323,
-        'template_id' => 2,
-        'video_url' => 'https://www.youtube.com/watch?v=X97CYfHWSF4',
-        'instructions' => 'Back leg straightened if possible',
-        'config' => [
-            'settings' => [
-                'reps',
-                'weight',
-                'tempo',
-                'rest',
-            ],
-            'overrides' => [
-                'cells' => [],
-                'weeks' => [],
-            ],
-            'sets' => [
-                'deload' => 'none',
-                'deloadBy' => 1,
-                'label' => 'Set',
-                'default' => 4,
-            ],
-            'distance' => null,
-            'duration' => null,
-            'heartRate' => null,
-            'heartRateZone' => null,
-            'pace' => null,
-            'reps' => [
-                'mode' => 'manual',
-                'default' => 10,
-                'stepDownInterval' => 2,
-                'decrement' => 2,
-                'minimum' => 1,
-                'label' => '',
-                'applyPer' => 'session',
-            ],
-            'rest' => [
-                'default' => 60,
-                'applyPer' => 'week',
-            ],
-            'tempo' => [
-                'default' => '3010',
-                'applyPer' => 'week',
-            ],
-            'watts' => null,
-            'weight' => [
-                'mode' => 'manual',
-                'oneRepMaxModifier' => 100,
-                'default' => 5,
-                'applyPer' => 'session',
-            ],
-            'preview' => [
-                'weeks' => 5,
-                'sessionsPerWeek' => 1,
-                'measuredReps' => 1,
-                'measuredWeight' => 50,
-                'targetGoal' => 10,
-            ],
-        ],
-        'tags' => [
-            [
-                'id' => 82,
-                'sort' => 0,
-            ],
-            [
-                'id' => 223,
-                'sort' => 0,
-            ],
-        ],
-    ],
-    [
         'id' => 9,
         'name' => 'Back Squat',
-        'category_id' => null,
+        'category_id' => 323,
         'template_id' => 1,
         'video_url' => 'https://www.youtube.com/watch?v=CPgCggIyn-g',
         'instructions' => 'So lange runter bis rücken gerade ist',
@@ -216,7 +144,7 @@ return [
     [
         'id' => 7,
         'name' => 'Chin-Up',
-        'category_id' => null,
+        'category_id' => 323,
         'template_id' => null,
         'video_url' => 'https://youtu.be/jWG018GIUjY',
         'instructions' => 'Gleichmässig runter',
@@ -274,7 +202,7 @@ return [
     [
         'id' => 13,
         'name' => 'core plank + side plank',
-        'category_id' => null,
+        'category_id' => 373,
         'template_id' => null,
         'video_url' => 'https://www.youtube.com/shorts/tJwHo9kg5GI',
         'instructions' => 'Brustkasten raus!',
@@ -323,7 +251,7 @@ return [
     [
         'id' => 10,
         'name' => 'Dip',
-        'category_id' => null,
+        'category_id' => 323,
         'template_id' => null,
         'video_url' => 'https://youtu.be/dG99wTA7d2U',
         'instructions' => 'Ellenbogen drin behalten',
@@ -372,7 +300,7 @@ return [
     [
         'id' => 5,
         'name' => 'Front Squat ',
-        'category_id' => null,
+        'category_id' => 323,
         'template_id' => 1,
         'video_url' => 'https://www.youtube.com/shorts/iVtH8lZATdQ',
         'instructions' => 'Ellenbogen hochnehmen die ganze Zeit',
@@ -506,7 +434,7 @@ return [
     [
         'id' => 26,
         'name' => 'Interval Bike Extensiv Indoor',
-        'category_id' => 359,
+        'category_id' => 374,
         'template_id' => 3,
         'video_url' => 'https://www.youtube.com/shorts/jN3HeMMvB5o',
         'instructions' => '',
@@ -576,7 +504,7 @@ return [
     [
         'id' => 27,
         'name' => 'Interval Bike Extensiv Outdoor',
-        'category_id' => 359,
+        'category_id' => 374,
         'template_id' => 3,
         'video_url' => null,
         'instructions' => null,
@@ -646,7 +574,7 @@ return [
     [
         'id' => 29,
         'name' => 'Interval Jogging Extensiv Indoor',
-        'category_id' => 359,
+        'category_id' => 374,
         'template_id' => 3,
         'video_url' => 'https://www.youtube.com/shorts/sMXvl_iOW88',
         'instructions' => null,
@@ -716,7 +644,7 @@ return [
     [
         'id' => 28,
         'name' => 'Interval Jogging Extensiv Outdoor',
-        'category_id' => 359,
+        'category_id' => 374,
         'template_id' => 3,
         'video_url' => null,
         'instructions' => null,
@@ -845,7 +773,7 @@ return [
     [
         'id' => 16,
         'name' => 'Koordination Ragettli Parcour',
-        'category_id' => null,
+        'category_id' => 324,
         'template_id' => null,
         'video_url' => 'https://www.youtube.com/watch?v=AfD736-n0e8',
         'instructions' => 'Nicht verletzten',
@@ -894,7 +822,7 @@ return [
     [
         'id' => 6,
         'name' => 'Lastheben ',
-        'category_id' => null,
+        'category_id' => 323,
         'template_id' => 1,
         'video_url' => 'https://www.youtube.com/watch?v=CPgCggIyn-g',
         'instructions' => 'Stange immer am Körper lassen',
@@ -1034,7 +962,7 @@ return [
     [
         'id' => 8,
         'name' => 'Push Press',
-        'category_id' => null,
+        'category_id' => 323,
         'template_id' => null,
         'video_url' => 'https://youtu.be/isXQmhH6AEM',
         'instructions' => 'Sehr Explosiv Arbieten',
@@ -1096,7 +1024,7 @@ return [
     [
         'id' => 23,
         'name' => 'Skischuh Squatjump',
-        'category_id' => null,
+        'category_id' => 368,
         'template_id' => 2,
         'video_url' => null,
         'instructions' => 'Hands on hip, Executive a Jump 90 degrees max and Full length with skiboots',
@@ -1170,7 +1098,7 @@ return [
     [
         'id' => 11,
         'name' => 'Step up ',
-        'category_id' => null,
+        'category_id' => 323,
         'template_id' => 2,
         'video_url' => 'https://www.youtube.com/shorts/r-wWtYEzYIw',
         'instructions' => 'Ohne Schwung',
@@ -1242,7 +1170,7 @@ return [
     [
         'id' => 12,
         'name' => 'Superman plank',
-        'category_id' => null,
+        'category_id' => 373,
         'template_id' => 2,
         'video_url' => 'https://www.youtube.com/shorts/6AT8zcAAAj8',
         'instructions' => 'Keine Lordose in der LWS',
