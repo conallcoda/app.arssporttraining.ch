@@ -21,12 +21,14 @@
                         </flux:heading>
                         <flux:button variant="ghost" icon="pencil" size="sm" wire:click="openCalendarRange" />
                     </div>
-                    <div class="flex items-center gap-2">
-                        <flux:radio.group wire:model.live="viewMode" variant="segmented" size="sm">
-                            <flux:radio value="program" label="Program Grid" />
-                            <flux:radio value="week" label="Week Grid" />
-                        </flux:radio.group>
-                    </div>
+                    @if ($this->hasSelection())
+                        <div class="flex items-center gap-2">
+                            <flux:radio.group wire:model.live="viewMode" variant="segmented" size="sm">
+                                <flux:radio value="program" label="Program Grid" />
+                                <flux:radio value="week" label="Week Grid" />
+                            </flux:radio.group>
+                        </div>
+                    @endif
                 </div>
 
                 @if ($this->hasSelection() && $this->programs->isNotEmpty())
@@ -49,13 +51,7 @@
                         <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddContent" class="mt-3">Add Program</flux:button>
                     </div>
                 @else
-                    <div class="flex flex-col items-center justify-center py-20 text-center">
-                        <flux:icon.calendar class="size-10 text-zinc-300 dark:text-zinc-600 mb-3" />
-                        <flux:heading size="lg" class="text-zinc-500 dark:text-zinc-400">No selection
-                        </flux:heading>
-                        <flux:text class="text-zinc-400 dark:text-zinc-500 mt-1">Please select an athlete or group to
-                            view their schedule.</flux:text>
-                    </div>
+                    @include('livewire.training.partials.calendar-overview-grid')
                 @endif
             </x-section>
         </div>

@@ -4,7 +4,7 @@
     </div>
     <div class="flex flex-col gap-1">
         @foreach ($this->groups as $group)
-            <div x-data="{ open: {{ $this->hasMatchingMember($group) ? 'true' : 'false' }} }" wire:key="group-{{ $group->id }}-{{ $search }}">
+            <div x-data="{ open: {{ $this->hasMatchingMember($group) || $this->hasSelectionInGroup($group->id) ? 'true' : 'false' }} }" wire:key="group-{{ $group->id }}-{{ $search }}-{{ $this->hasSelectionInGroup($group->id) ? 's' : '' }}">
                 <div class="flex items-center">
                     <button
                         wire:click="selectGroup({{ $group->id }})"

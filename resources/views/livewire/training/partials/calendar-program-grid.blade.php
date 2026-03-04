@@ -53,14 +53,24 @@
                     @foreach ($this->days as $day)
                         @php
                             $daySlotCount = 0;
+                            $hasDirectSlot = false;
                             foreach ($groupEntries as $ge) {
-                                if (isset($this->cellSlots[$ge->id . '-' . $day['date']])) {
+                                $slotTime = $this->cellSlots[$ge->id . '-' . $day['date']] ?? null;
+                                if ($slotTime !== null) {
                                     $daySlotCount++;
+                                    $fullKey = $ge->id . '-' . $day['date'] . ' ' . $slotTime . ':00';
+                                    if (($this->slotState[$fullKey] ?? 'direct') !== 'inherited') {
+                                        $hasDirectSlot = true;
+                                    }
                                 }
                             }
                         @endphp
-                        @if ($daySlotCount > 0)
-                            <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-emerald-400/60 dark:bg-emerald-500/40">
+                        @if ($daySlotCount > 0 && $hasDirectSlot)
+                            <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-emerald-400/80 dark:bg-emerald-500/60">
+                                <div class="aspect-square flex items-center justify-center text-[10px] font-medium text-emerald-700 dark:text-emerald-300">{{ $daySlotCount }}</div>
+                            </td>
+                        @elseif ($daySlotCount > 0)
+                            <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-emerald-400/30 dark:bg-emerald-500/20">
                                 <div class="aspect-square flex items-center justify-center text-[10px] font-medium text-emerald-700 dark:text-emerald-300">{{ $daySlotCount }}</div>
                             </td>
                         @else
@@ -77,7 +87,7 @@
                             $isInherited = $this->user !== '' && $entry->isGroupLevel();
                         @endphp
                         <td x-data="{ open: false }"
-                            class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-medium text-zinc-700 dark:text-zinc-300 whitespace-nowrap align-top min-w-[180px] {{ $entry->program->exerciseCategory?->color ? \Coda\Cms\Support\ColorPalette::lightOpaqueSubtle($entry->program->exerciseCategory->color) : 'bg-white dark:bg-zinc-900' }}">
+                            class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 pl-7 pr-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 whitespace-nowrap align-top min-w-[180px] bg-transparent">
                             <div class="flex items-center gap-2">
                                 @if ($entry->program->exercises->isNotEmpty())
                                     <button
@@ -151,7 +161,7 @@
                             @elseif ($label !== null)
                                 <td @click="if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; return; } clickTimer = setTimeout(() => { $wire.cycleSlot({{ $entry->id }}, '{{ $day['date'] }}'); clickTimer = null; }, 200)"
                                     @dblclick.prevent="clearTimeout(clickTimer); clickTimer = null; $wire.startEditingCell({{ $entry->id }}, '{{ $day['date'] }}')"
-                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-emerald-400/60 dark:bg-emerald-500/40 cursor-pointer">
+                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-emerald-400/80 dark:bg-emerald-500/60 cursor-pointer">
                                     <div class="aspect-square flex items-center justify-center text-[10px] font-medium text-emerald-700 dark:text-emerald-300">{{ $label }}</div>
                                 </td>
                             @else

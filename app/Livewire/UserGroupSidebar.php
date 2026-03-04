@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\Users\UserGroup;
 use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 class UserGroupSidebar extends Component
@@ -128,11 +129,28 @@ class UserGroupSidebar extends Component
         return false;
     }
 
+    public function hasSelectionInGroup(int $groupId): bool
+    {
+        foreach ($this->selected as $s) {
+            if ($s['group'] === $groupId) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function navigate(string $type, int $groupId, ?int $userId = null): void
     {
         if ($this->navigateEvent) {
             $this->dispatch($this->navigateEvent, type: $type, group: $groupId, user: $userId);
         }
+    }
+
+    #[On('overview-selection')]
+    public function onOverviewSelection(array $selected): void
+    {
+        $this->selected = $selected;
     }
 
     protected function dispatchSelectionChanged(): void

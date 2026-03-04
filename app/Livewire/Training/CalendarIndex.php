@@ -102,7 +102,7 @@ class CalendarIndex extends Component
         $this->start = $this->calendarSettings->start ?? '';
         $this->end = $this->calendarSettings->end ?? '';
 
-        unset($this->days, $this->weeks, $this->months, $this->title, $this->weekGridData);
+        unset($this->days, $this->weeks, $this->months, $this->title, $this->weekGridData, $this->overviewData);
     }
 
     #[On('sidebar-selection-changed')]
@@ -123,6 +123,8 @@ class CalendarIndex extends Component
         }
 
         unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->cellSlots, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData);
+
+
     }
 
     #[Computed]
@@ -165,6 +167,85 @@ class CalendarIndex extends Component
         $end = ($this->calendarSettings->end ? Carbon::parse($this->calendarSettings->end) : $start->copy()->addMonth())->endOfWeek($this->weekEndsOn);
 
         return $start->format('d.m.Y').' – '.$end->format('d.m.Y');
+    }
+
+    #[Computed]
+    public function overviewData(): array
+    {
+        [$start, $end] = $this->dateRange();
+
+        $slots = TrainingProgramSlot::query()
+            ->join('training_programs', 'training_program_slots.training_program_id', '=', 'training_programs.id')
+            ->whereNull('training_programs.deleted_at')
+            ->whereNull('training_program_slots.deleted_at')
+            ->whereBetween('training_program_slots.datetime', [
+                $start->copy()->startOfDay(),
+                $end->copy()->endOfDay(),
+            ])
+            ->selectRaw('training_programs.group_id, training_programs.user_id, training_programs.exercise_program_id, DATE(training_program_slots.datetime) as slot_date, training_program_slots.active')
+            ->get();
+
+        $groupDates = [];
+        $groupSlots = [];
+        $userSlots = [];
+
+        foreach ($slots as $slot) {
+            $groupId = $slot->group_id;
+            $date = $slot->slot_date;
+            $groupDates[$groupId][$date] = true;
+
+            if ($slot->user_id === null) {
+                $groupSlots[$groupId][$slot->exercise_program_id][$date] = true;
+            } else {
+                $userSlots[$groupId][$slot->user_id][$slot->exercise_program_id][$date] = (bool) $slot->active;
+            }
+        }
+
+        $groups = UserGroup::with('members')->orderBy('name')->get();
+        $result = [];
+
+        foreach ($groups as $group) {
+            $gid = $group->id;
+            $members = [];
+
+            foreach ($group->members as $member) {
+                $uid = $member->id;
+                $memberDates = [];
+
+                foreach ($groupSlots[$gid] ?? [] as $epId => $dates) {
+                    foreach ($dates as $date => $v) {
+                        if (isset($userSlots[$gid][$uid][$epId][$date])) {
+                            if ($userSlots[$gid][$uid][$epId][$date]) {
+                                $memberDates[$date] = true;
+                            }
+                        } else {
+                            $memberDates[$date] = true;
+                        }
+                    }
+                }
+
+                foreach ($userSlots[$gid][$uid] ?? [] as $epId => $dates) {
+                    foreach ($dates as $date => $active) {
+                        if ($active && ! isset($groupSlots[$gid][$epId][$date])) {
+                            $memberDates[$date] = true;
+                        }
+                    }
+                }
+
+                $members[] = [
+                    'user' => $member,
+                    'dates' => $memberDates,
+                ];
+            }
+
+            $result[] = [
+                'group' => $group,
+                'dates' => $groupDates[$gid] ?? [],
+                'members' => $members,
+            ];
+        }
+
+        return $result;
     }
 
     #[Computed]
@@ -547,6 +628,7 @@ class CalendarIndex extends Component
         }
 
         unset($this->programs, $this->groupedPrograms, $this->slotMap, $this->cellSlots, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData);
+
     }
 
     public function startEditingCell(int $trainingProgramId, string $date): void
@@ -606,6 +688,7 @@ class CalendarIndex extends Component
         $toggle($date.' '.$time.':00');
 
         unset($this->programs, $this->groupedPrograms, $this->slotMap, $this->cellSlots, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData);
+
     }
 
     public function toggleSlot(int $trainingProgramId, string $datetime): void
@@ -619,6 +702,7 @@ class CalendarIndex extends Component
         }
 
         unset($this->programs, $this->groupedPrograms, $this->slotMap, $this->cellSlots, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData);
+
     }
 
     protected function toggleDirectSlot(int $trainingProgramId, string $datetime): void
@@ -671,6 +755,34 @@ class CalendarIndex extends Component
         ]);
     }
 
+    public function selectFromOverview(int $groupId, ?int $userId = null): void
+    {
+        $this->group = (string) $groupId;
+        $this->user = $userId !== null ? (string) $userId : '';
+
+        $selected = ['group' => $groupId];
+        if ($userId !== null) {
+            $selected['user'] = $userId;
+        }
+
+        $this->dispatch('overview-selection', selected: [$selected]);
+
+        unset(
+            $this->selectionName,
+            $this->programs,
+            $this->groupedPrograms,
+            $this->slotMap,
+            $this->cellSlots,
+            $this->userOverrides,
+            $this->overrideSlotMap,
+            $this->slotState,
+            $this->weekGridData,
+            $this->overviewData
+        );
+
+
+    }
+
     public function openWeekSlot(string $date, string $period): void
     {
         $startTime = $period === 'pm' ? '14:00' : '09:00';
@@ -715,6 +827,7 @@ class CalendarIndex extends Component
         }
 
         unset($this->programs, $this->groupedPrograms, $this->slotMap, $this->cellSlots, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData);
+
     }
 
     #[On('week-slot.deleted')]
@@ -733,6 +846,7 @@ class CalendarIndex extends Component
         }
 
         unset($this->programs, $this->groupedPrograms, $this->slotMap, $this->cellSlots, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData);
+
     }
 
     public function openAddContent(): void
