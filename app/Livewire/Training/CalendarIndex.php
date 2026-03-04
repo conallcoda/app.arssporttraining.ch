@@ -124,7 +124,6 @@ class CalendarIndex extends Component
 
         unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->cellSlots, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData);
 
-
     }
 
     #[Computed]
@@ -176,28 +175,41 @@ class CalendarIndex extends Component
 
         $slots = TrainingProgramSlot::query()
             ->join('training_programs', 'training_program_slots.training_program_id', '=', 'training_programs.id')
+            ->join('exercise_programs', 'training_programs.exercise_program_id', '=', 'exercise_programs.id')
+            ->leftJoin('tags', 'exercise_programs.exercise_category_id', '=', 'tags.id')
             ->whereNull('training_programs.deleted_at')
             ->whereNull('training_program_slots.deleted_at')
             ->whereBetween('training_program_slots.datetime', [
                 $start->copy()->startOfDay(),
                 $end->copy()->endOfDay(),
             ])
-            ->selectRaw('training_programs.group_id, training_programs.user_id, training_programs.exercise_program_id, DATE(training_program_slots.datetime) as slot_date, training_program_slots.active')
+            ->selectRaw('training_programs.group_id, training_programs.user_id, training_programs.exercise_program_id, DATE(training_program_slots.datetime) as slot_date, TIME(training_program_slots.datetime) as slot_time, training_program_slots.active, exercise_programs.name as program_name, tags.color as category_color')
             ->get();
 
         $groupDates = [];
         $groupSlots = [];
         $userSlots = [];
+        $programInfo = [];
 
         foreach ($slots as $slot) {
             $groupId = $slot->group_id;
             $date = $slot->slot_date;
+            $epId = $slot->exercise_program_id;
+
+            $programInfo[$epId] = [
+                'name' => $slot->program_name,
+                'color' => $slot->category_color,
+            ];
+
             $groupDates[$groupId][$date] = true;
 
             if ($slot->user_id === null) {
-                $groupSlots[$groupId][$slot->exercise_program_id][$date] = true;
+                $groupSlots[$groupId][$epId][$date] = $slot->slot_time;
             } else {
-                $userSlots[$groupId][$slot->user_id][$slot->exercise_program_id][$date] = (bool) $slot->active;
+                $userSlots[$groupId][$slot->user_id][$epId][$date] = [
+                    'active' => (bool) $slot->active,
+                    'time' => $slot->slot_time,
+                ];
             }
         }
 
@@ -213,21 +225,35 @@ class CalendarIndex extends Component
                 $memberDates = [];
 
                 foreach ($groupSlots[$gid] ?? [] as $epId => $dates) {
-                    foreach ($dates as $date => $v) {
-                        if (isset($userSlots[$gid][$uid][$epId][$date])) {
-                            if ($userSlots[$gid][$uid][$epId][$date]) {
-                                $memberDates[$date] = true;
+                    foreach ($dates as $date => $time) {
+                        $overridden = isset($userSlots[$gid][$uid][$epId][$date]);
+
+                        if ($overridden) {
+                            if ($userSlots[$gid][$uid][$epId][$date]['active']) {
+                                $memberDates[$date][] = [
+                                    'name' => $programInfo[$epId]['name'],
+                                    'color' => $programInfo[$epId]['color'],
+                                    'time' => substr($userSlots[$gid][$uid][$epId][$date]['time'], 0, 5),
+                                ];
                             }
                         } else {
-                            $memberDates[$date] = true;
+                            $memberDates[$date][] = [
+                                'name' => $programInfo[$epId]['name'],
+                                'color' => $programInfo[$epId]['color'],
+                                'time' => substr($time, 0, 5),
+                            ];
                         }
                     }
                 }
 
                 foreach ($userSlots[$gid][$uid] ?? [] as $epId => $dates) {
-                    foreach ($dates as $date => $active) {
-                        if ($active && ! isset($groupSlots[$gid][$epId][$date])) {
-                            $memberDates[$date] = true;
+                    foreach ($dates as $date => $info) {
+                        if ($info['active'] && ! isset($groupSlots[$gid][$epId][$date])) {
+                            $memberDates[$date][] = [
+                                'name' => $programInfo[$epId]['name'],
+                                'color' => $programInfo[$epId]['color'],
+                                'time' => substr($info['time'], 0, 5),
+                            ];
                         }
                     }
                 }
@@ -779,7 +805,6 @@ class CalendarIndex extends Component
             $this->weekGridData,
             $this->overviewData
         );
-
 
     }
 

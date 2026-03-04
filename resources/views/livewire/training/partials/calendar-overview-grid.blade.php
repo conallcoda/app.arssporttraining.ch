@@ -53,7 +53,28 @@
                     </td>
                     @foreach ($this->days as $day)
                         @if (isset($groupRow['dates'][$day['date']]))
-                            <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-emerald-400/60 dark:bg-emerald-500/40">
+                            @php
+                                $groupColorCounts = [];
+                                foreach ($groupRow['members'] as $mr) {
+                                    foreach ($mr['dates'][$day['date']] ?? [] as $p) {
+                                        $c = $p['color'] ?? '_none';
+                                        $groupColorCounts[$c] = ($groupColorCounts[$c] ?? 0) + 1;
+                                    }
+                                }
+                                $groupTotal = array_sum($groupColorCounts);
+                                $groupStops = [];
+                                $groupPos = 0;
+                                foreach ($groupColorCounts as $c => $count) {
+                                    $pct = round(($count / $groupTotal) * 100, 2);
+                                    $cssColor = $c === '_none' ? 'var(--color-zinc-500)' : "var(--color-{$c}-500)";
+                                    $groupStops[] = "{$cssColor} {$groupPos}% " . ($groupPos + $pct) . '%';
+                                    $groupPos += $pct;
+                                }
+                                $groupGradient = count($groupStops) === 1
+                                    ? "background-color: " . (array_key_first($groupColorCounts) === '_none' ? 'var(--color-zinc-500)' : 'var(--color-' . array_key_first($groupColorCounts) . '-500)') . ';'
+                                    : 'background: linear-gradient(to bottom, ' . implode(', ', $groupStops) . ');';
+                            @endphp
+                            <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0" style="{{ $groupGradient }}">
                                 <div class="aspect-square"></div>
                             </td>
                         @else
@@ -76,9 +97,47 @@
                             </button>
                         </td>
                         @foreach ($this->days as $day)
-                            @if (isset($memberRow['dates'][$day['date']]))
-                                <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-emerald-400/60 dark:bg-emerald-500/40">
-                                    <div class="aspect-square"></div>
+                            @if (! empty($memberRow['dates'][$day['date']]))
+                                @php
+                                    $progs = $memberRow['dates'][$day['date']];
+                                    $colorCounts = [];
+                                    foreach ($progs as $p) {
+                                        $c = $p['color'] ?? '_none';
+                                        $colorCounts[$c] = ($colorCounts[$c] ?? 0) + 1;
+                                    }
+                                    $total = array_sum($colorCounts);
+                                    $stops = [];
+                                    $pos = 0;
+                                    foreach ($colorCounts as $c => $count) {
+                                        $pct = round(($count / $total) * 100, 2);
+                                        $cssColor = $c === '_none' ? 'var(--color-zinc-500)' : "var(--color-{$c}-500)";
+                                        $stops[] = "{$cssColor} {$pos}% " . ($pos + $pct) . '%';
+                                        $pos += $pct;
+                                    }
+                                    $gradient = count($stops) === 1
+                                        ? "background-color: " . (array_key_first($colorCounts) === '_none' ? 'var(--color-zinc-500)' : 'var(--color-' . array_key_first($colorCounts) . '-500)') . ';'
+                                        : 'background: linear-gradient(to bottom, ' . implode(', ', $stops) . ');';
+                                @endphp
+                                <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0" style="{{ $gradient }}">
+                                    <flux:dropdown position="bottom center">
+                                        <button type="button" class="aspect-square w-full"></button>
+                                        <flux:popover class="min-w-[10rem]">
+                                            <div class="flex flex-col gap-1">
+                                                @foreach ($memberRow['dates'][$day['date']] as $prog)
+                                                    @if ($prog['color'])
+                                                        <div class="text-[11px] px-1.5 py-0.5 rounded truncate"
+                                                            style="{{ \Coda\Cms\Support\ColorPalette::solid($prog['color']) }}">
+                                                            {{ $prog['time'] }} – {{ $prog['name'] }}
+                                                        </div>
+                                                    @else
+                                                        <div class="text-[11px] px-1.5 py-0.5 rounded truncate bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                                                            {{ $prog['time'] }} – {{ $prog['name'] }}
+                                                        </div>
+                                                    @endif
+                                                @endforeach
+                                            </div>
+                                        </flux:popover>
+                                    </flux:dropdown>
                                 </td>
                             @else
                                 <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 {{ $day['isToday'] ? 'bg-blue-50/50 dark:bg-blue-900/10' : ($day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '') }}">
