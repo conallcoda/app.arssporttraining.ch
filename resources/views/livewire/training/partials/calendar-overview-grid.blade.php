@@ -33,22 +33,19 @@
         @foreach ($this->overviewData as $groupRow)
             <tbody x-data="{ expanded: false }" wire:key="overview-group-{{ $groupRow['group']->id }}">
                 <tr>
-                    <td class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] bg-zinc-100 dark:bg-zinc-800">
+                    <td
+                        class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] bg-zinc-100 dark:bg-zinc-800">
                         <div class="flex items-center gap-2">
                             <button @click.stop="expanded = !expanded" class="shrink-0 text-zinc-400 transition-colors">
-                                <flux:icon.chevron-right
-                                    class="size-4 transition-transform duration-200"
-                                    ::class="expanded && 'rotate-90'"
-                                />
+                                <flux:icon.chevron-right class="size-4 transition-transform duration-200"
+                                    ::class="expanded && 'rotate-90'" />
                             </button>
-                            <button
-                                type="button"
-                                wire:click="selectFromOverview({{ $groupRow['group']->id }})"
-                                class="hover:underline"
-                            >
+                            <button type="button" wire:click="selectFromOverview({{ $groupRow['group']->id }})"
+                                class="hover:underline">
                                 {{ $groupRow['group']->name }}
                             </button>
-                            <span class="text-xs font-normal text-zinc-500 dark:text-zinc-400">({{ count($groupRow['members']) }})</span>
+                            <span
+                                class="text-xs font-normal text-zinc-500 dark:text-zinc-400">({{ count($groupRow['members']) }})</span>
                         </div>
                     </td>
                     @foreach ($this->days as $day)
@@ -66,19 +63,26 @@
                                 $groupPos = 0;
                                 foreach ($groupColorCounts as $c => $count) {
                                     $pct = round(($count / $groupTotal) * 100, 2);
-                                    $cssColor = $c === '_none' ? 'var(--color-zinc-500)' : "var(--color-{$c}-500)";
+                                    $cssColor = $c === '_none' ? 'var(--color-zinc-300)' : "var(--color-{$c}-600)";
                                     $groupStops[] = "{$cssColor} {$groupPos}% " . ($groupPos + $pct) . '%';
                                     $groupPos += $pct;
                                 }
-                                $groupGradient = count($groupStops) === 1
-                                    ? "background-color: " . (array_key_first($groupColorCounts) === '_none' ? 'var(--color-zinc-500)' : 'var(--color-' . array_key_first($groupColorCounts) . '-500)') . ';'
-                                    : 'background: linear-gradient(to bottom, ' . implode(', ', $groupStops) . ');';
+                                $groupGradient =
+                                    count($groupStops) === 1
+                                        ? 'background-color: ' .
+                                            (array_key_first($groupColorCounts) === '_none'
+                                                ? 'var(--color-zinc-300)'
+                                                : 'var(--color-' . array_key_first($groupColorCounts) . '-600)') .
+                                            ';'
+                                        : 'background: linear-gradient(to bottom, ' . implode(', ', $groupStops) . ');';
                             @endphp
-                            <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0" style="{{ $groupGradient }}">
+                            <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0"
+                                style="{{ $groupGradient }}">
                                 <div class="aspect-square"></div>
                             </td>
                         @else
-                            <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 {{ $day['isToday'] ? 'bg-blue-50/50 dark:bg-blue-900/10' : ($day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '') }}">
+                            <td
+                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 {{ $day['isToday'] ? 'bg-blue-50/50 dark:bg-blue-900/10' : ($day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '') }}">
                                 <div class="aspect-square"></div>
                             </td>
                         @endif
@@ -86,18 +90,18 @@
                 </tr>
 
                 @foreach ($groupRow['members'] as $memberRow)
-                    <tr x-show="expanded" x-cloak wire:key="overview-member-{{ $groupRow['group']->id }}-{{ $memberRow['user']->id }}">
-                        <td class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 pl-9 font-medium text-zinc-600 dark:text-zinc-400 whitespace-nowrap min-w-[180px] bg-white dark:bg-zinc-900">
-                            <button
-                                type="button"
+                    <tr x-show="expanded" x-cloak
+                        wire:key="overview-member-{{ $groupRow['group']->id }}-{{ $memberRow['user']->id }}">
+                        <td
+                            class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 pl-9 font-medium text-zinc-600 dark:text-zinc-400 whitespace-nowrap min-w-[180px] bg-white dark:bg-zinc-900">
+                            <button type="button"
                                 wire:click="selectFromOverview({{ $groupRow['group']->id }}, {{ $memberRow['user']->id }})"
-                                class="hover:underline"
-                            >
+                                class="hover:underline">
                                 {{ $memberRow['user']->name }}
                             </button>
                         </td>
                         @foreach ($this->days as $day)
-                            @if (! empty($memberRow['dates'][$day['date']]))
+                            @if (!empty($memberRow['dates'][$day['date']]))
                                 @php
                                     $progs = $memberRow['dates'][$day['date']];
                                     $colorCounts = [];
@@ -110,27 +114,33 @@
                                     $pos = 0;
                                     foreach ($colorCounts as $c => $count) {
                                         $pct = round(($count / $total) * 100, 2);
-                                        $cssColor = $c === '_none' ? 'var(--color-zinc-500)' : "var(--color-{$c}-500)";
+                                        $cssColor = $c === '_none' ? 'var(--color-zinc-300)' : "var(--color-{$c}-600)";
                                         $stops[] = "{$cssColor} {$pos}% " . ($pos + $pct) . '%';
                                         $pos += $pct;
                                     }
-                                    $gradient = count($stops) === 1
-                                        ? "background-color: " . (array_key_first($colorCounts) === '_none' ? 'var(--color-zinc-500)' : 'var(--color-' . array_key_first($colorCounts) . '-500)') . ';'
-                                        : 'background: linear-gradient(to bottom, ' . implode(', ', $stops) . ');';
+                                    $gradient =
+                                        count($stops) === 1
+                                            ? 'background-color: ' .
+                                                (array_key_first($colorCounts) === '_none'
+                                                    ? 'var(--color-zinc-300)'
+                                                    : 'var(--color-' . array_key_first($colorCounts) . '--600)') .
+                                                ';'
+                                            : 'background: linear-gradient(to bottom, ' . implode(', ', $stops) . ');';
                                 @endphp
-                                <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0" style="{{ $gradient }}">
+                                <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0"
+                                    style="{{ $gradient }}">
                                     <flux:dropdown position="bottom center">
                                         <button type="button" class="aspect-square w-full"></button>
                                         <flux:popover class="min-w-[10rem]">
                                             <div class="flex flex-col gap-1">
                                                 @foreach ($memberRow['dates'][$day['date']] as $prog)
                                                     @if ($prog['color'])
-                                                        <div class="text-[11px] px-1.5 py-0.5 rounded truncate"
-                                                            style="{{ \Coda\Cms\Support\ColorPalette::solid($prog['color']) }}">
+                                                        <div class="text-[11px] px-1.5 py-0.5 rounded truncate {{ \Coda\Cms\Support\ColorPalette::solidClasses($prog['color']) }}">
                                                             {{ $prog['time'] }} – {{ $prog['name'] }}
                                                         </div>
                                                     @else
-                                                        <div class="text-[11px] px-1.5 py-0.5 rounded truncate bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                                                        <div
+                                                            class="text-[11px] px-1.5 py-0.5 rounded truncate bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
                                                             {{ $prog['time'] }} – {{ $prog['name'] }}
                                                         </div>
                                                     @endif
@@ -140,7 +150,8 @@
                                     </flux:dropdown>
                                 </td>
                             @else
-                                <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 {{ $day['isToday'] ? 'bg-blue-50/50 dark:bg-blue-900/10' : ($day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '') }}">
+                                <td
+                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 {{ $day['isToday'] ? 'bg-blue-50/50 dark:bg-blue-900/10' : ($day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '') }}">
                                     <div class="aspect-square"></div>
                                 </td>
                             @endif

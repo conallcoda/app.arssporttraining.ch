@@ -23,23 +23,58 @@
                     </div>
                     @if ($this->hasSelection())
                         <div class="flex items-center gap-2">
+                            <flux:text class="text-xs text-zinc-500 dark:text-zinc-400">Group by</flux:text>
                             <flux:radio.group wire:model.live="viewMode" variant="segmented" size="sm">
-                                <flux:radio value="program" label="Program Grid" />
-                                <flux:radio value="week" label="Week Grid" />
+                                <flux:radio value="program" label="Category" />
+                                <flux:radio value="programs" label="Programs" />
+                                <flux:radio value="week" label="Week" />
+                                @if ($this->user === '')
+                                    <flux:radio value="athlete" label="Athlete" />
+                                @endif
                             </flux:radio.group>
                         </div>
                     @endif
                 </div>
 
-                @if ($this->hasSelection() && $this->programs->isNotEmpty())
-                    @if ($viewMode === 'program')
+                @if ($this->hasSelection() && $viewMode === 'athlete' && $this->user === '')
+                    @include('livewire.training.partials.calendar-athlete-grid')
+                @elseif ($this->hasSelection() && $this->programs->isNotEmpty())
+                    @if ($viewMode === 'program' || $viewMode === 'programs')
                         <div class="px-4 py-2 flex justify-end">
                             <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddContent">Add Program</flux:button>
                         </div>
                     @endif
 
                     @if ($viewMode === 'week')
+                        <div class="px-4 py-2 flex items-center gap-4">
+                            <flux:radio.group wire:model.live="weekEditMode" variant="segmented" size="sm">
+                                <flux:radio value="view" label="View" />
+                                <flux:radio value="edit" label="Edit" />
+                                <flux:radio value="remove" label="Remove" />
+                            </flux:radio.group>
+
+                            @if ($weekEditMode === 'edit')
+                                <div class="flex items-center gap-3 flex-1">
+                                    <flux:select variant="listbox" searchable size="sm" wire:model.live="quickProgramId" placeholder="Select program..." :invalid="$errors->has('quickProgramId')">
+                                        @foreach ($this->quickProgramOptions as $id => $name)
+                                            <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
+                                        @endforeach
+                                    </flux:select>
+
+                                    @if ($this->quickAthleteOptions->isNotEmpty())
+                                        <flux:select variant="listbox" searchable multiple size="sm" wire:model.live="quickSelectedAthletes" placeholder="Athletes..." :invalid="$errors->has('quickSelectedAthletes')">
+                                            @foreach ($this->quickAthleteOptions as $athlete)
+                                                <flux:select.option value="{{ $athlete['id'] }}">{{ $athlete['name'] }}</flux:select.option>
+                                            @endforeach
+                                        </flux:select>
+                                    @endif
+                                </div>
+                            @endif
+                        </div>
+
                         @include('livewire.training.partials.calendar-week-grid')
+                    @elseif ($viewMode === 'programs')
+                        @include('livewire.training.partials.calendar-programs-grid')
                     @else
                         @include('livewire.training.partials.calendar-program-grid')
                     @endif

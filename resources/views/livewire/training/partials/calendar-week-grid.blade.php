@@ -38,27 +38,33 @@
                         AM
                     </td>
                     @foreach ($week['days'] as $day)
-                        <td class="border-r border-b border-zinc-300 dark:border-zinc-600 px-1.5 py-1.5 align-top {{ $day['isToday'] ? 'bg-blue-50/50 dark:bg-blue-900/10' : '' }}">
-                            <div class="flex flex-col gap-0.5">
-                                @foreach ($day['am'] as $prog)
-                                    @if ($prog['color'])
-                                        <button type="button" wire:click="editWeekSlot({{ $prog['trainingProgramId'] }}, '{{ $day['date'] }}', '{{ $prog['time'] }}')"
-                                            class="text-[11px] px-1.5 py-0.5 rounded truncate text-left cursor-pointer hover:opacity-80 transition-opacity"
-                                            style="{{ \Coda\Cms\Support\ColorPalette::solid($prog['color']) }}">
-                                            {{ $prog['time'] }} – {{ $prog['name'] }}
-                                        </button>
-                                    @else
-                                        <button type="button" wire:click="editWeekSlot({{ $prog['trainingProgramId'] }}, '{{ $day['date'] }}', '{{ $prog['time'] }}')"
-                                            class="text-[11px] px-1.5 py-0.5 rounded truncate text-left cursor-pointer hover:opacity-80 transition-opacity bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
-                                            {{ $prog['time'] }} – {{ $prog['name'] }}
-                                        </button>
-                                    @endif
-                                @endforeach
-                                <button type="button" wire:click="openWeekSlot('{{ $day['date'] }}', 'am')" class="flex items-center justify-center text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 dark:hover:text-zinc-400 transition-colors py-0.5">
-                                    <flux:icon.plus class="size-3.5" />
-                                </button>
-                            </div>
-                        </td>
+                        @if ($weekEditMode === 'edit')
+                            <td @click="$wire.quickCreateWeekSlot('{{ $day['date'] }}', 'am')"
+                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer {{ $day['isToday'] ? 'bg-blue-50/50 dark:bg-blue-900/10' : '' }}"
+                                style="height: 1px;">
+                                <div class="flex flex-col gap-1 h-full px-1.5 py-1.5">
+                                    @foreach ($day['am'] as $prog)
+                                        @include('livewire.training.partials.calendar-week-slot-card', ['prog' => $prog, 'date' => $day['date']])
+                                    @endforeach
+                                    <div class="flex-1 flex items-center justify-center text-zinc-300 dark:text-zinc-600">
+                                        <flux:icon.plus class="size-3.5" />
+                                    </div>
+                                </div>
+                            </td>
+                        @else
+                            <td @click="$wire.openWeekSlot('{{ $day['date'] }}', 'am')"
+                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer {{ $day['isToday'] ? 'bg-blue-50/50 dark:bg-blue-900/10' : '' }}"
+                                style="height: 1px;">
+                                <div class="flex flex-col gap-1 h-full px-1.5 py-1.5">
+                                    @foreach ($day['am'] as $prog)
+                                        @include('livewire.training.partials.calendar-week-slot-card', ['prog' => $prog, 'date' => $day['date']])
+                                    @endforeach
+                                    <div class="flex-1 flex items-center justify-center text-zinc-300 dark:text-zinc-600">
+                                        <flux:icon.plus class="size-3.5" />
+                                    </div>
+                                </div>
+                            </td>
+                        @endif
                     @endforeach
                 </tr>
                 <tr wire:key="week-grid-{{ $week['key'] }}-pm">
@@ -66,27 +72,33 @@
                         PM
                     </td>
                     @foreach ($week['days'] as $day)
-                        <td class="border-r border-b border-zinc-300 dark:border-zinc-600 px-1.5 py-1.5 align-top {{ $day['isToday'] ? 'bg-blue-50/50 dark:bg-blue-900/10' : '' }}">
-                            <div class="flex flex-col gap-0.5">
-                                @foreach ($day['pm'] as $prog)
-                                    @if ($prog['color'])
-                                        <button type="button" wire:click="editWeekSlot({{ $prog['trainingProgramId'] }}, '{{ $day['date'] }}', '{{ $prog['time'] }}')"
-                                            class="text-[11px] px-1.5 py-0.5 rounded truncate text-left cursor-pointer hover:opacity-80 transition-opacity"
-                                            style="{{ \Coda\Cms\Support\ColorPalette::solid($prog['color']) }}">
-                                            {{ $prog['time'] }} – {{ $prog['name'] }}
-                                        </button>
-                                    @else
-                                        <button type="button" wire:click="editWeekSlot({{ $prog['trainingProgramId'] }}, '{{ $day['date'] }}', '{{ $prog['time'] }}')"
-                                            class="text-[11px] px-1.5 py-0.5 rounded truncate text-left cursor-pointer hover:opacity-80 transition-opacity bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
-                                            {{ $prog['time'] }} – {{ $prog['name'] }}
-                                        </button>
-                                    @endif
-                                @endforeach
-                                <button type="button" wire:click="openWeekSlot('{{ $day['date'] }}', 'pm')" class="flex items-center justify-center text-zinc-300 dark:text-zinc-600 hover:text-zinc-500 dark:hover:text-zinc-400 transition-colors py-0.5">
-                                    <flux:icon.plus class="size-3.5" />
-                                </button>
-                            </div>
-                        </td>
+                        @if ($weekEditMode === 'edit')
+                            <td @click="$wire.quickCreateWeekSlot('{{ $day['date'] }}', 'pm')"
+                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer {{ $day['isToday'] ? 'bg-blue-50/50 dark:bg-blue-900/10' : '' }}"
+                                style="height: 1px;">
+                                <div class="flex flex-col gap-1 h-full px-1.5 py-1.5">
+                                    @foreach ($day['pm'] as $prog)
+                                        @include('livewire.training.partials.calendar-week-slot-card', ['prog' => $prog, 'date' => $day['date']])
+                                    @endforeach
+                                    <div class="flex-1 flex items-center justify-center text-zinc-300 dark:text-zinc-600">
+                                        <flux:icon.plus class="size-3.5" />
+                                    </div>
+                                </div>
+                            </td>
+                        @else
+                            <td @click="$wire.openWeekSlot('{{ $day['date'] }}', 'pm')"
+                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer {{ $day['isToday'] ? 'bg-blue-50/50 dark:bg-blue-900/10' : '' }}"
+                                style="height: 1px;">
+                                <div class="flex flex-col gap-1 h-full px-1.5 py-1.5">
+                                    @foreach ($day['pm'] as $prog)
+                                        @include('livewire.training.partials.calendar-week-slot-card', ['prog' => $prog, 'date' => $day['date']])
+                                    @endforeach
+                                    <div class="flex-1 flex items-center justify-center text-zinc-300 dark:text-zinc-600">
+                                        <flux:icon.plus class="size-3.5" />
+                                    </div>
+                                </div>
+                            </td>
+                        @endif
                     @endforeach
                 </tr>
             @endforeach

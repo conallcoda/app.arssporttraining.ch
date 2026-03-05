@@ -21,7 +21,7 @@ class WeekSlotProgram extends Select
 
     public function withOptions(?int $groupId = null, ?int $userId = null, ?string $date = null): static
     {
-        $this->optionLoader = function () use ($groupId, $userId, $date) {
+        $this->optionLoader = function () use ($groupId, $userId) {
             if ($groupId === null) {
                 return [];
             }
@@ -36,12 +36,6 @@ class WeekSlotProgram extends Select
                 });
             } else {
                 $query->whereNull('user_id');
-            }
-
-            if ($date !== null) {
-                $query->whereDoesntHave('slots', function ($q) use ($date) {
-                    $q->whereDate('datetime', $date);
-                });
             }
 
             return $query

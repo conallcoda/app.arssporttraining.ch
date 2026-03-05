@@ -5,22 +5,28 @@ namespace Coda\Cms\Support;
 class ColorPalette
 {
     public const COLORS = [
-        'blue' => 'Blue',
-        'green' => 'Green',
-        'emerald' => 'Emerald',
-        'teal' => 'Teal',
-        'cyan' => 'Cyan',
-        'sky' => 'Sky',
-        'indigo' => 'Indigo',
-        'violet' => 'Violet',
-        'purple' => 'Purple',
-        'pink' => 'Pink',
-        'rose' => 'Rose',
+        'slate' => 'Slate',
+        'gray' => 'Gray',
+        //   'zinc' => 'Zinc',
+        //   'neutral' => 'Neutral',
+        'stone' => 'Stone',
         'red' => 'Red',
         'orange' => 'Orange',
         'amber' => 'Amber',
         'yellow' => 'Yellow',
         'lime' => 'Lime',
+        'green' => 'Green',
+        'emerald' => 'Emerald',
+        'teal' => 'Teal',
+        'cyan' => 'Cyan',
+        'sky' => 'Sky',
+        'blue' => 'Blue',
+        'indigo' => 'Indigo',
+        'violet' => 'Violet',
+        'purple' => 'Purple',
+        'fuchsia' => 'Fuchsia',
+        'pink' => 'Pink',
+        'rose' => 'Rose',
     ];
 
     public const ROW_COLORS = [
@@ -41,7 +47,7 @@ class ColorPalette
 
     public static function solidClasses(string $color): string
     {
-        return "bg-{$color}-500 text-white";
+        return "dark:bg-{$color}-600 bg-{$color}-600 !text-white";
     }
 
     public static function light(string $color): string

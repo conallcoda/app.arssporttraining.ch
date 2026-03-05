@@ -2,15 +2,14 @@
 
 namespace App\Data\Training;
 
+use App\Form\Fields\Training\Program\Color;
 use App\Models\Tag;
 use Carbon\Carbon;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Form\Concerns\InteractsWithForms;
-use Coda\Cms\Form\Fields\Select;
 use Coda\Cms\Form\Fields\Text;
 use Coda\Cms\Form\Form;
 use Coda\Cms\Models\Contracts\HasForms;
-use Coda\Cms\Support\ColorPalette;
 
 class CategoryData extends AbstractData implements HasForms
 {
@@ -68,7 +67,7 @@ class CategoryData extends AbstractData implements HasForms
         return Form::make()
             ->fieldset('General', [
                 Text::make('name')->label('Name')->required(),
-                Select::make('color')->label('Color')->placeholder('Select a color...')->options(ColorPalette::COLORS),
+                Color::make('color'),
             ]);
     }
 }

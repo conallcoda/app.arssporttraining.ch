@@ -35,19 +35,19 @@
                 $category = $group['category'];
                 $groupEntries = $group['entries'];
                 $categoryColorClass = $category?->color
-                    ? \Coda\Cms\Support\ColorPalette::lightOpaque($category->color)
+                    ? \Coda\Cms\Support\ColorPalette::solidClasses($category->color)
                     : 'bg-zinc-100 dark:bg-zinc-800';
             @endphp
             <tbody x-data="{ expanded: false }" wire:key="category-{{ $categoryId }}">
                 <tr class="cursor-pointer" @click="expanded = !expanded">
-                    <td class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] {{ $categoryColorClass }}">
+                    <td
+                        class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] {{ $categoryColorClass }}">
                         <div class="flex items-center gap-2">
-                            <flux:icon.chevron-right
-                                class="size-4 transition-transform duration-200"
-                                ::class="expanded && 'rotate-90'"
-                            />
+                            <flux:icon.chevron-right class="size-4 transition-transform duration-200"
+                                ::class="expanded && 'rotate-90'" />
                             <span>{{ $category?->name ?? 'Uncategorized' }}</span>
-                            <span class="text-xs font-normal text-zinc-500 dark:text-zinc-400">({{ $groupEntries->count() }})</span>
+                            <span
+                                class="text-xs font-normal text-zinc-500 dark:text-zinc-400">({{ $groupEntries->count() }})</span>
                         </div>
                     </td>
                     @foreach ($this->days as $day)
@@ -66,12 +66,18 @@
                             }
                         @endphp
                         @if ($daySlotCount > 0 && $hasDirectSlot)
-                            <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-emerald-400/80 dark:bg-emerald-500/60">
-                                <div class="aspect-square flex items-center justify-center text-[10px] font-medium text-emerald-700 dark:text-emerald-300">{{ $daySlotCount }}</div>
+                            <td
+                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-emerald-400/80 dark:bg-emerald-500/60">
+                                <div
+                                    class="aspect-square flex items-center justify-center text-[10px] font-medium text-emerald-700 dark:text-emerald-300">
+                                    {{ $daySlotCount }}</div>
                             </td>
                         @elseif ($daySlotCount > 0)
-                            <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-emerald-400/30 dark:bg-emerald-500/20">
-                                <div class="aspect-square flex items-center justify-center text-[10px] font-medium text-emerald-700 dark:text-emerald-300">{{ $daySlotCount }}</div>
+                            <td
+                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-emerald-400/30 dark:bg-emerald-500/20">
+                                <div
+                                    class="aspect-square flex items-center justify-center text-[10px] font-medium text-emerald-700 dark:text-emerald-300">
+                                    {{ $daySlotCount }}</div>
                             </td>
                         @else
                             <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0">
@@ -90,26 +96,23 @@
                             class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 pl-7 pr-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 whitespace-nowrap align-top min-w-[180px] bg-transparent">
                             <div class="flex items-center gap-2">
                                 @if ($entry->program->exercises->isNotEmpty())
-                                    <button
-                                        @click.stop="open = !open"
-                                        class="shrink-0 text-zinc-400 transition-colors"
-                                    >
-                                        <flux:icon.chevron-right
-                                            class="size-4 transition-transform duration-200"
-                                            ::class="open && 'rotate-90'"
-                                        />
+                                    <button @click.stop="open = !open" class="shrink-0 text-zinc-400 transition-colors">
+                                        <flux:icon.chevron-right class="size-4 transition-transform duration-200"
+                                            ::class="open && 'rotate-90'" />
                                     </button>
                                 @endif
                                 <div class="flex flex-col gap-0.5 flex-1 min-w-0">
                                     @if ($isInherited)
-                                        <span class="text-zinc-500 dark:text-zinc-400">{{ $entry->program->name }}</span>
+                                        <span
+                                            class="text-zinc-500 dark:text-zinc-400">{{ $entry->program->name }}</span>
                                     @else
                                         <button type="button" wire:click="openEditProgram({{ $entry->id }})"
                                             class="text-left hover:underline">
                                             {{ $entry->program->name }}
                                         </button>
                                         @if ($entry->sourcePlan)
-                                            <flux:badge size="sm" variant="outline">{{ $entry->sourcePlan->name }}</flux:badge>
+                                            <flux:badge size="sm" variant="outline">{{ $entry->sourcePlan->name }}
+                                            </flux:badge>
                                         @endif
                                     @endif
                                 </div>
@@ -144,11 +147,13 @@
                                 $isEditing = $editingProgramId === $entry->id && $editingDate === $day['date'];
                             @endphp
                             @if ($isEditing)
-                                <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 relative overflow-visible">
+                                <td
+                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 relative overflow-visible">
                                     <div class="absolute left-0 top-0 z-50 min-w-[140px]"
                                         @click.outside="$wire.cancelEditing()"
                                         @keydown.escape.window="$wire.cancelEditing()">
-                                        <flux:time-picker wire:model.live="editingCellTime" time-format="24-hour" :interval="15" />
+                                        <flux:time-picker wire:model.live="editingCellTime" time-format="24-hour"
+                                            :interval="15" />
                                     </div>
                                     <div class="aspect-square"></div>
                                 </td>
@@ -156,13 +161,17 @@
                                 <td @click="if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; return; } clickTimer = setTimeout(() => { $wire.cycleSlot({{ $entry->id }}, '{{ $day['date'] }}'); clickTimer = null; }, 200)"
                                     @dblclick.prevent="clearTimeout(clickTimer); clickTimer = null; $wire.startEditingCell({{ $entry->id }}, '{{ $day['date'] }}')"
                                     class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-emerald-400/30 dark:bg-emerald-500/20 cursor-pointer">
-                                    <div class="aspect-square flex items-center justify-center text-[10px] font-medium text-emerald-700 dark:text-emerald-300">{{ $label }}</div>
+                                    <div
+                                        class="aspect-square flex items-center justify-center text-[10px] font-medium text-emerald-700 dark:text-emerald-300">
+                                        {{ $label }}</div>
                                 </td>
                             @elseif ($label !== null)
                                 <td @click="if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; return; } clickTimer = setTimeout(() => { $wire.cycleSlot({{ $entry->id }}, '{{ $day['date'] }}'); clickTimer = null; }, 200)"
                                     @dblclick.prevent="clearTimeout(clickTimer); clickTimer = null; $wire.startEditingCell({{ $entry->id }}, '{{ $day['date'] }}')"
                                     class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 bg-emerald-400/80 dark:bg-emerald-500/60 cursor-pointer">
-                                    <div class="aspect-square flex items-center justify-center text-[10px] font-medium text-emerald-700 dark:text-emerald-300">{{ $label }}</div>
+                                    <div
+                                        class="aspect-square flex items-center justify-center text-[10px] font-medium text-emerald-700 dark:text-emerald-300">
+                                        {{ $label }}</div>
                                 </td>
                             @else
                                 <td @click="if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; return; } clickTimer = setTimeout(() => { $wire.cycleSlot({{ $entry->id }}, '{{ $day['date'] }}'); clickTimer = null; }, 200)"
