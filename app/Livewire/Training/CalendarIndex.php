@@ -21,7 +21,7 @@ use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 
-#[Layout('components.layouts.database')]
+#[Layout('components.layouts.admin')]
 #[Title('ARS - Athlete Training // Calendar')]
 class CalendarIndex extends Component
 {

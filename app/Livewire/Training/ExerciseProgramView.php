@@ -7,7 +7,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
-#[Layout('components.layouts.database')]
+#[Layout('components.layouts.admin')]
 #[Title('ARS - Athlete Training // Program')]
 class ExerciseProgramView extends Component
 {
