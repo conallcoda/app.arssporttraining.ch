@@ -14,6 +14,18 @@ class DatabaseImportSeeder extends Seeder
 {
     private string $importPath;
 
+    /** @var array<string, int> */
+    private array $tagLookup = [];
+
+    /** @var array<string, int> */
+    private array $templateLookup = [];
+
+    /** @var array<string, int> */
+    private array $exerciseLookup = [];
+
+    /** @var array<string, int> */
+    private array $groupLookup = [];
+
     public function run(): void
     {
         $this->importPath = base_path('import/database');
@@ -29,31 +41,39 @@ class DatabaseImportSeeder extends Seeder
     private function seedTags(): void
     {
         $tags = $this->loadFile('tags.php');
+        $count = 0;
 
         foreach ($tags as $tag) {
-            Tag::updateOrCreate(
-                ['id' => $tag['id']],
-                [
-                    'scope' => $tag['scope'],
-                    'name' => $tag['name'],
-                    'short_name' => $tag['short_name'],
-                    'slug' => $tag['slug'],
-                    'color' => $tag['color'] ?? null,
-                    'parent_id' => null,
-                    'sort_order' => $tag['sort_order'],
-                ],
-            );
+            $count += $this->seedTagNode($tag, $tag['scope'], null);
         }
 
-        foreach ($tags as $tag) {
-            if ($tag['parent_id'] !== null) {
-                Tag::where('id', $tag['id'])->update([
-                    'parent_id' => $tag['parent_id'],
-                ]);
+        $this->command->info('Imported '.$count.' tags.');
+    }
+
+    private function seedTagNode(array $tag, string $scope, ?int $parentId): int
+    {
+        $model = Tag::updateOrCreate(
+            ['scope' => $scope, 'slug' => $tag['slug']],
+            [
+                'name' => $tag['name'],
+                'short_name' => $tag['short_name'] ?? null,
+                'color' => $tag['color'] ?? null,
+                'parent_id' => $parentId,
+                'sort_order' => $tag['sort_order'],
+            ],
+        );
+
+        $this->tagLookup[$scope.':'.$tag['slug']] = $model->id;
+
+        $count = 1;
+
+        if (! empty($tag['children'])) {
+            foreach ($tag['children'] as $child) {
+                $count += $this->seedTagNode($child, $scope, $model->id);
             }
         }
 
-        $this->command->info('Imported '.count($tags).' tags.');
+        return $count;
     }
 
     private function seedExerciseTemplates(): void
@@ -61,13 +81,12 @@ class DatabaseImportSeeder extends Seeder
         $templates = $this->loadFile('exercise_templates.php');
 
         foreach ($templates as $template) {
-            ExerciseTemplate::updateOrCreate(
-                ['id' => $template['id']],
-                [
-                    'name' => $template['name'],
-                    'config' => $template['config'],
-                ],
+            $model = ExerciseTemplate::updateOrCreate(
+                ['name' => $template['name']],
+                ['config' => $template['config']],
             );
+
+            $this->templateLookup[$template['name']] = $model->id;
         }
 
         $this->command->info('Imported '.count($templates).' exercise templates.');
@@ -79,14 +98,14 @@ class DatabaseImportSeeder extends Seeder
 
         foreach ($exercises as $exercise) {
             $tags = $exercise['tags'] ?? [];
-            unset($exercise['tags']);
 
             $model = Exercise::updateOrCreate(
-                ['id' => $exercise['id']],
+                ['name' => $exercise['name']],
                 [
-                    'name' => $exercise['name'],
-                    'category_id' => $exercise['category_id'],
-                    'template_id' => $exercise['template_id'],
+                    'category_id' => $this->resolveTagKey($exercise['category']),
+                    'template_id' => $exercise['template'] !== null
+                        ? $this->resolveTemplateName($exercise['template'])
+                        : null,
                     'video_url' => $exercise['video_url'],
                     'instructions' => $exercise['instructions'],
                     'config' => $exercise['config'],
@@ -96,10 +115,12 @@ class DatabaseImportSeeder extends Seeder
             if (! empty($tags)) {
                 $syncData = [];
                 foreach ($tags as $tag) {
-                    $syncData[$tag['id']] = ['sort' => $tag['sort']];
+                    $syncData[$this->resolveTagKey($tag['tag'])] = ['sort' => $tag['sort']];
                 }
                 $model->tags()->sync($syncData);
             }
+
+            $this->exerciseLookup[$exercise['name']] = $model->id;
         }
 
         $this->command->info('Imported '.count($exercises).' exercises.');
@@ -111,13 +132,13 @@ class DatabaseImportSeeder extends Seeder
 
         foreach ($programs as $program) {
             $exercises = $program['exercises'] ?? [];
-            unset($program['exercises']);
 
             $model = ExerciseProgram::updateOrCreate(
-                ['id' => $program['id']],
+                ['name' => $program['name']],
                 [
-                    'name' => $program['name'],
-                    'exercise_category_id' => $program['exercise_category_id'] ?? null,
+                    'exercise_category_id' => $program['exercise_category'] !== null
+                        ? $this->resolveTagKey($program['exercise_category'])
+                        : null,
                     'sort' => $program['sort'],
                 ],
             );
@@ -125,7 +146,7 @@ class DatabaseImportSeeder extends Seeder
             if (! empty($exercises)) {
                 $syncData = [];
                 foreach ($exercises as $exercise) {
-                    $syncData[$exercise['id']] = ['sort' => $exercise['sort']];
+                    $syncData[$this->resolveExerciseName($exercise['exercise'])] = ['sort' => $exercise['sort']];
                 }
                 $model->exercises()->sync($syncData);
             }
@@ -139,13 +160,12 @@ class DatabaseImportSeeder extends Seeder
         $groups = $this->loadFile('user_groups.php');
 
         foreach ($groups as $group) {
-            UserGroup::updateOrCreate(
-                ['id' => $group['id']],
-                [
-                    'name' => $group['name'],
-                    'config' => $group['config'],
-                ],
+            $model = UserGroup::updateOrCreate(
+                ['name' => $group['name']],
+                ['config' => $group['config']],
             );
+
+            $this->groupLookup[$group['name']] = $model->id;
         }
 
         $this->command->info('Imported '.count($groups).' user groups.');
@@ -157,15 +177,13 @@ class DatabaseImportSeeder extends Seeder
 
         foreach ($users as $user) {
             $groups = $user['groups'] ?? [];
-            unset($user['groups']);
 
-            $model = User::updateOrCreate(
-                ['id' => $user['id']],
+            $model = User::firstOrCreate(
+                ['email' => $user['email']],
                 [
                     'type' => $user['type'],
                     'forename' => $user['forename'],
                     'surname' => $user['surname'],
-                    'email' => $user['email'],
                     'phone' => $user['phone'],
                     'password' => $user['password'],
                     'config' => $user['config'],
@@ -175,13 +193,49 @@ class DatabaseImportSeeder extends Seeder
             if (! empty($groups)) {
                 $syncData = [];
                 foreach ($groups as $group) {
-                    $syncData[$group['id']] = ['sort' => $group['sort']];
+                    $syncData[$this->resolveGroupName($group['group'])] = ['sort' => $group['sort']];
                 }
                 $model->groups()->sync($syncData);
             }
         }
 
         $this->command->info('Imported '.count($users).' users.');
+    }
+
+    private function resolveTagKey(string $key): int
+    {
+        if (! isset($this->tagLookup[$key])) {
+            throw new \RuntimeException("Tag key '{$key}' not found. Ensure tags are seeded first.");
+        }
+
+        return $this->tagLookup[$key];
+    }
+
+    private function resolveTemplateName(string $name): int
+    {
+        if (! isset($this->templateLookup[$name])) {
+            throw new \RuntimeException("Exercise template '{$name}' not found. Ensure templates are seeded first.");
+        }
+
+        return $this->templateLookup[$name];
+    }
+
+    private function resolveExerciseName(string $name): int
+    {
+        if (! isset($this->exerciseLookup[$name])) {
+            throw new \RuntimeException("Exercise '{$name}' not found. Ensure exercises are seeded first.");
+        }
+
+        return $this->exerciseLookup[$name];
+    }
+
+    private function resolveGroupName(string $name): int
+    {
+        if (! isset($this->groupLookup[$name])) {
+            throw new \RuntimeException("User group '{$name}' not found. Ensure user groups are seeded first.");
+        }
+
+        return $this->groupLookup[$name];
     }
 
     /** @return array<int, array<string, mixed>> */

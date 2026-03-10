@@ -3,9 +3,9 @@
 use Coda\Cms\Registry;
 use Illuminate\Support\Facades\Route;
 
-Route::redirect('/', '/admin/programs');
+Route::redirect('/', '/login');
 
-Route::prefix('admin')->group(function (): void {
+Route::prefix('admin')->middleware('auth')->group(function (): void {
     app(Registry::class)->registerRoutes();
 });
 

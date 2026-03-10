@@ -34,6 +34,15 @@
         </flux:sidebar.nav>
 
         <flux:sidebar.spacer />
+
+        <flux:sidebar.nav>
+            <form method="POST" action="/logout">
+                @csrf
+                <flux:sidebar.item icon="log-out" type="submit">
+                    Logout
+                </flux:sidebar.item>
+            </form>
+        </flux:sidebar.nav>
     </flux:sidebar>
 
     <flux:header class="bg-white lg:bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700">

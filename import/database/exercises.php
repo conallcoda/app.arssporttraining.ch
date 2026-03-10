@@ -2,10 +2,9 @@
 
 return [
     [
-        'id' => 4,
         'name' => 'ATG Split Squat',
-        'category_id' => 323,
-        'template_id' => 2,
+        'category' => 'exercise_category:strength',
+        'template' => 'Strength (Manual Coach)',
         'video_url' => 'https://www.youtube.com/shorts/LHX34TpJxbQ',
         'instructions' => 'Knie muss über Fussspitze kommen ',
         'config' => [
@@ -64,20 +63,19 @@ return [
         ],
         'tags' => [
             [
-                'id' => 82,
+                'tag' => 'exercise_equipment:db',
                 'sort' => 0,
             ],
             [
-                'id' => 357,
+                'tag' => 'exercise_modifiers:front-foot-flat-on-floor',
                 'sort' => 0,
             ],
         ],
     ],
     [
-        'id' => 9,
         'name' => 'Back Squat',
-        'category_id' => 323,
-        'template_id' => 1,
+        'category' => 'exercise_category:strength',
+        'template' => 'Strength (Automatic)',
         'video_url' => 'https://www.youtube.com/watch?v=CPgCggIyn-g',
         'instructions' => 'So lange runter bis rücken gerade ist',
         'config' => [
@@ -136,16 +134,15 @@ return [
         ],
         'tags' => [
             [
-                'id' => 104,
+                'tag' => 'exercise_modifiers:heel-elevated',
                 'sort' => 0,
             ],
         ],
     ],
     [
-        'id' => 7,
         'name' => 'Chin-Up',
-        'category_id' => 323,
-        'template_id' => null,
+        'category' => 'exercise_category:strength',
+        'template' => null,
         'video_url' => 'https://youtu.be/jWG018GIUjY',
         'instructions' => 'Gleichmässig runter',
         'config' => [
@@ -190,20 +187,19 @@ return [
         ],
         'tags' => [
             [
-                'id' => 91,
+                'tag' => 'exercise_modifiers:neutral',
                 'sort' => 0,
             ],
             [
-                'id' => 121,
+                'tag' => 'exercise_modifiers:eccentric-only',
                 'sort' => 0,
             ],
         ],
     ],
     [
-        'id' => 13,
         'name' => 'core plank + side plank',
-        'category_id' => 373,
-        'template_id' => null,
+        'category' => 'exercise_category:core',
+        'template' => null,
         'video_url' => 'https://www.youtube.com/shorts/tJwHo9kg5GI',
         'instructions' => 'Brustkasten raus!',
         'config' => [
@@ -249,10 +245,9 @@ return [
         'tags' => [],
     ],
     [
-        'id' => 10,
         'name' => 'Dip',
-        'category_id' => 323,
-        'template_id' => null,
+        'category' => 'exercise_category:strength',
+        'template' => null,
         'video_url' => 'https://youtu.be/dG99wTA7d2U',
         'instructions' => 'Ellenbogen drin behalten',
         'config' => [
@@ -298,10 +293,9 @@ return [
         'tags' => [],
     ],
     [
-        'id' => 5,
-        'name' => 'Front Squat ',
-        'category_id' => 323,
-        'template_id' => 1,
+        'name' => 'Front Squat',
+        'category' => 'exercise_category:strength',
+        'template' => 'Strength (Automatic)',
         'video_url' => 'https://www.youtube.com/shorts/iVtH8lZATdQ',
         'instructions' => 'Ellenbogen hochnehmen die ganze Zeit',
         'config' => [
@@ -360,20 +354,19 @@ return [
         ],
         'tags' => [
             [
-                'id' => 104,
+                'tag' => 'exercise_modifiers:heel-elevated',
                 'sort' => 0,
             ],
             [
-                'id' => 81,
+                'tag' => 'exercise_equipment:bb',
                 'sort' => 0,
             ],
         ],
     ],
     [
-        'id' => 24,
         'name' => 'Hütchensprint li/re',
-        'category_id' => 326,
-        'template_id' => null,
+        'category' => 'exercise_category:lateral',
+        'template' => null,
         'video_url' => null,
         'instructions' => null,
         'config' => [
@@ -418,24 +411,23 @@ return [
         ],
         'tags' => [
             [
-                'id' => 328,
+                'tag' => 'exercise_equipment:hutchen',
                 'sort' => 0,
             ],
             [
-                'id' => 329,
+                'tag' => 'exercise_modifiers:outdoor',
                 'sort' => 0,
             ],
             [
-                'id' => 330,
+                'tag' => 'exercise_modifiers:halle',
                 'sort' => 0,
             ],
         ],
     ],
     [
-        'id' => 26,
         'name' => 'Interval Bike Extensiv Indoor',
-        'category_id' => 374,
-        'template_id' => 3,
+        'category' => 'exercise_category:interval',
+        'template' => 'Interval Extensiv',
         'video_url' => 'https://www.youtube.com/shorts/jN3HeMMvB5o',
         'instructions' => '',
         'config' => [
@@ -492,20 +484,19 @@ return [
         ],
         'tags' => [
             [
-                'id' => 361,
+                'tag' => 'exercise_equipment:indoor-bike',
                 'sort' => 0,
             ],
             [
-                'id' => 360,
+                'tag' => 'exercise_modifiers:indoor',
                 'sort' => 0,
             ],
         ],
     ],
     [
-        'id' => 27,
         'name' => 'Interval Bike Extensiv Outdoor',
-        'category_id' => 374,
-        'template_id' => 3,
+        'category' => 'exercise_category:interval',
+        'template' => 'Interval Extensiv',
         'video_url' => null,
         'instructions' => null,
         'config' => [
@@ -562,20 +553,19 @@ return [
         ],
         'tags' => [
             [
-                'id' => 366,
+                'tag' => 'exercise_equipment:outdoor-bike',
                 'sort' => 0,
             ],
             [
-                'id' => 329,
+                'tag' => 'exercise_modifiers:outdoor',
                 'sort' => 0,
             ],
         ],
     ],
     [
-        'id' => 29,
         'name' => 'Interval Jogging Extensiv Indoor',
-        'category_id' => 374,
-        'template_id' => 3,
+        'category' => 'exercise_category:interval',
+        'template' => 'Interval Extensiv',
         'video_url' => 'https://www.youtube.com/shorts/sMXvl_iOW88',
         'instructions' => null,
         'config' => [
@@ -632,20 +622,19 @@ return [
         ],
         'tags' => [
             [
-                'id' => 367,
+                'tag' => 'exercise_equipment:treadmill',
                 'sort' => 0,
             ],
             [
-                'id' => 360,
+                'tag' => 'exercise_modifiers:indoor',
                 'sort' => 0,
             ],
         ],
     ],
     [
-        'id' => 28,
         'name' => 'Interval Jogging Extensiv Outdoor',
-        'category_id' => 374,
-        'template_id' => 3,
+        'category' => 'exercise_category:interval',
+        'template' => 'Interval Extensiv',
         'video_url' => null,
         'instructions' => null,
         'config' => [
@@ -702,16 +691,15 @@ return [
         ],
         'tags' => [
             [
-                'id' => 329,
+                'tag' => 'exercise_modifiers:outdoor',
                 'sort' => 0,
             ],
         ],
     ],
     [
-        'id' => 30,
         'name' => 'kNIEBEUGE HINTEN AUF BRETT LH',
-        'category_id' => 323,
-        'template_id' => 1,
+        'category' => 'exercise_category:strength',
+        'template' => 'Strength (Automatic)',
         'video_url' => null,
         'instructions' => null,
         'config' => [
@@ -771,10 +759,9 @@ return [
         'tags' => [],
     ],
     [
-        'id' => 16,
         'name' => 'Koordination Ragettli Parcour',
-        'category_id' => 324,
-        'template_id' => null,
+        'category' => 'exercise_category:coordination',
+        'template' => null,
         'video_url' => 'https://www.youtube.com/watch?v=AfD736-n0e8',
         'instructions' => 'Nicht verletzten',
         'config' => [
@@ -820,10 +807,9 @@ return [
         'tags' => [],
     ],
     [
-        'id' => 6,
-        'name' => 'Lastheben ',
-        'category_id' => 323,
-        'template_id' => 1,
+        'name' => 'Lastheben',
+        'category' => 'exercise_category:strength',
+        'template' => 'Strength (Automatic)',
         'video_url' => 'https://www.youtube.com/watch?v=CPgCggIyn-g',
         'instructions' => 'Stange immer am Körper lassen',
         'config' => [
@@ -882,16 +868,15 @@ return [
         ],
         'tags' => [
             [
-                'id' => 104,
+                'tag' => 'exercise_modifiers:heel-elevated',
                 'sort' => 0,
             ],
         ],
     ],
     [
-        'id' => 31,
-        'name' => 'Lastheben',
-        'category_id' => 323,
-        'template_id' => 2,
+        'name' => 'Lastheben 2',
+        'category' => 'exercise_category:strength',
+        'template' => 'Strength (Manual Coach)',
         'video_url' => null,
         'instructions' => null,
         'config' => [
@@ -950,20 +935,19 @@ return [
         ],
         'tags' => [
             [
-                'id' => 81,
+                'tag' => 'exercise_equipment:bb',
                 'sort' => 0,
             ],
             [
-                'id' => 104,
+                'tag' => 'exercise_modifiers:heel-elevated',
                 'sort' => 0,
             ],
         ],
     ],
     [
-        'id' => 8,
         'name' => 'Push Press',
-        'category_id' => 323,
-        'template_id' => null,
+        'category' => 'exercise_category:strength',
+        'template' => null,
         'video_url' => 'https://youtu.be/isXQmhH6AEM',
         'instructions' => 'Sehr Explosiv Arbieten',
         'config' => [
@@ -1008,24 +992,23 @@ return [
         ],
         'tags' => [
             [
-                'id' => 81,
+                'tag' => 'exercise_equipment:bb',
                 'sort' => 0,
             ],
             [
-                'id' => 87,
+                'tag' => 'exercise_modifiers:medium-grip',
                 'sort' => 0,
             ],
             [
-                'id' => 109,
+                'tag' => 'exercise_modifiers:behind-the-neck',
                 'sort' => 0,
             ],
         ],
     ],
     [
-        'id' => 23,
         'name' => 'Skischuh Squatjump',
-        'category_id' => 368,
-        'template_id' => 2,
+        'category' => 'exercise_category:ski',
+        'template' => 'Strength (Manual Coach)',
         'video_url' => null,
         'instructions' => 'Hands on hip, Executive a Jump 90 degrees max and Full length with skiboots',
         'config' => [
@@ -1086,20 +1069,19 @@ return [
         ],
         'tags' => [
             [
-                'id' => 308,
+                'tag' => 'exercise_equipment:skiboots',
                 'sort' => 0,
             ],
             [
-                'id' => 310,
+                'tag' => 'exercise_modifiers:hand-on-hip',
                 'sort' => 0,
             ],
         ],
     ],
     [
-        'id' => 11,
-        'name' => 'Step up ',
-        'category_id' => 323,
-        'template_id' => 2,
+        'name' => 'Step up',
+        'category' => 'exercise_category:strength',
+        'template' => 'Strength (Manual Coach)',
         'video_url' => 'https://www.youtube.com/shorts/r-wWtYEzYIw',
         'instructions' => 'Ohne Schwung',
         'config' => [
@@ -1158,20 +1140,19 @@ return [
         ],
         'tags' => [
             [
-                'id' => 82,
+                'tag' => 'exercise_equipment:db',
                 'sort' => 0,
             ],
             [
-                'id' => 258,
+                'tag' => 'exercise_modifiers:foot-neutral',
                 'sort' => 0,
             ],
         ],
     ],
     [
-        'id' => 12,
         'name' => 'Superman plank',
-        'category_id' => 373,
-        'template_id' => 2,
+        'category' => 'exercise_category:core',
+        'template' => 'Strength (Manual Coach)',
         'video_url' => 'https://www.youtube.com/shorts/6AT8zcAAAj8',
         'instructions' => 'Keine Lordose in der LWS',
         'config' => [
@@ -1231,10 +1212,9 @@ return [
         'tags' => [],
     ],
     [
-        'id' => 32,
         'name' => 'Slalom Furtschellas',
-        'category_id' => 368,
-        'template_id' => null,
+        'category' => 'exercise_category:ski',
+        'template' => null,
         'video_url' => null,
         'instructions' => null,
         'config' => [
@@ -1279,11 +1259,11 @@ return [
         ],
         'tags' => [
             [
-                'id' => 369,
+                'tag' => 'exercise_equipment:long-gates',
                 'sort' => 0,
             ],
             [
-                'id' => 370,
+                'tag' => 'exercise_modifiers:straight-setting',
                 'sort' => 0,
             ],
         ],

@@ -2,7 +2,6 @@
 
 return [
     [
-        'id' => 3,
         'name' => 'Interval Extensiv',
         'config' => [
             'settings' => [
@@ -51,7 +50,6 @@ return [
         ],
     ],
     [
-        'id' => 4,
         'name' => 'Interval Watt Bike',
         'config' => [
             'settings' => [
@@ -111,8 +109,7 @@ return [
         ],
     ],
     [
-        'id' => 8,
-        'name' => 'Lisa am Morgen ',
+        'name' => 'Lisa am Morgen',
         'config' => [
             'settings' => [
                 'reps',
@@ -158,7 +155,6 @@ return [
         ],
     ],
     [
-        'id' => 1,
         'name' => 'Strength (Automatic)',
         'config' => [
             'settings' => [
@@ -216,7 +212,6 @@ return [
         ],
     ],
     [
-        'id' => 2,
         'name' => 'Strength (Manual Coach)',
         'config' => [
             'settings' => [
@@ -267,7 +262,6 @@ return [
         ],
     ],
     [
-        'id' => 9,
         'name' => 'Strength (Manual Athlete)',
         'config' => [
             'settings' => [

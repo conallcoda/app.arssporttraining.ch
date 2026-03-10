@@ -2,9 +2,6 @@
 
 return [
     'users' => [
-        ['forename' => 'Conall', 'surname' => "O'Reilly", 'type' => 'athlete'],
-        ['forename' => 'Dario', 'surname' => 'Lacorte', 'type' => 'athlete'],
-        ['forename' => 'Armando', 'surname' => 'Stoehr', 'type' => 'athlete'],
         ['forename' => 'Samba', 'surname' => 'Del Negro', 'type' => 'athlete'],
         ['forename' => 'Marcel', 'surname' => 'Hirscher', 'type' => 'athlete'],
         ['forename' => 'Marco', 'surname' => 'Odermatt', 'type' => 'athlete'],
@@ -23,20 +20,10 @@ return [
     ],
 
     'groups' => [
-        'Coaches / Trainers' => [
-            'Armando Stoehr',
-            'Dario Lacorte',
-        ],
-        'Three Amigos' => [
-            'Armando Stoehr',
-            "Conall O'Reilly",
-            'Dario Lacorte',
-        ],
         'U9' => [
             'Ivo Caratsch',
             'Giovanni Franzoni',
             'Marco Odermatt',
-            'Sandro Viletta',
         ],
         'SSGD 1' => [
             'Igor Salvetti',

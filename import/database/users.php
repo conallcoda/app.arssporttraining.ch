@@ -2,7 +2,6 @@
 
 return [
     [
-        'id' => 10,
         'type' => 'athlete',
         'forename' => 'Anina',
         'surname' => 'Casty',
@@ -12,13 +11,12 @@ return [
         'config' => null,
         'groups' => [
             [
-                'id' => 6,
+                'group' => 'NLZ OST DAMEN 25/26',
                 'sort' => 0,
             ],
         ],
     ],
     [
-        'id' => 3,
         'type' => 'athlete',
         'forename' => 'Armando',
         'surname' => 'Stoehr',
@@ -28,17 +26,16 @@ return [
         'config' => null,
         'groups' => [
             [
-                'id' => 1,
+                'group' => 'Coaches / Trainers',
                 'sort' => 0,
             ],
             [
-                'id' => 2,
+                'group' => 'Three Amigos',
                 'sort' => 0,
             ],
         ],
     ],
     [
-        'id' => 1,
         'type' => 'athlete',
         'forename' => 'Conall',
         'surname' => 'O\'Reilly',
@@ -48,13 +45,12 @@ return [
         'config' => null,
         'groups' => [
             [
-                'id' => 2,
+                'group' => 'Three Amigos',
                 'sort' => 1,
             ],
         ],
     ],
     [
-        'id' => 2,
         'type' => 'athlete',
         'forename' => 'Dario',
         'surname' => 'Lacorte',
@@ -64,17 +60,16 @@ return [
         'config' => null,
         'groups' => [
             [
-                'id' => 1,
+                'group' => 'Coaches / Trainers',
                 'sort' => 1,
             ],
             [
-                'id' => 2,
+                'group' => 'Three Amigos',
                 'sort' => 2,
             ],
         ],
     ],
     [
-        'id' => 15,
         'type' => 'athlete',
         'forename' => 'Fadri',
         'surname' => 'Hoffemann',
@@ -84,13 +79,12 @@ return [
         'config' => null,
         'groups' => [
             [
-                'id' => 5,
+                'group' => 'SSGD 2',
                 'sort' => 1,
             ],
         ],
     ],
     [
-        'id' => 7,
         'type' => 'athlete',
         'forename' => 'Giovanni',
         'surname' => 'Franzoni',
@@ -100,17 +94,16 @@ return [
         'config' => null,
         'groups' => [
             [
-                'id' => 3,
+                'group' => 'U9',
                 'sort' => 1,
             ],
             [
-                'id' => 5,
+                'group' => 'SSGD 2',
                 'sort' => 7,
             ],
         ],
     ],
     [
-        'id' => 11,
         'type' => 'athlete',
         'forename' => 'Igor',
         'surname' => 'Salvetti',
@@ -120,17 +113,16 @@ return [
         'config' => null,
         'groups' => [
             [
-                'id' => 4,
+                'group' => 'SSGD 1',
                 'sort' => 0,
             ],
             [
-                'id' => 5,
+                'group' => 'SSGD 2',
                 'sort' => 2,
             ],
         ],
     ],
     [
-        'id' => 9,
         'type' => 'athlete',
         'forename' => 'Ivo',
         'surname' => 'Caratsch',
@@ -140,17 +132,16 @@ return [
         'config' => null,
         'groups' => [
             [
-                'id' => 3,
+                'group' => 'U9',
                 'sort' => 0,
             ],
             [
-                'id' => 6,
+                'group' => 'NLZ OST DAMEN 25/26',
                 'sort' => 3,
             ],
         ],
     ],
     [
-        'id' => 13,
         'type' => 'athlete',
         'forename' => 'julian',
         'surname' => 'Landolt',
@@ -160,13 +151,12 @@ return [
         'config' => null,
         'groups' => [
             [
-                'id' => 5,
+                'group' => 'SSGD 2',
                 'sort' => 3,
             ],
         ],
     ],
     [
-        'id' => 14,
         'type' => 'athlete',
         'forename' => 'Lenny',
         'surname' => 'Gehrig',
@@ -176,13 +166,12 @@ return [
         'config' => null,
         'groups' => [
             [
-                'id' => 5,
+                'group' => 'SSGD 2',
                 'sort' => 4,
             ],
         ],
     ],
     [
-        'id' => 19,
         'type' => 'athlete',
         'forename' => 'Lisa',
         'surname' => 'Agerer',
@@ -192,13 +181,12 @@ return [
         'config' => [],
         'groups' => [
             [
-                'id' => 6,
+                'group' => 'NLZ OST DAMEN 25/26',
                 'sort' => 1,
             ],
         ],
     ],
     [
-        'id' => 17,
         'type' => 'athlete',
         'forename' => 'Luca',
         'surname' => 'Westbrook',
@@ -208,13 +196,12 @@ return [
         'config' => null,
         'groups' => [
             [
-                'id' => 5,
+                'group' => 'SSGD 2',
                 'sort' => 5,
             ],
         ],
     ],
     [
-        'id' => 5,
         'type' => 'athlete',
         'forename' => 'Marcel',
         'surname' => 'Hirscher',
@@ -224,13 +211,12 @@ return [
         'config' => null,
         'groups' => [
             [
-                'id' => 6,
+                'group' => 'NLZ OST DAMEN 25/26',
                 'sort' => 2,
             ],
         ],
     ],
     [
-        'id' => 6,
         'type' => 'athlete',
         'forename' => 'Marco',
         'surname' => 'Odermatt',
@@ -240,13 +226,12 @@ return [
         'config' => null,
         'groups' => [
             [
-                'id' => 3,
+                'group' => 'U9',
                 'sort' => 2,
             ],
         ],
     ],
     [
-        'id' => 12,
         'type' => 'athlete',
         'forename' => 'Matthias',
         'surname' => 'Tassandin',
@@ -256,13 +241,12 @@ return [
         'config' => null,
         'groups' => [
             [
-                'id' => 4,
+                'group' => 'SSGD 1',
                 'sort' => 1,
             ],
         ],
     ],
     [
-        'id' => 16,
         'type' => 'athlete',
         'forename' => 'Ninio',
         'surname' => 'Feuerstein',
@@ -272,13 +256,12 @@ return [
         'config' => null,
         'groups' => [
             [
-                'id' => 5,
+                'group' => 'SSGD 2',
                 'sort' => 0,
             ],
         ],
     ],
     [
-        'id' => 18,
         'type' => 'athlete',
         'forename' => 'Noa',
         'surname' => 'Sanchi',
@@ -289,7 +272,6 @@ return [
         'groups' => [],
     ],
     [
-        'id' => 4,
         'type' => 'athlete',
         'forename' => 'Samba',
         'surname' => 'Del Negro',
@@ -299,13 +281,12 @@ return [
         'config' => null,
         'groups' => [
             [
-                'id' => 5,
+                'group' => 'SSGD 2',
                 'sort' => 6,
             ],
         ],
     ],
     [
-        'id' => 8,
         'type' => 'athlete',
         'forename' => 'Sandro',
         'surname' => 'Viletta',
@@ -315,7 +296,7 @@ return [
         'config' => [],
         'groups' => [
             [
-                'id' => 3,
+                'group' => 'U9',
                 'sort' => 3,
             ],
         ],
