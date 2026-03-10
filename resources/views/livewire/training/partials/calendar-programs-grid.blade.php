@@ -47,23 +47,22 @@
                                 ::class="expanded && 'rotate-90'" />
                             <span>{{ $category?->name ?? 'Uncategorized' }}</span>
                             <span
-                                class="text-xs font-normal text-zinc-500 dark:text-zinc-400">({{ $groupEntries->count() }})</span>
+                                class="text-xs font-normal text-zinc-500 dark:text-zinc-200">({{ $groupEntries->count() }})</span>
                         </div>
                     </td>
                     @foreach ($this->days as $day)
                         @php
                             $daySlotCount = 0;
                             foreach ($groupEntries as $ge) {
-                                $slotTime = $this->cellSlots[$ge->id . '-' . $day['date']] ?? null;
-                                if ($slotTime !== null) {
+                                $slots = $this->programCellSlots[$ge->id . '-' . $day['date']] ?? null;
+                                if ($slots !== null) {
                                     $daySlotCount++;
                                 }
                             }
                         @endphp
                         @if ($daySlotCount > 0)
-                            <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 {{ $categoryColorClass }}">
-                                <div class="aspect-square flex items-center justify-center text-[10px] font-medium text-white">
-                                    {{ $daySlotCount }}
+                            <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1">
+                                <div class="aspect-square rounded-sm {{ $categoryColorClass }}">
                                 </div>
                             </td>
                         @else
@@ -93,28 +92,44 @@
                                     class="text-left hover:underline">
                                     {{ $entry->program->name }}
                                 </button>
-                                @if ($entry->sourcePlan)
-                                    <flux:badge size="sm" variant="outline">{{ $entry->sourcePlan->name }}</flux:badge>
-                                @endif
                             </div>
                         </td>
                         @foreach ($this->days as $day)
                             @php
                                 $dateKey = $entry->id . '-' . $day['date'];
-                                $slotTime = $this->cellSlots[$dateKey] ?? null;
-                                $label = match ($slotTime) {
-                                    '09:00' => 'AM',
-                                    '14:00' => 'PM',
-                                    null => null,
-                                    default => $slotTime,
-                                };
+                                $slotTimes = $this->programCellSlots[$dateKey] ?? null;
+                                $slotCount = $slotTimes !== null ? count($slotTimes) : 0;
                             @endphp
-                            @if ($label !== null)
-                                <td wire:click="openProgramSlot({{ $entry->id }}, '{{ $day['date'] }}')"
-                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer {{ $colorClass ?: 'bg-emerald-400/80 dark:bg-emerald-500/60' }}">
-                                    <div class="aspect-square flex items-center justify-center text-[10px] font-medium text-white">
-                                        {{ $label }}
-                                    </div>
+                            @if ($slotCount > 0)
+                                <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1">
+                                    <flux:dropdown position="bottom center">
+                                        <button type="button"
+                                            class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm cursor-pointer {{ $colorClass ?: 'bg-emerald-400/80 dark:bg-emerald-500/60' }}">
+                                            {{ $slotCount }}
+                                        </button>
+                                        <flux:popover class="min-w-[10rem] p-2">
+                                            <div class="flex flex-col gap-1.5">
+                                                @foreach ($slotTimes as $time => $athletes)
+                                                    @if ($categoryColor)
+                                                        <button type="button"
+                                                            wire:click="editWeekSlot({{ $entry->id }}, '{{ $day['date'] }}', '{{ $time }}')"
+                                                            class="flex flex-col px-2 py-1.5 rounded-lg text-left cursor-pointer hover:opacity-80 transition-opacity"
+                                                            style="{{ \Coda\Cms\Support\ColorPalette::solid($categoryColor) }}">
+                                                            <span class="text-[10px] opacity-80">{{ $time }}</span>
+                                                            <span class="text-[10px] opacity-80 truncate">{{ implode(', ', $athletes) }}</span>
+                                                        </button>
+                                                    @else
+                                                        <button type="button"
+                                                            wire:click="editWeekSlot({{ $entry->id }}, '{{ $day['date'] }}', '{{ $time }}')"
+                                                            class="flex flex-col px-2 py-1.5 rounded-lg text-left cursor-pointer hover:opacity-80 transition-opacity bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                                                            <span class="text-[10px] opacity-60">{{ $time }}</span>
+                                                            <span class="text-[10px] opacity-60 truncate">{{ implode(', ', $athletes) }}</span>
+                                                        </button>
+                                                    @endif
+                                                @endforeach
+                                            </div>
+                                        </flux:popover>
+                                    </flux:dropdown>
                                 </td>
                             @else
                                 <td wire:click="openProgramSlot({{ $entry->id }}, '{{ $day['date'] }}')"

@@ -3,7 +3,6 @@
 namespace App\Livewire\Training;
 
 use App\Data\Training\Calendar\WeekSlotData;
-use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\UserGroup;
 use Coda\Cms\Form\Form;
@@ -114,28 +113,16 @@ class WeekSlotForm extends FormModal
             return;
         }
 
-        $trainingProgram = TrainingProgram::find($this->data['training_program_id']);
-        if ($trainingProgram === null) {
-            $this->selectedMembers = array_map('strval', $allMemberIds);
-
-            return;
-        }
-
         $datetime = $this->slotDate.' '.$this->data['start_time'].':00';
 
-        $disabledUserIds = TrainingProgramSlot::query()
-            ->join('training_programs', 'training_program_slots.training_program_id', '=', 'training_programs.id')
-            ->where('training_programs.group_id', $this->groupId)
-            ->where('training_programs.exercise_program_id', $trainingProgram->exercise_program_id)
-            ->whereNotNull('training_programs.user_id')
-            ->where('training_program_slots.datetime', $datetime)
-            ->where('training_program_slots.active', false)
-            ->pluck('training_programs.user_id')
+        $usersWithSlot = TrainingProgramSlot::query()
+            ->where('training_program_id', $this->data['training_program_id'])
+            ->where('datetime', $datetime)
+            ->whereIn('user_id', $allMemberIds)
+            ->pluck('user_id')
             ->all();
 
-        $this->selectedMembers = array_map('strval', array_values(
-            array_diff($allMemberIds, $disabledUserIds)
-        ));
+        $this->selectedMembers = array_map('strval', $usersWithSlot);
     }
 
     public function submit(): void
@@ -175,7 +162,7 @@ class WeekSlotForm extends FormModal
     #[Computed]
     public function formConfig(): Form
     {
-        return WeekSlotData::getForm($this->groupId, $this->userId, $this->slotDate);
+        return WeekSlotData::getForm($this->groupId, $this->slotDate);
     }
 
     public function render(): View

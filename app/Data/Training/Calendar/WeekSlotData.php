@@ -17,11 +17,11 @@ class WeekSlotData extends AbstractData implements HasForms
         public string $start_time = '09:00',
     ) {}
 
-    public static function getForm(?int $groupId = null, ?int $userId = null, ?string $date = null): Form
+    public static function getForm(?int $groupId = null, ?string $date = null): Form
     {
         return Form::make()
             ->fieldset('Add Slot', [
-                WeekSlotProgram::make('training_program_id')->withOptions($groupId, $userId, $date),
+                WeekSlotProgram::make('training_program_id')->withOptions($groupId, $date),
             ]);
     }
 }

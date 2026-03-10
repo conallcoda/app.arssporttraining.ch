@@ -17,9 +17,7 @@ class TrainingProgramFactory extends Factory
     {
         return [
             'group_id' => 1,
-            'user_id' => null,
             'exercise_program_id' => ExerciseProgram::factory(),
-            'source_plan_id' => null,
             'sort' => 0,
         ];
     }

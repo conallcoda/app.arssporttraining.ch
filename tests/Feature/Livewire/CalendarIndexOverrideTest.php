@@ -11,7 +11,7 @@ use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
-it('shows inherited group programs when viewing a user', function () {
+it('shows group programs when viewing a user', function () {
     $group = UserGroup::create(['name' => 'Three Amigos']);
     $user = User::factory()->athlete()->create();
     $group->members()->attach($user);
@@ -26,34 +26,7 @@ it('shows inherited group programs when viewing a user', function () {
         ->assertSee('1A Strength');
 });
 
-it('creates override with active=0 when toggling an inherited active slot', function () {
-    $group = UserGroup::create(['name' => 'Three Amigos']);
-    $user = User::factory()->athlete()->create();
-    $program = ExerciseProgram::factory()->create();
-
-    $groupTp = TrainingProgram::create([
-        'group_id' => $group->id,
-        'exercise_program_id' => $program->id,
-    ]);
-
-    TrainingProgramSlot::create([
-        'training_program_id' => $groupTp->id,
-        'datetime' => '2026-04-01 09:00:00',
-    ]);
-
-    Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'user' => (string) $user->id])
-        ->call('toggleSlot', $groupTp->id, '2026-04-01 09:00:00');
-
-    $override = TrainingProgram::forUser($group->id, $user->id)
-        ->where('exercise_program_id', $program->id)
-        ->first();
-
-    expect($override)->not->toBeNull();
-    expect($override->slots)->toHaveCount(1);
-    expect($override->slots->first()->active)->toBeFalse();
-});
-
-it('creates override with active=1 when toggling a non-existent inherited slot', function () {
+it('can edit a group program from user view', function () {
     $group = UserGroup::create(['name' => 'Three Amigos']);
     $user = User::factory()->athlete()->create();
     $program = ExerciseProgram::factory()->create();
@@ -64,63 +37,11 @@ it('creates override with active=1 when toggling a non-existent inherited slot',
     ]);
 
     Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'user' => (string) $user->id])
-        ->call('toggleSlot', $groupTp->id, '2026-04-01 09:00:00');
-
-    $override = TrainingProgram::forUser($group->id, $user->id)
-        ->where('exercise_program_id', $program->id)
-        ->first();
-
-    expect($override)->not->toBeNull();
-    expect($override->slots->first()->active)->toBeTrue();
+        ->call('openEditProgram', $groupTp->id)
+        ->assertDispatched('open-edit-program');
 });
 
-it('removes override when toggling an existing override slot', function () {
-    $group = UserGroup::create(['name' => 'Three Amigos']);
-    $user = User::factory()->athlete()->create();
-    $program = ExerciseProgram::factory()->create();
-
-    $groupTp = TrainingProgram::create([
-        'group_id' => $group->id,
-        'exercise_program_id' => $program->id,
-    ]);
-
-    TrainingProgramSlot::create([
-        'training_program_id' => $groupTp->id,
-        'datetime' => '2026-04-01 09:00:00',
-    ]);
-
-    Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'user' => (string) $user->id])
-        ->call('toggleSlot', $groupTp->id, '2026-04-01 09:00:00')
-        ->call('toggleSlot', $groupTp->id, '2026-04-01 09:00:00');
-
-    $override = TrainingProgram::forUser($group->id, $user->id)
-        ->where('exercise_program_id', $program->id)
-        ->first();
-
-    expect($override)->toBeNull();
-});
-
-it('cleans up empty override program when last slot is removed', function () {
-    $group = UserGroup::create(['name' => 'Three Amigos']);
-    $user = User::factory()->athlete()->create();
-    $program = ExerciseProgram::factory()->create();
-
-    $groupTp = TrainingProgram::create([
-        'group_id' => $group->id,
-        'exercise_program_id' => $program->id,
-    ]);
-
-    $component = Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'user' => (string) $user->id])
-        ->call('toggleSlot', $groupTp->id, '2026-04-01 09:00:00');
-
-    expect(TrainingProgram::forUser($group->id, $user->id)->count())->toBe(1);
-
-    $component->call('toggleSlot', $groupTp->id, '2026-04-01 09:00:00');
-
-    expect(TrainingProgram::forUser($group->id, $user->id)->count())->toBe(0);
-});
-
-it('prevents removing an inherited group program from user view', function () {
+it('can remove a group program from user view', function () {
     $group = UserGroup::create(['name' => 'Three Amigos']);
     $user = User::factory()->athlete()->create();
     $program = ExerciseProgram::factory()->create();
@@ -133,77 +54,158 @@ it('prevents removing an inherited group program from user view', function () {
     Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'user' => (string) $user->id])
         ->call('removeTrainingProgram', $groupTp->id);
 
-    expect(TrainingProgram::find($groupTp->id))->not->toBeNull();
+    expect(TrainingProgram::find($groupTp->id))->toBeNull();
 });
 
-it('prevents editing an inherited group program from user view', function () {
+it('creates individual slots per user in group mode', function () {
+    $group = UserGroup::create(['name' => 'Three Amigos']);
+    $user1 = User::factory()->athlete()->create();
+    $user2 = User::factory()->athlete()->create();
+    $group->members()->attach([$user1->id, $user2->id]);
+
+    $program = ExerciseProgram::factory()->create();
+    $tp = TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'period' => 'week', 'viewMode' => 'week'])
+        ->call('onWeekSlotSubmitted', [
+            'training_program_id' => $tp->id,
+            'date' => '2026-03-02',
+            'start_time' => '09:00',
+            'selected_members' => [$user1->id, $user2->id],
+            'deselected_members' => [],
+            'original_training_program_id' => null,
+            'original_start_time' => null,
+        ]);
+
+    expect(TrainingProgramSlot::where('training_program_id', $tp->id)->count())->toBe(2);
+    expect(TrainingProgramSlot::where('user_id', $user1->id)->exists())->toBeTrue();
+    expect(TrainingProgramSlot::where('user_id', $user2->id)->exists())->toBeTrue();
+});
+
+it('deselecting a user removes their slot', function () {
+    $group = UserGroup::create(['name' => 'Three Amigos']);
+    $user1 = User::factory()->athlete()->create();
+    $user2 = User::factory()->athlete()->create();
+    $group->members()->attach([$user1->id, $user2->id]);
+
+    $program = ExerciseProgram::factory()->create();
+    $tp = TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $datetime = '2026-03-02 09:00:00';
+    TrainingProgramSlot::create(['training_program_id' => $tp->id, 'user_id' => $user1->id, 'datetime' => $datetime]);
+    TrainingProgramSlot::create(['training_program_id' => $tp->id, 'user_id' => $user2->id, 'datetime' => $datetime]);
+
+    Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'period' => 'week', 'viewMode' => 'week'])
+        ->call('onWeekSlotSubmitted', [
+            'training_program_id' => $tp->id,
+            'date' => '2026-03-02',
+            'start_time' => '09:00',
+            'selected_members' => [$user1->id],
+            'deselected_members' => [$user2->id],
+            'original_training_program_id' => $tp->id,
+            'original_start_time' => '09:00',
+        ]);
+
+    expect(TrainingProgramSlot::where('user_id', $user1->id)->exists())->toBeTrue();
+    expect(TrainingProgramSlot::where('user_id', $user2->id)->exists())->toBeFalse();
+});
+
+it('removes all user slots in group mode', function () {
+    $group = UserGroup::create(['name' => 'Three Amigos']);
+    $user1 = User::factory()->athlete()->create();
+    $user2 = User::factory()->athlete()->create();
+    $group->members()->attach([$user1->id, $user2->id]);
+
+    $program = ExerciseProgram::factory()->create();
+    $tp = TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $datetime = '2026-03-02 09:00:00';
+    TrainingProgramSlot::create(['training_program_id' => $tp->id, 'user_id' => $user1->id, 'datetime' => $datetime]);
+    TrainingProgramSlot::create(['training_program_id' => $tp->id, 'user_id' => $user2->id, 'datetime' => $datetime]);
+
+    Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'period' => 'week', 'viewMode' => 'week'])
+        ->call('quickRemoveWeekSlot', $tp->id, '2026-03-02', '09:00');
+
+    expect(TrainingProgramSlot::where('training_program_id', $tp->id)->count())->toBe(0);
+});
+
+it('removes only the user slot in user mode', function () {
+    $group = UserGroup::create(['name' => 'Three Amigos']);
+    $user1 = User::factory()->athlete()->create();
+    $user2 = User::factory()->athlete()->create();
+    $group->members()->attach([$user1->id, $user2->id]);
+
+    $program = ExerciseProgram::factory()->create();
+    $tp = TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $datetime = '2026-03-02 09:00:00';
+    TrainingProgramSlot::create(['training_program_id' => $tp->id, 'user_id' => $user1->id, 'datetime' => $datetime]);
+    TrainingProgramSlot::create(['training_program_id' => $tp->id, 'user_id' => $user2->id, 'datetime' => $datetime]);
+
+    Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'user' => (string) $user1->id, 'period' => 'week', 'viewMode' => 'week'])
+        ->call('quickRemoveWeekSlot', $tp->id, '2026-03-02', '09:00');
+
+    expect(TrainingProgramSlot::where('user_id', $user1->id)->exists())->toBeFalse();
+    expect(TrainingProgramSlot::where('user_id', $user2->id)->exists())->toBeTrue();
+});
+
+it('user view only shows that user slots', function () {
+    $group = UserGroup::create(['name' => 'Three Amigos']);
+    $user1 = User::factory()->athlete()->create();
+    $user2 = User::factory()->athlete()->create();
+    $group->members()->attach([$user1->id, $user2->id]);
+
+    $program = ExerciseProgram::factory()->create(['name' => 'Strength A']);
+    $tp = TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $datetime = '2026-03-02 09:00:00';
+    TrainingProgramSlot::create(['training_program_id' => $tp->id, 'user_id' => $user2->id, 'datetime' => $datetime]);
+
+    $component = Livewire::test(CalendarIndex::class, [
+        'group' => (string) $group->id,
+        'user' => (string) $user1->id,
+        'period' => 'week',
+        'date' => '2026-03-02',
+    ]);
+
+    expect(TrainingProgramSlot::where('user_id', $user1->id)->exists())->toBeFalse();
+});
+
+it('quick creates a slot for a single user in user mode', function () {
     $group = UserGroup::create(['name' => 'Three Amigos']);
     $user = User::factory()->athlete()->create();
-    $program = ExerciseProgram::factory()->create();
+    $group->members()->attach($user);
 
-    $groupTp = TrainingProgram::create([
+    $program = ExerciseProgram::factory()->create();
+    $tp = TrainingProgram::create([
         'group_id' => $group->id,
         'exercise_program_id' => $program->id,
     ]);
 
-    Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'user' => (string) $user->id])
-        ->call('openEditProgram', $groupTp->id)
-        ->assertNotDispatched('open-edit-program');
-});
+    Livewire::test(CalendarIndex::class, [
+        'group' => (string) $group->id,
+        'user' => (string) $user->id,
+        'period' => 'week',
+        'viewMode' => 'week',
+        'weekEditMode' => 'edit',
+    ])
+        ->set('quickProgramId', $tp->id)
+        ->call('quickCreateWeekSlot', '2026-03-02', 'am');
 
-it('uses direct toggle logic in group view', function () {
-    $group = UserGroup::create(['name' => 'Three Amigos']);
-    $program = ExerciseProgram::factory()->create();
-
-    $groupTp = TrainingProgram::create([
-        'group_id' => $group->id,
-        'exercise_program_id' => $program->id,
-    ]);
-
-    Livewire::test(CalendarIndex::class, ['group' => (string) $group->id])
-        ->call('toggleSlot', $groupTp->id, '2026-04-01 09:00:00');
-
-    expect(TrainingProgramSlot::where('training_program_id', $groupTp->id)->count())->toBe(1);
-    expect(TrainingProgram::where('exercise_program_id', $program->id)->where('user_id', '!=', null)->count())->toBe(0);
-});
-
-it('identifies group level programs correctly', function () {
-    $group = UserGroup::create(['name' => 'Three Amigos']);
-    $user = User::factory()->athlete()->create();
-    $program = ExerciseProgram::factory()->create();
-
-    $groupTp = TrainingProgram::create([
-        'group_id' => $group->id,
-        'exercise_program_id' => $program->id,
-    ]);
-
-    $userTp = TrainingProgram::create([
-        'group_id' => $group->id,
-        'user_id' => $user->id,
-        'exercise_program_id' => ExerciseProgram::factory()->create()->id,
-    ]);
-
-    expect($groupTp->isGroupLevel())->toBeTrue();
-    expect($userTp->isGroupLevel())->toBeFalse();
-});
-
-it('finds or creates override sharing the same exercise program', function () {
-    $group = UserGroup::create(['name' => 'Three Amigos']);
-    $user = User::factory()->athlete()->create();
-    $program = ExerciseProgram::factory()->create();
-
-    $groupTp = TrainingProgram::create([
-        'group_id' => $group->id,
-        'exercise_program_id' => $program->id,
-    ]);
-
-    $override = TrainingProgram::findOrCreateOverride($groupTp, $user->id);
-
-    expect($override->exercise_program_id)->toBe($program->id);
-    expect($override->group_id)->toBe($group->id);
-    expect($override->user_id)->toBe($user->id);
-
-    $override2 = TrainingProgram::findOrCreateOverride($groupTp, $user->id);
-
-    expect($override->id)->toBe($override2->id);
+    expect(TrainingProgramSlot::where('training_program_id', $tp->id)->where('user_id', $user->id)->count())->toBe(1);
 });

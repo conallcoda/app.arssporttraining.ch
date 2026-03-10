@@ -5,7 +5,6 @@ namespace App\Livewire\Training;
 use App\Data\Training\Calendar\CalendarSettingsData;
 use App\Data\Training\ExerciseProgramData;
 use App\Models\Exercise\Exercise;
-use App\Models\Exercise\ExercisePlan;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
@@ -38,8 +37,8 @@ class CalendarIndex extends Component
     #[Url(except: '')]
     public string $end = '';
 
-    #[Url(except: 'program')]
-    public string $viewMode = 'program';
+    #[Url(except: 'programs')]
+    public string $viewMode = 'programs';
 
     #[Url(except: '')]
     public string $group = '';
@@ -55,15 +54,9 @@ class CalendarIndex extends Component
 
     public string $addContentSearch = '';
 
-    public string $addContentTab = 'plan';
+    public string $addContentTab = 'program';
 
     public ?int $editingTrainingProgramId = null;
-
-    public ?int $editingProgramId = null;
-
-    public ?string $editingDate = null;
-
-    public string $editingCellTime = '';
 
     public string $weekEditMode = 'view';
 
@@ -108,7 +101,7 @@ class CalendarIndex extends Component
         $this->start = $this->calendarSettings->start ?? '';
         $this->end = $this->calendarSettings->end ?? '';
 
-        unset($this->days, $this->weeks, $this->months, $this->title, $this->weekGridData, $this->overviewData, $this->athleteGridData);
+        unset($this->days, $this->weeks, $this->months, $this->title, $this->weekGridData, $this->overviewData);
     }
 
     #[On('sidebar-selection-changed')]
@@ -126,13 +119,9 @@ class CalendarIndex extends Component
 
         if (isset($first['user'])) {
             $this->user = (string) $first['user'];
-
-            if ($this->viewMode === 'athlete') {
-                $this->viewMode = 'program';
-            }
         }
 
-        unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->cellSlots, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData, $this->athleteGridData);
+        unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData);
 
     }
 
@@ -188,39 +177,27 @@ class CalendarIndex extends Component
             ->join('exercise_programs', 'training_programs.exercise_program_id', '=', 'exercise_programs.id')
             ->leftJoin('tags', 'exercise_programs.exercise_category_id', '=', 'tags.id')
             ->whereNull('training_programs.deleted_at')
-            ->whereNull('training_program_slots.deleted_at')
             ->whereBetween('training_program_slots.datetime', [
                 $start->copy()->startOfDay(),
                 $end->copy()->endOfDay(),
             ])
-            ->selectRaw('training_programs.group_id, training_programs.user_id, training_programs.exercise_program_id, DATE(training_program_slots.datetime) as slot_date, TIME(training_program_slots.datetime) as slot_time, training_program_slots.active, exercise_programs.name as program_name, tags.color as category_color')
+            ->selectRaw('training_programs.group_id, training_program_slots.user_id, DATE(training_program_slots.datetime) as slot_date, TIME(training_program_slots.datetime) as slot_time, exercise_programs.name as program_name, tags.color as category_color')
             ->get();
 
         $groupDates = [];
-        $groupSlots = [];
         $userSlots = [];
-        $programInfo = [];
 
         foreach ($slots as $slot) {
             $groupId = $slot->group_id;
             $date = $slot->slot_date;
-            $epId = $slot->exercise_program_id;
-
-            $programInfo[$epId] = [
-                'name' => $slot->program_name,
-                'color' => $slot->category_color,
-            ];
 
             $groupDates[$groupId][$date] = true;
 
-            if ($slot->user_id === null) {
-                $groupSlots[$groupId][$epId][$date] = $slot->slot_time;
-            } else {
-                $userSlots[$groupId][$slot->user_id][$epId][$date] = [
-                    'active' => (bool) $slot->active,
-                    'time' => $slot->slot_time,
-                ];
-            }
+            $userSlots[$groupId][$slot->user_id][$date][] = [
+                'name' => $slot->program_name,
+                'color' => $slot->category_color,
+                'time' => substr($slot->slot_time, 0, 5),
+            ];
         }
 
         $groups = UserGroup::with('members')->orderBy('name')->get();
@@ -231,46 +208,9 @@ class CalendarIndex extends Component
             $members = [];
 
             foreach ($group->members as $member) {
-                $uid = $member->id;
-                $memberDates = [];
-
-                foreach ($groupSlots[$gid] ?? [] as $epId => $dates) {
-                    foreach ($dates as $date => $time) {
-                        $overridden = isset($userSlots[$gid][$uid][$epId][$date]);
-
-                        if ($overridden) {
-                            if ($userSlots[$gid][$uid][$epId][$date]['active']) {
-                                $memberDates[$date][] = [
-                                    'name' => $programInfo[$epId]['name'],
-                                    'color' => $programInfo[$epId]['color'],
-                                    'time' => substr($userSlots[$gid][$uid][$epId][$date]['time'], 0, 5),
-                                ];
-                            }
-                        } else {
-                            $memberDates[$date][] = [
-                                'name' => $programInfo[$epId]['name'],
-                                'color' => $programInfo[$epId]['color'],
-                                'time' => substr($time, 0, 5),
-                            ];
-                        }
-                    }
-                }
-
-                foreach ($userSlots[$gid][$uid] ?? [] as $epId => $dates) {
-                    foreach ($dates as $date => $info) {
-                        if ($info['active'] && ! isset($groupSlots[$gid][$epId][$date])) {
-                            $memberDates[$date][] = [
-                                'name' => $programInfo[$epId]['name'],
-                                'color' => $programInfo[$epId]['color'],
-                                'time' => substr($info['time'], 0, 5),
-                            ];
-                        }
-                    }
-                }
-
                 $members[] = [
                     'user' => $member,
-                    'dates' => $memberDates,
+                    'dates' => $userSlots[$gid][$member->id] ?? [],
                 ];
             }
 
@@ -278,102 +218,6 @@ class CalendarIndex extends Component
                 'group' => $group,
                 'dates' => $groupDates[$gid] ?? [],
                 'members' => $members,
-            ];
-        }
-
-        return $result;
-    }
-
-    #[Computed]
-    public function athleteGridData(): array
-    {
-        if ($this->group === '' || $this->user !== '') {
-            return [];
-        }
-
-        [$start, $end] = $this->dateRange();
-        $groupId = (int) $this->group;
-
-        $slots = TrainingProgramSlot::query()
-            ->join('training_programs', 'training_program_slots.training_program_id', '=', 'training_programs.id')
-            ->join('exercise_programs', 'training_programs.exercise_program_id', '=', 'exercise_programs.id')
-            ->leftJoin('tags', 'exercise_programs.exercise_category_id', '=', 'tags.id')
-            ->whereNull('training_programs.deleted_at')
-            ->whereNull('training_program_slots.deleted_at')
-            ->where('training_programs.group_id', $groupId)
-            ->whereBetween('training_program_slots.datetime', [
-                $start->copy()->startOfDay(),
-                $end->copy()->endOfDay(),
-            ])
-            ->selectRaw('training_programs.user_id, training_programs.exercise_program_id, DATE(training_program_slots.datetime) as slot_date, TIME(training_program_slots.datetime) as slot_time, training_program_slots.active, exercise_programs.name as program_name, tags.color as category_color')
-            ->get();
-
-        $groupSlots = [];
-        $userSlots = [];
-        $programInfo = [];
-
-        foreach ($slots as $slot) {
-            $epId = $slot->exercise_program_id;
-
-            $programInfo[$epId] = [
-                'name' => $slot->program_name,
-                'color' => $slot->category_color,
-            ];
-
-            if ($slot->user_id === null) {
-                $groupSlots[$epId][$slot->slot_date] = $slot->slot_time;
-            } else {
-                $userSlots[$slot->user_id][$epId][$slot->slot_date] = [
-                    'active' => (bool) $slot->active,
-                    'time' => $slot->slot_time,
-                ];
-            }
-        }
-
-        $group = UserGroup::with('members')->findOrFail($groupId);
-        $result = [];
-
-        foreach ($group->members as $member) {
-            $uid = $member->id;
-            $memberDates = [];
-
-            foreach ($groupSlots as $epId => $dates) {
-                foreach ($dates as $date => $time) {
-                    $overridden = isset($userSlots[$uid][$epId][$date]);
-
-                    if ($overridden) {
-                        if ($userSlots[$uid][$epId][$date]['active']) {
-                            $memberDates[$date][] = [
-                                'name' => $programInfo[$epId]['name'],
-                                'color' => $programInfo[$epId]['color'],
-                                'time' => substr($userSlots[$uid][$epId][$date]['time'], 0, 5),
-                            ];
-                        }
-                    } else {
-                        $memberDates[$date][] = [
-                            'name' => $programInfo[$epId]['name'],
-                            'color' => $programInfo[$epId]['color'],
-                            'time' => substr($time, 0, 5),
-                        ];
-                    }
-                }
-            }
-
-            foreach ($userSlots[$uid] ?? [] as $epId => $dates) {
-                foreach ($dates as $date => $info) {
-                    if ($info['active'] && ! isset($groupSlots[$epId][$date])) {
-                        $memberDates[$date][] = [
-                            'name' => $programInfo[$epId]['name'],
-                            'color' => $programInfo[$epId]['color'],
-                            'time' => substr($info['time'], 0, 5),
-                        ];
-                    }
-                }
-            }
-
-            $result[] = [
-                'user' => $member,
-                'dates' => $memberDates,
             ];
         }
 
@@ -400,75 +244,13 @@ class CalendarIndex extends Component
             return collect();
         }
 
-        [$start, $end] = $this->dateRange();
-
-        $eagerLoads = [
+        return TrainingProgram::with([
             'program.exerciseCategory',
             'program.exercises',
-            'sourcePlan',
-            'slots' => fn ($q) => $q->withTrashed()->whereBetween('datetime', [$start->copy()->startOfDay(), $end->copy()->endOfDay()]),
-        ];
-
-        $groupPrograms = TrainingProgram::with($eagerLoads)
-            ->forGroup((int) $this->group)
-            ->orderBy('sort')
-            ->get();
-
-        if ($this->user === '') {
-            return $groupPrograms;
-        }
-
-        $groupExerciseProgramIds = $groupPrograms->pluck('exercise_program_id')->toArray();
-
-        $independentUserPrograms = TrainingProgram::with($eagerLoads)
-            ->forUser((int) $this->group, (int) $this->user)
-            ->whereNotIn('exercise_program_id', $groupExerciseProgramIds)
-            ->orderBy('sort')
-            ->get();
-
-        return $groupPrograms->concat($independentUserPrograms);
-    }
-
-    #[Computed]
-    public function userOverrides(): Collection
-    {
-        if ($this->user === '' || ! $this->hasSelection()) {
-            return collect();
-        }
-
-        [$start, $end] = $this->dateRange();
-
-        $groupExerciseProgramIds = $this->programs
-            ->filter(fn (TrainingProgram $p) => $p->isGroupLevel())
-            ->pluck('exercise_program_id')
-            ->toArray();
-
-        if (empty($groupExerciseProgramIds)) {
-            return collect();
-        }
-
-        return TrainingProgram::with([
-            'slots' => fn ($q) => $q->whereBetween('datetime', [$start->copy()->startOfDay(), $end->copy()->endOfDay()]),
         ])
-            ->forUser((int) $this->group, (int) $this->user)
-            ->whereIn('exercise_program_id', $groupExerciseProgramIds)
-            ->get()
-            ->keyBy('exercise_program_id');
-    }
-
-    #[Computed]
-    public function overrideSlotMap(): array
-    {
-        $map = [];
-
-        foreach ($this->userOverrides as $override) {
-            foreach ($override->slots as $slot) {
-                $key = $override->exercise_program_id.'-'.$slot->datetime->format('Y-m-d H:i:s');
-                $map[$key] = $slot->active;
-            }
-        }
-
-        return $map;
+            ->where('group_id', (int) $this->group)
+            ->orderBy('sort')
+            ->get();
     }
 
     #[Computed]
@@ -556,96 +338,68 @@ class CalendarIndex extends Component
     #[Computed]
     public function slotMap(): array
     {
+        [$start, $end] = $this->dateRange();
+        $programIds = $this->programs->pluck('id');
+
+        $query = TrainingProgramSlot::query()
+            ->whereIn('training_program_id', $programIds)
+            ->whereBetween('datetime', [$start->copy()->startOfDay(), $end->copy()->endOfDay()]);
+
+        if ($this->user !== '') {
+            $query->where('user_id', (int) $this->user);
+        }
+
         $map = [];
-        $isUserView = $this->user !== '';
-        $overrides = $isUserView ? $this->overrideSlotMap : [];
-
-        foreach ($this->programs as $program) {
-            foreach ($program->slots as $slot) {
-                $key = $program->id.'-'.$slot->datetime->format('Y-m-d H:i:s');
-                $active = ! $slot->trashed();
-
-                if ($isUserView && $program->isGroupLevel()) {
-                    $overrideKey = $program->exercise_program_id.'-'.$slot->datetime->format('Y-m-d H:i:s');
-                    if (isset($overrides[$overrideKey])) {
-                        $active = (bool) $overrides[$overrideKey];
-                    }
-                }
-
-                $map[$key] = $active;
-            }
-
-            if ($isUserView && $program->isGroupLevel()) {
-                foreach ($overrides as $overrideKey => $overrideActive) {
-                    if (! str_starts_with($overrideKey, $program->exercise_program_id.'-')) {
-                        continue;
-                    }
-
-                    $suffix = substr($overrideKey, strlen($program->exercise_program_id.'-'));
-                    $mapKey = $program->id.'-'.$suffix;
-
-                    if (! isset($map[$mapKey]) && $overrideActive) {
-                        $map[$mapKey] = true;
-                    }
-                }
-            }
+        foreach ($query->get() as $slot) {
+            $key = $slot->training_program_id.'-'.$slot->datetime->format('Y-m-d H:i:s');
+            $map[$key] = true;
         }
 
         return $map;
     }
 
     #[Computed]
-    public function slotState(): array
+    public function programCellSlots(): array
     {
-        if ($this->user === '') {
+        [$start, $end] = $this->dateRange();
+        $programIds = $this->programs->pluck('id');
+
+        if ($programIds->isEmpty()) {
             return [];
         }
 
-        $states = [];
-        $overrides = $this->overrideSlotMap;
+        $query = TrainingProgramSlot::query()
+            ->whereIn('training_program_id', $programIds)
+            ->whereBetween('datetime', [$start->copy()->startOfDay(), $end->copy()->endOfDay()])
+            ->join('users', 'training_program_slots.user_id', '=', 'users.id')
+            ->select('training_program_id', 'datetime', 'users.forename', 'users.surname');
 
-        foreach ($this->programs as $program) {
-            if (! $program->isGroupLevel()) {
-                continue;
+        if ($this->user !== '') {
+            $query->where('training_program_slots.user_id', (int) $this->user);
+        }
+
+        $map = [];
+
+        foreach ($query->get() as $row) {
+            $dateKey = $row->training_program_id.'-'.$row->datetime->format('Y-m-d');
+            $time = $row->datetime->format('H:i');
+            $name = trim("{$row->forename} {$row->surname}");
+
+            if (! isset($map[$dateKey])) {
+                $map[$dateKey] = [];
             }
 
-            foreach ($this->days as $day) {
-                foreach (['09:00:00', '14:00:00'] as $time) {
-                    $dt = $day['date'].' '.$time;
-                    $key = $program->id.'-'.$dt;
-                    $overrideKey = $program->exercise_program_id.'-'.$dt;
+            if (! isset($map[$dateKey][$time])) {
+                $map[$dateKey][$time] = [];
+            }
 
-                    if (isset($overrides[$overrideKey])) {
-                        $states[$key] = 'overridden';
-                    } else {
-                        $states[$key] = 'inherited';
-                    }
-                }
+            if (! in_array($name, $map[$dateKey][$time], true)) {
+                $map[$dateKey][$time][] = $name;
             }
         }
 
-        return $states;
-    }
-
-    #[Computed]
-    public function cellSlots(): array
-    {
-        $map = [];
-
-        foreach ($this->slotMap as $key => $active) {
-            if (! $active) {
-                continue;
-            }
-
-            $datetime = substr($key, -19);
-            $programId = substr($key, 0, strlen($key) - 20);
-            $date = substr($datetime, 0, 10);
-            $time = substr($datetime, 11, 5);
-
-            $dateKey = $programId.'-'.$date;
-            if (! isset($map[$dateKey])) {
-                $map[$dateKey] = $time;
-            }
+        foreach ($map as &$times) {
+            ksort($times);
         }
 
         return $map;
@@ -673,9 +427,6 @@ class CalendarIndex extends Component
 
         $slotsByProgramDate = [];
         foreach ($slotMap as $key => $active) {
-            if (! $active) {
-                continue;
-            }
             $datetime = substr($key, -19);
             $programId = substr($key, 0, strlen($key) - 20);
             $date = substr($datetime, 0, 10);
@@ -747,91 +498,28 @@ class CalendarIndex extends Component
             ->join('training_programs', 'training_program_slots.training_program_id', '=', 'training_programs.id')
             ->join('exercise_programs', 'training_programs.exercise_program_id', '=', 'exercise_programs.id')
             ->leftJoin('tags', 'exercise_programs.exercise_category_id', '=', 'tags.id')
+            ->join('users', 'training_program_slots.user_id', '=', 'users.id')
             ->whereNull('training_programs.deleted_at')
-            ->whereNull('training_program_slots.deleted_at')
             ->where('training_programs.group_id', $groupId)
             ->whereBetween('training_program_slots.datetime', [
                 $start->copy()->startOfDay(),
                 $end->copy()->endOfDay(),
             ])
-            ->selectRaw('training_programs.id as training_program_id, training_programs.user_id, training_programs.exercise_program_id, DATE(training_program_slots.datetime) as slot_date, TIME(training_program_slots.datetime) as slot_time, training_program_slots.active, exercise_programs.name as program_name, tags.color as category_color')
+            ->selectRaw("training_programs.id as training_program_id, training_programs.exercise_program_id, DATE(training_program_slots.datetime) as slot_date, TIME(training_program_slots.datetime) as slot_time, exercise_programs.name as program_name, tags.color as category_color, TRIM(CONCAT(users.forename, ' ', users.surname)) as user_name")
             ->get();
 
-        $groupSlots = [];
-        $userSlots = [];
-        $programInfo = [];
+        $rawSlotsByDate = [];
 
         foreach ($slots as $slot) {
-            $epId = $slot->exercise_program_id;
+            $date = $slot->slot_date;
+            $time = substr($slot->slot_time, 0, 5);
+            $key = $slot->exercise_program_id.'-'.$time;
 
-            $programInfo[$epId] = [
-                'name' => $slot->program_name,
-                'color' => $slot->category_color,
-            ];
-
-            if ($slot->user_id === null) {
-                $time = substr($slot->slot_time, 0, 5);
-                $groupSlots[$epId][$slot->slot_date][$time] = [
-                    'tpId' => $slot->training_program_id,
-                ];
-            } else {
-                $time = substr($slot->slot_time, 0, 5);
-                $userSlots[$slot->user_id][$epId][$slot->slot_date][$time] = [
-                    'active' => (bool) $slot->active,
-                    'tpId' => $slot->training_program_id,
-                ];
-            }
-        }
-
-        $group = UserGroup::with('members')->findOrFail($groupId);
-
-        $rawSlotsByDate = [];
-        foreach ($group->members as $member) {
-            $uid = $member->id;
-            $memberOverrides = $userSlots[$uid] ?? [];
-
-            foreach ($groupSlots as $epId => $dates) {
-                foreach ($dates as $date => $times) {
-                    foreach ($times as $groupTime => $info) {
-                        $overrideAtGroupTime = $memberOverrides[$epId][$date][$groupTime] ?? null;
-
-                        if ($overrideAtGroupTime !== null && ! $overrideAtGroupTime['active']) {
-                            continue;
-                        }
-
-                        $key = $epId.'-'.$groupTime;
-                        $rawSlotsByDate[$date][$key]['trainingProgramId'] = $info['tpId'];
-                        $rawSlotsByDate[$date][$key]['name'] = $programInfo[$epId]['name'];
-                        $rawSlotsByDate[$date][$key]['color'] = $programInfo[$epId]['color'];
-                        $rawSlotsByDate[$date][$key]['time'] = $groupTime;
-                        $rawSlotsByDate[$date][$key]['userNames'][] = $member->name;
-                    }
-                }
-            }
-
-            foreach ($memberOverrides as $epId => $dates) {
-                foreach ($dates as $date => $times) {
-                    $groupTimes = $groupSlots[$epId][$date] ?? [];
-
-                    foreach ($times as $time => $override) {
-                        if (! $override['active']) {
-                            continue;
-                        }
-
-                        if (isset($groupTimes[$time])) {
-                            continue;
-                        }
-
-                        $firstGroupTpId = ! empty($groupTimes) ? reset($groupTimes)['tpId'] : null;
-                        $key = $epId.'-'.$time;
-                        $rawSlotsByDate[$date][$key]['trainingProgramId'] = $firstGroupTpId ?? $override['tpId'];
-                        $rawSlotsByDate[$date][$key]['name'] = $programInfo[$epId]['name'];
-                        $rawSlotsByDate[$date][$key]['color'] = $programInfo[$epId]['color'];
-                        $rawSlotsByDate[$date][$key]['time'] = $time;
-                        $rawSlotsByDate[$date][$key]['userNames'][] = $member->name;
-                    }
-                }
-            }
+            $rawSlotsByDate[$date][$key]['trainingProgramId'] = $slot->training_program_id;
+            $rawSlotsByDate[$date][$key]['name'] = $slot->program_name;
+            $rawSlotsByDate[$date][$key]['color'] = $slot->category_color;
+            $rawSlotsByDate[$date][$key]['time'] = $time;
+            $rawSlotsByDate[$date][$key]['userNames'][] = $slot->user_name;
         }
 
         $weeks = [];
@@ -875,166 +563,6 @@ class CalendarIndex extends Component
         return $weeks;
     }
 
-    public function cycleSlot(int $trainingProgramId, string $date): void
-    {
-        $this->cancelEditing();
-
-        $dateKey = $trainingProgramId.'-'.$date;
-        $currentTime = $this->cellSlots[$dateKey] ?? null;
-
-        $program = TrainingProgram::findOrFail($trainingProgramId);
-        $isOverride = $this->user !== '' && $program->isGroupLevel();
-
-        $toggle = function (string $datetime) use ($program, $isOverride): void {
-            if ($isOverride) {
-                $this->toggleOverrideSlot($program, $datetime);
-            } else {
-                $this->toggleDirectSlot($program->id, $datetime);
-            }
-        };
-
-        if ($currentTime !== null) {
-            $toggle($date.' '.$currentTime.':00');
-        }
-
-        $nextTime = match ($currentTime) {
-            null => '09:00',
-            '09:00' => '14:00',
-            default => null,
-        };
-
-        if ($nextTime !== null) {
-            $toggle($date.' '.$nextTime.':00');
-        }
-
-        unset($this->programs, $this->groupedPrograms, $this->slotMap, $this->cellSlots, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData, $this->athleteGridData);
-
-    }
-
-    public function startEditingCell(int $trainingProgramId, string $date): void
-    {
-        $dateKey = $trainingProgramId.'-'.$date;
-        $currentTime = $this->cellSlots[$dateKey] ?? '09:00';
-
-        $this->editingProgramId = $trainingProgramId;
-        $this->editingDate = $date;
-        $this->editingCellTime = $currentTime;
-    }
-
-    public function updatedEditingCellTime(): void
-    {
-        if ($this->editingProgramId === null || $this->editingDate === null || $this->editingCellTime === '') {
-            return;
-        }
-
-        $this->setSlotTime($this->editingProgramId, $this->editingDate, $this->editingCellTime);
-
-        $this->editingProgramId = null;
-        $this->editingDate = null;
-        $this->editingCellTime = '';
-    }
-
-    public function cancelEditing(): void
-    {
-        $this->editingProgramId = null;
-        $this->editingDate = null;
-        $this->editingCellTime = '';
-    }
-
-    public function setSlotTime(int $trainingProgramId, string $date, string $time): void
-    {
-        $dateKey = $trainingProgramId.'-'.$date;
-        $currentTime = $this->cellSlots[$dateKey] ?? null;
-
-        if ($currentTime === $time) {
-            return;
-        }
-
-        $program = TrainingProgram::findOrFail($trainingProgramId);
-        $isOverride = $this->user !== '' && $program->isGroupLevel();
-
-        $toggle = function (string $datetime) use ($program, $isOverride): void {
-            if ($isOverride) {
-                $this->toggleOverrideSlot($program, $datetime);
-            } else {
-                $this->toggleDirectSlot($program->id, $datetime);
-            }
-        };
-
-        if ($currentTime !== null) {
-            $toggle($date.' '.$currentTime.':00');
-        }
-
-        $toggle($date.' '.$time.':00');
-
-        unset($this->programs, $this->groupedPrograms, $this->slotMap, $this->cellSlots, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData, $this->athleteGridData);
-
-    }
-
-    public function toggleSlot(int $trainingProgramId, string $datetime): void
-    {
-        $program = TrainingProgram::findOrFail($trainingProgramId);
-
-        if ($this->user !== '' && $program->isGroupLevel()) {
-            $this->toggleOverrideSlot($program, $datetime);
-        } else {
-            $this->toggleDirectSlot($trainingProgramId, $datetime);
-        }
-
-        unset($this->programs, $this->groupedPrograms, $this->slotMap, $this->cellSlots, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData, $this->athleteGridData);
-
-    }
-
-    protected function toggleDirectSlot(int $trainingProgramId, string $datetime): void
-    {
-        $existing = TrainingProgramSlot::withTrashed()
-            ->where('training_program_id', $trainingProgramId)
-            ->where('datetime', $datetime)
-            ->first();
-
-        if ($existing === null) {
-            TrainingProgramSlot::create([
-                'training_program_id' => $trainingProgramId,
-                'datetime' => $datetime,
-            ]);
-        } elseif ($existing->trashed()) {
-            $existing->restore();
-        } else {
-            $existing->delete();
-        }
-    }
-
-    protected function toggleOverrideSlot(TrainingProgram $groupProgram, string $datetime): void
-    {
-        $overrideProgram = TrainingProgram::findOrCreateOverride($groupProgram, (int) $this->user);
-
-        $existingOverride = TrainingProgramSlot::query()
-            ->where('training_program_id', $overrideProgram->id)
-            ->where('datetime', $datetime)
-            ->first();
-
-        if ($existingOverride !== null) {
-            $existingOverride->forceDelete();
-
-            if ($overrideProgram->slots()->count() === 0) {
-                $overrideProgram->forceDelete();
-            }
-
-            return;
-        }
-
-        $groupSlotActive = TrainingProgramSlot::query()
-            ->where('training_program_id', $groupProgram->id)
-            ->where('datetime', $datetime)
-            ->exists();
-
-        TrainingProgramSlot::create([
-            'training_program_id' => $overrideProgram->id,
-            'datetime' => $datetime,
-            'active' => ! $groupSlotActive,
-        ]);
-    }
-
     public function selectFromOverview(int $groupId, ?int $userId = null): void
     {
         $this->group = (string) $groupId;
@@ -1052,13 +580,9 @@ class CalendarIndex extends Component
             $this->programs,
             $this->groupedPrograms,
             $this->slotMap,
-            $this->cellSlots,
-            $this->userOverrides,
-            $this->overrideSlotMap,
-            $this->slotState,
+            $this->programCellSlots,
             $this->weekGridData,
             $this->overviewData,
-            $this->athleteGridData
         );
 
     }
@@ -1077,25 +601,14 @@ class CalendarIndex extends Component
     public function quickProgramOptions(): array
     {
         $groupId = $this->group !== '' ? (int) $this->group : null;
-        $userId = $this->user !== '' ? (int) $this->user : null;
 
         if ($groupId === null) {
             return [];
         }
 
-        $query = TrainingProgram::query()
+        return TrainingProgram::query()
             ->with('program')
-            ->where('group_id', $groupId);
-
-        if ($userId !== null) {
-            $query->where(function ($q) use ($userId) {
-                $q->whereNull('user_id')->orWhere('user_id', $userId);
-            });
-        } else {
-            $query->whereNull('user_id');
-        }
-
-        return $query
+            ->where('group_id', $groupId)
             ->orderBy('sort')
             ->get()
             ->pluck('program.name', 'id')
@@ -1156,197 +669,48 @@ class CalendarIndex extends Component
         $datetime = $date.' '.$startTime.':00';
         $trainingProgramId = $this->quickProgramId;
 
-        $existing = TrainingProgramSlot::withTrashed()
-            ->where('training_program_id', $trainingProgramId)
-            ->where('datetime', $datetime)
-            ->first();
-
-        if ($existing === null) {
-            TrainingProgramSlot::create([
+        if ($this->user !== '') {
+            TrainingProgramSlot::firstOrCreate([
                 'training_program_id' => $trainingProgramId,
+                'user_id' => (int) $this->user,
                 'datetime' => $datetime,
             ]);
-        } elseif ($existing->trashed()) {
-            $existing->restore();
-        }
-
-        $program = TrainingProgram::find($trainingProgramId);
-
-        if ($program !== null && $program->isGroupLevel()) {
-            $allMemberIds = $this->quickAthleteOptions->pluck('id')->all();
+        } else {
             $selectedMembers = array_map('intval', $this->quickSelectedAthletes);
-            $deselectedMembers = array_values(array_diff($allMemberIds, $selectedMembers));
-
-            $otherGroupSlotTimes = TrainingProgramSlot::query()
-                ->where('training_program_id', $trainingProgramId)
-                ->where('datetime', 'like', $date.'%')
-                ->where('datetime', '!=', $datetime)
-                ->pluck('datetime')
-                ->all();
-
             foreach ($selectedMembers as $userId) {
-                foreach ($otherGroupSlotTimes as $otherDatetime) {
-                    $overrideProgram = TrainingProgram::findOrCreateOverride($program, $userId);
-
-                    $existingOverride = TrainingProgramSlot::query()
-                        ->where('training_program_id', $overrideProgram->id)
-                        ->where('datetime', $otherDatetime)
-                        ->first();
-
-                    if ($existingOverride === null) {
-                        TrainingProgramSlot::create([
-                            'training_program_id' => $overrideProgram->id,
-                            'datetime' => $otherDatetime,
-                            'active' => false,
-                        ]);
-                    } elseif ($existingOverride->active) {
-                        $existingOverride->update(['active' => false]);
-                    }
-                }
-
-                $overrideProgram = TrainingProgram::query()
-                    ->where('group_id', $program->group_id)
-                    ->where('user_id', $userId)
-                    ->where('exercise_program_id', $program->exercise_program_id)
-                    ->first();
-
-                if ($overrideProgram === null) {
-                    continue;
-                }
-
-                $existingOverride = TrainingProgramSlot::query()
-                    ->where('training_program_id', $overrideProgram->id)
-                    ->where('datetime', $datetime)
-                    ->where('active', false)
-                    ->first();
-
-                if ($existingOverride !== null) {
-                    $existingOverride->forceDelete();
-
-                    if ($overrideProgram->slots()->count() === 0) {
-                        $overrideProgram->forceDelete();
-                    }
-                }
-            }
-
-            foreach ($deselectedMembers as $userId) {
-                $overrideProgram = TrainingProgram::findOrCreateOverride($program, $userId);
-
-                $existingOverride = TrainingProgramSlot::query()
-                    ->where('training_program_id', $overrideProgram->id)
-                    ->where('datetime', $datetime)
-                    ->first();
-
-                if ($existingOverride === null) {
-                    TrainingProgramSlot::create([
-                        'training_program_id' => $overrideProgram->id,
-                        'datetime' => $datetime,
-                        'active' => false,
-                    ]);
-                } elseif ($existingOverride->active) {
-                    $existingOverride->update(['active' => false]);
-                }
+                TrainingProgramSlot::firstOrCreate([
+                    'training_program_id' => $trainingProgramId,
+                    'user_id' => $userId,
+                    'datetime' => $datetime,
+                ]);
             }
         }
 
-        unset($this->programs, $this->groupedPrograms, $this->slotMap, $this->cellSlots, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData, $this->athleteGridData);
+        unset($this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData);
     }
 
     public function quickRemoveWeekSlot(int $trainingProgramId, string $date, string $startTime): void
     {
         $datetime = $date.' '.$startTime.':00';
-        $program = TrainingProgram::find($trainingProgramId);
 
-        if ($program === null) {
-            return;
-        }
-
-        if ($this->user !== '' && $program->isGroupLevel()) {
-            $this->quickRemoveAthleteSlot($program, $datetime);
-        } else {
-            $this->quickRemoveGroupSlot($program, $trainingProgramId, $datetime);
-        }
-
-        unset($this->programs, $this->groupedPrograms, $this->slotMap, $this->cellSlots, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData, $this->athleteGridData);
-    }
-
-    protected function quickRemoveAthleteSlot(TrainingProgram $program, string $datetime): void
-    {
-        $userId = (int) $this->user;
-        $group = UserGroup::with('members')->find($program->group_id);
-
-        if ($group === null) {
-            return;
-        }
-
-        $otherMemberIds = $group->members->pluck('id')->filter(fn ($id) => $id !== $userId)->all();
-
-        $optedOutUserIds = TrainingProgramSlot::query()
-            ->join('training_programs', 'training_program_slots.training_program_id', '=', 'training_programs.id')
-            ->where('training_programs.group_id', $program->group_id)
-            ->where('training_programs.exercise_program_id', $program->exercise_program_id)
-            ->whereIn('training_programs.user_id', $otherMemberIds)
-            ->where('training_program_slots.datetime', $datetime)
-            ->where('training_program_slots.active', false)
-            ->pluck('training_programs.user_id')
-            ->all();
-
-        $activeOtherMembers = array_diff($otherMemberIds, $optedOutUserIds);
-
-        if (count($activeOtherMembers) > 0) {
-            $overrideProgram = TrainingProgram::findOrCreateOverride($program, $userId);
-
-            $existingOverride = TrainingProgramSlot::query()
-                ->where('training_program_id', $overrideProgram->id)
+        if ($this->user !== '') {
+            TrainingProgramSlot::query()
+                ->where('training_program_id', $trainingProgramId)
+                ->where('user_id', (int) $this->user)
                 ->where('datetime', $datetime)
-                ->first();
-
-            if ($existingOverride === null) {
-                TrainingProgramSlot::create([
-                    'training_program_id' => $overrideProgram->id,
-                    'datetime' => $datetime,
-                    'active' => false,
-                ]);
-            } elseif ($existingOverride->active) {
-                $existingOverride->update(['active' => false]);
-            }
-
-            return;
-        }
-
-        $this->quickRemoveGroupSlot($program, $program->id, $datetime);
-    }
-
-    protected function quickRemoveGroupSlot(TrainingProgram $program, int $trainingProgramId, string $datetime): void
-    {
-        if ($program->isGroupLevel()) {
-            $overrideSlots = TrainingProgramSlot::query()
-                ->join('training_programs', 'training_program_slots.training_program_id', '=', 'training_programs.id')
-                ->where('training_programs.group_id', $program->group_id)
-                ->where('training_programs.exercise_program_id', $program->exercise_program_id)
-                ->whereNotNull('training_programs.user_id')
-                ->where('training_program_slots.datetime', $datetime)
-                ->select('training_program_slots.*', 'training_programs.id as tp_id')
-                ->get();
-
-            foreach ($overrideSlots as $overrideSlot) {
-                $overrideSlot->forceDelete();
-
-                $overrideProgram = TrainingProgram::find($overrideSlot->tp_id);
-                if ($overrideProgram !== null && $overrideProgram->slots()->count() === 0) {
-                    $overrideProgram->forceDelete();
-                }
+                ->delete();
+        } else {
+            $group = UserGroup::with('members')->find((int) $this->group);
+            if ($group !== null) {
+                TrainingProgramSlot::query()
+                    ->where('training_program_id', $trainingProgramId)
+                    ->whereIn('user_id', $group->members->pluck('id'))
+                    ->where('datetime', $datetime)
+                    ->delete();
             }
         }
 
-        $slot = TrainingProgramSlot::withTrashed()
-            ->where('training_program_id', $trainingProgramId)
-            ->where('datetime', $datetime)
-            ->first();
-
-        if ($slot !== null) {
-            $slot->forceDelete();
-        }
+        unset($this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData);
     }
 
     public function openWeekSlot(string $date, string $period): void
@@ -1398,134 +762,52 @@ class CalendarIndex extends Component
         $programChanged = $originalProgramId !== null && (int) $originalProgramId !== $trainingProgramId;
         $timeChanged = $originalDatetime !== null && $originalDatetime !== $datetime;
 
-        if ($programChanged || $timeChanged) {
-            $oldSlot = TrainingProgramSlot::withTrashed()
-                ->where('training_program_id', (int) $originalProgramId)
-                ->where('datetime', $originalDatetime)
-                ->first();
+        $selectedMembers = $data['selected_members'] ?? [];
+        $deselectedMembers = $data['deselected_members'] ?? [];
 
-            if ($oldSlot !== null) {
-                $oldSlot->forceDelete();
+        if (empty($selectedMembers) && empty($deselectedMembers) && $this->user !== '') {
+            if ($programChanged || $timeChanged) {
+                TrainingProgramSlot::query()
+                    ->where('training_program_id', (int) $originalProgramId)
+                    ->where('user_id', (int) $this->user)
+                    ->where('datetime', $originalDatetime)
+                    ->delete();
             }
 
-            if ($programChanged) {
-                $oldProgram = TrainingProgram::find((int) $originalProgramId);
-                if ($oldProgram !== null && $oldProgram->isGroupLevel()) {
-                    TrainingProgramSlot::query()
-                        ->join('training_programs', 'training_program_slots.training_program_id', '=', 'training_programs.id')
-                        ->where('training_programs.group_id', $oldProgram->group_id)
-                        ->where('training_programs.exercise_program_id', $oldProgram->exercise_program_id)
-                        ->whereNotNull('training_programs.user_id')
-                        ->where('training_program_slots.datetime', $originalDatetime)
-                        ->select('training_program_slots.*', 'training_programs.id as tp_id')
-                        ->get()
-                        ->each(function ($overrideSlot) {
-                            $overrideSlot->forceDelete();
-
-                            $overrideProgram = TrainingProgram::find($overrideSlot->tp_id);
-                            if ($overrideProgram !== null && $overrideProgram->slots()->count() === 0) {
-                                $overrideProgram->forceDelete();
-                            }
-                        });
-                }
-            }
-        }
-
-        $existing = TrainingProgramSlot::withTrashed()
-            ->where('training_program_id', $trainingProgramId)
-            ->where('datetime', $datetime)
-            ->first();
-
-        if ($existing === null) {
-            TrainingProgramSlot::create([
+            TrainingProgramSlot::firstOrCreate([
                 'training_program_id' => $trainingProgramId,
+                'user_id' => (int) $this->user,
                 'datetime' => $datetime,
             ]);
-        } elseif ($existing->trashed()) {
-            $existing->restore();
-        }
+        } else {
+            $allMembers = array_merge($selectedMembers, $deselectedMembers);
 
-        $deselectedMembers = $data['deselected_members'] ?? [];
-        $selectedMembers = $data['selected_members'] ?? [];
-
-        $program = TrainingProgram::find($trainingProgramId);
-
-        if ($program !== null && $program->isGroupLevel()) {
-            $date = $data['date'];
-
-            $otherGroupSlotTimes = TrainingProgramSlot::query()
-                ->where('training_program_id', $trainingProgramId)
-                ->where('datetime', 'like', $date.'%')
-                ->where('datetime', '!=', $datetime)
-                ->pluck('datetime')
-                ->all();
+            if ($programChanged || $timeChanged) {
+                TrainingProgramSlot::query()
+                    ->where('training_program_id', (int) $originalProgramId)
+                    ->whereIn('user_id', $allMembers)
+                    ->where('datetime', $originalDatetime)
+                    ->delete();
+            }
 
             foreach ($selectedMembers as $userId) {
-                foreach ($otherGroupSlotTimes as $otherDatetime) {
-                    $overrideProgram = TrainingProgram::findOrCreateOverride($program, $userId);
-
-                    $existingOverride = TrainingProgramSlot::query()
-                        ->where('training_program_id', $overrideProgram->id)
-                        ->where('datetime', $otherDatetime)
-                        ->first();
-
-                    if ($existingOverride === null) {
-                        TrainingProgramSlot::create([
-                            'training_program_id' => $overrideProgram->id,
-                            'datetime' => $otherDatetime,
-                            'active' => false,
-                        ]);
-                    } elseif ($existingOverride->active) {
-                        $existingOverride->update(['active' => false]);
-                    }
-                }
-
-                $overrideProgram = TrainingProgram::query()
-                    ->where('group_id', $program->group_id)
-                    ->where('user_id', $userId)
-                    ->where('exercise_program_id', $program->exercise_program_id)
-                    ->first();
-
-                if ($overrideProgram === null) {
-                    continue;
-                }
-
-                $existingOverride = TrainingProgramSlot::query()
-                    ->where('training_program_id', $overrideProgram->id)
-                    ->where('datetime', $datetime)
-                    ->where('active', false)
-                    ->first();
-
-                if ($existingOverride !== null) {
-                    $existingOverride->forceDelete();
-
-                    if ($overrideProgram->slots()->count() === 0) {
-                        $overrideProgram->forceDelete();
-                    }
-                }
+                TrainingProgramSlot::firstOrCreate([
+                    'training_program_id' => $trainingProgramId,
+                    'user_id' => $userId,
+                    'datetime' => $datetime,
+                ]);
             }
 
-            foreach ($deselectedMembers as $userId) {
-                $overrideProgram = TrainingProgram::findOrCreateOverride($program, $userId);
-
-                $existingOverride = TrainingProgramSlot::query()
-                    ->where('training_program_id', $overrideProgram->id)
+            if (! empty($deselectedMembers)) {
+                TrainingProgramSlot::query()
+                    ->where('training_program_id', $trainingProgramId)
+                    ->whereIn('user_id', $deselectedMembers)
                     ->where('datetime', $datetime)
-                    ->first();
-
-                if ($existingOverride === null) {
-                    TrainingProgramSlot::create([
-                        'training_program_id' => $overrideProgram->id,
-                        'datetime' => $datetime,
-                        'active' => false,
-                    ]);
-                } elseif ($existingOverride->active) {
-                    $existingOverride->update(['active' => false]);
-                }
+                    ->delete();
             }
         }
 
-        unset($this->programs, $this->groupedPrograms, $this->slotMap, $this->cellSlots, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData, $this->athleteGridData);
+        unset($this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData);
 
     }
 
@@ -1535,45 +817,30 @@ class CalendarIndex extends Component
         $trainingProgramId = (int) $data['training_program_id'];
         $datetime = $data['date'].' '.$data['start_time'].':00';
 
-        $program = TrainingProgram::find($trainingProgramId);
-
-        if ($program !== null && $program->isGroupLevel()) {
-            $overrideSlots = TrainingProgramSlot::query()
-                ->join('training_programs', 'training_program_slots.training_program_id', '=', 'training_programs.id')
-                ->where('training_programs.group_id', $program->group_id)
-                ->where('training_programs.exercise_program_id', $program->exercise_program_id)
-                ->whereNotNull('training_programs.user_id')
-                ->where('training_program_slots.datetime', $datetime)
-                ->select('training_program_slots.*', 'training_programs.id as tp_id')
-                ->get();
-
-            foreach ($overrideSlots as $overrideSlot) {
-                $overrideSlot->forceDelete();
-
-                $overrideProgram = TrainingProgram::find($overrideSlot->tp_id);
-                if ($overrideProgram !== null && $overrideProgram->slots()->count() === 0) {
-                    $overrideProgram->forceDelete();
-                }
+        if ($this->user !== '') {
+            TrainingProgramSlot::query()
+                ->where('training_program_id', $trainingProgramId)
+                ->where('user_id', (int) $this->user)
+                ->where('datetime', $datetime)
+                ->delete();
+        } else {
+            $group = UserGroup::with('members')->find((int) $this->group);
+            if ($group !== null) {
+                TrainingProgramSlot::query()
+                    ->where('training_program_id', $trainingProgramId)
+                    ->whereIn('user_id', $group->members->pluck('id'))
+                    ->where('datetime', $datetime)
+                    ->delete();
             }
         }
 
-        $slot = TrainingProgramSlot::withTrashed()
-            ->where('training_program_id', $trainingProgramId)
-            ->where('datetime', $datetime)
-            ->first();
-
-        if ($slot !== null) {
-            $slot->forceDelete();
-        }
-
-        unset($this->programs, $this->groupedPrograms, $this->slotMap, $this->cellSlots, $this->userOverrides, $this->overrideSlotMap, $this->slotState, $this->weekGridData, $this->athleteGridData);
-
+        unset($this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData);
     }
 
     public function openAddContent(): void
     {
         $this->addContentSearch = '';
-        $this->addContentTab = 'plan';
+        $this->addContentTab = 'program';
         Flux::modal('add-content')->show();
     }
 
@@ -1594,11 +861,6 @@ class CalendarIndex extends Component
         $search = trim($this->addContentSearch);
 
         return match ($this->addContentTab) {
-            'plan' => ExercisePlan::query()
-                ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%"))
-                ->orderBy('name')
-                ->limit(20)
-                ->get(['id', 'name']),
             'program' => ExerciseProgram::query()
                 ->with('exerciseCategory:id,name,color')
                 ->whereNull('owner_id')
@@ -1608,33 +870,20 @@ class CalendarIndex extends Component
                 ->limit(20)
                 ->get(['id', 'name', 'exercise_category_id']),
             'exercise' => Exercise::query()
+                ->with('category.rootAncestorOrSelf')
                 ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%"))
                 ->orderBy('name')
                 ->limit(20)
-                ->get(['id', 'name']),
+                ->get(['id', 'name', 'category_id']),
             default => collect(),
         };
-    }
-
-    public function addFromPlan(int $planId): void
-    {
-        $plan = ExercisePlan::findOrFail($planId);
-        $groupId = (int) $this->group;
-        $userId = $this->viewMode === 'programs' ? null : ($this->user !== '' ? (int) $this->user : null);
-
-        TrainingProgram::importFromPlan($plan, $groupId, $userId);
-
-        unset($this->programs, $this->groupedPrograms);
-        Flux::modal('add-content')->close();
     }
 
     public function addFromProgram(int $programId): void
     {
         $program = ExerciseProgram::findOrFail($programId);
-        $groupId = (int) $this->group;
-        $userId = $this->viewMode === 'programs' ? null : ($this->user !== '' ? (int) $this->user : null);
 
-        TrainingProgram::importProgram($program, $groupId, $userId);
+        TrainingProgram::importProgram($program, (int) $this->group);
 
         unset($this->programs, $this->groupedPrograms);
         Flux::modal('add-content')->close();
@@ -1643,10 +892,8 @@ class CalendarIndex extends Component
     public function addFromExercise(int $exerciseId): void
     {
         $exercise = Exercise::findOrFail($exerciseId);
-        $groupId = (int) $this->group;
-        $userId = $this->viewMode === 'programs' ? null : ($this->user !== '' ? (int) $this->user : null);
 
-        TrainingProgram::importExercise($exercise, $groupId, $userId, categoryId: $exercise->category_id);
+        TrainingProgram::importExercise($exercise, (int) $this->group, categoryId: $exercise->category_id);
 
         unset($this->programs, $this->groupedPrograms);
         Flux::modal('add-content')->close();
@@ -1654,23 +901,13 @@ class CalendarIndex extends Component
 
     public function removeTrainingProgram(int $trainingProgramId): void
     {
-        $program = TrainingProgram::findOrFail($trainingProgramId);
-
-        if ($this->user !== '' && $program->isGroupLevel()) {
-            return;
-        }
-
-        $program->delete();
+        TrainingProgram::findOrFail($trainingProgramId)->delete();
         unset($this->programs, $this->groupedPrograms);
     }
 
     public function openEditProgram(int $trainingProgramId): void
     {
         $trainingProgram = TrainingProgram::with('program.exerciseCategory', 'program.exercises')->findOrFail($trainingProgramId);
-
-        if ($this->user !== '' && $trainingProgram->isGroupLevel()) {
-            return;
-        }
 
         $programData = ExerciseProgramData::fromModel($trainingProgram->program);
 
@@ -1702,13 +939,7 @@ class CalendarIndex extends Component
 
     public function deleteEditingTrainingProgram(): void
     {
-        $program = TrainingProgram::findOrFail($this->editingTrainingProgramId);
-
-        if ($this->user !== '' && $program->isGroupLevel()) {
-            return;
-        }
-
-        $program->delete();
+        TrainingProgram::findOrFail($this->editingTrainingProgramId)->delete();
 
         $this->editingTrainingProgramId = null;
         unset($this->programs, $this->groupedPrograms);

@@ -19,26 +19,16 @@ class WeekSlotProgram extends Select
         $this->variant = 'listbox';
     }
 
-    public function withOptions(?int $groupId = null, ?int $userId = null, ?string $date = null): static
+    public function withOptions(?int $groupId = null, ?string $date = null): static
     {
-        $this->optionLoader = function () use ($groupId, $userId) {
+        $this->optionLoader = function () use ($groupId) {
             if ($groupId === null) {
                 return [];
             }
 
-            $query = TrainingProgram::query()
+            return TrainingProgram::query()
                 ->with('program')
-                ->where('group_id', $groupId);
-
-            if ($userId !== null) {
-                $query->where(function ($q) use ($userId) {
-                    $q->whereNull('user_id')->orWhere('user_id', $userId);
-                });
-            } else {
-                $query->whereNull('user_id');
-            }
-
-            return $query
+                ->where('group_id', $groupId)
                 ->orderBy('sort')
                 ->get()
                 ->pluck('program.name', 'id')

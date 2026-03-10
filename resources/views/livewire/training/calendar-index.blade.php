@@ -25,21 +25,15 @@
                         <div class="flex items-center gap-2">
                             <flux:text class="text-xs text-zinc-500 dark:text-zinc-400">Group by</flux:text>
                             <flux:radio.group wire:model.live="viewMode" variant="segmented" size="sm">
-                                <flux:radio value="program" label="Category" />
                                 <flux:radio value="programs" label="Programs" />
                                 <flux:radio value="week" label="Week" />
-                                @if ($this->user === '')
-                                    <flux:radio value="athlete" label="Athlete" />
-                                @endif
                             </flux:radio.group>
                         </div>
                     @endif
                 </div>
 
-                @if ($this->hasSelection() && $viewMode === 'athlete' && $this->user === '')
-                    @include('livewire.training.partials.calendar-athlete-grid')
-                @elseif ($this->hasSelection() && $this->programs->isNotEmpty())
-                    @if ($viewMode === 'program' || $viewMode === 'programs')
+                @if ($this->hasSelection() && $this->programs->isNotEmpty())
+                    @if ($viewMode === 'programs')
                         <div class="px-4 py-2 flex justify-end">
                             <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddContent">Add Program</flux:button>
                         </div>
@@ -73,10 +67,8 @@
                         </div>
 
                         @include('livewire.training.partials.calendar-week-grid')
-                    @elseif ($viewMode === 'programs')
-                        @include('livewire.training.partials.calendar-programs-grid')
                     @else
-                        @include('livewire.training.partials.calendar-program-grid')
+                        @include('livewire.training.partials.calendar-programs-grid')
                     @endif
                 @elseif ($this->hasSelection())
                     <div class="flex flex-col items-center justify-center py-20 text-center">
@@ -115,32 +107,13 @@
 
     <flux:modal name="add-content" variant="flyout" class="max-w-md">
         <div class="flex flex-col gap-4 p-2">
-            <flux:heading size="lg">Add Content</flux:heading>
+            <flux:heading size="lg">Add Program</flux:heading>
 
             <flux:tab.group>
                 <flux:tabs wire:model.live="addContentTab">
-                    <flux:tab name="plan">Plan</flux:tab>
                     <flux:tab name="program">Program</flux:tab>
                     <flux:tab name="exercise">Exercise</flux:tab>
                 </flux:tabs>
-
-                <flux:tab.panel name="plan" class="!px-0">
-                    <div class="flex flex-col gap-3">
-                        <x-cms::form.field :field="\Coda\Cms\Form\Fields\Search::make('addContentSearch')" />
-                        <div class="flex flex-col gap-1 max-h-80 overflow-y-auto">
-                            @foreach ($this->addContentOptions as $option)
-                                <button type="button" wire:click="addFromPlan({{ $option->id }})"
-                                    class="flex items-center gap-2 px-3 py-2 text-sm text-left rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300">
-                                    <flux:icon.clipboard-list class="size-4 text-zinc-400" />
-                                    {{ $option->name }}
-                                </button>
-                            @endforeach
-                            @if ($this->addContentOptions->isEmpty())
-                                <flux:text class="px-3 py-4 text-center text-zinc-400">No plans found.</flux:text>
-                            @endif
-                        </div>
-                    </div>
-                </flux:tab.panel>
 
                 <flux:tab.panel name="program" class="!px-0">
                     <div class="flex flex-col gap-3">
@@ -170,7 +143,10 @@
                             @foreach ($this->addContentOptions as $option)
                                 <button type="button" wire:click="addFromExercise({{ $option->id }})"
                                     class="flex items-center gap-2 px-3 py-2 text-sm text-left rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300">
-                                    <flux:icon.dumbbell class="size-4 text-zinc-400" />
+                                    @if ($option->category?->rootAncestorOrSelf?->color)
+                                        <span class="w-2 h-2 rounded-full shrink-0"
+                                            style="{{ \Coda\Cms\Support\ColorPalette::solid($option->category->rootAncestorOrSelf->color) }}"></span>
+                                    @endif
                                     {{ $option->name }}
                                 </button>
                             @endforeach

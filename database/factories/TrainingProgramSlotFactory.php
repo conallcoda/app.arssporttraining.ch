@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
+use App\Models\Users\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -17,16 +18,8 @@ class TrainingProgramSlotFactory extends Factory
     {
         return [
             'training_program_id' => TrainingProgram::factory(),
+            'user_id' => User::factory(),
             'datetime' => fake()->dateTime(),
-            'active' => true,
-            'config' => null,
         ];
-    }
-
-    public function inactive(): static
-    {
-        return $this->state(fn (array $attributes) => [
-            'active' => false,
-        ]);
     }
 }
