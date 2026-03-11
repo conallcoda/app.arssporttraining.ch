@@ -402,10 +402,13 @@
                 @endphp
 
                 @if (is_array($items) && count($items) > 0)
+                    @php
+                        $itemsKey = collect($items)->pluck('_key')->filter()->implode('-') ?: count($items);
+                    @endphp
                     @if ($field->sortable)
-                        <div class="space-y-2" x-data="sortable_items('{{ $field->name }}')">
+                        <div class="space-y-2" wire:key="{{ $field->name }}-list-{{ $itemsKey }}" x-data="sortable_items('{{ $field->name }}')">
                     @else
-                        <div class="space-y-2">
+                        <div class="space-y-2" wire:key="{{ $field->name }}-list-{{ $itemsKey }}">
                     @endif
                         @foreach ($items as $index => $item)
                             @php
@@ -436,6 +439,7 @@
                             @endif
                                 <div class="flex-1 min-w-0">
                                     <flux:select
+                                        wire:key="{{ $field->name }}-select-{{ $item['_key'] ?? $index }}"
                                         wire:model.live.blur="{{ $wireModel }}.{{ $index }}.{{ $field->valueAttribute }}"
                                         placeholder="{{ $field->getPlaceholder() }}" size="sm"
                                         variant="listbox" searchable clearable

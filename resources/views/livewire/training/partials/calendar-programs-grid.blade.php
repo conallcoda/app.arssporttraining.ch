@@ -30,6 +30,35 @@
                 @endforeach
             </tr>
         </thead>
+        @if ($this->programs->isNotEmpty())
+            <tbody>
+                <tr class="h-[40px]">
+                    <td class="sticky left-0 z-10 bg-white dark:bg-zinc-900 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-1 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px]">
+                        {{ __('Focus') }}
+                    </td>
+                    @foreach ($this->days as $dayIdx => $day)
+                        @if (array_key_exists($dayIdx, $this->focusNotes))
+                            @php
+                                $focusCell = $this->focusNotes[$dayIdx];
+                            @endphp
+                            @if ($focusCell !== null)
+                                <td wire:click="editFocusNote({{ $focusCell['id'] }})"
+                                    colspan="{{ $focusCell['colspan'] }}"
+                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 cursor-pointer h-[1px]">
+                                    <div class="rounded-sm bg-amber-400/80 dark:bg-amber-500/60 flex items-center justify-center h-full px-1 min-h-0">
+                                        <span class="text-[10px] font-medium text-white truncate">{{ $focusCell['note'] }}</span>
+                                    </div>
+                                </td>
+                            @endif
+                        @else
+                            <td wire:click="openFocusNote('{{ $day['date'] }}')"
+                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer {{ $day['isToday'] ? 'bg-blue-50/50 dark:bg-blue-900/10' : ($day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '') }}">
+                            </td>
+                        @endif
+                    @endforeach
+                </tr>
+            </tbody>
+        @endif
         @foreach ($this->groupedPrograms as $categoryId => $group)
             @php
                 $category = $group['category'];

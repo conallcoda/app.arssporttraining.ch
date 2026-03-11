@@ -21,7 +21,7 @@
     </div>
 
     @if ($this->exercises->isNotEmpty())
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4" wire:key="grids-{{ $this->exercises->pluck('id')->implode('-') }}">
             @foreach ($this->exercises as $exercise)
                 <div wire:key="grid-{{ $exercise->id }}-{{ $userId ?? 'default' }}" class="min-w-0">
                     <livewire:training.view.plan-exercise-grid

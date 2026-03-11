@@ -7,6 +7,8 @@ use App\Data\Training\ExerciseProgramData;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Training\TrainingProgram;
+use App\Models\Training\TrainingProgramNote;
+use App\Models\Training\TrainingProgramNoteTypeEnum;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
@@ -101,7 +103,7 @@ class CalendarIndex extends Component
         $this->start = $this->calendarSettings->start ?? '';
         $this->end = $this->calendarSettings->end ?? '';
 
-        unset($this->days, $this->weeks, $this->months, $this->title, $this->weekGridData, $this->overviewData);
+        unset($this->days, $this->weeks, $this->months, $this->title, $this->weekGridData, $this->overviewData, $this->focusNotes);
     }
 
     #[On('sidebar-selection-changed')]
@@ -121,7 +123,7 @@ class CalendarIndex extends Component
             $this->user = (string) $first['user'];
         }
 
-        unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData);
+        unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData, $this->focusNotes);
 
     }
 
@@ -403,6 +405,75 @@ class CalendarIndex extends Component
         }
 
         return $map;
+    }
+
+    #[Computed]
+    public function focusNotes(): array
+    {
+        if (! $this->hasSelection()) {
+            return [];
+        }
+
+        [$start, $end] = $this->dateRange();
+        $groupId = (int) $this->group;
+        $days = $this->days;
+
+        $dayIndex = [];
+        foreach ($days as $i => $day) {
+            $dayIndex[$day['date']] = $i;
+        }
+
+        $query = TrainingProgramNote::query()
+            ->where('group_id', $groupId)
+            ->where('type', TrainingProgramNoteTypeEnum::Focus)
+            ->where(function ($q) use ($start, $end) {
+                $q->where(function ($q2) use ($start, $end) {
+                    $q2->where('start', '<=', $end->format('Y-m-d'))
+                        ->where(function ($q3) use ($start) {
+                            $q3->where('end', '>=', $start->format('Y-m-d'))
+                                ->orWhereNull('end');
+                        });
+                })->orWhereBetween('start', [$start->format('Y-m-d'), $end->format('Y-m-d')]);
+            });
+
+        if ($this->user !== '') {
+            $query->where('user_id', (int) $this->user);
+        }
+
+        $notes = $query->get();
+
+        $grouped = $notes->groupBy(fn ($n) => $n->start->format('Y-m-d').'|'.($n->end?->format('Y-m-d') ?? '').'|'.$n->note);
+
+        $occupied = [];
+
+        foreach ($grouped as $group) {
+            $representative = $group->first();
+            $noteStart = $representative->start->format('Y-m-d');
+            $noteEnd = ($representative->end ?? $representative->start)->format('Y-m-d');
+
+            $clampedStart = max($noteStart, $start->format('Y-m-d'));
+            $clampedEnd = min($noteEnd, $end->format('Y-m-d'));
+
+            if (! isset($dayIndex[$clampedStart])) {
+                continue;
+            }
+
+            $startIdx = $dayIndex[$clampedStart];
+            $endIdx = $dayIndex[$clampedEnd] ?? (count($days) - 1);
+            $colspan = $endIdx - $startIdx + 1;
+
+            $occupied[$startIdx] = [
+                'id' => $representative->id,
+                'note' => $representative->note,
+                'colspan' => $colspan,
+            ];
+
+            for ($i = $startIdx + 1; $i <= $endIdx; $i++) {
+                $occupied[$i] = null;
+            }
+        }
+
+        return $occupied;
     }
 
     #[Computed]
@@ -835,6 +906,92 @@ class CalendarIndex extends Component
         }
 
         unset($this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData);
+    }
+
+    public function openFocusNote(string $date): void
+    {
+        $this->dispatch('open-focus-note', data: [
+            'date' => $date,
+            'groupId' => $this->group !== '' ? (int) $this->group : null,
+            'userId' => $this->user !== '' ? (int) $this->user : null,
+        ]);
+    }
+
+    public function editFocusNote(int $noteId): void
+    {
+        $this->dispatch('open-focus-note', data: [
+            'noteId' => $noteId,
+            'groupId' => $this->group !== '' ? (int) $this->group : null,
+            'userId' => $this->user !== '' ? (int) $this->user : null,
+        ]);
+    }
+
+    #[On('focus-note.submitted')]
+    public function onFocusNoteSubmitted(array $data): void
+    {
+        $groupId = $data['groupId'];
+        $editingNoteId = $data['editing_note_id'] ?? null;
+        $selectedMembers = $data['selected_members'] ?? [];
+        $userId = $data['userId'] ?? null;
+
+        if ($editingNoteId !== null) {
+            $existingNote = TrainingProgramNote::find($editingNoteId);
+            if ($existingNote) {
+                TrainingProgramNote::query()
+                    ->where('group_id', $groupId)
+                    ->where('type', TrainingProgramNoteTypeEnum::Focus)
+                    ->where('start', $existingNote->start)
+                    ->where('note', $existingNote->note)
+                    ->delete();
+            }
+        }
+
+        if ($userId !== null && empty($selectedMembers)) {
+            TrainingProgramNote::create([
+                'group_id' => $groupId,
+                'user_id' => $userId,
+                'type' => TrainingProgramNoteTypeEnum::Focus,
+                'start' => $data['start'],
+                'end' => $data['end'],
+                'note' => $data['note'],
+            ]);
+        } else {
+            foreach ($selectedMembers as $memberId) {
+                TrainingProgramNote::create([
+                    'group_id' => $groupId,
+                    'user_id' => $memberId,
+                    'type' => TrainingProgramNoteTypeEnum::Focus,
+                    'start' => $data['start'],
+                    'end' => $data['end'],
+                    'note' => $data['note'],
+                ]);
+            }
+        }
+
+        unset($this->focusNotes);
+    }
+
+    #[On('focus-note.deleted')]
+    public function onFocusNoteDeleted(array $data): void
+    {
+        $editingNoteId = $data['editing_note_id'] ?? null;
+        $groupId = $data['groupId'];
+
+        if ($editingNoteId === null) {
+            return;
+        }
+
+        $existingNote = TrainingProgramNote::find($editingNoteId);
+        if ($existingNote) {
+            TrainingProgramNote::query()
+                ->where('group_id', $groupId)
+                ->where('type', TrainingProgramNoteTypeEnum::Focus)
+                ->where('start', $existingNote->start)
+                ->where('note', $existingNote->note)
+                ->delete();
+        }
+
+        unset($this->focusNotes);
     }
 
     public function openAddContent(): void

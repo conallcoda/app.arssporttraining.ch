@@ -27,10 +27,24 @@ return new class extends Migration
 
             $table->unique(['training_program_id', 'user_id', 'datetime'], 'training_program_slots_unique');
         });
+
+        Schema::create('training_program_notes', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('owner_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('group_id')->constrained('user_groups')->cascadeOnDelete();
+            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
+            $table->string('type');
+            $table->date('start');
+            $table->date('end')->nullable();
+            $table->text('note');
+            $table->timestamps();
+            $table->softDeletes();
+        });
     }
 
     public function down(): void
     {
+        Schema::dropIfExists('training_program_notes');
         Schema::dropIfExists('training_program_slots');
         Schema::dropIfExists('training_programs');
     }
