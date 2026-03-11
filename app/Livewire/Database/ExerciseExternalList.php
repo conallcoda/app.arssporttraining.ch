@@ -52,16 +52,16 @@ class ExerciseExternalList extends AbstractModelList
     protected function getActions(): array
     {
         return [
-            Action::make('preview', 'Preview')
+            Action::make('preview', __('Preview'))
                 ->row()
                 ->icon('eye')
                 ->alpineEvent('open-youtube-player', fn (ExerciseExternalData $data) => ['url' => $data->videoUrl])
                 ->visibleWhen(fn (ExerciseExternalData $data) => self::isYouTubeUrl($data->videoUrl)),
             $this->getEditAction(),
-            Action::make('import', 'Import')
+            Action::make('import', __('Import'))
                 ->row()
                 ->icon('upload')
-                ->formModal(ExerciseImportData::class, 'Import Exercise', 'Import')
+                ->formModal(ExerciseImportData::class, __('Import Exercise'), __('Import'))
                 ->formComponent('database.exercise-form')
                 ->handler('handleImportSubmitted')
                 ->prepareData(fn (ExerciseExternal $model) => [
@@ -81,7 +81,7 @@ class ExerciseExternalList extends AbstractModelList
         $importData->persist();
 
         $name = $data['name'] ?? $this->getEntityName();
-        Flux::toast(text: "{$name} imported", variant: 'success');
+        Flux::toast(text: __(':name imported', ['name' => $name]), variant: 'success');
 
         $this->resetState();
         $this->refreshKey++;
@@ -110,7 +110,7 @@ class ExerciseExternalList extends AbstractModelList
             ->columns([
                 Id::make(),
                 TextWithBadgeGroups::make('name')
-                    ->label('Exercise')
+                    ->label(__('Exercise'))
                     ->modal()
                     ->badgeGroup(
                         'equipment',
@@ -123,9 +123,9 @@ class ExerciseExternalList extends AbstractModelList
                         '',
                     ),
                 Breadcrumb::make('categoryPath')
-                    ->label('Category')
+                    ->label(__('Category'))
                     ->source(fn (ExerciseExternalData $data) => $data->categoryPath),
-                Ago::make('updatedAt')->label('Last Changed'),
+                Ago::make('updatedAt')->label(__('Last Changed')),
             ])
             ->sortable(['id', 'name', 'updatedAt'])
             ->filters([
@@ -145,7 +145,7 @@ class ExerciseExternalList extends AbstractModelList
                 })
                     ->field(
                         TextField::make('search')
-                            ->label('Search')
+                            ->label(__('Search'))
                     ),
                 TableFilter::callback('category', function (Builder $query, mixed $value): void {
                     if ($value === '' || $value === null) {
@@ -160,7 +160,7 @@ class ExerciseExternalList extends AbstractModelList
                 })
                     ->field(
                         CategoryField::make('category', 'exercise_category')
-                            ->label('Category')
+                            ->label(__('Category'))
                             ->withOptions()
                     ),
                 TableFilter::callback('equipment', function (Builder $query, mixed $value): void {
@@ -174,7 +174,7 @@ class ExerciseExternalList extends AbstractModelList
                 })
                     ->field(
                         PillboxField::make('equipment')
-                            ->label('Equipment')
+                            ->label(__('Equipment'))
                             ->options(
                                 Tag::query()
                                     ->forScope('exercise_equipment')
@@ -194,7 +194,7 @@ class ExerciseExternalList extends AbstractModelList
                 })
                     ->field(
                         PillboxField::make('modifiers')
-                            ->label('Modifiers')
+                            ->label(__('Modifiers'))
                             ->options(
                                 Tag::query()
                                     ->forScope('exercise_modifiers')

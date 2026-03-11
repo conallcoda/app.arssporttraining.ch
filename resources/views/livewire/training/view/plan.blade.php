@@ -45,7 +45,7 @@
             />
         @endif
     @else
-        <flux:text class="text-zinc-500">No programs in the schedule. Add programs in the Schedule tab.</flux:text>
+        <flux:text class="text-zinc-500">{{ __('No programs in the schedule. Add programs in the Schedule tab.') }}</flux:text>
     @endif
 
     {{-- TODO: deprecated - user sidebar --}}

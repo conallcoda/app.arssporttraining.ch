@@ -50,13 +50,13 @@ class ExerciseTemplateList extends AbstractModelList
             ->columns([
                 Id::make(),
                 Text::make('name')
-                    ->label('Name')
+                    ->label(__('Name'))
                     ->width('w-1/3')
                     ->modal(),
                 Badge::make('defaults')
-                    ->label('Defaults')
+                    ->label(__('Defaults'))
                     ->source(fn (ExerciseTemplateData $data) => $data->getDefaultsBadges()),
-                Ago::make('updatedAt')->label('Last Changed'),
+                Ago::make('updatedAt')->label(__('Last Changed')),
             ])
             ->sortable(['id', 'name', 'updatedAt'])
             ->filters([
@@ -65,8 +65,8 @@ class ExerciseTemplateList extends AbstractModelList
                 })
                     ->field(
                         TextField::make('search')
-                            ->label('Search')
-                            ->placeholder('Search templates...')
+                            ->label(__('Search'))
+                            ->placeholder(__('Search templates...'))
                     ),
             ]);
     }
@@ -86,15 +86,15 @@ class ExerciseTemplateList extends AbstractModelList
     protected function getExtraActions(): array
     {
         return [
-            Action::make('duplicate', 'Duplicate')
+            Action::make('duplicate', __('Duplicate'))
                 ->rowMenu()
                 ->icon('copy')
-                ->formModal(ExerciseTemplateData::class, 'Duplicate Exercise Template')
+                ->formModal(ExerciseTemplateData::class, __('Duplicate Exercise Template'))
                 ->formComponent('database.exercise-template-form')
                 ->prepareData(function (ExerciseTemplate $model): array {
                     $data = ExerciseTemplateData::fromTemplate($model)->toArray();
                     $data['id'] = null;
-                    $data['name'] = $data['name'].' (copy)';
+                    $data['name'] = $data['name'].__(' (copy)');
 
                     return $data;
                 })

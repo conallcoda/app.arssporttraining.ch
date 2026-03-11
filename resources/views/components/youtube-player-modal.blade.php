@@ -1,7 +1,7 @@
 <div x-data="youtube_player" x-on:open-youtube-player.window="openVideo($event.detail.url)">
     <flux:modal name="youtube-player" class="min-w-[50rem]" x-on:close="videoId = ''">
         <div class="space-y-4">
-            <flux:heading size="lg">Video Preview</flux:heading>
+            <flux:heading size="lg">{{ __('Video Preview') }}</flux:heading>
             <template x-if="videoId">
                 <div class="aspect-video">
                     <iframe

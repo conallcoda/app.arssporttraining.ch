@@ -1,6 +1,6 @@
 <x-slot:navbar>
     <x-top-nav>
-        <flux:navbar.item current>Calendar</flux:navbar.item>
+        <flux:navbar.item current>{{ __('Calendar') }}</flux:navbar.item>
     </x-top-nav>
 </x-slot:navbar>
 
@@ -9,7 +9,7 @@
         <livewire:user-group-sidebar mode="single-athlete" :initial-group="$group !== '' ? (int) $group : null" :initial-user="$user !== '' ? (int) $user : null" />
 
         <div class="flex-1 min-w-0">
-            <x-section title="Calendar" class="!p-0">
+            <x-section :title="__('Calendar')" class="!p-0">
                 <div class="px-4 pt-3 pb-2 flex items-center justify-between">
                     <div class="flex items-center gap-2">
                         <flux:heading size="xl">
@@ -23,10 +23,10 @@
                     </div>
                     @if ($this->hasSelection())
                         <div class="flex items-center gap-2">
-                            <flux:text class="text-xs text-zinc-500 dark:text-zinc-400">Group by</flux:text>
+                            <flux:text class="text-xs text-zinc-500 dark:text-zinc-400">{{ __('Group by') }}</flux:text>
                             <flux:radio.group wire:model.live="viewMode" variant="segmented" size="sm">
-                                <flux:radio value="programs" label="Programs" />
-                                <flux:radio value="week" label="Week" />
+                                <flux:radio value="programs" :label="__('Programs')" />
+                                <flux:radio value="week" :label="__('Week')" />
                             </flux:radio.group>
                         </div>
                     @endif
@@ -35,28 +35,28 @@
                 @if ($this->hasSelection() && $this->programs->isNotEmpty())
                     @if ($viewMode === 'programs')
                         <div class="px-4 py-2 flex justify-end">
-                            <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddContent">Add Program</flux:button>
+                            <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddContent">{{ __('Add Program') }}</flux:button>
                         </div>
                     @endif
 
                     @if ($viewMode === 'week')
                         <div class="px-4 py-2 flex items-center gap-4">
                             <flux:radio.group wire:model.live="weekEditMode" variant="segmented" size="sm">
-                                <flux:radio value="view" label="View" />
-                                <flux:radio value="edit" label="Edit" />
-                                <flux:radio value="remove" label="Remove" />
+                                <flux:radio value="view" :label="__('View')" />
+                                <flux:radio value="edit" :label="__('Edit')" />
+                                <flux:radio value="remove" :label="__('Remove')" />
                             </flux:radio.group>
 
                             @if ($weekEditMode === 'edit')
                                 <div class="flex items-center gap-3 flex-1">
-                                    <flux:select variant="listbox" searchable size="sm" wire:model.live="quickProgramId" placeholder="Select program..." :invalid="$errors->has('quickProgramId')">
+                                    <flux:select variant="listbox" searchable size="sm" wire:model.live="quickProgramId" :placeholder="__('Select program...')" :invalid="$errors->has('quickProgramId')">
                                         @foreach ($this->quickProgramOptions as $id => $name)
                                             <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
                                         @endforeach
                                     </flux:select>
 
                                     @if ($this->quickAthleteOptions->isNotEmpty())
-                                        <flux:select variant="listbox" searchable multiple size="sm" wire:model.live="quickSelectedAthletes" placeholder="Athletes..." :invalid="$errors->has('quickSelectedAthletes')">
+                                        <flux:select variant="listbox" searchable multiple size="sm" wire:model.live="quickSelectedAthletes" :placeholder="__('Athletes...')" :invalid="$errors->has('quickSelectedAthletes')">
                                             @foreach ($this->quickAthleteOptions as $athlete)
                                                 <flux:select.option value="{{ $athlete['id'] }}">{{ $athlete['name'] }}</flux:select.option>
                                             @endforeach
@@ -73,9 +73,9 @@
                 @elseif ($this->hasSelection())
                     <div class="flex flex-col items-center justify-center py-20 text-center">
                         <flux:icon.calendar class="size-10 text-zinc-300 dark:text-zinc-600 mb-3" />
-                        <flux:heading size="lg" class="text-zinc-500 dark:text-zinc-400">No programs assigned
+                        <flux:heading size="lg" class="text-zinc-500 dark:text-zinc-400">{{ __('No programs assigned') }}
                         </flux:heading>
-                        <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddContent" class="mt-3">Add Program</flux:button>
+                        <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddContent" class="mt-3">{{ __('Add Program') }}</flux:button>
                     </div>
                 @else
                     @include('livewire.training.partials.calendar-overview-grid')
@@ -90,7 +90,7 @@
 
     <livewire:cms.form-modal
         name="edit-program"
-        title="Edit Exercise Program"
+        :title="__('Edit Exercise Program')"
         :formDataClass="\App\Data\Training\ExerciseProgramData::class"
         :flyout="true"
         maxWidth="max-w-lg"
@@ -99,20 +99,20 @@
 
     <x-cms::confirm-modal
         name="confirm-delete-program"
-        heading="Remove program?"
-        description="You're about to remove this program from the calendar. This action cannot be reversed."
-        confirmLabel="Delete"
+        :heading="__('Remove program?')"
+        :description="__('You\'re about to remove this program from the calendar. This action cannot be reversed.')"
+        :confirmLabel="__('Delete')"
         action="deleteEditingTrainingProgram"
     />
 
     <flux:modal name="add-content" variant="flyout" class="max-w-md">
         <div class="flex flex-col gap-4 p-2">
-            <flux:heading size="lg">Add Program</flux:heading>
+            <flux:heading size="lg">{{ __('Add Program') }}</flux:heading>
 
             <flux:tab.group>
                 <flux:tabs wire:model.live="addContentTab">
-                    <flux:tab name="program">Program</flux:tab>
-                    <flux:tab name="exercise">Exercise</flux:tab>
+                    <flux:tab name="program">{{ __('Program') }}</flux:tab>
+                    <flux:tab name="exercise">{{ __('Exercise') }}</flux:tab>
                 </flux:tabs>
 
                 <flux:tab.panel name="program" class="!px-0">
@@ -130,7 +130,7 @@
                                 </button>
                             @endforeach
                             @if ($this->addContentOptions->isEmpty())
-                                <flux:text class="px-3 py-4 text-center text-zinc-400">No programs found.</flux:text>
+                                <flux:text class="px-3 py-4 text-center text-zinc-400">{{ __('No programs found.') }}</flux:text>
                             @endif
                         </div>
                     </div>
@@ -151,7 +151,7 @@
                                 </button>
                             @endforeach
                             @if ($this->addContentOptions->isEmpty())
-                                <flux:text class="px-3 py-4 text-center text-zinc-400">No exercises found.</flux:text>
+                                <flux:text class="px-3 py-4 text-center text-zinc-400">{{ __('No exercises found.') }}</flux:text>
                             @endif
                         </div>
                     </div>

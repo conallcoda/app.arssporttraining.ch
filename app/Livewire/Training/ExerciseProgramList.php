@@ -68,13 +68,13 @@ class ExerciseProgramList extends AbstractModelList
 
         return Table::make()
             ->columns([
-                Text::make('id')->label('ID')->width('w-16')->prefix('#'),
-                View::make('name', ExerciseProgramView::class)->label('Name'),
+                Text::make('id')->label(__('ID'))->width('w-16')->prefix('#'),
+                View::make('name', ExerciseProgramView::class)->label(__('Name')),
                 ColorBadge::make('exerciseCategoryColor')
-                    ->label('Category')
+                    ->label(__('Category'))
                     ->colorLabels($exerciseCategoryColorLabels),
-                Relationship::make('exercises')->label('Exercises')->modal()->width('w-full'),
-                Ago::make('updatedAt')->label('Last Changed'),
+                Relationship::make('exercises')->label(__('Exercises'))->modal()->width('w-full'),
+                Ago::make('updatedAt')->label(__('Last Changed')),
             ])
             ->sortable(['id', 'name', 'updatedAt'])
             ->filters([
@@ -83,14 +83,14 @@ class ExerciseProgramList extends AbstractModelList
                 })
                     ->field(
                         TextField::make('search')
-                            ->label('Search')
-                            ->placeholder('Search programs...')
+                            ->label(__('Search'))
+                            ->placeholder(__('Search programs...'))
                     ),
                 TableFilter::exact('category', 'exercise_category_id')
                     ->field(
                         Select::make('category')
-                            ->label('Category')
-                            ->placeholder('All categories')
+                            ->label(__('Category'))
+                            ->placeholder(__('All categories'))
                             ->options($exerciseCategoryOptions)
                     ),
             ])

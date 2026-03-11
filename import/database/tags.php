@@ -457,6 +457,13 @@ return [
     ],
     [
         'scope' => 'exercise_equipment',
+        'name' => 'Long Gates',
+        'short_name' => null,
+        'slug' => 'long-gates',
+        'sort_order' => 0,
+    ],
+    [
+        'scope' => 'exercise_equipment',
         'name' => 'Machine',
         'short_name' => null,
         'slug' => 'machine',
@@ -1787,6 +1794,13 @@ return [
     ],
     [
         'scope' => 'exercise_modifiers',
+        'name' => 'Straight Setting',
+        'short_name' => null,
+        'slug' => 'straight-setting',
+        'sort_order' => 0,
+    ],
+    [
+        'scope' => 'exercise_modifiers',
         'name' => 'Straight-Arm',
         'short_name' => null,
         'slug' => 'straight-arm',
@@ -2035,20 +2049,6 @@ return [
         'name' => 'Triceps',
         'short_name' => null,
         'slug' => 'triceps',
-        'sort_order' => 0,
-    ],
-    [
-        'scope' => 'exercise_equipment',
-        'name' => 'Long Gates',
-        'short_name' => null,
-        'slug' => 'long-gates',
-        'sort_order' => 0,
-    ],
-    [
-        'scope' => 'exercise_modifiers',
-        'name' => 'Straight Setting',
-        'short_name' => null,
-        'slug' => 'straight-setting',
         'sort_order' => 0,
     ],
 ];

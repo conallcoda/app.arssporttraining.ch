@@ -41,7 +41,7 @@ class ExercisePlanList extends AbstractModelList
         return Table::make()
             ->columns([
                 Id::make(),
-                View::make('name', ExercisePlanView::class)->label('Name'),
+                View::make('name', ExercisePlanView::class)->label(__('Name')),
             ])
             ->sortable(['id', 'name'])
             ->defaultSort('name', 'asc')
@@ -51,19 +51,19 @@ class ExercisePlanList extends AbstractModelList
                 })
                     ->field(
                         TextField::make('search')
-                            ->label('Search')
-                            ->placeholder('Search plans...')
+                            ->label(__('Search'))
+                            ->placeholder(__('Search plans...'))
                     ),
             ])
             ->actions([
-                Action::make('duplicate', 'Duplicate')
+                Action::make('duplicate', __('Duplicate'))
                     ->rowMenu()
                     ->icon('copy')
-                    ->formModal(DuplicateNameForm::class, 'Duplicate '.$this->getEntityName(), 'Duplicate')
+                    ->formModal(DuplicateNameForm::class, __('Duplicate').' '.$this->getEntityName(), __('Duplicate'))
                     ->handler('handleDuplicateSubmitted')
                     ->prepareData(fn (ExercisePlan $model) => [
                         'id' => $model->id,
-                        'name' => ($model->name ?? '').' (Copy)',
+                        'name' => ($model->name ?? '').__(' (Copy)'),
                     ]),
             ]);
     }
@@ -77,7 +77,7 @@ class ExercisePlanList extends AbstractModelList
         $original = ExercisePlan::findOrFail($data['id']);
 
         $newTemplate = $original->replicate();
-        $newTemplate->name = $data['name'] ?? $original->name.' (Copy)';
+        $newTemplate->name = $data['name'] ?? $original->name.__(' (Copy)');
         $newTemplate->save();
 
         $this->resetState();

@@ -66,7 +66,7 @@ class ExerciseList extends AbstractModelList
             ->columns([
                 Id::make(),
                 TextWithBadgeGroups::make('name')
-                    ->label('Exercise')
+                    ->label(__('Exercise'))
                     ->modal()
                     ->badgeGroup(
                         'equipment',
@@ -79,12 +79,12 @@ class ExerciseList extends AbstractModelList
                         '',
                     ),
                 ColorBadge::make('categoryColor')
-                    ->label('Category')
+                    ->label(__('Category'))
                     ->colorLabels($exerciseCategoryColorLabels),
                 Badge::make('settings')
-                    ->label('Settings')
+                    ->label(__('Settings'))
                     ->source(fn (ExerciseData $data) => $data->getDefaultsBadges()),
-                Ago::make('updatedAt')->label('Last Changed'),
+                Ago::make('updatedAt')->label(__('Last Changed')),
             ])
             ->sortable(['id', 'name', 'updatedAt'])
             ->filters([
@@ -93,8 +93,8 @@ class ExerciseList extends AbstractModelList
                 })
                     ->field(
                         TextField::make('search')
-                            ->label('Search')
-                            ->placeholder('Search exercises...')
+                            ->label(__('Search'))
+                            ->placeholder(__('Search exercises...'))
                     ),
             ]);
     }
@@ -102,7 +102,7 @@ class ExerciseList extends AbstractModelList
     protected function getActions(): array
     {
         return array_filter([
-            Action::make('preview', 'Preview')
+            Action::make('preview', __('Preview'))
                 ->row()
                 ->icon('eye')
                 ->alpineEvent('open-youtube-player', fn (ExerciseData $data) => ['url' => $data->videoUrl])

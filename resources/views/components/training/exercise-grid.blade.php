@@ -10,7 +10,7 @@
 
 @if (count($grid->rows) === 0 && count($grid->weekColumns) === 0)
     <div class="text-center text-zinc-500 dark:text-zinc-400 py-8">
-        No settings configured for this exercise.
+        {{ __('No settings configured for this exercise.') }}
     </div>
 @else
     <div class="{{ $showHeader ? 'space-y-2 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4' : 'space-y-2' }}" x-data="{ expanded: false }">
@@ -55,13 +55,13 @@
                         <flux:button variant="ghost" size="sm" icon="ellipsis" class="!p-1" />
                         <flux:menu>
                             <div x-show="!expanded">
-                                <flux:menu.item icon="unfold-vertical" x-on:click="expanded = true">Expand</flux:menu.item>
+                                <flux:menu.item icon="unfold-vertical" x-on:click="expanded = true">{{ __('Expand') }}</flux:menu.item>
                             </div>
                             <div x-show="expanded" x-cloak>
-                                <flux:menu.item icon="fold-vertical" x-on:click="expanded = false">Collapse</flux:menu.item>
+                                <flux:menu.item icon="fold-vertical" x-on:click="expanded = false">{{ __('Collapse') }}</flux:menu.item>
                             </div>
-                            <flux:menu.item icon="pencil" wire:click="openSettingsForm">Edit Settings</flux:menu.item>
-                            <flux:menu.item icon="rotate-ccw" wire:click="resetOverrides">Reset Overrides</flux:menu.item>
+                            <flux:menu.item icon="pencil" wire:click="openSettingsForm">{{ __('Edit Settings') }}</flux:menu.item>
+                            <flux:menu.item icon="rotate-ccw" wire:click="resetOverrides">{{ __('Reset Overrides') }}</flux:menu.item>
                         </flux:menu>
                     </flux:dropdown>
                 @endif
@@ -74,9 +74,9 @@
                 <thead>
                     <tr class="bg-zinc-100 dark:bg-zinc-800">
                         @if ($showWeekColumn)
-                            <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 w-20">Week</th>
+                            <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 w-20">{{ __('Week') }}</th>
                         @endif
-                        <th class="border border-zinc-300 dark:border-zinc-600 px-2 py-2 w-12" x-show="expanded" x-cloak>Session</th>
+                        <th class="border border-zinc-300 dark:border-zinc-600 px-2 py-2 w-12" x-show="expanded" x-cloak>{{ __('Session') }}</th>
                         @if (count($grid->rows) > 0)
                             <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2"></th>
                         @endif
@@ -129,6 +129,8 @@
                                             <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $weekCol->color }}"
                                         @endif
                                             x-data="editable_cell"
+                                            data-msg-invalid-number="{{ __('Please enter a valid number') }}"
+                                            data-msg-invalid-value="{{ __('Please enter a valid value') }}"
                                             data-edit-type="week"
                                             data-field="{{ $weekCol->field }}"
                                             data-week="{{ $week }}"
@@ -173,6 +175,8 @@
                                                 <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $row->color }}"
                                             @endif
                                                 x-data="editable_cell"
+                                            data-msg-invalid-number="{{ __('Please enter a valid number') }}"
+                                            data-msg-invalid-value="{{ __('Please enter a valid value') }}"
                                                 data-edit-type="cell"
                                                 data-field="{{ $row->field }}"
                                                 data-week="{{ $week }}"
@@ -206,6 +210,8 @@
                                                 @endif
                                                     rowspan="{{ count($grid->rows) }}"
                                                     x-data="editable_cell"
+                                            data-msg-invalid-number="{{ __('Please enter a valid number') }}"
+                                            data-msg-invalid-value="{{ __('Please enter a valid value') }}"
                                                     data-edit-type="week"
                                                     data-field="{{ $weekCol->field }}"
                                                     data-week="{{ $week }}"
@@ -250,6 +256,8 @@
                                             <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $weekCol->color }}"
                                         @endif
                                             x-data="editable_cell"
+                                            data-msg-invalid-number="{{ __('Please enter a valid number') }}"
+                                            data-msg-invalid-value="{{ __('Please enter a valid value') }}"
                                             data-edit-type="week"
                                             data-field="{{ $weekCol->field }}"
                                             data-week="{{ $week }}"
@@ -304,6 +312,8 @@
                                                 <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $row->color }}"
                                             @endif
                                                 x-data="editable_cell"
+                                            data-msg-invalid-number="{{ __('Please enter a valid number') }}"
+                                            data-msg-invalid-value="{{ __('Please enter a valid value') }}"
                                                 data-edit-type="cell"
                                                 data-field="{{ $row->field }}"
                                                 data-week="{{ $week }}"
@@ -336,6 +346,8 @@
                                                 @endif
                                                     rowspan="{{ $grid->sessionsPerWeek * count($grid->rows) }}"
                                                     x-data="editable_cell"
+                                            data-msg-invalid-number="{{ __('Please enter a valid number') }}"
+                                            data-msg-invalid-value="{{ __('Please enter a valid value') }}"
                                                     data-edit-type="week"
                                                     data-field="{{ $weekCol->field }}"
                                                     data-week="{{ $week }}"

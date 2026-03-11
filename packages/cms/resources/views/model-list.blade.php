@@ -11,6 +11,14 @@
 @endphp
 
 <div>
+    @if (count($indexTabs) > 0)
+        <flux:tabs wire:model.live="selectedTab" variant="segmented" class="mb-4">
+            @foreach ($indexTabs as $tab)
+                <flux:tab :name="$tab->key" :icon="$tab->icon">{{ $tab->label }}</flux:tab>
+            @endforeach
+        </flux:tabs>
+    @endif
+
     @unless ($compact)
         <div class="flex items-center justify-between mb-3">
             <div class="flex items-center gap-2">

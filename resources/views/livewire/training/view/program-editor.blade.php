@@ -1,6 +1,6 @@
 <div class="space-y-6">
     <div class="flex gap-6">
-        <x-section title="Exercises" class="flex-1">
+        <x-section :title="__('Exercises')" class="flex-1">
             @foreach ($this->fieldsets as $item)
                 <x-cms::form.fieldset
                     :fieldset="$item"
@@ -11,9 +11,9 @@
         </x-section>
 
         @if ($showWeeksInput)
-            <x-section title="Settings" class="w-64 shrink-0">
+            <x-section :title="__('Settings')" class="w-64 shrink-0">
                 <flux:field>
-                    <flux:label>Weeks</flux:label>
+                    <flux:label>{{ __('Weeks') }}</flux:label>
                     <flux:input wire:model.live="weeks" type="number" min="1" max="52" step="1" />
                 </flux:field>
             </x-section>
@@ -43,6 +43,6 @@
 
         <livewire:training.view.plan-exercise-settings-form />
     @else
-        <flux:text class="text-zinc-500">No exercises in this program. Add exercises above to see the training grids.</flux:text>
+        <flux:text class="text-zinc-500">{{ __('No exercises in this program. Add exercises above to see the training grids.') }}</flux:text>
     @endif
 </div>

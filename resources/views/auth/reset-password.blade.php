@@ -1,13 +1,13 @@
-<x-layouts.guest title="Reset Password">
+<x-layouts.guest :title="__('Reset Password')">
     <form method="POST" action="/reset-password" class="space-y-6">
         @csrf
 
         <input type="hidden" name="token" value="{{ $request->route('token') }}">
 
-        <flux:heading size="lg">Reset Password</flux:heading>
+        <flux:heading size="lg">{{ __('Reset Password') }}</flux:heading>
 
         <flux:input
-            label="Email"
+            :label="__('Email')"
             type="email"
             name="email"
             :value="old('email', $request->email)"
@@ -16,14 +16,14 @@
         />
 
         <flux:input
-            label="Password"
+            :label="__('Password')"
             type="password"
             name="password"
             required
         />
 
         <flux:input
-            label="Confirm Password"
+            :label="__('Confirm Password')"
             type="password"
             name="password_confirmation"
             required
@@ -38,7 +38,7 @@
         @endif
 
         <flux:button type="submit" variant="primary" class="w-full">
-            Reset Password
+            {{ __('Reset Password') }}
         </flux:button>
     </form>
 </x-layouts.guest>

@@ -156,7 +156,7 @@ class FormModal extends Component
 
         $this->validate($rules, [
             'required' => 'This field is required.',
-        ]);
+        ], $this->buildValidationAttributesFromFieldsets());
 
         $this->data = self::castEmptyStringsToNull($this->data);
 

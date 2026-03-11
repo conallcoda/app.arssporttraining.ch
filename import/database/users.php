@@ -18,59 +18,6 @@ return [
     ],
     [
         'type' => 'athlete',
-        'forename' => 'Armando',
-        'surname' => 'Stoehr',
-        'email' => 'mitchell.elisabeth@example.net',
-        'phone' => null,
-        'password' => '$2y$12$iLPz8xpfTLB8rpNGEyw2jubmen0AkjAEljj05cFVeVaPfQW8MgTvm',
-        'config' => null,
-        'groups' => [
-            [
-                'group' => 'Coaches / Trainers',
-                'sort' => 0,
-            ],
-            [
-                'group' => 'Three Amigos',
-                'sort' => 0,
-            ],
-        ],
-    ],
-    [
-        'type' => 'athlete',
-        'forename' => 'Conall',
-        'surname' => 'O\'Reilly',
-        'email' => 'shaina62@example.com',
-        'phone' => null,
-        'password' => '$2y$12$iLPz8xpfTLB8rpNGEyw2jubmen0AkjAEljj05cFVeVaPfQW8MgTvm',
-        'config' => null,
-        'groups' => [
-            [
-                'group' => 'Three Amigos',
-                'sort' => 1,
-            ],
-        ],
-    ],
-    [
-        'type' => 'athlete',
-        'forename' => 'Dario',
-        'surname' => 'Lacorte',
-        'email' => 'fanny59@example.com',
-        'phone' => null,
-        'password' => '$2y$12$iLPz8xpfTLB8rpNGEyw2jubmen0AkjAEljj05cFVeVaPfQW8MgTvm',
-        'config' => null,
-        'groups' => [
-            [
-                'group' => 'Coaches / Trainers',
-                'sort' => 1,
-            ],
-            [
-                'group' => 'Three Amigos',
-                'sort' => 2,
-            ],
-        ],
-    ],
-    [
-        'type' => 'athlete',
         'forename' => 'Fadri',
         'surname' => 'Hoffemann',
         'email' => 'ibreitenberg@example.net',
@@ -94,12 +41,12 @@ return [
         'config' => null,
         'groups' => [
             [
-                'group' => 'U9',
-                'sort' => 1,
-            ],
-            [
                 'group' => 'SSGD 2',
                 'sort' => 7,
+            ],
+            [
+                'group' => 'U9',
+                'sort' => 1,
             ],
         ],
     ],
@@ -132,12 +79,12 @@ return [
         'config' => null,
         'groups' => [
             [
-                'group' => 'U9',
-                'sort' => 0,
-            ],
-            [
                 'group' => 'NLZ OST DAMEN 25/26',
                 'sort' => 3,
+            ],
+            [
+                'group' => 'U9',
+                'sort' => 0,
             ],
         ],
     ],
@@ -168,21 +115,6 @@ return [
             [
                 'group' => 'SSGD 2',
                 'sort' => 4,
-            ],
-        ],
-    ],
-    [
-        'type' => 'athlete',
-        'forename' => 'Lisa',
-        'surname' => 'Agerer',
-        'email' => null,
-        'phone' => null,
-        'password' => null,
-        'config' => [],
-        'groups' => [
-            [
-                'group' => 'NLZ OST DAMEN 25/26',
-                'sort' => 1,
             ],
         ],
     ],
@@ -283,21 +215,6 @@ return [
             [
                 'group' => 'SSGD 2',
                 'sort' => 6,
-            ],
-        ],
-    ],
-    [
-        'type' => 'athlete',
-        'forename' => 'Sandro',
-        'surname' => 'Viletta',
-        'email' => 'lesch.danyka@example.org',
-        'phone' => null,
-        'password' => '$2y$12$iLPz8xpfTLB8rpNGEyw2jubmen0AkjAEljj05cFVeVaPfQW8MgTvm',
-        'config' => [],
-        'groups' => [
-            [
-                'group' => 'U9',
-                'sort' => 3,
             ],
         ],
     ],

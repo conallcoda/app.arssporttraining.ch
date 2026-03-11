@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>{{ $title ?? 'Admin' }}</title>
+    <title>{{ $title ?? __('Admin') }}</title>
     <link rel="icon" href="{{ asset('favicon.png') }}" type="image/png">
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600&display=swap" rel="stylesheet" />
@@ -21,9 +21,9 @@
 <body class="min-h-screen bg-white dark:bg-zinc-800 antialiased">
     <flux:sidebar sticky collapsible class="bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-700">
         <flux:sidebar.header>
-            <flux:sidebar.brand href="/admin/programs" name="Athlete Training">
+            <flux:sidebar.brand href="/admin/programs" :name="__('Athlete Training')">
                 <x-slot name="logo">
-                    <img src="{{ asset('images/logo.webp') }}" alt="Athlete Training" class="w-6" />
+                    <img src="{{ asset('images/logo.webp') }}" alt="{{ __('Athlete Training') }}" class="w-6" />
                 </x-slot>
             </flux:sidebar.brand>
             <flux:sidebar.collapse />
@@ -39,7 +39,7 @@
             <form method="POST" action="/logout">
                 @csrf
                 <flux:sidebar.item icon="log-out" type="submit">
-                    Logout
+                    {{ __('Logout') }}
                 </flux:sidebar.item>
             </form>
         </flux:sidebar.nav>

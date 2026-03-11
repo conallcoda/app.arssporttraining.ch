@@ -31,20 +31,20 @@ class WeekSlotForm extends FormModal
 
     public function mount(
         string $name = 'week-slot',
-        string $title = 'Add Slot',
+        string $title = 'add-slot-default',
         ?string $formDataClass = null,
-        string $submitLabel = 'Save',
-        string $cancelLabel = 'Cancel',
+        string $submitLabel = 'save-default',
+        string $cancelLabel = 'cancel-default',
         bool $flyout = true,
         string $maxWidth = 'max-w-sm',
         bool $showDelete = false,
     ): void {
         parent::mount(
             name: $name,
-            title: $title,
+            title: $title === 'add-slot-default' ? __('Add Slot') : $title,
             formDataClass: $formDataClass,
-            submitLabel: $submitLabel,
-            cancelLabel: $cancelLabel,
+            submitLabel: $submitLabel === 'save-default' ? __('Save') : $submitLabel,
+            cancelLabel: $cancelLabel === 'cancel-default' ? __('Cancel') : $cancelLabel,
             flyout: $flyout,
             maxWidth: $maxWidth,
             showDelete: $showDelete,
@@ -131,7 +131,7 @@ class WeekSlotForm extends FormModal
             ...$this->buildValidationRulesFromFieldsets(),
             'data.start_time' => 'required|date_format:H:i',
         ], [
-            'required' => 'This field is required.',
+            'required' => __('This field is required.'),
         ]);
 
         Flux::modal($this->name)->close();

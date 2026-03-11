@@ -48,10 +48,10 @@ class EquipmentList extends AbstractModelList
             ->columns([
                 Id::make(),
                 Text::make('name')
-                    ->label('Name')
+                    ->label(__('Name'))
                     ->width('w-1/3')
                     ->modal(),
-                Ago::make('updatedAt')->label('Last Changed'),
+                Ago::make('updatedAt')->label(__('Last Changed')),
             ])
             ->sortable(['id', 'name', 'updatedAt'])
             ->defaultSort('name')
@@ -61,8 +61,8 @@ class EquipmentList extends AbstractModelList
                 })
                     ->field(
                         TextField::make('search')
-                            ->label('Search')
-                            ->placeholder('Search equipment...')
+                            ->label(__('Search'))
+                            ->placeholder(__('Search equipment...'))
                     ),
             ]);
     }

@@ -1,11 +1,11 @@
-<x-layouts.guest title="Login">
+<x-layouts.guest :title="__('Login')">
     <form method="POST" action="/login" class="space-y-6">
         @csrf
 
-        <flux:heading size="lg">Login</flux:heading>
+        <flux:heading size="lg">{{ __('Login') }}</flux:heading>
 
         <flux:input
-            label="Email"
+            :label="__('Email')"
             type="email"
             name="email"
             :value="old('email')"
@@ -14,7 +14,7 @@
         />
 
         <flux:input
-            label="Password"
+            :label="__('Password')"
             type="password"
             name="password"
             required
@@ -23,11 +23,11 @@
         <div class="flex items-center justify-between">
             <flux:checkbox
                 name="remember"
-                label="Remember me"
+                :label="__('Remember me')"
             />
 
             <flux:link href="/forgot-password" variant="subtle" class="text-sm">
-                Forgot password?
+                {{ __('Forgot password?') }}
             </flux:link>
         </div>
 
@@ -40,7 +40,7 @@
         @endif
 
         <flux:button type="submit" variant="primary" class="w-full">
-            Login
+            {{ __('Login') }}
         </flux:button>
     </form>
 </x-layouts.guest>

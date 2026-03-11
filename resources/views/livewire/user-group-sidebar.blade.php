@@ -1,4 +1,4 @@
-<x-section title="Groups" class="w-64 shrink-0 sticky top-4 self-start max-h-[calc(100vh-6rem)] overflow-y-auto">
+<x-section :title="__('Groups')" class="w-64 shrink-0 sticky top-4 self-start max-h-[calc(100vh-6rem)] overflow-y-auto">
     <div class="mb-3">
         <x-cms::form.field :field="\Coda\Cms\Form\Fields\Search::make('search')" />
     </div>

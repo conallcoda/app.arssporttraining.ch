@@ -5,6 +5,7 @@ namespace Coda\Cms\Livewire;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Display\DisplayField;
 use Coda\Cms\Display\DisplayFields\Relationship as RelationshipColumn;
+use Coda\Cms\Display\IndexTab;
 use Coda\Cms\Display\Table;
 use Coda\Cms\Display\TableFilter;
 use Coda\Cms\Form\Action;
@@ -46,6 +47,8 @@ abstract class AbstractModelList extends Component
 
     public array $filters = [];
 
+    public ?string $selectedTab = null;
+
     protected ?Table $resolvedTable = null;
 
     abstract protected function getDataClass(): string;
@@ -53,6 +56,33 @@ abstract class AbstractModelList extends Component
     abstract protected function getBaseQuery(): Builder;
 
     abstract protected function getTable(): Table;
+
+    /** @return IndexTab[] */
+    protected function getTabs(): array
+    {
+        return [];
+    }
+
+    #[Computed]
+    public function tabs(): array
+    {
+        return $this->getTabs();
+    }
+
+    public function updatedSelectedTab(): void
+    {
+        $this->resetPage(pageName: $this->prefixedPageName());
+        $this->resetState();
+    }
+
+    protected function getSelectedTab(): ?IndexTab
+    {
+        if ($this->selectedTab === null) {
+            return null;
+        }
+
+        return collect($this->tabs)->first(fn (IndexTab $tab) => $tab->key === $this->selectedTab);
+    }
 
     protected function isSortable(): bool
     {
@@ -574,6 +604,7 @@ abstract class AbstractModelList extends Component
             'edit' => ['except' => null],
             'sort' => ['except' => ''],
             'filters' => ['except' => []],
+            'selectedTab' => ['except' => null],
         ];
     }
 
@@ -597,6 +628,11 @@ abstract class AbstractModelList extends Component
         $this->options = array_merge($this->getDefaultOptions(), $this->options);
         $this->compact = $this->option('compact', $this->compact);
         $this->data = $this->buildDefaultsFromFieldsets();
+
+        $tabs = $this->getTabs();
+        if ($this->selectedTab === null && ! empty($tabs)) {
+            $this->selectedTab = $tabs[0]->key;
+        }
 
         if ($this->edit !== null) {
             $this->openEditFromUrl();
@@ -717,6 +753,12 @@ abstract class AbstractModelList extends Component
     protected function buildItemsQuery()
     {
         $query = $this->getBaseQuery();
+
+        $selectedTab = $this->getSelectedTab();
+        if ($selectedTab) {
+            $selectedTab->applyQuery($query);
+        }
+
         $table = $this->resolveTable();
         $activeFilters = $this->getActiveFilters();
         $needsQueryBuilder = $this->sort !== '' || ! empty($activeFilters) || $table->hasDefaultSort();
@@ -824,6 +866,7 @@ abstract class AbstractModelList extends Component
             'tableFilters' => $table->getFilters(),
             'filterFields' => $table->getFilterFields(),
             'options' => $this->options,
+            'indexTabs' => $this->tabs,
         ]);
     }
 }

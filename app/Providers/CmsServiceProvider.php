@@ -7,6 +7,7 @@ use App\Cms\Modules\AthleteModule;
 use App\Cms\Modules\CalendarModule;
 use App\Cms\Modules\CategoryListModule;
 use App\Cms\Modules\CategoryModule;
+use App\Cms\Modules\CoachModule;
 use App\Cms\Modules\EquipmentModule;
 use App\Cms\Modules\ExerciseExternalModule;
 use App\Cms\Modules\ExerciseModule;
@@ -26,6 +27,7 @@ class CmsServiceProvider extends ServiceProvider
     {
         $registry = app(Registry::class);
 
+        $registry->register(new CoachModule);
         $registry->register(new AthleteModule);
         $registry->register(new AthleteGroupModule);
         $registry->register(new ExerciseModule);
@@ -41,7 +43,8 @@ class CmsServiceProvider extends ServiceProvider
 
         $registry->setNavigation([
             SidebarGroup::make('database', 'Database')->icon('database')->items([
-                SidebarItem::make('Athletes', 'athlete-index')->icon('users'),
+                SidebarItem::make('Coaches', 'coach-index')->icon('user-key'),
+                SidebarItem::make('Athletes', 'athlete-index')->icon('user'),
                 SidebarItem::make('Groups', 'athlete-group-index')->icon('users'),
             ]),
             SidebarGroup::make('training', 'Training')->icon('trophy')->items([

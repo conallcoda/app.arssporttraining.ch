@@ -2,10 +2,6 @@
 
 return [
     [
-        'name' => 'Coaches / Trainers',
-        'config' => null,
-    ],
-    [
         'name' => 'NLZ OST DAMEN 25/26',
         'config' => null,
     ],
@@ -15,10 +11,6 @@ return [
     ],
     [
         'name' => 'SSGD 2',
-        'config' => null,
-    ],
-    [
-        'name' => 'Three Amigos',
         'config' => null,
     ],
     [

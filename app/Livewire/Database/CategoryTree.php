@@ -25,8 +25,6 @@ class CategoryTree extends AbstractModelTree
 
     public ?string $selectedTab = null;
 
-    public string $rootCategoryName = '';
-
     protected function getDataClass(): string
     {
         return ExerciseCategoryData::class;
@@ -57,10 +55,10 @@ class CategoryTree extends AbstractModelTree
     protected function getExtraActions(): array
     {
         return [
-            Action::make('addChild', 'Add Child')
+            Action::make('addChild', __('Add Child'))
                 ->rowMenu()
                 ->icon('plus')
-                ->formModal(ExerciseCategoryData::class, 'Add Child Category')
+                ->formModal(ExerciseCategoryData::class, __('Add Child Category'))
                 ->prepareData(fn (Tag $model, array $data) => [
                     'id' => null,
                     'parentId' => $model->id,
@@ -80,17 +78,17 @@ class CategoryTree extends AbstractModelTree
             $lines = [];
 
             if ($descendantCount > 0) {
-                $childWord = $descendantCount === 1 ? 'child category' : 'child categories';
+                $childWord = $descendantCount === 1 ? __('child category') : __('child categories');
                 $lines[] = "This category has {$descendantCount} {$childWord} that will also be deleted.";
             }
 
             if ($exerciseCount > 0) {
-                $exerciseWord = $exerciseCount === 1 ? 'exercise' : 'exercises';
-                $scope = $descendantCount > 0 ? ' (including children)' : '';
+                $exerciseWord = $exerciseCount === 1 ? __('exercise') : __('exercises');
+                $scope = $descendantCount > 0 ? __(' (including children)') : '';
                 $lines[] = "It is currently assigned to {$exerciseCount} {$exerciseWord}{$scope}. Deleting will unassign them.";
             }
 
-            $lines[] = 'This action cannot be reversed.';
+            $lines[] = __('This action cannot be reversed.');
 
             $this->confirmDescription = implode("\n", $lines);
         }
@@ -107,13 +105,9 @@ class CategoryTree extends AbstractModelTree
 
         $name = $data['name'] ?? $this->getEntityName();
         $action = $isNew ? 'created' : 'updated';
-        Flux::toast(text: "{$name} {$action}", variant: 'success');
+        Flux::toast(text: __(':name :action', ['name' => $name, 'action' => $action]), variant: 'success');
 
         $this->normalizeAlphabeticalSortOrder($dto->parentId);
-
-        if ($isNew && $dto->parentId === null) {
-            $this->selectedTab = (string) $dto->id;
-        }
 
         $this->edit = null;
         unset($this->treeItems, $this->flatTreeItems, $this->filteredFlatTreeItems, $this->rootCategories, $this->selectedRootName);
@@ -180,67 +174,21 @@ class CategoryTree extends AbstractModelTree
             ->firstWhere('id', $selectedId)['name'] ?? null;
     }
 
-    public function openRenameRoot(): void
-    {
-        if (! $this->selectedTab) {
-            return;
-        }
-
-        $this->rootCategoryName = $this->selectedRootName ?? '';
-
-        Flux::modal('rename-root-category')->show();
-    }
-
-    public function saveRenameRoot(): void
-    {
-        $this->validate([
-            'rootCategoryName' => 'required|string|max:255',
-        ]);
-
-        $tag = $this->getBaseQuery()->findOrFail((int) $this->selectedTab);
-        $tag->name = $this->rootCategoryName;
-        $tag->save();
-
-        $this->rootCategoryName = '';
-
-        Flux::modal('rename-root-category')->close();
-
-        $this->normalizeAlphabeticalSortOrder(null);
-
-        unset($this->treeItems, $this->flatTreeItems, $this->filteredFlatTreeItems, $this->rootCategories, $this->selectedRootName);
-        $this->refreshKey++;
-    }
-
-    public function confirmDeleteRoot(): void
-    {
-        if (! $this->selectedTab) {
-            return;
-        }
-
-        $this->confirmAction('delete', (int) $this->selectedTab);
-    }
-
     public function removeItem(int $id): void
     {
         $tag = $this->getBaseQuery()->findOrFail($id);
         $name = $tag->name ?? $this->getEntityName();
         $parentId = $tag->parent_id;
-        $wasRoot = $parentId === null;
 
         $deleteAction = new DeleteAction;
         $deleteAction->execute($tag);
 
-        Flux::toast(text: "{$name} deleted", variant: 'success');
+        Flux::toast(text: __(':name deleted', ['name' => $name]), variant: 'success');
 
         $this->normalizeAlphabeticalSortOrder($parentId);
 
         unset($this->treeItems, $this->flatTreeItems, $this->filteredFlatTreeItems, $this->rootCategories, $this->selectedRootName);
         $this->refreshKey++;
-
-        if ($wasRoot) {
-            $firstRoot = $this->getRootsQuery()->orderBy('name')->first();
-            $this->selectedTab = $firstRoot ? (string) $firstRoot->id : null;
-        }
     }
 
     #[Computed(persist: false)]

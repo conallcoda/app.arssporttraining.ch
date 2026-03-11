@@ -34,9 +34,9 @@ class AthleteGroupList extends AbstractModelList
     {
         return Table::make()
             ->columns([
-                Text::make('name')->label('Name')->modal(),
-                Relationship::make('members')->label('Members')->modal()->width('w-full'),
-                Ago::make('updatedAt')->label('Last Changed'),
+                Text::make('name')->label(__('Name'))->modal(),
+                Relationship::make('members')->label(__('Members'))->modal()->width('w-full'),
+                Ago::make('updatedAt')->label(__('Last Changed')),
             ])
             ->filters([
                 TableFilter::callback('search', function (Builder $query, mixed $value): void {
@@ -50,8 +50,8 @@ class AthleteGroupList extends AbstractModelList
                 })
                     ->field(
                         TextField::make('search')
-                            ->label('Search')
-                            ->placeholder('Search groups...')
+                            ->label(__('Search'))
+                            ->placeholder(__('Search groups...'))
                     ),
             ]);
     }

@@ -9,6 +9,8 @@ document.addEventListener('alpine:init', () => {
         cellSet: 0,
         cellSession: 0,
         cellApplyToAll: false,
+        msgInvalidNumber: 'Please enter a valid number',
+        msgInvalidValue: 'Please enter a valid value',
 
         init() {
             this.mask = this.$el.getAttribute('data-mask') || '';
@@ -18,6 +20,8 @@ document.addEventListener('alpine:init', () => {
             this.cellSet = parseInt(this.$el.getAttribute('data-set') || '0', 10);
             this.cellSession = parseInt(this.$el.getAttribute('data-session') || '0', 10);
             this.cellApplyToAll = this.$el.getAttribute('data-apply-to-all') === 'true';
+            this.msgInvalidNumber = this.$el.getAttribute('data-msg-invalid-number') || this.msgInvalidNumber;
+            this.msgInvalidValue = this.$el.getAttribute('data-msg-invalid-value') || this.msgInvalidValue;
         },
 
         startEditing() {
@@ -51,13 +55,13 @@ document.addEventListener('alpine:init', () => {
             if (inputType === 'number') {
                 parsedValue = step.includes('.') ? parseFloat(this.editValue) : parseInt(this.editValue, 10);
                 if (isNaN(parsedValue)) {
-                    window.Flux.toast({ text: 'Please enter a valid number', variant: 'danger' });
+                    window.Flux.toast({ text: this.msgInvalidNumber, variant: 'danger' });
                     return;
                 }
             } else if (input && input.pattern) {
                 const regex = new RegExp('^' + input.pattern + '$');
                 if (!regex.test(this.editValue.trim())) {
-                    window.Flux.toast({ text: 'Please enter a valid value', variant: 'danger' });
+                    window.Flux.toast({ text: this.msgInvalidValue, variant: 'danger' });
                     return;
                 }
                 parsedValue = this.editValue.trim();

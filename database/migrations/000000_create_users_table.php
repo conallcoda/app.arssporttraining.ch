@@ -19,6 +19,8 @@ return new class extends Migration
             $table->string('email')->nullable()->unique();
             $table->string('phone')->nullable();
             $table->string('password')->nullable();
+            $table->tinyInteger('gender')->nullable();
+            $table->date('date_of_birth')->nullable();
             $table->schemalessAttributes('config');
             $table->rememberToken();
             $table->timestamps();

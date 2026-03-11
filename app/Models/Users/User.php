@@ -28,6 +28,8 @@ class User extends Authenticatable
         'type',
         'phone',
         'password',
+        'gender',
+        'date_of_birth',
         'config',
     ];
 
@@ -50,6 +52,8 @@ class User extends Authenticatable
     {
         return [
             'type' => UserTypeEnum::class,
+            'gender' => GenderEnum::class,
+            'date_of_birth' => 'date',
             'password' => 'hashed',
         ];
     }

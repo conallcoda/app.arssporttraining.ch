@@ -54,35 +54,18 @@
         @if ($this->selectedRootName)
             <div class="flex items-center gap-2 mt-6 mb-4">
                 <flux:heading size="xl">{{ $this->selectedRootName }}</flux:heading>
-                <flux:button variant="ghost" size="xs" icon="pencil" wire:click="openRenameRoot" />
-                <flux:button variant="ghost" size="xs" icon="trash-2" wire:click="confirmDeleteRoot"
-                    class="text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400" />
             </div>
         @endif
-
-        <flux:modal name="rename-root-category" class="min-w-[22rem]">
-            <div class="space-y-6">
-                <flux:heading size="lg">Rename Category</flux:heading>
-                <flux:input wire:model="rootCategoryName" label="Name" />
-                <div class="flex gap-2">
-                    <flux:spacer />
-                    <flux:modal.close>
-                        <flux:button variant="ghost">Cancel</flux:button>
-                    </flux:modal.close>
-                    <flux:button variant="primary" wire:click="saveRenameRoot">Save</flux:button>
-                </div>
-            </div>
-        </flux:modal>
 
         @if (empty($this->filteredFlatTreeItems))
             <div class="flex flex-col items-center justify-center py-12 text-center">
                 <flux:icon.inbox class="w-12 h-12 text-zinc-300 dark:text-zinc-600 mb-4" />
-                <flux:heading size="lg" class="text-zinc-500 dark:text-zinc-400">No subcategories yet</flux:heading>
+                <flux:heading size="lg" class="text-zinc-500 dark:text-zinc-400">{{ __('No subcategories yet') }}</flux:heading>
             </div>
         @else
             <flux:table>
                 <flux:table.columns>
-                    <flux:table.column class="w-full">Name</flux:table.column>
+                    <flux:table.column class="w-full">{{ __('Name') }}</flux:table.column>
                     <flux:table.column class="w-px"></flux:table.column>
                 </flux:table.columns>
 

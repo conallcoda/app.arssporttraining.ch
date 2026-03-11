@@ -1,7 +1,7 @@
 <div x-data="{ hiding: false }" x-show="!hiding">
     <x-section :title="$exerciseName">
         @if ($disabled)
-            <flux:button variant="primary" size="sm" wire:click="toggleDisabled" x-on:click="hiding = true" class="!-mt-1">Enable</flux:button>
+            <flux:button variant="primary" size="sm" wire:click="toggleDisabled" x-on:click="hiding = true" class="!-mt-1">{{ __('Enable') }}</flux:button>
         @else
             <div wire:key="grid-content-{{ $exerciseId }}-{{ $this->configFingerprint }}">
                 <div class="flex items-start justify-between !-mt-2">
@@ -51,16 +51,16 @@
                     <flux:dropdown>
                         <flux:button variant="ghost" size="sm" icon="ellipsis" class="!p-1" />
                         <flux:menu>
-                            <flux:menu.item icon="pencil" wire:click="openSettingsForm">Edit Settings</flux:menu.item>
-                            <flux:menu.item icon="rotate-ccw" wire:click="resetOverrides">Reset Overrides</flux:menu.item>
-                            <flux:menu.item icon="eye-off" wire:click="toggleDisabled" x-on:click="hiding = true">Disable</flux:menu.item>
+                            <flux:menu.item icon="pencil" wire:click="openSettingsForm">{{ __('Edit Settings') }}</flux:menu.item>
+                            <flux:menu.item icon="rotate-ccw" wire:click="resetOverrides">{{ __('Reset Overrides') }}</flux:menu.item>
+                            <flux:menu.item icon="eye-off" wire:click="toggleDisabled" x-on:click="hiding = true">{{ __('Disable') }}</flux:menu.item>
                         </flux:menu>
                     </flux:dropdown>
                 </div>
 
                 @if ($this->requiresMeasuredData && ! $this->hasMeasuredData)
                     <div class="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-6 text-center">
-                        <flux:text class="text-zinc-400">Enter measured reps and weight in the target section to generate the training grid.</flux:text>
+                        <flux:text class="text-zinc-400">{{ __('Enter measured reps and weight in the target section to generate the training grid.') }}</flux:text>
                     </div>
                 @else
                     <x-training.exercise-grid

@@ -1,10 +1,10 @@
 <div x-data="schedule_grid()" class="flex gap-6 focus:outline-none">
     @if ($users->isNotEmpty())
-        <x-section title="Schedules" class="w-64 shrink-0 sticky top-4 self-start">
+        <x-section :title="__('Schedules')" class="w-64 shrink-0 sticky top-4 self-start">
             <div class="flex flex-col gap-1">
                 <flux:button wire:click="selectUser(null)" variant="{{ $user === null ? 'primary' : 'ghost' }}"
                     class="justify-start">
-                    <span class="flex-1 text-left">Default</span>
+                    <span class="flex-1 text-left">{{ __('Default') }}</span>
                 </flux:button>
 
                 <div class="mx-3">
@@ -20,9 +20,9 @@
                         variant="{{ $isSelected ? 'primary' : 'ghost' }}" class="justify-start">
                         <span class="flex-1 text-left">{{ $userItem->name }}</span>
                         @if ($hasCustom && $isSelected)
-                            <flux:badge size="sm" color="lime" class="!text-green-700">Custom</flux:badge>
+                            <flux:badge size="sm" color="lime" class="!text-green-700">{{ __('Custom') }}</flux:badge>
                         @elseif ($hasCustom)
-                            <flux:badge size="sm" color="lime">Custom</flux:badge>
+                            <flux:badge size="sm" color="lime">{{ __('Custom') }}</flux:badge>
                         @endif
                     </flux:button>
                 @endforeach
@@ -32,21 +32,21 @@
 
     <div class="flex-1 space-y-6">
         @if ($user === null && ! $exercisePlan->isTemplate())
-            <flux:heading size="xl">Default Schedule</flux:heading>
+            <flux:heading size="xl">{{ __('Default Schedule') }}</flux:heading>
         @elseif ($this->selectedUser)
             <div class="flex items-center justify-between">
                 <flux:heading size="xl">{{ $this->selectedUser->name }}</flux:heading>
                 @if ($this->hasCustomSchedule)
                     <flux:button wire:click="confirmResetSchedule"
                         variant="primary" size="sm" icon="rotate-ccw">
-                        Reset
+                        {{ __('Reset') }}
                     </flux:button>
                 @endif
             </div>
         @endif
 
         @if ($users->isNotEmpty())
-            <x-section title="Start Date" class="!py-3">
+            <x-section :title="__('Start Date')" class="!py-3">
                 <div class="flex items-end gap-3">
                     <flux:field class="flex-1">
                         <flux:select wire:model.live="startDate">
@@ -59,7 +59,7 @@
             </x-section>
         @endif
 
-        <x-section title="Weekly Schedule" class="!p-0">
+        <x-section :title="__('Weekly Schedule')" class="!p-0">
             <div class="overflow-x-auto">
                 <table class="w-full border-collapse text-sm table-fixed">
                     <colgroup>
@@ -78,7 +78,7 @@
                         <tr class="bg-zinc-100 dark:bg-zinc-800">
                             <th class="border-b border-zinc-300 dark:border-zinc-600 px-3 py-2"></th>
                             <th class="border-b border-zinc-300 dark:border-zinc-600 px-3 py-2"></th>
-                            @foreach (['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as $day)
+                            @foreach ([__('Mon'), __('Tue'), __('Wed'), __('Thu'), __('Fri'), __('Sat'), __('Sun')] as $day)
                                 <th class="border-b border-zinc-300 dark:border-zinc-600 px-3 py-2">{{ $day }}
                                 </th>
                             @endforeach
@@ -95,14 +95,14 @@
                                     : null;
                                 $isReadOnly = $isLinked;
                             @endphp
-                            @foreach ([0 => 'AM', 1 => 'PM'] as $slotKey => $slotLabel)
+                            @foreach ([0 => __('AM'), 1 => __('PM')] as $slotKey => $slotLabel)
                                 <tr wire:key="week-{{ $week->id }}-{{ $slotKey }}-{{ $user ?? 'default' }}"
                                     class="{{ $isLinked ? 'bg-zinc-50 dark:bg-zinc-900/50' : '' }}">
                                     @if ($slotKey === 0)
                                         <td rowspan="2"
                                             class="border border-l-0 {{ $isLinked ? 'border-dashed border-zinc-400 dark:border-zinc-500' : 'border-zinc-300 dark:border-zinc-600' }} px-3 py-2 font-medium bg-zinc-50 dark:bg-zinc-800/50 text-center">
                                             <div class="flex flex-col items-center gap-1">
-                                                <span>Week {{ $weekIndex + 1 }}</span>
+                                                <span>{{ __('Week') }} {{ $weekIndex + 1 }}</span>
                                                 @if ($isLinked)
                                                     <div class="flex items-center gap-1 text-xs text-zinc-500">
                                                         <flux:icon.lock class="size-3" />
@@ -177,11 +177,11 @@
                                                             <flux:menu>
                                                                 <flux:menu.item icon="plus"
                                                                     wire:click="openCreateProgramModal('{{ $week->id }}', {{ $dayIndex }}, {{ $slotKey }})">
-                                                                    Create
+                                                                    {{ __('Create') }}
                                                                 </flux:menu.item>
                                                                 <flux:menu.item icon="link"
                                                                     wire:click="openLinkProgramModal('{{ $week->id }}', {{ $dayIndex }}, {{ $slotKey }})">
-                                                                    Link
+                                                                    {{ __('Link') }}
                                                                 </flux:menu.item>
                                                             </flux:menu>
                                                         </flux:dropdown>
@@ -201,20 +201,20 @@
                                                             <flux:menu.item
                                                                 wire:click="$dispatch('schedule-event', { type: 'unlink-week', data: { weekId: '{{ $week->id }}' } })">
                                                                 <flux:icon.link class="size-4 mr-2" />
-                                                                Unlink
+                                                                {{ __('Unlink') }}
                                                             </flux:menu.item>
                                                         @else
                                                             <flux:menu.item
                                                                 wire:click="openLinkModal('{{ $week->id }}')">
                                                                 <flux:icon.link class="size-4 mr-2" />
-                                                                Link to...
+                                                                {{ __('Link to...') }}
                                                             </flux:menu.item>
                                                         @endif
                                                         <flux:menu.item
                                                             wire:click="openRemoveModal('{{ $week->id }}')"
                                                             variant="danger">
                                                             <flux:icon.trash-2 class="size-4 mr-2" />
-                                                            Remove
+                                                            {{ __('Remove') }}
                                                         </flux:menu.item>
                                                     </flux:menu>
                                                 </flux:dropdown>
@@ -230,7 +230,7 @@
                                 wire:click="$dispatch('schedule-event', { type: 'add-week' })">
                                 <div class="flex items-center justify-center gap-2 text-zinc-400 dark:text-zinc-500">
                                     <flux:icon.plus class="size-4" />
-                                    <span class="text-sm font-medium">Add Week</span>
+                                    <span class="text-sm font-medium">{{ __('Add Week') }}</span>
                                 </div>
                             </td>
                         </tr>
@@ -242,20 +242,20 @@
 
     <x-cms::confirm-modal
         name="remove-week"
-        heading="Remove Week"
-        description="Are you sure you want to remove this week? This action cannot be undone."
-        confirmLabel="Remove"
+        :heading="__('Remove Week')"
+        :description="__('Are you sure you want to remove this week? This action cannot be undone.')"
+        :confirmLabel="__('Remove')"
         action="confirmRemoveWeek"
     />
 
     <flux:modal name="link-week" class="w-80">
         <div class="space-y-4">
-            <flux:heading size="lg">Link Week</flux:heading>
+            <flux:heading size="lg">{{ __('Link Week') }}</flux:heading>
             <flux:text class="text-sm text-zinc-600 dark:text-zinc-400">
-                Linked weeks inherit all program assignments from the source week.
+                {{ __('Linked weeks inherit all program assignments from the source week.') }}
             </flux:text>
-            <flux:select wire:model="linkToWeekId" placeholder="Select source week...">
-                <flux:select.option value="">None (unlink)</flux:select.option>
+            <flux:select wire:model="linkToWeekId" :placeholder="__('Select source week...')">
+                <flux:select.option value="">{{ __('None (unlink)') }}</flux:select.option>
                 @foreach ($this->availableWeeksForLinking as $availableWeek)
                     <flux:select.option value="{{ $availableWeek['id'] }}">{{ $availableWeek['label'] }}
                     </flux:select.option>
@@ -263,10 +263,10 @@
             </flux:select>
             <div class="flex justify-end gap-2">
                 <flux:modal.close>
-                    <flux:button variant="ghost">Cancel</flux:button>
+                    <flux:button variant="ghost">{{ __('Cancel') }}</flux:button>
                 </flux:modal.close>
                 <flux:button variant="primary" wire:click="confirmLinkWeek">
-                    Save
+                    {{ __('Save') }}
                 </flux:button>
             </div>
         </div>
@@ -274,12 +274,12 @@
 
     <flux:modal name="link-program" flyout class="w-80">
         <div class="space-y-4">
-            <flux:heading size="lg">Link Program</flux:heading>
+            <flux:heading size="lg">{{ __('Link Program') }}</flux:heading>
             <flux:text class="text-sm text-zinc-600 dark:text-zinc-400">
-                Select an existing program to place in this slot.
+                {{ __('Select an existing program to place in this slot.') }}
             </flux:text>
             @php $filteredOptions = $this->availableProgramOptionsForSlot(); @endphp
-            <flux:select wire:model="linkingProgramId" placeholder="Select a program...">
+            <flux:select wire:model="linkingProgramId" :placeholder="__('Select a program...')">
                 @foreach ($filteredOptions as $group => $options)
                     @if (is_array($options))
                         <flux:select.option disabled>— {{ $group }} —</flux:select.option>
@@ -291,10 +291,10 @@
             </flux:select>
             <div class="flex justify-end gap-2">
                 <flux:modal.close>
-                    <flux:button variant="ghost">Cancel</flux:button>
+                    <flux:button variant="ghost">{{ __('Cancel') }}</flux:button>
                 </flux:modal.close>
                 <flux:button variant="primary" wire:click="confirmLinkProgram">
-                    Link
+                    {{ __('Link') }}
                 </flux:button>
             </div>
         </div>
@@ -303,7 +303,7 @@
     <flux:modal name="add-program" flyout class="max-w-lg">
         <div class="space-y-6">
             <flux:heading size="lg">
-                {{ $editingProgramId ? 'Edit Program' : 'Create Program' }}
+                {{ $editingProgramId ? __('Edit Program') : __('Create Program') }}
             </flux:heading>
             <form wire:submit="saveProgram" class="space-y-4">
                 @foreach ($this->fieldsets as $item)
@@ -315,14 +315,14 @@
                 @endforeach
                 <div class="flex gap-2 pt-4">
                     <flux:button type="submit" variant="primary" class="flex-1">
-                        {{ $editingProgramId ? 'Save' : 'Create' }}
+                        {{ $editingProgramId ? __('Save') : __('Create') }}
                     </flux:button>
                     <flux:modal.close>
-                        <flux:button variant="ghost">Cancel</flux:button>
+                        <flux:button variant="ghost">{{ __('Cancel') }}</flux:button>
                     </flux:modal.close>
                     @if ($editingProgramId)
                         <flux:button variant="ghost" icon="trash-2" wire:click="removeFromSchedule"
-                            wire:confirm="Are you sure you want to remove this program from the slot?"
+                            wire:confirm="{{ __('Are you sure you want to remove this program from the slot?') }}"
                             class="text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400" />
                     @endif
                 </div>
@@ -332,9 +332,9 @@
 
     <x-cms::confirm-modal
         name="reset-schedule"
-        heading="Reset Schedule?"
-        description="This will remove all user-specific programs and reset to the default schedule."
-        confirmLabel="Reset"
+        :heading="__('Reset Schedule?')"
+        :description="__('This will remove all user-specific programs and reset to the default schedule.')"
+        :confirmLabel="__('Reset')"
         action="resetSchedule"
     />
 

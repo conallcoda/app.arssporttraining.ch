@@ -136,10 +136,10 @@
                 @if ($isMasked)
                     <div x-data="masked_input" data-mask="{{ $mask }}" class="flex-1">
                         @if ($field->live)
-                            <flux:input wire:model.live="{{ $wireModel }}" type="text"
+                            <flux:input wire:model.live="{{ $wireModel }}" type="{{ $field->inputType }}"
                                 data-field="{{ $field->name }}" placeholder="00:00" />
                         @else
-                            <flux:input wire:model.live.blur="{{ $wireModel }}" type="text"
+                            <flux:input wire:model.live.blur="{{ $wireModel }}" type="{{ $field->inputType }}"
                                 data-field="{{ $field->name }}" placeholder="00:00" />
                         @endif
                     </div>
@@ -171,19 +171,19 @@
                     @if ($field->mask)
                         <div x-data="masked_input" data-mask="{{ $field->mask }}" class="flex-1">
                             @if ($field->live)
-                                <flux:input wire:model.live="{{ $wireModel }}" type="text"
+                                <flux:input wire:model.live="{{ $wireModel }}" type="{{ $field->inputType }}"
                                     data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
                             @else
-                                <flux:input wire:model.live.blur="{{ $wireModel }}" type="text"
+                                <flux:input wire:model.live.blur="{{ $wireModel }}" type="{{ $field->inputType }}"
                                     data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
                             @endif
                         </div>
                     @else
                         @if ($field->live)
-                            <flux:input wire:model.live="{{ $wireModel }}" type="text"
+                            <flux:input wire:model.live="{{ $wireModel }}" type="{{ $field->inputType }}"
                                 data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
                         @else
-                            <flux:input wire:model.live.blur="{{ $wireModel }}" type="text"
+                            <flux:input wire:model.live.blur="{{ $wireModel }}" type="{{ $field->inputType }}"
                                 data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
                         @endif
                     @endif
@@ -192,19 +192,19 @@
             @elseif ($field->mask)
                 <div x-data="masked_input" data-mask="{{ $field->mask }}">
                     @if ($field->live)
-                        <flux:input wire:model.live="{{ $wireModel }}" type="text"
+                        <flux:input wire:model.live="{{ $wireModel }}" type="{{ $field->inputType }}"
                             data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
                     @else
-                        <flux:input wire:model.live.blur="{{ $wireModel }}" type="text"
+                        <flux:input wire:model.live.blur="{{ $wireModel }}" type="{{ $field->inputType }}"
                             data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
                     @endif
                 </div>
             @else
                 @if ($field->live)
-                    <flux:input wire:model.live="{{ $wireModel }}" type="text"
+                    <flux:input wire:model.live="{{ $wireModel }}" type="{{ $field->inputType }}"
                         data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
                 @else
-                    <flux:input wire:model.live.blur="{{ $wireModel }}" type="text" data-field="{{ $field->name }}"
+                    <flux:input wire:model.live.blur="{{ $wireModel }}" type="{{ $field->inputType }}" data-field="{{ $field->name }}"
                         placeholder="{{ $field->getPlaceholder() }}" />
                 @endif
             @endif

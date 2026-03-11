@@ -59,12 +59,12 @@ class ProgramList extends AbstractModelList
 
         return Table::make()
             ->columns([
-                Text::make('name')->label('Name')->modal(),
+                Text::make('name')->label(__('Name'))->modal(),
                 ColorBadge::make('exerciseCategoryColor')
-                    ->label('Category')
+                    ->label(__('Category'))
                     ->colorLabels($colorLabels),
-                Relationship::make('exercises')->label('Exercises')->modal()->width('w-full'),
-                Ago::make('updatedAt')->label('Last Changed'),
+                Relationship::make('exercises')->label(__('Exercises'))->modal()->width('w-full'),
+                Ago::make('updatedAt')->label(__('Last Changed')),
             ])
             ->limit(100);
     }

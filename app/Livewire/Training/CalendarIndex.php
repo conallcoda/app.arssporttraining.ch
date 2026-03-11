@@ -652,12 +652,12 @@ class CalendarIndex extends Component
         $hasErrors = false;
 
         if ($this->quickProgramId === null) {
-            $this->addError('quickProgramId', 'Select a program.');
+            $this->addError('quickProgramId', __('Select a program.'));
             $hasErrors = true;
         }
 
         if ($this->quickAthleteOptions->isNotEmpty() && empty($this->quickSelectedAthletes)) {
-            $this->addError('quickSelectedAthletes', 'Select athletes.');
+            $this->addError('quickSelectedAthletes', __('Select athletes.'));
             $hasErrors = true;
         }
 

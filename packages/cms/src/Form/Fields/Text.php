@@ -16,4 +16,13 @@ class Text extends Field
     use HasSuffix;
 
     public string $type = 'text';
+
+    public string $inputType = 'text';
+
+    public function password(): static
+    {
+        $this->inputType = 'password';
+
+        return $this;
+    }
 }

@@ -181,6 +181,19 @@ trait InteractsWithFormData
         return $rules;
     }
 
+    protected function buildValidationAttributesFromFieldsets(): array
+    {
+        $attributes = [];
+
+        foreach ($this->flatFieldsets() as $fieldset) {
+            $prefix = $fieldset->prefix ?? 'data';
+            $fieldAttributes = Field::buildValidationAttributes($fieldset->fields, $prefix.'.');
+            $attributes = array_merge($attributes, $fieldAttributes);
+        }
+
+        return $attributes;
+    }
+
     protected function buildDefaultsFromFieldsets(): array
     {
         $defaults = [];

@@ -35,7 +35,7 @@
                         <div class="text-[10px] text-zinc-400 dark:text-zinc-500">{{ $week['dateRange'] }}</div>
                     </td>
                     <td class="bg-white dark:bg-zinc-900 border-r border-b border-zinc-300 dark:border-zinc-600 px-1.5 py-1 text-[10px] text-zinc-400 dark:text-zinc-500">
-                        AM
+                        {{ __('AM') }}
                     </td>
                     @foreach ($week['days'] as $day)
                         @if ($weekEditMode === 'edit')
@@ -69,7 +69,7 @@
                 </tr>
                 <tr wire:key="week-grid-{{ $week['key'] }}-pm">
                     <td class="bg-white dark:bg-zinc-900 border-r border-b border-zinc-300 dark:border-zinc-600 px-1.5 py-1 text-[10px] text-zinc-400 dark:text-zinc-500">
-                        PM
+                        {{ __('PM') }}
                     </td>
                     @foreach ($week['days'] as $day)
                         @if ($weekEditMode === 'edit')

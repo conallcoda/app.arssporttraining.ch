@@ -86,4 +86,20 @@ abstract class Field
 
         return $rules;
     }
+
+    public static function buildValidationAttributes(array $fields, string $prefix = ''): array
+    {
+        $attributes = [];
+
+        foreach ($fields as $field) {
+            $attributes["{$prefix}{$field->name}"] = strtolower($field->getLabel());
+
+            if ($field->type === 'repeater') {
+                $childAttributes = self::buildValidationAttributes($field->schema, "{$prefix}{$field->name}.*.");
+                $attributes = array_merge($attributes, $childAttributes);
+            }
+        }
+
+        return $attributes;
+    }
 }

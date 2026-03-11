@@ -1,11 +1,11 @@
-<x-layouts.guest title="Forgot Password">
+<x-layouts.guest :title="__('Forgot Password')">
     <form method="POST" action="/forgot-password" class="space-y-6">
         @csrf
 
-        <flux:heading size="lg">Forgot Password</flux:heading>
+        <flux:heading size="lg">{{ __('Forgot Password') }}</flux:heading>
 
         <flux:text class="text-sm">
-            Enter your email address and we'll send you a link to reset your password.
+            {{ __("Enter your email address and we'll send you a link to reset your password.") }}
         </flux:text>
 
         @if (session('status'))
@@ -15,7 +15,7 @@
         @endif
 
         <flux:input
-            label="Email"
+            :label="__('Email')"
             type="email"
             name="email"
             :value="old('email')"
@@ -32,12 +32,12 @@
         @endif
 
         <flux:button type="submit" variant="primary" class="w-full">
-            Send Reset Link
+            {{ __('Send Reset Link') }}
         </flux:button>
 
         <div class="text-center">
             <flux:link href="/login" variant="subtle" class="text-sm">
-                Back to login
+                {{ __('Back to login') }}
             </flux:link>
         </div>
     </form>
