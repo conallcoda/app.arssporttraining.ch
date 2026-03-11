@@ -410,13 +410,16 @@ class CalendarIndex extends Component
     #[Computed]
     public function focusNotes(): array
     {
+        $days = $this->days;
+        $totalDays = count($days);
+        $empty = ['notes' => [], 'laneCount' => 0, 'totalDays' => $totalDays];
+
         if (! $this->hasSelection()) {
-            return [];
+            return $empty;
         }
 
         [$start, $end] = $this->dateRange();
         $groupId = (int) $this->group;
-        $days = $this->days;
 
         $dayIndex = [];
         foreach ($days as $i => $day) {
@@ -444,7 +447,7 @@ class CalendarIndex extends Component
 
         $grouped = $notes->groupBy(fn ($n) => $n->start->format('Y-m-d').'|'.($n->end?->format('Y-m-d') ?? '').'|'.$n->note);
 
-        $occupied = [];
+        $noteRanges = [];
 
         foreach ($grouped as $group) {
             $representative = $group->first();
@@ -459,21 +462,43 @@ class CalendarIndex extends Component
             }
 
             $startIdx = $dayIndex[$clampedStart];
-            $endIdx = $dayIndex[$clampedEnd] ?? (count($days) - 1);
+            $endIdx = $dayIndex[$clampedEnd] ?? ($totalDays - 1);
             $colspan = $endIdx - $startIdx + 1;
 
-            $occupied[$startIdx] = [
+            $noteRanges[] = [
                 'id' => $representative->id,
                 'note' => $representative->note,
+                'startIdx' => $startIdx,
+                'endIdx' => $endIdx,
                 'colspan' => $colspan,
             ];
-
-            for ($i = $startIdx + 1; $i <= $endIdx; $i++) {
-                $occupied[$i] = null;
-            }
         }
 
-        return $occupied;
+        usort($noteRanges, fn ($a, $b) => $a['startIdx'] <=> $b['startIdx']);
+
+        $laneEnds = [];
+        foreach ($noteRanges as &$noteRange) {
+            $placed = false;
+            foreach ($laneEnds as $lane => $laneEnd) {
+                if ($laneEnd < $noteRange['startIdx']) {
+                    $noteRange['lane'] = $lane;
+                    $laneEnds[$lane] = $noteRange['endIdx'];
+                    $placed = true;
+                    break;
+                }
+            }
+            if (! $placed) {
+                $noteRange['lane'] = count($laneEnds);
+                $laneEnds[] = $noteRange['endIdx'];
+            }
+        }
+        unset($noteRange);
+
+        return [
+            'notes' => $noteRanges,
+            'laneCount' => count($laneEnds),
+            'totalDays' => $totalDays,
+        ];
     }
 
     #[Computed]

@@ -16,6 +16,16 @@ class OwnershipTabs
         return new self($entityName);
     }
 
+    public function defaultTab(Builder $query): string
+    {
+        $exists = (clone $query)->where(
+            $query->getModel()->qualifyColumn('owner_id'),
+            auth()->id(),
+        )->exists();
+
+        return $exists ? 'mine' : 'all';
+    }
+
     /** @return IndexTab[] */
     public function toArray(): array
     {

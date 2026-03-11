@@ -36,6 +36,11 @@ class ExerciseProgramList extends AbstractModelList
         return OwnershipTabs::make('Programs')->toArray();
     }
 
+    protected function getDefaultTabKey(): ?string
+    {
+        return OwnershipTabs::make('Programs')->defaultTab($this->getBaseQuery());
+    }
+
     protected function getBaseQuery(): Builder
     {
         return ExerciseProgram::query()

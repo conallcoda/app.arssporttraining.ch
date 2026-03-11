@@ -32,30 +32,32 @@
         </thead>
         @if ($this->programs->isNotEmpty())
             <tbody>
-                <tr class="h-[40px]">
-                    <td class="sticky left-0 z-10 bg-white dark:bg-zinc-900 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-1 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px]">
+                <tr>
+                    <td class="sticky left-0 z-20 bg-white dark:bg-zinc-900 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-1 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px]">
                         {{ __('Focus') }}
                     </td>
-                    @foreach ($this->days as $dayIdx => $day)
-                        @if (array_key_exists($dayIdx, $this->focusNotes))
-                            @php
-                                $focusCell = $this->focusNotes[$dayIdx];
-                            @endphp
-                            @if ($focusCell !== null)
-                                <td wire:click="editFocusNote({{ $focusCell['id'] }})"
-                                    colspan="{{ $focusCell['colspan'] }}"
-                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 cursor-pointer h-[1px]">
-                                    <div class="rounded-sm bg-amber-400/80 dark:bg-amber-500/60 flex items-center justify-center h-full px-1 min-h-0">
-                                        <span class="text-[10px] font-medium text-white truncate">{{ $focusCell['note'] }}</span>
-                                    </div>
-                                </td>
-                            @endif
-                        @else
-                            <td wire:click="openFocusNote('{{ $day['date'] }}')"
-                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer {{ $day['isToday'] ? 'bg-blue-50/50 dark:bg-blue-900/10' : ($day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '') }}">
-                            </td>
-                        @endif
-                    @endforeach
+                    <td colspan="{{ count($this->days) }}"
+                        class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 relative"
+                        style="height: {{ max(1, $this->focusNotes['laneCount']) * 28 + 8 }}px">
+                        <div class="absolute inset-0 flex">
+                            @foreach ($this->days as $dayIdx => $day)
+                                <div wire:click="openFocusNote('{{ $day['date'] }}')"
+                                     wire:key="focus-bg-{{ $dayIdx }}"
+                                     class="flex-1 cursor-pointer h-full border-r border-zinc-300 dark:border-zinc-600 last:border-r-0 {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}">
+                                </div>
+                            @endforeach
+                        </div>
+                        @foreach ($this->focusNotes['notes'] as $note)
+                            <div wire:click.stop="editFocusNote({{ $note['id'] }})"
+                                 wire:key="focus-note-{{ $note['id'] }}"
+                                 class="absolute cursor-pointer z-10 px-0.5"
+                                 style="left: {{ ($note['startIdx'] / $this->focusNotes['totalDays']) * 100 }}%; width: {{ ($note['colspan'] / $this->focusNotes['totalDays']) * 100 }}%; top: {{ $note['lane'] * 28 + 4 }}px; height: 24px;">
+                                <div class="rounded-sm bg-amber-400/80 dark:bg-amber-500/60 flex items-center justify-center h-full px-1">
+                                    <span class="text-[10px] font-medium text-white truncate">{{ $note['note'] }}</span>
+                                </div>
+                            </div>
+                        @endforeach
+                    </td>
                 </tr>
             </tbody>
         @endif
@@ -67,7 +69,7 @@
                     ? \Coda\Cms\Support\ColorPalette::solidClasses($category->color)
                     : 'bg-zinc-100 dark:bg-zinc-800';
             @endphp
-            <tbody x-data="{ expanded: true }" wire:key="category-{{ $categoryId }}">
+            <tbody x-data="{ expanded: true, programExpanded: {} }" wire:key="category-{{ $categoryId }}">
                 <tr class="cursor-pointer" @click="expanded = !expanded">
                     <td
                         class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] {{ $categoryColorClass }}">
@@ -108,11 +110,18 @@
                         $colorClass = $categoryColor
                             ? \Coda\Cms\Support\ColorPalette::solidClasses($categoryColor)
                             : '';
+                        $exercises = $entry->program->exercises->sortBy('pivot.sort');
                     @endphp
                     <tr wire:key="program-{{ $entry->id }}" x-show="expanded" x-cloak>
                         <td
                             class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 pl-7 pr-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] bg-white dark:bg-zinc-900">
                             <div class="flex items-center gap-2">
+                                @if ($exercises->isNotEmpty())
+                                    <button type="button" @click.stop="programExpanded[{{ $entry->id }}] = !programExpanded[{{ $entry->id }}]" class="shrink-0">
+                                        <flux:icon.chevron-right class="size-4 transition-transform duration-200"
+                                            ::class="programExpanded[{{ $entry->id }}] && 'rotate-90'" />
+                                    </button>
+                                @endif
                                 @if ($categoryColor)
                                     <span class="w-2 h-2 rounded-full shrink-0"
                                         style="{{ \Coda\Cms\Support\ColorPalette::solid($categoryColor) }}"></span>
@@ -122,6 +131,13 @@
                                     {{ $entry->program->name }}
                                 </button>
                             </div>
+                            @if ($exercises->isNotEmpty())
+                                <div x-show="programExpanded[{{ $entry->id }}]" x-cloak class="mt-1 ml-10 flex flex-col gap-0.5">
+                                    @foreach ($exercises as $exercise)
+                                        <span class="text-sm text-zinc-500 dark:text-zinc-400">{{ $exercise->name }}</span>
+                                    @endforeach
+                                </div>
+                            @endif
                         </td>
                         @foreach ($this->days as $day)
                             @php
@@ -162,7 +178,7 @@
                                 </td>
                             @else
                                 <td wire:click="openProgramSlot({{ $entry->id }}, '{{ $day['date'] }}')"
-                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer {{ $day['isToday'] ? 'bg-blue-50/50 dark:bg-blue-900/10' : ($day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '') }}">
+                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}">
                                     <div class="aspect-square"></div>
                                 </td>
                             @endif

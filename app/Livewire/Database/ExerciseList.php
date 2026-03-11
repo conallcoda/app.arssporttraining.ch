@@ -37,6 +37,11 @@ class ExerciseList extends AbstractModelList
         return OwnershipTabs::make('Exercises')->toArray();
     }
 
+    protected function getDefaultTabKey(): ?string
+    {
+        return OwnershipTabs::make('Exercises')->defaultTab($this->getBaseQuery());
+    }
+
     protected function getBaseQuery(): Builder
     {
         return Exercise::query()->with(['category', 'equipment', 'modifiers', 'internalTags', 'media', 'owner']);

@@ -38,6 +38,11 @@ class AthleteList extends AbstractModelList
         return OwnershipTabs::make('Athletes')->toArray();
     }
 
+    protected function getDefaultTabKey(): ?string
+    {
+        return OwnershipTabs::make('Athletes')->defaultTab($this->getBaseQuery());
+    }
+
     protected function getBaseQuery(): Builder
     {
         return User::query()->where('type', UserTypeEnum::Athlete)->with(['internalTags', 'owner']);

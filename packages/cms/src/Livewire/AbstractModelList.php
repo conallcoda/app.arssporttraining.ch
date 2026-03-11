@@ -75,6 +75,13 @@ abstract class AbstractModelList extends Component
         $this->resetState();
     }
 
+    protected function getDefaultTabKey(): ?string
+    {
+        $tabs = $this->getTabs();
+
+        return ! empty($tabs) ? $tabs[0]->key : null;
+    }
+
     protected function getSelectedTab(): ?IndexTab
     {
         if ($this->selectedTab === null) {
@@ -629,9 +636,8 @@ abstract class AbstractModelList extends Component
         $this->compact = $this->option('compact', $this->compact);
         $this->data = $this->buildDefaultsFromFieldsets();
 
-        $tabs = $this->getTabs();
-        if ($this->selectedTab === null && ! empty($tabs)) {
-            $this->selectedTab = $tabs[0]->key;
+        if ($this->selectedTab === null) {
+            $this->selectedTab = $this->getDefaultTabKey();
         }
 
         if ($this->edit !== null) {

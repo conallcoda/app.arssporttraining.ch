@@ -34,6 +34,11 @@ class AthleteGroupList extends AbstractModelList
         return OwnershipTabs::make('Groups')->toArray();
     }
 
+    protected function getDefaultTabKey(): ?string
+    {
+        return OwnershipTabs::make('Groups')->defaultTab($this->getBaseQuery());
+    }
+
     protected function getBaseQuery(): Builder
     {
         return UserGroup::query()->with(['internalTags', 'owner']);
