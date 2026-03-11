@@ -63,7 +63,7 @@
             <flux:select :wire:model.live="$field->live ? $wireModel : null"
                 :wire:model.live.blur="!$field->live ? $wireModel : null" placeholder="{{ $field->getPlaceholder() }}"
                 data-field="{{ $field->name }}" :variant="$selectVariant" :multiple="$field->multiple"
-                :searchable="$field->searchable" :clearable="$field->clearable" :size="$field->size">
+                :searchable="$selectVariant !== 'combobox' ? $field->searchable : null" :clearable="$field->clearable" :size="$field->size">
                 @if (!$field->multiple && !$field->clearable)
                     <flux:select.option value="">{{ $field->getPlaceholder() }}</flux:select.option>
                 @endif
@@ -419,7 +419,7 @@
                             @endphp
                             @if ($field->sortable)
                                 <div class="flex items-center gap-2"
-                                    wire:key="{{ $field->name }}-{{ $index }}"
+                                    wire:key="{{ $field->name }}-{{ $item['_key'] ?? $index }}"
                                     data-item-index="{{ $index }}"
                                     @dragover="handleDragOver($event, {{ $index }})"
                                     @dragleave="handleDragLeave($event)"
@@ -432,7 +432,7 @@
                                     </div>
                             @else
                                 <div class="flex items-center gap-2"
-                                    wire:key="{{ $field->name }}-{{ $index }}">
+                                    wire:key="{{ $field->name }}-{{ $item['_key'] ?? $index }}">
                             @endif
                                 <div class="flex-1 min-w-0">
                                     <flux:select

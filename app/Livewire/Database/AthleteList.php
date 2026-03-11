@@ -4,9 +4,12 @@ namespace App\Livewire\Database;
 
 use App\Data\Athlete\AthleteData;
 use App\Form\AdminChangePasswordForm;
+use App\Models\Tag;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
+use App\Support\OwnershipTabs;
 use Coda\Cms\Display\DisplayFields\Ago;
+use Coda\Cms\Display\DisplayFields\Badge;
 use Coda\Cms\Display\DisplayFields\Id;
 use Coda\Cms\Display\DisplayFields\Text;
 use Coda\Cms\Display\Table;
@@ -30,9 +33,14 @@ class AthleteList extends AbstractModelList
         return AthleteData::class;
     }
 
+    protected function getTabs(): array
+    {
+        return OwnershipTabs::make('Athletes')->toArray();
+    }
+
     protected function getBaseQuery(): Builder
     {
-        return User::query()->where('type', UserTypeEnum::Athlete);
+        return User::query()->where('type', UserTypeEnum::Athlete)->with(['internalTags', 'owner']);
     }
 
     protected function getExtraActions(): array
@@ -61,6 +69,10 @@ class AthleteList extends AbstractModelList
 
     protected function getTable(): Table
     {
+        $tagNames = Tag::query()
+            ->forScope('athlete_internal')
+            ->pluck('name', 'id');
+
         return Table::make()
             ->columns([
                 Id::make(),
@@ -72,6 +84,21 @@ class AthleteList extends AbstractModelList
                     ->label(__('Surname'))
                     ->width('w-1/3')
                     ->modal(),
+                Badge::make('coach')
+                    ->label(__('Coach'))
+                    ->source(fn (AthleteData $data) => [
+                        [
+                            'label' => $data->ownerName ?? __('Unassigned'),
+                            'color' => $data->ownerColor,
+                            'modalField' => 'owner_id',
+                        ],
+                    ]),
+                Badge::make('internalTags')
+                    ->label(__('Tags'))
+                    ->source(fn (AthleteData $data) => collect($data->internalTags)
+                        ->map(fn (int $id) => ['label' => $tagNames[$id] ?? '?'])
+                        ->all()
+                    ),
                 Ago::make('updatedAt')->label(__('Last Changed')),
             ])
             ->sortable(['id', 'forename', 'surname', 'updatedAt'])

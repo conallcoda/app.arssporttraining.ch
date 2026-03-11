@@ -95,6 +95,7 @@
         :flyout="true"
         maxWidth="max-w-lg"
         :showDelete="true"
+        :excludeFields="['owner_id', 'internalTags']"
     />
 
     <x-cms::confirm-modal

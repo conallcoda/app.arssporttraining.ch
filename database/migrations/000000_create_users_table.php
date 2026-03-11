@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('owner_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('type');
             $table->string('forename');
             $table->string('surname')->nullable();
@@ -21,6 +22,7 @@ return new class extends Migration
             $table->string('password')->nullable();
             $table->tinyInteger('gender')->nullable();
             $table->date('date_of_birth')->nullable();
+            $table->string('color')->nullable();
             $table->schemalessAttributes('config');
             $table->rememberToken();
             $table->timestamps();
@@ -44,6 +46,7 @@ return new class extends Migration
 
         Schema::create('user_groups', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('owner_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('name');
             $table->schemalessAttributes('config');
             $table->timestamps();

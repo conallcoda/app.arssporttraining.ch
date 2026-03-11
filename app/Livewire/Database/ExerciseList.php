@@ -5,6 +5,7 @@ namespace App\Livewire\Database;
 use App\Data\Exercise\ExerciseData;
 use App\Models\Exercise\Exercise;
 use App\Models\Tag;
+use App\Support\OwnershipTabs;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Display\DisplayFields\Ago;
 use Coda\Cms\Display\DisplayFields\Badge;
@@ -31,9 +32,14 @@ class ExerciseList extends AbstractModelList
         return ExerciseData::class;
     }
 
+    protected function getTabs(): array
+    {
+        return OwnershipTabs::make('Exercises')->toArray();
+    }
+
     protected function getBaseQuery(): Builder
     {
-        return Exercise::query()->with(['category', 'equipment', 'modifiers', 'media']);
+        return Exercise::query()->with(['category', 'equipment', 'modifiers', 'internalTags', 'media', 'owner']);
     }
 
     protected function dataFromModel(Model $model): AbstractData
@@ -49,7 +55,7 @@ class ExerciseList extends AbstractModelList
     protected function getTable(): Table
     {
         $tagNames = Tag::query()
-            ->whereIn('scope', ['exercise_category', 'exercise_equipment', 'exercise_modifiers'])
+            ->whereIn('scope', ['exercise_category', 'exercise_equipment', 'exercise_modifiers', 'exercise_internal'])
             ->pluck('name', 'id');
 
         $exerciseCategoryColorLabels = Tag::query()
@@ -78,9 +84,24 @@ class ExerciseList extends AbstractModelList
                         fn (ExerciseData $data) => $tagBadges($data, 'modifiers'),
                         '',
                     ),
+                Badge::make('coach')
+                    ->label(__('Coach'))
+                    ->source(fn (ExerciseData $data) => [
+                        [
+                            'label' => $data->ownerName ?? __('Unassigned'),
+                            'color' => $data->ownerColor,
+                            'modalField' => 'owner_id',
+                        ],
+                    ]),
                 ColorBadge::make('categoryColor')
                     ->label(__('Category'))
                     ->colorLabels($exerciseCategoryColorLabels),
+                Badge::make('internalTags')
+                    ->label(__('Tags'))
+                    ->source(fn (ExerciseData $data) => collect($data->internalTags)
+                        ->map(fn (int $id) => ['label' => $tagNames[$id] ?? '?'])
+                        ->all()
+                    ),
                 Badge::make('settings')
                     ->label(__('Settings'))
                     ->source(fn (ExerciseData $data) => $data->getDefaultsBadges()),

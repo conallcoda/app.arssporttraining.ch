@@ -25,6 +25,7 @@ class CalendarRangeForm extends FormModal
         bool $flyout = true,
         string $maxWidth = 'max-w-md',
         bool $showDelete = false,
+        array $excludeFields = [],
     ): void {
         $this->weekStartsOn = (int) config('training.week_starts_on', Carbon::MONDAY);
         $this->weekEndsOn = ($this->weekStartsOn + 6) % 7;
@@ -38,6 +39,7 @@ class CalendarRangeForm extends FormModal
             flyout: $flyout,
             maxWidth: $maxWidth,
             showDelete: $showDelete,
+            excludeFields: $excludeFields,
         );
     }
 

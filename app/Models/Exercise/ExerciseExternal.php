@@ -2,6 +2,7 @@
 
 namespace App\Models\Exercise;
 
+use App\Models\Concerns\HasOwner;
 use App\Models\Tag;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;
 use Coda\Cms\Models\Concerns\HasTags;
@@ -15,6 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class ExerciseExternal extends Model implements Taggable
 {
     use HasFactory;
+    use HasOwner;
     use HasQueryBuilder;
     use HasTags;
     use SoftDeletes;
@@ -26,6 +28,7 @@ class ExerciseExternal extends Model implements Taggable
         'name',
         'video_url',
         'category_id',
+        'owner_id',
     ];
 
     public function category(): BelongsTo

@@ -156,8 +156,8 @@ class ExercisePlanView extends Component
 
         if ($isNew) {
             $program = ExerciseProgram::find($programData->id);
-            if ($program && $program->owner_id === null) {
-                $program->owner()->associate($this->exercisePlan);
+            if ($program && $program->parent_id === null) {
+                $program->parent()->associate($this->exercisePlan);
                 $program->save();
             }
         }

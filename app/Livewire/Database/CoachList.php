@@ -7,6 +7,7 @@ use App\Form\AdminChangePasswordForm;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
 use Coda\Cms\Display\DisplayFields\Ago;
+use Coda\Cms\Display\DisplayFields\ColorBadge;
 use Coda\Cms\Display\DisplayFields\Id;
 use Coda\Cms\Display\DisplayFields\Text;
 use Coda\Cms\Display\Table;
@@ -14,6 +15,7 @@ use Coda\Cms\Display\TableFilter;
 use Coda\Cms\Form\Action;
 use Coda\Cms\Form\Fields\Text as TextField;
 use Coda\Cms\Livewire\AbstractModelList;
+use Coda\Cms\Support\ColorPalette;
 use Flux\Flux;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Hash;
@@ -72,6 +74,9 @@ class CoachList extends AbstractModelList
                     ->label(__('Surname'))
                     ->width('w-1/3')
                     ->modal(),
+                ColorBadge::make('color')
+                    ->label(__('Color'))
+                    ->colorLabels(ColorPalette::COLORS),
                 Ago::make('updatedAt')->label(__('Last Changed')),
             ])
             ->sortable(['id', 'forename', 'surname', 'updatedAt'])

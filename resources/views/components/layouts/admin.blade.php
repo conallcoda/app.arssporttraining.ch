@@ -21,7 +21,7 @@
 <body class="min-h-screen bg-white dark:bg-zinc-800 antialiased">
     <flux:sidebar sticky collapsible class="bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-700">
         <flux:sidebar.header>
-            <flux:sidebar.brand href="/admin/programs" :name="__('Athlete Training')">
+            <flux:sidebar.brand :href="route('exercise-program-index')" :name="__('Athlete Training')">
                 <x-slot name="logo">
                     <img src="{{ asset('images/logo.webp') }}" alt="{{ __('Athlete Training') }}" class="w-6" />
                 </x-slot>

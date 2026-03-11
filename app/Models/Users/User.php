@@ -2,19 +2,23 @@
 
 namespace App\Models\Users;
 
+use App\Models\Concerns\HasOwner;
 use Coda\Cms\Models\Concerns\HasConfigData;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;
+use Coda\Cms\Models\Concerns\HasTags;
+use Coda\Cms\Models\Contracts\Taggable;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 
-class User extends Authenticatable
+class User extends Authenticatable implements Taggable
 {
-    use HasConfigData, HasFactory, HasQueryBuilder, Notifiable, SoftDeletes;
+    use HasConfigData, HasFactory, HasOwner, HasQueryBuilder, HasTags, Notifiable, SoftDeletes;
 
     protected static function newFactory(): UserFactory
     {
@@ -30,7 +34,9 @@ class User extends Authenticatable
         'password',
         'gender',
         'date_of_birth',
+        'color',
         'config',
+        'owner_id',
     ];
 
     protected $hidden = [
@@ -70,6 +76,11 @@ class User extends Authenticatable
             ->take(2)
             ->map(fn ($word) => Str::substr($word, 0, 1))
             ->implode('');
+    }
+
+    public function internalTags(): MorphToMany
+    {
+        return $this->tagsWithScope('athlete_internal');
     }
 
     public function groups(): BelongsToMany

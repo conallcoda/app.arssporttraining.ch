@@ -5,7 +5,9 @@ namespace App\Livewire\Training;
 use App\Data\Training\ExerciseProgramData;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Tag;
+use App\Support\OwnershipTabs;
 use Coda\Cms\Display\DisplayFields\Ago;
+use Coda\Cms\Display\DisplayFields\Badge;
 use Coda\Cms\Display\DisplayFields\ColorBadge;
 use Coda\Cms\Display\DisplayFields\Relationship;
 use Coda\Cms\Display\DisplayFields\Text;
@@ -29,12 +31,17 @@ class ExerciseProgramList extends AbstractModelList
         return ExerciseProgramData::class;
     }
 
+    protected function getTabs(): array
+    {
+        return OwnershipTabs::make('Programs')->toArray();
+    }
+
     protected function getBaseQuery(): Builder
     {
         return ExerciseProgram::query()
-            ->whereNull('owner_id')
-            ->whereNull('owner_type')
-            ->with(['exerciseCategory'])
+            ->whereNull('exercise_programs.parent_id')
+            ->whereNull('exercise_programs.parent_type')
+            ->with(['exerciseCategory', 'internalTags', 'owner'])
             ->leftJoin('tags as exercise_category_tags', 'exercise_programs.exercise_category_id', '=', 'exercise_category_tags.id')
             ->select('exercise_programs.*');
     }
@@ -59,6 +66,10 @@ class ExerciseProgramList extends AbstractModelList
             ->pluck('name', 'color')
             ->all();
 
+        $tagNames = Tag::query()
+            ->forScope('program_internal')
+            ->pluck('name', 'id');
+
         $exerciseCategoryOptions = Tag::query()
             ->forScope('exercise_category')
             ->whereNull('parent_id')
@@ -70,10 +81,25 @@ class ExerciseProgramList extends AbstractModelList
             ->columns([
                 Text::make('id')->label(__('ID'))->width('w-16')->prefix('#'),
                 View::make('name', ExerciseProgramView::class)->label(__('Name')),
+                Badge::make('coach')
+                    ->label(__('Coach'))
+                    ->source(fn (ExerciseProgramData $data) => [
+                        [
+                            'label' => $data->ownerName ?? __('Unassigned'),
+                            'color' => $data->ownerColor,
+                            'modalField' => 'owner_id',
+                        ],
+                    ]),
                 ColorBadge::make('exerciseCategoryColor')
                     ->label(__('Category'))
                     ->colorLabels($exerciseCategoryColorLabels),
                 Relationship::make('exercises')->label(__('Exercises'))->modal()->width('w-full'),
+                Badge::make('internalTags')
+                    ->label(__('Tags'))
+                    ->source(fn (ExerciseProgramData $data) => collect($data->internalTags)
+                        ->map(fn (int $id) => ['label' => $tagNames[$id] ?? '?'])
+                        ->all()
+                    ),
                 Ago::make('updatedAt')->label(__('Last Changed')),
             ])
             ->sortable(['id', 'name', 'updatedAt'])

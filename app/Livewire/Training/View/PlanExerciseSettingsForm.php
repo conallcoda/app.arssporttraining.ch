@@ -27,6 +27,7 @@ class PlanExerciseSettingsForm extends FormModal
         bool $flyout = true,
         string $maxWidth = 'max-w-lg',
         bool $showDelete = false,
+        array $excludeFields = [],
     ): void {
         parent::mount(
             name: $name,
@@ -37,6 +38,7 @@ class PlanExerciseSettingsForm extends FormModal
             flyout: $flyout,
             maxWidth: $maxWidth,
             showDelete: $showDelete,
+            excludeFields: $excludeFields,
         );
 
         unset($this->fieldsets);

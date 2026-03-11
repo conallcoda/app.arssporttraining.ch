@@ -3,6 +3,7 @@
 namespace App\Data\Training;
 
 use App\Form\Fields\Exercise\Exercises;
+use App\Form\Fields\Owner;
 use App\Form\Fields\Training\Program\ExerciseCategory;
 use App\Form\Fields\Training\Program\ProgramName;
 use App\Models\Exercise\ExerciseProgram;
@@ -10,6 +11,7 @@ use App\Models\Exercise\ExerciseProgramExercise;
 use Carbon\Carbon;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Form\Concerns\InteractsWithForms;
+use Coda\Cms\Form\Fields;
 use Coda\Cms\Form\Form;
 use Coda\Cms\Models\Contracts\HasForms;
 
@@ -24,8 +26,12 @@ class ExerciseProgramData extends AbstractData implements HasForms
         public ?string $exerciseCategoryName = null,
         public ?string $exerciseCategoryColor = null,
         public array $exercises = [],
+        public array $internalTags = [],
         public ?Carbon $updatedAt = null,
         public int $sort = 0,
+        public ?int $owner_id = null,
+        public ?string $ownerName = null,
+        public ?string $ownerColor = null,
     ) {}
 
     public static function from(mixed ...$payloads): static
@@ -50,6 +56,8 @@ class ExerciseProgramData extends AbstractData implements HasForms
         $program->loadMissing([
             'exercises' => fn ($q) => $q->orderByPivot('sort'),
             'exerciseCategory',
+            'internalTags',
+            'owner',
         ]);
 
         $exercises = $program->exercises->map(fn ($exercise) => [
@@ -65,8 +73,12 @@ class ExerciseProgramData extends AbstractData implements HasForms
             exerciseCategoryName: $program->exerciseCategory?->name,
             exerciseCategoryColor: $program->exerciseCategory?->color,
             exercises: $exercises,
+            internalTags: $program->internalTags->pluck('id')->all(),
             updatedAt: $program->updated_at,
             sort: $program->sort,
+            owner_id: $program->owner_id ?? 0,
+            ownerName: $program->owner?->name,
+            ownerColor: $program->owner?->color,
         );
     }
 
@@ -78,12 +90,15 @@ class ExerciseProgramData extends AbstractData implements HasForms
                 'name' => $this->name,
                 'exercise_category_id' => $this->exercise_category_id,
                 'sort' => $this->sort,
+                'owner_id' => $this->owner_id,
             ]
         );
 
         $this->id = $program->id;
 
         $this->syncExercises($program);
+
+        $program->tags()->sync($this->internalTags);
     }
 
     protected function syncExercises(ExerciseProgram $program): void
@@ -126,9 +141,11 @@ class ExerciseProgramData extends AbstractData implements HasForms
     {
         return Form::make()
             ->fieldset('General', [
+                Owner::make('owner_id')->withOptions()->allowUnassigned(),
                 ProgramName::make('name'),
                 ExerciseCategory::make('exercise_category_id')->withOptions(),
                 Exercises::make('exercises')->withOptions(),
+                Fields\Tags::make('internalTags', 'program_internal')->label('Tags')->withOptions()->create(),
             ]);
     }
 }

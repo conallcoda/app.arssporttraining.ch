@@ -3,8 +3,12 @@
 namespace App\Livewire\Database;
 
 use App\Data\Athlete\AthleteGroupData;
+use App\Models\Tag;
 use App\Models\Users\UserGroup;
+use App\Support\OwnershipTabs;
 use Coda\Cms\Display\DisplayFields\Ago;
+use Coda\Cms\Display\DisplayFields\Badge;
+use Coda\Cms\Display\DisplayFields\Id;
 use Coda\Cms\Display\DisplayFields\Relationship;
 use Coda\Cms\Display\DisplayFields\Text;
 use Coda\Cms\Display\Table;
@@ -25,19 +29,45 @@ class AthleteGroupList extends AbstractModelList
         return AthleteGroupData::class;
     }
 
+    protected function getTabs(): array
+    {
+        return OwnershipTabs::make('Groups')->toArray();
+    }
+
     protected function getBaseQuery(): Builder
     {
-        return UserGroup::query();
+        return UserGroup::query()->with(['internalTags', 'owner']);
     }
 
     protected function getTable(): Table
     {
+        $tagNames = Tag::query()
+            ->forScope('athlete_group_internal')
+            ->pluck('name', 'id');
+
         return Table::make()
             ->columns([
+                Id::make(),
                 Text::make('name')->label(__('Name'))->modal(),
+                Badge::make('coach')
+                    ->label(__('Coach'))
+                    ->source(fn (AthleteGroupData $data) => [
+                        [
+                            'label' => $data->ownerName ?? __('Unassigned'),
+                            'color' => $data->ownerColor,
+                            'modalField' => 'owner_id',
+                        ],
+                    ]),
                 Relationship::make('members')->label(__('Members'))->modal()->width('w-full'),
+                Badge::make('internalTags')
+                    ->label(__('Tags'))
+                    ->source(fn (AthleteGroupData $data) => collect($data->internalTags)
+                        ->map(fn (int $id) => ['label' => $tagNames[$id] ?? '?'])
+                        ->all()
+                    ),
                 Ago::make('updatedAt')->label(__('Last Changed')),
             ])
+            ->sortable(['id', 'name', 'updatedAt'])
             ->filters([
                 TableFilter::callback('search', function (Builder $query, mixed $value): void {
                     $query->where(function (Builder $query) use ($value): void {

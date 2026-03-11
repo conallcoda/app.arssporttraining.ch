@@ -10,6 +10,7 @@ return new class extends Migration
     {
         Schema::create('tags', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('owner_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('scope')->index();
             $table->string('name');
             $table->string('short_name')->nullable();

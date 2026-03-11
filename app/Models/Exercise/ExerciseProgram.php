@@ -3,8 +3,11 @@
 namespace App\Models\Exercise;
 
 use App\Data\Training\Config\ExercisePlanConfig;
+use App\Models\Concerns\HasOwner;
 use App\Models\Tag;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;
+use Coda\Cms\Models\Concerns\HasTags;
+use Coda\Cms\Models\Contracts\Taggable;
 use Database\Factories\ExerciseProgramFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,14 +15,17 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class ExerciseProgram extends Model
+class ExerciseProgram extends Model implements Taggable
 {
     /** @use HasFactory<ExerciseProgramFactory> */
     use HasFactory;
 
+    use HasOwner;
     use HasQueryBuilder;
+    use HasTags;
     use SoftDeletes;
 
     protected static function newFactory(): ExerciseProgramFactory
@@ -32,7 +38,8 @@ class ExerciseProgram extends Model
         'exercise_category_id',
         'sort',
         'config',
-        'owner_type',
+        'parent_type',
+        'parent_id',
         'owner_id',
     ];
 
@@ -48,7 +55,7 @@ class ExerciseProgram extends Model
         );
     }
 
-    public function owner(): MorphTo
+    public function parent(): MorphTo
     {
         return $this->morphTo();
     }
@@ -56,6 +63,11 @@ class ExerciseProgram extends Model
     public function exerciseCategory(): BelongsTo
     {
         return $this->belongsTo(Tag::class, 'exercise_category_id');
+    }
+
+    public function internalTags(): MorphToMany
+    {
+        return $this->tagsWithScope('program_internal');
     }
 
     public function exercises(): BelongsToMany

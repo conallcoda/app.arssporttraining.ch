@@ -178,7 +178,7 @@ class ExportDatabaseCommand extends Command
     private function exportExercisePrograms(): void
     {
         $programs = ExerciseProgram::query()
-            ->whereNull('owner_type')
+            ->whereNull('parent_type')
             ->with('exercises')
             ->orderBy('name')
             ->get()

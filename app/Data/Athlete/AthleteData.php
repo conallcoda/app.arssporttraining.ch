@@ -8,12 +8,14 @@ use App\Form\Fields\Athlete\Forename;
 use App\Form\Fields\Athlete\Gender;
 use App\Form\Fields\Athlete\Phone;
 use App\Form\Fields\Athlete\Surname;
+use App\Form\Fields\Owner;
 use App\Models\Users\GenderEnum;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
 use Carbon\Carbon;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Form\Concerns\InteractsWithForms;
+use Coda\Cms\Form\Fields;
 use Coda\Cms\Form\Form;
 use Coda\Cms\Models\Contracts\HasForms;
 
@@ -29,6 +31,10 @@ class AthleteData extends AbstractData implements HasForms
         public ?string $phone = null,
         public ?int $gender = null,
         public ?string $dateOfBirth = null,
+        public array $internalTags = [],
+        public ?int $owner_id = null,
+        public ?string $ownerName = null,
+        public ?string $ownerColor = null,
         public ?Carbon $updatedAt = null,
     ) {}
 
@@ -47,6 +53,10 @@ class AthleteData extends AbstractData implements HasForms
             phone: $user->phone,
             gender: $user->gender?->value,
             dateOfBirth: $user->date_of_birth?->format('Y-m-d'),
+            internalTags: $user->relationLoaded('internalTags') ? $user->internalTags->pluck('id')->all() : [],
+            owner_id: $user->owner_id ?? 0,
+            ownerName: $user->relationLoaded('owner') ? $user->owner?->name : null,
+            ownerColor: $user->relationLoaded('owner') ? $user->owner?->color : null,
             updatedAt: $user->updated_at,
         );
     }
@@ -63,23 +73,28 @@ class AthleteData extends AbstractData implements HasForms
                 'gender' => $this->gender ? GenderEnum::from($this->gender) : null,
                 'date_of_birth' => $this->dateOfBirth,
                 'type' => UserTypeEnum::Athlete,
+                'owner_id' => $this->owner_id,
                 'config' => [],
             ]
         );
 
         $this->id = $user->id;
+
+        $user->tags()->sync($this->internalTags);
     }
 
     public static function getForm(): Form
     {
         return Form::make()
             ->fieldset('General', [
+                Owner::make('owner_id')->withOptions()->allowUnassigned(),
                 Forename::make('forename'),
                 Surname::make('surname'),
                 Email::make('email'),
                 Phone::make('phone'),
                 Gender::make('gender'),
                 DateOfBirth::make('dateOfBirth'),
+                Fields\Tags::make('internalTags', 'athlete_internal')->label('Tags')->withOptions()->create(),
             ]);
     }
 }

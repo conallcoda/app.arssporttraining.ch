@@ -10,6 +10,7 @@ return new class extends Migration
     {
         Schema::create('training_programs', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('owner_id')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('group_id')->constrained('user_groups')->cascadeOnDelete();
             $table->foreignId('exercise_program_id')->constrained('exercise_programs')->cascadeOnDelete();
             $table->integer('sort')->default(0);

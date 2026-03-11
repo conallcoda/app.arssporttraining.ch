@@ -2,6 +2,7 @@
 
 namespace App\Models\Training;
 
+use App\Models\Concerns\HasOwner;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExercisePlan;
 use App\Models\Exercise\ExerciseProgram;
@@ -19,6 +20,7 @@ class TrainingProgram extends Model
     /** @use HasFactory<TrainingProgramFactory> */
     use HasFactory;
 
+    use HasOwner;
     use HasQueryBuilder;
 
     protected static function newFactory(): TrainingProgramFactory
@@ -32,6 +34,7 @@ class TrainingProgram extends Model
         'group_id',
         'exercise_program_id',
         'sort',
+        'owner_id',
     ];
 
     public function group(): BelongsTo
@@ -64,8 +67,8 @@ class TrainingProgram extends Model
             ]);
 
             $clone->update([
-                'owner_type' => static::class,
-                'owner_id' => $trainingProgram->id,
+                'parent_type' => static::class,
+                'parent_id' => $trainingProgram->id,
             ]);
         }
     }
@@ -83,8 +86,8 @@ class TrainingProgram extends Model
         ]);
 
         $clone->update([
-            'owner_type' => static::class,
-            'owner_id' => $trainingProgram->id,
+            'parent_type' => static::class,
+            'parent_id' => $trainingProgram->id,
         ]);
 
         return $trainingProgram;
@@ -112,8 +115,8 @@ class TrainingProgram extends Model
         ]);
 
         $program->update([
-            'owner_type' => static::class,
-            'owner_id' => $trainingProgram->id,
+            'parent_type' => static::class,
+            'parent_id' => $trainingProgram->id,
         ]);
 
         return $trainingProgram;

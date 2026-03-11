@@ -2,6 +2,7 @@
 
 namespace App\Data\Exercise;
 
+use App\Form\Fields\Owner;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseTemplate;
 use Carbon\Carbon;
@@ -25,11 +26,15 @@ class ExerciseData extends AbstractData implements HasForms, PersistsWithMedia
         public ?string $categoryColor = null,
         public array $equipment = [],
         public array $modifiers = [],
+        public array $internalTags = [],
         public ?string $videoUrl = null,
         public ?string $instructions = null,
         public ExerciseConfig $config = new ExerciseConfig,
         public ?Carbon $updatedAt = null,
         public ?int $template = null,
+        public ?int $owner_id = null,
+        public ?string $ownerName = null,
+        public ?string $ownerColor = null,
     ) {}
 
     public static function fromImport(ExerciseImportData $importData): self
@@ -56,11 +61,15 @@ class ExerciseData extends AbstractData implements HasForms, PersistsWithMedia
             categoryColor: $exercise->category?->color,
             equipment: self::mapTagIds($exercise, 'equipment'),
             modifiers: self::mapTagIds($exercise, 'modifiers'),
+            internalTags: self::mapTagIds($exercise, 'internalTags'),
             videoUrl: $exercise->video_url,
             instructions: $exercise->instructions,
             config: $exercise->config ?? new ExerciseConfig,
             updatedAt: $exercise->updated_at,
             template: $exercise->template_id,
+            owner_id: $exercise->owner_id ?? 0,
+            ownerName: $exercise->relationLoaded('owner') ? $exercise->owner?->name : null,
+            ownerColor: $exercise->relationLoaded('owner') ? $exercise->owner?->color : null,
         );
     }
 
@@ -90,6 +99,7 @@ class ExerciseData extends AbstractData implements HasForms, PersistsWithMedia
                 'config' => $this->config?->toArray() ?? [],
                 'category_id' => $this->category,
                 'template_id' => $this->template,
+                'owner_id' => $this->owner_id,
             ]
         );
 
@@ -98,6 +108,7 @@ class ExerciseData extends AbstractData implements HasForms, PersistsWithMedia
         $tagIds = collect([
             ...$this->equipment,
             ...$this->modifiers,
+            ...$this->internalTags,
         ])->filter()->all();
 
         $exercise->tags()->sync($tagIds);
@@ -109,6 +120,7 @@ class ExerciseData extends AbstractData implements HasForms, PersistsWithMedia
     {
         $form = Form::make()
             ->fieldset('General', [
+                Owner::make('owner_id')->withOptions()->allowUnassigned(),
                 Fields\Text::make('name')->required(true),
                 Fields\Category::make('category', 'exercise_category')->label('Category')->required()->withOptions(),
                 Fields\Select::make('template')
@@ -120,6 +132,7 @@ class ExerciseData extends AbstractData implements HasForms, PersistsWithMedia
                     ->live(),
                 Fields\Tags::make('equipment', 'exercise_equipment')->label('Equipment')->withOptions()->create(),
                 Fields\Tags::make('modifiers', 'exercise_modifiers')->label('Modifiers')->withOptions()->create(),
+                Fields\Tags::make('internalTags', 'exercise_internal')->label('Tags')->withOptions()->create(),
             ])
             ->fieldset('Instructions', [
                 FileUpload::make('photos')

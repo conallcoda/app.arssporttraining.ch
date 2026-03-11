@@ -10,10 +10,10 @@ class CoachSeeder extends Seeder
     public function run(): void
     {
         $coaches = [
-            ['forename' => 'Conall', 'surname' => "O'Reilly", 'email' => 'dev@dev.dev'],
-            ['forename' => 'Armando', 'surname' => 'Stöhr', 'email' => 'armando@dev.dev'],
-            ['forename' => 'Sandro', 'surname' => 'Viletta', 'email' => 'sandro@dev.dev'],
-            ['forename' => 'Lisa', 'surname' => 'Agerer', 'email' => 'lisa@dev.dev'],
+            ['forename' => 'Conall', 'surname' => "O'Reilly", 'email' => 'dev@dev.dev', 'color' => 'blue'],
+            ['forename' => 'Armando', 'surname' => 'Stöhr', 'email' => 'armando@dev.dev', 'color' => 'green'],
+            ['forename' => 'Sandro', 'surname' => 'Viletta', 'email' => 'sandro@dev.dev', 'color' => 'red'],
+            ['forename' => 'Lisa', 'surname' => 'Agerer', 'email' => 'lisa@dev.dev', 'color' => 'purple'],
         ];
 
         foreach ($coaches as $coach) {

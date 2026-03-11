@@ -4,10 +4,12 @@ namespace App\Data\Athlete;
 
 use App\Form\Fields\AthleteGroup\GroupName;
 use App\Form\Fields\AthleteGroup\Members;
+use App\Form\Fields\Owner;
 use App\Models\Users\UserGroup;
 use Carbon\Carbon;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Form\Concerns\InteractsWithForms;
+use Coda\Cms\Form\Fields;
 use Coda\Cms\Form\Form;
 use Coda\Cms\Models\Contracts\HasForms;
 
@@ -19,6 +21,10 @@ class AthleteGroupData extends AbstractData implements HasForms
         public ?int $id,
         public string $name,
         public array $members = [],
+        public array $internalTags = [],
+        public ?int $owner_id = null,
+        public ?string $ownerName = null,
+        public ?string $ownerColor = null,
         public ?Carbon $updatedAt = null,
     ) {}
 
@@ -36,6 +42,10 @@ class AthleteGroupData extends AbstractData implements HasForms
             id: $group->id,
             name: $group->name ?? '',
             members: $members,
+            internalTags: $group->relationLoaded('internalTags') ? $group->internalTags->pluck('id')->all() : [],
+            owner_id: $group->owner_id ?? 0,
+            ownerName: $group->relationLoaded('owner') ? $group->owner?->name : null,
+            ownerColor: $group->relationLoaded('owner') ? $group->owner?->color : null,
             updatedAt: $group->updated_at,
         );
     }
@@ -44,20 +54,27 @@ class AthleteGroupData extends AbstractData implements HasForms
     {
         $group = UserGroup::updateOrCreate(
             ['id' => $this->id],
-            ['name' => $this->name]
+            [
+                'name' => $this->name,
+                'owner_id' => $this->owner_id,
+            ]
         );
 
         $this->id = $group->id;
 
         $group->syncSortableRelation($group->members(), $this->members);
+
+        $group->tags()->sync($this->internalTags);
     }
 
     public static function getForm(): Form
     {
         return Form::make()
             ->fieldset('General', [
+                Owner::make('owner_id')->withOptions()->allowUnassigned(),
                 GroupName::make('name'),
                 Members::make('members')->withOptions(),
+                Fields\Tags::make('internalTags', 'athlete_group_internal')->label('Tags')->withOptions()->create(),
             ]);
     }
 }

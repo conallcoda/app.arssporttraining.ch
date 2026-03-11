@@ -11,6 +11,7 @@ return new class extends Migration
 
         Schema::create('exercise_templates', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('owner_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('name');
             $table->json('config');
             $table->timestamps();
@@ -19,6 +20,7 @@ return new class extends Migration
 
         Schema::create('exercises_external', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('owner_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('source')->index();
             $table->string('name');
             $table->foreignId('category_id')->nullable()->constrained('tags')->nullOnDelete();
@@ -29,6 +31,7 @@ return new class extends Migration
 
         Schema::create('exercise_plans', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('owner_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('name');
             $table->json('config')->nullable();
             $table->timestamps();
@@ -37,6 +40,7 @@ return new class extends Migration
 
         Schema::create('exercises', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('owner_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('name');
             $table->foreignId('category_id')->nullable()->constrained('tags')->nullOnDelete();
             $table->foreignId('external_id')->nullable()->constrained('exercises_external')->nullOnDelete();
@@ -50,7 +54,8 @@ return new class extends Migration
 
         Schema::create('exercise_programs', function (Blueprint $table) {
             $table->id();
-            $table->nullableMorphs('owner');
+            $table->foreignId('owner_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->nullableMorphs('parent');
             $table->string('name');
             $table->foreignId('exercise_category_id')->nullable()->constrained('tags')->nullOnDelete();
             $table->integer('sort')->default(0);

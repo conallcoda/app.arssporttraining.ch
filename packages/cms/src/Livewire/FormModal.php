@@ -39,6 +39,8 @@ class FormModal extends Component
 
     public ?string $activeTitle = null;
 
+    public array $excludeFields = [];
+
     public int $openCount = 0;
 
     public function mount(
@@ -50,6 +52,7 @@ class FormModal extends Component
         bool $flyout = true,
         string $maxWidth = 'max-w-sm',
         bool $showDelete = false,
+        array $excludeFields = [],
     ): void {
         $this->name = $name;
         $this->title = $title;
@@ -59,6 +62,7 @@ class FormModal extends Component
         $this->flyout = $flyout;
         $this->maxWidth = $maxWidth;
         $this->showDelete = $showDelete;
+        $this->excludeFields = $excludeFields;
     }
 
     protected function getFormDataClass(): ?string
@@ -87,7 +91,22 @@ class FormModal extends Component
     #[Computed]
     public function fieldsets(): array
     {
-        return $this->formConfig->resolveFieldsets($this->data);
+        $fieldsets = $this->formConfig->resolveFieldsets($this->data);
+
+        if (! empty($this->excludeFields)) {
+            foreach ($fieldsets as $fieldset) {
+                if ($fieldset instanceof \Coda\Cms\Form\FormFieldset) {
+                    $fieldset->fields(
+                        array_values(array_filter(
+                            $fieldset->fields,
+                            fn ($field) => ! in_array($field->name, $this->excludeFields, true)
+                        ))
+                    );
+                }
+            }
+        }
+
+        return $fieldsets;
     }
 
     /** @return array<string, string> */

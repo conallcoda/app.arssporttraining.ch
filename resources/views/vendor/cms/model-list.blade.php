@@ -11,6 +11,14 @@
 @endphp
 
 <div>
+    @if (count($indexTabs) > 0)
+        <flux:tabs wire:model.live="selectedTab" class="mb-4">
+            @foreach ($indexTabs as $tab)
+                <flux:tab name="{{ $tab->key }}">{{ $tab->label }}</flux:tab>
+            @endforeach
+        </flux:tabs>
+    @endif
+
     @unless ($compact)
         <div class="flex items-center justify-between mb-3">
             <div class="flex items-center gap-2">
@@ -220,8 +228,9 @@
                                         @if ($column->source)
                                             @php $sourceBadges = $column->getSourceData($item); @endphp
                                             @foreach ($sourceBadges as $badge)
+                                                @php $badgeColorClass = isset($badge['color']) ? \Coda\Cms\Support\ColorPalette::lightBadge($badge['color']) : ''; @endphp
                                                 @if (isset($badge['modalField']))
-                                                    <flux:badge size="sm" class="cursor-pointer"
+                                                    <flux:badge size="sm" class="cursor-pointer {{ $badgeColorClass }}"
                                                         x-on:click="Livewire.dispatch('open-{{ $this->editModalName }}', {
                                                             data: {{ Js::from($item->toArray()) }},
                                                             title: 'Edit {{ $entityName }}',
@@ -229,8 +238,13 @@
                                                         })">
                                                         {{ $badge['label'] }}</flux:badge>
                                                 @else
-                                                    <flux:badge size="sm">
-                                                        {{ $badge['label'] }}</flux:badge>
+                                                    @if ($badgeColorClass)
+                                                        <flux:badge size="sm" class="{{ $badgeColorClass }}">
+                                                            {{ $badge['label'] }}</flux:badge>
+                                                    @else
+                                                        <flux:badge size="sm">
+                                                            {{ $badge['label'] }}</flux:badge>
+                                                    @endif
                                                 @endif
                                             @endforeach
                                         @else

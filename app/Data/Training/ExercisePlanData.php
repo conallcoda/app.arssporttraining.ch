@@ -30,7 +30,9 @@ class ExercisePlanData extends AbstractData implements HasForms
     {
         $exercisePlan = ExercisePlan::updateOrCreate(
             ['id' => $this->id],
-            ['name' => $this->name]
+            [
+                'name' => $this->name,
+            ]
         );
 
         $this->id = $exercisePlan->id;

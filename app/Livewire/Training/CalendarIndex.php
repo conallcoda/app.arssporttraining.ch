@@ -863,8 +863,8 @@ class CalendarIndex extends Component
         return match ($this->addContentTab) {
             'program' => ExerciseProgram::query()
                 ->with('exerciseCategory:id,name,color')
-                ->whereNull('owner_id')
-                ->whereNull('owner_type')
+                ->whereNull('parent_id')
+                ->whereNull('parent_type')
                 ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%"))
                 ->orderBy('name')
                 ->limit(20)

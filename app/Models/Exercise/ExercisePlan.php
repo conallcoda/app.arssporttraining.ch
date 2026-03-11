@@ -3,6 +3,7 @@
 namespace App\Models\Exercise;
 
 use App\Data\Training\Config\ExercisePlanConfig;
+use App\Models\Concerns\HasOwner;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;
 use Coda\Cms\Models\Concerns\SyncsSortableRelations;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ExercisePlan extends Model
 {
+    use HasOwner;
     use HasQueryBuilder;
     use SoftDeletes;
     use SyncsSortableRelations;
@@ -22,6 +24,7 @@ class ExercisePlan extends Model
     protected $fillable = [
         'name',
         'config',
+        'owner_id',
     ];
 
     protected function config(): Attribute
@@ -73,7 +76,7 @@ class ExercisePlan extends Model
 
     public function ownedPrograms(): MorphMany
     {
-        return $this->morphMany(ExerciseProgram::class, 'owner');
+        return $this->morphMany(ExerciseProgram::class, 'parent');
     }
 
     public function isTemplate(): bool

@@ -3,6 +3,7 @@
 namespace App\Models\Exercise;
 
 use App\Data\Exercise\ExerciseConfig;
+use App\Models\Concerns\HasOwner;
 use App\Models\Tag;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;
 use Coda\Cms\Models\Concerns\HasTags;
@@ -20,6 +21,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 class Exercise extends Model implements HasCollectionPaths, HasMedia, Taggable
 {
     use HasFactory;
+    use HasOwner;
     use HasQueryBuilder;
     use HasTags;
     use InteractsWithMedia;
@@ -38,6 +40,7 @@ class Exercise extends Model implements HasCollectionPaths, HasMedia, Taggable
         'category_id',
         'external_id',
         'template_id',
+        'owner_id',
     ];
 
     protected $attributes = [
@@ -87,5 +90,10 @@ class Exercise extends Model implements HasCollectionPaths, HasMedia, Taggable
     public function modifiers(): MorphToMany
     {
         return $this->tagsWithScope('exercise_modifiers');
+    }
+
+    public function internalTags(): MorphToMany
+    {
+        return $this->tagsWithScope('exercise_internal');
     }
 }

@@ -164,8 +164,8 @@ class Schedule extends Component
             }
         }
 
-        $ownerId = $this->exercisePlan->id;
-        $ownerType = get_class($this->exercisePlan);
+        $parentId = $this->exercisePlan->id;
+        $parentType = get_class($this->exercisePlan);
 
         $programs = ExerciseProgram::query()
             ->with('exerciseCategory')
@@ -175,12 +175,12 @@ class Schedule extends Component
         $available = $programs->reject(fn ($p) => in_array($p->id, $existingProgramIds, true));
 
         $owned = $available
-            ->filter(fn ($p) => $p->owner_type === $ownerType && $p->owner_id === $ownerId)
+            ->filter(fn ($p) => $p->parent_type === $parentType && $p->parent_id === $parentId)
             ->pluck('name', 'id')
             ->all();
 
         $other = $available
-            ->filter(fn ($p) => $p->owner_type !== $ownerType || $p->owner_id !== $ownerId)
+            ->filter(fn ($p) => $p->parent_type !== $parentType || $p->parent_id !== $parentId)
             ->pluck('name', 'id')
             ->all();
 

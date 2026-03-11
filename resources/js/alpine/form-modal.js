@@ -39,9 +39,15 @@ window.focusModalField = function (modalEl, field, index) {
 
     if (!isTabTarget) {
         setTimeout(() => {
-            const trigger = target.querySelector('[data-flux-pillbox-trigger]');
-            if (trigger) {
-                trigger.click();
+            const pillboxTrigger = target.querySelector('[data-flux-pillbox-trigger]');
+            const selectButton = target.querySelector('[data-flux-select-button]');
+            const selectInput = target.querySelector('[data-flux-select] input');
+            if (pillboxTrigger) {
+                pillboxTrigger.click();
+            } else if (selectButton) {
+                selectButton.click();
+            } else if (selectInput) {
+                selectInput.focus();
             } else {
                 target.focus();
             }

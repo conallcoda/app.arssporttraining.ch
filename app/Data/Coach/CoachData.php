@@ -2,6 +2,7 @@
 
 namespace App\Data\Coach;
 
+use App\Form\Fields\Coach\Color;
 use App\Form\Fields\Coach\Email;
 use App\Form\Fields\Coach\Forename;
 use App\Form\Fields\Coach\Phone;
@@ -24,6 +25,7 @@ class CoachData extends AbstractData implements HasForms
         public string $surname,
         public ?string $email = null,
         public ?string $phone = null,
+        public ?string $color = null,
         public ?Carbon $updatedAt = null,
     ) {}
 
@@ -40,6 +42,7 @@ class CoachData extends AbstractData implements HasForms
             surname: $user->surname ?? '',
             email: $user->email,
             phone: $user->phone,
+            color: $user->color,
             updatedAt: $user->updated_at,
         );
     }
@@ -53,6 +56,7 @@ class CoachData extends AbstractData implements HasForms
                 'surname' => $this->surname,
                 'email' => $this->email,
                 'phone' => $this->phone,
+                'color' => $this->color,
                 'type' => UserTypeEnum::Coach,
                 'config' => [],
             ]
@@ -69,6 +73,7 @@ class CoachData extends AbstractData implements HasForms
                 Surname::make('surname'),
                 Email::make('email'),
                 Phone::make('phone'),
+                Color::make('color'),
             ]);
     }
 }

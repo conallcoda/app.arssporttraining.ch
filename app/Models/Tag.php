@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasOwner;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -14,6 +15,7 @@ use Staudenmeir\LaravelAdjacencyList\Eloquent\HasRecursiveRelationships;
 class Tag extends Model
 {
     use HasFactory;
+    use HasOwner;
     use HasQueryBuilder;
     use HasRecursiveRelationships;
     use HasSlug;
@@ -27,6 +29,7 @@ class Tag extends Model
         'short_name',
         'slug',
         'color',
+        'owner_id',
     ];
 
     protected function casts(): array
