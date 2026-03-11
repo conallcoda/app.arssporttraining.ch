@@ -2,7 +2,9 @@
 
 namespace App\Livewire\Training;
 
+use App\Data\Exercise\ExerciseSetting;
 use App\Data\Training\Calendar\CalendarSettingsData;
+use App\Data\Training\Config\EffectiveExerciseConfig;
 use App\Data\Training\ExerciseProgramData;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
@@ -1017,6 +1019,79 @@ class CalendarIndex extends Component
         }
 
         unset($this->focusNotes);
+    }
+
+    public function openExerciseSettings(int $exerciseId, int $exerciseProgramId): void
+    {
+        $exercise = Exercise::findOrFail($exerciseId);
+        $exerciseProgram = ExerciseProgram::findOrFail($exerciseProgramId);
+
+        $base = $exercise->config;
+        $planOverrides = $exerciseProgram->config->defaultExerciseOverrides($exerciseId);
+        $effectiveConfig = EffectiveExerciseConfig::resolve($base, $planOverrides);
+
+        $this->dispatch('open-calendar-exercise-settings', data: [
+            'exerciseId' => $exerciseId,
+            'exerciseProgramId' => $exerciseProgramId,
+            'exerciseName' => $exercise->name,
+            'config' => $effectiveConfig,
+        ]);
+    }
+
+    #[On('calendar-exercise-settings.saved')]
+    public function onCalendarExerciseSettingsSaved(array $data): void
+    {
+        $exerciseId = (int) $data['exerciseId'];
+        $exerciseProgramId = (int) $data['exerciseProgramId'];
+        $settingsConfig = $data['config'] ?? [];
+
+        $exercise = Exercise::findOrFail($exerciseId);
+        $parentConfig = $exercise->config->toArray();
+
+        $exerciseProgram = ExerciseProgram::findOrFail($exerciseProgramId);
+        $config = $exerciseProgram->config;
+        $overrides = $config->defaultExerciseOverrides($exerciseId);
+
+        $overrides->settings = ($settingsConfig['settings'] ?? null) == ($parentConfig['settings'] ?? null)
+            ? null
+            : ($settingsConfig['settings'] ?? null);
+
+        $formSets = $settingsConfig['sets'] ?? null;
+        $parentSets = $parentConfig['sets'] ?? null;
+        if (is_array($formSets) && is_array($parentSets)) {
+            $formSets = array_merge($parentSets, $formSets);
+        }
+        $overrides->sets = $formSets == $parentSets
+            ? null
+            : \App\Data\Exercise\Settings\SetsSetting::from($formSets);
+
+        $settingKeys = ['reps', 'weight', 'tempo', 'rest', 'distance', 'duration', 'heartRate', 'heartRateZone', 'pace', 'watts'];
+
+        foreach ($settingKeys as $key) {
+            $formValue = $settingsConfig[$key] ?? null;
+            $parentValue = $parentConfig[$key] ?? null;
+
+            if (is_array($formValue) && is_array($parentValue)) {
+                $formValue = array_merge($parentValue, $formValue);
+            }
+
+            if ($formValue == $parentValue) {
+                $overrides->{$key} = null;
+            } else {
+                $enum = ExerciseSetting::tryFrom($key);
+                if ($enum && $settingClass = $enum->settingClass()) {
+                    $overrides->{$key} = isset($formValue) ? $settingClass::from($formValue) : null;
+                }
+            }
+        }
+
+        if (isset($settingsConfig['overrides'])) {
+            $overrides->gridOverrides = $settingsConfig['overrides'];
+        }
+
+        $config->setDefaultExerciseOverrides($exerciseId, $overrides);
+        $exerciseProgram->config = $config;
+        $exerciseProgram->save();
     }
 
     public function openAddContent(): void

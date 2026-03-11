@@ -90,6 +90,8 @@
 
     <livewire:training.focus-note-form />
 
+    <livewire:training.calendar-exercise-settings-form />
+
     <livewire:cms.form-modal
         name="edit-program"
         :title="__('Edit Exercise Program')"

@@ -134,7 +134,7 @@
                             @if ($exercises->isNotEmpty())
                                 <div x-show="programExpanded[{{ $entry->id }}]" x-cloak class="mt-1 ml-10 flex flex-col gap-0.5">
                                     @foreach ($exercises as $exercise)
-                                        <span class="text-sm text-zinc-500 dark:text-zinc-400">{{ $exercise->name }}</span>
+                                        <button type="button" wire:click="openExerciseSettings({{ $exercise->id }}, {{ $entry->exercise_program_id }})" class="text-sm text-zinc-500 dark:text-zinc-400 text-left hover:underline">{{ $exercise->name }}</button>
                                     @endforeach
                                 </div>
                             @endif
