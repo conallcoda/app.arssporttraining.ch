@@ -36,6 +36,8 @@ class ExerciseProgram extends Model implements Taggable
     protected $fillable = [
         'name',
         'exercise_category_id',
+        'warm_up_program_id',
+        'warm_down_program_id',
         'sort',
         'config',
         'parent_type',
@@ -58,6 +60,16 @@ class ExerciseProgram extends Model implements Taggable
     public function parent(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    public function warmUpProgram(): BelongsTo
+    {
+        return $this->belongsTo(ExerciseProgram::class, 'warm_up_program_id');
+    }
+
+    public function warmDownProgram(): BelongsTo
+    {
+        return $this->belongsTo(ExerciseProgram::class, 'warm_down_program_id');
     }
 
     public function exerciseCategory(): BelongsTo

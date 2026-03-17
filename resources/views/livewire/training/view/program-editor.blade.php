@@ -8,6 +8,24 @@
                     :showLegend="false"
                 />
             @endforeach
+
+            <flux:field>
+                <flux:label>{{ __('Warm-up Program') }}</flux:label>
+                <flux:select wire:model.live="warmUpProgramId" wire:change="saveWarmPrograms" placeholder="{{ __('None') }}">
+                    @foreach ($this->warmProgramOptions as $id => $name)
+                        <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+            </flux:field>
+
+            <flux:field>
+                <flux:label>{{ __('Warm-down Program') }}</flux:label>
+                <flux:select wire:model.live="warmDownProgramId" wire:change="saveWarmPrograms" placeholder="{{ __('None') }}">
+                    @foreach ($this->warmProgramOptions as $id => $name)
+                        <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+            </flux:field>
         </x-section>
 
         @if ($showWeeksInput)

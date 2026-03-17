@@ -58,6 +58,8 @@ return new class extends Migration
             $table->nullableMorphs('parent');
             $table->string('name');
             $table->foreignId('exercise_category_id')->nullable()->constrained('tags')->nullOnDelete();
+            $table->foreignId('warm_up_program_id')->nullable()->constrained('exercise_programs')->nullOnDelete();
+            $table->foreignId('warm_down_program_id')->nullable()->constrained('exercise_programs')->nullOnDelete();
             $table->integer('sort')->default(0);
             $table->json('config')->nullable();
             $table->timestamps();

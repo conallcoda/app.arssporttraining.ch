@@ -48,6 +48,10 @@ class ProgramEditor extends Component
 
     public ?float $planMeasuredWeight = 50;
 
+    public ?int $warmUpProgramId = null;
+
+    public ?int $warmDownProgramId = null;
+
     public int|float $planTargetGoal = 10;
 
     public array $data = [];
@@ -74,6 +78,8 @@ class ProgramEditor extends Component
         $this->planMeasuredReps = $planMeasuredReps;
         $this->planMeasuredWeight = $planMeasuredWeight;
         $this->planTargetGoal = $planTargetGoal;
+        $this->warmUpProgramId = $exerciseProgram->warm_up_program_id;
+        $this->warmDownProgramId = $exerciseProgram->warm_down_program_id;
         $this->loadExerciseData();
     }
 
@@ -302,6 +308,20 @@ class ProgramEditor extends Component
             ) : null,
             gridOverrides: $configArray['overrides'] ?? ['cells' => [], 'weeks' => []],
         );
+    }
+
+    public function saveWarmPrograms(): void
+    {
+        $this->exerciseProgram->update([
+            'warm_up_program_id' => $this->warmUpProgramId ?: null,
+            'warm_down_program_id' => $this->warmDownProgramId ?: null,
+        ]);
+    }
+
+    #[Computed]
+    public function warmProgramOptions(): array
+    {
+        return ExerciseProgram::query()->orderBy('name')->pluck('name', 'id')->all();
     }
 
     #[On('exercise-overrides-changed')]

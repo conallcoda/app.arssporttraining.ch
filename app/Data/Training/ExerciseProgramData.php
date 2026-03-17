@@ -6,6 +6,7 @@ use App\Form\Fields\Exercise\Exercises;
 use App\Form\Fields\Owner;
 use App\Form\Fields\Training\Program\ExerciseCategory;
 use App\Form\Fields\Training\Program\ProgramName;
+use App\Form\Fields\Training\Program\SelectProgram;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
 use Carbon\Carbon;
@@ -32,6 +33,8 @@ class ExerciseProgramData extends AbstractData implements HasForms
         public ?int $owner_id = null,
         public ?string $ownerName = null,
         public ?string $ownerColor = null,
+        public ?int $warm_up_program_id = null,
+        public ?int $warm_down_program_id = null,
     ) {}
 
     public static function from(mixed ...$payloads): static
@@ -49,6 +52,8 @@ class ExerciseProgramData extends AbstractData implements HasForms
             exercises: $data['exercises'] ?? [],
             sort: (int) ($data['sort'] ?? 0),
             owner_id: isset($data['owner_id']) ? (int) $data['owner_id'] : null,
+            warm_up_program_id: isset($data['warm_up_program_id']) ? (int) $data['warm_up_program_id'] : null,
+            warm_down_program_id: isset($data['warm_down_program_id']) ? (int) $data['warm_down_program_id'] : null,
         );
     }
 
@@ -80,6 +85,8 @@ class ExerciseProgramData extends AbstractData implements HasForms
             owner_id: $program->owner_id ?? 0,
             ownerName: $program->owner?->name,
             ownerColor: $program->owner?->color,
+            warm_up_program_id: $program->warm_up_program_id,
+            warm_down_program_id: $program->warm_down_program_id,
         );
     }
 
@@ -90,6 +97,8 @@ class ExerciseProgramData extends AbstractData implements HasForms
             [
                 'name' => $this->name,
                 'exercise_category_id' => $this->exercise_category_id,
+                'warm_up_program_id' => $this->warm_up_program_id,
+                'warm_down_program_id' => $this->warm_down_program_id,
                 'sort' => $this->sort,
                 'owner_id' => $this->owner_id,
             ]
@@ -145,6 +154,8 @@ class ExerciseProgramData extends AbstractData implements HasForms
                 Owner::make('owner_id')->withOptions()->allowUnassigned(),
                 ProgramName::make('name'),
                 ExerciseCategory::make('exercise_category_id')->withOptions(),
+                SelectProgram::make('warm_up_program_id')->label('Warm-up Program')->withOptions(),
+                SelectProgram::make('warm_down_program_id')->label('Warm-down Program')->withOptions(),
                 Exercises::make('exercises')->withOptions(),
                 Fields\Tags::make('internalTags', 'program_internal')->label('Tags')->withOptions()->create(),
             ]);
