@@ -16,6 +16,7 @@ use App\Data\Exercise\Settings\WattsSetting;
 use App\Data\Exercise\Settings\WeightSetting;
 use App\Data\Training\Config\ExerciseOverrides;
 use App\Form\Fields\Exercise\Exercises;
+use App\Form\Fields\Training\Program\SelectProgram;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
@@ -48,10 +49,6 @@ class ProgramEditor extends Component
 
     public ?float $planMeasuredWeight = 50;
 
-    public ?int $warmUpProgramId = null;
-
-    public ?int $warmDownProgramId = null;
-
     public int|float $planTargetGoal = 10;
 
     public array $data = [];
@@ -78,8 +75,6 @@ class ProgramEditor extends Component
         $this->planMeasuredReps = $planMeasuredReps;
         $this->planMeasuredWeight = $planMeasuredWeight;
         $this->planTargetGoal = $planTargetGoal;
-        $this->warmUpProgramId = $exerciseProgram->warm_up_program_id;
-        $this->warmDownProgramId = $exerciseProgram->warm_down_program_id;
         $this->loadExerciseData();
     }
 
@@ -95,6 +90,8 @@ class ProgramEditor extends Component
                 '_key' => uniqid('item_', true),
                 'sort' => $e->pivot->sort ?? 0,
             ])->values()->all(),
+            'warm_up_program_id' => $this->exerciseProgram->warm_up_program_id,
+            'warm_down_program_id' => $this->exerciseProgram->warm_down_program_id,
         ];
     }
 
@@ -310,18 +307,36 @@ class ProgramEditor extends Component
         );
     }
 
-    public function saveWarmPrograms(): void
+    #[Computed]
+    public function warmProgramsForm(): Form
     {
-        $this->exerciseProgram->update([
-            'warm_up_program_id' => $this->warmUpProgramId ?: null,
-            'warm_down_program_id' => $this->warmDownProgramId ?: null,
-        ]);
+        return Form::make()
+            ->fieldset('Warm Up', [
+                SelectProgram::make('warm_up_program_id')->label('Warm Up')->withOptions(fn ($q) => $q->whereNull('parent_type')->whereNull('parent_id')),
+            ])
+            ->fieldset('Warm Down', [
+                SelectProgram::make('warm_down_program_id')->label('Warm Down')->withOptions(fn ($q) => $q->whereNull('parent_type')->whereNull('parent_id')),
+            ]);
     }
 
     #[Computed]
-    public function warmProgramOptions(): array
+    public function warmProgramFieldsets(): array
     {
-        return ExerciseProgram::query()->orderBy('name')->pluck('name', 'id')->all();
+        return $this->warmProgramsForm->resolveFieldsets($this->data);
+    }
+
+    public function updatedDataWarmUpProgramId(): void
+    {
+        $this->exerciseProgram->update([
+            'warm_up_program_id' => $this->data['warm_up_program_id'] ?: null,
+        ]);
+    }
+
+    public function updatedDataWarmDownProgramId(): void
+    {
+        $this->exerciseProgram->update([
+            'warm_down_program_id' => $this->data['warm_down_program_id'] ?: null,
+        ]);
     }
 
     #[On('exercise-overrides-changed')]

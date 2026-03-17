@@ -1,6 +1,6 @@
 <div class="space-y-6">
     <div class="flex gap-6">
-        <x-section :title="__('Exercises')" class="flex-1">
+        <x-section :title="__('General')" class="flex-1">
             @foreach ($this->fieldsets as $item)
                 <x-cms::form.fieldset
                     :fieldset="$item"
@@ -9,23 +9,15 @@
                 />
             @endforeach
 
-            <flux:field>
-                <flux:label>{{ __('Warm-up Program') }}</flux:label>
-                <flux:select wire:model.live="warmUpProgramId" wire:change="saveWarmPrograms" placeholder="{{ __('None') }}">
-                    @foreach ($this->warmProgramOptions as $id => $name)
-                        <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
-                    @endforeach
-                </flux:select>
-            </flux:field>
-
-            <flux:field>
-                <flux:label>{{ __('Warm-down Program') }}</flux:label>
-                <flux:select wire:model.live="warmDownProgramId" wire:change="saveWarmPrograms" placeholder="{{ __('None') }}">
-                    @foreach ($this->warmProgramOptions as $id => $name)
-                        <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
-                    @endforeach
-                </flux:select>
-            </flux:field>
+            <div class="grid grid-cols-2 gap-4">
+                @foreach ($this->warmProgramFieldsets as $item)
+                    <x-cms::form.fieldset
+                        :fieldset="$item"
+                        :prefix="$item->prefix ?? 'data'"
+                        :showLegend="false"
+                    />
+                @endforeach
+            </div>
         </x-section>
 
         @if ($showWeeksInput)

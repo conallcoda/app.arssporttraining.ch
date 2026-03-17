@@ -154,9 +154,9 @@ class ExerciseProgramData extends AbstractData implements HasForms
                 Owner::make('owner_id')->withOptions()->allowUnassigned(),
                 ProgramName::make('name'),
                 ExerciseCategory::make('exercise_category_id')->withOptions(),
-                SelectProgram::make('warm_up_program_id')->label('Warm-up Program')->withOptions(),
-                SelectProgram::make('warm_down_program_id')->label('Warm-down Program')->withOptions(),
                 Exercises::make('exercises')->withOptions(),
+                SelectProgram::make('warm_up_program_id')->label('Warm Up')->withOptions(fn ($q) => $q->whereNull('parent_type')->whereNull('parent_id')),
+                SelectProgram::make('warm_down_program_id')->label('Warm Down')->withOptions(fn ($q) => $q->whereNull('parent_type')->whereNull('parent_id')),
                 Fields\Tags::make('internalTags', 'program_internal')->label('Tags')->withOptions()->create(),
             ]);
     }

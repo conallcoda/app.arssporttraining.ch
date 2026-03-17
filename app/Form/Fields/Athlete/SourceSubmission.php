@@ -3,10 +3,10 @@
 namespace App\Form\Fields\Athlete;
 
 use App\Data\Athlete\Metric\MetricEnum;
+use App\Form\Fields\SelectEntity;
 use App\Models\Athlete\MetricSubmission;
-use Coda\Cms\Form\Fields\Select;
 
-class SourceSubmission extends Select
+class SourceSubmission extends SelectEntity
 {
     public function __construct(string $name)
     {
@@ -14,7 +14,6 @@ class SourceSubmission extends Select
 
         $this->label = 'Source 1RM';
         $this->required = true;
-        $this->searchable = true;
         $this->validationRules = 'required|integer|exists:user_metric_submissions,id';
     }
 

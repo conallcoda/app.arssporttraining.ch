@@ -2,10 +2,10 @@
 
 namespace App\Form\Fields\Training\Program;
 
+use App\Form\Fields\SelectEntity;
 use App\Models\Tag;
-use Coda\Cms\Form\Fields\Select;
 
-class ExerciseCategory extends Select
+class ExerciseCategory extends SelectEntity
 {
     public array $colorMap = [];
 

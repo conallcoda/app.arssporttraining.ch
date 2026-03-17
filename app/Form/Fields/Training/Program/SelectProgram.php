@@ -2,10 +2,11 @@
 
 namespace App\Form\Fields\Training\Program;
 
+use App\Form\Fields\SelectEntity;
 use App\Models\Exercise\ExerciseProgram;
-use Coda\Cms\Form\Fields\Select;
+use Closure;
 
-class SelectProgram extends Select
+class SelectProgram extends SelectEntity
 {
     public function __construct(string $name)
     {
@@ -13,16 +14,22 @@ class SelectProgram extends Select
 
         $this->placeholder = 'None';
         $this->required = false;
+        $this->live = true;
         $this->validationRules = 'nullable|integer|exists:exercise_programs,id';
         $this->default = null;
     }
 
-    public function withOptions(): static
+    public function withOptions(?Closure $constraint = null): static
     {
-        $this->optionLoader = fn () => ExerciseProgram::query()
-            ->orderBy('name')
-            ->pluck('name', 'id')
-            ->all();
+        $this->optionLoader = function () use ($constraint) {
+            $query = ExerciseProgram::query()->orderBy('name');
+
+            if ($constraint) {
+                $constraint($query);
+            }
+
+            return $query->pluck('name', 'id')->all();
+        };
 
         return $this;
     }

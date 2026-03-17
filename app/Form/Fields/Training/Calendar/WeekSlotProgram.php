@@ -2,10 +2,10 @@
 
 namespace App\Form\Fields\Training\Calendar;
 
+use App\Form\Fields\SelectEntity;
 use App\Models\Training\TrainingProgram;
-use Coda\Cms\Form\Fields\Select;
 
-class WeekSlotProgram extends Select
+class WeekSlotProgram extends SelectEntity
 {
     public function __construct(string $name)
     {

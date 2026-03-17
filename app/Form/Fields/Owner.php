@@ -4,9 +4,8 @@ namespace App\Form\Fields;
 
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
-use Coda\Cms\Form\Fields\Select;
 
-class Owner extends Select
+class Owner extends SelectEntity
 {
     public function __construct(string $name)
     {
@@ -34,11 +33,7 @@ class Owner extends Select
 
     public function allowUnassigned(): static
     {
-        $originalLoader = $this->optionLoader;
-
-        $this->optionLoader = function () use ($originalLoader) {
-            return [0 => 'Unassigned'] + ($originalLoader ? ($originalLoader)() : []);
-        };
+        $this->withExtraOption('Unassigned', 0);
 
         $this->validationRules = 'required|integer';
         $this->required = true;
