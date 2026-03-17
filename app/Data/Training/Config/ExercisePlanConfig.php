@@ -15,6 +15,8 @@ class ExercisePlanConfig extends AbstractConfig
         public TargetConfig|Optional $target,
         /** @var array<int, ExerciseOverrides> */
         public array $exercises = [],
+        /** @var array<int, array<int, ExerciseOverrides>> */
+        public array $userExercises = [],
     ) {}
 
     public static function initialize(): self
@@ -120,6 +122,33 @@ class ExercisePlanConfig extends AbstractConfig
     public function removeExerciseOverrides(int $exerciseId): void
     {
         unset($this->exercises[$exerciseId]);
+    }
+
+    public function userExerciseOverrides(int $userId, int $exerciseId): ExerciseOverrides
+    {
+        $data = $this->userExercises[$userId][$exerciseId] ?? null;
+
+        if ($data === null) {
+            return new ExerciseOverrides;
+        }
+
+        if ($data instanceof ExerciseOverrides) {
+            return $data;
+        }
+
+        $overrides = ExerciseOverrides::from($data);
+        $this->userExercises[$userId][$exerciseId] = $overrides;
+
+        return $overrides;
+    }
+
+    public function setUserExerciseOverrides(int $userId, int $exerciseId, ExerciseOverrides $overrides): void
+    {
+        if (! isset($this->userExercises[$userId])) {
+            $this->userExercises[$userId] = [];
+        }
+
+        $this->userExercises[$userId][$exerciseId] = $overrides;
     }
 
     public function hasDefaultOverrides(): bool

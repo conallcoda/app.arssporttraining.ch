@@ -48,6 +48,7 @@ class ExerciseProgramData extends AbstractData implements HasForms
             exercise_category_id: isset($data['exercise_category_id']) ? (int) $data['exercise_category_id'] : null,
             exercises: $data['exercises'] ?? [],
             sort: (int) ($data['sort'] ?? 0),
+            owner_id: isset($data['owner_id']) ? (int) $data['owner_id'] : null,
         );
     }
 

@@ -52,6 +52,10 @@ class AthleteList extends AbstractModelList
     {
         return [
             ...parent::getExtraActions(),
+            Action::make('metrics', __('Metrics'))
+                ->row()
+                ->icon('activity')
+                ->handler('openMetrics'),
             Action::make('changePassword', __('Change Password'))
                 ->rowMenu()
                 ->icon('lock')
@@ -62,6 +66,11 @@ class AthleteList extends AbstractModelList
                 ])
                 ->handler('handleChangePasswordSubmitted'),
         ];
+    }
+
+    public function openMetrics(int $id): void
+    {
+        $this->redirect(route('athlete-metric-index', ['athleteId' => $id]));
     }
 
     public function handleChangePasswordSubmitted(array $data): void

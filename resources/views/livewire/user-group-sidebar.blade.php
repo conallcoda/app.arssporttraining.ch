@@ -1,4 +1,10 @@
 <x-section :title="__('Groups')" class="w-64 shrink-0 sticky top-4 self-start max-h-[calc(100vh-6rem)] overflow-y-auto">
+    @if ($showGroupFilter)
+        <flux:tabs wire:model.live="groupFilter" class="mb-3">
+            <flux:tab name="mine">{{ __('My Groups') }}</flux:tab>
+            <flux:tab name="all">{{ __('All Groups') }}</flux:tab>
+        </flux:tabs>
+    @endif
     <div class="mb-3">
         <x-cms::form.field :field="\Coda\Cms\Form\Fields\Search::make('search')" />
     </div>

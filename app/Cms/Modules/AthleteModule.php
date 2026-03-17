@@ -3,6 +3,7 @@
 namespace App\Cms\Modules;
 
 use App\Livewire\Database\AthleteList;
+use App\Livewire\Database\AthleteMetricList;
 use Coda\Cms\ComponentDefinition;
 use Coda\Cms\ComponentType;
 use Coda\Cms\Module;
@@ -23,6 +24,11 @@ class AthleteModule extends Module
                 ->title('ARS - Athlete Training // Athletes')
                 ->heading('Athletes')
                 ->content(['database.athlete-list']),
+            PageDefinition::make('athlete-metric-index')
+                ->route('/athletes/{athleteId}/metrics')
+                ->title('ARS - Athlete Training // Metrics')
+                ->heading('Metrics')
+                ->content(['database.athlete-metric-list']),
         ];
     }
 
@@ -30,6 +36,8 @@ class AthleteModule extends Module
     {
         return [
             ComponentDefinition::make('athlete-list', AthleteList::class)
+                ->type(ComponentType::List),
+            ComponentDefinition::make('athlete-metric-list', AthleteMetricList::class)
                 ->type(ComponentType::List),
         ];
     }

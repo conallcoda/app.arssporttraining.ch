@@ -5,6 +5,7 @@ namespace App\Livewire\Training;
 use App\Data\Exercise\ExerciseSetting;
 use App\Data\Training\Calendar\CalendarSettingsData;
 use App\Data\Training\Config\EffectiveExerciseConfig;
+use App\Data\Training\Config\ExerciseOverrides;
 use App\Data\Training\ExerciseProgramData;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
@@ -962,14 +963,18 @@ class CalendarIndex extends Component
         $userId = $data['userId'] ?? null;
 
         if ($editingNoteId !== null) {
-            $existingNote = TrainingProgramNote::find($editingNoteId);
-            if ($existingNote) {
-                TrainingProgramNote::query()
-                    ->where('group_id', $groupId)
-                    ->where('type', TrainingProgramNoteTypeEnum::Focus)
-                    ->where('start', $existingNote->start)
-                    ->where('note', $existingNote->note)
-                    ->delete();
+            if ($userId !== null && empty($selectedMembers)) {
+                TrainingProgramNote::destroy($editingNoteId);
+            } else {
+                $existingNote = TrainingProgramNote::find($editingNoteId);
+                if ($existingNote) {
+                    TrainingProgramNote::query()
+                        ->where('group_id', $groupId)
+                        ->where('type', TrainingProgramNoteTypeEnum::Focus)
+                        ->where('start', $existingNote->start)
+                        ->where('note', $existingNote->note)
+                        ->delete();
+                }
             }
         }
 
@@ -979,7 +984,7 @@ class CalendarIndex extends Component
                 'user_id' => $userId,
                 'type' => TrainingProgramNoteTypeEnum::Focus,
                 'start' => $data['start'],
-                'end' => $data['end'],
+                'end' => $data['end'] ?: null,
                 'note' => $data['note'],
             ]);
         } else {
@@ -989,7 +994,7 @@ class CalendarIndex extends Component
                     'user_id' => $memberId,
                     'type' => TrainingProgramNoteTypeEnum::Focus,
                     'start' => $data['start'],
-                    'end' => $data['end'],
+                    'end' => $data['end'] ?: null,
                     'note' => $data['note'],
                 ]);
             }
@@ -1003,38 +1008,102 @@ class CalendarIndex extends Component
     {
         $editingNoteId = $data['editing_note_id'] ?? null;
         $groupId = $data['groupId'];
+        $userId = $data['userId'] ?? null;
 
         if ($editingNoteId === null) {
             return;
         }
 
-        $existingNote = TrainingProgramNote::find($editingNoteId);
-        if ($existingNote) {
-            TrainingProgramNote::query()
-                ->where('group_id', $groupId)
-                ->where('type', TrainingProgramNoteTypeEnum::Focus)
-                ->where('start', $existingNote->start)
-                ->where('note', $existingNote->note)
-                ->delete();
+        if ($userId !== null) {
+            TrainingProgramNote::destroy($editingNoteId);
+        } else {
+            $existingNote = TrainingProgramNote::find($editingNoteId);
+            if ($existingNote) {
+                TrainingProgramNote::query()
+                    ->where('group_id', $groupId)
+                    ->where('type', TrainingProgramNoteTypeEnum::Focus)
+                    ->where('start', $existingNote->start)
+                    ->where('note', $existingNote->note)
+                    ->delete();
+            }
         }
 
         unset($this->focusNotes);
     }
 
-    public function openExerciseSettings(int $exerciseId, int $exerciseProgramId): void
+    public function openExerciseSettings(int $exerciseId, int $exerciseProgramId, int $trainingProgramId): void
     {
         $exercise = Exercise::findOrFail($exerciseId);
         $exerciseProgram = ExerciseProgram::findOrFail($exerciseProgramId);
 
         $base = $exercise->config;
         $planOverrides = $exerciseProgram->config->defaultExerciseOverrides($exerciseId);
-        $effectiveConfig = EffectiveExerciseConfig::resolve($base, $planOverrides);
+        $userId = $this->user !== '' ? (int) $this->user : null;
+        $userOverrides = $userId !== null
+            ? $exerciseProgram->config->userExerciseOverrides($userId, $exerciseId)
+            : null;
+        $effectiveConfig = EffectiveExerciseConfig::resolve($base, $planOverrides, $userOverrides);
+
+        [$start, $end] = $this->dateRange();
+
+        $slotQuery = TrainingProgramSlot::query()
+            ->where('training_program_id', $trainingProgramId)
+            ->whereBetween('datetime', [$start->copy()->startOfDay(), $end->copy()->endOfDay()]);
+
+        if ($this->user !== '') {
+            $slotQuery->where('user_id', (int) $this->user);
+        }
+
+        $slotDates = $slotQuery->pluck('datetime')
+            ->map(fn ($dt) => Carbon::parse($dt)->format('Y-m-d'))
+            ->unique()
+            ->sort()
+            ->values();
+
+        $scheduledWeeks = [];
+        foreach ($slotDates as $date) {
+            $isoWeek = Carbon::parse($date)->isoWeek();
+            if (! in_array($isoWeek, $scheduledWeeks, true)) {
+                $scheduledWeeks[] = $isoWeek;
+            }
+        }
+
+        $weeks = count($scheduledWeeks);
+        $scheduled = $weeks > 0;
+
+        if (! $scheduled) {
+            $weeks = 1;
+            $scheduledWeeks = [Carbon::now()->isoWeek()];
+        }
+
+        $weekLabels = [];
+        foreach ($scheduledWeeks as $i => $isoWeek) {
+            $weekLabels[$i] = __('W:week', ['week' => $isoWeek]);
+        }
+
+        $weekSessions = [];
+        $sessionsPerWeek = 1;
+        if ($scheduled) {
+            $weekSlotCounts = $slotDates->groupBy(fn ($date) => Carbon::parse($date)->isoWeek())
+                ->map->count();
+            $sessionsPerWeek = max(1, (int) $weekSlotCounts->max());
+
+            foreach ($scheduledWeeks as $i => $isoWeek) {
+                $weekSessions[$i] = (int) ($weekSlotCounts[$isoWeek] ?? 1);
+            }
+        }
 
         $this->dispatch('open-calendar-exercise-settings', data: [
             'exerciseId' => $exerciseId,
             'exerciseProgramId' => $exerciseProgramId,
             'exerciseName' => $exercise->name,
             'config' => $effectiveConfig,
+            'weeks' => $weeks,
+            'sessionsPerWeek' => $sessionsPerWeek,
+            'weekLabels' => $weekLabels,
+            'weekSessions' => $weekSessions,
+            'scheduled' => $scheduled,
+            'userId' => $userId,
         ]);
     }
 
@@ -1044,14 +1113,35 @@ class CalendarIndex extends Component
         $exerciseId = (int) $data['exerciseId'];
         $exerciseProgramId = (int) $data['exerciseProgramId'];
         $settingsConfig = $data['config'] ?? [];
+        $userId = isset($data['userId']) ? (int) $data['userId'] : null;
 
         $exercise = Exercise::findOrFail($exerciseId);
-        $parentConfig = $exercise->config->toArray();
-
         $exerciseProgram = ExerciseProgram::findOrFail($exerciseProgramId);
         $config = $exerciseProgram->config;
-        $overrides = $config->defaultExerciseOverrides($exerciseId);
 
+        if ($userId !== null) {
+            $planOverrides = $config->defaultExerciseOverrides($exerciseId);
+            $parentConfig = EffectiveExerciseConfig::resolve($exercise->config, $planOverrides);
+            $overrides = $config->userExerciseOverrides($userId, $exerciseId);
+        } else {
+            $parentConfig = $exercise->config->toArray();
+            $overrides = $config->defaultExerciseOverrides($exerciseId);
+        }
+
+        $overrides = $this->buildOverridesFromDiff($overrides, $settingsConfig, $parentConfig);
+
+        if ($userId !== null) {
+            $config->setUserExerciseOverrides($userId, $exerciseId, $overrides);
+        } else {
+            $config->setDefaultExerciseOverrides($exerciseId, $overrides);
+        }
+
+        $exerciseProgram->config = $config;
+        $exerciseProgram->save();
+    }
+
+    protected function buildOverridesFromDiff(ExerciseOverrides $overrides, array $settingsConfig, array $parentConfig): ExerciseOverrides
+    {
         $overrides->settings = ($settingsConfig['settings'] ?? null) == ($parentConfig['settings'] ?? null)
             ? null
             : ($settingsConfig['settings'] ?? null);
@@ -1089,9 +1179,7 @@ class CalendarIndex extends Component
             $overrides->gridOverrides = $settingsConfig['overrides'];
         }
 
-        $config->setDefaultExerciseOverrides($exerciseId, $overrides);
-        $exerciseProgram->config = $config;
-        $exerciseProgram->save();
+        return $overrides;
     }
 
     public function openAddContent(): void

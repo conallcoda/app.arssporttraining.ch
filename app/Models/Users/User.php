@@ -2,6 +2,7 @@
 
 namespace App\Models\Users;
 
+use App\Models\Athlete\MetricSubmission;
 use App\Models\Concerns\HasOwner;
 use Coda\Cms\Models\Concerns\HasConfigData;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;
@@ -10,6 +11,7 @@ use Coda\Cms\Models\Contracts\Taggable;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -81,6 +83,11 @@ class User extends Authenticatable implements Taggable
     public function internalTags(): MorphToMany
     {
         return $this->tagsWithScope('athlete_internal');
+    }
+
+    public function metricSubmissions(): HasMany
+    {
+        return $this->hasMany(MetricSubmission::class, 'user_id');
     }
 
     public function groups(): BelongsToMany

@@ -6,6 +6,9 @@
     'showMenu' => true,
     'showHeader' => true,
     'editable' => true,
+    'weekLabels' => null,
+    'weekSessions' => null,
+    'collapseWeeks' => true,
 ])
 
 @if (count($grid->rows) === 0 && count($grid->weekColumns) === 0)
@@ -68,7 +71,7 @@
             </div>
         @endif
 
-        @php $showWeekColumn = $grid->weekCount > 1; @endphp
+        @php $showWeekColumn = $collapseWeeks ? $grid->weekCount > 1 : true; @endphp
         <div class="overflow-x-auto text-sm">
             <table class="border-collapse border border-zinc-300 dark:border-zinc-600 table-fixed">
                 <thead>
@@ -111,9 +114,12 @@
                             <tr wire:key="collapsed-w{{ $week }}-weekonly">
                                 @if ($showWeekColumn)
                                     <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle text-center">
-                                        <div>TW{{ $week + 1 }}</div>
-                                        @if ($grid->sessionsPerWeek > 1)
-                                            <div class="text-[10px] font-normal text-zinc-400 dark:text-zinc-500 whitespace-nowrap">({{ $grid->sessionsPerWeek }} sessions)</div>
+                                        <div>{!! $weekLabels[$week] ?? 'TW' . ($week + 1) !!}</div>
+                                        @php $weekSessionCount = $weekSessions[$week] ?? $grid->sessionsPerWeek; @endphp
+                                        @if ($weekSessionCount > 1)
+                                            <div class="text-[10px] font-normal text-zinc-400 dark:text-zinc-500 whitespace-nowrap">({{ $weekSessionCount }} {{ __('sessions') }})</div>
+                                        @elseif ($weekSessions !== null)
+                                            <div class="text-[10px] font-normal text-zinc-400 dark:text-zinc-500 whitespace-nowrap">({{ $weekSessionCount }} {{ __('session') }})</div>
                                         @endif
                                     </td>
                                 @endif
@@ -154,9 +160,12 @@
                                     @if ($showWeekColumn && $rowIdx === 0)
                                         <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle text-center"
                                             rowspan="{{ count($grid->rows) }}">
-                                            <div>TW{{ $week + 1 }}</div>
-                                            @if ($grid->sessionsPerWeek > 1)
-                                                <div class="text-[10px] font-normal text-zinc-400 dark:text-zinc-500 whitespace-nowrap">({{ $grid->sessionsPerWeek }} sessions)</div>
+                                            <div>{!! $weekLabels[$week] ?? 'TW' . ($week + 1) !!}</div>
+                                            @php $weekSessionCount = $weekSessions[$week] ?? $grid->sessionsPerWeek; @endphp
+                                            @if ($weekSessionCount > 1)
+                                                <div class="text-[10px] font-normal text-zinc-400 dark:text-zinc-500 whitespace-nowrap">({{ $weekSessionCount }} {{ __('sessions') }})</div>
+                                            @elseif ($weekSessions !== null)
+                                                <div class="text-[10px] font-normal text-zinc-400 dark:text-zinc-500 whitespace-nowrap">({{ $weekSessionCount }} {{ __('session') }})</div>
                                             @endif
                                         </td>
                                     @endif
@@ -241,7 +250,7 @@
                             <tr wire:key="expanded-w{{ $week }}-weekonly">
                                 @if ($showWeekColumn)
                                     <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle text-center">
-                                        <div>TW{{ $week + 1 }}</div>
+                                        <div>{!! $weekLabels[$week] ?? 'TW' . ($week + 1) !!}</div>
                                     </td>
                                 @endif
                                 @foreach ($grid->weekColumns as $weekCol)
@@ -283,7 +292,7 @@
                                     @if ($showWeekColumn && $session === 0 && $isFirstRow)
                                         <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle text-center"
                                             rowspan="{{ $grid->sessionsPerWeek * count($grid->rows) }}">
-                                            <div>TW{{ $week + 1 }}</div>
+                                            <div>{!! $weekLabels[$week] ?? 'TW' . ($week + 1) !!}</div>
                                         </td>
                                     @endif
                                     @if ($isFirstRow)

@@ -15,6 +15,7 @@
 - This project is using Filament 4, make sure you consider the proper imports for any classes (they have changed since filament 3)
 - When i ask you to create a an alpine component, always follow the example in resources/js/alpine/example.js and then import it in resources/js/app.js
 - Never use inline ternary expressions inside Blade directive attributes (e.g. `wire:model{{ $foo ? '.live' : '' }}`). Always use separate `@if`/`@else` blocks with the full element instead.
+- **wire:key for dynamic content**: When a container renders content whose DOM structure can change (e.g. a preview grid, form fieldsets, or any component driven by data/config), the `wire:key` MUST include a content hash like `md5(json_encode($data))` — not just entity IDs. ID-only keys don't change when the underlying data changes, causing Livewire's morph algorithm to fail with "Cannot read properties of null (reading 'before')". See `exercise-form.blade.php` for the canonical pattern: `wire:key="preview-grid-{{ md5(json_encode($data['config'])) }}"`. This applies to any wrapper around grids, tables, or dynamically-structured UI.
 
 ===
 

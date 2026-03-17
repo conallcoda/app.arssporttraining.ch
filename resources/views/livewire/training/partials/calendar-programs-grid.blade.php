@@ -53,7 +53,7 @@
                                  class="absolute cursor-pointer z-10 px-0.5"
                                  style="left: {{ ($note['startIdx'] / $this->focusNotes['totalDays']) * 100 }}%; width: {{ ($note['colspan'] / $this->focusNotes['totalDays']) * 100 }}%; top: {{ $note['lane'] * 28 + 4 }}px; height: 24px;">
                                 <div class="rounded-sm bg-amber-400/80 dark:bg-amber-500/60 flex items-center justify-center h-full px-1">
-                                    <span class="text-[10px] font-medium text-white truncate">{{ $note['note'] }}</span>
+                                    <span class="text-xs font-medium text-white truncate">{{ $note['note'] }}</span>
                                 </div>
                             </div>
                         @endforeach
@@ -134,7 +134,7 @@
                             @if ($exercises->isNotEmpty())
                                 <div x-show="programExpanded[{{ $entry->id }}]" x-cloak class="mt-1 ml-10 flex flex-col gap-0.5">
                                     @foreach ($exercises as $exercise)
-                                        <button type="button" wire:click="openExerciseSettings({{ $exercise->id }}, {{ $entry->exercise_program_id }})" class="text-sm text-zinc-500 dark:text-zinc-400 text-left hover:underline">{{ $exercise->name }}</button>
+                                        <button type="button" wire:click="openExerciseSettings({{ $exercise->id }}, {{ $entry->exercise_program_id }}, {{ $entry->id }})" class="text-sm text-zinc-500 dark:text-zinc-400 text-left hover:underline">{{ $exercise->name }}</button>
                                     @endforeach
                                 </div>
                             @endif

@@ -12,7 +12,7 @@
 
 <div>
     @if (count($indexTabs) > 0)
-        <flux:tabs wire:model.live="selectedTab" class="mb-4">
+        <flux:tabs wire:model.live="selectedTab" class="mb-6">
             @foreach ($indexTabs as $tab)
                 <flux:tab name="{{ $tab->key }}">{{ $tab->label }}</flux:tab>
             @endforeach

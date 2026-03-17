@@ -123,7 +123,7 @@
                                             ? 'background-color: ' .
                                                 (array_key_first($colorCounts) === '_none'
                                                     ? 'var(--color-zinc-300)'
-                                                    : 'var(--color-' . array_key_first($colorCounts) . '--600)') .
+                                                    : 'var(--color-' . array_key_first($colorCounts) . '-600)') .
                                                 ';'
                                             : 'background: linear-gradient(to bottom, ' . implode(', ', $stops) . ');';
                                 @endphp

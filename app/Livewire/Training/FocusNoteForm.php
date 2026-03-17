@@ -158,6 +158,7 @@ class FocusNoteForm extends FormModal
         $this->dispatch("{$this->name}.deleted", data: [
             'editing_note_id' => $this->editingNoteId,
             'groupId' => $this->groupId,
+            'userId' => $this->userId,
         ]);
     }
 

@@ -6,7 +6,7 @@
 
 <flux:main>
     <div class="flex gap-6">
-        <livewire:user-group-sidebar mode="single-athlete" :initial-group="$group !== '' ? (int) $group : null" :initial-user="$user !== '' ? (int) $user : null" />
+        <livewire:user-group-sidebar mode="single-athlete" :initial-group="$group !== '' ? (int) $group : null" :initial-user="$user !== '' ? (int) $user : null" :show-group-filter="true" />
 
         <div class="flex-1 min-w-0">
             <x-section :title="__('Calendar')" class="!p-0">
