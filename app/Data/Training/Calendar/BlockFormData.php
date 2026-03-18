@@ -20,31 +20,41 @@ class BlockFormData extends AbstractData implements HasForms
         public ?string $start = null,
         public ?string $end = null,
         public string $note = '',
-        public string $color = 'amber',
+        public ?string $color = 'amber',
     ) {}
 
-    public static function getForm(): Form
+    public static function getForm(array $context = []): Form
     {
+        $isCategory = ($context['type'] ?? null) === 'category';
+
+        $typeField = RadioSegmented::make('type')
+            ->label(__('Type'))
+            ->options(
+                collect(TrainingProgramBlockTypeEnum::cases())
+                    ->reject(fn ($case) => $case === TrainingProgramBlockTypeEnum::Category)
+                    ->mapWithKeys(fn ($case) => [$case->value => $case->label()])
+                    ->all()
+            )
+            ->default('focus')
+            ->live();
+
+        $fields = [
+            Date::make('start')->label(__('Start Date'))->required(),
+            Date::make('end')->label(__('End Date')),
+            Text::make('note')->label(__('Note'))->required(),
+        ];
+
+        if (! $isCategory) {
+            array_unshift($fields, $typeField);
+        }
+
         return Form::make()
-            ->fieldset('Block', [
-                RadioSegmented::make('type')
-                    ->label(__('Type'))
-                    ->options(
-                        collect(TrainingProgramBlockTypeEnum::cases())
-                            ->mapWithKeys(fn ($case) => [$case->value => $case->label()])
-                            ->all()
-                    )
-                    ->default('focus')
-                    ->live(),
-                Date::make('start')->label(__('Start Date'))->required(),
-                Date::make('end')->label(__('End Date')),
-                Text::make('note')->label(__('Note'))->required(),
-            ])
+            ->fieldset('Block', $fields)
             ->fieldset(
                 'Type Settings',
-                function (array $data) {
-                    $fields = TrainingProgramBlockTypeEnum::from($data['type'] ?? 'focus')
-                        ->blockTypeClass()::fields();
+                function (array $data) use ($context) {
+                    $type = TrainingProgramBlockTypeEnum::from($data['type'] ?? 'focus');
+                    $fields = $type->blockTypeClass()::fields($context);
 
                     return $fields ? ['fields' => $fields] : null;
                 },

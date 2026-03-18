@@ -2,7 +2,9 @@
 
 namespace App\Models\Training;
 
+use App\Data\Training\Blocks\BlockConfig;
 use App\Models\Concerns\HasOwner;
+use App\Models\Tag;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;
@@ -24,11 +26,13 @@ class TrainingProgramBlock extends Model
         'owner_id',
         'group_id',
         'user_id',
+        'category_id',
         'type',
         'start',
         'end',
         'note',
         'color',
+        'config',
     ];
 
     protected function casts(): array
@@ -37,6 +41,7 @@ class TrainingProgramBlock extends Model
             'type' => TrainingProgramBlockTypeEnum::class,
             'start' => 'date',
             'end' => 'date',
+            'config' => BlockConfig::class,
         ];
     }
 
@@ -48,5 +53,10 @@ class TrainingProgramBlock extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Tag::class, 'category_id');
     }
 }

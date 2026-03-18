@@ -33,11 +33,13 @@ return new class extends Migration
             $table->foreignId('owner_id')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('group_id')->constrained('user_groups')->cascadeOnDelete();
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('category_id')->nullable()->constrained('tags')->nullOnDelete();
             $table->string('type');
             $table->date('start');
             $table->date('end')->nullable();
             $table->text('note');
-            $table->string('color')->default('amber');
+            $table->string('color')->nullable();
+            $table->json('config')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

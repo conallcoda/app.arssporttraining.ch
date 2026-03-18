@@ -33,7 +33,8 @@
         @if ($this->programs->isNotEmpty())
             <tbody>
                 <tr>
-                    <td class="sticky left-0 z-20 bg-zinc-100 dark:bg-zinc-800 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-1 min-w-[180px]">
+                    <td class="sticky left-0 z-20 bg-zinc-100 dark:bg-zinc-800 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-1 min-w-[180px] text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                        {{ __('Notes') }}
                     </td>
                     <td colspan="{{ count($this->days) }}"
                         class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 relative"
@@ -102,6 +103,36 @@
                             </td>
                         @endif
                     @endforeach
+                </tr>
+
+                @php $catBlocks = $this->categoryBlocks[$categoryId] ?? ['notes' => [], 'laneCount' => 0, 'totalDays' => count($this->days)]; @endphp
+                <tr x-show="expanded" x-cloak>
+                    <td class="sticky left-0 z-20 bg-zinc-100 dark:bg-zinc-800 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-1 min-w-[180px] text-xs font-medium text-zinc-500 dark:text-zinc-400 pl-7">
+                        {{ __('Blocks') }}
+                    </td>
+                    <td colspan="{{ count($this->days) }}"
+                        class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 relative"
+                        style="height: {{ max(1, $catBlocks['laneCount']) * 28 + 8 }}px">
+                        <div class="absolute inset-0 flex">
+                            @foreach ($this->days as $dayIdx => $day)
+                                <div wire:click="openCategoryBlock('{{ $day['date'] }}', {{ $categoryId }})"
+                                     wire:key="cat-block-bg-{{ $categoryId }}-{{ $dayIdx }}"
+                                     class="flex-1 cursor-pointer h-full border-r border-zinc-300 dark:border-zinc-600 last:border-r-0 {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}">
+                                </div>
+                            @endforeach
+                        </div>
+                        @foreach ($catBlocks['notes'] as $catBlock)
+                            <div wire:click.stop="editBlock({{ $catBlock['id'] }})"
+                                 wire:key="cat-block-{{ $categoryId }}-{{ $catBlock['id'] }}"
+                                 class="absolute cursor-pointer z-10 px-0.5"
+                                 style="left: {{ ($catBlock['startIdx'] / $catBlocks['totalDays']) * 100 }}%; width: {{ ($catBlock['colspan'] / $catBlocks['totalDays']) * 100 }}%; top: {{ $catBlock['lane'] * 28 + 4 }}px; height: 24px;">
+                                <div class="rounded-sm flex items-center justify-center h-full px-1"
+                                     style="{{ \Coda\Cms\Support\ColorPalette::solid($category?->color ?? 'zinc') }}">
+                                    <span class="text-xs font-medium text-white truncate">{{ $catBlock['note'] }}</span>
+                                </div>
+                            </div>
+                        @endforeach
+                    </td>
                 </tr>
 
                 @foreach ($groupEntries as $entry)

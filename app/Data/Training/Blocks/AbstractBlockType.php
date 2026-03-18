@@ -14,7 +14,7 @@ abstract class AbstractBlockType extends AbstractData implements HasForms
 
     abstract public static function label(): string;
 
-    public static function fields(): array
+    public static function fields(array $context = []): array
     {
         return [];
     }

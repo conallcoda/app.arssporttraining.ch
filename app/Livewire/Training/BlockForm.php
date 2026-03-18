@@ -26,6 +26,12 @@ class BlockForm extends FormModal
 
     public array $selectedMembers = [];
 
+    public ?int $categoryId = null;
+
+    public ?string $categorySlug = null;
+
+    public ?string $categoryName = null;
+
     public function mount(
         string $name = 'block',
         string $title = 'add-block-default',
@@ -57,24 +63,42 @@ class BlockForm extends FormModal
         $this->userId = $data['userId'] ?? null;
         $this->editingBlockId = $data['blockId'] ?? null;
         $this->isEditing = $this->editingBlockId !== null;
+        $this->categoryId = $data['categoryId'] ?? null;
+        $this->categorySlug = $data['categorySlug'] ?? null;
+        $this->categoryName = $data['categoryName'] ?? null;
 
         unset($this->formConfig, $this->fieldsets);
         $this->openCount++;
 
-        $defaultType = 'focus';
-        $defaultColor = TrainingProgramBlockTypeEnum::from($defaultType)->blockTypeClass()::defaultColor();
+        if ($this->categoryId !== null) {
+            $this->data = [
+                'type' => 'category',
+                'start' => $data['date'] ?? '',
+                'end' => '',
+                'note' => '',
+                'color' => null,
+                'config' => $this->categorySlug === 'strength' ? ['goal' => 10] : [],
+            ];
+        } else {
+            $defaultType = 'focus';
+            $defaultColor = TrainingProgramBlockTypeEnum::from($defaultType)->blockTypeClass()::defaultColor();
 
-        $this->data = [
-            'type' => $defaultType,
-            'start' => $data['date'] ?? '',
-            'end' => '',
-            'note' => '',
-            'color' => $defaultColor,
-        ];
+            $this->data = [
+                'type' => $defaultType,
+                'start' => $data['date'] ?? '',
+                'end' => '',
+                'note' => '',
+                'color' => $defaultColor,
+            ];
+        }
 
         if ($this->isEditing) {
-            $existingBlock = TrainingProgramBlock::find($this->editingBlockId);
+            $existingBlock = TrainingProgramBlock::with('category')->find($this->editingBlockId);
             if ($existingBlock) {
+                $this->categoryId = $existingBlock->category_id;
+                $this->categorySlug = $existingBlock->category?->slug;
+                $this->categoryName = $existingBlock->category?->name;
+
                 $this->data = [
                     'type' => $existingBlock->type->value,
                     'start' => $existingBlock->start->format('Y-m-d'),
@@ -82,6 +106,10 @@ class BlockForm extends FormModal
                     'note' => $existingBlock->note,
                     'color' => $existingBlock->color,
                 ];
+
+                if ($existingBlock->config) {
+                    $this->data['config'] = $existingBlock->config->toArray();
+                }
             }
         }
 
@@ -164,6 +192,7 @@ class BlockForm extends FormModal
             'editing_block_id' => $this->editingBlockId,
             'groupId' => $this->groupId,
             'userId' => $this->userId,
+            'categoryId' => $this->categoryId,
         ]);
     }
 
@@ -181,7 +210,10 @@ class BlockForm extends FormModal
     #[Computed]
     public function formConfig(): Form
     {
-        return BlockFormData::getForm();
+        return BlockFormData::getForm([
+            'type' => $this->data['type'] ?? 'focus',
+            'categorySlug' => $this->categorySlug,
+        ]);
     }
 
     public function render(): View

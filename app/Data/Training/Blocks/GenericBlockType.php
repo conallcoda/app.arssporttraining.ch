@@ -20,7 +20,7 @@ class GenericBlockType extends AbstractBlockType
         return __('Note');
     }
 
-    public static function fields(): array
+    public static function fields(array $context = []): array
     {
         return [
             Color::make('color'),

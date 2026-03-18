@@ -3,6 +3,7 @@
 namespace App\Models\Training;
 
 use App\Data\Training\Blocks\AbstractBlockType;
+use App\Data\Training\Blocks\CategoryBlockType;
 use App\Data\Training\Blocks\FocusBlockType;
 use App\Data\Training\Blocks\GenericBlockType;
 
@@ -10,6 +11,7 @@ enum TrainingProgramBlockTypeEnum: string
 {
     case Focus = 'focus';
     case Note = 'note';
+    case Category = 'category';
 
     public function label(): string
     {
@@ -22,6 +24,7 @@ enum TrainingProgramBlockTypeEnum: string
         return match ($this) {
             self::Focus => FocusBlockType::class,
             self::Note => GenericBlockType::class,
+            self::Category => CategoryBlockType::class,
         };
     }
 

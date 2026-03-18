@@ -69,7 +69,7 @@ it('creates individual slots per user in group mode', function () {
         'exercise_program_id' => $program->id,
     ]);
 
-    Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'period' => 'week', 'viewMode' => 'week'])
+    Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'period' => 'week', 'view' => 'schedule'])
         ->call('onWeekSlotSubmitted', [
             'training_program_id' => $tp->id,
             'date' => '2026-03-02',
@@ -101,7 +101,7 @@ it('deselecting a user removes their slot', function () {
     TrainingProgramSlot::create(['training_program_id' => $tp->id, 'user_id' => $user1->id, 'datetime' => $datetime]);
     TrainingProgramSlot::create(['training_program_id' => $tp->id, 'user_id' => $user2->id, 'datetime' => $datetime]);
 
-    Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'period' => 'week', 'viewMode' => 'week'])
+    Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'period' => 'week', 'view' => 'schedule'])
         ->call('onWeekSlotSubmitted', [
             'training_program_id' => $tp->id,
             'date' => '2026-03-02',
@@ -132,7 +132,7 @@ it('removes all user slots in group mode', function () {
     TrainingProgramSlot::create(['training_program_id' => $tp->id, 'user_id' => $user1->id, 'datetime' => $datetime]);
     TrainingProgramSlot::create(['training_program_id' => $tp->id, 'user_id' => $user2->id, 'datetime' => $datetime]);
 
-    Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'period' => 'week', 'viewMode' => 'week'])
+    Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'period' => 'week', 'view' => 'schedule'])
         ->call('quickRemoveWeekSlot', $tp->id, '2026-03-02', '09:00');
 
     expect(TrainingProgramSlot::where('training_program_id', $tp->id)->count())->toBe(0);
@@ -154,7 +154,7 @@ it('removes only the user slot in user mode', function () {
     TrainingProgramSlot::create(['training_program_id' => $tp->id, 'user_id' => $user1->id, 'datetime' => $datetime]);
     TrainingProgramSlot::create(['training_program_id' => $tp->id, 'user_id' => $user2->id, 'datetime' => $datetime]);
 
-    Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'user' => (string) $user1->id, 'period' => 'week', 'viewMode' => 'week'])
+    Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'user' => (string) $user1->id, 'period' => 'week', 'view' => 'schedule'])
         ->call('quickRemoveWeekSlot', $tp->id, '2026-03-02', '09:00');
 
     expect(TrainingProgramSlot::where('user_id', $user1->id)->exists())->toBeFalse();
@@ -201,7 +201,7 @@ it('quick creates a slot for a single user in user mode', function () {
         'group' => (string) $group->id,
         'user' => (string) $user->id,
         'period' => 'week',
-        'viewMode' => 'week',
+        'view' => 'schedule',
         'weekEditMode' => 'edit',
     ])
         ->set('quickProgramId', $tp->id)

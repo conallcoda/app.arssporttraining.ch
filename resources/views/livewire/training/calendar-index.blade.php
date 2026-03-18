@@ -22,24 +22,21 @@
                         <flux:button variant="ghost" icon="pencil" size="sm" wire:click="openCalendarRange" />
                     </div>
                     @if ($this->hasSelection())
-                        <div class="flex items-center gap-2">
-                            <flux:text class="text-xs text-zinc-500 dark:text-zinc-400">{{ __('Group by') }}</flux:text>
-                            <flux:radio.group wire:model.live="viewMode" variant="segmented" size="sm">
-                                <flux:radio value="programs" :label="__('Programs')" />
-                                <flux:radio value="week" :label="__('Week')" />
-                            </flux:radio.group>
-                        </div>
+                        <flux:radio.group wire:model.live="view" variant="segmented" size="sm">
+                            <flux:radio value="overview" :label="__('Overview')" />
+                            <flux:radio value="schedule" :label="__('Schedule')" />
+                        </flux:radio.group>
                     @endif
                 </div>
 
                 @if ($this->hasSelection() && $this->programs->isNotEmpty())
-                    @if ($viewMode === 'programs')
+                    @if ($view === 'overview')
                         <div class="px-4 py-2 flex justify-end">
                             <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddContent">{{ __('Add Program') }}</flux:button>
                         </div>
                     @endif
 
-                    @if ($viewMode === 'week')
+                    @if ($view === 'schedule')
                         <div class="px-4 py-2 flex items-center gap-4">
                             <flux:radio.group wire:model.live="weekEditMode" variant="segmented" size="sm">
                                 <flux:radio value="view" :label="__('View')" />

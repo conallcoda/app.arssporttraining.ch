@@ -9,6 +9,7 @@ use App\Data\Training\Config\ExerciseOverrides;
 use App\Data\Training\ExerciseProgramData;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
+use App\Models\Tag;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramBlock;
 use App\Models\Training\TrainingProgramBlockTypeEnum;
@@ -42,8 +43,8 @@ class CalendarIndex extends Component
     #[Url(except: '')]
     public string $end = '';
 
-    #[Url(except: 'programs')]
-    public string $viewMode = 'programs';
+    #[Url(except: 'overview')]
+    public string $view = 'overview';
 
     #[Url(except: '')]
     public string $group = '';
@@ -86,7 +87,7 @@ class CalendarIndex extends Component
         );
     }
 
-    public function updatedViewMode(): void
+    public function updatedView(): void
     {
         unset($this->weekGridData);
     }
@@ -106,7 +107,7 @@ class CalendarIndex extends Component
         $this->start = $this->calendarSettings->start ?? '';
         $this->end = $this->calendarSettings->end ?? '';
 
-        unset($this->days, $this->weeks, $this->months, $this->title, $this->weekGridData, $this->overviewData, $this->allBlocks);
+        unset($this->days, $this->weeks, $this->months, $this->title, $this->weekGridData, $this->overviewData, $this->allBlocks, $this->categoryBlocks);
     }
 
     #[On('sidebar-selection-changed')]
@@ -126,7 +127,7 @@ class CalendarIndex extends Component
             $this->user = (string) $first['user'];
         }
 
-        unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData, $this->allBlocks);
+        unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData, $this->allBlocks, $this->categoryBlocks);
 
     }
 
@@ -431,6 +432,7 @@ class CalendarIndex extends Component
 
         $query = TrainingProgramBlock::query()
             ->where('group_id', $groupId)
+            ->whereNull('category_id')
             ->where(function ($q) use ($start, $end) {
                 $q->where(function ($q2) use ($start, $end) {
                     $q2->where('start', '<=', $end->format('Y-m-d'))
@@ -504,6 +506,103 @@ class CalendarIndex extends Component
             'laneCount' => count($laneEnds),
             'totalDays' => $totalDays,
         ];
+    }
+
+    #[Computed]
+    public function categoryBlocks(): array
+    {
+        $days = $this->days;
+        $totalDays = count($days);
+
+        if (! $this->hasSelection()) {
+            return [];
+        }
+
+        [$start, $end] = $this->dateRange();
+        $groupId = (int) $this->group;
+
+        $dayIndex = [];
+        foreach ($days as $i => $day) {
+            $dayIndex[$day['date']] = $i;
+        }
+
+        $query = TrainingProgramBlock::query()
+            ->where('group_id', $groupId)
+            ->whereNotNull('category_id')
+            ->where('type', TrainingProgramBlockTypeEnum::Category)
+            ->where(function ($q) use ($start, $end) {
+                $q->where(function ($q2) use ($start, $end) {
+                    $q2->where('start', '<=', $end->format('Y-m-d'))
+                        ->where(function ($q3) use ($start) {
+                            $q3->where('end', '>=', $start->format('Y-m-d'))
+                                ->orWhereNull('end');
+                        });
+                })->orWhereBetween('start', [$start->format('Y-m-d'), $end->format('Y-m-d')]);
+            });
+
+        if ($this->user !== '') {
+            $query->where('user_id', (int) $this->user);
+        }
+
+        $blocks = $query->get();
+        $byCat = $blocks->groupBy('category_id');
+        $result = [];
+
+        foreach ($byCat as $catId => $catBlocks) {
+            $grouped = $catBlocks->groupBy(fn ($n) => $n->start->format('Y-m-d').'|'.($n->end?->format('Y-m-d') ?? '').'|'.$n->note);
+
+            $ranges = [];
+            foreach ($grouped as $group) {
+                $rep = $group->first();
+                $noteStart = $rep->start->format('Y-m-d');
+                $noteEnd = ($rep->end ?? $rep->start)->format('Y-m-d');
+                $clampedStart = max($noteStart, $start->format('Y-m-d'));
+                $clampedEnd = min($noteEnd, $end->format('Y-m-d'));
+
+                if (! isset($dayIndex[$clampedStart])) {
+                    continue;
+                }
+
+                $startIdx = $dayIndex[$clampedStart];
+                $endIdx = $dayIndex[$clampedEnd] ?? ($totalDays - 1);
+
+                $ranges[] = [
+                    'id' => $rep->id,
+                    'note' => $rep->note,
+                    'startIdx' => $startIdx,
+                    'endIdx' => $endIdx,
+                    'colspan' => $endIdx - $startIdx + 1,
+                ];
+            }
+
+            usort($ranges, fn ($a, $b) => $a['startIdx'] <=> $b['startIdx']);
+
+            $laneEnds = [];
+            foreach ($ranges as &$range) {
+                $placed = false;
+                foreach ($laneEnds as $lane => $laneEnd) {
+                    if ($laneEnd < $range['startIdx']) {
+                        $range['lane'] = $lane;
+                        $laneEnds[$lane] = $range['endIdx'];
+                        $placed = true;
+                        break;
+                    }
+                }
+                if (! $placed) {
+                    $range['lane'] = count($laneEnds);
+                    $laneEnds[] = $range['endIdx'];
+                }
+            }
+            unset($range);
+
+            $result[$catId] = [
+                'notes' => $ranges,
+                'laneCount' => count($laneEnds),
+                'totalDays' => $totalDays,
+            ];
+        }
+
+        return $result;
     }
 
     #[Computed]
@@ -956,6 +1055,20 @@ class CalendarIndex extends Component
         ]);
     }
 
+    public function openCategoryBlock(string $date, int $categoryId): void
+    {
+        $tag = Tag::find($categoryId);
+
+        $this->dispatch('open-block', data: [
+            'date' => $date,
+            'groupId' => $this->group !== '' ? (int) $this->group : null,
+            'userId' => $this->user !== '' ? (int) $this->user : null,
+            'categoryId' => $categoryId,
+            'categorySlug' => $tag?->slug,
+            'categoryName' => $tag?->name,
+        ]);
+    }
+
     #[On('block.submitted')]
     public function onBlockSubmitted(array $data): void
     {
@@ -964,7 +1077,9 @@ class CalendarIndex extends Component
         $selectedMembers = $data['selected_members'] ?? [];
         $userId = $data['userId'] ?? null;
         $type = TrainingProgramBlockTypeEnum::from($data['type'] ?? 'focus');
-        $color = $data['color'] ?? 'amber';
+        $color = $data['color'] ?? null;
+        $categoryId = $data['categoryId'] ?? null;
+        $config = $data['config'] ?? null;
 
         if ($editingBlockId !== null) {
             if ($userId !== null && empty($selectedMembers)) {
@@ -977,36 +1092,32 @@ class CalendarIndex extends Component
                         ->where('type', $existingBlock->type)
                         ->where('start', $existingBlock->start)
                         ->where('note', $existingBlock->note)
+                        ->when($existingBlock->category_id, fn ($q) => $q->where('category_id', $existingBlock->category_id))
                         ->delete();
                 }
             }
         }
 
+        $blockData = [
+            'group_id' => $groupId,
+            'type' => $type,
+            'start' => $data['start'],
+            'end' => $data['end'] ?: null,
+            'note' => $data['note'],
+            'color' => $color ?: null,
+            'category_id' => $categoryId,
+            'config' => $config,
+        ];
+
         if ($userId !== null && empty($selectedMembers)) {
-            TrainingProgramBlock::create([
-                'group_id' => $groupId,
-                'user_id' => $userId,
-                'type' => $type,
-                'start' => $data['start'],
-                'end' => $data['end'] ?: null,
-                'note' => $data['note'],
-                'color' => $color,
-            ]);
+            TrainingProgramBlock::create([...$blockData, 'user_id' => $userId]);
         } else {
             foreach ($selectedMembers as $memberId) {
-                TrainingProgramBlock::create([
-                    'group_id' => $groupId,
-                    'user_id' => $memberId,
-                    'type' => $type,
-                    'start' => $data['start'],
-                    'end' => $data['end'] ?: null,
-                    'note' => $data['note'],
-                    'color' => $color,
-                ]);
+                TrainingProgramBlock::create([...$blockData, 'user_id' => $memberId]);
             }
         }
 
-        unset($this->allBlocks);
+        unset($this->allBlocks, $this->categoryBlocks);
     }
 
     #[On('block.deleted')]
@@ -1034,7 +1145,7 @@ class CalendarIndex extends Component
             }
         }
 
-        unset($this->allBlocks);
+        unset($this->allBlocks, $this->categoryBlocks);
     }
 
     public function openExerciseSettings(int $exerciseId, int $exerciseProgramId, int $trainingProgramId): void
