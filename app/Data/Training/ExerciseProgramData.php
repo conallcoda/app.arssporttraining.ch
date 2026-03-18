@@ -147,7 +147,7 @@ class ExerciseProgramData extends AbstractData implements HasForms
         }
     }
 
-    public static function getForm(): Form
+    public static function getForm(?int $excludeId = null): Form
     {
         return Form::make()
             ->fieldset('General', [
@@ -155,8 +155,8 @@ class ExerciseProgramData extends AbstractData implements HasForms
                 ProgramName::make('name'),
                 ExerciseCategory::make('exercise_category_id')->withOptions(),
                 Exercises::make('exercises')->withOptions(),
-                SelectProgram::make('warm_up_program_id')->label('Warm Up')->withOptions(fn ($q) => $q->whereNull('parent_type')->whereNull('parent_id')),
-                SelectProgram::make('warm_down_program_id')->label('Warm Down')->withOptions(fn ($q) => $q->whereNull('parent_type')->whereNull('parent_id')),
+                SelectProgram::make('warm_up_program_id')->label('Warm Up')->withOptions(fn ($q) => $q->whereNull('parent_type')->whereNull('parent_id')->when($excludeId, fn ($q) => $q->where('id', '!=', $excludeId))),
+                SelectProgram::make('warm_down_program_id')->label('Warm Down')->withOptions(fn ($q) => $q->whereNull('parent_type')->whereNull('parent_id')->when($excludeId, fn ($q) => $q->where('id', '!=', $excludeId))),
                 Fields\Tags::make('internalTags', 'program_internal')->label('Tags')->withOptions()->create(),
             ]);
     }

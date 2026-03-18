@@ -14,6 +14,7 @@ use Coda\Cms\Display\DisplayFields\Text;
 use Coda\Cms\Display\DisplayFields\View;
 use Coda\Cms\Display\Table;
 use Coda\Cms\Display\TableFilter;
+use Coda\Cms\Form\Action;
 use Coda\Cms\Form\Fields\Select;
 use Coda\Cms\Form\Fields\Text as TextField;
 use Coda\Cms\Livewire\AbstractModelList;
@@ -126,5 +127,15 @@ class ExerciseProgramList extends AbstractModelList
                     ),
             ])
             ->limit(100);
+    }
+
+    protected function getAddAction(): ?Action
+    {
+        return parent::getAddAction()?->formComponent('training.exercise-program-form-modal');
+    }
+
+    protected function getEditAction(): Action
+    {
+        return parent::getEditAction()->formComponent('training.exercise-program-form-modal');
     }
 }

@@ -312,10 +312,10 @@ class ProgramEditor extends Component
     {
         return Form::make()
             ->fieldset('Warm Up', [
-                SelectProgram::make('warm_up_program_id')->label('Warm Up')->withOptions(fn ($q) => $q->whereNull('parent_type')->whereNull('parent_id')),
+                SelectProgram::make('warm_up_program_id')->label('Warm Up')->withOptions(fn ($q) => $q->whereNull('parent_type')->whereNull('parent_id')->where('id', '!=', $this->exerciseProgram->id)),
             ])
             ->fieldset('Warm Down', [
-                SelectProgram::make('warm_down_program_id')->label('Warm Down')->withOptions(fn ($q) => $q->whereNull('parent_type')->whereNull('parent_id')),
+                SelectProgram::make('warm_down_program_id')->label('Warm Down')->withOptions(fn ($q) => $q->whereNull('parent_type')->whereNull('parent_id')->where('id', '!=', $this->exerciseProgram->id)),
             ]);
     }
 

@@ -3,7 +3,6 @@
 namespace App\Data\Athlete\Metric;
 
 use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
-use App\Data\Athlete\Metric\Metrics\TargetOneRepMaxMetric;
 use App\Models\Athlete\MetricSubmission;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Form\Concerns\InteractsWithForms;
@@ -85,10 +84,6 @@ class MetricSubmissionData extends AbstractData implements HasForms
     {
         $metric = static::$formMetric ?? MetricEnum::OneRepMax;
         $metricClass = $metric->metricClass();
-
-        if ($metricClass === TargetOneRepMaxMetric::class && static::$formAthleteId) {
-            TargetOneRepMaxMetric::$formAthleteId = static::$formAthleteId;
-        }
 
         return Form::make()
             ->fieldset('Submission', [

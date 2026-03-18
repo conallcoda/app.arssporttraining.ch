@@ -92,10 +92,9 @@
 
     <livewire:training.calendar-exercise-settings-form />
 
-    <livewire:cms.form-modal
+    <livewire:training.exercise-program-form-modal
         name="edit-program"
         :title="__('Edit Exercise Program')"
-        :formDataClass="\App\Data\Training\ExerciseProgramData::class"
         :flyout="true"
         maxWidth="max-w-lg"
         :showDelete="true"

@@ -31,10 +31,4 @@ class MetricSubmissionFactory extends Factory
         ]);
     }
 
-    public function targetOneRepMax(): static
-    {
-        return $this->state(fn (array $attributes) => [
-            'metric' => MetricEnum::TargetOneRepMax,
-        ]);
-    }
 }

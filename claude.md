@@ -16,6 +16,7 @@
 - When i ask you to create a an alpine component, always follow the example in resources/js/alpine/example.js and then import it in resources/js/app.js
 - Never use inline ternary expressions inside Blade directive attributes (e.g. `wire:model{{ $foo ? '.live' : '' }}`). Always use separate `@if`/`@else` blocks with the full element instead.
 - **wire:key for dynamic content**: When a container renders content whose DOM structure can change (e.g. a preview grid, form fieldsets, or any component driven by data/config), the `wire:key` MUST include a content hash like `md5(json_encode($data))` — not just entity IDs. ID-only keys don't change when the underlying data changes, causing Livewire's morph algorithm to fail with "Cannot read properties of null (reading 'before')". See `exercise-form.blade.php` for the canonical pattern: `wire:key="preview-grid-{{ md5(json_encode($data['config'])) }}"`. This applies to any wrapper around grids, tables, or dynamically-structured UI.
+- **Flux select variant**: Always use `variant="listbox"` (or `$this->variant = 'listbox'` in PHP field classes) whenever you need a filterable/searchable select or a clearable select. Never use the `combobox` variant for these cases — combobox initialises with the selected value's label in the search input and immediately client-side filters the option list, making the dropdown appear to show only 1–2 options on first open (correcting itself only after user interaction). Listbox avoids this entirely while still supporting search and clear.
 
 ===
 

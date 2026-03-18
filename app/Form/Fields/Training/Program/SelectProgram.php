@@ -15,6 +15,7 @@ class SelectProgram extends SelectEntity
         $this->placeholder = 'None';
         $this->required = false;
         $this->live = true;
+        $this->variant = 'listbox';
         $this->validationRules = 'nullable|integer|exists:exercise_programs,id';
         $this->default = null;
     }

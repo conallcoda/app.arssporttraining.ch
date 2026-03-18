@@ -213,7 +213,7 @@ class Schedule extends Component
     #[Computed]
     public function formConfig(): Form
     {
-        return ExerciseProgramData::getForm();
+        return ExerciseProgramData::getForm($this->editingProgramId);
     }
 
     #[Computed]

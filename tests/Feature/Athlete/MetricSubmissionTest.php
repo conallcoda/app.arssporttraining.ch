@@ -2,7 +2,6 @@
 
 use App\Data\Athlete\Metric\MetricEnum;
 use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
-use App\Data\Athlete\Metric\Metrics\TargetOneRepMaxMetric;
 use App\Data\Athlete\Metric\MetricSubmissionData;
 use App\Models\Athlete\MetricSubmission;
 use App\Models\Users\User;
@@ -181,107 +180,4 @@ it('provides user metric submissions via relationship', function () {
     ))->persist();
 
     expect($athlete->metricSubmissions)->toHaveCount(2);
-});
-
-it('creates a target one rep max submission', function () {
-    $athlete = User::factory()->athlete()->create();
-
-    $source = (new MetricSubmissionData(
-        user_id: $athlete->id,
-        recorded_at: '2026-03-10',
-        data: new OneRepMaxMetric(measuredReps: 5, measuredWeight: 100),
-    ))->persist();
-
-    $target = (new MetricSubmissionData(
-        user_id: $athlete->id,
-        metric: MetricEnum::TargetOneRepMax,
-        recorded_at: '2026-03-15',
-        data: new TargetOneRepMaxMetric(sourceSubmissionId: $source->id, goalPercent: 10),
-    ))->persist();
-
-    expect($target->metric)->toBe(MetricEnum::TargetOneRepMax);
-
-    $values = $target->values()->pluck('value', 'field')->all();
-    expect($values)->toHaveKey('sourceSubmissionId', (string) $source->id);
-    expect($values)->toHaveKey('goalPercent', '10');
-    expect($values)->toHaveKey('target1RM');
-});
-
-it('calculates target 1RM correctly from source submission', function () {
-    $athlete = User::factory()->athlete()->create();
-
-    $source = (new MetricSubmissionData(
-        user_id: $athlete->id,
-        recorded_at: '2026-03-10',
-        data: new OneRepMaxMetric(measuredReps: 5, measuredWeight: 100),
-    ))->persist();
-
-    $estimated1RM = (float) $source->values()->where('field', 'estimated1RM')->value('value');
-
-    $target = (new MetricSubmissionData(
-        user_id: $athlete->id,
-        metric: MetricEnum::TargetOneRepMax,
-        recorded_at: '2026-03-15',
-        data: new TargetOneRepMaxMetric(sourceSubmissionId: $source->id, goalPercent: 15),
-    ))->persist();
-
-    $expected = OneRepMaxConversion::targetOneRepMax($estimated1RM, 15);
-    $stored = (float) $target->values()->where('field', 'target1RM')->value('value');
-
-    expect($stored)->toBe($expected);
-});
-
-it('hydrates target one rep max from model via fromModel', function () {
-    $athlete = User::factory()->athlete()->create();
-
-    $source = (new MetricSubmissionData(
-        user_id: $athlete->id,
-        recorded_at: '2026-03-10',
-        data: new OneRepMaxMetric(measuredReps: 5, measuredWeight: 100),
-    ))->persist();
-
-    $original = (new MetricSubmissionData(
-        user_id: $athlete->id,
-        metric: MetricEnum::TargetOneRepMax,
-        recorded_at: '2026-03-15',
-        data: new TargetOneRepMaxMetric(sourceSubmissionId: $source->id, goalPercent: 20),
-    ))->persist();
-
-    $original->load('values');
-    $hydrated = MetricSubmissionData::fromModel($original);
-
-    expect($hydrated->metric)->toBe(MetricEnum::TargetOneRepMax);
-    expect($hydrated->data)->toBeInstanceOf(TargetOneRepMaxMetric::class);
-    expect($hydrated->data->sourceSubmissionId)->toBe($source->id);
-    expect($hydrated->data->goalPercent)->toBe(20.0);
-});
-
-it('scopes submissions by metric type', function () {
-    $athlete = User::factory()->athlete()->create();
-
-    $source = (new MetricSubmissionData(
-        user_id: $athlete->id,
-        recorded_at: '2026-03-10',
-        data: new OneRepMaxMetric(measuredReps: 5, measuredWeight: 100),
-    ))->persist();
-
-    (new MetricSubmissionData(
-        user_id: $athlete->id,
-        metric: MetricEnum::TargetOneRepMax,
-        recorded_at: '2026-03-15',
-        data: new TargetOneRepMaxMetric(sourceSubmissionId: $source->id, goalPercent: 10),
-    ))->persist();
-
-    $oneRepMaxResults = MetricSubmission::query()
-        ->forAthlete($athlete->id)
-        ->forMetric(MetricEnum::OneRepMax)
-        ->get();
-
-    $targetResults = MetricSubmission::query()
-        ->forAthlete($athlete->id)
-        ->forMetric(MetricEnum::TargetOneRepMax)
-        ->get();
-
-    expect($oneRepMaxResults)->toHaveCount(1);
-    expect($targetResults)->toHaveCount(1);
 });
