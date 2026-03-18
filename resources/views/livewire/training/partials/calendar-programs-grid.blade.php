@@ -83,17 +83,69 @@
                     : '';
             @endphp
             <tbody x-data="{ expanded: true, programExpanded: {} }" wire:key="category-{{ $categoryId }}">
+                @if (!empty($catBlocks['notes']))
+                    @php
+                        $blockStartMap = [];
+                        foreach ($catBlocks['notes'] as $catBlock) {
+                            $blockStartMap[$catBlock['startIdx']] = $catBlock;
+                        }
+                    @endphp
+                    <tr>
+                        <td @click="expanded = !expanded"
+                            rowspan="2"
+                            class="sticky left-0 z-10 cursor-pointer border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] {{ $categoryColorClass }}">
+                            <div class="flex items-center gap-2">
+                                <flux:icon.chevron-right class="size-4 transition-transform duration-200"
+                                    ::class="expanded && 'rotate-90'" />
+                                <span>{{ $category?->name ?? 'Uncategorized' }}</span>
+                                <span
+                                    class="text-xs font-normal text-zinc-500 dark:text-zinc-200">({{ $groupEntries->count() }})</span>
+                            </div>
+                        </td>
+                        @php $skipUntil = -1; @endphp
+                        @foreach ($this->days as $dayIdx => $day)
+                            @if ($dayIdx <= $skipUntil)
+                                @continue
+                            @endif
+                            @if (isset($blockStartMap[$dayIdx]))
+                                @php
+                                    $block = $blockStartMap[$dayIdx];
+                                    $span = $block['colspan'];
+                                    $skipUntil = $block['endIdx'];
+                                @endphp
+                                @if ($this->user === '')
+                                    <td wire:click="editBlock({{ $block['id'] }})"
+                                        colspan="{{ $span }}"
+                                        class="border-r border-b border-zinc-300 dark:border-zinc-600 px-1 cursor-pointer {{ $categoryBlockBgClass }}"
+                                        style="height: 22px">
+                                        <span class="text-xs font-medium truncate block text-center text-zinc-600 dark:text-zinc-300">{{ $block['note'] }}</span>
+                                    </td>
+                                @else
+                                    <td colspan="{{ $span }}"
+                                        class="border-r border-b border-zinc-300 dark:border-zinc-600 px-1 {{ $categoryBlockBgClass }}"
+                                        style="height: 22px">
+                                        <span class="text-xs font-medium truncate block text-center text-zinc-600 dark:text-zinc-300">{{ $block['note'] }}</span>
+                                    </td>
+                                @endif
+                            @else
+                                <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0" style="height: 22px"></td>
+                            @endif
+                        @endforeach
+                    </tr>
+                @endif
                 <tr>
-                    <td @click="expanded = !expanded"
-                        class="sticky left-0 z-10 cursor-pointer border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] {{ $categoryColorClass }}">
-                        <div class="flex items-center gap-2">
-                            <flux:icon.chevron-right class="size-4 transition-transform duration-200"
-                                ::class="expanded && 'rotate-90'" />
-                            <span>{{ $category?->name ?? 'Uncategorized' }}</span>
-                            <span
-                                class="text-xs font-normal text-zinc-500 dark:text-zinc-200">({{ $groupEntries->count() }})</span>
-                        </div>
-                    </td>
+                    @if (empty($catBlocks['notes']))
+                        <td @click="expanded = !expanded"
+                            class="sticky left-0 z-10 cursor-pointer border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] {{ $categoryColorClass }}">
+                            <div class="flex items-center gap-2">
+                                <flux:icon.chevron-right class="size-4 transition-transform duration-200"
+                                    ::class="expanded && 'rotate-90'" />
+                                <span>{{ $category?->name ?? 'Uncategorized' }}</span>
+                                <span
+                                    class="text-xs font-normal text-zinc-500 dark:text-zinc-200">({{ $groupEntries->count() }})</span>
+                            </div>
+                        </td>
+                    @endif
                     @foreach ($this->days as $dayIdx => $day)
                         @php
                             $daySlotCount = 0;
