@@ -25,6 +25,7 @@
                         <flux:radio.group wire:model.live="view" variant="segmented" size="sm">
                             <flux:radio value="overview" :label="__('Overview')" />
                             <flux:radio value="schedule" :label="__('Schedule')" />
+                            <flux:radio value="plan" :label="__('Plan')" />
                         </flux:radio.group>
                     @endif
                 </div>
@@ -36,7 +37,55 @@
                         </div>
                     @endif
 
-                    @if ($view === 'schedule')
+                    @if ($view === 'plan')
+                        <div class="px-4 py-2 flex items-center gap-4">
+                            <flux:field class="min-w-[180px]">
+                                <flux:label>{{ __('Category') }}</flux:label>
+                                <flux:select variant="listbox" searchable size="sm" wire:model.live="planCategory">
+                                    @foreach ($this->planCategoryOptions as $id => $name)
+                                        <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
+                                    @endforeach
+                                </flux:select>
+                            </flux:field>
+                            <flux:field class="min-w-[180px]">
+                                <flux:label>{{ __('Block') }}</flux:label>
+                                <flux:select variant="listbox" searchable size="sm" wire:model.live="planBlock">
+                                    @foreach ($this->planBlockOptions as $id => $name)
+                                        <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
+                                    @endforeach
+                                </flux:select>
+                            </flux:field>
+                            <flux:field class="min-w-[180px]">
+                                <flux:label>{{ __('Program') }}</flux:label>
+                                <flux:select variant="listbox" searchable size="sm" wire:model.live="planProgram">
+                                    @foreach ($this->planProgramOptions as $id => $name)
+                                        <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
+                                    @endforeach
+                                </flux:select>
+                            </flux:field>
+                        </div>
+
+                        @if ($this->planSelectedProgram)
+                            @if ($this->planScheduleInfo['scheduled'])
+                                <div class="px-4 py-4">
+                                    <livewire:training.view.program-editor
+                                        :key="'plan-editor-' . $this->planSelectedProgram->id . '-' . $this->planScheduleInfo['weeks']"
+                                        :exerciseProgram="$this->planSelectedProgram->program"
+                                        :planId="$this->planSelectedProgram->program->id"
+                                        :userId="$user !== '' ? (int) $user : null"
+                                        :showWeeksInput="false"
+                                        :weeks="$this->planScheduleInfo['weeks']"
+                                        :sessionsPerWeek="$this->planScheduleInfo['sessionsPerWeek']"
+                                    />
+                                </div>
+                            @else
+                                <div class="flex flex-col items-center justify-center py-20 text-center">
+                                    <flux:icon.calendar class="size-10 text-zinc-300 dark:text-zinc-600 mb-3" />
+                                    <flux:heading size="lg" class="text-zinc-500 dark:text-zinc-400">{{ __('No sessions scheduled for this program') }}</flux:heading>
+                                </div>
+                            @endif
+                        @endif
+                    @elseif ($view === 'schedule')
                         <div class="px-4 py-2 flex items-center gap-4">
                             <flux:radio.group wire:model.live="weekEditMode" variant="segmented" size="sm">
                                 <flux:radio value="view" :label="__('View')" />

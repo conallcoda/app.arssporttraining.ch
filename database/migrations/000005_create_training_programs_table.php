@@ -32,7 +32,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('owner_id')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('group_id')->constrained('user_groups')->cascadeOnDelete();
-            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('user_id')->nullable()->constrained('users')->cascadeOnDelete();
             $table->foreignId('category_id')->nullable()->constrained('tags')->nullOnDelete();
             $table->string('type');
             $table->date('start');

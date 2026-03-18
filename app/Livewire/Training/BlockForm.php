@@ -131,7 +131,7 @@ class BlockForm extends FormModal
         $this->members = [];
         $this->selectedMembers = [];
 
-        if ($this->groupId === null || $this->userId !== null) {
+        if ($this->groupId === null || $this->userId !== null || $this->categoryId !== null) {
             return;
         }
 

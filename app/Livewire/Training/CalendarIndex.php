@@ -43,7 +43,7 @@ class CalendarIndex extends Component
     #[Url(except: '')]
     public string $end = '';
 
-    #[Url(except: 'overview')]
+    #[Url(except: 'overview', history: true)]
     public string $view = 'overview';
 
     #[Url(except: '')]
@@ -51,6 +51,15 @@ class CalendarIndex extends Component
 
     #[Url(except: '')]
     public string $user = '';
+
+    #[Url(except: '')]
+    public string $planCategory = '';
+
+    #[Url(except: 'all')]
+    public string $planBlock = 'all';
+
+    #[Url(except: '')]
+    public string $planProgram = '';
 
     public CalendarSettingsData $calendarSettings;
 
@@ -90,6 +99,77 @@ class CalendarIndex extends Component
     public function updatedView(): void
     {
         unset($this->weekGridData);
+        if ($this->view !== 'plan') {
+            $this->planCategory = '';
+            $this->planBlock = 'all';
+            $this->planProgram = '';
+        }
+    }
+
+    public function updatedPlanCategory(): void
+    {
+        $this->planBlock = 'all';
+        $this->selectOverlappingBlock();
+        $this->planProgram = '';
+        $options = $this->planProgramOptions;
+        if ($options->isNotEmpty()) {
+            $this->planProgram = (string) $options->keys()->first();
+        }
+    }
+
+    public function updatedPlanBlock(): void
+    {
+        $this->planProgram = '';
+        $options = $this->planProgramOptions;
+        if ($options->isNotEmpty()) {
+            $this->planProgram = (string) $options->keys()->first();
+        }
+    }
+
+    public function navigateToPlan(int $trainingProgramId): void
+    {
+        $trainingProgram = TrainingProgram::with('program.exerciseCategory')->find($trainingProgramId);
+        if (! $trainingProgram) {
+            return;
+        }
+
+        $this->view = 'plan';
+        $this->planCategory = (string) ($trainingProgram->program->exercise_category_id ?? 0);
+        $this->planBlock = 'all';
+        $this->planProgram = (string) $trainingProgramId;
+
+        $this->selectOverlappingBlock();
+
+        unset($this->weekGridData);
+    }
+
+    protected function selectOverlappingBlock(): void
+    {
+        $categoryId = (int) $this->planCategory;
+        if ($categoryId === 0 || $this->group === '') {
+            return;
+        }
+
+        $today = Carbon::today();
+
+        $blocks = TrainingProgramBlock::query()
+            ->where('group_id', (int) $this->group)
+            ->where('category_id', $categoryId)
+            ->where('type', TrainingProgramBlockTypeEnum::Category)
+            ->orderBy('start')
+            ->get();
+
+        if ($blocks->isEmpty()) {
+            return;
+        }
+
+        $overlapping = $blocks->first(function ($block) use ($today) {
+            $end = $block->end ?? $block->start;
+
+            return $block->start->lte($today) && $end->gte($today);
+        });
+
+        $this->planBlock = (string) ($overlapping?->id ?? $blocks->first()->id);
     }
 
     public function openCalendarRange(): void
@@ -115,6 +195,10 @@ class CalendarIndex extends Component
     {
         $this->group = '';
         $this->user = '';
+        $this->view = 'overview';
+        $this->planCategory = '';
+        $this->planBlock = 'all';
+        $this->planProgram = '';
 
         if (count($selected) === 0) {
             return;
@@ -128,7 +212,6 @@ class CalendarIndex extends Component
         }
 
         unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData, $this->allBlocks, $this->categoryBlocks);
-
     }
 
     #[Computed]
@@ -241,6 +324,154 @@ class CalendarIndex extends Component
                 'entries' => $entries,
             ];
         });
+    }
+
+    #[Computed]
+    public function planCategoryOptions(): Collection
+    {
+        $grouped = $this->groupedPrograms;
+
+        $options = $grouped->mapWithKeys(function (array $group, int $categoryId) {
+            $name = $group['category']?->name ?? __('Uncategorized');
+
+            return [$categoryId => $name];
+        });
+
+        if ($options->isNotEmpty() && $this->planCategory === '') {
+            $this->planCategory = (string) $options->keys()->first();
+        }
+
+        return $options;
+    }
+
+    #[Computed]
+    public function planBlockOptions(): Collection
+    {
+        $options = collect(['all' => __('All')]);
+
+        if ($this->planCategory === '' || $this->group === '') {
+            return $options;
+        }
+
+        $categoryId = (int) $this->planCategory;
+        if ($categoryId === 0) {
+            return $options;
+        }
+
+        $blocks = TrainingProgramBlock::query()
+            ->where('group_id', (int) $this->group)
+            ->where('category_id', $categoryId)
+            ->where('type', TrainingProgramBlockTypeEnum::Category)
+            ->orderBy('start')
+            ->get();
+
+        foreach ($blocks as $block) {
+            $label = $block->note ?: $block->start->format('M d').($block->end ? ' - '.$block->end->format('M d') : '');
+            $options[$block->id] = $label;
+        }
+
+        return $options;
+    }
+
+    #[Computed]
+    public function planProgramOptions(): Collection
+    {
+        if ($this->planCategory === '') {
+            return collect();
+        }
+
+        $categoryId = (int) $this->planCategory;
+        $entries = $this->programs->filter(function (TrainingProgram $entry) use ($categoryId) {
+            return ($entry->program->exercise_category_id ?? 0) === $categoryId;
+        });
+
+        if ($this->planBlock !== 'all') {
+            $block = TrainingProgramBlock::find((int) $this->planBlock);
+            if ($block) {
+                $blockStart = $block->start->startOfDay();
+                $blockEnd = ($block->end ?? $block->start)->endOfDay();
+                $programIds = $entries->pluck('id');
+
+                $scheduledIds = TrainingProgramSlot::query()
+                    ->whereIn('training_program_id', $programIds)
+                    ->whereBetween('datetime', [$blockStart, $blockEnd])
+                    ->distinct()
+                    ->pluck('training_program_id');
+
+                $entries = $entries->whereIn('id', $scheduledIds);
+            }
+        }
+
+        $options = $entries->mapWithKeys(fn (TrainingProgram $entry) => [
+            $entry->id => $entry->program->name,
+        ]);
+
+        if ($options->isNotEmpty() && ($this->planProgram === '' || ! $options->has((int) $this->planProgram))) {
+            $this->planProgram = (string) $options->keys()->first();
+        }
+
+        return $options;
+    }
+
+    #[Computed]
+    public function planSelectedProgram(): ?TrainingProgram
+    {
+        if ($this->planProgram === '') {
+            return null;
+        }
+
+        return TrainingProgram::with('program.exerciseCategory', 'program.exercises')
+            ->find((int) $this->planProgram);
+    }
+
+    #[Computed]
+    public function planScheduleInfo(): array
+    {
+        if ($this->planProgram === '') {
+            return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false];
+        }
+
+        $slotQuery = TrainingProgramSlot::query()
+            ->where('training_program_id', (int) $this->planProgram);
+
+        if ($this->user !== '') {
+            $slotQuery->where('user_id', (int) $this->user);
+        }
+
+        if ($this->planBlock !== 'all') {
+            $block = TrainingProgramBlock::find((int) $this->planBlock);
+            if ($block) {
+                $slotQuery->whereBetween('datetime', [
+                    $block->start->startOfDay(),
+                    ($block->end ?? $block->start)->endOfDay(),
+                ]);
+            }
+        }
+
+        $slotDates = $slotQuery->pluck('datetime')
+            ->map(fn ($dt) => Carbon::parse($dt)->format('Y-m-d'))
+            ->unique()
+            ->sort()
+            ->values();
+
+        $scheduledWeeks = [];
+        foreach ($slotDates as $date) {
+            $isoWeek = Carbon::parse($date)->isoWeek();
+            if (! in_array($isoWeek, $scheduledWeeks, true)) {
+                $scheduledWeeks[] = $isoWeek;
+            }
+        }
+
+        $weeks = count($scheduledWeeks);
+        if ($weeks === 0) {
+            return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false];
+        }
+
+        $weekSlotCounts = $slotDates->groupBy(fn ($date) => Carbon::parse($date)->isoWeek())
+            ->map->count();
+        $sessionsPerWeek = max(1, (int) $weekSlotCounts->max());
+
+        return ['weeks' => $weeks, 'sessionsPerWeek' => $sessionsPerWeek, 'scheduled' => true];
     }
 
     #[Computed]
@@ -529,6 +760,7 @@ class CalendarIndex extends Component
         $query = TrainingProgramBlock::query()
             ->where('group_id', $groupId)
             ->whereNotNull('category_id')
+            ->whereNull('user_id')
             ->where('type', TrainingProgramBlockTypeEnum::Category)
             ->where(function ($q) use ($start, $end) {
                 $q->where(function ($q2) use ($start, $end) {
@@ -539,10 +771,6 @@ class CalendarIndex extends Component
                         });
                 })->orWhereBetween('start', [$start->format('Y-m-d'), $end->format('Y-m-d')]);
             });
-
-        if ($this->user !== '') {
-            $query->where('user_id', (int) $this->user);
-        }
 
         $blocks = $query->get();
         $byCat = $blocks->groupBy('category_id');
@@ -1048,10 +1276,13 @@ class CalendarIndex extends Component
 
     public function editBlock(int $blockId): void
     {
+        $block = TrainingProgramBlock::find($blockId);
+        $isCategoryBlock = $block && $block->category_id !== null;
+
         $this->dispatch('open-block', data: [
             'blockId' => $blockId,
             'groupId' => $this->group !== '' ? (int) $this->group : null,
-            'userId' => $this->user !== '' ? (int) $this->user : null,
+            'userId' => $isCategoryBlock ? null : ($this->user !== '' ? (int) $this->user : null),
         ]);
     }
 
@@ -1062,7 +1293,6 @@ class CalendarIndex extends Component
         $this->dispatch('open-block', data: [
             'date' => $date,
             'groupId' => $this->group !== '' ? (int) $this->group : null,
-            'userId' => $this->user !== '' ? (int) $this->user : null,
             'categoryId' => $categoryId,
             'categorySlug' => $tag?->slug,
             'categoryName' => $tag?->name,
@@ -1080,9 +1310,12 @@ class CalendarIndex extends Component
         $color = $data['color'] ?? null;
         $categoryId = $data['categoryId'] ?? null;
         $config = $data['config'] ?? null;
+        $isCategoryBlock = $categoryId !== null;
 
         if ($editingBlockId !== null) {
-            if ($userId !== null && empty($selectedMembers)) {
+            if ($isCategoryBlock) {
+                TrainingProgramBlock::destroy($editingBlockId);
+            } elseif ($userId !== null && empty($selectedMembers)) {
                 TrainingProgramBlock::destroy($editingBlockId);
             } else {
                 $existingBlock = TrainingProgramBlock::find($editingBlockId);
@@ -1092,7 +1325,6 @@ class CalendarIndex extends Component
                         ->where('type', $existingBlock->type)
                         ->where('start', $existingBlock->start)
                         ->where('note', $existingBlock->note)
-                        ->when($existingBlock->category_id, fn ($q) => $q->where('category_id', $existingBlock->category_id))
                         ->delete();
                 }
             }
@@ -1109,7 +1341,9 @@ class CalendarIndex extends Component
             'config' => $config,
         ];
 
-        if ($userId !== null && empty($selectedMembers)) {
+        if ($isCategoryBlock) {
+            TrainingProgramBlock::create([...$blockData, 'user_id' => null]);
+        } elseif ($userId !== null && empty($selectedMembers)) {
             TrainingProgramBlock::create([...$blockData, 'user_id' => $userId]);
         } else {
             foreach ($selectedMembers as $memberId) {
@@ -1131,18 +1365,22 @@ class CalendarIndex extends Component
             return;
         }
 
-        if ($userId !== null) {
+        $existingBlock = TrainingProgramBlock::find($editingBlockId);
+        if (! $existingBlock) {
+            return;
+        }
+
+        if ($existingBlock->category_id !== null) {
+            TrainingProgramBlock::destroy($editingBlockId);
+        } elseif ($userId !== null) {
             TrainingProgramBlock::destroy($editingBlockId);
         } else {
-            $existingBlock = TrainingProgramBlock::find($editingBlockId);
-            if ($existingBlock) {
-                TrainingProgramBlock::query()
-                    ->where('group_id', $groupId)
-                    ->where('type', $existingBlock->type)
-                    ->where('start', $existingBlock->start)
-                    ->where('note', $existingBlock->note)
-                    ->delete();
-            }
+            TrainingProgramBlock::query()
+                ->where('group_id', $groupId)
+                ->where('type', $existingBlock->type)
+                ->where('start', $existingBlock->start)
+                ->where('note', $existingBlock->note)
+                ->delete();
         }
 
         unset($this->allBlocks, $this->categoryBlocks);

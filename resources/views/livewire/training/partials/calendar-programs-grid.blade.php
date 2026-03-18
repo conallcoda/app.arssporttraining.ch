@@ -115,22 +115,39 @@
                         style="height: {{ max(1, $catBlocks['laneCount']) * 28 + 8 }}px">
                         <div class="absolute inset-0 flex">
                             @foreach ($this->days as $dayIdx => $day)
-                                <div wire:click="openCategoryBlock('{{ $day['date'] }}', {{ $categoryId }})"
-                                     wire:key="cat-block-bg-{{ $categoryId }}-{{ $dayIdx }}"
-                                     class="flex-1 cursor-pointer h-full border-r border-zinc-300 dark:border-zinc-600 last:border-r-0 {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}">
-                                </div>
+                                @if ($this->user === '')
+                                    <div wire:click="openCategoryBlock('{{ $day['date'] }}', {{ $categoryId }})"
+                                         wire:key="cat-block-bg-{{ $categoryId }}-{{ $dayIdx }}"
+                                         class="flex-1 cursor-pointer h-full border-r border-zinc-300 dark:border-zinc-600 last:border-r-0 {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}">
+                                    </div>
+                                @else
+                                    <div wire:key="cat-block-bg-{{ $categoryId }}-{{ $dayIdx }}"
+                                         class="flex-1 h-full border-r border-zinc-300 dark:border-zinc-600 last:border-r-0 {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}">
+                                    </div>
+                                @endif
                             @endforeach
                         </div>
                         @foreach ($catBlocks['notes'] as $catBlock)
-                            <div wire:click.stop="editBlock({{ $catBlock['id'] }})"
-                                 wire:key="cat-block-{{ $categoryId }}-{{ $catBlock['id'] }}"
-                                 class="absolute cursor-pointer z-10 px-0.5"
-                                 style="left: {{ ($catBlock['startIdx'] / $catBlocks['totalDays']) * 100 }}%; width: {{ ($catBlock['colspan'] / $catBlocks['totalDays']) * 100 }}%; top: {{ $catBlock['lane'] * 28 + 4 }}px; height: 24px;">
-                                <div class="rounded-sm flex items-center justify-center h-full px-1"
-                                     style="{{ \Coda\Cms\Support\ColorPalette::solid($category?->color ?? 'zinc') }}">
-                                    <span class="text-xs font-medium text-white truncate">{{ $catBlock['note'] }}</span>
+                            @if ($this->user === '')
+                                <div wire:click.stop="editBlock({{ $catBlock['id'] }})"
+                                     wire:key="cat-block-{{ $categoryId }}-{{ $catBlock['id'] }}"
+                                     class="absolute cursor-pointer z-10 px-0.5"
+                                     style="left: {{ ($catBlock['startIdx'] / $catBlocks['totalDays']) * 100 }}%; width: {{ ($catBlock['colspan'] / $catBlocks['totalDays']) * 100 }}%; top: {{ $catBlock['lane'] * 28 + 4 }}px; height: 24px;">
+                                    <div class="rounded-sm flex items-center justify-center h-full px-1"
+                                         style="{{ \Coda\Cms\Support\ColorPalette::solid($category?->color ?? 'zinc') }}">
+                                        <span class="text-xs font-medium text-white truncate">{{ $catBlock['note'] }}</span>
+                                    </div>
                                 </div>
-                            </div>
+                            @else
+                                <div wire:key="cat-block-{{ $categoryId }}-{{ $catBlock['id'] }}"
+                                     class="absolute z-10 px-0.5"
+                                     style="left: {{ ($catBlock['startIdx'] / $catBlocks['totalDays']) * 100 }}%; width: {{ ($catBlock['colspan'] / $catBlocks['totalDays']) * 100 }}%; top: {{ $catBlock['lane'] * 28 + 4 }}px; height: 24px;">
+                                    <div class="rounded-sm flex items-center justify-center h-full px-1"
+                                         style="{{ \Coda\Cms\Support\ColorPalette::solid($category?->color ?? 'zinc') }}">
+                                        <span class="text-xs font-medium text-white truncate">{{ $catBlock['note'] }}</span>
+                                    </div>
+                                </div>
+                            @endif
                         @endforeach
                     </td>
                 </tr>
@@ -157,7 +174,7 @@
                                     <span class="w-2 h-2 rounded-full shrink-0"
                                         style="{{ \Coda\Cms\Support\ColorPalette::solid($categoryColor) }}"></span>
                                 @endif
-                                <button type="button" wire:click="openEditProgram({{ $entry->id }})"
+                                <button type="button" wire:click="navigateToPlan({{ $entry->id }})"
                                     class="text-left hover:underline">
                                     {{ $entry->program->name }}
                                 </button>
