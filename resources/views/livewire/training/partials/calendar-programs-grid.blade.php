@@ -70,10 +70,22 @@
                     ? \Coda\Cms\Support\ColorPalette::solidClasses($category->color)
                     : 'bg-zinc-100 dark:bg-zinc-800';
             @endphp
+            @php
+                $catBlocks = $this->categoryBlocks[$categoryId] ?? ['notes' => [], 'laneCount' => 0, 'totalDays' => count($this->days)];
+                $blockDayMap = [];
+                foreach ($catBlocks['notes'] as $catBlock) {
+                    for ($di = $catBlock['startIdx']; $di <= $catBlock['endIdx']; $di++) {
+                        $blockDayMap[$di] = ['id' => $catBlock['id'], 'note' => $catBlock['note']];
+                    }
+                }
+                $categoryBlockBgClass = $category?->color
+                    ? \Coda\Cms\Support\ColorPalette::light($category->color)
+                    : '';
+            @endphp
             <tbody x-data="{ expanded: true, programExpanded: {} }" wire:key="category-{{ $categoryId }}">
-                <tr class="cursor-pointer" @click="expanded = !expanded">
-                    <td
-                        class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] {{ $categoryColorClass }}">
+                <tr>
+                    <td @click="expanded = !expanded"
+                        class="sticky left-0 z-10 cursor-pointer border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] {{ $categoryColorClass }}">
                         <div class="flex items-center gap-2">
                             <flux:icon.chevron-right class="size-4 transition-transform duration-200"
                                 ::class="expanded && 'rotate-90'" />
@@ -82,7 +94,7 @@
                                 class="text-xs font-normal text-zinc-500 dark:text-zinc-200">({{ $groupEntries->count() }})</span>
                         </div>
                     </td>
-                    @foreach ($this->days as $day)
+                    @foreach ($this->days as $dayIdx => $day)
                         @php
                             $daySlotCount = 0;
                             foreach ($groupEntries as $ge) {
@@ -91,65 +103,32 @@
                                     $daySlotCount++;
                                 }
                             }
+                            $inBlock = isset($blockDayMap[$dayIdx]);
+                            $blockId = $inBlock ? $blockDayMap[$dayIdx]['id'] : null;
+                            $blockNote = $inBlock ? $blockDayMap[$dayIdx]['note'] : null;
+                            $bgClass = $inBlock ? $categoryBlockBgClass : ($day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '');
                         @endphp
-                        @if ($daySlotCount > 0)
-                            <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1">
-                                <div class="aspect-square rounded-sm {{ $categoryColorClass }}">
-                                </div>
+                        @if ($this->user === '')
+                            <td wire:click="{{ $inBlock ? 'editBlock(' . $blockId . ')' : 'openCategoryBlock(\'' . $day['date'] . '\', ' . $categoryId . ')' }}"
+                                @if ($inBlock) title="{{ $blockNote }}" @endif
+                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 cursor-pointer {{ $bgClass }}">
+                                @if ($daySlotCount > 0)
+                                    <div class="aspect-square rounded-sm {{ $categoryColorClass }}"></div>
+                                @else
+                                    <div class="aspect-square"></div>
+                                @endif
                             </td>
                         @else
-                            <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0">
-                                <div class="aspect-square"></div>
+                            <td @if ($inBlock) title="{{ $blockNote }}" @endif
+                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 {{ $bgClass }}">
+                                @if ($daySlotCount > 0)
+                                    <div class="aspect-square rounded-sm {{ $categoryColorClass }}"></div>
+                                @else
+                                    <div class="aspect-square"></div>
+                                @endif
                             </td>
                         @endif
                     @endforeach
-                </tr>
-
-                @php $catBlocks = $this->categoryBlocks[$categoryId] ?? ['notes' => [], 'laneCount' => 0, 'totalDays' => count($this->days)]; @endphp
-                <tr x-show="expanded" x-cloak>
-                    <td class="sticky left-0 z-20 bg-zinc-100 dark:bg-zinc-800 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-1 min-w-[180px] text-xs font-medium text-zinc-500 dark:text-zinc-400 pl-7">
-                        {{ __('Blocks') }}
-                    </td>
-                    <td colspan="{{ count($this->days) }}"
-                        class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 relative"
-                        style="height: {{ max(1, $catBlocks['laneCount']) * 28 + 8 }}px">
-                        <div class="absolute inset-0 flex">
-                            @foreach ($this->days as $dayIdx => $day)
-                                @if ($this->user === '')
-                                    <div wire:click="openCategoryBlock('{{ $day['date'] }}', {{ $categoryId }})"
-                                         wire:key="cat-block-bg-{{ $categoryId }}-{{ $dayIdx }}"
-                                         class="flex-1 cursor-pointer h-full border-r border-zinc-300 dark:border-zinc-600 last:border-r-0 {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}">
-                                    </div>
-                                @else
-                                    <div wire:key="cat-block-bg-{{ $categoryId }}-{{ $dayIdx }}"
-                                         class="flex-1 h-full border-r border-zinc-300 dark:border-zinc-600 last:border-r-0 {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}">
-                                    </div>
-                                @endif
-                            @endforeach
-                        </div>
-                        @foreach ($catBlocks['notes'] as $catBlock)
-                            @if ($this->user === '')
-                                <div wire:click.stop="editBlock({{ $catBlock['id'] }})"
-                                     wire:key="cat-block-{{ $categoryId }}-{{ $catBlock['id'] }}"
-                                     class="absolute cursor-pointer z-10 px-0.5"
-                                     style="left: {{ ($catBlock['startIdx'] / $catBlocks['totalDays']) * 100 }}%; width: {{ ($catBlock['colspan'] / $catBlocks['totalDays']) * 100 }}%; top: {{ $catBlock['lane'] * 28 + 4 }}px; height: 24px;">
-                                    <div class="rounded-sm flex items-center justify-center h-full px-1"
-                                         style="{{ \Coda\Cms\Support\ColorPalette::solid($category?->color ?? 'zinc') }}">
-                                        <span class="text-xs font-medium text-white truncate">{{ $catBlock['note'] }}</span>
-                                    </div>
-                                </div>
-                            @else
-                                <div wire:key="cat-block-{{ $categoryId }}-{{ $catBlock['id'] }}"
-                                     class="absolute z-10 px-0.5"
-                                     style="left: {{ ($catBlock['startIdx'] / $catBlocks['totalDays']) * 100 }}%; width: {{ ($catBlock['colspan'] / $catBlocks['totalDays']) * 100 }}%; top: {{ $catBlock['lane'] * 28 + 4 }}px; height: 24px;">
-                                    <div class="rounded-sm flex items-center justify-center h-full px-1"
-                                         style="{{ \Coda\Cms\Support\ColorPalette::solid($category?->color ?? 'zinc') }}">
-                                        <span class="text-xs font-medium text-white truncate">{{ $catBlock['note'] }}</span>
-                                    </div>
-                                </div>
-                            @endif
-                        @endforeach
-                    </td>
                 </tr>
 
                 @foreach ($groupEntries as $entry)
@@ -187,14 +166,18 @@
                                 </div>
                             @endif
                         </td>
-                        @foreach ($this->days as $day)
+                        @foreach ($this->days as $dayIdx => $day)
                             @php
                                 $dateKey = $entry->id . '-' . $day['date'];
                                 $slotTimes = $this->programCellSlots[$dateKey] ?? null;
                                 $slotCount = $slotTimes !== null ? count($slotTimes) : 0;
+                                $programInBlock = isset($blockDayMap[$dayIdx]);
+                                $programBlockNote = $programInBlock ? $blockDayMap[$dayIdx]['note'] : null;
+                                $programBgClass = $programInBlock ? $categoryBlockBgClass : ($day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '');
                             @endphp
                             @if ($slotCount > 0)
-                                <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1">
+                                <td @if ($programInBlock) title="{{ $programBlockNote }}" @endif
+                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 {{ $programBgClass }}">
                                     <flux:dropdown position="bottom center">
                                         <button type="button"
                                             class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm cursor-pointer {{ $colorClass ?: 'bg-emerald-400/80 dark:bg-emerald-500/60' }}">
@@ -226,7 +209,8 @@
                                 </td>
                             @else
                                 <td wire:click="openProgramSlot({{ $entry->id }}, '{{ $day['date'] }}')"
-                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}">
+                                    @if ($programInBlock) title="{{ $programBlockNote }}" @endif
+                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer {{ $programBgClass }}">
                                     <div class="aspect-square"></div>
                                 </td>
                             @endif
