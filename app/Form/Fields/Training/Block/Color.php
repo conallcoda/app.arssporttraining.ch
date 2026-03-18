@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Form\Fields\Training\Note;
+namespace App\Form\Fields\Training\Block;
 
 use Coda\Cms\Form\Fields\Select;
 use Coda\Cms\Support\ColorPalette;

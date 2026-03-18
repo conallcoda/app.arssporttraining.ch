@@ -10,8 +10,8 @@ use App\Data\Training\ExerciseProgramData;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Training\TrainingProgram;
-use App\Models\Training\TrainingProgramNote;
-use App\Models\Training\TrainingProgramNoteTypeEnum;
+use App\Models\Training\TrainingProgramBlock;
+use App\Models\Training\TrainingProgramBlockTypeEnum;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
@@ -106,7 +106,7 @@ class CalendarIndex extends Component
         $this->start = $this->calendarSettings->start ?? '';
         $this->end = $this->calendarSettings->end ?? '';
 
-        unset($this->days, $this->weeks, $this->months, $this->title, $this->weekGridData, $this->overviewData, $this->allNotes);
+        unset($this->days, $this->weeks, $this->months, $this->title, $this->weekGridData, $this->overviewData, $this->allBlocks);
     }
 
     #[On('sidebar-selection-changed')]
@@ -126,7 +126,7 @@ class CalendarIndex extends Component
             $this->user = (string) $first['user'];
         }
 
-        unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData, $this->allNotes);
+        unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData, $this->allBlocks);
 
     }
 
@@ -411,7 +411,7 @@ class CalendarIndex extends Component
     }
 
     #[Computed]
-    public function allNotes(): array
+    public function allBlocks(): array
     {
         $days = $this->days;
         $totalDays = count($days);
@@ -429,7 +429,7 @@ class CalendarIndex extends Component
             $dayIndex[$day['date']] = $i;
         }
 
-        $query = TrainingProgramNote::query()
+        $query = TrainingProgramBlock::query()
             ->where('group_id', $groupId)
             ->where(function ($q) use ($start, $end) {
                 $q->where(function ($q2) use ($start, $end) {
@@ -478,7 +478,7 @@ class CalendarIndex extends Component
             ];
         }
 
-        $typeOrder = array_flip(array_map(fn ($case) => $case->value, TrainingProgramNoteTypeEnum::cases()));
+        $typeOrder = array_flip(array_map(fn ($case) => $case->value, TrainingProgramBlockTypeEnum::cases()));
         usort($noteRanges, fn ($a, $b) => ($typeOrder[$a['type']] ?? 0) <=> ($typeOrder[$b['type']] ?? 0) ?: $a['startIdx'] <=> $b['startIdx']);
 
         $laneEnds = [];
@@ -938,52 +938,52 @@ class CalendarIndex extends Component
         unset($this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData);
     }
 
-    public function openFocusNote(string $date): void
+    public function openBlock(string $date): void
     {
-        $this->dispatch('open-focus-note', data: [
+        $this->dispatch('open-block', data: [
             'date' => $date,
             'groupId' => $this->group !== '' ? (int) $this->group : null,
             'userId' => $this->user !== '' ? (int) $this->user : null,
         ]);
     }
 
-    public function editFocusNote(int $noteId): void
+    public function editBlock(int $blockId): void
     {
-        $this->dispatch('open-focus-note', data: [
-            'noteId' => $noteId,
+        $this->dispatch('open-block', data: [
+            'blockId' => $blockId,
             'groupId' => $this->group !== '' ? (int) $this->group : null,
             'userId' => $this->user !== '' ? (int) $this->user : null,
         ]);
     }
 
-    #[On('focus-note.submitted')]
-    public function onFocusNoteSubmitted(array $data): void
+    #[On('block.submitted')]
+    public function onBlockSubmitted(array $data): void
     {
         $groupId = $data['groupId'];
-        $editingNoteId = $data['editing_note_id'] ?? null;
+        $editingBlockId = $data['editing_block_id'] ?? null;
         $selectedMembers = $data['selected_members'] ?? [];
         $userId = $data['userId'] ?? null;
-        $type = TrainingProgramNoteTypeEnum::from($data['type'] ?? 'focus');
+        $type = TrainingProgramBlockTypeEnum::from($data['type'] ?? 'focus');
         $color = $data['color'] ?? 'amber';
 
-        if ($editingNoteId !== null) {
+        if ($editingBlockId !== null) {
             if ($userId !== null && empty($selectedMembers)) {
-                TrainingProgramNote::destroy($editingNoteId);
+                TrainingProgramBlock::destroy($editingBlockId);
             } else {
-                $existingNote = TrainingProgramNote::find($editingNoteId);
-                if ($existingNote) {
-                    TrainingProgramNote::query()
+                $existingBlock = TrainingProgramBlock::find($editingBlockId);
+                if ($existingBlock) {
+                    TrainingProgramBlock::query()
                         ->where('group_id', $groupId)
-                        ->where('type', $existingNote->type)
-                        ->where('start', $existingNote->start)
-                        ->where('note', $existingNote->note)
+                        ->where('type', $existingBlock->type)
+                        ->where('start', $existingBlock->start)
+                        ->where('note', $existingBlock->note)
                         ->delete();
                 }
             }
         }
 
         if ($userId !== null && empty($selectedMembers)) {
-            TrainingProgramNote::create([
+            TrainingProgramBlock::create([
                 'group_id' => $groupId,
                 'user_id' => $userId,
                 'type' => $type,
@@ -994,7 +994,7 @@ class CalendarIndex extends Component
             ]);
         } else {
             foreach ($selectedMembers as $memberId) {
-                TrainingProgramNote::create([
+                TrainingProgramBlock::create([
                     'group_id' => $groupId,
                     'user_id' => $memberId,
                     'type' => $type,
@@ -1006,35 +1006,35 @@ class CalendarIndex extends Component
             }
         }
 
-        unset($this->allNotes);
+        unset($this->allBlocks);
     }
 
-    #[On('focus-note.deleted')]
-    public function onFocusNoteDeleted(array $data): void
+    #[On('block.deleted')]
+    public function onBlockDeleted(array $data): void
     {
-        $editingNoteId = $data['editing_note_id'] ?? null;
+        $editingBlockId = $data['editing_block_id'] ?? null;
         $groupId = $data['groupId'];
         $userId = $data['userId'] ?? null;
 
-        if ($editingNoteId === null) {
+        if ($editingBlockId === null) {
             return;
         }
 
         if ($userId !== null) {
-            TrainingProgramNote::destroy($editingNoteId);
+            TrainingProgramBlock::destroy($editingBlockId);
         } else {
-            $existingNote = TrainingProgramNote::find($editingNoteId);
-            if ($existingNote) {
-                TrainingProgramNote::query()
+            $existingBlock = TrainingProgramBlock::find($editingBlockId);
+            if ($existingBlock) {
+                TrainingProgramBlock::query()
                     ->where('group_id', $groupId)
-                    ->where('type', $existingNote->type)
-                    ->where('start', $existingNote->start)
-                    ->where('note', $existingNote->note)
+                    ->where('type', $existingBlock->type)
+                    ->where('start', $existingBlock->start)
+                    ->where('note', $existingBlock->note)
                     ->delete();
             }
         }
 
-        unset($this->allNotes);
+        unset($this->allBlocks);
     }
 
     public function openExerciseSettings(int $exerciseId, int $exerciseProgramId, int $trainingProgramId): void

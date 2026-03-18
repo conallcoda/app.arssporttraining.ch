@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Data\Training\Notes;
+namespace App\Data\Training\Blocks;
 
-use App\Form\Fields\Training\Note\Color;
+use App\Form\Fields\Training\Block\Color;
 
-class GenericNoteType extends AbstractNoteType
+class GenericBlockType extends AbstractBlockType
 {
     public function __construct(
         public string $color = 'slate',

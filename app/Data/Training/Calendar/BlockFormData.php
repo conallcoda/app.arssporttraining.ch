@@ -2,7 +2,7 @@
 
 namespace App\Data\Training\Calendar;
 
-use App\Models\Training\TrainingProgramNoteTypeEnum;
+use App\Models\Training\TrainingProgramBlockTypeEnum;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Form\Concerns\InteractsWithForms;
 use Coda\Cms\Form\Fields\Date;
@@ -11,7 +11,7 @@ use Coda\Cms\Form\Fields\Text;
 use Coda\Cms\Form\Form;
 use Coda\Cms\Models\Contracts\HasForms;
 
-class FocusNoteData extends AbstractData implements HasForms
+class BlockFormData extends AbstractData implements HasForms
 {
     use InteractsWithForms;
 
@@ -26,11 +26,11 @@ class FocusNoteData extends AbstractData implements HasForms
     public static function getForm(): Form
     {
         return Form::make()
-            ->fieldset('Note', [
+            ->fieldset('Block', [
                 RadioSegmented::make('type')
                     ->label(__('Type'))
                     ->options(
-                        collect(TrainingProgramNoteTypeEnum::cases())
+                        collect(TrainingProgramBlockTypeEnum::cases())
                             ->mapWithKeys(fn ($case) => [$case->value => $case->label()])
                             ->all()
                     )
@@ -43,8 +43,8 @@ class FocusNoteData extends AbstractData implements HasForms
             ->fieldset(
                 'Type Settings',
                 function (array $data) {
-                    $fields = TrainingProgramNoteTypeEnum::from($data['type'] ?? 'focus')
-                        ->noteTypeClass()::fields();
+                    $fields = TrainingProgramBlockTypeEnum::from($data['type'] ?? 'focus')
+                        ->blockTypeClass()::fields();
 
                     return $fields ? ['fields' => $fields] : null;
                 },

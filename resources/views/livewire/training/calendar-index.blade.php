@@ -88,7 +88,7 @@
 
     <livewire:training.week-slot-form />
 
-    <livewire:training.focus-note-form />
+    <livewire:training.block-form />
 
     <livewire:training.calendar-exercise-settings-form />
 

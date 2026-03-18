@@ -2,9 +2,9 @@
 
 namespace App\Livewire\Training;
 
-use App\Data\Training\Calendar\FocusNoteData;
-use App\Models\Training\TrainingProgramNote;
-use App\Models\Training\TrainingProgramNoteTypeEnum;
+use App\Data\Training\Calendar\BlockFormData;
+use App\Models\Training\TrainingProgramBlock;
+use App\Models\Training\TrainingProgramBlockTypeEnum;
 use App\Models\Users\UserGroup;
 use Coda\Cms\Form\Form;
 use Coda\Cms\Livewire\FormModal;
@@ -12,13 +12,13 @@ use Flux\Flux;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
 
-class FocusNoteForm extends FormModal
+class BlockForm extends FormModal
 {
     public ?int $groupId = null;
 
     public ?int $userId = null;
 
-    public ?int $editingNoteId = null;
+    public ?int $editingBlockId = null;
 
     public bool $isEditing = false;
 
@@ -27,8 +27,8 @@ class FocusNoteForm extends FormModal
     public array $selectedMembers = [];
 
     public function mount(
-        string $name = 'focus-note',
-        string $title = 'add-focus-default',
+        string $name = 'block',
+        string $title = 'add-block-default',
         ?string $formDataClass = null,
         string $submitLabel = 'save-default',
         string $cancelLabel = 'cancel-default',
@@ -39,7 +39,7 @@ class FocusNoteForm extends FormModal
     ): void {
         parent::mount(
             name: $name,
-            title: $title === 'add-focus-default' ? __('Add Focus') : $title,
+            title: $title === 'add-block-default' ? __('Add Block') : $title,
             formDataClass: $formDataClass,
             submitLabel: $submitLabel === 'save-default' ? __('Save') : $submitLabel,
             cancelLabel: $cancelLabel === 'cancel-default' ? __('Cancel') : $cancelLabel,
@@ -55,14 +55,14 @@ class FocusNoteForm extends FormModal
         $this->activeTitle = $title;
         $this->groupId = $data['groupId'] ?? null;
         $this->userId = $data['userId'] ?? null;
-        $this->editingNoteId = $data['noteId'] ?? null;
-        $this->isEditing = $this->editingNoteId !== null;
+        $this->editingBlockId = $data['blockId'] ?? null;
+        $this->isEditing = $this->editingBlockId !== null;
 
         unset($this->formConfig, $this->fieldsets);
         $this->openCount++;
 
         $defaultType = 'focus';
-        $defaultColor = TrainingProgramNoteTypeEnum::from($defaultType)->noteTypeClass()::defaultColor();
+        $defaultColor = TrainingProgramBlockTypeEnum::from($defaultType)->blockTypeClass()::defaultColor();
 
         $this->data = [
             'type' => $defaultType,
@@ -73,14 +73,14 @@ class FocusNoteForm extends FormModal
         ];
 
         if ($this->isEditing) {
-            $existingNote = TrainingProgramNote::find($this->editingNoteId);
-            if ($existingNote) {
+            $existingBlock = TrainingProgramBlock::find($this->editingBlockId);
+            if ($existingBlock) {
                 $this->data = [
-                    'type' => $existingNote->type->value,
-                    'start' => $existingNote->start->format('Y-m-d'),
-                    'end' => $existingNote->end?->format('Y-m-d') ?? '',
-                    'note' => $existingNote->note,
-                    'color' => $existingNote->color,
+                    'type' => $existingBlock->type->value,
+                    'start' => $existingBlock->start->format('Y-m-d'),
+                    'end' => $existingBlock->end?->format('Y-m-d') ?? '',
+                    'note' => $existingBlock->note,
+                    'color' => $existingBlock->color,
                 ];
             }
         }
@@ -92,7 +92,7 @@ class FocusNoteForm extends FormModal
 
     public function updatedDataType(string $value): void
     {
-        $this->data['color'] = TrainingProgramNoteTypeEnum::from($value)->noteTypeClass()::defaultColor();
+        $this->data['color'] = TrainingProgramBlockTypeEnum::from($value)->blockTypeClass()::defaultColor();
 
         unset($this->formConfig, $this->fieldsets);
         $this->openCount++;
@@ -125,23 +125,23 @@ class FocusNoteForm extends FormModal
             return;
         }
 
-        $existingNote = TrainingProgramNote::find($this->editingNoteId);
-        if ($existingNote === null) {
+        $existingBlock = TrainingProgramBlock::find($this->editingBlockId);
+        if ($existingBlock === null) {
             $this->selectedMembers = array_map('strval', $allMemberIds);
 
             return;
         }
 
-        $usersWithNote = TrainingProgramNote::query()
+        $usersWithBlock = TrainingProgramBlock::query()
             ->where('group_id', $this->groupId)
-            ->where('type', $existingNote->type)
-            ->where('start', $existingNote->start)
-            ->where('note', $existingNote->note)
+            ->where('type', $existingBlock->type)
+            ->where('start', $existingBlock->start)
+            ->where('note', $existingBlock->note)
             ->whereIn('user_id', $allMemberIds)
             ->pluck('user_id')
             ->all();
 
-        $this->selectedMembers = array_map('strval', $usersWithNote);
+        $this->selectedMembers = array_map('strval', $usersWithBlock);
     }
 
     public function submit(): void
@@ -161,18 +161,18 @@ class FocusNoteForm extends FormModal
             ...$this->data,
             'selected_members' => array_map('intval', $this->selectedMembers),
             'deselected_members' => array_map('intval', $deselectedMembers),
-            'editing_note_id' => $this->editingNoteId,
+            'editing_block_id' => $this->editingBlockId,
             'groupId' => $this->groupId,
             'userId' => $this->userId,
         ]);
     }
 
-    public function deleteNote(): void
+    public function deleteBlock(): void
     {
         Flux::modal($this->name)->close();
 
         $this->dispatch("{$this->name}.deleted", data: [
-            'editing_note_id' => $this->editingNoteId,
+            'editing_block_id' => $this->editingBlockId,
             'groupId' => $this->groupId,
             'userId' => $this->userId,
         ]);
@@ -181,11 +181,11 @@ class FocusNoteForm extends FormModal
     #[Computed]
     public function formConfig(): Form
     {
-        return FocusNoteData::getForm();
+        return BlockFormData::getForm();
     }
 
     public function render(): View
     {
-        return view('livewire.training.focus-note-form');
+        return view('livewire.training.block-form');
     }
 }

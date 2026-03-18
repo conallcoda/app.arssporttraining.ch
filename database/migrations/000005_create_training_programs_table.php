@@ -28,7 +28,7 @@ return new class extends Migration
             $table->unique(['training_program_id', 'user_id', 'datetime'], 'training_program_slots_unique');
         });
 
-        Schema::create('training_program_notes', function (Blueprint $table) {
+        Schema::create('training_program_blocks', function (Blueprint $table) {
             $table->id();
             $table->foreignId('owner_id')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('group_id')->constrained('user_groups')->cascadeOnDelete();
@@ -45,7 +45,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('training_program_notes');
+        Schema::dropIfExists('training_program_blocks');
         Schema::dropIfExists('training_program_slots');
         Schema::dropIfExists('training_programs');
     }

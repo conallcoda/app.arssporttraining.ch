@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Data\Training\Notes;
+namespace App\Data\Training\Blocks;
 
-class FocusNoteType extends AbstractNoteType
+class FocusBlockType extends AbstractBlockType
 {
     public static function defaultColor(): string
     {
