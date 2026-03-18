@@ -6,11 +6,15 @@ use App\Data\Athlete\Metric\AbstractMetric;
 use App\Form\Fields\Athlete\MeasuredReps;
 use App\Form\Fields\Athlete\MeasuredWeight;
 use App\Training\Reference\OneRepMaxConversion;
+use Spatie\LaravelData\Attributes\WithCast;
+use Spatie\LaravelData\Casts\BuiltinTypeCast;
 
 class OneRepMaxMetric extends AbstractMetric
 {
     public function __construct(
+        #[WithCast(BuiltinTypeCast::class, 'int')]
         public ?int $measuredReps = 1,
+        #[WithCast(BuiltinTypeCast::class, 'float')]
         public ?float $measuredWeight = 50,
     ) {}
 
@@ -20,6 +24,27 @@ class OneRepMaxMetric extends AbstractMetric
             MeasuredReps::make('measuredReps'),
             MeasuredWeight::make('measuredWeight'),
         ];
+    }
+
+    public function summary(): string
+    {
+        $estimated = OneRepMaxConversion::estimatedOneRepMax(
+            (int) $this->measuredReps,
+            (float) $this->measuredWeight,
+        );
+
+        return "{$estimated}kg ({$this->measuredReps}x{$this->measuredWeight}kg)";
+    }
+
+    /** @return array{label: string} */
+    public function badge(string $prefix): array
+    {
+        $estimated = OneRepMaxConversion::estimatedOneRepMax(
+            (int) $this->measuredReps,
+            (float) $this->measuredWeight,
+        );
+
+        return ['label' => "{$prefix}: {$estimated}kg"];
     }
 
     /** @return array<string, string> */

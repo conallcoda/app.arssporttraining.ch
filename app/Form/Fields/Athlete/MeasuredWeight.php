@@ -11,6 +11,7 @@ class MeasuredWeight extends Number
         parent::__construct($name);
 
         $this->label = 'Measured Weight';
+        $this->required = true;
         $this->min = 0;
         $this->step = 0.5;
         $this->suffix = 'kg';

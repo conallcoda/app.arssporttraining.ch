@@ -37,6 +37,7 @@ return new class extends Migration
             $table->date('start');
             $table->date('end')->nullable();
             $table->text('note');
+            $table->string('color')->default('amber');
             $table->timestamps();
             $table->softDeletes();
         });

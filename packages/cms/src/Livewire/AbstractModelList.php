@@ -790,8 +790,12 @@ abstract class AbstractModelList extends Component
                     $queryBuilder->allowedSorts($queryBuilder->getDefinedSorts());
                 }
 
+                $defaultSorts = $queryBuilder->getDefaultSorts();
                 $defaultSortString = $table->getDefaultSortString();
-                if ($defaultSortString !== '') {
+
+                if (! empty($defaultSorts)) {
+                    $queryBuilder->defaultSorts($defaultSorts);
+                } elseif ($defaultSortString !== '') {
                     $queryBuilder->defaultSort($defaultSortString);
                 }
 

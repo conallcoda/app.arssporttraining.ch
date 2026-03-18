@@ -3,6 +3,7 @@
 namespace App\Livewire\Database;
 
 use App\Data\Athlete\AthleteData;
+use App\Display\DisplayFields\PersonName;
 use App\Form\AdminChangePasswordForm;
 use App\Models\Tag;
 use App\Models\Users\User;
@@ -11,7 +12,6 @@ use App\Support\OwnershipTabs;
 use Coda\Cms\Display\DisplayFields\Ago;
 use Coda\Cms\Display\DisplayFields\Badge;
 use Coda\Cms\Display\DisplayFields\Id;
-use Coda\Cms\Display\DisplayFields\Text;
 use Coda\Cms\Display\Table;
 use Coda\Cms\Display\TableFilter;
 use Coda\Cms\Form\Action;
@@ -45,7 +45,20 @@ class AthleteList extends AbstractModelList
 
     protected function getBaseQuery(): Builder
     {
-        return User::query()->where('type', UserTypeEnum::Athlete)->with(['internalTags', 'owner']);
+        return User::query()->where('type', UserTypeEnum::Athlete)->with([
+            'internalTags',
+            'owner',
+            'metricSubmissions' => function ($query): void {
+                $query->whereRaw('user_metric_submissions.id = (
+                    SELECT ms2.id FROM user_metric_submissions ms2
+                    WHERE ms2.user_id = user_metric_submissions.user_id
+                    AND ms2.metric = user_metric_submissions.metric
+                    AND ms2.deleted_at IS NULL
+                    ORDER BY ms2.recorded_at DESC, ms2.created_at DESC
+                    LIMIT 1
+                )')->with('values');
+            },
+        ]);
     }
 
     protected function getExtraActions(): array
@@ -90,14 +103,13 @@ class AthleteList extends AbstractModelList
         return Table::make()
             ->columns([
                 Id::make(),
-                Text::make('forename')
-                    ->label(__('Forename'))
+                PersonName::make('personName')
+                    ->label(__('Name'))
                     ->width('w-1/3')
                     ->modal(),
-                Text::make('surname')
-                    ->label(__('Surname'))
-                    ->width('w-1/3')
-                    ->modal(),
+                Badge::make('metrics')
+                    ->label(__('Metrics'))
+                    ->source(fn (AthleteData $data) => $data->getMetricBadges()),
                 Badge::make('coach')
                     ->label(__('Coach'))
                     ->source(fn (AthleteData $data) => [
@@ -115,7 +127,8 @@ class AthleteList extends AbstractModelList
                     ),
                 Ago::make('updatedAt')->label(__('Last Changed')),
             ])
-            ->sortable(['id', 'forename', 'surname', 'updatedAt'])
+            ->defaultSort('personName', 'asc')
+            ->sortable(['id', 'personName', 'updatedAt'])
             ->filters([
                 TableFilter::callback('search', function (Builder $query, mixed $value): void {
                     $query->where(function (Builder $q) use ($value): void {

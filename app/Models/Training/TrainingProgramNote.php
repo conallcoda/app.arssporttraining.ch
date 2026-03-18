@@ -28,6 +28,7 @@ class TrainingProgramNote extends Model
         'start',
         'end',
         'note',
+        'color',
     ];
 
     protected function casts(): array

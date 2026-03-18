@@ -229,7 +229,13 @@
                                             @php $sourceBadges = $column->getSourceData($item); @endphp
                                             @foreach ($sourceBadges as $badge)
                                                 @php $badgeColorClass = isset($badge['color']) ? \Coda\Cms\Support\ColorPalette::lightBadge($badge['color']) : ''; @endphp
-                                                @if (isset($badge['modalField']))
+                                                @if (isset($badge['url']))
+                                                    <a href="{{ $badge['url'] }}">
+                                                        <flux:badge size="sm"
+                                                            class="cursor-pointer hover:opacity-80 {{ $badgeColorClass }}">
+                                                            {{ $badge['label'] }}</flux:badge>
+                                                    </a>
+                                                @elseif (isset($badge['modalField']))
                                                     <flux:badge size="sm" class="cursor-pointer {{ $badgeColorClass }}"
                                                         x-on:click="Livewire.dispatch('open-{{ $this->editModalName }}', {
                                                             data: {{ Js::from($item->toArray()) }},

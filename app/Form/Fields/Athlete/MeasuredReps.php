@@ -11,6 +11,7 @@ class MeasuredReps extends Number
         parent::__construct($name);
 
         $this->label = 'Measured Reps';
+        $this->required = true;
         $this->default = 1;
         $this->min = 1;
         $this->step = 1;

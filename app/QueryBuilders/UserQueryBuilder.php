@@ -5,6 +5,7 @@ namespace App\QueryBuilders;
 use Coda\Cms\QueryBuilder\DefaultQueryBuilder;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\AllowedSort;
+use Spatie\QueryBuilder\Enums\SortDirection;
 
 class UserQueryBuilder extends DefaultQueryBuilder
 {
@@ -13,9 +14,24 @@ class UserQueryBuilder extends DefaultQueryBuilder
     {
         return [
             'id',
-            'forename',
-            'surname',
+            AllowedSort::callback('personName', function ($query, bool $descending): void {
+                $direction = $descending ? 'desc' : 'asc';
+                $query->orderBy('surname', $direction)
+                    ->orderBy('forename', $direction);
+            })->defaultDirection(SortDirection::ASCENDING),
             AllowedSort::field('updatedAt', 'updated_at'),
+        ];
+    }
+
+    /** @return array<int, string|\Spatie\QueryBuilder\AllowedSort> */
+    public function getDefaultSorts(): array
+    {
+        return [
+            AllowedSort::callback('personName', function ($query, bool $descending): void {
+                $direction = $descending ? 'desc' : 'asc';
+                $query->orderBy('surname', $direction)
+                    ->orderBy('forename', $direction);
+            })->defaultDirection(SortDirection::ASCENDING),
         ];
     }
 

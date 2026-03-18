@@ -2,7 +2,7 @@
     <flux:modal :name="$name" variant="flyout" :class="$maxWidth"
         x-on:close="Livewire.dispatch('{{ $name }}.closed')">
         <div class="flex flex-col gap-6 p-2">
-            <flux:heading size="lg">{{ $isEditing ? __('Edit Focus') : __('Add Focus') }}</flux:heading>
+            <flux:heading size="lg">{{ $isEditing ? __('Edit Note') : __('Add Note') }}</flux:heading>
             @if ($openCount > 0)
                 <div wire:key="focus-note-{{ $openCount }}" class="flex flex-col gap-6">
                     @foreach ($this->fieldsets as $item)

@@ -12,6 +12,12 @@ class DefaultQueryBuilder extends QueryBuilder
         return [];
     }
 
+    /** @return array<int, string|\Spatie\QueryBuilder\AllowedSort> */
+    public function getDefaultSorts(): array
+    {
+        return [];
+    }
+
     /** @return array<int, string|\Spatie\QueryBuilder\AllowedFilter> */
     public function getDefinedFilters(): array
     {

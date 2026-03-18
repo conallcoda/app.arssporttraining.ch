@@ -5,15 +5,24 @@ namespace App\Data\Athlete\Metric;
 enum MetricEnum: string
 {
     case OneRepMax = 'oneRepMax';
-    case MaxHeartRateBiking = 'maxHeartRateBiking';
-    case MaxHeartRateJogging = 'maxHeartRateJogging';
+    case HeartRateBiking = 'heartRateBiking';
+    case HeartRateJogging = 'heartRateJogging';
 
     public function label(): string
     {
         return match ($this) {
             self::OneRepMax => '1RM',
-            self::MaxHeartRateBiking => 'Max HR Biking',
-            self::MaxHeartRateJogging => 'Max HR Jogging',
+            self::HeartRateBiking => 'HR Biking',
+            self::HeartRateJogging => 'HR Jogging',
+        };
+    }
+
+    public function shortLabel(): string
+    {
+        return match ($this) {
+            self::OneRepMax => '1RM',
+            self::HeartRateBiking => 'HRB',
+            self::HeartRateJogging => 'HRJ',
         };
     }
 
@@ -22,8 +31,8 @@ enum MetricEnum: string
     {
         return match ($this) {
             self::OneRepMax => Metrics\OneRepMaxMetric::class,
-            self::MaxHeartRateBiking => Metrics\MaxHeartRateBikingMetric::class,
-            self::MaxHeartRateJogging => Metrics\MaxHeartRateJoggingMetric::class,
+            self::HeartRateBiking => Metrics\HeartRateBikingMetric::class,
+            self::HeartRateJogging => Metrics\HeartRateJoggingMetric::class,
         };
     }
 

@@ -11,6 +11,7 @@ class AnaerobicThreshold extends Number
         parent::__construct($name);
 
         $this->label = 'Anaerobic Threshold';
+        $this->required = true;
         $this->default = 90;
         $this->min = 1;
         $this->max = 100;

@@ -24,6 +24,11 @@ abstract class AbstractMetric extends AbstractData implements HasForms
     /** @return array<string, string> */
     abstract public static function derivedValues(array $fieldValues): array;
 
+    abstract public function summary(): string;
+
+    /** @return array{label: string} */
+    abstract public function badge(string $prefix): array;
+
     public static function getForm(): Form|array
     {
         return Form::make()

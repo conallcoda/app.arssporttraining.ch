@@ -3,13 +3,13 @@
 namespace App\Livewire\Database;
 
 use App\Data\Coach\CoachData;
+use App\Display\DisplayFields\PersonName;
 use App\Form\AdminChangePasswordForm;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
 use Coda\Cms\Display\DisplayFields\Ago;
 use Coda\Cms\Display\DisplayFields\ColorBadge;
 use Coda\Cms\Display\DisplayFields\Id;
-use Coda\Cms\Display\DisplayFields\Text;
 use Coda\Cms\Display\Table;
 use Coda\Cms\Display\TableFilter;
 use Coda\Cms\Form\Action;
@@ -66,20 +66,17 @@ class CoachList extends AbstractModelList
         return Table::make()
             ->columns([
                 Id::make(),
-                Text::make('forename')
-                    ->label(__('Forename'))
-                    ->width('w-1/3')
-                    ->modal(),
-                Text::make('surname')
-                    ->label(__('Surname'))
-                    ->width('w-1/3')
+                PersonName::make('personName')
+                    ->label(__('Name'))
+                    ->width('w-2/3')
                     ->modal(),
                 ColorBadge::make('color')
                     ->label(__('Color'))
                     ->colorLabels(ColorPalette::COLORS),
                 Ago::make('updatedAt')->label(__('Last Changed')),
             ])
-            ->sortable(['id', 'forename', 'surname', 'updatedAt'])
+            ->defaultSort('personName', 'asc')
+            ->sortable(['id', 'personName', 'updatedAt'])
             ->filters([
                 TableFilter::callback('search', function (Builder $query, mixed $value): void {
                     $query->where(function (Builder $q) use ($value): void {

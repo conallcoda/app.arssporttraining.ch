@@ -27,6 +27,7 @@ class CoachData extends AbstractData implements HasForms
         public ?string $phone = null,
         public ?string $color = null,
         public ?Carbon $updatedAt = null,
+        public string $personName = '',
     ) {}
 
     public function name(): string
@@ -44,6 +45,7 @@ class CoachData extends AbstractData implements HasForms
             phone: $user->phone,
             color: $user->color,
             updatedAt: $user->updated_at,
+            personName: trim(($user->surname ?? '').', '.($user->forename ?? ''), ', '),
         );
     }
 

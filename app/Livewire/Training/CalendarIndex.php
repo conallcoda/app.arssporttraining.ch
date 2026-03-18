@@ -106,7 +106,7 @@ class CalendarIndex extends Component
         $this->start = $this->calendarSettings->start ?? '';
         $this->end = $this->calendarSettings->end ?? '';
 
-        unset($this->days, $this->weeks, $this->months, $this->title, $this->weekGridData, $this->overviewData, $this->focusNotes);
+        unset($this->days, $this->weeks, $this->months, $this->title, $this->weekGridData, $this->overviewData, $this->allNotes);
     }
 
     #[On('sidebar-selection-changed')]
@@ -126,7 +126,7 @@ class CalendarIndex extends Component
             $this->user = (string) $first['user'];
         }
 
-        unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData, $this->focusNotes);
+        unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData, $this->allNotes);
 
     }
 
@@ -411,7 +411,7 @@ class CalendarIndex extends Component
     }
 
     #[Computed]
-    public function focusNotes(): array
+    public function allNotes(): array
     {
         $days = $this->days;
         $totalDays = count($days);
@@ -431,7 +431,6 @@ class CalendarIndex extends Component
 
         $query = TrainingProgramNote::query()
             ->where('group_id', $groupId)
-            ->where('type', TrainingProgramNoteTypeEnum::Focus)
             ->where(function ($q) use ($start, $end) {
                 $q->where(function ($q2) use ($start, $end) {
                     $q2->where('start', '<=', $end->format('Y-m-d'))
@@ -448,7 +447,7 @@ class CalendarIndex extends Component
 
         $notes = $query->get();
 
-        $grouped = $notes->groupBy(fn ($n) => $n->start->format('Y-m-d').'|'.($n->end?->format('Y-m-d') ?? '').'|'.$n->note);
+        $grouped = $notes->groupBy(fn ($n) => $n->type->value.'|'.$n->start->format('Y-m-d').'|'.($n->end?->format('Y-m-d') ?? '').'|'.$n->note);
 
         $noteRanges = [];
 
@@ -471,13 +470,16 @@ class CalendarIndex extends Component
             $noteRanges[] = [
                 'id' => $representative->id,
                 'note' => $representative->note,
+                'color' => $representative->color,
+                'type' => $representative->type->value,
                 'startIdx' => $startIdx,
                 'endIdx' => $endIdx,
                 'colspan' => $colspan,
             ];
         }
 
-        usort($noteRanges, fn ($a, $b) => $a['startIdx'] <=> $b['startIdx']);
+        $typeOrder = array_flip(array_map(fn ($case) => $case->value, TrainingProgramNoteTypeEnum::cases()));
+        usort($noteRanges, fn ($a, $b) => ($typeOrder[$a['type']] ?? 0) <=> ($typeOrder[$b['type']] ?? 0) ?: $a['startIdx'] <=> $b['startIdx']);
 
         $laneEnds = [];
         foreach ($noteRanges as &$noteRange) {
@@ -961,6 +963,8 @@ class CalendarIndex extends Component
         $editingNoteId = $data['editing_note_id'] ?? null;
         $selectedMembers = $data['selected_members'] ?? [];
         $userId = $data['userId'] ?? null;
+        $type = TrainingProgramNoteTypeEnum::from($data['type'] ?? 'focus');
+        $color = $data['color'] ?? 'amber';
 
         if ($editingNoteId !== null) {
             if ($userId !== null && empty($selectedMembers)) {
@@ -970,7 +974,7 @@ class CalendarIndex extends Component
                 if ($existingNote) {
                     TrainingProgramNote::query()
                         ->where('group_id', $groupId)
-                        ->where('type', TrainingProgramNoteTypeEnum::Focus)
+                        ->where('type', $existingNote->type)
                         ->where('start', $existingNote->start)
                         ->where('note', $existingNote->note)
                         ->delete();
@@ -982,25 +986,27 @@ class CalendarIndex extends Component
             TrainingProgramNote::create([
                 'group_id' => $groupId,
                 'user_id' => $userId,
-                'type' => TrainingProgramNoteTypeEnum::Focus,
+                'type' => $type,
                 'start' => $data['start'],
                 'end' => $data['end'] ?: null,
                 'note' => $data['note'],
+                'color' => $color,
             ]);
         } else {
             foreach ($selectedMembers as $memberId) {
                 TrainingProgramNote::create([
                     'group_id' => $groupId,
                     'user_id' => $memberId,
-                    'type' => TrainingProgramNoteTypeEnum::Focus,
+                    'type' => $type,
                     'start' => $data['start'],
                     'end' => $data['end'] ?: null,
                     'note' => $data['note'],
+                    'color' => $color,
                 ]);
             }
         }
 
-        unset($this->focusNotes);
+        unset($this->allNotes);
     }
 
     #[On('focus-note.deleted')]
@@ -1021,14 +1027,14 @@ class CalendarIndex extends Component
             if ($existingNote) {
                 TrainingProgramNote::query()
                     ->where('group_id', $groupId)
-                    ->where('type', TrainingProgramNoteTypeEnum::Focus)
+                    ->where('type', $existingNote->type)
                     ->where('start', $existingNote->start)
                     ->where('note', $existingNote->note)
                     ->delete();
             }
         }
 
-        unset($this->focusNotes);
+        unset($this->allNotes);
     }
 
     public function openExerciseSettings(int $exerciseId, int $exerciseProgramId, int $trainingProgramId): void

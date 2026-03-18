@@ -33,26 +33,26 @@
         @if ($this->programs->isNotEmpty())
             <tbody>
                 <tr>
-                    <td class="sticky left-0 z-20 bg-white dark:bg-zinc-900 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-1 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px]">
-                        {{ __('Focus') }}
+                    <td class="sticky left-0 z-20 bg-zinc-100 dark:bg-zinc-800 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-1 min-w-[180px]">
                     </td>
                     <td colspan="{{ count($this->days) }}"
                         class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 relative"
-                        style="height: {{ max(1, $this->focusNotes['laneCount']) * 28 + 8 }}px">
+                        style="height: {{ max(1, $this->allNotes['laneCount']) * 28 + 8 }}px">
                         <div class="absolute inset-0 flex">
                             @foreach ($this->days as $dayIdx => $day)
                                 <div wire:click="openFocusNote('{{ $day['date'] }}')"
-                                     wire:key="focus-bg-{{ $dayIdx }}"
+                                     wire:key="note-bg-{{ $dayIdx }}"
                                      class="flex-1 cursor-pointer h-full border-r border-zinc-300 dark:border-zinc-600 last:border-r-0 {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}">
                                 </div>
                             @endforeach
                         </div>
-                        @foreach ($this->focusNotes['notes'] as $note)
+                        @foreach ($this->allNotes['notes'] as $note)
                             <div wire:click.stop="editFocusNote({{ $note['id'] }})"
-                                 wire:key="focus-note-{{ $note['id'] }}"
+                                 wire:key="note-{{ $note['id'] }}"
                                  class="absolute cursor-pointer z-10 px-0.5"
-                                 style="left: {{ ($note['startIdx'] / $this->focusNotes['totalDays']) * 100 }}%; width: {{ ($note['colspan'] / $this->focusNotes['totalDays']) * 100 }}%; top: {{ $note['lane'] * 28 + 4 }}px; height: 24px;">
-                                <div class="rounded-sm bg-amber-400/80 dark:bg-amber-500/60 flex items-center justify-center h-full px-1">
+                                 style="left: {{ ($note['startIdx'] / $this->allNotes['totalDays']) * 100 }}%; width: {{ ($note['colspan'] / $this->allNotes['totalDays']) * 100 }}%; top: {{ $note['lane'] * 28 + 4 }}px; height: 24px;">
+                                <div class="rounded-sm flex items-center justify-center h-full px-1"
+                                     style="{{ \Coda\Cms\Support\ColorPalette::solid($note['color']) }}">
                                     <span class="text-xs font-medium text-white truncate">{{ $note['note'] }}</span>
                                 </div>
                             </div>

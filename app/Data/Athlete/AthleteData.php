@@ -36,11 +36,19 @@ class AthleteData extends AbstractData implements HasForms
         public ?string $ownerName = null,
         public ?string $ownerColor = null,
         public ?Carbon $updatedAt = null,
+        public string $personName = '',
+        public array $metrics = [],
     ) {}
 
     public function name(): string
     {
         return trim("{$this->forename} {$this->surname}");
+    }
+
+    /** @return list<array{label: string}> */
+    public function getMetricBadges(): array
+    {
+        return $this->metrics;
     }
 
     public static function fromModel(User $user): self
@@ -58,6 +66,19 @@ class AthleteData extends AbstractData implements HasForms
             ownerName: $user->relationLoaded('owner') ? $user->owner?->name : null,
             ownerColor: $user->relationLoaded('owner') ? $user->owner?->color : null,
             updatedAt: $user->updated_at,
+            personName: trim(($user->surname ?? '').', '.($user->forename ?? ''), ', '),
+            metrics: $user->relationLoaded('metricSubmissions')
+                ? $user->metricSubmissions->map(function ($submission) use ($user) {
+                    $metricClass = $submission->metric->metricClass();
+                    $fieldValues = $submission->values->pluck('value', 'field')->all();
+                    $metric = $metricClass::from($fieldValues);
+                    $badge = $metric->badge($submission->metric->shortLabel());
+                    $badge['url'] = route('athlete-metric-index', ['athleteId' => $user->id])
+                        .'?am_selectedTab='.$submission->metric->value;
+
+                    return $badge;
+                })->all()
+                : [],
         );
     }
 

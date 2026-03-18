@@ -4,11 +4,13 @@ namespace App\Livewire\Database;
 
 use App\Data\Athlete\Metric\MetricEnum;
 use App\Data\Athlete\Metric\MetricSubmissionData;
+use App\Display\DisplayFields\MetricSummary;
 use App\Models\Athlete\MetricSubmission;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Display\DisplayFields\Date;
 use Coda\Cms\Display\IndexTab;
 use Coda\Cms\Display\Table;
+use Coda\Cms\Form\Action;
 use Coda\Cms\Form\Form;
 use Coda\Cms\Livewire\AbstractModelList;
 use Illuminate\Contracts\Database\Eloquent\Builder;
@@ -18,9 +20,9 @@ class AthleteMetricList extends AbstractModelList
 {
     public int $athleteId;
 
-    public function mount(): void
+    public function mount(int $athleteId = 0): void
     {
-        $this->athleteId = (int) request()->route('athleteId');
+        $this->athleteId = $athleteId ?: (int) request()->route('athleteId');
         parent::mount();
     }
 
@@ -48,6 +50,17 @@ class AthleteMetricList extends AbstractModelList
         return MetricEnum::OneRepMax->value;
     }
 
+    public function updatedSelectedTab(): void
+    {
+        parent::updatedSelectedTab();
+        $this->dispatch('athlete-metric-tab-changed', metric: $this->selectedTab);
+    }
+
+    protected function getAddAction(): ?Action
+    {
+        return parent::getAddAction()?->formComponent('database.athlete-metric-form-modal');
+    }
+
     protected function selectedMetric(): MetricEnum
     {
         return MetricEnum::tryFrom($this->selectedTab ?? '') ?? MetricEnum::OneRepMax;
@@ -57,7 +70,7 @@ class AthleteMetricList extends AbstractModelList
     {
         return MetricSubmission::query()
             ->where('user_id', $this->athleteId)
-            ->with(['recordedBy']);
+            ->with(['recordedBy', 'values']);
     }
 
     protected function dataFromModel(Model $model): AbstractData
@@ -84,7 +97,7 @@ class AthleteMetricList extends AbstractModelList
             metric: $metric,
             recorded_by: auth()->id(),
             recorded_at: $formData['recorded_at'] ?? null,
-            data: $metricClass::from($formData['data']['data'] ?? []),
+            data: $metricClass::from($formData['data'] ?? []),
         );
     }
 
@@ -95,6 +108,8 @@ class AthleteMetricList extends AbstractModelList
                 Date::make('recorded_at')
                     ->label('Date')
                     ->modal(),
+                MetricSummary::make('data')
+                    ->label('Metrics'),
             ])
             ->defaultSort('recorded_at', 'desc')
             ->sortable(['recorded_at']);

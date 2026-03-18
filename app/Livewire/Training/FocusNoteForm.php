@@ -4,6 +4,7 @@ namespace App\Livewire\Training;
 
 use App\Data\Training\Calendar\FocusNoteData;
 use App\Models\Training\TrainingProgramNote;
+use App\Models\Training\TrainingProgramNoteTypeEnum;
 use App\Models\Users\UserGroup;
 use Coda\Cms\Form\Form;
 use Coda\Cms\Livewire\FormModal;
@@ -60,19 +61,26 @@ class FocusNoteForm extends FormModal
         unset($this->formConfig, $this->fieldsets);
         $this->openCount++;
 
+        $defaultType = 'focus';
+        $defaultColor = TrainingProgramNoteTypeEnum::from($defaultType)->noteTypeClass()::defaultColor();
+
         $this->data = [
+            'type' => $defaultType,
             'start' => $data['date'] ?? '',
             'end' => '',
             'note' => '',
+            'color' => $defaultColor,
         ];
 
         if ($this->isEditing) {
             $existingNote = TrainingProgramNote::find($this->editingNoteId);
             if ($existingNote) {
                 $this->data = [
+                    'type' => $existingNote->type->value,
                     'start' => $existingNote->start->format('Y-m-d'),
                     'end' => $existingNote->end?->format('Y-m-d') ?? '',
                     'note' => $existingNote->note,
+                    'color' => $existingNote->color,
                 ];
             }
         }
@@ -80,6 +88,14 @@ class FocusNoteForm extends FormModal
         $this->loadMembers();
 
         Flux::modal($this->name)->show();
+    }
+
+    public function updatedDataType(string $value): void
+    {
+        $this->data['color'] = TrainingProgramNoteTypeEnum::from($value)->noteTypeClass()::defaultColor();
+
+        unset($this->formConfig, $this->fieldsets);
+        $this->openCount++;
     }
 
     protected function loadMembers(): void
@@ -118,7 +134,7 @@ class FocusNoteForm extends FormModal
 
         $usersWithNote = TrainingProgramNote::query()
             ->where('group_id', $this->groupId)
-            ->where('type', 'focus')
+            ->where('type', $existingNote->type)
             ->where('start', $existingNote->start)
             ->where('note', $existingNote->note)
             ->whereIn('user_id', $allMemberIds)
