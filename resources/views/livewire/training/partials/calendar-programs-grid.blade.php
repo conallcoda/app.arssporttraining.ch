@@ -79,27 +79,32 @@
                     }
                 }
                 $categoryBlockBgClass = $category?->color
-                    ? \Coda\Cms\Support\ColorPalette::light($category->color)
+                    ? \Coda\Cms\Support\ColorPalette::blockTint($category->color)
                     : '';
             @endphp
-            <tbody x-data="{ expanded: true, programExpanded: {} }" wire:key="category-{{ $categoryId }}">
-                @if (!empty($catBlocks['notes']))
-                    @php
-                        $blockStartMap = [];
-                        foreach ($catBlocks['notes'] as $catBlock) {
-                            $blockStartMap[$catBlock['startIdx']] = $catBlock;
-                        }
-                    @endphp
+            @php
+                $hasBlocks = !empty($catBlocks['notes']);
+                $isFirst = $loop->first;
+                $labelRowspan = 1 + ($hasBlocks ? 1 : 0);
+                $blockStartMap = [];
+                if ($hasBlocks) {
+                    foreach ($catBlocks['notes'] as $catBlock) {
+                        $blockStartMap[$catBlock['startIdx']] = $catBlock;
+                    }
+                }
+            @endphp
+            <tbody x-data="{ expanded: false, programExpanded: {} }" wire:key="category-{{ $categoryId }}">
+                {{-- Block labels row (only if blocks exist) --}}
+                @if ($hasBlocks)
                     <tr>
                         <td @click="expanded = !expanded"
-                            rowspan="2"
+                            rowspan="{{ $labelRowspan }}"
                             class="sticky left-0 z-10 cursor-pointer border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] {{ $categoryColorClass }}">
                             <div class="flex items-center gap-2">
                                 <flux:icon.chevron-right class="size-4 transition-transform duration-200"
                                     ::class="expanded && 'rotate-90'" />
                                 <span>{{ $category?->name ?? 'Uncategorized' }}</span>
-                                <span
-                                    class="text-xs font-normal text-zinc-500 dark:text-zinc-200">({{ $groupEntries->count() }})</span>
+                                <span class="text-xs font-normal text-zinc-500 dark:text-zinc-200">({{ $groupEntries->count() }})</span>
                             </div>
                         </td>
                         @php $skipUntil = -1; @endphp
@@ -133,16 +138,17 @@
                         @endforeach
                     </tr>
                 @endif
+
+                {{-- Indicator squares row --}}
                 <tr>
-                    @if (empty($catBlocks['notes']))
+                    @if (!$hasBlocks)
                         <td @click="expanded = !expanded"
                             class="sticky left-0 z-10 cursor-pointer border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] {{ $categoryColorClass }}">
                             <div class="flex items-center gap-2">
                                 <flux:icon.chevron-right class="size-4 transition-transform duration-200"
                                     ::class="expanded && 'rotate-90'" />
                                 <span>{{ $category?->name ?? 'Uncategorized' }}</span>
-                                <span
-                                    class="text-xs font-normal text-zinc-500 dark:text-zinc-200">({{ $groupEntries->count() }})</span>
+                                <span class="text-xs font-normal text-zinc-500 dark:text-zinc-200">({{ $groupEntries->count() }})</span>
                             </div>
                         </td>
                     @endif
