@@ -69,13 +69,16 @@
                             @if ($this->planScheduleInfo['scheduled'])
                                 <div class="px-4 py-4">
                                     <livewire:training.view.program-editor
-                                        :key="'plan-editor-' . $this->planSelectedProgram->id . '-' . $this->planScheduleInfo['weeks']"
+                                        :key="'plan-editor-' . $this->planSelectedProgram->id . '-' . $this->planScheduleInfo['weeks'] . '-' . ($user !== '' ? $user : 'group')"
                                         :exerciseProgram="$this->planSelectedProgram->program"
                                         :planId="$this->planSelectedProgram->program->id"
                                         :userId="$user !== '' ? (int) $user : null"
                                         :showWeeksInput="false"
                                         :weeks="$this->planScheduleInfo['weeks']"
                                         :sessionsPerWeek="$this->planScheduleInfo['sessionsPerWeek']"
+                                        :weekLabels="$this->planScheduleInfo['weekLabels']"
+                                        :weekSessions="$this->planScheduleInfo['weekSessions']"
+                                        gridLayout="stacked"
                                     />
                                 </div>
                             @else

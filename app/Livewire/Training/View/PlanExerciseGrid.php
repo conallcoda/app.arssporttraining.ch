@@ -34,6 +34,10 @@ class PlanExerciseGrid extends Component
 
     public int $sessionsPerWeek;
 
+    public array $weekLabels = [];
+
+    public array $weekSessions = [];
+
     public string $exerciseName = '';
 
     public array $exerciseConfigArray = [];
@@ -261,10 +265,20 @@ class PlanExerciseGrid extends Component
             $effectiveConfig['overrides']['weeks'] ?? [],
         );
 
-        $currentOverrides = $this->getCurrentOverrides();
+        $config = $this->getPlanConfig();
+        $planDefaults = $config->defaultExerciseOverrides($this->exerciseId);
+        $originalPlanOverrides = $planDefaults->baselineGridOverrides ?? ['cells' => [], 'weeks' => []];
+        $originalEffective = EffectiveExerciseConfig::mergeGridOverrides(
+            $this->getExerciseConfig()->overrides,
+            $originalPlanOverrides,
+        );
+        $diffed = $this->diffGridOverrides(
+            $effectiveConfig['overrides'] ?? ['cells' => [], 'weeks' => []],
+            $originalEffective,
+        );
         $highlightOverrides = GridOverrides::fromArrays(
-            $currentOverrides->gridOverrides['cells'] ?? [],
-            $currentOverrides->gridOverrides['weeks'] ?? [],
+            $diffed['cells'] ?? [],
+            $diffed['weeks'] ?? [],
         );
 
         return ExercisePreviewBuilder::build(
@@ -275,6 +289,53 @@ class PlanExerciseGrid extends Component
             $this->sessionsPerWeek,
             $highlightOverrides,
         );
+    }
+
+    /** @return array{cells: array, weeks: array} */
+    protected function diffGridOverrides(array $current, ?array $baseline): array
+    {
+        if ($baseline === null) {
+            return $current;
+        }
+
+        $baselineCellKeys = [];
+        foreach ($baseline['cells'] ?? [] as $cell) {
+            $key = $cell['week'].'-'.($cell['session'] ?? 0).'-'.$cell['set'];
+            $baselineCellKeys[$key] = $cell['data'] ?? [];
+        }
+
+        $baselineWeekKeys = [];
+        foreach ($baseline['weeks'] ?? [] as $week) {
+            $baselineWeekKeys[(string) $week['week']] = $week['data'] ?? [];
+        }
+
+        $diffCells = [];
+        foreach ($current['cells'] ?? [] as $cell) {
+            $key = $cell['week'].'-'.($cell['session'] ?? 0).'-'.$cell['set'];
+            if (! isset($baselineCellKeys[$key])) {
+                $diffCells[] = $cell;
+            } else {
+                $newData = array_diff_assoc($cell['data'] ?? [], $baselineCellKeys[$key]);
+                if (! empty($newData)) {
+                    $diffCells[] = array_merge($cell, ['data' => $newData]);
+                }
+            }
+        }
+
+        $diffWeeks = [];
+        foreach ($current['weeks'] ?? [] as $week) {
+            $key = (string) $week['week'];
+            if (! isset($baselineWeekKeys[$key])) {
+                $diffWeeks[] = $week;
+            } else {
+                $newData = array_diff_assoc($week['data'] ?? [], $baselineWeekKeys[$key]);
+                if (! empty($newData)) {
+                    $diffWeeks[] = array_merge($week, ['data' => $newData]);
+                }
+            }
+        }
+
+        return ['cells' => $diffCells, 'weeks' => $diffWeeks];
     }
 
     /** @return array<int, array{label: string, color: string}> */

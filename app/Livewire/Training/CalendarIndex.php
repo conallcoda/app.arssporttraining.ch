@@ -99,11 +99,6 @@ class CalendarIndex extends Component
     public function updatedView(): void
     {
         unset($this->weekGridData);
-        if ($this->view !== 'plan') {
-            $this->planCategory = '';
-            $this->planBlock = 'all';
-            $this->planProgram = '';
-        }
     }
 
     public function updatedPlanCategory(): void
@@ -193,14 +188,19 @@ class CalendarIndex extends Component
     #[On('sidebar-selection-changed')]
     public function onSidebarSelectionChanged(array $selected): void
     {
+        $previousGroup = $this->group;
+        $previousView = $this->view;
+
         $this->group = '';
         $this->user = '';
-        $this->view = 'overview';
-        $this->planCategory = '';
-        $this->planBlock = 'all';
-        $this->planProgram = '';
 
         if (count($selected) === 0) {
+            $this->view = 'overview';
+            $this->planCategory = '';
+            $this->planBlock = 'all';
+            $this->planProgram = '';
+            unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData, $this->allBlocks, $this->categoryBlocks);
+
             return;
         }
 
@@ -209,6 +209,15 @@ class CalendarIndex extends Component
 
         if (isset($first['user'])) {
             $this->user = (string) $first['user'];
+        }
+
+        $sameGroup = $this->group === $previousGroup;
+
+        if (! $sameGroup) {
+            $this->view = 'overview';
+            $this->planCategory = '';
+            $this->planBlock = 'all';
+            $this->planProgram = '';
         }
 
         unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData, $this->allBlocks, $this->categoryBlocks);
@@ -428,7 +437,7 @@ class CalendarIndex extends Component
     public function planScheduleInfo(): array
     {
         if ($this->planProgram === '') {
-            return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false];
+            return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false, 'weekLabels' => [], 'weekSessions' => []];
         }
 
         $slotQuery = TrainingProgramSlot::query()
@@ -456,22 +465,36 @@ class CalendarIndex extends Component
 
         $scheduledWeeks = [];
         foreach ($slotDates as $date) {
-            $isoWeek = Carbon::parse($date)->isoWeek();
-            if (! in_array($isoWeek, $scheduledWeeks, true)) {
-                $scheduledWeeks[] = $isoWeek;
+            $d = Carbon::parse($date);
+            $key = $d->isoWeekYear().'-'.$d->isoWeek();
+            if (! isset($scheduledWeeks[$key])) {
+                $scheduledWeeks[$key] = ['week' => $d->isoWeek(), 'year' => $d->isoWeekYear()];
             }
         }
+        $scheduledWeeks = array_values($scheduledWeeks);
 
         $weeks = count($scheduledWeeks);
         if ($weeks === 0) {
-            return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false];
+            return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false, 'weekLabels' => [], 'weekSessions' => []];
         }
 
-        $weekSlotCounts = $slotDates->groupBy(fn ($date) => Carbon::parse($date)->isoWeek())
+        $weekSlotCounts = $slotDates->groupBy(fn ($date) => Carbon::parse($date)->isoWeekYear().'-'.Carbon::parse($date)->isoWeek())
             ->map->count();
         $sessionsPerWeek = max(1, (int) $weekSlotCounts->max());
 
-        return ['weeks' => $weeks, 'sessionsPerWeek' => $sessionsPerWeek, 'scheduled' => true];
+        $weekLabels = [];
+        $weekSessions = [];
+        foreach ($scheduledWeeks as $i => $weekInfo) {
+            $monday = Carbon::now()->setISODate($weekInfo['year'], $weekInfo['week'], 1);
+            $sunday = $monday->copy()->addDays(6);
+            $dateRange = $monday->format('d.m').' - '.$sunday->format('d.m');
+            $weekLabels[$i] = 'W'.$weekInfo['week'].', '.$weekInfo['year']
+                .'<br><span class="text-[10px] font-normal text-zinc-400 dark:text-zinc-500">'.$dateRange.'</span>';
+            $key = $weekInfo['year'].'-'.$weekInfo['week'];
+            $weekSessions[$i] = (int) ($weekSlotCounts[$key] ?? 1);
+        }
+
+        return ['weeks' => $weeks, 'sessionsPerWeek' => $sessionsPerWeek, 'scheduled' => true, 'weekLabels' => $weekLabels, 'weekSessions' => $weekSessions];
     }
 
     #[Computed]
@@ -1417,34 +1440,42 @@ class CalendarIndex extends Component
 
         $scheduledWeeks = [];
         foreach ($slotDates as $date) {
-            $isoWeek = Carbon::parse($date)->isoWeek();
-            if (! in_array($isoWeek, $scheduledWeeks, true)) {
-                $scheduledWeeks[] = $isoWeek;
+            $d = Carbon::parse($date);
+            $key = $d->isoWeekYear().'-'.$d->isoWeek();
+            if (! isset($scheduledWeeks[$key])) {
+                $scheduledWeeks[$key] = ['week' => $d->isoWeek(), 'year' => $d->isoWeekYear()];
             }
         }
+        $scheduledWeeks = array_values($scheduledWeeks);
 
         $weeks = count($scheduledWeeks);
         $scheduled = $weeks > 0;
 
         if (! $scheduled) {
             $weeks = 1;
-            $scheduledWeeks = [Carbon::now()->isoWeek()];
+            $now = Carbon::now();
+            $scheduledWeeks = [['week' => $now->isoWeek(), 'year' => $now->isoWeekYear()]];
         }
 
         $weekLabels = [];
-        foreach ($scheduledWeeks as $i => $isoWeek) {
-            $weekLabels[$i] = __('W:week', ['week' => $isoWeek]);
+        foreach ($scheduledWeeks as $i => $weekInfo) {
+            $monday = Carbon::now()->setISODate($weekInfo['year'], $weekInfo['week'], 1);
+            $sunday = $monday->copy()->addDays(6);
+            $dateRange = $monday->format('d.m').' - '.$sunday->format('d.m');
+            $weekLabels[$i] = 'W'.$weekInfo['week'].', '.$weekInfo['year']
+                .'<br><span class="text-[10px] font-normal text-zinc-400 dark:text-zinc-500">'.$dateRange.'</span>';
         }
 
         $weekSessions = [];
         $sessionsPerWeek = 1;
         if ($scheduled) {
-            $weekSlotCounts = $slotDates->groupBy(fn ($date) => Carbon::parse($date)->isoWeek())
+            $weekSlotCounts = $slotDates->groupBy(fn ($date) => Carbon::parse($date)->isoWeekYear().'-'.Carbon::parse($date)->isoWeek())
                 ->map->count();
             $sessionsPerWeek = max(1, (int) $weekSlotCounts->max());
 
-            foreach ($scheduledWeeks as $i => $isoWeek) {
-                $weekSessions[$i] = (int) ($weekSlotCounts[$isoWeek] ?? 1);
+            foreach ($scheduledWeeks as $i => $weekInfo) {
+                $key = $weekInfo['year'].'-'.$weekInfo['week'];
+                $weekSessions[$i] = (int) ($weekSlotCounts[$key] ?? 1);
             }
         }
 

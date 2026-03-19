@@ -59,7 +59,7 @@
                                 :name="$data['name'] ?? 'Untitled'"
                                 :summary="$grid->summary"
                                 :showMenu="false"
-                                :editable="false"
+                                :editable="true"
                             />
                         </div>
                     @endif

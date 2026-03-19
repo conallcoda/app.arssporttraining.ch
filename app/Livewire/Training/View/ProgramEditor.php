@@ -39,6 +39,12 @@ class ProgramEditor extends Component
 
     public int $sessionsPerWeek = 1;
 
+    public array $weekLabels = [];
+
+    public array $weekSessions = [];
+
+    public string $gridLayout = 'side-by-side';
+
     public int $planId;
 
     public string $planType = ExerciseProgram::class;
@@ -64,6 +70,9 @@ class ProgramEditor extends Component
         ?int $planMeasuredReps = 1,
         ?float $planMeasuredWeight = 50,
         int|float $planTargetGoal = 10,
+        array $weekLabels = [],
+        array $weekSessions = [],
+        string $gridLayout = 'side-by-side',
     ): void {
         $this->exerciseProgram = $exerciseProgram;
         $this->planId = $planId;
@@ -75,6 +84,9 @@ class ProgramEditor extends Component
         $this->planMeasuredReps = $planMeasuredReps;
         $this->planMeasuredWeight = $planMeasuredWeight;
         $this->planTargetGoal = $planTargetGoal;
+        $this->weekLabels = $weekLabels;
+        $this->weekSessions = $weekSessions;
+        $this->gridLayout = $gridLayout;
         $this->loadExerciseData();
     }
 

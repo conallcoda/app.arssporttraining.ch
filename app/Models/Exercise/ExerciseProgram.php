@@ -94,6 +94,17 @@ class ExerciseProgram extends Model implements Taggable
     public function duplicate(): self
     {
         $clone = $this->replicate(['id']);
+
+        $config = $clone->config;
+        foreach ($config->exercises as $exerciseId => $overrides) {
+            $overrides = $config->defaultExerciseOverrides($exerciseId);
+            if ($overrides->hasAnyGridOverrides()) {
+                $overrides->baselineGridOverrides = $overrides->gridOverrides;
+                $config->setDefaultExerciseOverrides($exerciseId, $overrides);
+            }
+        }
+        $clone->config = $config;
+
         $clone->save();
 
         foreach ($this->exercises()->withPivot('sort')->get() as $exercise) {

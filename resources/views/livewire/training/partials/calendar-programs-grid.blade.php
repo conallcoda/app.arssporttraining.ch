@@ -93,7 +93,7 @@
                     }
                 }
             @endphp
-            <tbody x-data="{ expanded: false, programExpanded: {} }" wire:key="category-{{ $categoryId }}">
+            <tbody x-data="{ expanded: $persist(false).as('cal-cat-{{ $categoryId }}'), programExpanded: {} }" wire:key="category-{{ $categoryId }}">
                 {{-- Block labels row (only if blocks exist) --}}
                 @if ($hasBlocks)
                     <tr>
@@ -169,7 +169,7 @@
                         @if ($this->user === '')
                             <td wire:click="{{ $inBlock ? 'editBlock(' . $blockId . ')' : 'openCategoryBlock(\'' . $day['date'] . '\', ' . $categoryId . ')' }}"
                                 @if ($inBlock) title="{{ $blockNote }}" @endif
-                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 cursor-pointer {{ $bgClass }}">
+                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 cursor-pointer hover:bg-zinc-100/50 dark:hover:bg-zinc-500/10 {{ $bgClass }}">
                                 @if ($daySlotCount > 0)
                                     <div class="aspect-square rounded-sm {{ $categoryColorClass }}"></div>
                                 @else
@@ -178,7 +178,7 @@
                             </td>
                         @else
                             <td @if ($inBlock) title="{{ $blockNote }}" @endif
-                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 {{ $bgClass }}">
+                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 hover:bg-zinc-100/50 dark:hover:bg-zinc-500/10 {{ $bgClass }}">
                                 @if ($daySlotCount > 0)
                                     <div class="aspect-square rounded-sm {{ $categoryColorClass }}"></div>
                                 @else
@@ -197,7 +197,7 @@
                             : '';
                         $exercises = $entry->program->exercises->sortBy('pivot.sort');
                     @endphp
-                    <tr wire:key="program-{{ $entry->id }}" x-show="expanded" x-cloak>
+                    <tr wire:key="program-{{ $entry->id }}" x-show="expanded" x-cloak class="group/program">
                         <td
                             class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 pl-7 pr-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] bg-white dark:bg-zinc-900">
                             <div class="flex items-center gap-2">
@@ -214,6 +214,10 @@
                                 <button type="button" wire:click="navigateToPlan({{ $entry->id }})"
                                     class="text-left hover:underline">
                                     {{ $entry->program->name }}
+                                </button>
+                                <button type="button" wire:click.stop="openEditProgram({{ $entry->id }})"
+                                    class="opacity-0 group-hover/program:opacity-100 transition-opacity shrink-0 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
+                                    <flux:icon.pencil class="size-3.5" />
                                 </button>
                             </div>
                             @if ($exercises->isNotEmpty())
@@ -235,7 +239,7 @@
                             @endphp
                             @if ($slotCount > 0)
                                 <td @if ($programInBlock) title="{{ $programBlockNote }}" @endif
-                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 {{ $programBgClass }}">
+                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 hover:bg-zinc-100/50 dark:hover:bg-zinc-500/10 {{ $programBgClass }}">
                                     <flux:dropdown position="bottom center">
                                         <button type="button"
                                             class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm cursor-pointer {{ $colorClass ?: 'bg-emerald-400/80 dark:bg-emerald-500/60' }}">
@@ -268,7 +272,7 @@
                             @else
                                 <td wire:click="openProgramSlot({{ $entry->id }}, '{{ $day['date'] }}')"
                                     @if ($programInBlock) title="{{ $programBlockNote }}" @endif
-                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer {{ $programBgClass }}">
+                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer hover:bg-zinc-100/50 dark:hover:bg-zinc-500/10 {{ $programBgClass }}">
                                     <div class="aspect-square"></div>
                                 </td>
                             @endif

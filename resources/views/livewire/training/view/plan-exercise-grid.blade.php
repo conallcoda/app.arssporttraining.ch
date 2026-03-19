@@ -67,6 +67,8 @@
                         :grid="$this->previewGrid"
                         :name="$exerciseName"
                         :showHeader="false"
+                        :weekLabels="$weekLabels"
+                        :weekSessions="$weekSessions"
                     />
                 @endif
             </div>
