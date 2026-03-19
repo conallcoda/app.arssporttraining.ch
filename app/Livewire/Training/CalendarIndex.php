@@ -3,6 +3,7 @@
 namespace App\Livewire\Training;
 
 use App\Data\Athlete\Metric\MetricEnum;
+use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
 use App\Data\Athlete\Metric\MetricSubmissionData;
 use App\Data\Exercise\ExerciseSetting;
 use App\Data\Training\Calendar\CalendarSettingsData;
@@ -118,6 +119,7 @@ class CalendarIndex extends Component
     public function updatedPlanBlock(): void
     {
         $this->planProgram = '';
+        unset($this->planBlockGoal, $this->planHasBlock, $this->planMeasuredData);
         $options = $this->planProgramOptions;
         if ($options->isNotEmpty()) {
             $this->planProgram = (string) $options->keys()->first();
@@ -202,7 +204,7 @@ class CalendarIndex extends Component
             $this->planCategory = '';
             $this->planBlock = 'all';
             $this->planProgram = '';
-            unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData, $this->allBlocks, $this->categoryBlocks, $this->metricCellData);
+            unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData, $this->allBlocks, $this->categoryBlocks, $this->metricCellData, $this->planMeasuredData);
 
             return;
         }
@@ -223,7 +225,7 @@ class CalendarIndex extends Component
             $this->planProgram = '';
         }
 
-        unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData, $this->allBlocks, $this->categoryBlocks, $this->metricCellData);
+        unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData, $this->allBlocks, $this->categoryBlocks, $this->metricCellData, $this->planMeasuredData);
     }
 
     #[Computed]
@@ -423,6 +425,62 @@ class CalendarIndex extends Component
         }
 
         return $options;
+    }
+
+    #[Computed]
+    public function planBlockGoal(): ?int
+    {
+        if ($this->planBlock === 'all') {
+            return null;
+        }
+
+        $block = TrainingProgramBlock::find((int) $this->planBlock);
+
+        return $block?->config?->goal;
+    }
+
+    #[Computed]
+    public function planHasBlock(): bool
+    {
+        return $this->planBlock !== 'all';
+    }
+
+    /** @return array{measuredReps: ?int, measuredWeight: ?float} */
+    #[Computed]
+    public function planMeasuredData(): array
+    {
+        if ($this->user === '') {
+            return ['measuredReps' => 1, 'measuredWeight' => 50];
+        }
+
+        if ($this->planBlock === 'all') {
+            return ['measuredReps' => null, 'measuredWeight' => null];
+        }
+
+        $block = TrainingProgramBlock::find((int) $this->planBlock);
+        if (! $block) {
+            return ['measuredReps' => null, 'measuredWeight' => null];
+        }
+
+        $submission = MetricSubmission::query()
+            ->forAthlete((int) $this->user)
+            ->forMetric(MetricEnum::OneRepMax)
+            ->where('recorded_at', '<=', $block->start->format('Y-m-d'))
+            ->orderByDesc('recorded_at')
+            ->with('values')
+            ->first();
+
+        if (! $submission) {
+            return ['measuredReps' => null, 'measuredWeight' => null];
+        }
+
+        $fieldValues = $submission->values->pluck('value', 'field')->all();
+        $metric = OneRepMaxMetric::from($fieldValues);
+
+        return [
+            'measuredReps' => $metric->measuredReps,
+            'measuredWeight' => $metric->measuredWeight,
+        ];
     }
 
     #[Computed]
@@ -954,7 +1012,25 @@ class CalendarIndex extends Component
     #[On('calendar-metric-form.submitted')]
     public function onMetricFormSubmitted(array $data): void
     {
+        if (empty($data['_persisted'])) {
+            $metric = MetricEnum::from($data['metric']);
+            $metricClass = $metric->metricClass();
+
+            $submission = new MetricSubmissionData(
+                id: $data['id'] ?? null,
+                user_id: (int) ($data['user_id'] ?? $this->user),
+                metric: $metric,
+                recorded_by: auth()->id(),
+                recorded_at: $data['recorded_at'] ?? null,
+                data: $metricClass::from($data['data'] ?? []),
+            );
+
+            $submission->persist();
+        }
+
         unset($this->metricCellData);
+        unset($this->currentMetricValues);
+        unset($this->planMeasuredData);
     }
 
     #[Computed]
@@ -1416,6 +1492,30 @@ class CalendarIndex extends Component
 
         $this->dispatch('open-block', data: [
             'date' => $date,
+            'groupId' => $this->group !== '' ? (int) $this->group : null,
+            'categoryId' => $categoryId,
+            'categorySlug' => $tag?->slug,
+            'categoryName' => $tag?->name,
+        ]);
+    }
+
+    public function openBlockRange(string $startDate, string $endDate): void
+    {
+        $this->dispatch('open-block', data: [
+            'date' => $startDate,
+            'endDate' => $endDate,
+            'groupId' => $this->group !== '' ? (int) $this->group : null,
+            'userId' => $this->user !== '' ? (int) $this->user : null,
+        ]);
+    }
+
+    public function openCategoryBlockRange(string $startDate, string $endDate, int $categoryId): void
+    {
+        $tag = Tag::find($categoryId);
+
+        $this->dispatch('open-block', data: [
+            'date' => $startDate,
+            'endDate' => $endDate,
             'groupId' => $this->group !== '' ? (int) $this->group : null,
             'categoryId' => $categoryId,
             'categorySlug' => $tag?->slug,

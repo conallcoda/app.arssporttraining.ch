@@ -51,11 +51,11 @@ class ProgramEditor extends Component
 
     public ?int $userId = null;
 
-    public ?int $planMeasuredReps = 1;
+    public ?int $planMeasuredReps = null;
 
-    public ?float $planMeasuredWeight = 50;
+    public ?float $planMeasuredWeight = null;
 
-    public int|float $planTargetGoal = 10;
+    public int|float|null $planTargetGoal = 10;
 
     public array $data = [];
 
@@ -67,9 +67,9 @@ class ProgramEditor extends Component
         int $sessionsPerWeek = 1,
         string $planType = ExerciseProgram::class,
         ?int $userId = null,
-        ?int $planMeasuredReps = 1,
-        ?float $planMeasuredWeight = 50,
-        int|float $planTargetGoal = 10,
+        ?int $planMeasuredReps = null,
+        ?float $planMeasuredWeight = null,
+        int|float|null $planTargetGoal = 10,
         array $weekLabels = [],
         array $weekSessions = [],
         string $gridLayout = 'side-by-side',

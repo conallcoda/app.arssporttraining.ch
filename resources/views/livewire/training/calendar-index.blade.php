@@ -66,10 +66,21 @@
                         </div>
 
                         @if ($this->planSelectedProgram)
+                            @if (! $this->planHasBlock)
+                                <div class="px-4 py-3">
+                                    <div class="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-600 dark:text-amber-400">
+                                        <p class="font-medium">{{ __('This program contains one or more exercises that involve automatic 1RM calculations. Please make sure that:') }}</p>
+                                        <ul class="mt-2 list-disc list-inside space-y-1">
+                                            <li>{{ __('You have scheduled this program within a block that has a target progression goal.') }}</li>
+                                            <li>{{ __('Every athlete has a base 1RM measurement.') }}</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            @endif
                             @if ($this->planScheduleInfo['scheduled'])
                                 <div class="px-4 py-4">
                                     <livewire:training.view.program-editor
-                                        :key="'plan-editor-' . $this->planSelectedProgram->id . '-' . $this->planScheduleInfo['weeks'] . '-' . ($user !== '' ? $user : 'group')"
+                                        :key="'plan-editor-' . $this->planSelectedProgram->id . '-' . $this->planScheduleInfo['weeks'] . '-' . ($user !== '' ? $user : 'group') . '-' . $planBlock . '-' . md5(json_encode($this->planMeasuredData))"
                                         :exerciseProgram="$this->planSelectedProgram->program"
                                         :planId="$this->planSelectedProgram->program->id"
                                         :userId="$user !== '' ? (int) $user : null"
@@ -78,6 +89,9 @@
                                         :sessionsPerWeek="$this->planScheduleInfo['sessionsPerWeek']"
                                         :weekLabels="$this->planScheduleInfo['weekLabels']"
                                         :weekSessions="$this->planScheduleInfo['weekSessions']"
+                                        :planMeasuredReps="$this->planMeasuredData['measuredReps']"
+                                        :planMeasuredWeight="$this->planMeasuredData['measuredWeight']"
+                                        :planTargetGoal="$this->planBlockGoal"
                                         gridLayout="stacked"
                                     />
                                 </div>

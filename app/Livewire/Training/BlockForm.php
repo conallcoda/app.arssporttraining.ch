@@ -74,10 +74,10 @@ class BlockForm extends FormModal
             $this->data = [
                 'type' => 'category',
                 'start' => $data['date'] ?? '',
-                'end' => '',
+                'end' => $data['endDate'] ?? '',
                 'note' => '',
                 'color' => null,
-                'config' => $this->categorySlug === 'strength' ? ['goal' => 10] : [],
+                'config' => $this->categorySlug === 'strength' ? ['goal' => 10, 'autoRecord1rm' => false] : [],
             ];
         } else {
             $defaultType = 'focus';
@@ -86,7 +86,7 @@ class BlockForm extends FormModal
             $this->data = [
                 'type' => $defaultType,
                 'start' => $data['date'] ?? '',
-                'end' => '',
+                'end' => $data['endDate'] ?? '',
                 'note' => '',
                 'color' => $defaultColor,
             ];

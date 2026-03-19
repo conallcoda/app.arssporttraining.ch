@@ -55,7 +55,7 @@ class PlanExerciseGrid extends Component
     public ?float $planMeasuredWeight = null;
 
     #[Reactive]
-    public int|float $planTargetGoal = 10;
+    public int|float|null $planTargetGoal = 10;
 
     public function mount(
         int $exercisePlanId,
@@ -226,6 +226,22 @@ class PlanExerciseGrid extends Component
     public function hasMeasuredData(): bool
     {
         return $this->getPlanMeasuredData()->isComplete();
+    }
+
+    #[Computed]
+    public function missingBlockGoal(): bool
+    {
+        return $this->requiresMeasuredData && $this->planTargetGoal === null;
+    }
+
+    #[Computed]
+    public function missingAthleteMeasurement(): bool
+    {
+        if (! $this->requiresMeasuredData || $this->userId === null) {
+            return false;
+        }
+
+        return ! $this->hasMeasuredData;
     }
 
     /** @return list<array{label: string, modalField: string, overridden: bool}> */

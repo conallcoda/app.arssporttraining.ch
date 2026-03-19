@@ -31,7 +31,7 @@
             </tr>
         </thead>
         @if ($this->programs->isNotEmpty())
-            <tbody>
+            <tbody x-data="calendar_cell_select({ type: 'notes' })" data-cell-select-id="notes-notes" wire:ignore.self @keydown.escape.window="clearSelection()">
                 <tr>
                     <td class="sticky left-0 z-20 bg-zinc-100 dark:bg-zinc-800 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-1 min-w-[180px] text-xs font-medium text-zinc-500 dark:text-zinc-400">
                         {{ __('Notes') }}
@@ -39,11 +39,13 @@
                     <td colspan="{{ count($this->days) }}"
                         class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 relative"
                         style="height: {{ max(1, $this->allBlocks['laneCount']) * 28 + 8 }}px">
-                        <div class="absolute inset-0 flex">
+                        <div class="absolute inset-0 flex" wire:ignore.self>
                             @foreach ($this->days as $dayIdx => $day)
-                                <div wire:click="openBlock('{{ $day['date'] }}')"
+                                <div @click.stop="selectCell({{ $dayIdx }}, '{{ $day['date'] }}', $event)"
+                                     @contextmenu="showContextMenu($event, {{ $dayIdx }}, '{{ $day['date'] }}')"
                                      wire:key="block-bg-{{ $dayIdx }}"
-                                     class="flex-1 cursor-pointer h-full border-r border-zinc-300 dark:border-zinc-600 last:border-r-0 {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}">
+                                     class="flex-1 cursor-pointer h-full border-r border-zinc-300 dark:border-zinc-600 last:border-r-0 {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}"
+                                     :class="(endIdx !== null ? ({{ $dayIdx }} >= Math.min(anchorIdx, endIdx) && {{ $dayIdx }} <= Math.max(anchorIdx, endIdx)) : anchorIdx === {{ $dayIdx }}) && 'ring ring-inset ring-black dark:ring-white'">
                                 </div>
                             @endforeach
                         </div>
@@ -60,6 +62,19 @@
                         @endforeach
                     </td>
                 </tr>
+                <template x-teleport="body">
+                    <div x-show="contextMenu"
+                         x-cloak
+                         @click.outside="clearSelection()"
+                         class="fixed z-50 bg-white dark:bg-zinc-800 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-700 py-1 min-w-[160px]"
+                         :style="'left: ' + contextMenuX + 'px; top: ' + contextMenuY + 'px'">
+                        <button type="button"
+                                @click="performAction()"
+                                class="w-full text-left px-3 py-1.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700">
+                            {{ __('Add Note') }}
+                        </button>
+                    </div>
+                </template>
             </tbody>
         @endif
         @if ($this->hasSelection())
@@ -113,7 +128,7 @@
                             @if ($this->user !== '')
                                 <td wire:click="openMetricCell('{{ $metricCase->value }}', '{{ $day['date'] }}')"
                                     title="{{ $metricCell ? $metricCell['summary'] : '' }}"
-                                    class="group/cell border-r border-b border-zinc-300 dark:border-zinc-600 p-1 cursor-pointer hover:bg-zinc-100/50 dark:hover:bg-zinc-500/10 {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}">
+                                    class="group/cell border-r border-b border-zinc-300 dark:border-zinc-600 p-1 cursor-pointer hover:brightness-95 dark:hover:brightness-125 {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}">
                                     @if ($metricCell)
                                         <div class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm bg-zinc-500/80 dark:bg-zinc-500/60">
                                             {{ $metricCell['label'] }}
@@ -165,7 +180,11 @@
                     }
                 }
             @endphp
-            <tbody x-data="{ expanded: $persist(false).as('cal-cat-{{ $categoryId }}'), programExpanded: {} }" wire:key="category-{{ $categoryId }}">
+            <tbody x-data="calendar_cell_select({ type: 'category', categoryId: {{ $categoryId }}, persistKey: 'cal-cat-{{ $categoryId }}' })"
+                  data-cell-select-id="category-{{ $categoryId }}"
+                  @keydown.escape.window="clearSelection()"
+                  wire:ignore.self
+                  wire:key="category-{{ $categoryId }}">
                 {{-- Block labels row (only if blocks exist) --}}
                 @if ($hasBlocks)
                     <tr>
@@ -190,20 +209,12 @@
                                     $span = $block['colspan'];
                                     $skipUntil = $block['endIdx'];
                                 @endphp
-                                @if ($this->user === '')
                                     <td wire:click="editBlock({{ $block['id'] }})"
                                         colspan="{{ $span }}"
                                         class="border-r border-b border-zinc-300 dark:border-zinc-600 px-1 cursor-pointer {{ $categoryBlockBgClass }}"
-                                        style="height: 22px">
-                                        <span class="text-xs font-medium truncate block text-center text-zinc-600 dark:text-zinc-300">{{ $block['note'] }}</span>
+                                        style="height: 26px">
+                                        <span class="text-sm font-medium truncate block text-center text-zinc-600 dark:text-zinc-300">{{ $block['note'] }}</span>
                                     </td>
-                                @else
-                                    <td colspan="{{ $span }}"
-                                        class="border-r border-b border-zinc-300 dark:border-zinc-600 px-1 {{ $categoryBlockBgClass }}"
-                                        style="height: 22px">
-                                        <span class="text-xs font-medium truncate block text-center text-zinc-600 dark:text-zinc-300">{{ $block['note'] }}</span>
-                                    </td>
-                                @endif
                             @else
                                 <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0" style="height: 22px"></td>
                             @endif
@@ -239,18 +250,31 @@
                             $bgClass = $inBlock ? $categoryBlockBgClass : ($day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '');
                         @endphp
                         @if ($this->user === '')
-                            <td wire:click="{{ $inBlock ? 'editBlock(' . $blockId . ')' : 'openCategoryBlock(\'' . $day['date'] . '\', ' . $categoryId . ')' }}"
-                                @if ($inBlock) title="{{ $blockNote }}" @endif
-                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 cursor-pointer hover:bg-zinc-100/50 dark:hover:bg-zinc-500/10 {{ $bgClass }}">
-                                @if ($daySlotCount > 0)
-                                    <div class="aspect-square rounded-sm {{ $categoryColorClass }}"></div>
-                                @else
-                                    <div class="aspect-square"></div>
-                                @endif
-                            </td>
+                            @if ($inBlock)
+                                <td wire:click="editBlock({{ $blockId }})"
+                                    title="{{ $blockNote }}"
+                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 cursor-pointer hover:brightness-95 dark:hover:brightness-125 {{ $bgClass }}">
+                                    @if ($daySlotCount > 0)
+                                        <div class="aspect-square rounded-sm {{ $categoryColorClass }}"></div>
+                                    @else
+                                        <div class="aspect-square"></div>
+                                    @endif
+                                </td>
+                            @else
+                                <td @click.stop="selectCell({{ $dayIdx }}, '{{ $day['date'] }}', $event)"
+                                    @contextmenu="showContextMenu($event, {{ $dayIdx }}, '{{ $day['date'] }}')"
+                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 cursor-pointer hover:brightness-95 dark:hover:brightness-125 {{ $bgClass }}"
+                                    :class="(endIdx !== null ? ({{ $dayIdx }} >= Math.min(anchorIdx, endIdx) && {{ $dayIdx }} <= Math.max(anchorIdx, endIdx)) : anchorIdx === {{ $dayIdx }}) && 'ring ring-inset ring-black dark:ring-white'">
+                                    @if ($daySlotCount > 0)
+                                        <div class="aspect-square rounded-sm {{ $categoryColorClass }}"></div>
+                                    @else
+                                        <div class="aspect-square"></div>
+                                    @endif
+                                </td>
+                            @endif
                         @else
                             <td @if ($inBlock) title="{{ $blockNote }}" @endif
-                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 hover:bg-zinc-100/50 dark:hover:bg-zinc-500/10 {{ $bgClass }}">
+                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 hover:brightness-95 dark:hover:brightness-125 {{ $bgClass }}">
                                 @if ($daySlotCount > 0)
                                     <div class="aspect-square rounded-sm {{ $categoryColorClass }}"></div>
                                 @else
@@ -311,7 +335,7 @@
                             @endphp
                             @if ($slotCount > 0)
                                 <td @if ($programInBlock) title="{{ $programBlockNote }}" @endif
-                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 hover:bg-zinc-100/50 dark:hover:bg-zinc-500/10 {{ $programBgClass }}">
+                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 hover:brightness-95 dark:hover:brightness-125 {{ $programBgClass }}">
                                     <flux:dropdown position="bottom center">
                                         <button type="button"
                                             class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm cursor-pointer {{ $colorClass ?: 'bg-emerald-400/80 dark:bg-emerald-500/60' }}">
@@ -344,7 +368,7 @@
                             @else
                                 <td wire:click="openProgramSlot({{ $entry->id }}, '{{ $day['date'] }}')"
                                     @if ($programInBlock) title="{{ $programBlockNote }}" @endif
-                                    class="group/cell border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer hover:bg-zinc-100/50 dark:hover:bg-zinc-500/10 {{ $programBgClass }}">
+                                    class="group/cell border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer hover:brightness-95 dark:hover:brightness-125 {{ $programBgClass }}">
                                     <div class="aspect-square flex items-center justify-center">
                                         <flux:icon.plus class="size-3 text-zinc-400 dark:text-zinc-500 opacity-0 group-hover/cell:opacity-100 transition-opacity" />
                                     </div>
@@ -353,6 +377,19 @@
                         @endforeach
                     </tr>
                 @endforeach
+                <template x-teleport="body">
+                    <div x-show="contextMenu"
+                         x-cloak
+                         @click.outside="clearSelection()"
+                         class="fixed z-50 bg-white dark:bg-zinc-800 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-700 py-1 min-w-[160px]"
+                         :style="'left: ' + contextMenuX + 'px; top: ' + contextMenuY + 'px'">
+                        <button type="button"
+                                @click="performAction()"
+                                class="w-full text-left px-3 py-1.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700">
+                            {{ __('Create Block') }}
+                        </button>
+                    </div>
+                </template>
             </tbody>
         @endforeach
     </table>

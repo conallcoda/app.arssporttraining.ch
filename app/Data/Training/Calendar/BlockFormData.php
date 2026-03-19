@@ -41,7 +41,7 @@ class BlockFormData extends AbstractData implements HasForms
         $fields = [
             Date::make('start')->label(__('Start Date'))->required(),
             Date::make('end')->label(__('End Date')),
-            Text::make('note')->label(__('Note'))->required(),
+            Text::make('note')->label(__('Name'))->required(),
         ];
 
         if (! $isCategory) {
@@ -49,9 +49,9 @@ class BlockFormData extends AbstractData implements HasForms
         }
 
         return Form::make()
-            ->fieldset('Block', $fields)
+            ->fieldset('General', $fields)
             ->fieldset(
-                'Type Settings',
+                'Settings',
                 function (array $data) use ($context) {
                     $type = TrainingProgramBlockTypeEnum::from($data['type'] ?? 'focus');
                     $fields = $type->blockTypeClass()::fields($context);

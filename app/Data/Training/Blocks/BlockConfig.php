@@ -8,5 +8,6 @@ class BlockConfig extends AbstractData
 {
     public function __construct(
         public ?int $goal = null,
+        public bool $autoRecord1rm = false,
     ) {}
 }

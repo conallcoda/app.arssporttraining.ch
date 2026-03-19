@@ -2,6 +2,14 @@
     <x-section :title="$exerciseName">
         @if ($disabled)
             <flux:button variant="primary" size="sm" wire:click="toggleDisabled" x-on:click="hiding = true" class="!-mt-1">{{ __('Enable') }}</flux:button>
+        @elseif ($this->missingBlockGoal)
+            <div class="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-6 text-center">
+                <flux:text class="text-zinc-400">{{ __('Please add this program to a block with a target goal (%) for 1RM progression.') }}</flux:text>
+            </div>
+        @elseif ($this->missingAthleteMeasurement)
+            <div class="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-6 text-center">
+                <flux:text class="text-zinc-400">{{ __('This athlete does not have a base 1RM measurement for this exercise.') }}</flux:text>
+            </div>
         @else
             <div wire:key="grid-content-{{ $exerciseId }}-{{ $this->configFingerprint }}">
                 <div class="flex items-start justify-between !-mt-2">
