@@ -99,6 +99,11 @@
                     <tr wire:key="metric-row-{{ $metricCase->value }}" x-show="expanded" x-cloak>
                         <td class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 pl-7 pr-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] bg-white dark:bg-zinc-900">
                             {{ $metricCase->label() }}
+                            @if (isset($this->currentMetricValues[$metricCase->value]))
+                                <div class="text-xs text-zinc-400 dark:text-zinc-500 font-normal mt-0.5">
+                                    {{ $this->currentMetricValues[$metricCase->value] }}
+                                </div>
+                            @endif
                         </td>
                         @foreach ($this->days as $day)
                             @php

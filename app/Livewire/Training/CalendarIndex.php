@@ -899,6 +899,34 @@ class CalendarIndex extends Component
         return $map;
     }
 
+    #[Computed]
+    public function currentMetricValues(): array
+    {
+        if ($this->user === '') {
+            return [];
+        }
+
+        $result = [];
+
+        foreach (MetricEnum::cases() as $metricCase) {
+            $submission = MetricSubmission::query()
+                ->forAthlete((int) $this->user)
+                ->forMetric($metricCase)
+                ->where('recorded_at', '<=', now()->format('Y-m-d'))
+                ->orderByDesc('recorded_at')
+                ->with('values')
+                ->first();
+
+            if ($submission) {
+                $fieldValues = $submission->values->pluck('value', 'field')->all();
+                $metricInstance = $metricCase->metricClass()::from($fieldValues);
+                $result[$metricCase->value] = $metricInstance->summary().' ('.$submission->recorded_at->format('d.m.Y').')';
+            }
+        }
+
+        return $result;
+    }
+
     public function openMetricCell(string $metricValue, string $date): void
     {
         if ($this->user === '') {
