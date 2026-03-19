@@ -6,23 +6,19 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::table('training_program_blocks', function (Blueprint $table) {
-            //
+            $table->foreignId('parent_id')->nullable()->after('id')->constrained('training_program_blocks')->nullOnDelete();
+            $table->boolean('active')->default(true)->after('config');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::table('training_program_blocks', function (Blueprint $table) {
-            //
+            $table->dropForeign(['parent_id']);
+            $table->dropColumn(['parent_id', 'active']);
         });
     }
 };

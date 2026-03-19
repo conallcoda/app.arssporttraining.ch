@@ -32,6 +32,8 @@ class BlockForm extends FormModal
 
     public ?string $categoryName = null;
 
+    public ?int $parentBlockId = null;
+
     public function mount(
         string $name = 'block',
         string $title = 'add-block-default',
@@ -66,6 +68,7 @@ class BlockForm extends FormModal
         $this->categoryId = $data['categoryId'] ?? null;
         $this->categorySlug = $data['categorySlug'] ?? null;
         $this->categoryName = $data['categoryName'] ?? null;
+        $this->parentBlockId = $data['parentId'] ?? null;
 
         unset($this->formConfig, $this->fieldsets);
         $this->openCount++;
@@ -109,6 +112,25 @@ class BlockForm extends FormModal
 
                 if ($existingBlock->config) {
                     $this->data['config'] = $existingBlock->config->toArray();
+                }
+            }
+        } elseif ($this->parentBlockId !== null) {
+            $parentBlock = TrainingProgramBlock::with('category')->find($this->parentBlockId);
+            if ($parentBlock) {
+                $this->categoryId = $parentBlock->category_id;
+                $this->categorySlug = $parentBlock->category?->slug;
+                $this->categoryName = $parentBlock->category?->name;
+
+                $this->data = [
+                    'type' => $parentBlock->type->value,
+                    'start' => $parentBlock->start->format('Y-m-d'),
+                    'end' => $parentBlock->end?->format('Y-m-d') ?? '',
+                    'note' => $parentBlock->note,
+                    'color' => $parentBlock->color,
+                ];
+
+                if ($parentBlock->config) {
+                    $this->data['config'] = $parentBlock->config->toArray();
                 }
             }
         }
@@ -193,6 +215,7 @@ class BlockForm extends FormModal
             'groupId' => $this->groupId,
             'userId' => $this->userId,
             'categoryId' => $this->categoryId,
+            'parentId' => $this->parentBlockId,
         ]);
     }
 
@@ -204,7 +227,35 @@ class BlockForm extends FormModal
             'editing_block_id' => $this->editingBlockId,
             'groupId' => $this->groupId,
             'userId' => $this->userId,
+            'parentId' => $this->parentBlockId,
         ]);
+    }
+
+    public function resetToParentDefaults(): void
+    {
+        if ($this->parentBlockId === null) {
+            return;
+        }
+
+        $parentBlock = TrainingProgramBlock::find($this->parentBlockId);
+        if (! $parentBlock) {
+            return;
+        }
+
+        $this->data = [
+            'type' => $parentBlock->type->value,
+            'start' => $parentBlock->start->format('Y-m-d'),
+            'end' => $parentBlock->end?->format('Y-m-d') ?? '',
+            'note' => $parentBlock->note,
+            'color' => $parentBlock->color,
+        ];
+
+        if ($parentBlock->config) {
+            $this->data['config'] = $parentBlock->config->toArray();
+        }
+
+        unset($this->formConfig, $this->fieldsets);
+        $this->openCount++;
     }
 
     #[Computed]

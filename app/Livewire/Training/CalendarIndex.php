@@ -102,6 +102,10 @@ class CalendarIndex extends Component
 
     public function updatedView(): void
     {
+        if ($this->view === 'plan' && $this->planBlock === 'all' && $this->planCategory !== '') {
+            $this->selectOverlappingBlock();
+        }
+
         unset($this->weekGridData);
     }
 
@@ -156,6 +160,7 @@ class CalendarIndex extends Component
             ->where('group_id', (int) $this->group)
             ->where('category_id', $categoryId)
             ->where('type', TrainingProgramBlockTypeEnum::Category)
+            ->whereNull('parent_id')
             ->orderBy('start')
             ->get();
 
@@ -163,13 +168,36 @@ class CalendarIndex extends Component
             return;
         }
 
-        $overlapping = $blocks->first(function ($block) use ($today) {
+        $overridesByParent = collect();
+        if ($this->user !== '') {
+            $overridesByParent = TrainingProgramBlock::query()
+                ->whereNotNull('parent_id')
+                ->where('user_id', (int) $this->user)
+                ->whereIn('parent_id', $blocks->pluck('id'))
+                ->get()
+                ->keyBy('parent_id');
+        }
+
+        $effectiveBlocks = $blocks->map(function ($block) use ($overridesByParent) {
+            $override = $overridesByParent->get($block->id);
+            if ($override && ! $override->active) {
+                return null;
+            }
+
+            return $override ?? $block;
+        })->filter();
+
+        if ($effectiveBlocks->isEmpty()) {
+            return;
+        }
+
+        $overlapping = $effectiveBlocks->first(function ($block) use ($today) {
             $end = $block->end ?? $block->start;
 
             return $block->start->lte($today) && $end->gte($today);
         });
 
-        $this->planBlock = (string) ($overlapping?->id ?? $blocks->first()->id);
+        $this->planBlock = (string) ($overlapping?->id ?? $effectiveBlocks->first()->id);
     }
 
     public function openCalendarRange(): void
@@ -223,6 +251,8 @@ class CalendarIndex extends Component
             $this->planCategory = '';
             $this->planBlock = 'all';
             $this->planProgram = '';
+        } elseif ($this->view === 'plan' && $this->planCategory !== '') {
+            $this->selectOverlappingBlock();
         }
 
         unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData, $this->allBlocks, $this->categoryBlocks, $this->metricCellData, $this->planMeasuredData);
@@ -376,12 +406,30 @@ class CalendarIndex extends Component
             ->where('group_id', (int) $this->group)
             ->where('category_id', $categoryId)
             ->where('type', TrainingProgramBlockTypeEnum::Category)
+            ->whereNull('parent_id')
             ->orderBy('start')
             ->get();
 
+        $overridesByParent = collect();
+        if ($this->user !== '') {
+            $overridesByParent = TrainingProgramBlock::query()
+                ->whereNotNull('parent_id')
+                ->where('user_id', (int) $this->user)
+                ->whereIn('parent_id', $blocks->pluck('id'))
+                ->get()
+                ->keyBy('parent_id');
+        }
+
         foreach ($blocks as $block) {
-            $label = $block->note ?: $block->start->format('M d').($block->end ? ' - '.$block->end->format('M d') : '');
-            $options[$block->id] = $label;
+            $override = $overridesByParent->get($block->id);
+
+            if ($override && ! $override->active) {
+                continue;
+            }
+
+            $effective = $override ?? $block;
+            $label = $effective->note ?: $effective->start->format('M d').($effective->end ? ' - '.$effective->end->format('M d') : '');
+            $options[$effective->id] = $label;
         }
 
         return $options;
@@ -481,6 +529,25 @@ class CalendarIndex extends Component
             'measuredReps' => $metric->measuredReps,
             'measuredWeight' => $metric->measuredWeight,
         ];
+    }
+
+    #[Computed]
+    public function planHasAutoWeightExercises(): bool
+    {
+        $program = $this->planSelectedProgram;
+        if (! $program) {
+            return false;
+        }
+
+        foreach ($program->program->exercises as $exercise) {
+            $config = $exercise->config;
+            if (in_array('weight', $config->settings ?? [])
+                && ($config->weight?->mode ?? 'manual') === 'automatic') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     #[Computed]
@@ -857,6 +924,18 @@ class CalendarIndex extends Component
             });
 
         $blocks = $query->get();
+
+        $overridesByParent = collect();
+        if ($this->user !== '') {
+            $overridesByParent = TrainingProgramBlock::query()
+                ->where('group_id', $groupId)
+                ->whereNotNull('parent_id')
+                ->where('user_id', (int) $this->user)
+                ->whereIn('parent_id', $blocks->pluck('id'))
+                ->get()
+                ->keyBy('parent_id');
+        }
+
         $byCat = $blocks->groupBy('category_id');
         $result = [];
 
@@ -866,8 +945,15 @@ class CalendarIndex extends Component
             $ranges = [];
             foreach ($grouped as $group) {
                 $rep = $group->first();
-                $noteStart = $rep->start->format('Y-m-d');
-                $noteEnd = ($rep->end ?? $rep->start)->format('Y-m-d');
+                $override = $overridesByParent->get($rep->id);
+
+                if ($override && ! $override->active) {
+                    continue;
+                }
+
+                $effective = $override ?? $rep;
+                $noteStart = $effective->start->format('Y-m-d');
+                $noteEnd = ($effective->end ?? $effective->start)->format('Y-m-d');
                 $clampedStart = max($noteStart, $start->format('Y-m-d'));
                 $clampedEnd = min($noteEnd, $end->format('Y-m-d'));
 
@@ -879,11 +965,12 @@ class CalendarIndex extends Component
                 $endIdx = $dayIndex[$clampedEnd] ?? ($totalDays - 1);
 
                 $ranges[] = [
-                    'id' => $rep->id,
-                    'note' => $rep->note,
+                    'id' => $effective->id,
+                    'note' => $effective->note,
                     'startIdx' => $startIdx,
                     'endIdx' => $endIdx,
                     'colspan' => $endIdx - $startIdx + 1,
+                    'overridden' => $override !== null,
                 ];
             }
 
@@ -1477,7 +1564,25 @@ class CalendarIndex extends Component
     public function editBlock(int $blockId): void
     {
         $block = TrainingProgramBlock::find($blockId);
-        $isCategoryBlock = $block && $block->category_id !== null;
+        if (! $block) {
+            return;
+        }
+
+        $isCategoryBlock = $block->category_id !== null;
+
+        if ($isCategoryBlock && $this->user !== '') {
+            $groupBlock = $block->parent_id ? $block->parent : $block;
+            $override = $block->parent_id ? $block : $groupBlock->athleteOverride((int) $this->user);
+
+            $this->dispatch('open-block', data: [
+                'blockId' => $override?->id,
+                'parentId' => $groupBlock->id,
+                'groupId' => $this->group !== '' ? (int) $this->group : null,
+                'userId' => (int) $this->user,
+            ]);
+
+            return;
+        }
 
         $this->dispatch('open-block', data: [
             'blockId' => $blockId,
@@ -1530,11 +1635,39 @@ class CalendarIndex extends Component
         $editingBlockId = $data['editing_block_id'] ?? null;
         $selectedMembers = $data['selected_members'] ?? [];
         $userId = $data['userId'] ?? null;
+        $parentId = $data['parentId'] ?? null;
         $type = TrainingProgramBlockTypeEnum::from($data['type'] ?? 'focus');
         $color = $data['color'] ?? null;
         $categoryId = $data['categoryId'] ?? null;
         $config = $data['config'] ?? null;
         $isCategoryBlock = $categoryId !== null;
+
+        if ($parentId !== null) {
+            if ($editingBlockId !== null) {
+                TrainingProgramBlock::destroy($editingBlockId);
+            }
+
+            $parentBlock = TrainingProgramBlock::find($parentId);
+            if ($parentBlock) {
+                TrainingProgramBlock::create([
+                    'group_id' => $groupId,
+                    'user_id' => $userId,
+                    'parent_id' => $parentId,
+                    'category_id' => $parentBlock->category_id,
+                    'type' => $parentBlock->type,
+                    'start' => $data['start'],
+                    'end' => $data['end'] ?: null,
+                    'note' => $data['note'],
+                    'color' => $color ?: null,
+                    'config' => $config,
+                    'active' => true,
+                ]);
+            }
+
+            unset($this->allBlocks, $this->categoryBlocks, $this->planBlockGoal, $this->planMeasuredData);
+
+            return;
+        }
 
         if ($editingBlockId !== null) {
             if ($isCategoryBlock) {
@@ -1575,7 +1708,7 @@ class CalendarIndex extends Component
             }
         }
 
-        unset($this->allBlocks, $this->categoryBlocks);
+        unset($this->allBlocks, $this->categoryBlocks, $this->planBlockGoal, $this->planMeasuredData);
     }
 
     #[On('block.deleted')]
@@ -1594,7 +1727,15 @@ class CalendarIndex extends Component
             return;
         }
 
+        if ($existingBlock->parent_id !== null) {
+            $existingBlock->update(['active' => false]);
+            unset($this->allBlocks, $this->categoryBlocks, $this->planBlockGoal, $this->planMeasuredData);
+
+            return;
+        }
+
         if ($existingBlock->category_id !== null) {
+            TrainingProgramBlock::where('parent_id', $editingBlockId)->delete();
             TrainingProgramBlock::destroy($editingBlockId);
         } elseif ($userId !== null) {
             TrainingProgramBlock::destroy($editingBlockId);
@@ -1607,7 +1748,7 @@ class CalendarIndex extends Component
                 ->delete();
         }
 
-        unset($this->allBlocks, $this->categoryBlocks);
+        unset($this->allBlocks, $this->categoryBlocks, $this->planBlockGoal, $this->planMeasuredData);
     }
 
     public function openExerciseSettings(int $exerciseId, int $exerciseProgramId, int $trainingProgramId): void

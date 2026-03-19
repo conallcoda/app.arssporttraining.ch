@@ -66,7 +66,7 @@
                         </div>
 
                         @if ($this->planSelectedProgram)
-                            @if (! $this->planHasBlock)
+                            @if (! $this->planHasBlock && $this->planHasAutoWeightExercises)
                                 <div class="px-4 py-3">
                                     <div class="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-600 dark:text-amber-400">
                                         <p class="font-medium">{{ __('This program contains one or more exercises that involve automatic 1RM calculations. Please make sure that:') }}</p>

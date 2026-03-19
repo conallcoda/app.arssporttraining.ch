@@ -2,7 +2,11 @@
     <flux:modal :name="$name" variant="flyout" :class="$maxWidth"
         x-on:close="Livewire.dispatch('{{ $name }}.closed')">
         <div class="flex flex-col gap-6 p-2">
-            <flux:heading size="lg">{{ $isEditing ? __('Edit Block') : __('Add Block') }}</flux:heading>
+            @if ($parentBlockId)
+                <flux:heading size="lg">{{ $isEditing ? __('Edit Athlete Override') : __('Create Athlete Override') }}</flux:heading>
+            @else
+                <flux:heading size="lg">{{ $isEditing ? __('Edit Block') : __('Add Block') }}</flux:heading>
+            @endif
             @if ($openCount > 0)
                 <div wire:key="block-{{ $openCount }}" class="flex flex-col gap-6">
                     @foreach ($this->fieldsets as $item)
@@ -30,10 +34,17 @@
                     <flux:button variant="primary" wire:click="submit" class="flex-1">
                         {{ $submitLabel }}
                     </flux:button>
+                    @if ($parentBlockId && $isEditing)
+                        <flux:button variant="ghost" wire:click="resetToParentDefaults">
+                            {{ __('Reset') }}
+                        </flux:button>
+                    @endif
                     <flux:button variant="ghost" wire:click="cancel">
                         {{ $cancelLabel }}
                     </flux:button>
-                    @if ($isEditing)
+                    @if ($parentBlockId && $isEditing)
+                        <flux:button variant="ghost" icon="eye-off" wire:click="deleteBlock" title="{{ __('Disable for athlete') }}" />
+                    @elseif ($isEditing)
                         <flux:button variant="ghost" icon="trash" wire:click="deleteBlock" />
                     @endif
                 </div>

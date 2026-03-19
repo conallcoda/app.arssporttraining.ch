@@ -184,7 +184,7 @@
                   data-cell-select-id="category-{{ $categoryId }}"
                   @keydown.escape.window="clearSelection()"
                   wire:ignore.self
-                  wire:key="category-{{ $categoryId }}">
+                  wire:key="category-{{ $categoryId }}-{{ md5(json_encode($catBlocks)) }}">
                 {{-- Block labels row (only if blocks exist) --}}
                 @if ($hasBlocks)
                     <tr>
@@ -273,14 +273,25 @@
                                 </td>
                             @endif
                         @else
-                            <td @if ($inBlock) title="{{ $blockNote }}" @endif
-                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 hover:brightness-95 dark:hover:brightness-125 {{ $bgClass }}">
-                                @if ($daySlotCount > 0)
-                                    <div class="aspect-square rounded-sm {{ $categoryColorClass }}"></div>
-                                @else
-                                    <div class="aspect-square"></div>
-                                @endif
-                            </td>
+                            @if ($inBlock)
+                                <td wire:click="editBlock({{ $blockId }})"
+                                    title="{{ $blockNote }}"
+                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 cursor-pointer hover:brightness-95 dark:hover:brightness-125 {{ $bgClass }}">
+                                    @if ($daySlotCount > 0)
+                                        <div class="aspect-square rounded-sm {{ $categoryColorClass }}"></div>
+                                    @else
+                                        <div class="aspect-square"></div>
+                                    @endif
+                                </td>
+                            @else
+                                <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 {{ $bgClass }}">
+                                    @if ($daySlotCount > 0)
+                                        <div class="aspect-square rounded-sm {{ $categoryColorClass }}"></div>
+                                    @else
+                                        <div class="aspect-square"></div>
+                                    @endif
+                                </td>
+                            @endif
                         @endif
                     @endforeach
                 </tr>
