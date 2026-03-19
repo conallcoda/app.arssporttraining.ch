@@ -12,6 +12,7 @@ document.addEventListener('alpine:init', () => {
         anchorDate: null,
         endIdx: null,
         endDate: null,
+        isDragging: false,
         contextMenu: false,
         contextMenuX: 0,
         contextMenuY: 0,
@@ -42,11 +43,35 @@ document.addEventListener('alpine:init', () => {
                 }
             };
             document.addEventListener('click', this._onDocumentClick, true);
+
+            this._onMouseUp = () => {
+                if (this.isDragging) {
+                    this.isDragging = false;
+                    if (this.endIdx !== null && this.endIdx === this.anchorIdx) {
+                        this.endIdx = null;
+                        this.endDate = null;
+                    }
+                }
+            };
+            document.addEventListener('mouseup', this._onMouseUp);
+
+            this._onSelectStart = (e) => {
+                if (this.isDragging) {
+                    e.preventDefault();
+                }
+            };
+            document.addEventListener('selectstart', this._onSelectStart);
         },
 
         destroy() {
             if (this._onDocumentClick) {
                 document.removeEventListener('click', this._onDocumentClick, true);
+            }
+            if (this._onMouseUp) {
+                document.removeEventListener('mouseup', this._onMouseUp);
+            }
+            if (this._onSelectStart) {
+                document.removeEventListener('selectstart', this._onSelectStart);
             }
         },
 
@@ -69,49 +94,33 @@ document.addEventListener('alpine:init', () => {
             activeId = this._instanceId;
         },
 
-        selectCell(idx, date, event) {
-            console.log('[cs] === selectCell ===', {
-                idx,
-                date,
-                shiftKey: event.shiftKey,
-                button: event.button,
-                anchorIdx: this.anchorIdx,
-                anchorDate: this.anchorDate,
-                endIdx: this.endIdx,
-                endDate: this.endDate,
-                type: this.type,
-                categoryId: this.categoryId,
-                thisElId: this.$el?.id,
-                thisElTag: this.$el?.tagName,
-                activeIdSame: activeId === this._instanceId,
-                activeId: activeId,
-                instanceId: this._instanceId,
-            });
+        startDrag(idx, date, event) {
+            if (event.button !== 0) {
+                return;
+            }
 
             this._clearOtherInstance();
             this.contextMenu = false;
 
-            const shiftCondition = event.shiftKey && this.anchorIdx !== null;
-            console.log('[cs] shift condition:', shiftCondition, 'shiftKey:', event.shiftKey, 'anchorIdx:', this.anchorIdx);
-
-            if (shiftCondition) {
+            if (event.shiftKey && this.anchorIdx !== null) {
                 this.endIdx = idx;
                 this.endDate = date;
-                console.log('[cs] SET END', { endIdx: this.endIdx, endDate: this.endDate });
-            } else {
-                this.anchorIdx = idx;
-                this.anchorDate = date;
-                this.endIdx = null;
-                this.endDate = null;
-                console.log('[cs] SET ANCHOR', { anchorIdx: this.anchorIdx, anchorDate: this.anchorDate });
+                return;
             }
 
-            console.log('[cs] final state', {
-                anchorIdx: this.anchorIdx,
-                anchorDate: this.anchorDate,
-                endIdx: this.endIdx,
-                endDate: this.endDate,
-            });
+            this.anchorIdx = idx;
+            this.anchorDate = date;
+            this.endIdx = null;
+            this.endDate = null;
+            this.isDragging = true;
+        },
+
+        dragOver(idx, date) {
+            if (!this.isDragging) {
+                return;
+            }
+            this.endIdx = idx;
+            this.endDate = date;
         },
 
         showContextMenu(event, idx, date) {
@@ -136,15 +145,11 @@ document.addEventListener('alpine:init', () => {
         },
 
         clearSelection() {
-            console.log('[cs] === clearSelection ===', {
-                anchorIdx: this.anchorIdx,
-                endIdx: this.endIdx,
-                stack: new Error().stack.split('\n').slice(1, 4).map(s => s.trim()).join(' | '),
-            });
             this.anchorIdx = null;
             this.anchorDate = null;
             this.endIdx = null;
             this.endDate = null;
+            this.isDragging = false;
             this.contextMenu = false;
             if (activeId === this._instanceId) {
                 activeId = null;

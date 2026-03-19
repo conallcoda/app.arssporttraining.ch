@@ -41,10 +41,11 @@
                         style="height: {{ max(1, $this->allBlocks['laneCount']) * 28 + 8 }}px">
                         <div class="absolute inset-0 flex" wire:ignore.self>
                             @foreach ($this->days as $dayIdx => $day)
-                                <div @click.stop="selectCell({{ $dayIdx }}, '{{ $day['date'] }}', $event)"
+                                <div @mousedown.stop="startDrag({{ $dayIdx }}, '{{ $day['date'] }}', $event)"
+                                     @mouseover="dragOver({{ $dayIdx }}, '{{ $day['date'] }}')"
                                      @contextmenu="showContextMenu($event, {{ $dayIdx }}, '{{ $day['date'] }}')"
                                      wire:key="block-bg-{{ $dayIdx }}"
-                                     class="flex-1 cursor-pointer h-full border-r border-zinc-300 dark:border-zinc-600 last:border-r-0 {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}"
+                                     class="flex-1 cursor-pointer h-full border-r border-zinc-300 dark:border-zinc-600 last:border-r-0 select-none {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}"
                                      :class="(endIdx !== null ? ({{ $dayIdx }} >= Math.min(anchorIdx, endIdx) && {{ $dayIdx }} <= Math.max(anchorIdx, endIdx)) : anchorIdx === {{ $dayIdx }}) && 'ring ring-inset ring-black dark:ring-white'">
                                 </div>
                             @endforeach
@@ -261,9 +262,10 @@
                                     @endif
                                 </td>
                             @else
-                                <td @click.stop="selectCell({{ $dayIdx }}, '{{ $day['date'] }}', $event)"
+                                <td @mousedown.stop="startDrag({{ $dayIdx }}, '{{ $day['date'] }}', $event)"
+                                    @mouseover="dragOver({{ $dayIdx }}, '{{ $day['date'] }}')"
                                     @contextmenu="showContextMenu($event, {{ $dayIdx }}, '{{ $day['date'] }}')"
-                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 cursor-pointer hover:brightness-95 dark:hover:brightness-125 {{ $bgClass }}"
+                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 cursor-pointer select-none hover:brightness-95 dark:hover:brightness-125 {{ $bgClass }}"
                                     :class="(endIdx !== null ? ({{ $dayIdx }} >= Math.min(anchorIdx, endIdx) && {{ $dayIdx }} <= Math.max(anchorIdx, endIdx)) : anchorIdx === {{ $dayIdx }}) && 'ring ring-inset ring-black dark:ring-white'">
                                     @if ($daySlotCount > 0)
                                         <div class="aspect-square rounded-sm {{ $categoryColorClass }}"></div>

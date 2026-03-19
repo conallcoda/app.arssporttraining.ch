@@ -30,6 +30,7 @@ return new class extends Migration
 
         Schema::create('training_program_blocks', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('parent_id')->nullable()->constrained('training_program_blocks')->nullOnDelete();
             $table->foreignId('owner_id')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('group_id')->constrained('user_groups')->cascadeOnDelete();
             $table->foreignId('user_id')->nullable()->constrained('users')->cascadeOnDelete();
@@ -40,6 +41,7 @@ return new class extends Migration
             $table->text('note');
             $table->string('color')->nullable();
             $table->json('config')->nullable();
+            $table->boolean('active')->default(true);
             $table->timestamps();
             $table->softDeletes();
         });

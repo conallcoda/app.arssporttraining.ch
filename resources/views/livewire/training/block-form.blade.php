@@ -42,9 +42,7 @@
                     <flux:button variant="ghost" wire:click="cancel">
                         {{ $cancelLabel }}
                     </flux:button>
-                    @if ($parentBlockId && $isEditing)
-                        <flux:button variant="ghost" icon="eye-off" wire:click="deleteBlock" title="{{ __('Disable for athlete') }}" />
-                    @elseif ($isEditing)
+                    @if (! $parentBlockId && $isEditing)
                         <flux:button variant="ghost" icon="trash" wire:click="deleteBlock" />
                     @endif
                 </div>
