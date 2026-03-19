@@ -111,12 +111,22 @@
                 'title' => $modal['title'],
                 'formDataClass' => $modal['formDataClass'],
                 'submitLabel' => $modal['submitLabel'],
+                'showDelete' => true,
             ], key($modal['name']))
         @else
             <livewire:cms.form-modal :name="$modal['name']" :title="$modal['title']" :form-data-class="$modal['formDataClass']"
                 :submit-label="$modal['submitLabel']" :max-width="$modal['maxWidth']" />
         @endif
     @endforeach
+
+    <x-cms::confirm-modal
+        :name="'confirm-form-delete-' . $entitySlug"
+        :heading="__('Delete ' . $entityName . '?')"
+        :description="__('You\'re about to delete this ' . strtolower($entityName) . '. This action cannot be reversed.')"
+        :confirmLabel="__('Delete')"
+        variant="danger"
+        action="executeFormDelete"
+    />
 
     @foreach ($this->confirmModals as $confirmAction)
         @php $confirmModalName = $confirmAction->resolveModalName($entitySlug); @endphp

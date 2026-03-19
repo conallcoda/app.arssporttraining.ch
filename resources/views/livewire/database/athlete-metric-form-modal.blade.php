@@ -14,6 +14,20 @@
             <flux:heading size="lg">{{ $activeTitle ?? $title }}</flux:heading>
             @if ($openCount > 0)
                 <form wire:submit="submit" class="space-y-4">
+                    @if ($groupMode && !empty($availableAthletes))
+                        <flux:field>
+                            <flux:label>{{ __('Athlete') }}</flux:label>
+                            <flux:select wire:model.live="data.user_id" variant="listbox" placeholder="{{ __('Select athlete...') }}">
+                                @foreach ($availableAthletes as $athlete)
+                                    <flux:select.option :value="$athlete['id']">{{ $athlete['name'] }}</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                            @error('data.user_id')
+                                <flux:text class="text-red-500 text-sm">{{ $message }}</flux:text>
+                            @enderror
+                        </flux:field>
+                    @endif
+
                     @foreach ($this->fieldsets as $item)
                         @if ($item instanceof \Coda\Cms\Form\FormFieldsetGroup)
                             <x-cms::form.fieldset-tabs :group="$item" />

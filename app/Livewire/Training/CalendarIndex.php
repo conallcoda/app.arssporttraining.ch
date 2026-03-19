@@ -65,6 +65,8 @@ class CalendarIndex extends Component
     #[Url(except: '')]
     public string $planProgram = '';
 
+    public string $planProgramName = '';
+
     public CalendarSettingsData $calendarSettings;
 
     public int $weekStartsOn;
@@ -76,6 +78,8 @@ class CalendarIndex extends Component
     public string $addContentTab = 'program';
 
     public ?int $editingTrainingProgramId = null;
+
+    public ?int $pendingMetricDeleteId = null;
 
     public string $weekEditMode = 'view';
 
@@ -106,6 +110,10 @@ class CalendarIndex extends Component
             $this->selectOverlappingBlock();
         }
 
+        if ($this->view === 'plan') {
+            $this->syncPlanProgramName();
+        }
+
         unset($this->weekGridData);
     }
 
@@ -118,6 +126,7 @@ class CalendarIndex extends Component
         if ($options->isNotEmpty()) {
             $this->planProgram = (string) $options->keys()->first();
         }
+        $this->syncPlanProgramName();
     }
 
     public function updatedPlanBlock(): void
@@ -128,6 +137,29 @@ class CalendarIndex extends Component
         if ($options->isNotEmpty()) {
             $this->planProgram = (string) $options->keys()->first();
         }
+        $this->syncPlanProgramName();
+    }
+
+    public function updatedPlanProgram(): void
+    {
+        $this->syncPlanProgramName();
+    }
+
+    public function savePlanProgramName(): void
+    {
+        $program = $this->planSelectedProgram;
+        if (! $program) {
+            return;
+        }
+
+        $program->program->update(['name' => $this->planProgramName]);
+        unset($this->planProgramOptions);
+    }
+
+    protected function syncPlanProgramName(): void
+    {
+        $program = $this->planSelectedProgram;
+        $this->planProgramName = $program?->program->name ?? '';
     }
 
     public function navigateToPlan(int $trainingProgramId): void
@@ -141,6 +173,7 @@ class CalendarIndex extends Component
         $this->planCategory = (string) ($trainingProgram->program->exercise_category_id ?? 0);
         $this->planBlock = 'all';
         $this->planProgram = (string) $trainingProgramId;
+        $this->planProgramName = $trainingProgram->program->name;
 
         $this->selectOverlappingBlock();
 
@@ -251,6 +284,7 @@ class CalendarIndex extends Component
             $this->planCategory = '';
             $this->planBlock = 'all';
             $this->planProgram = '';
+            $this->planProgramName = '';
         } elseif ($this->view === 'plan' && $this->planCategory !== '') {
             $this->selectOverlappingBlock();
         }
@@ -1045,6 +1079,60 @@ class CalendarIndex extends Component
     }
 
     #[Computed]
+    public function groupMetricCellData(): array
+    {
+        if ($this->group === '' || $this->user !== '') {
+            return [];
+        }
+
+        [$start, $end] = $this->dateRange();
+
+        $group = UserGroup::with('members')->find((int) $this->group);
+        if ($group === null) {
+            return [];
+        }
+
+        $memberIds = $group->members->pluck('id');
+
+        $submissions = MetricSubmission::query()
+            ->whereIn('user_id', $memberIds)
+            ->with(['values', 'user'])
+            ->whereBetween('recorded_at', [$start->format('Y-m-d'), $end->format('Y-m-d')])
+            ->get();
+
+        $memberCount = $memberIds->count();
+        $map = [];
+
+        foreach ($submissions as $submission) {
+            $dateKey = $submission->recorded_at->format('Y-m-d');
+            $metricKey = $submission->metric->value;
+            $cellKey = "{$metricKey}-{$dateKey}";
+            $metricClass = $submission->metric->metricClass();
+            $fieldValues = $submission->values->pluck('value', 'field')->all();
+            $metricInstance = $metricClass::from($fieldValues);
+
+            if (! isset($map[$cellKey])) {
+                $map[$cellKey] = [
+                    'count' => 0,
+                    'entries' => [],
+                    'memberCount' => $memberCount,
+                ];
+            }
+
+            $map[$cellKey]['count']++;
+            $map[$cellKey]['entries'][] = [
+                'summary' => $metricInstance->summary(),
+                'athlete' => $submission->user->name,
+                'user_id' => $submission->user_id,
+                'submission_id' => $submission->id,
+                'data' => MetricSubmissionData::fromModel($submission)->toArray(),
+            ];
+        }
+
+        return $map;
+    }
+
+    #[Computed]
     public function currentMetricValues(): array
     {
         if ($this->user === '') {
@@ -1065,11 +1153,28 @@ class CalendarIndex extends Component
             if ($submission) {
                 $fieldValues = $submission->values->pluck('value', 'field')->all();
                 $metricInstance = $metricCase->metricClass()::from($fieldValues);
-                $result[$metricCase->value] = $metricInstance->summary().' ('.$submission->recorded_at->format('d.m.Y').')';
+                $result[$metricCase->value] = [
+                    'summary' => $metricInstance->summary(),
+                    'data' => MetricSubmissionData::from($submission)->toArray(),
+                ];
             }
         }
 
         return $result;
+    }
+
+    public function openCurrentMetric(string $metricValue): void
+    {
+        $current = $this->currentMetricValues[$metricValue] ?? null;
+
+        if (! $current) {
+            return;
+        }
+
+        $eventData = array_merge($current['data'], ['metric' => $metricValue]);
+        $metricLabel = MetricEnum::from($metricValue)->label();
+
+        $this->dispatch('open-calendar-metric-form', data: $eventData, title: __('Edit Metric')." ({$metricLabel})");
     }
 
     public function openMetricCell(string $metricValue, string $date): void
@@ -1091,9 +1196,100 @@ class CalendarIndex extends Component
             ];
         }
 
+        $metricLabel = MetricEnum::from($metricValue)->label();
         $title = $existingData ? __('Edit Metric') : __('Add Metric');
 
-        $this->dispatch('open-calendar-metric-form', data: $eventData, title: $title);
+        $this->dispatch('open-calendar-metric-form', data: $eventData, title: "{$title} ({$metricLabel})");
+    }
+
+    public function openGroupMetricCell(string $metricValue, string $date, ?int $userId = null, ?int $submissionId = null): void
+    {
+        if ($this->group === '') {
+            return;
+        }
+
+        $cellKey = "{$metricValue}-{$date}";
+
+        if ($userId !== null && $submissionId !== null) {
+            $groupCell = $this->groupMetricCellData[$cellKey] ?? null;
+            $entry = null;
+
+            if ($groupCell) {
+                foreach ($groupCell['entries'] as $e) {
+                    if ($e['submission_id'] === $submissionId) {
+                        $entry = $e;
+                        break;
+                    }
+                }
+            }
+
+            if ($entry) {
+                $eventData = array_merge($entry['data'], ['metric' => $metricValue]);
+                $metricLabel = MetricEnum::from($metricValue)->label();
+                $this->dispatch('open-calendar-metric-form', data: $eventData, title: __('Edit Metric')." ({$metricLabel})");
+            }
+
+            return;
+        }
+
+        $group = UserGroup::with('members')->find((int) $this->group);
+        if ($group === null) {
+            return;
+        }
+
+        $existingUserIds = [];
+        if (isset($this->groupMetricCellData[$cellKey])) {
+            $existingUserIds = array_column($this->groupMetricCellData[$cellKey]['entries'], 'user_id');
+        }
+
+        $availableAthletes = $group->members
+            ->reject(fn ($member) => in_array($member->id, $existingUserIds, true))
+            ->map(fn ($member) => ['id' => $member->id, 'name' => $member->name])
+            ->values()
+            ->all();
+
+        $eventData = [
+            'metric' => $metricValue,
+            'recorded_at' => $date,
+            'user_id' => null,
+            '_group_mode' => true,
+            '_available_athletes' => $availableAthletes,
+        ];
+
+        $metricLabel = MetricEnum::from($metricValue)->label();
+        $this->dispatch('open-calendar-metric-form', data: $eventData, title: __('Add Metric')." ({$metricLabel})");
+    }
+
+    #[On('calendar-metric-form.delete-requested')]
+    public function onMetricDeleteRequested(array $data): void
+    {
+        $id = $data['id'] ?? null;
+        if ($id === null) {
+            return;
+        }
+
+        $this->pendingMetricDeleteId = (int) $id;
+
+        Flux::modal('calendar-metric-form')->close();
+        Flux::modal('confirm-delete-metric')->show();
+    }
+
+    public function deleteMetricSubmission(): void
+    {
+        if (empty($this->pendingMetricDeleteId)) {
+            return;
+        }
+
+        $submission = MetricSubmission::find($this->pendingMetricDeleteId);
+        $this->pendingMetricDeleteId = null;
+
+        Flux::modal('confirm-delete-metric')->close();
+
+        if ($submission) {
+            $submission->delete();
+        }
+
+        unset($this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData, $this->planMeasuredData);
     }
 
     #[On('calendar-metric-form.submitted')]
@@ -1117,6 +1313,7 @@ class CalendarIndex extends Component
 
         unset($this->metricCellData);
         unset($this->currentMetricValues);
+        unset($this->groupMetricCellData);
         unset($this->planMeasuredData);
     }
 
@@ -2022,6 +2219,10 @@ class CalendarIndex extends Component
 
     public function render()
     {
+        if ($this->view === 'plan' && $this->planProgramName === '' && $this->planProgram !== '') {
+            $this->syncPlanProgramName();
+        }
+
         return view('livewire.training.calendar-index');
     }
 }

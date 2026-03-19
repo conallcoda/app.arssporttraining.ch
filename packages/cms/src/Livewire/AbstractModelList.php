@@ -289,6 +289,7 @@ abstract class AbstractModelList extends Component
         }
 
         $listeners["{$this->editModalName}.closed"] = 'handleModalClosed';
+        $listeners["{$this->editModalName}.delete-requested"] = 'handleFormDeleteRequested';
 
         return $listeners;
     }
@@ -296,6 +297,36 @@ abstract class AbstractModelList extends Component
     public function handleModalClosed(): void
     {
         $this->edit = null;
+    }
+
+    public function handleFormDeleteRequested(array $data): void
+    {
+        $id = $data['id'] ?? null;
+        if ($id === null) {
+            return;
+        }
+
+        Flux::modal($this->editModalName)->close();
+
+        $this->confirmingId = (int) $id;
+        $this->confirmingAction = 'delete';
+
+        Flux::modal("confirm-form-delete-{$this->getEntitySlug()}")->show();
+    }
+
+    public function executeFormDelete(): void
+    {
+        if (! $this->confirmingId) {
+            return;
+        }
+
+        $id = $this->confirmingId;
+        $this->confirmingId = null;
+        $this->confirmingAction = null;
+
+        Flux::modal("confirm-form-delete-{$this->getEntitySlug()}")->close();
+
+        $this->removeItem($id);
     }
 
     public function confirmAction(string $actionName, int $id): void

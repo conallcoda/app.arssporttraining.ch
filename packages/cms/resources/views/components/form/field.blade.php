@@ -15,6 +15,7 @@
 @use('Coda\Cms\Form\Fields\Preset')
 @use('Coda\Cms\Form\Fields\Search')
 @use('Coda\Cms\Form\Fields\FileUpload')
+@use('Coda\Cms\Form\Fields\SwitchField')
 
 @props(['field', 'prefix' => null, 'repeaterItems' => null, 'currentIndex' => null])
 
@@ -722,6 +723,18 @@
                 </flux:modal>
             </div>
             <flux:error name="{{ $mediaModel }}" />
+        </flux:field>
+    @elseif ($field instanceof SwitchField)
+        <flux:field>
+            <div class="flex items-center gap-1">
+                <flux:switch wire:model="{{ $wireModel }}" :label="$field->getLabel()" />
+                @if ($field->helpText)
+                    <div class="ml-auto pl-2">
+                        <x-cms::form.help-tooltip :content="$field->helpText" position="top" />
+                    </div>
+                @endif
+            </div>
+            <flux:error name="{{ $wireModel }}" />
         </flux:field>
     @endif
 </div>

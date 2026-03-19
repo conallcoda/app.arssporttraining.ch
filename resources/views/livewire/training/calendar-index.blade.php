@@ -66,6 +66,10 @@
                         </div>
 
                         @if ($this->planSelectedProgram)
+                            <div class="px-4 pt-2">
+                                <flux:input wire:model="planProgramName" wire:blur="savePlanProgramName" :label="__('Name')" size="sm" />
+                            </div>
+
                             @if (! $this->planHasBlock && $this->planHasAutoWeightExercises)
                                 <div class="px-4 py-3">
                                     <div class="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-600 dark:text-amber-400">
@@ -170,6 +174,7 @@
         :formDataClass="App\Data\Athlete\Metric\MetricSubmissionData::class"
         :flyout="true"
         maxWidth="max-w-sm"
+        :showDelete="true"
         :excludeFields="['recorded_at']"
     />
 
@@ -179,6 +184,14 @@
         :description="__('You\'re about to remove this program from the calendar. This action cannot be reversed.')"
         :confirmLabel="__('Delete')"
         action="deleteEditingTrainingProgram"
+    />
+
+    <x-cms::confirm-modal
+        name="confirm-delete-metric"
+        :heading="__('Delete Metric?')"
+        :description="__('You\'re about to delete this metric. This action cannot be reversed.')"
+        :confirmLabel="__('Delete')"
+        action="deleteMetricSubmission"
     />
 
     <flux:modal name="add-content" variant="flyout" class="max-w-md">

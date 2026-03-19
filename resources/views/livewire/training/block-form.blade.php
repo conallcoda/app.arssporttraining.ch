@@ -2,19 +2,12 @@
     <flux:modal :name="$name" variant="flyout" :class="$maxWidth"
         x-on:close="Livewire.dispatch('{{ $name }}.closed')">
         <div class="flex flex-col gap-6 p-2">
-            @if ($parentBlockId)
-                <flux:heading size="lg">{{ $isEditing ? __('Edit Athlete Override') : __('Create Athlete Override') }}</flux:heading>
-            @else
-                <flux:heading size="lg">{{ $isEditing ? __('Edit Block') : __('Add Block') }}</flux:heading>
-            @endif
+            <flux:heading size="lg">{{ $isEditing ? __('Edit Block') : __('Add Block') }}</flux:heading>
             @if ($openCount > 0)
                 <div wire:key="block-{{ $openCount }}" class="flex flex-col gap-6">
                     @foreach ($this->fieldsets as $item)
                         <x-cms::form.fieldset :fieldset="$item" :prefix="$item->prefix ?? 'data'" />
                     @endforeach
-                    @if ($categorySlug === 'strength')
-                        <flux:switch wire:model="data.config.autoRecord1rm" :label="__('Automatically record 1RM?')" />
-                    @endif
                     @if (count($members) > 0)
                         <flux:field>
                             <flux:label>{{ __('Athletes') }}</flux:label>

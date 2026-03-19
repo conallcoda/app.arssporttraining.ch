@@ -58,12 +58,15 @@ class AthleteMetricList extends AbstractModelList
     public function updatedSelectedTab(): void
     {
         parent::updatedSelectedTab();
+        unset($this->actions, $this->headerActions);
         $this->dispatch('athlete-metric-tab-changed', metric: $this->selectedTab);
     }
 
     protected function getAddAction(): ?Action
     {
-        return parent::getAddAction()?->formComponent('database.athlete-metric-form-modal');
+        return parent::getAddAction()
+            ?->formComponent('database.athlete-metric-form-modal')
+            ->formModal($this->getDataClass(), __('Add Metric')." ({$this->metricLabel()})");
     }
 
     protected function selectedMetric(): MetricEnum
@@ -104,6 +107,22 @@ class AthleteMetricList extends AbstractModelList
             recorded_at: $formData['recorded_at'] ?? null,
             data: $metricClass::from($formData['data'] ?? []),
         );
+    }
+
+    protected function metricLabel(): string
+    {
+        return $this->selectedMetric()->label();
+    }
+
+    public function startEdit(int $id): void
+    {
+        $this->edit = $id;
+
+        $model = $this->getBaseQuery()->findOrFail($id);
+        $data = $this->dataFromModel($model)->toArray();
+        $metricLabel = $model->metric->label();
+
+        $this->dispatch("open-{$this->editModalName}", data: $data, title: __('Edit Metric')." ({$metricLabel})");
     }
 
     protected function getTable(): Table

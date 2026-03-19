@@ -1,7 +1,18 @@
-<div x-data="{ hiding: false }" x-show="!hiding">
+<div>
     <x-section :title="$exerciseName">
-        @if ($disabled)
-            <flux:button variant="primary" size="sm" wire:click="toggleDisabled" x-on:click="hiding = true" class="!-mt-1">{{ __('Enable') }}</flux:button>
+        @if ($this->isDisabled)
+            <div class="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-6 text-center space-y-3">
+                @if ($this->userId !== null && $this->isDisabledByDefault)
+                    <flux:text class="text-zinc-400">{{ __('This exercise has been disabled for all athletes by default.') }}</flux:text>
+                @elseif ($this->userId !== null)
+                    <flux:text class="text-zinc-400">{{ __('This exercise has been disabled for this athlete.') }}</flux:text>
+                @else
+                    <flux:text class="text-zinc-400">{{ __('This exercise has been disabled for all athletes by default.') }}</flux:text>
+                @endif
+                <div>
+                    <flux:button variant="primary" size="sm" wire:click="toggleDisabled">{{ __('Enable') }}</flux:button>
+                </div>
+            </div>
         @elseif ($this->missingBlockGoal)
             <div class="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-6 text-center">
                 <flux:text class="text-zinc-400">{{ __('Please add this program to a block with a target goal (%) for 1RM progression.') }}</flux:text>
@@ -61,7 +72,7 @@
                         <flux:menu>
                             <flux:menu.item icon="pencil" wire:click="openSettingsForm">{{ __('Edit Settings') }}</flux:menu.item>
                             <flux:menu.item icon="rotate-ccw" wire:click="resetOverrides">{{ __('Reset Overrides') }}</flux:menu.item>
-                            <flux:menu.item icon="eye-off" wire:click="toggleDisabled" x-on:click="hiding = true">{{ __('Disable') }}</flux:menu.item>
+                            <flux:menu.item icon="eye-off" wire:click="toggleDisabled">{{ __('Disable') }}</flux:menu.item>
                         </flux:menu>
                     </flux:dropdown>
                 </div>
