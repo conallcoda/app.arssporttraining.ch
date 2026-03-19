@@ -2,11 +2,13 @@
 
 namespace App\Data\Exercise\Preview;
 
+use App\Data\Exercise\Settings\HeartRateSetting;
 use App\Data\Exercise\Settings\RepsSetting;
 use App\Data\Exercise\Settings\SetsSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Exercise\Settings\WeightSetting;
 use App\Data\Exercise\Strategies\Contracts\DefinesEditability;
+use App\Data\Exercise\Strategies\HeartRate\NorwegianIntensityStrategy;
 use App\Data\Exercise\Strategies\Reps\PairedRepStrategy;
 use App\Data\Exercise\Strategies\Sets\DeloadSetsStrategy;
 use App\Data\Exercise\Strategies\Weight\OneRepMaxFixedStrategy;
@@ -31,6 +33,8 @@ class StrategyOrchestrator
         $this->executeSetsPhase($state);
         $this->executeRepsPhase($state);
         $this->executeWeightPhase($state);
+        $this->executeHeartRateZonePhase($state);
+        $this->executeHeartRatePhase($state);
 
         return $state;
     }
@@ -95,6 +99,57 @@ class StrategyOrchestrator
 
         $weightSetting = WeightSetting::from($config);
         $strategy = new OneRepMaxFixedStrategy($weightSetting, $this->measuredData);
+        $strategy->generate($this->weeks, $state);
+        $this->registerEditability($strategy, $state);
+    }
+
+    private function executeHeartRateZonePhase(GridState $state): void
+    {
+        $settings = $this->data['settings'] ?? [];
+
+        if (! in_array('heartRateZone', $settings)) {
+            return;
+        }
+
+        $config = $this->data['heartRateZone'] ?? [];
+        $applyPer = $config['applyPer'] ?? 'session';
+
+        if ($applyPer === 'week') {
+            return;
+        }
+
+        $defaultZone = $config['default'] ?? '2';
+        $state->setGrid('heartRateZone', $this->fillGrid($state, $defaultZone));
+    }
+
+    private function executeHeartRatePhase(GridState $state): void
+    {
+        $settings = $this->data['settings'] ?? [];
+
+        if (! in_array('heartRate', $settings)) {
+            return;
+        }
+
+        $config = $this->data['heartRate'] ?? [];
+        $mode = $config['mode'] ?? 'manual';
+
+        if ($mode === 'manual') {
+            return;
+        }
+
+        $applyPer = $config['applyPer'] ?? 'session';
+
+        if ($applyPer === 'week') {
+            return;
+        }
+
+        if (! $state->hasGrid('heartRateZone')) {
+            $defaultZone = $this->data['heartRateZone']['default'] ?? '2';
+            $state->setGrid('heartRateZone', $this->fillGrid($state, $defaultZone));
+        }
+
+        $heartRateSetting = HeartRateSetting::from($config);
+        $strategy = new NorwegianIntensityStrategy($heartRateSetting, maxHR: 193, iatPercent: 90);
         $strategy->generate($this->weeks, $state);
         $this->registerEditability($strategy, $state);
     }

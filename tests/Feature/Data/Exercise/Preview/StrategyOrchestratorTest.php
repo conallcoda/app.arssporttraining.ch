@@ -226,3 +226,105 @@ it('skips reps when applyPer is week', function () {
 
     expect($state->hasGrid('reps'))->toBeFalse();
 });
+
+it('populates heart rate grid when automatic biking mode', function () {
+    $data = [
+        'sets' => ['deload' => 'none', 'default' => 3, 'label' => 'Set'],
+        'settings' => ['heartRateZone', 'heartRate'],
+        'heartRateZone' => ['default' => '2', 'applyPer' => 'session'],
+        'heartRate' => ['mode' => 'automatic_biking', 'applyPer' => 'session'],
+    ];
+
+    $orchestrator = new StrategyOrchestrator($data, weeks: 2);
+    $state = $orchestrator->execute();
+
+    expect($state->hasGrid('heartRate'))->toBeTrue();
+    expect($state->hasGrid('heartRateZone'))->toBeTrue();
+
+    $hrGrid = $state->getGrid('heartRate');
+    expect($hrGrid)->toHaveCount(2);
+    expect($hrGrid[0])->toHaveCount(3);
+});
+
+it('populates heart rate grid when automatic jogging mode', function () {
+    $data = [
+        'sets' => ['deload' => 'none', 'default' => 3, 'label' => 'Set'],
+        'settings' => ['heartRateZone', 'heartRate'],
+        'heartRateZone' => ['default' => '1', 'applyPer' => 'session'],
+        'heartRate' => ['mode' => 'automatic_jogging', 'applyPer' => 'session'],
+    ];
+
+    $orchestrator = new StrategyOrchestrator($data, weeks: 2);
+    $state = $orchestrator->execute();
+
+    expect($state->hasGrid('heartRate'))->toBeTrue();
+});
+
+it('skips heart rate phase when mode is manual', function () {
+    $data = [
+        'sets' => ['deload' => 'none', 'default' => 3, 'label' => 'Set'],
+        'settings' => ['heartRate'],
+        'heartRate' => ['mode' => 'manual', 'default' => '140', 'applyPer' => 'session'],
+    ];
+
+    $orchestrator = new StrategyOrchestrator($data, weeks: 2);
+    $state = $orchestrator->execute();
+
+    expect($state->hasGrid('heartRate'))->toBeFalse();
+});
+
+it('skips heart rate phase when applyPer is week', function () {
+    $data = [
+        'sets' => ['deload' => 'none', 'default' => 3, 'label' => 'Set'],
+        'settings' => ['heartRate'],
+        'heartRate' => ['mode' => 'automatic_biking', 'applyPer' => 'week'],
+    ];
+
+    $orchestrator = new StrategyOrchestrator($data, weeks: 2);
+    $state = $orchestrator->execute();
+
+    expect($state->hasGrid('heartRate'))->toBeFalse();
+});
+
+it('populates heart rate grid using default zone when heartRateZone not in settings', function () {
+    $data = [
+        'sets' => ['deload' => 'none', 'default' => 2, 'label' => 'Set'],
+        'settings' => ['heartRate'],
+        'heartRate' => ['mode' => 'automatic_biking', 'applyPer' => 'session'],
+        'heartRateZone' => ['default' => '3'],
+    ];
+
+    $orchestrator = new StrategyOrchestrator($data, weeks: 2);
+    $state = $orchestrator->execute();
+
+    expect($state->hasGrid('heartRate'))->toBeTrue();
+    expect($state->hasGrid('heartRateZone'))->toBeTrue();
+});
+
+it('populates heartRateZone grid in zone phase', function () {
+    $data = [
+        'sets' => ['deload' => 'none', 'default' => 3, 'label' => 'Set'],
+        'settings' => ['heartRateZone'],
+        'heartRateZone' => ['default' => '1', 'applyPer' => 'session'],
+    ];
+
+    $orchestrator = new StrategyOrchestrator($data, weeks: 2);
+    $state = $orchestrator->execute();
+
+    expect($state->hasGrid('heartRateZone'))->toBeTrue();
+    expect($state->getCellValue('heartRateZone', 0, 0))->toBe('1');
+    expect($state->getCellValue('heartRateZone', 1, 2))->toBe('1');
+});
+
+it('skips heartRateZone grid when applyPer is week', function () {
+    $data = [
+        'sets' => ['deload' => 'none', 'default' => 3, 'label' => 'Set'],
+        'settings' => ['heartRateZone'],
+        'heartRateZone' => ['default' => '1', 'applyPer' => 'week'],
+    ];
+
+    $orchestrator = new StrategyOrchestrator($data, weeks: 2);
+    $state = $orchestrator->execute();
+
+    expect($state->hasGrid('heartRateZone'))->toBeFalse();
+});

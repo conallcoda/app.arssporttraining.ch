@@ -9,6 +9,7 @@
     'weekLabels' => null,
     'weekSessions' => null,
     'collapseWeeks' => true,
+    'settingClickable' => false,
 ])
 
 @if (count($grid->rows) === 0 && count($grid->weekColumns) === 0)
@@ -95,7 +96,12 @@
                         @endphp
                         @if (count($grid->rows) > 0)
                             @for ($i = 0; $i < $grid->setCount; $i++)
-                                <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 {{ $setColWidth }} whitespace-nowrap">
+                                @if ($settingClickable)
+                                    <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 {{ $setColWidth }} whitespace-nowrap cursor-pointer hover:brightness-125"
+                                        @click="$dispatch('grid-setting-click', { field: 'sets' })">
+                                @else
+                                    <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 {{ $setColWidth }} whitespace-nowrap">
+                                @endif
                                     @if ($grid->setCount > 1)
                                         {{ $grid->setLabel }} {{ $i + 1 }}
                                     @endif
@@ -103,7 +109,12 @@
                             @endfor
                         @endif
                         @foreach ($grid->weekColumns as $weekCol)
-                            <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 w-16 whitespace-nowrap">
+                            @if ($settingClickable)
+                                <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 w-16 whitespace-nowrap cursor-pointer hover:brightness-125"
+                                    @click="$dispatch('grid-setting-click', { field: '{{ Str::snake($weekCol->field) }}' })">
+                            @else
+                                <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 w-16 whitespace-nowrap">
+                            @endif
                                 {{ $weekCol->label }}</th>
                         @endforeach
                     </tr>
@@ -169,7 +180,13 @@
                                             @endif
                                         </td>
                                     @endif
-                                    <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-medium whitespace-nowrap {{ $row->color }}">
+                                    @php $settingKey = match($row->field) { 'oneRepMax' => 'weight', default => Str::snake($row->field) }; @endphp
+                                    @if ($settingClickable)
+                                        <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-medium whitespace-nowrap cursor-pointer hover:brightness-125 {{ $row->color }}"
+                                            @click="$dispatch('grid-setting-click', { field: '{{ $settingKey }}' })">
+                                    @else
+                                        <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-medium whitespace-nowrap {{ $row->color }}">
+                                    @endif
                                         {{ $row->label }}
                                     </td>
                                     @for ($set = 0; $set < $grid->setCount; $set++)
@@ -301,7 +318,13 @@
                                             {{ $session + 1 }}
                                         </td>
                                     @endif
-                                    <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-medium whitespace-nowrap {{ $row->color }}">
+                                    @php $settingKey = match($row->field) { 'oneRepMax' => 'weight', default => Str::snake($row->field) }; @endphp
+                                    @if ($settingClickable)
+                                        <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-medium whitespace-nowrap cursor-pointer hover:brightness-125 {{ $row->color }}"
+                                            @click="$dispatch('grid-setting-click', { field: '{{ $settingKey }}' })">
+                                    @else
+                                        <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-medium whitespace-nowrap {{ $row->color }}">
+                                    @endif
                                         {{ $row->label }}
                                     </td>
                                     @php

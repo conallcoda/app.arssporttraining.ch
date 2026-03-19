@@ -10,7 +10,7 @@ class HeartRate extends Number
     {
         parent::__construct($name);
 
-        $this->label = 'Heart Rate';
+        $this->label = 'Max Heart Rate';
         $this->required = true;
         $this->min = 1;
         $this->max = 220;

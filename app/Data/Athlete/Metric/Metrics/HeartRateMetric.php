@@ -8,7 +8,7 @@ use App\Form\Fields\Athlete\HeartRate;
 use Spatie\LaravelData\Attributes\WithCast;
 use Spatie\LaravelData\Casts\BuiltinTypeCast;
 
-class HeartRateJoggingMetric extends AbstractMetric
+class HeartRateMetric extends AbstractMetric
 {
     public function __construct(
         #[WithCast(BuiltinTypeCast::class, 'int')]

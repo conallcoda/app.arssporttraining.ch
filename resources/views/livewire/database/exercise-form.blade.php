@@ -53,13 +53,15 @@
                             $grid = $this->previewGrid;
                         @endphp
 
-                        <div wire:key="preview-grid-{{ md5(json_encode($data['config'])) }}">
+                        <div wire:key="preview-grid-{{ md5(json_encode($data['config'])) }}"
+                            x-on:grid-setting-click="focusModalField($el.closest('[data-flux-modal]'), $event.detail.field)">
                             <x-training.exercise-grid
                                 :grid="$grid"
                                 :name="$data['name'] ?? 'Untitled'"
                                 :summary="$grid->summary"
                                 :showMenu="false"
                                 :editable="true"
+                                :settingClickable="true"
                             />
                         </div>
                     @endif

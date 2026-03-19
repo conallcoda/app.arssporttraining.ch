@@ -9,7 +9,7 @@ use Coda\Cms\Form\Fields;
 class HeartRateZoneSetting extends AbstractSetting
 {
     public function __construct(
-        public ?string $default = '3',
+        public ?string $default = '2',
         public string $applyPer = 'session',
     ) {}
 
@@ -23,7 +23,7 @@ class HeartRateZoneSetting extends AbstractSetting
         return new CellInputMeta(
             inputType: 'text',
             maxlength: 3,
-            pattern: '[1-5](-[1-5])?',
+            pattern: '[0-4](-[0-4])?',
         );
     }
 
@@ -43,7 +43,7 @@ class HeartRateZoneSetting extends AbstractSetting
         return [
             Fields\HeartRateZone::make('default')
                 ->label('Default Zone')
-                ->default('3'),
+                ->default('2'),
             ApplyPerField::make(),
         ];
     }

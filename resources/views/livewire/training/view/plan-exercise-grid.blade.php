@@ -63,13 +63,16 @@
                         <flux:text class="text-zinc-400">{{ __('Enter measured reps and weight in the target section to generate the training grid.') }}</flux:text>
                     </div>
                 @else
-                    <x-training.exercise-grid
-                        :grid="$this->previewGrid"
-                        :name="$exerciseName"
-                        :showHeader="false"
-                        :weekLabels="$weekLabels"
-                        :weekSessions="$weekSessions"
-                    />
+                    <div x-on:grid-setting-click="$wire.openSettingsForm($event.detail.field)">
+                        <x-training.exercise-grid
+                            :grid="$this->previewGrid"
+                            :name="$exerciseName"
+                            :showHeader="false"
+                            :settingClickable="true"
+                            :weekLabels="$weekLabels"
+                            :weekSessions="$weekSessions"
+                        />
+                    </div>
                 @endif
             </div>
         @endif

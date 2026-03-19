@@ -33,13 +33,15 @@
                 </div>
 
                 @if ($this->contextExerciseId)
-                    <div class="min-w-0" wire:key="grid-{{ $this->contextExerciseId }}-{{ $this->contextExerciseProgramId }}-{{ md5(json_encode($data['config'] ?? [])) }}">
+                    <div class="min-w-0" wire:key="grid-{{ $this->contextExerciseId }}-{{ $this->contextExerciseProgramId }}-{{ md5(json_encode($data['config'] ?? [])) }}"
+                        x-on:grid-setting-click="focusModalField($el.closest('[data-flux-modal]'), $event.detail.field)">
                         @if ($scheduled)
                             <x-training.exercise-grid
                                 :grid="$this->previewGrid"
                                 :name="$activeTitle ?? $title"
                                 :showHeader="false"
                                 :showMenu="false"
+                                :settingClickable="true"
                                 :weekLabels="$weekLabels"
                                 :weekSessions="$weekSessions"
                                 :collapseWeeks="false"
