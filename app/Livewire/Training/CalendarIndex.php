@@ -2,11 +2,14 @@
 
 namespace App\Livewire\Training;
 
+use App\Data\Athlete\Metric\MetricEnum;
+use App\Data\Athlete\Metric\MetricSubmissionData;
 use App\Data\Exercise\ExerciseSetting;
 use App\Data\Training\Calendar\CalendarSettingsData;
 use App\Data\Training\Config\EffectiveExerciseConfig;
 use App\Data\Training\Config\ExerciseOverrides;
 use App\Data\Training\ExerciseProgramData;
+use App\Models\Athlete\MetricSubmission;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Tag;
@@ -182,7 +185,7 @@ class CalendarIndex extends Component
         $this->start = $this->calendarSettings->start ?? '';
         $this->end = $this->calendarSettings->end ?? '';
 
-        unset($this->days, $this->weeks, $this->months, $this->title, $this->weekGridData, $this->overviewData, $this->allBlocks, $this->categoryBlocks);
+        unset($this->days, $this->weeks, $this->months, $this->title, $this->weekGridData, $this->overviewData, $this->allBlocks, $this->categoryBlocks, $this->metricCellData);
     }
 
     #[On('sidebar-selection-changed')]
@@ -199,7 +202,7 @@ class CalendarIndex extends Component
             $this->planCategory = '';
             $this->planBlock = 'all';
             $this->planProgram = '';
-            unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData, $this->allBlocks, $this->categoryBlocks);
+            unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData, $this->allBlocks, $this->categoryBlocks, $this->metricCellData);
 
             return;
         }
@@ -220,7 +223,7 @@ class CalendarIndex extends Component
             $this->planProgram = '';
         }
 
-        unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData, $this->allBlocks, $this->categoryBlocks);
+        unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData, $this->allBlocks, $this->categoryBlocks, $this->metricCellData);
     }
 
     #[Computed]
@@ -854,6 +857,76 @@ class CalendarIndex extends Component
         }
 
         return $result;
+    }
+
+    #[Computed]
+    public function metricCellData(): array
+    {
+        if ($this->user === '') {
+            return [];
+        }
+
+        [$start, $end] = $this->dateRange();
+
+        $submissions = MetricSubmission::query()
+            ->forAthlete((int) $this->user)
+            ->with('values')
+            ->whereBetween('recorded_at', [$start->format('Y-m-d'), $end->format('Y-m-d')])
+            ->get();
+
+        $map = [];
+
+        foreach ($submissions as $submission) {
+            $dateKey = $submission->recorded_at->format('Y-m-d');
+            $metricKey = $submission->metric->value;
+            $metricClass = $submission->metric->metricClass();
+            $fieldValues = $submission->values->pluck('value', 'field')->all();
+            $metricInstance = $metricClass::from($fieldValues);
+
+            $label = match ($submission->metric) {
+                MetricEnum::OneRepMax => isset($fieldValues['estimated1RM']) ? (int) round((float) $fieldValues['estimated1RM']) : null,
+                MetricEnum::HeartRate => $fieldValues['heartRate'] ?? null,
+            };
+
+            $map["{$metricKey}-{$dateKey}"] = [
+                'id' => $submission->id,
+                'label' => $label,
+                'summary' => $metricInstance->summary(),
+                'data' => MetricSubmissionData::fromModel($submission)->toArray(),
+            ];
+        }
+
+        return $map;
+    }
+
+    public function openMetricCell(string $metricValue, string $date): void
+    {
+        if ($this->user === '') {
+            return;
+        }
+
+        $key = "{$metricValue}-{$date}";
+        $existingData = $this->metricCellData[$key] ?? null;
+
+        if ($existingData) {
+            $eventData = array_merge($existingData['data'], ['metric' => $metricValue]);
+        } else {
+            $eventData = [
+                'metric' => $metricValue,
+                'recorded_at' => $date,
+                'user_id' => (int) $this->user,
+            ];
+        }
+
+        $title = $existingData ? __('Edit Metric') : __('Add Metric');
+
+        $this->dispatch('open-calendar-metric-form', data: $eventData, title: $title);
+    }
+
+    #[On('calendar-metric-form.submitted')]
+    public function onMetricFormSubmitted(array $data): void
+    {
+        unset($this->metricCellData);
     }
 
     #[Computed]

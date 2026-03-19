@@ -26,6 +26,11 @@ class AthleteMetricList extends AbstractModelList
         parent::mount();
     }
 
+    protected function getEntityName(): string
+    {
+        return 'Metric';
+    }
+
     protected function urlPrefix(): string
     {
         return 'am_';

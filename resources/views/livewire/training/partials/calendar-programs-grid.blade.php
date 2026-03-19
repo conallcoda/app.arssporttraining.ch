@@ -62,6 +62,73 @@
                 </tr>
             </tbody>
         @endif
+        @if ($this->hasSelection())
+            <tbody x-data="{ expanded: $persist(false).as('cal-metrics') }" wire:key="metrics-section">
+                <tr>
+                    <td @click="expanded = !expanded"
+                        class="sticky left-0 z-10 cursor-pointer border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] bg-zinc-300 dark:bg-zinc-700">
+                        <div class="flex items-center gap-2">
+                            <flux:icon.chevron-right class="size-4 transition-transform duration-200"
+                                ::class="expanded && 'rotate-90'" />
+                            <span>{{ __('Metrics') }}</span>
+                        </div>
+                    </td>
+                    @foreach ($this->days as $day)
+                        @php
+                            $hasAnyMetric = false;
+                            if ($this->user !== '') {
+                                foreach (\App\Data\Athlete\Metric\MetricEnum::cases() as $mc) {
+                                    if (isset($this->metricCellData[$mc->value . '-' . $day['date']])) {
+                                        $hasAnyMetric = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        @endphp
+                        <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}">
+                            @if ($hasAnyMetric)
+                                <div class="aspect-square rounded-sm bg-zinc-300 dark:bg-zinc-700"></div>
+                            @else
+                                <div class="aspect-square"></div>
+                            @endif
+                        </td>
+                    @endforeach
+                </tr>
+
+                @foreach (\App\Data\Athlete\Metric\MetricEnum::cases() as $metricCase)
+                    <tr wire:key="metric-row-{{ $metricCase->value }}" x-show="expanded" x-cloak>
+                        <td class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 pl-7 pr-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] bg-white dark:bg-zinc-900">
+                            {{ $metricCase->label() }}
+                        </td>
+                        @foreach ($this->days as $day)
+                            @php
+                                $metricCellKey = $metricCase->value . '-' . $day['date'];
+                                $metricCell = $this->metricCellData[$metricCellKey] ?? null;
+                            @endphp
+                            @if ($this->user !== '')
+                                <td wire:click="openMetricCell('{{ $metricCase->value }}', '{{ $day['date'] }}')"
+                                    title="{{ $metricCell ? $metricCell['summary'] : '' }}"
+                                    class="group/cell border-r border-b border-zinc-300 dark:border-zinc-600 p-1 cursor-pointer hover:bg-zinc-100/50 dark:hover:bg-zinc-500/10 {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}">
+                                    @if ($metricCell)
+                                        <div class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm bg-zinc-500/80 dark:bg-zinc-500/60">
+                                            {{ $metricCell['label'] }}
+                                        </div>
+                                    @else
+                                        <div class="aspect-square flex items-center justify-center">
+                                            <flux:icon.plus class="size-3 text-zinc-400 dark:text-zinc-500 opacity-0 group-hover/cell:opacity-100 transition-opacity" />
+                                        </div>
+                                    @endif
+                                </td>
+                            @else
+                                <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}">
+                                    <div class="aspect-square"></div>
+                                </td>
+                            @endif
+                        @endforeach
+                    </tr>
+                @endforeach
+            </tbody>
+        @endif
         @foreach ($this->groupedPrograms as $categoryId => $group)
             @php
                 $category = $group['category'];
@@ -272,8 +339,10 @@
                             @else
                                 <td wire:click="openProgramSlot({{ $entry->id }}, '{{ $day['date'] }}')"
                                     @if ($programInBlock) title="{{ $programBlockNote }}" @endif
-                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer hover:bg-zinc-100/50 dark:hover:bg-zinc-500/10 {{ $programBgClass }}">
-                                    <div class="aspect-square"></div>
+                                    class="group/cell border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer hover:bg-zinc-100/50 dark:hover:bg-zinc-500/10 {{ $programBgClass }}">
+                                    <div class="aspect-square flex items-center justify-center">
+                                        <flux:icon.plus class="size-3 text-zinc-400 dark:text-zinc-500 opacity-0 group-hover/cell:opacity-100 transition-opacity" />
+                                    </div>
                                 </td>
                             @endif
                         @endforeach

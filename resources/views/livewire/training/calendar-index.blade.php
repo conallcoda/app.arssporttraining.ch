@@ -150,6 +150,15 @@
         :excludeFields="['owner_id', 'internalTags']"
     />
 
+    <livewire:database.athlete-metric-form-modal
+        name="calendar-metric-form"
+        :title="__('Add Metric')"
+        :formDataClass="App\Data\Athlete\Metric\MetricSubmissionData::class"
+        :flyout="true"
+        maxWidth="max-w-sm"
+        :excludeFields="['recorded_at']"
+    />
+
     <x-cms::confirm-modal
         name="confirm-delete-program"
         :heading="__('Remove program?')"

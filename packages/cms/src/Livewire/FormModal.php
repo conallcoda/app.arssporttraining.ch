@@ -104,6 +104,10 @@ class FormModal extends Component
                     );
                 }
             }
+
+            $fieldsets = array_values(array_filter($fieldsets, function ($fieldset) {
+                return ! $fieldset instanceof \Coda\Cms\Form\FormFieldset || ! empty($fieldset->fields);
+            }));
         }
 
         return $fieldsets;

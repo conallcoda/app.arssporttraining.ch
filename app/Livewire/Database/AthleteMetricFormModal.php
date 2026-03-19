@@ -59,6 +59,10 @@ class AthleteMetricFormModal extends FormModal
 
     public function open(array $data = [], ?string $title = null, ?string $focusField = null, ?int $focusIndex = null): void
     {
+        if (isset($data['user_id'])) {
+            $this->athleteId = (int) $data['user_id'];
+        }
+
         if (isset($data['metric'])) {
             $metricValue = $data['metric'] instanceof MetricEnum ? $data['metric']->value : (string) $data['metric'];
             $this->metric = $metricValue;
