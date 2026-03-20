@@ -61,6 +61,13 @@ class CoachList extends AbstractModelList
         Flux::toast(text: "Password changed for {$user->name}", variant: 'success');
     }
 
+    public function handleFormSubmitted(array $data): void
+    {
+        $data['name'] = trim(($data['forename'] ?? '').' '.($data['surname'] ?? ''));
+
+        parent::handleFormSubmitted($data);
+    }
+
     protected function getTable(): Table
     {
         return Table::make()

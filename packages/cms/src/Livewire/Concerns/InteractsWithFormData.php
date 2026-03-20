@@ -174,7 +174,7 @@ trait InteractsWithFormData
 
         foreach ($this->flatFieldsets() as $fieldset) {
             $prefix = $fieldset->prefix ?? 'data';
-            $fieldRules = Field::buildValidationRules($fieldset->fields, $prefix.'.');
+            $fieldRules = Field::buildValidationRules($fieldset->fields, $prefix.'.', $this->data);
             $rules = array_merge($rules, $fieldRules);
         }
 

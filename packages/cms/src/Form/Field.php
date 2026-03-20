@@ -63,7 +63,7 @@ abstract class Field
         return $defaults;
     }
 
-    public static function buildValidationRules(array $fields, string $prefix = ''): array
+    public static function buildValidationRules(array $fields, string $prefix = '', array $data = []): array
     {
         $rules = [];
 
@@ -73,14 +73,23 @@ abstract class Field
             }
 
             if ($field->type === 'repeater') {
-                $childRules = self::buildValidationRules($field->schema, "{$prefix}{$field->name}.*.");
+                $childRules = self::buildValidationRules($field->schema, "{$prefix}{$field->name}.*.", $data);
                 $rules = array_merge($rules, $childRules);
             } elseif ($field->validationRules || $field->required) {
-                $fieldRules = $field->validationRules ?? '';
-                if ($field->required && ! str_contains($fieldRules, 'required')) {
-                    $fieldRules = $fieldRules ? "required|{$fieldRules}" : 'required';
+                $resolvedRules = $field->resolveValidationRules($data);
+                $fieldRules = $resolvedRules ?? '';
+
+                if (is_array($fieldRules)) {
+                    if ($field->required && ! in_array('required', $fieldRules)) {
+                        array_unshift($fieldRules, 'required');
+                    }
+                    $rules["{$prefix}{$field->name}"] = $fieldRules;
+                } else {
+                    if ($field->required && ! str_contains($fieldRules, 'required')) {
+                        $fieldRules = $fieldRules ? "required|{$fieldRules}" : 'required';
+                    }
+                    $rules["{$prefix}{$field->name}"] = $fieldRules;
                 }
-                $rules["{$prefix}{$field->name}"] = $fieldRules;
             }
         }
 

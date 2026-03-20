@@ -8,7 +8,7 @@ trait HasValidation
 
     public bool $disabled = false;
 
-    public ?string $validationRules = null;
+    public string|array|\Closure|null $validationRules = null;
 
     public function required(bool $required = true): static
     {
@@ -24,10 +24,19 @@ trait HasValidation
         return $this;
     }
 
-    public function rules(string $rules): static
+    public function rules(string|array|\Closure $rules): static
     {
         $this->validationRules = $rules;
 
         return $this;
+    }
+
+    public function resolveValidationRules(array $data = []): string|array|null
+    {
+        if ($this->validationRules instanceof \Closure) {
+            return ($this->validationRules)($data);
+        }
+
+        return $this->validationRules;
     }
 }

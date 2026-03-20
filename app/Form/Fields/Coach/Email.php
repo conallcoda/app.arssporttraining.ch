@@ -3,6 +3,7 @@
 namespace App\Form\Fields\Coach;
 
 use Coda\Cms\Form\Fields\Text;
+use Illuminate\Validation\Rule;
 
 class Email extends Text
 {
@@ -12,8 +13,12 @@ class Email extends Text
 
         $this->label = 'Email';
         $this->placeholder = 'Email';
-        $this->required = false;
+        $this->required = true;
         $this->default = '';
-        $this->validationRules = 'nullable|email';
+        $this->validationRules = fn (array $data) => [
+            'required',
+            'email',
+            Rule::unique('users', 'email')->ignore($data['id'] ?? null),
+        ];
     }
 }
