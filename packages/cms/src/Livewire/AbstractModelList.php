@@ -518,7 +518,7 @@ abstract class AbstractModelList extends Component
 
     public function getActiveFilters(): array
     {
-        return array_filter($this->filters, fn (mixed $value) => $value !== '' && $value !== null);
+        return array_filter($this->filters, fn (mixed $value) => $value !== '' && $value !== null && $value !== []);
     }
 
     public function hasActiveFilters(): bool
@@ -569,7 +569,7 @@ abstract class AbstractModelList extends Component
 
     public function applyFilters(): void
     {
-        $this->filters = array_filter($this->filters, fn (mixed $value) => $value !== '' && $value !== null);
+        $this->filters = array_filter($this->filters, fn (mixed $value) => $value !== '' && $value !== null && $value !== []);
         $this->resetPage(pageName: $this->prefixedPageName());
         $this->resetState();
         Flux::modal($this->getEntitySlug().'-filters')->close();

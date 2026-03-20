@@ -57,18 +57,38 @@ class PlanExerciseGrid extends Component
     #[Reactive]
     public int|float|null $planTargetGoal = 10;
 
+    #[Reactive]
+    public ?int $planMaxHR = null;
+
+    #[Reactive]
+    public ?int $planIatPercent = null;
+
     public function mount(
         int $exercisePlanId,
         int $exerciseId,
         ?int $userId,
         int $weeks,
         int $sessionsPerWeek,
+        ?int $planMeasuredReps = null,
+        ?float $planMeasuredWeight = null,
+        int|float|null $planTargetGoal = 10,
+        ?int $planMaxHR = null,
+        ?int $planIatPercent = null,
+        array $weekLabels = [],
+        array $weekSessions = [],
     ): void {
         $this->exercisePlanId = $exercisePlanId;
         $this->exerciseId = $exerciseId;
         $this->userId = $userId;
         $this->weeks = $weeks;
         $this->sessionsPerWeek = $sessionsPerWeek;
+        $this->planMeasuredReps = $planMeasuredReps;
+        $this->planMeasuredWeight = $planMeasuredWeight;
+        $this->planTargetGoal = $planTargetGoal;
+        $this->planMaxHR = $planMaxHR;
+        $this->planIatPercent = $planIatPercent;
+        $this->weekLabels = $weekLabels;
+        $this->weekSessions = $weekSessions;
 
         $exercise = Exercise::with(['equipment', 'modifiers'])->findOrFail($exerciseId);
         $this->exerciseName = $exercise->name;
@@ -146,7 +166,7 @@ class PlanExerciseGrid extends Component
             $baseOverrides['cells'] ?? [],
             $baseOverrides['weeks'] ?? [],
         );
-        $orchestrator = new StrategyOrchestrator($effectiveConfig, $measuredData, $weeks, $overrides);
+        $orchestrator = new StrategyOrchestrator($effectiveConfig, $measuredData, $weeks, $overrides, $this->planMaxHR, $this->planIatPercent);
         $state = $orchestrator->execute();
 
         return $state->getResolvedCellValue($field, $weekIndex, $setIndex);
@@ -304,6 +324,8 @@ class PlanExerciseGrid extends Component
             $overrides,
             $this->sessionsPerWeek,
             $highlightOverrides,
+            $this->planMaxHR,
+            $this->planIatPercent,
         );
     }
 

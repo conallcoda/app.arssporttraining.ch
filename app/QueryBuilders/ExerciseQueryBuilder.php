@@ -2,6 +2,8 @@
 
 namespace App\QueryBuilders;
 
+use App\Support\Sorts\CategorySort;
+use App\Support\Sorts\CoachSort;
 use Coda\Cms\QueryBuilder\DefaultQueryBuilder;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\AllowedSort;
@@ -16,6 +18,8 @@ class ExerciseQueryBuilder extends DefaultQueryBuilder
             'name',
             'type',
             AllowedSort::field('updatedAt', 'updated_at'),
+            CoachSort::make('coach', 'exercises'),
+            CategorySort::make('category', 'category_id', 'exercises'),
         ];
     }
 

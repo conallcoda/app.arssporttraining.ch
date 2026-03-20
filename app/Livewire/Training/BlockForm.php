@@ -2,7 +2,8 @@
 
 namespace App\Livewire\Training;
 
-use App\Data\Training\Calendar\BlockFormData;
+use App\Data\Training\Calendar\CategoryBlockFormData;
+use App\Data\Training\Calendar\NoteBlockFormData;
 use App\Models\Training\TrainingProgramBlock;
 use App\Models\Training\TrainingProgramBlockTypeEnum;
 use App\Models\Users\UserGroup;
@@ -64,7 +65,6 @@ class BlockForm extends FormModal
         $this->userId = $data['userId'] ?? null;
         $this->editingBlockId = $data['blockId'] ?? null;
         $this->isEditing = $this->editingBlockId !== null;
-        $this->activeTitle = $title ?? ($this->isEditing ? __('Edit Block') : __('Add Block'));
         $this->categoryId = $data['categoryId'] ?? null;
         $this->categorySlug = $data['categorySlug'] ?? null;
         $this->categoryName = $data['categoryName'] ?? null;
@@ -133,6 +133,15 @@ class BlockForm extends FormModal
                     $this->data['config'] = $parentBlock->config->toArray();
                 }
             }
+        }
+
+        $isNote = $this->categoryId === null;
+        if ($title !== null) {
+            $this->activeTitle = $title;
+        } elseif ($isNote) {
+            $this->activeTitle = $this->isEditing ? __('Edit Note') : __('Add Note');
+        } else {
+            $this->activeTitle = $this->isEditing ? __('Edit Block') : __('Add Block');
         }
 
         $this->loadMembers();
@@ -261,9 +270,15 @@ class BlockForm extends FormModal
     #[Computed]
     public function formConfig(): Form
     {
-        return BlockFormData::getForm([
+        if ($this->categoryId !== null) {
+            return CategoryBlockFormData::getForm([
+                'type' => 'category',
+                'categorySlug' => $this->categorySlug,
+            ]);
+        }
+
+        return NoteBlockFormData::getForm([
             'type' => $this->data['type'] ?? 'focus',
-            'categorySlug' => $this->categorySlug,
         ]);
     }
 

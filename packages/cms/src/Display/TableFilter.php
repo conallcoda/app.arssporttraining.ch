@@ -72,8 +72,18 @@ class TableFilter
             $options = $this->field->getOptions();
 
             if (! empty($options)) {
+                if (is_array($value)) {
+                    return collect($value)
+                        ->map(fn ($v) => $options[$v] ?? (string) $v)
+                        ->implode(', ');
+                }
+
                 return $options[$value] ?? (string) $value;
             }
+        }
+
+        if (is_array($value)) {
+            return implode(', ', $value);
         }
 
         return (string) $value;

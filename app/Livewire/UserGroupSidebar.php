@@ -23,7 +23,7 @@ class UserGroupSidebar extends Component
 
     public bool $showGroupFilter = false;
 
-    public function mount(string $mode = 'single-athlete', ?string $navigateEvent = null, ?int $initialGroup = null, ?int $initialUser = null, bool $showGroupFilter = false): void
+    public function mount(string $mode = 'single-athlete', ?string $navigateEvent = null, ?int $initialGroup = null, ?int $initialUser = null, bool $showGroupFilter = false, ?string $initialGroupFilter = null): void
     {
         $this->mode = $mode;
         $this->navigateEvent = $navigateEvent;
@@ -40,14 +40,19 @@ class UserGroupSidebar extends Component
         }
 
         if ($this->showGroupFilter) {
-            $hasOwned = UserGroup::where('owner_id', auth()->id())->exists();
-            $this->groupFilter = $hasOwned ? 'mine' : 'all';
+            if ($initialGroupFilter !== null) {
+                $this->groupFilter = $initialGroupFilter;
+            } else {
+                $hasOwned = UserGroup::where('owner_id', auth()->id())->exists();
+                $this->groupFilter = $hasOwned ? 'mine' : 'all';
+            }
         }
     }
 
     public function updatedGroupFilter(): void
     {
         unset($this->groups);
+        $this->dispatch('group-filter-changed', filter: $this->groupFilter);
     }
 
     /** @return Collection<int, UserGroup> */

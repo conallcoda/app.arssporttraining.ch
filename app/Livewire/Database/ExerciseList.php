@@ -3,6 +3,8 @@
 namespace App\Livewire\Database;
 
 use App\Data\Exercise\ExerciseData;
+use App\Form\Fields\CoachFilter;
+use App\Livewire\Concerns\ClearsCoachFilterOnTabSwitch;
 use App\Models\Exercise\Exercise;
 use App\Models\Tag;
 use App\Support\OwnershipTabs;
@@ -15,6 +17,7 @@ use Coda\Cms\Display\DisplayFields\TextWithBadgeGroups;
 use Coda\Cms\Display\Table;
 use Coda\Cms\Display\TableFilter;
 use Coda\Cms\Form\Action;
+use Coda\Cms\Form\Fields\Pillbox;
 use Coda\Cms\Form\Fields\Text as TextField;
 use Coda\Cms\Livewire\AbstractModelList;
 use Illuminate\Contracts\Database\Eloquent\Builder;
@@ -22,6 +25,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class ExerciseList extends AbstractModelList
 {
+    use ClearsCoachFilterOnTabSwitch;
+
     protected function urlPrefix(): string
     {
         return 'el_';
@@ -44,7 +49,9 @@ class ExerciseList extends AbstractModelList
 
     protected function getBaseQuery(): Builder
     {
-        return Exercise::query()->with(['category', 'equipment', 'modifiers', 'internalTags', 'media', 'owner']);
+        return Exercise::query()
+            ->select('exercises.*')
+            ->with(['category', 'equipment', 'modifiers', 'internalTags', 'media', 'owner']);
     }
 
     protected function dataFromModel(Model $model): AbstractData
@@ -100,11 +107,12 @@ class ExerciseList extends AbstractModelList
                     ]),
                 ColorBadge::make('categoryColor')
                     ->label(__('Category'))
+                    ->sortAs('category')
                     ->colorLabels($exerciseCategoryColorLabels),
                 Badge::make('internalTags')
                     ->label(__('Tags'))
                     ->source(fn (ExerciseData $data) => collect($data->internalTags)
-                        ->map(fn (int $id) => ['label' => $tagNames[$id] ?? '?'])
+                        ->map(fn (int $id) => ['label' => $tagNames[$id] ?? '?', 'modalField' => 'internalTags'])
                         ->all()
                     ),
                 Badge::make('settings')
@@ -112,17 +120,40 @@ class ExerciseList extends AbstractModelList
                     ->source(fn (ExerciseData $data) => $data->getDefaultsBadges()),
                 Ago::make('updatedAt')->label(__('Last Changed')),
             ])
-            ->sortable(['id', 'name', 'updatedAt'])
-            ->filters([
-                TableFilter::callback('search', function (Builder $query, mixed $value): void {
-                    $query->where('name', 'like', '%'.$value.'%');
-                })
-                    ->field(
-                        TextField::make('search')
-                            ->label(__('Search'))
-                            ->placeholder(__('Search exercises...'))
-                    ),
-            ]);
+            ->sortable(['id', 'name', 'coach', 'category', 'updatedAt'])
+            ->filters($this->buildFilters('exercise_internal'));
+    }
+
+    private function buildFilters(string $tagScope): array
+    {
+        $filters = [
+            TableFilter::callback('search', function (Builder $query, mixed $value): void {
+                $query->where('name', 'like', '%'.$value.'%');
+            })
+                ->field(
+                    TextField::make('search')
+                        ->label(__('Search'))
+                        ->placeholder(__('Search exercises...'))
+                ),
+            TableFilter::callback('tags', function (Builder $query, mixed $value): void {
+                $query->whereHas('internalTags', fn (Builder $q) => $q->whereIn('tags.id', (array) $value));
+            })
+                ->field(
+                    (new Pillbox('tags'))
+                        ->label(__('Tags'))
+                        ->placeholder(__('Filter by tags...'))
+                        ->options(Tag::query()->forScope($tagScope)->pluck('name', 'id')->all())
+                ),
+        ];
+
+        if ($this->selectedTab === 'all') {
+            $filters[] = TableFilter::callback('coach', function (Builder $query, mixed $value): void {
+                $query->whereIn('exercises.owner_id', (array) $value);
+            })
+                ->field(new CoachFilter('coach'));
+        }
+
+        return $filters;
     }
 
     protected function getActions(): array

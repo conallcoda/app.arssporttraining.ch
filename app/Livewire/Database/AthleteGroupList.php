@@ -3,6 +3,8 @@
 namespace App\Livewire\Database;
 
 use App\Data\Athlete\AthleteGroupData;
+use App\Form\Fields\CoachFilter;
+use App\Livewire\Concerns\ClearsCoachFilterOnTabSwitch;
 use App\Models\Tag;
 use App\Models\Users\UserGroup;
 use App\Support\OwnershipTabs;
@@ -13,12 +15,15 @@ use Coda\Cms\Display\DisplayFields\Relationship;
 use Coda\Cms\Display\DisplayFields\Text;
 use Coda\Cms\Display\Table;
 use Coda\Cms\Display\TableFilter;
+use Coda\Cms\Form\Fields\Pillbox;
 use Coda\Cms\Form\Fields\Text as TextField;
 use Coda\Cms\Livewire\AbstractModelList;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 
 class AthleteGroupList extends AbstractModelList
 {
+    use ClearsCoachFilterOnTabSwitch;
+
     protected function urlPrefix(): string
     {
         return 'agl_';
@@ -67,27 +72,50 @@ class AthleteGroupList extends AbstractModelList
                 Badge::make('internalTags')
                     ->label(__('Tags'))
                     ->source(fn (AthleteGroupData $data) => collect($data->internalTags)
-                        ->map(fn (int $id) => ['label' => $tagNames[$id] ?? '?'])
+                        ->map(fn (int $id) => ['label' => $tagNames[$id] ?? '?', 'modalField' => 'internalTags'])
                         ->all()
                     ),
                 Ago::make('updatedAt')->label(__('Last Changed')),
             ])
-            ->sortable(['id', 'name', 'updatedAt'])
-            ->filters([
-                TableFilter::callback('search', function (Builder $query, mixed $value): void {
-                    $query->where(function (Builder $query) use ($value): void {
-                        $query->where('name', 'like', '%'.$value.'%')
-                            ->orWhereHas('members', function (Builder $query) use ($value): void {
-                                $query->where('forename', 'like', '%'.$value.'%')
-                                    ->orWhere('surname', 'like', '%'.$value.'%');
-                            });
-                    });
-                })
-                    ->field(
-                        TextField::make('search')
-                            ->label(__('Search'))
-                            ->placeholder(__('Search groups...'))
-                    ),
-            ]);
+            ->sortable(['id', 'name', 'coach', 'updatedAt'])
+            ->filters($this->buildFilters());
+    }
+
+    private function buildFilters(): array
+    {
+        $filters = [
+            TableFilter::callback('search', function (Builder $query, mixed $value): void {
+                $query->where(function (Builder $query) use ($value): void {
+                    $query->where('name', 'like', '%'.$value.'%')
+                        ->orWhereHas('members', function (Builder $query) use ($value): void {
+                            $query->where('forename', 'like', '%'.$value.'%')
+                                ->orWhere('surname', 'like', '%'.$value.'%');
+                        });
+                });
+            })
+                ->field(
+                    TextField::make('search')
+                        ->label(__('Search'))
+                        ->placeholder(__('Search groups...'))
+                ),
+            TableFilter::callback('tags', function (Builder $query, mixed $value): void {
+                $query->whereHas('internalTags', fn (Builder $q) => $q->whereIn('tags.id', (array) $value));
+            })
+                ->field(
+                    (new Pillbox('tags'))
+                        ->label(__('Tags'))
+                        ->placeholder(__('Filter by tags...'))
+                        ->options(Tag::query()->forScope('athlete_group_internal')->pluck('name', 'id')->all())
+                ),
+        ];
+
+        if ($this->selectedTab === 'all') {
+            $filters[] = TableFilter::callback('coach', function (Builder $query, mixed $value): void {
+                $query->whereIn('user_groups.owner_id', (array) $value);
+            })
+                ->field(new CoachFilter('coach'));
+        }
+
+        return $filters;
     }
 }

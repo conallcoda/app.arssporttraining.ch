@@ -143,29 +143,19 @@
                                 $metricCell = $this->metricCellData[$metricCellKey] ?? null;
                             @endphp
                             @if ($this->user !== '')
-                                @if ($metricCell && ($metricCell['isProjected'] ?? false))
-                                    <td wire:click="editBlockForProjectedMetric({{ $metricCell['id'] }})"
-                                        title="{{ $metricCell['summary'] }}"
-                                        class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 cursor-pointer hover:brightness-95 dark:hover:brightness-125 {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}">
+                                <td wire:click="openMetricCell('{{ $metricCase->value }}', '{{ $day['date'] }}')"
+                                    title="{{ $metricCell ? $metricCell['summary'] : '' }}"
+                                    class="group/cell border-r border-b border-zinc-300 dark:border-zinc-600 p-1 cursor-pointer hover:brightness-95 dark:hover:brightness-125 {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}">
+                                    @if ($metricCell)
                                         <div class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm bg-zinc-500/80 dark:bg-zinc-500/60">
                                             {{ $metricCell['label'] }}
                                         </div>
-                                    </td>
-                                @else
-                                    <td wire:click="openMetricCell('{{ $metricCase->value }}', '{{ $day['date'] }}')"
-                                        title="{{ $metricCell ? $metricCell['summary'] : '' }}"
-                                        class="group/cell border-r border-b border-zinc-300 dark:border-zinc-600 p-1 cursor-pointer hover:brightness-95 dark:hover:brightness-125 {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}">
-                                        @if ($metricCell)
-                                            <div class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm bg-zinc-500/80 dark:bg-zinc-500/60">
-                                                {{ $metricCell['label'] }}
-                                            </div>
-                                        @else
-                                            <div class="aspect-square flex items-center justify-center">
-                                                <flux:icon.plus class="size-3 text-zinc-400 dark:text-zinc-500 opacity-0 group-hover/cell:opacity-100 transition-opacity" />
-                                            </div>
-                                        @endif
-                                    </td>
-                                @endif
+                                    @else
+                                        <div class="aspect-square flex items-center justify-center">
+                                            <flux:icon.plus class="size-3 text-zinc-400 dark:text-zinc-500 opacity-0 group-hover/cell:opacity-100 transition-opacity" />
+                                        </div>
+                                    @endif
+                                </td>
                             @elseif ($this->group !== '')
                                 @php
                                     $groupCell = $this->groupMetricCellData[$metricCellKey] ?? null;
@@ -180,21 +170,12 @@
                                             <flux:popover class="min-w-[10rem] p-2">
                                                 <div class="flex flex-col gap-1.5">
                                                     @foreach ($groupCell['entries'] as $entry)
-                                                        @if ($entry['isProjected'] ?? false)
-                                                            <button type="button"
-                                                                wire:click="editBlockForProjectedMetric({{ $entry['submission_id'] }})"
-                                                                class="flex flex-col px-2 py-1.5 rounded-lg bg-zinc-500/80 dark:bg-zinc-500/60 text-left cursor-pointer hover:opacity-80 transition-opacity">
-                                                                <span class="text-[10px] text-white opacity-80">{{ $entry['summary'] }}</span>
-                                                                <span class="text-[10px] text-white opacity-80 truncate">{{ $entry['athlete'] }}</span>
-                                                            </button>
-                                                        @else
-                                                            <button type="button"
-                                                                wire:click="openGroupMetricCell('{{ $metricCase->value }}', '{{ $day['date'] }}', {{ $entry['user_id'] }}, {{ $entry['submission_id'] }})"
-                                                                class="flex flex-col px-2 py-1.5 rounded-lg bg-zinc-500/80 dark:bg-zinc-500/60 text-left cursor-pointer hover:opacity-80 transition-opacity">
-                                                                <span class="text-[10px] text-white opacity-80">{{ $entry['summary'] }}</span>
-                                                                <span class="text-[10px] text-white opacity-80 truncate">{{ $entry['athlete'] }}</span>
-                                                            </button>
-                                                        @endif
+                                                        <button type="button"
+                                                            wire:click="openGroupMetricCell('{{ $metricCase->value }}', '{{ $day['date'] }}', {{ $entry['user_id'] }}, {{ $entry['submission_id'] }})"
+                                                            class="flex flex-col px-2 py-1.5 rounded-lg bg-zinc-500/80 dark:bg-zinc-500/60 text-left cursor-pointer hover:opacity-80 transition-opacity">
+                                                            <span class="text-[10px] text-white opacity-80">{{ $entry['summary'] }}</span>
+                                                            <span class="text-[10px] text-white opacity-80 truncate">{{ $entry['athlete'] }}</span>
+                                                        </button>
                                                     @endforeach
                                                     @if ($groupCell['count'] < $groupCell['memberCount'])
                                                         <button type="button"
@@ -441,38 +422,50 @@
                                 $programBgClass = $programInBlock ? $categoryBlockBgClass : ($day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '');
                             @endphp
                             @if ($slotCount > 0)
-                                <td @if ($programInBlock) title="{{ $programBlockNote }}" @endif
-                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 hover:brightness-95 dark:hover:brightness-125 {{ $programBgClass }}"
-                                    :class="(endIdx !== null ? ({{ $dayIdx }} >= Math.min(anchorIdx, endIdx) && {{ $dayIdx }} <= Math.max(anchorIdx, endIdx)) : anchorIdx === {{ $dayIdx }}) && 'ring ring-inset ring-black dark:ring-white'">
-                                    <flux:dropdown position="bottom center">
-                                        <button type="button"
-                                            class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm cursor-pointer {{ $colorClass ?: 'bg-emerald-400/80 dark:bg-emerald-500/60' }}">
+                                @if ($user !== '')
+                                    @php $firstTime = array_key_first($slotTimes); @endphp
+                                    <td wire:click="editWeekSlot({{ $entry->id }}, '{{ $day['date'] }}', '{{ $firstTime }}')"
+                                        @if ($programInBlock) title="{{ $programBlockNote }}" @endif
+                                        class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 cursor-pointer hover:brightness-95 dark:hover:brightness-125 {{ $programBgClass }}"
+                                        :class="(endIdx !== null ? ({{ $dayIdx }} >= Math.min(anchorIdx, endIdx) && {{ $dayIdx }} <= Math.max(anchorIdx, endIdx)) : anchorIdx === {{ $dayIdx }}) && 'ring ring-inset ring-black dark:ring-white'">
+                                        <div class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm {{ $colorClass ?: 'bg-emerald-400/80 dark:bg-emerald-500/60' }}">
                                             {{ $slotCount }}
-                                        </button>
-                                        <flux:popover class="min-w-[10rem] p-2">
-                                            <div class="flex flex-col gap-1.5">
-                                                @foreach ($slotTimes as $time => $athletes)
-                                                    @if ($categoryColor)
-                                                        <button type="button"
-                                                            wire:click="editWeekSlot({{ $entry->id }}, '{{ $day['date'] }}', '{{ $time }}')"
-                                                            class="flex flex-col px-2 py-1.5 rounded-lg text-left cursor-pointer hover:opacity-80 transition-opacity"
-                                                            style="{{ \Coda\Cms\Support\ColorPalette::solid($categoryColor) }}">
-                                                            <span class="text-[10px] opacity-80">{{ $time }}</span>
-                                                            <span class="text-[10px] opacity-80 truncate">{{ implode(', ', $athletes) }}</span>
-                                                        </button>
-                                                    @else
-                                                        <button type="button"
-                                                            wire:click="editWeekSlot({{ $entry->id }}, '{{ $day['date'] }}', '{{ $time }}')"
-                                                            class="flex flex-col px-2 py-1.5 rounded-lg text-left cursor-pointer hover:opacity-80 transition-opacity bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
-                                                            <span class="text-[10px] opacity-60">{{ $time }}</span>
-                                                            <span class="text-[10px] opacity-60 truncate">{{ implode(', ', $athletes) }}</span>
-                                                        </button>
-                                                    @endif
-                                                @endforeach
-                                            </div>
-                                        </flux:popover>
-                                    </flux:dropdown>
-                                </td>
+                                        </div>
+                                    </td>
+                                @else
+                                    <td @if ($programInBlock) title="{{ $programBlockNote }}" @endif
+                                        class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 hover:brightness-95 dark:hover:brightness-125 {{ $programBgClass }}"
+                                        :class="(endIdx !== null ? ({{ $dayIdx }} >= Math.min(anchorIdx, endIdx) && {{ $dayIdx }} <= Math.max(anchorIdx, endIdx)) : anchorIdx === {{ $dayIdx }}) && 'ring ring-inset ring-black dark:ring-white'">
+                                        <flux:dropdown position="bottom center">
+                                            <button type="button"
+                                                class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm cursor-pointer {{ $colorClass ?: 'bg-emerald-400/80 dark:bg-emerald-500/60' }}">
+                                                {{ $slotCount }}
+                                            </button>
+                                            <flux:popover class="min-w-[10rem] p-2">
+                                                <div class="flex flex-col gap-1.5">
+                                                    @foreach ($slotTimes as $time => $athletes)
+                                                        @if ($categoryColor)
+                                                            <button type="button"
+                                                                wire:click="editWeekSlot({{ $entry->id }}, '{{ $day['date'] }}', '{{ $time }}')"
+                                                                class="flex flex-col px-2 py-1.5 rounded-lg text-left cursor-pointer hover:opacity-80 transition-opacity"
+                                                                style="{{ \Coda\Cms\Support\ColorPalette::solid($categoryColor) }}">
+                                                                <span class="text-[10px] opacity-80">{{ $time }}</span>
+                                                                <span class="text-[10px] opacity-80 truncate">{{ implode(', ', $athletes) }}</span>
+                                                            </button>
+                                                        @else
+                                                            <button type="button"
+                                                                wire:click="editWeekSlot({{ $entry->id }}, '{{ $day['date'] }}', '{{ $time }}')"
+                                                                class="flex flex-col px-2 py-1.5 rounded-lg text-left cursor-pointer hover:opacity-80 transition-opacity bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                                                                <span class="text-[10px] opacity-60">{{ $time }}</span>
+                                                                <span class="text-[10px] opacity-60 truncate">{{ implode(', ', $athletes) }}</span>
+                                                            </button>
+                                                        @endif
+                                                    @endforeach
+                                                </div>
+                                            </flux:popover>
+                                        </flux:dropdown>
+                                    </td>
+                                @endif
                             @else
                                 <td wire:click="openProgramSlot({{ $entry->id }}, '{{ $day['date'] }}')"
                                     @if ($programInBlock) title="{{ $programBlockNote }}" @endif

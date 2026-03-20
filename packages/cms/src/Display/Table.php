@@ -62,7 +62,7 @@ class Table
         $this->sortableFields = $fields;
 
         foreach ($this->columns as $column) {
-            if (in_array($column->field, $fields, true)) {
+            if (in_array($column->field, $fields, true) || in_array($column->sortField, $fields, true)) {
                 $column->sortable();
             }
         }

@@ -20,6 +20,8 @@ class StrategyOrchestrator
         private ?WeightProgressionSetting $measuredData = null,
         private int $weeks = 5,
         private ?GridOverrides $overrides = null,
+        private ?int $maxHR = null,
+        private ?int $iatPercent = null,
     ) {}
 
     public function execute(): GridState
@@ -149,7 +151,11 @@ class StrategyOrchestrator
         }
 
         $heartRateSetting = HeartRateSetting::from($config);
-        $strategy = new NorwegianIntensityStrategy($heartRateSetting, maxHR: 193, iatPercent: 90);
+        $strategy = new NorwegianIntensityStrategy(
+            $heartRateSetting,
+            maxHR: $this->maxHR ?? 193,
+            iatPercent: $this->iatPercent ?? 90,
+        );
         $strategy->generate($this->weeks, $state);
         $this->registerEditability($strategy, $state);
     }

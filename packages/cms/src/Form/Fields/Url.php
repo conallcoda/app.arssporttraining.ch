@@ -13,5 +13,5 @@ class Url extends Field
 
     public string $type = 'url';
 
-    public ?string $validationRules = 'nullable|url:https';
+    public string|array|\Closure|null $validationRules = 'nullable|url:https';
 }

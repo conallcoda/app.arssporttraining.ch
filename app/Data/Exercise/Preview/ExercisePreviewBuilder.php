@@ -34,8 +34,10 @@ class ExercisePreviewBuilder
         ?GridOverrides $overrides = null,
         int $sessionsPerWeek = 1,
         ?GridOverrides $highlightOverrides = null,
+        ?int $maxHR = null,
+        ?int $iatPercent = null,
     ): PreviewGrid {
-        $orchestrator = new StrategyOrchestrator($data, $measuredData, $weeks, $overrides);
+        $orchestrator = new StrategyOrchestrator($data, $measuredData, $weeks, $overrides, $maxHR, $iatPercent);
         $state = $orchestrator->execute();
 
         if ($highlightOverrides !== null) {

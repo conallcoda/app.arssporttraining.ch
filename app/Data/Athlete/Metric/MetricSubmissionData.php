@@ -4,6 +4,7 @@ namespace App\Data\Athlete\Metric;
 
 use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
 use App\Models\Athlete\MetricSubmission;
+use App\Models\Users\User;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Form\Concerns\InteractsWithForms;
 use Coda\Cms\Form\Fields;
@@ -58,6 +59,8 @@ class MetricSubmissionData extends AbstractData implements HasForms
                 'metric' => $this->metric,
                 'recorded_by' => $this->recorded_by ?? auth()->id(),
                 'recorded_at' => $this->recorded_at,
+                'owner_type' => User::class,
+                'owner_id' => $this->recorded_by ?? auth()->id(),
             ]
         );
 

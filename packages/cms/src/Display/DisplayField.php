@@ -16,11 +16,25 @@ abstract class DisplayField
 
     public string $field;
 
+    public ?string $sortField = null;
+
     public string $type;
 
     public function __construct(string $field)
     {
         $this->field = $field;
+    }
+
+    public function sortAs(string $sortField): static
+    {
+        $this->sortField = $sortField;
+
+        return $this;
+    }
+
+    public function getSortField(): string
+    {
+        return $this->sortField ?? $this->field;
     }
 
     public static function make(string $field): static

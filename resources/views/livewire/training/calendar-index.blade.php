@@ -6,7 +6,7 @@
 
 <flux:main>
     <div class="flex gap-6">
-        <livewire:user-group-sidebar mode="single-athlete" :initial-group="$group !== '' ? (int) $group : null" :initial-user="$user !== '' ? (int) $user : null" :show-group-filter="true" />
+        <livewire:user-group-sidebar mode="single-athlete" :initial-group="$group !== '' ? (int) $group : null" :initial-user="$user !== '' ? (int) $user : null" :show-group-filter="true" :initial-group-filter="$groupFilter" />
 
         <div class="flex-1 min-w-0">
             <x-section :title="__('Calendar')" class="!p-0">
@@ -84,7 +84,7 @@
                             @if ($this->planScheduleInfo['scheduled'])
                                 <div class="px-4 py-4">
                                     <livewire:training.view.program-editor
-                                        :key="'plan-editor-' . $this->planSelectedProgram->id . '-' . $this->planScheduleInfo['weeks'] . '-' . ($user !== '' ? $user : 'group') . '-' . $planBlock . '-' . md5(json_encode($this->planMeasuredData))"
+                                        :key="'plan-editor-' . $this->planSelectedProgram->id . '-' . $this->planScheduleInfo['weeks'] . '-' . ($user !== '' ? $user : 'group') . '-' . $planBlock . '-' . md5(json_encode($this->planMeasuredData)) . '-' . md5(json_encode($this->planHeartRateData))"
                                         :exerciseProgram="$this->planSelectedProgram->program"
                                         :planId="$this->planSelectedProgram->program->id"
                                         :userId="$user !== '' ? (int) $user : null"
@@ -96,6 +96,8 @@
                                         :planMeasuredReps="$this->planMeasuredData['measuredReps']"
                                         :planMeasuredWeight="$this->planMeasuredData['measuredWeight']"
                                         :planTargetGoal="$this->planBlockGoal"
+                                        :planMaxHR="$this->planHeartRateData['maxHR']"
+                                        :planIatPercent="$this->planHeartRateData['iatPercent']"
                                         gridLayout="stacked"
                                     />
                                 </div>
@@ -144,8 +146,18 @@
                         </flux:heading>
                         <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddContent" class="mt-3">{{ __('Add Program') }}</flux:button>
                     </div>
-                @else
+                @elseif (count($this->overviewData) > 0)
                     @include('livewire.training.partials.calendar-overview-grid')
+                @else
+                    <div class="flex flex-col items-center justify-center py-20 text-center">
+                        <flux:icon.users class="size-10 text-zinc-300 dark:text-zinc-600 mb-3" />
+                        @if ($groupFilter === 'mine')
+                            <flux:heading size="lg" class="text-zinc-500 dark:text-zinc-400">{{ __('You don\'t own any groups yet') }}</flux:heading>
+                            <flux:text class="mt-1 text-zinc-400 dark:text-zinc-500">{{ __('Switch to "All Groups" to see all available groups, or create a group to get started.') }}</flux:text>
+                        @else
+                            <flux:heading size="lg" class="text-zinc-500 dark:text-zinc-400">{{ __('No groups found') }}</flux:heading>
+                        @endif
+                    </div>
                 @endif
             </x-section>
         </div>

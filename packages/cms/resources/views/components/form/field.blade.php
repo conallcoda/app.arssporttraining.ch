@@ -441,7 +441,7 @@
                                 <div class="flex-1 min-w-0">
                                     <flux:select
                                         wire:key="{{ $field->name }}-select-{{ $item['_key'] ?? $index }}"
-                                        wire:model.live.blur="{{ $wireModel }}.{{ $index }}.{{ $field->valueAttribute }}"
+                                        wire:model.live="{{ $wireModel }}.{{ $index }}.{{ $field->valueAttribute }}"
                                         placeholder="{{ $field->getPlaceholder() }}" size="sm"
                                         variant="listbox" searchable clearable
                                         data-field="{{ $field->name }}" data-index="{{ $index }}">

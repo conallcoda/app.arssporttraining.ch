@@ -2,6 +2,7 @@
 
 namespace App\Models\Training;
 
+use App\Models\Concerns\HasOwner;
 use App\Models\Users\User;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;
 use Database\Factories\TrainingProgramSlotFactory;
@@ -14,6 +15,7 @@ class TrainingProgramSlot extends Model
     /** @use HasFactory<TrainingProgramSlotFactory> */
     use HasFactory;
 
+    use HasOwner;
     use HasQueryBuilder;
 
     protected static function newFactory(): TrainingProgramSlotFactory
@@ -27,6 +29,7 @@ class TrainingProgramSlot extends Model
         'training_program_id',
         'user_id',
         'datetime',
+        'owner_id',
     ];
 
     protected function casts(): array

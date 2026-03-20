@@ -3,7 +3,6 @@
 namespace App\Models\Concerns;
 
 use App\Models\Users\User;
-use App\Models\Users\UserTypeEnum;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -18,7 +17,7 @@ trait HasOwner
                 return;
             }
 
-            if (is_null($model->owner_id) && auth()->user()?->type !== UserTypeEnum::Coach) {
+            if (is_null($model->owner_id)) {
                 $model->owner_id = auth()->id();
             }
         });

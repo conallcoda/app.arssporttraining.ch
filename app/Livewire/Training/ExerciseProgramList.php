@@ -3,6 +3,8 @@
 namespace App\Livewire\Training;
 
 use App\Data\Training\ExerciseProgramData;
+use App\Form\Fields\CoachFilter;
+use App\Livewire\Concerns\ClearsCoachFilterOnTabSwitch;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Tag;
 use App\Support\OwnershipTabs;
@@ -15,6 +17,7 @@ use Coda\Cms\Display\DisplayFields\View;
 use Coda\Cms\Display\Table;
 use Coda\Cms\Display\TableFilter;
 use Coda\Cms\Form\Action;
+use Coda\Cms\Form\Fields\Pillbox;
 use Coda\Cms\Form\Fields\Select;
 use Coda\Cms\Form\Fields\Text as TextField;
 use Coda\Cms\Livewire\AbstractModelList;
@@ -22,6 +25,8 @@ use Illuminate\Contracts\Database\Eloquent\Builder;
 
 class ExerciseProgramList extends AbstractModelList
 {
+    use ClearsCoachFilterOnTabSwitch;
+
     protected function urlPrefix(): string
     {
         return 'epl_';
@@ -98,35 +103,59 @@ class ExerciseProgramList extends AbstractModelList
                     ]),
                 ColorBadge::make('exerciseCategoryColor')
                     ->label(__('Category'))
+                    ->sortAs('category')
                     ->colorLabels($exerciseCategoryColorLabels),
                 Relationship::make('exercises')->label(__('Exercises'))->modal()->width('w-full'),
                 Badge::make('internalTags')
                     ->label(__('Tags'))
                     ->source(fn (ExerciseProgramData $data) => collect($data->internalTags)
-                        ->map(fn (int $id) => ['label' => $tagNames[$id] ?? '?'])
+                        ->map(fn (int $id) => ['label' => $tagNames[$id] ?? '?', 'modalField' => 'internalTags'])
                         ->all()
                     ),
                 Ago::make('updatedAt')->label(__('Last Changed')),
             ])
-            ->sortable(['id', 'name', 'updatedAt'])
-            ->filters([
-                TableFilter::callback('search', function (Builder $query, mixed $value): void {
-                    $query->where('exercise_programs.name', 'like', '%'.$value.'%');
-                })
-                    ->field(
-                        TextField::make('search')
-                            ->label(__('Search'))
-                            ->placeholder(__('Search programs...'))
-                    ),
-                TableFilter::exact('category', 'exercise_category_id')
-                    ->field(
-                        Select::make('category')
-                            ->label(__('Category'))
-                            ->placeholder(__('All categories'))
-                            ->options($exerciseCategoryOptions)
-                    ),
-            ])
+            ->sortable(['id', 'name', 'coach', 'category', 'updatedAt'])
+            ->filters($this->buildFilters($exerciseCategoryOptions))
             ->limit(100);
+    }
+
+    private function buildFilters(array $exerciseCategoryOptions): array
+    {
+        $filters = [
+            TableFilter::callback('search', function (Builder $query, mixed $value): void {
+                $query->where('exercise_programs.name', 'like', '%'.$value.'%');
+            })
+                ->field(
+                    TextField::make('search')
+                        ->label(__('Search'))
+                        ->placeholder(__('Search programs...'))
+                ),
+            TableFilter::exact('category', 'exercise_category_id')
+                ->field(
+                    Select::make('category')
+                        ->label(__('Category'))
+                        ->placeholder(__('All categories'))
+                        ->options($exerciseCategoryOptions)
+                ),
+            TableFilter::callback('tags', function (Builder $query, mixed $value): void {
+                $query->whereHas('internalTags', fn (Builder $q) => $q->whereIn('tags.id', (array) $value));
+            })
+                ->field(
+                    (new Pillbox('tags'))
+                        ->label(__('Tags'))
+                        ->placeholder(__('Filter by tags...'))
+                        ->options(Tag::query()->forScope('program_internal')->pluck('name', 'id')->all())
+                ),
+        ];
+
+        if ($this->selectedTab === 'all') {
+            $filters[] = TableFilter::callback('coach', function (Builder $query, mixed $value): void {
+                $query->whereIn('exercise_programs.owner_id', (array) $value);
+            })
+                ->field(new CoachFilter('coach'));
+        }
+
+        return $filters;
     }
 
     protected function getAddAction(): ?Action

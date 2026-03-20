@@ -2,6 +2,7 @@
 
 namespace App\QueryBuilders;
 
+use App\Support\Sorts\CoachSort;
 use Coda\Cms\QueryBuilder\DefaultQueryBuilder;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\AllowedSort;
@@ -20,6 +21,7 @@ class UserQueryBuilder extends DefaultQueryBuilder
                     ->orderBy('forename', $direction);
             })->defaultDirection(SortDirection::ASCENDING),
             AllowedSort::field('updatedAt', 'updated_at'),
+            CoachSort::make('coach', 'users'),
         ];
     }
 

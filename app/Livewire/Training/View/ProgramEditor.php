@@ -29,7 +29,9 @@ use Livewire\Component;
 
 class ProgramEditor extends Component
 {
-    use InteractsWithFormData;
+    use InteractsWithFormData {
+        InteractsWithFormData::updated as traitUpdated;
+    }
 
     public ExerciseProgram $exerciseProgram;
 
@@ -57,6 +59,10 @@ class ProgramEditor extends Component
 
     public int|float|null $planTargetGoal = 10;
 
+    public ?int $planMaxHR = null;
+
+    public ?int $planIatPercent = null;
+
     public array $data = [];
 
     public function mount(
@@ -70,20 +76,24 @@ class ProgramEditor extends Component
         ?int $planMeasuredReps = null,
         ?float $planMeasuredWeight = null,
         int|float|null $planTargetGoal = 10,
+        ?int $planMaxHR = null,
+        ?int $planIatPercent = null,
         array $weekLabels = [],
         array $weekSessions = [],
         string $gridLayout = 'side-by-side',
     ): void {
         $this->exerciseProgram = $exerciseProgram;
         $this->planId = $planId;
-        $this->weeks = $weeks;
         $this->showWeeksInput = $showWeeksInput;
+        $this->weeks = $showWeeksInput ? $exerciseProgram->config->weeks : $weeks;
         $this->sessionsPerWeek = $sessionsPerWeek;
         $this->planType = $planType;
         $this->userId = $userId;
         $this->planMeasuredReps = $planMeasuredReps;
         $this->planMeasuredWeight = $planMeasuredWeight;
         $this->planTargetGoal = $planTargetGoal;
+        $this->planMaxHR = $planMaxHR;
+        $this->planIatPercent = $planIatPercent;
         $this->weekLabels = $weekLabels;
         $this->weekSessions = $weekSessions;
         $this->gridLayout = $gridLayout;
@@ -136,14 +146,30 @@ class ProgramEditor extends Component
             ->get();
     }
 
-    public function updatedDataExercises(): void
+    public function updated(string $property, mixed $value): void
     {
-        $hasCompleteExercises = collect($this->data['exercises'] ?? [])
-            ->contains(fn ($item) => ! empty($item['id']));
+        $this->traitUpdated($property, $value);
 
-        if ($hasCompleteExercises) {
-            $this->saveExercises();
+        if (str_starts_with($property, 'data.exercises.') || $property === 'data.exercises') {
+            $hasCompleteExercises = collect($this->data['exercises'] ?? [])
+                ->contains(fn ($item) => ! empty($item['id']));
+
+            if ($hasCompleteExercises) {
+                $this->saveExercises();
+            }
         }
+    }
+
+    public function updatedWeeks(): void
+    {
+        if (! $this->showWeeksInput) {
+            return;
+        }
+
+        $config = $this->exerciseProgram->config;
+        $config->weeks = $this->weeks;
+        $this->exerciseProgram->config = $config;
+        $this->exerciseProgram->save();
     }
 
     public function removeRelationshipItem(string $fieldName, int $index): void

@@ -3,6 +3,7 @@
 namespace App\Livewire\Training;
 
 use App\Data\Athlete\Metric\MetricEnum;
+use App\Data\Athlete\Metric\Metrics\HeartRateMetric;
 use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
 use App\Data\Athlete\Metric\MetricSubmissionData;
 use App\Data\Training\Calendar\CalendarSettingsData;
@@ -58,11 +59,14 @@ class CalendarIndex extends Component
     #[Url(except: '')]
     public string $planCategory = '';
 
-    #[Url(except: 'all')]
-    public string $planBlock = 'all';
+    #[Url(except: 'ungrouped')]
+    public string $planBlock = 'ungrouped';
 
     #[Url(except: '')]
     public string $planProgram = '';
+
+    #[Url(except: 'mine')]
+    public string $groupFilter = 'mine';
 
     public string $planProgramName = '';
 
@@ -105,7 +109,7 @@ class CalendarIndex extends Component
 
     public function updatedView(): void
     {
-        if ($this->view === 'plan' && $this->planBlock === 'all' && $this->planCategory !== '') {
+        if ($this->view === 'plan' && $this->planBlock === 'ungrouped' && $this->planCategory !== '') {
             $this->selectOverlappingBlock();
         }
 
@@ -118,7 +122,7 @@ class CalendarIndex extends Component
 
     public function updatedPlanCategory(): void
     {
-        $this->planBlock = 'all';
+        $this->planBlock = 'ungrouped';
         $this->selectOverlappingBlock();
         $this->planProgram = '';
         $options = $this->planProgramOptions;
@@ -170,7 +174,7 @@ class CalendarIndex extends Component
 
         $this->view = 'plan';
         $this->planCategory = (string) ($trainingProgram->program->exercise_category_id ?? 0);
-        $this->planBlock = 'all';
+        $this->planBlock = 'ungrouped';
         $this->planProgram = (string) $trainingProgramId;
         $this->planProgramName = $trainingProgram->program->name;
 
@@ -262,7 +266,7 @@ class CalendarIndex extends Component
         if (count($selected) === 0) {
             $this->view = 'overview';
             $this->planCategory = '';
-            $this->planBlock = 'all';
+            $this->planBlock = 'ungrouped';
             $this->planProgram = '';
             unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData, $this->allBlocks, $this->categoryBlocks, $this->metricCellData, $this->planMeasuredData);
 
@@ -281,7 +285,7 @@ class CalendarIndex extends Component
         if (! $sameGroup) {
             $this->view = 'overview';
             $this->planCategory = '';
-            $this->planBlock = 'all';
+            $this->planBlock = 'ungrouped';
             $this->planProgram = '';
             $this->planProgramName = '';
         } elseif ($this->view === 'plan' && $this->planCategory !== '') {
@@ -289,6 +293,13 @@ class CalendarIndex extends Component
         }
 
         unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->weekGridData, $this->allBlocks, $this->categoryBlocks, $this->metricCellData, $this->planMeasuredData);
+    }
+
+    #[On('group-filter-changed')]
+    public function onGroupFilterChanged(string $filter): void
+    {
+        $this->groupFilter = $filter;
+        unset($this->overviewData);
     }
 
     #[Computed]
@@ -338,11 +349,21 @@ class CalendarIndex extends Component
     {
         [$start, $end] = $this->dateRange();
 
+        $groupsQuery = UserGroup::with('members')->orderBy('name');
+
+        if ($this->groupFilter === 'mine') {
+            $groupsQuery->where('owner_id', auth()->id());
+        }
+
+        $groups = $groupsQuery->get();
+        $groupIds = $groups->pluck('id');
+
         $slots = TrainingProgramSlot::query()
             ->join('training_programs', 'training_program_slots.training_program_id', '=', 'training_programs.id')
             ->join('exercise_programs', 'training_programs.exercise_program_id', '=', 'exercise_programs.id')
             ->leftJoin('tags', 'exercise_programs.exercise_category_id', '=', 'tags.id')
             ->whereNull('training_programs.deleted_at')
+            ->whereIn('training_programs.group_id', $groupIds)
             ->whereBetween('training_program_slots.datetime', [
                 $start->copy()->startOfDay(),
                 $end->copy()->endOfDay(),
@@ -365,8 +386,6 @@ class CalendarIndex extends Component
                 'time' => substr($slot->slot_time, 0, 5),
             ];
         }
-
-        $groups = UserGroup::with('members')->orderBy('name')->get();
         $result = [];
 
         foreach ($groups as $group) {
@@ -424,7 +443,7 @@ class CalendarIndex extends Component
     #[Computed]
     public function planBlockOptions(): Collection
     {
-        $options = collect(['all' => __('All')]);
+        $options = collect(['ungrouped' => __('Ungrouped')]);
 
         if ($this->planCategory === '' || $this->group === '') {
             return $options;
@@ -480,12 +499,21 @@ class CalendarIndex extends Component
             return ($entry->program->exercise_category_id ?? 0) === $categoryId;
         });
 
-        if ($this->planBlock !== 'all') {
+        $programIds = $entries->pluck('id');
+
+        if ($this->planBlock === 'ungrouped') {
+            $slotQuery = TrainingProgramSlot::query()
+                ->whereIn('training_program_id', $programIds);
+
+            $this->applyUngroupedFilter($slotQuery);
+
+            $scheduledIds = $slotQuery->distinct()->pluck('training_program_id');
+            $entries = $entries->whereIn('id', $scheduledIds);
+        } else {
             $block = TrainingProgramBlock::find((int) $this->planBlock);
             if ($block) {
                 $blockStart = $block->start->startOfDay();
                 $blockEnd = ($block->end ?? $block->start)->endOfDay();
-                $programIds = $entries->pluck('id');
 
                 $scheduledIds = TrainingProgramSlot::query()
                     ->whereIn('training_program_id', $programIds)
@@ -511,7 +539,7 @@ class CalendarIndex extends Component
     #[Computed]
     public function planBlockGoal(): ?int
     {
-        if ($this->planBlock === 'all') {
+        if ($this->planBlock === 'ungrouped') {
             return null;
         }
 
@@ -523,7 +551,7 @@ class CalendarIndex extends Component
     #[Computed]
     public function planHasBlock(): bool
     {
-        return $this->planBlock !== 'all';
+        return $this->planBlock !== 'ungrouped';
     }
 
     /** @return array{measuredReps: ?int, measuredWeight: ?float} */
@@ -534,7 +562,7 @@ class CalendarIndex extends Component
             return ['measuredReps' => 1, 'measuredWeight' => 50];
         }
 
-        if ($this->planBlock === 'all') {
+        if ($this->planBlock === 'ungrouped') {
             return ['measuredReps' => null, 'measuredWeight' => null];
         }
 
@@ -561,6 +589,36 @@ class CalendarIndex extends Component
         return [
             'measuredReps' => $metric->measuredReps,
             'measuredWeight' => $metric->measuredWeight,
+        ];
+    }
+
+    /** @return array{maxHR: ?int, iatPercent: ?int} */
+    #[Computed]
+    public function planHeartRateData(): array
+    {
+        if ($this->user === '') {
+            return ['maxHR' => null, 'iatPercent' => null];
+        }
+
+        $submission = MetricSubmission::query()
+            ->forAthlete((int) $this->user)
+            ->forMetric(MetricEnum::HeartRate)
+            ->manual()
+            ->where('recorded_at', '<=', now()->format('Y-m-d'))
+            ->orderByDesc('recorded_at')
+            ->with('values')
+            ->first();
+
+        if (! $submission) {
+            return ['maxHR' => null, 'iatPercent' => null];
+        }
+
+        $fieldValues = $submission->values->pluck('value', 'field')->all();
+        $metric = HeartRateMetric::from($fieldValues);
+
+        return [
+            'maxHR' => $metric->heartRate,
+            'iatPercent' => $metric->anaerobicThreshold,
         ];
     }
 
@@ -608,7 +666,9 @@ class CalendarIndex extends Component
             $slotQuery->where('user_id', (int) $this->user);
         }
 
-        if ($this->planBlock !== 'all') {
+        if ($this->planBlock === 'ungrouped') {
+            $this->applyUngroupedFilter($slotQuery);
+        } else {
             $block = TrainingProgramBlock::find((int) $this->planBlock);
             if ($block) {
                 $slotQuery->whereBetween('datetime', [
@@ -656,6 +716,53 @@ class CalendarIndex extends Component
         }
 
         return ['weeks' => $weeks, 'sessionsPerWeek' => $sessionsPerWeek, 'scheduled' => true, 'weekLabels' => $weekLabels, 'weekSessions' => $weekSessions];
+    }
+
+    protected function getActiveBlockDateRanges(): array
+    {
+        if ($this->planCategory === '' || $this->group === '') {
+            return [];
+        }
+
+        $blocks = TrainingProgramBlock::query()
+            ->where('group_id', (int) $this->group)
+            ->where('category_id', (int) $this->planCategory)
+            ->where('type', TrainingProgramBlockTypeEnum::Category)
+            ->whereNull('parent_id')
+            ->get();
+
+        $overridesByParent = collect();
+        if ($this->user !== '') {
+            $overridesByParent = TrainingProgramBlock::query()
+                ->whereNotNull('parent_id')
+                ->where('user_id', (int) $this->user)
+                ->whereIn('parent_id', $blocks->pluck('id'))
+                ->get()
+                ->keyBy('parent_id');
+        }
+
+        $ranges = [];
+        foreach ($blocks as $block) {
+            $override = $overridesByParent->get($block->id);
+            if ($override && ! $override->active) {
+                continue;
+            }
+            $effective = $override ?? $block;
+            $ranges[] = [
+                $effective->start->startOfDay(),
+                ($effective->end ?? $effective->start)->endOfDay(),
+            ];
+        }
+
+        return $ranges;
+    }
+
+    protected function applyUngroupedFilter($query): void
+    {
+        $ranges = $this->getActiveBlockDateRanges();
+        foreach ($ranges as [$start, $end]) {
+            $query->whereNotBetween('datetime', [$start, $end]);
+        }
     }
 
     #[Computed]

@@ -49,6 +49,8 @@
                         :planMeasuredReps="$planMeasuredReps"
                         :planMeasuredWeight="$planMeasuredWeight"
                         :planTargetGoal="$planTargetGoal"
+                        :planMaxHR="$planMaxHR"
+                        :planIatPercent="$planIatPercent"
                     />
                 </div>
             @endforeach

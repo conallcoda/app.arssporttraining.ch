@@ -17,6 +17,7 @@ class ExercisePlanConfig extends AbstractConfig
         public array $exercises = [],
         /** @var array<int, array<int, ExerciseOverrides>> */
         public array $userExercises = [],
+        public int $weeks = 5,
     ) {}
 
     public static function initialize(): self

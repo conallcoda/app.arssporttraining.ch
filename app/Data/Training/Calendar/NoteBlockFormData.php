@@ -11,7 +11,7 @@ use Coda\Cms\Form\Fields\Text;
 use Coda\Cms\Form\Form;
 use Coda\Cms\Models\Contracts\HasForms;
 
-class BlockFormData extends AbstractData implements HasForms
+class NoteBlockFormData extends AbstractData implements HasForms
 {
     use InteractsWithForms;
 
@@ -25,31 +25,22 @@ class BlockFormData extends AbstractData implements HasForms
 
     public static function getForm(array $context = []): Form
     {
-        $isCategory = ($context['type'] ?? null) === 'category';
-
-        $typeField = RadioSegmented::make('type')
-            ->label(__('Type'))
-            ->options(
-                collect(TrainingProgramBlockTypeEnum::cases())
-                    ->reject(fn ($case) => $case === TrainingProgramBlockTypeEnum::Category)
-                    ->mapWithKeys(fn ($case) => [$case->value => $case->label()])
-                    ->all()
-            )
-            ->default('focus')
-            ->live();
-
-        $fields = [
-            Date::make('start')->label(__('Start Date'))->required(),
-            Date::make('end')->label(__('End Date')),
-            Text::make('note')->label(__('Name'))->required(),
-        ];
-
-        if (! $isCategory) {
-            array_unshift($fields, $typeField);
-        }
-
         return Form::make()
-            ->fieldset('General', $fields)
+            ->fieldset('General', [
+                RadioSegmented::make('type')
+                    ->label(__('Type'))
+                    ->options(
+                        collect(TrainingProgramBlockTypeEnum::cases())
+                            ->reject(fn ($case) => $case === TrainingProgramBlockTypeEnum::Category)
+                            ->mapWithKeys(fn ($case) => [$case->value => $case->label()])
+                            ->all()
+                    )
+                    ->default('focus')
+                    ->live(),
+                Date::make('start')->label(__('Start Date'))->required(),
+                Date::make('end')->label(__('End Date')),
+                Text::make('note')->label(__('Note'))->required(),
+            ])
             ->fieldset(
                 'Settings',
                 function (array $data) use ($context) {

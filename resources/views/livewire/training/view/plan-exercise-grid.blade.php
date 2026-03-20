@@ -88,6 +88,7 @@
                             :name="$exerciseName"
                             :showHeader="false"
                             :settingClickable="true"
+                            :collapseWeeks="false"
                             :weekLabels="$weekLabels"
                             :weekSessions="$weekSessions"
                         />

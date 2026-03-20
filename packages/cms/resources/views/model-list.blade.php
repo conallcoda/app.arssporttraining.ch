@@ -157,11 +157,11 @@
                 @foreach ($this->columns as $column)
                     @if ($column->sortable)
                         @if ($column->sticky)
-                            <flux:table.column sticky sortable :sorted="$this->isSortedBy($column->field)" :direction="$this->currentSortDirection()" wire:click="sortBy('{{ $column->field }}')" class="{{ $column->width }}">
+                            <flux:table.column sticky sortable :sorted="$this->isSortedBy($column->getSortField())" :direction="$this->currentSortDirection()" wire:click="sortBy('{{ $column->getSortField() }}')" class="{{ $column->width }}">
                                 {{ $column->getDisplayLabel() }}
                             </flux:table.column>
                         @else
-                            <flux:table.column sortable :sorted="$this->isSortedBy($column->field)" :direction="$this->currentSortDirection()" wire:click="sortBy('{{ $column->field }}')" class="{{ $column->width }}">
+                            <flux:table.column sortable :sorted="$this->isSortedBy($column->getSortField())" :direction="$this->currentSortDirection()" wire:click="sortBy('{{ $column->getSortField() }}')" class="{{ $column->width }}">
                                 {{ $column->getDisplayLabel() }}
                             </flux:table.column>
                         @endif

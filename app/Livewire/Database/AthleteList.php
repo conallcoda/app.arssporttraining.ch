@@ -5,6 +5,8 @@ namespace App\Livewire\Database;
 use App\Data\Athlete\AthleteData;
 use App\Display\DisplayFields\PersonName;
 use App\Form\AdminChangePasswordForm;
+use App\Form\Fields\CoachFilter;
+use App\Livewire\Concerns\ClearsCoachFilterOnTabSwitch;
 use App\Models\Tag;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
@@ -15,6 +17,7 @@ use Coda\Cms\Display\DisplayFields\Id;
 use Coda\Cms\Display\Table;
 use Coda\Cms\Display\TableFilter;
 use Coda\Cms\Form\Action;
+use Coda\Cms\Form\Fields\Pillbox;
 use Coda\Cms\Form\Fields\Text as TextField;
 use Coda\Cms\Livewire\AbstractModelList;
 use Flux\Flux;
@@ -23,6 +26,8 @@ use Illuminate\Support\Facades\Hash;
 
 class AthleteList extends AbstractModelList
 {
+    use ClearsCoachFilterOnTabSwitch;
+
     protected function urlPrefix(): string
     {
         return 'al_';
@@ -54,6 +59,7 @@ class AthleteList extends AbstractModelList
                     WHERE ms2.user_id = user_metric_submissions.user_id
                     AND ms2.metric = user_metric_submissions.metric
                     AND ms2.deleted_at IS NULL
+                    AND ms2.recorded_at <= CURDATE()
                     ORDER BY ms2.recorded_at DESC, ms2.created_at DESC
                     LIMIT 1
                 )')->with('values');
@@ -122,25 +128,48 @@ class AthleteList extends AbstractModelList
                 Badge::make('internalTags')
                     ->label(__('Tags'))
                     ->source(fn (AthleteData $data) => collect($data->internalTags)
-                        ->map(fn (int $id) => ['label' => $tagNames[$id] ?? '?'])
+                        ->map(fn (int $id) => ['label' => $tagNames[$id] ?? '?', 'modalField' => 'internalTags'])
                         ->all()
                     ),
                 Ago::make('updatedAt')->label(__('Last Changed')),
             ])
             ->defaultSort('personName', 'asc')
-            ->sortable(['id', 'personName', 'updatedAt'])
-            ->filters([
-                TableFilter::callback('search', function (Builder $query, mixed $value): void {
-                    $query->where(function (Builder $q) use ($value): void {
-                        $q->where('forename', 'like', '%'.$value.'%')
-                            ->orWhere('surname', 'like', '%'.$value.'%');
-                    });
-                })
-                    ->field(
-                        TextField::make('search')
-                            ->label(__('Search'))
-                            ->placeholder(__('Search athletes...'))
-                    ),
-            ]);
+            ->sortable(['id', 'personName', 'coach', 'updatedAt'])
+            ->filters($this->buildFilters());
+    }
+
+    private function buildFilters(): array
+    {
+        $filters = [
+            TableFilter::callback('search', function (Builder $query, mixed $value): void {
+                $query->where(function (Builder $q) use ($value): void {
+                    $q->where('forename', 'like', '%'.$value.'%')
+                        ->orWhere('surname', 'like', '%'.$value.'%');
+                });
+            })
+                ->field(
+                    TextField::make('search')
+                        ->label(__('Search'))
+                        ->placeholder(__('Search athletes...'))
+                ),
+            TableFilter::callback('tags', function (Builder $query, mixed $value): void {
+                $query->whereHas('internalTags', fn (Builder $q) => $q->whereIn('tags.id', (array) $value));
+            })
+                ->field(
+                    (new Pillbox('tags'))
+                        ->label(__('Tags'))
+                        ->placeholder(__('Filter by tags...'))
+                        ->options(Tag::query()->forScope('athlete_internal')->pluck('name', 'id')->all())
+                ),
+        ];
+
+        if ($this->selectedTab === 'all') {
+            $filters[] = TableFilter::callback('coach', function (Builder $query, mixed $value): void {
+                $query->whereIn('users.owner_id', (array) $value);
+            })
+                ->field(new CoachFilter('coach'));
+        }
+
+        return $filters;
     }
 }

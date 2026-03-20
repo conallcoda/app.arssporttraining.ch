@@ -70,12 +70,15 @@ class MetricSubmission extends Model
 
     public function scopeProjected(Builder $query): void
     {
-        $query->whereNotNull('owner_type');
+        $query->where('owner_type', \App\Models\Training\TrainingProgramBlock::class);
     }
 
     public function scopeManual(Builder $query): void
     {
-        $query->whereNull('owner_type');
+        $query->where(function (Builder $q) {
+            $q->where('owner_type', \App\Models\Users\User::class)
+                ->orWhereNull('owner_type');
+        });
     }
 
     public function scopeForBlock(Builder $query, int $blockId): void
