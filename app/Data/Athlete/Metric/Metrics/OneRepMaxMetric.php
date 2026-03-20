@@ -16,6 +16,8 @@ class OneRepMaxMetric extends AbstractMetric
         public ?int $measuredReps = 1,
         #[WithCast(BuiltinTypeCast::class, 'float')]
         public ?float $measuredWeight = 50,
+        #[WithCast(BuiltinTypeCast::class, 'int')]
+        public ?int $goalPercent = null,
     ) {}
 
     public static function fields(): array
@@ -33,6 +35,10 @@ class OneRepMaxMetric extends AbstractMetric
             (float) $this->measuredWeight,
         );
 
+        if ($this->goalPercent !== null && $this->goalPercent !== 0) {
+            return "{$estimated}kg (+{$this->goalPercent}%)";
+        }
+
         return "{$estimated}kg ({$this->measuredReps}x{$this->measuredWeight}kg)";
     }
 
@@ -43,6 +49,10 @@ class OneRepMaxMetric extends AbstractMetric
             (int) $this->measuredReps,
             (float) $this->measuredWeight,
         );
+
+        if ($this->goalPercent !== null && $this->goalPercent !== 0) {
+            return ['label' => "{$prefix}: {$estimated}kg (+{$this->goalPercent}%)"];
+        }
 
         return ['label' => "{$prefix}: {$estimated}kg"];
     }

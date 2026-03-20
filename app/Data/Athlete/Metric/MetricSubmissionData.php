@@ -65,7 +65,7 @@ class MetricSubmissionData extends AbstractData implements HasForms
 
         $submission->values()->delete();
 
-        $fieldValues = $this->data->toArray();
+        $fieldValues = array_filter($this->data->toArray(), fn ($v) => $v !== null);
         $derivedValues = $this->data::derivedValues($fieldValues);
 
         $allValues = array_merge($fieldValues, $derivedValues);

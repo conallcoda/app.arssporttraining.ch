@@ -79,4 +79,28 @@ class ColorPalette
     {
         return "bg-{$color}-200 dark:bg-{$color}-700/40";
     }
+
+    public static function safelist(): string
+    {
+        $classes = [];
+
+        foreach (array_keys(self::COLORS) as $color) {
+            $classes[] = self::solidClasses($color);
+            $classes[] = self::light($color);
+            $classes[] = self::blockTint($color);
+            $classes[] = self::lightBadge($color);
+            $classes[] = self::lightOpaque($color);
+            $classes[] = self::lightOpaqueSubtle($color);
+            $classes[] = self::lightStrong($color);
+        }
+
+        $all = [];
+        foreach ($classes as $classString) {
+            foreach (preg_split('/\s+/', $classString) as $class) {
+                $all[$class] = true;
+            }
+        }
+
+        return implode(' ', array_keys($all));
+    }
 }

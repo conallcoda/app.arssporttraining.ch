@@ -19,6 +19,7 @@ use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use App\Support\WeekOptions;
+use App\Training\ProjectedOneRepMaxService;
 use Carbon\Carbon;
 use Flux\Flux;
 use Illuminate\Support\Collection;
@@ -1056,6 +1057,13 @@ class CalendarIndex extends Component
         foreach ($submissions as $submission) {
             $dateKey = $submission->recorded_at->format('Y-m-d');
             $metricKey = $submission->metric->value;
+            $cellKey = "{$metricKey}-{$dateKey}";
+            $isProjected = $submission->owner_type !== null;
+
+            if ($isProjected && isset($map[$cellKey]) && ! ($map[$cellKey]['isProjected'] ?? false)) {
+                continue;
+            }
+
             $metricClass = $submission->metric->metricClass();
             $fieldValues = $submission->values->pluck('value', 'field')->all();
             $metricInstance = $metricClass::from($fieldValues);
@@ -1065,10 +1073,11 @@ class CalendarIndex extends Component
                 MetricEnum::HeartRate => $fieldValues['heartRate'] ?? null,
             };
 
-            $map["{$metricKey}-{$dateKey}"] = [
+            $map[$cellKey] = [
                 'id' => $submission->id,
                 'label' => $label,
                 'summary' => $metricInstance->summary(),
+                'isProjected' => $isProjected,
                 'data' => MetricSubmissionData::fromModel($submission)->toArray(),
             ];
         }
@@ -1117,12 +1126,15 @@ class CalendarIndex extends Component
                 ];
             }
 
+            $isProjected = $submission->owner_type !== null;
+
             $map[$cellKey]['count']++;
             $map[$cellKey]['entries'][] = [
                 'summary' => $metricInstance->summary(),
                 'athlete' => $submission->user->name,
                 'user_id' => $submission->user_id,
                 'submission_id' => $submission->id,
+                'isProjected' => $isProjected,
                 'data' => MetricSubmissionData::fromModel($submission)->toArray(),
             ];
         }
@@ -1143,6 +1155,7 @@ class CalendarIndex extends Component
             $submission = MetricSubmission::query()
                 ->forAthlete((int) $this->user)
                 ->forMetric($metricCase)
+                ->manual()
                 ->where('recorded_at', '<=', now()->format('Y-m-d'))
                 ->orderByDesc('recorded_at')
                 ->with('values')
@@ -1308,6 +1321,11 @@ class CalendarIndex extends Component
             );
 
             $submission->persist();
+
+            if ($metric === MetricEnum::OneRepMax) {
+                $projectedService = app(ProjectedOneRepMaxService::class);
+                $projectedService->syncForAthleteBlocks((int) ($data['user_id'] ?? $this->user));
+            }
         }
 
         unset($this->metricCellData);
@@ -1787,6 +1805,16 @@ class CalendarIndex extends Component
         ]);
     }
 
+    public function editBlockForProjectedMetric(int $submissionId): void
+    {
+        $submission = MetricSubmission::find($submissionId);
+        if (! $submission || $submission->owner_type !== TrainingProgramBlock::class) {
+            return;
+        }
+
+        $this->editBlock($submission->owner_id);
+    }
+
     public function openCategoryBlock(string $date, int $categoryId): void
     {
         $tag = Tag::find($categoryId);
@@ -1837,15 +1865,20 @@ class CalendarIndex extends Component
         $categoryId = $data['categoryId'] ?? null;
         $config = $data['config'] ?? null;
         $isCategoryBlock = $categoryId !== null;
+        $projectedService = app(ProjectedOneRepMaxService::class);
 
         if ($parentId !== null) {
             if ($editingBlockId !== null) {
+                $oldBlock = TrainingProgramBlock::find($editingBlockId);
+                if ($oldBlock) {
+                    $projectedService->removeForBlock($oldBlock);
+                }
                 TrainingProgramBlock::destroy($editingBlockId);
             }
 
             $parentBlock = TrainingProgramBlock::find($parentId);
             if ($parentBlock) {
-                TrainingProgramBlock::create([
+                $childBlock = TrainingProgramBlock::create([
                     'group_id' => $groupId,
                     'user_id' => $userId,
                     'parent_id' => $parentId,
@@ -1858,26 +1891,33 @@ class CalendarIndex extends Component
                     'config' => $config,
                     'active' => true,
                 ]);
+
+                $projectedService->syncForBlock($childBlock);
+                $projectedService->syncForBlock($parentBlock->fresh());
             }
 
-            unset($this->allBlocks, $this->categoryBlocks, $this->planBlockGoal, $this->planMeasuredData);
+            unset($this->allBlocks, $this->categoryBlocks, $this->planBlockGoal, $this->planMeasuredData, $this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData);
 
             return;
         }
 
         if ($editingBlockId !== null) {
+            $oldBlock = TrainingProgramBlock::find($editingBlockId);
+            if ($oldBlock) {
+                $projectedService->removeForBlock($oldBlock);
+            }
+
             if ($isCategoryBlock) {
                 TrainingProgramBlock::destroy($editingBlockId);
             } elseif ($userId !== null && empty($selectedMembers)) {
                 TrainingProgramBlock::destroy($editingBlockId);
             } else {
-                $existingBlock = TrainingProgramBlock::find($editingBlockId);
-                if ($existingBlock) {
+                if ($oldBlock) {
                     TrainingProgramBlock::query()
                         ->where('group_id', $groupId)
-                        ->where('type', $existingBlock->type)
-                        ->where('start', $existingBlock->start)
-                        ->where('note', $existingBlock->note)
+                        ->where('type', $oldBlock->type)
+                        ->where('start', $oldBlock->start)
+                        ->where('note', $oldBlock->note)
                         ->delete();
                 }
             }
@@ -1895,16 +1935,19 @@ class CalendarIndex extends Component
         ];
 
         if ($isCategoryBlock) {
-            TrainingProgramBlock::create([...$blockData, 'user_id' => null]);
+            $newBlock = TrainingProgramBlock::create([...$blockData, 'user_id' => null]);
+            $projectedService->syncForBlock($newBlock);
         } elseif ($userId !== null && empty($selectedMembers)) {
-            TrainingProgramBlock::create([...$blockData, 'user_id' => $userId]);
+            $newBlock = TrainingProgramBlock::create([...$blockData, 'user_id' => $userId]);
+            $projectedService->syncForBlock($newBlock);
         } else {
             foreach ($selectedMembers as $memberId) {
-                TrainingProgramBlock::create([...$blockData, 'user_id' => $memberId]);
+                $newBlock = TrainingProgramBlock::create([...$blockData, 'user_id' => $memberId]);
+                $projectedService->syncForBlock($newBlock);
             }
         }
 
-        unset($this->allBlocks, $this->categoryBlocks, $this->planBlockGoal, $this->planMeasuredData);
+        unset($this->allBlocks, $this->categoryBlocks, $this->planBlockGoal, $this->planMeasuredData, $this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData);
     }
 
     #[On('block.deleted')]
@@ -1923,14 +1966,29 @@ class CalendarIndex extends Component
             return;
         }
 
+        $projectedService = app(ProjectedOneRepMaxService::class);
+
         if ($existingBlock->parent_id !== null) {
+            $projectedService->removeForBlock($existingBlock);
             $existingBlock->update(['active' => false]);
-            unset($this->allBlocks, $this->categoryBlocks, $this->planBlockGoal, $this->planMeasuredData);
+
+            $parentBlock = TrainingProgramBlock::find($existingBlock->parent_id);
+            if ($parentBlock) {
+                $projectedService->syncForBlock($parentBlock);
+            }
+
+            unset($this->allBlocks, $this->categoryBlocks, $this->planBlockGoal, $this->planMeasuredData, $this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData);
 
             return;
         }
 
+        $projectedService->removeForBlock($existingBlock);
+
         if ($existingBlock->category_id !== null) {
+            $children = TrainingProgramBlock::where('parent_id', $editingBlockId)->get();
+            foreach ($children as $child) {
+                $projectedService->removeForBlock($child);
+            }
             TrainingProgramBlock::where('parent_id', $editingBlockId)->delete();
             TrainingProgramBlock::destroy($editingBlockId);
         } elseif ($userId !== null) {
@@ -1944,7 +2002,7 @@ class CalendarIndex extends Component
                 ->delete();
         }
 
-        unset($this->allBlocks, $this->categoryBlocks, $this->planBlockGoal, $this->planMeasuredData);
+        unset($this->allBlocks, $this->categoryBlocks, $this->planBlockGoal, $this->planMeasuredData, $this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData);
     }
 
     public function toggleExerciseDisabled(int $exerciseId, int $exerciseProgramId): void

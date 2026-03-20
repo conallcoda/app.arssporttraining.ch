@@ -63,8 +63,37 @@
                 <flux:icon.sun x-show="$flux.dark" variant="mini" class="text-zinc-500 dark:text-white" />
                 <flux:icon.moon x-show="! $flux.dark" variant="mini" class="text-zinc-500 dark:text-white" />
             </flux:button>
+
+            <flux:dropdown position="bottom" align="end">
+                <flux:profile initials="{{ auth()->user()->initials() }}" />
+
+                <flux:menu>
+                    <div class="px-3 py-1.5 text-xs text-zinc-400">
+                        {{ __('Signed in as') }}: {{ auth()->user()->email }}
+                    </div>
+
+                    <flux:menu.separator />
+
+                    <flux:modal.trigger name="change-password">
+                        <flux:menu.item icon="lock">
+                            {{ __('Change Password') }}
+                        </flux:menu.item>
+                    </flux:modal.trigger>
+
+                    <form method="POST" action="/logout">
+                        @csrf
+                        <flux:menu.item icon="log-out" type="submit">
+                            {{ __('Logout') }}
+                        </flux:menu.item>
+                    </form>
+                </flux:menu>
+            </flux:dropdown>
         </flux:navbar>
     </flux:header>
+
+    <flux:modal name="change-password" flyout>
+        <livewire:auth.change-password />
+    </flux:modal>
 
     {{ $slot }}
 

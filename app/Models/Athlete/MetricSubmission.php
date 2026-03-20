@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class MetricSubmission extends Model
@@ -25,6 +26,8 @@ class MetricSubmission extends Model
         'metric',
         'recorded_by',
         'recorded_at',
+        'owner_type',
+        'owner_id',
     ];
 
     protected function casts(): array
@@ -33,6 +36,11 @@ class MetricSubmission extends Model
             'metric' => MetricEnum::class,
             'recorded_at' => 'date',
         ];
+    }
+
+    public function owner(): MorphTo
+    {
+        return $this->morphTo('owner');
     }
 
     public function user(): BelongsTo
@@ -58,6 +66,22 @@ class MetricSubmission extends Model
     public function scopeForMetric(Builder $query, MetricEnum $metric): void
     {
         $query->where('metric', $metric);
+    }
+
+    public function scopeProjected(Builder $query): void
+    {
+        $query->whereNotNull('owner_type');
+    }
+
+    public function scopeManual(Builder $query): void
+    {
+        $query->whereNull('owner_type');
+    }
+
+    public function scopeForBlock(Builder $query, int $blockId): void
+    {
+        $query->where('owner_type', \App\Models\Training\TrainingProgramBlock::class)
+            ->where('owner_id', $blockId);
     }
 
     public function getFieldValue(string $field): ?string

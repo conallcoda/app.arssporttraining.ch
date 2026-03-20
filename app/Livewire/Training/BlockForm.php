@@ -60,11 +60,11 @@ class BlockForm extends FormModal
 
     public function open(array $data = [], ?string $title = null, ?string $focusField = null, ?int $focusIndex = null): void
     {
-        $this->activeTitle = $title;
         $this->groupId = $data['groupId'] ?? null;
         $this->userId = $data['userId'] ?? null;
         $this->editingBlockId = $data['blockId'] ?? null;
         $this->isEditing = $this->editingBlockId !== null;
+        $this->activeTitle = $title ?? ($this->isEditing ? __('Edit Block') : __('Add Block'));
         $this->categoryId = $data['categoryId'] ?? null;
         $this->categorySlug = $data['categorySlug'] ?? null;
         $this->categoryName = $data['categoryName'] ?? null;
