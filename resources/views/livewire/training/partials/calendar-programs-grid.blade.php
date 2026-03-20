@@ -123,16 +123,17 @@
                         <td class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 pl-7 pr-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] bg-white dark:bg-zinc-900">
                             {{ $metricCase->label() }}
                             @if (isset($this->currentMetricValues[$metricCase->value]))
-                                <div class="mt-1 flex items-center gap-1.5">
-                                    <span class="text-[10px] text-zinc-400 dark:text-zinc-500 font-normal">Current:</span>
-                                    <flux:badge
-                                        size="sm"
-                                        color="zinc"
-                                        class="text-xs cursor-pointer"
-                                        wire:click="openCurrentMetric('{{ $metricCase->value }}')"
-                                    >
-                                        {{ $this->currentMetricValues[$metricCase->value]['summary'] }}
-                                    </flux:badge>
+                                <div class="mt-1">
+                                    <flux:dropdown>
+                                        <button type="button" class="cursor-pointer">
+                                            <flux:badge size="sm" color="zinc" class="text-xs pointer-events-none">
+                                                {{ $this->currentMetricValues[$metricCase->value]['summary'] }}
+                                            </flux:badge>
+                                        </button>
+                                        <flux:popover class="max-w-xs">
+                                            <p class="text-sm">Current value. Recorded {{ $this->currentMetricValues[$metricCase->value]['recorded_at'] }}</p>
+                                        </flux:popover>
+                                    </flux:dropdown>
                                 </div>
                             @endif
                         </td>
@@ -398,7 +399,15 @@
                             @if ($exercises->isNotEmpty())
                                 <div x-show="programExpanded[{{ $entry->id }}]" x-cloak class="mt-1 ml-10 flex flex-col gap-0.5">
                                     @foreach ($exercises as $exercise)
-                                        <button type="button" wire:click="openExerciseSettings({{ $exercise->id }}, {{ $entry->exercise_program_id }}, {{ $entry->id }})" class="text-sm text-zinc-500 dark:text-zinc-400 text-left hover:underline">{{ $exercise->name }}</button>
+                                        <label wire:key="exercise-check-{{ $exercise->pivot->id }}" class="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                wire:click="toggleExerciseDisabled({{ $exercise->id }}, {{ $entry->exercise_program_id }})"
+                                                @if (!$this->isExerciseDisabled($exercise->id, $entry->program)) checked @endif
+                                                class="rounded border-zinc-300 dark:border-zinc-600 text-zinc-800 dark:text-white focus:ring-zinc-500 dark:bg-zinc-700"
+                                            />
+                                            {{ $exercise->name }}
+                                        </label>
                                     @endforeach
                                 </div>
                             @endif

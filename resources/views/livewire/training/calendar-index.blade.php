@@ -157,8 +157,6 @@
 
     <livewire:training.block-form />
 
-    <livewire:training.calendar-exercise-settings-form />
-
     <livewire:training.exercise-program-form-modal
         name="edit-program"
         :title="__('Edit Exercise Program')"

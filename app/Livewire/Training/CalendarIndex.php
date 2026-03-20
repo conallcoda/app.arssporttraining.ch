@@ -5,10 +5,8 @@ namespace App\Livewire\Training;
 use App\Data\Athlete\Metric\MetricEnum;
 use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
 use App\Data\Athlete\Metric\MetricSubmissionData;
-use App\Data\Exercise\ExerciseSetting;
 use App\Data\Training\Calendar\CalendarSettingsData;
 use App\Data\Training\Config\EffectiveExerciseConfig;
-use App\Data\Training\Config\ExerciseOverrides;
 use App\Data\Training\ExerciseProgramData;
 use App\Models\Athlete\MetricSubmission;
 use App\Models\Exercise\Exercise;
@@ -1155,6 +1153,7 @@ class CalendarIndex extends Component
                 $metricInstance = $metricCase->metricClass()::from($fieldValues);
                 $result[$metricCase->value] = [
                     'summary' => $metricInstance->summary(),
+                    'recorded_at' => $submission->recorded_at->format('d.m.Y'),
                     'data' => MetricSubmissionData::from($submission)->toArray(),
                 ];
             }
@@ -1948,163 +1947,48 @@ class CalendarIndex extends Component
         unset($this->allBlocks, $this->categoryBlocks, $this->planBlockGoal, $this->planMeasuredData);
     }
 
-    public function openExerciseSettings(int $exerciseId, int $exerciseProgramId, int $trainingProgramId): void
+    public function toggleExerciseDisabled(int $exerciseId, int $exerciseProgramId): void
     {
-        $exercise = Exercise::findOrFail($exerciseId);
-        $exerciseProgram = ExerciseProgram::findOrFail($exerciseProgramId);
-
-        $base = $exercise->config;
-        $planOverrides = $exerciseProgram->config->defaultExerciseOverrides($exerciseId);
-        $userId = $this->user !== '' ? (int) $this->user : null;
-        $userOverrides = $userId !== null
-            ? $exerciseProgram->config->userExerciseOverrides($userId, $exerciseId)
-            : null;
-        $effectiveConfig = EffectiveExerciseConfig::resolve($base, $planOverrides, $userOverrides);
-
-        [$start, $end] = $this->dateRange();
-
-        $slotQuery = TrainingProgramSlot::query()
-            ->where('training_program_id', $trainingProgramId)
-            ->whereBetween('datetime', [$start->copy()->startOfDay(), $end->copy()->endOfDay()]);
-
-        if ($this->user !== '') {
-            $slotQuery->where('user_id', (int) $this->user);
-        }
-
-        $slotDates = $slotQuery->pluck('datetime')
-            ->map(fn ($dt) => Carbon::parse($dt)->format('Y-m-d'))
-            ->unique()
-            ->sort()
-            ->values();
-
-        $scheduledWeeks = [];
-        foreach ($slotDates as $date) {
-            $d = Carbon::parse($date);
-            $key = $d->isoWeekYear().'-'.$d->isoWeek();
-            if (! isset($scheduledWeeks[$key])) {
-                $scheduledWeeks[$key] = ['week' => $d->isoWeek(), 'year' => $d->isoWeekYear()];
-            }
-        }
-        $scheduledWeeks = array_values($scheduledWeeks);
-
-        $weeks = count($scheduledWeeks);
-        $scheduled = $weeks > 0;
-
-        if (! $scheduled) {
-            $weeks = 1;
-            $now = Carbon::now();
-            $scheduledWeeks = [['week' => $now->isoWeek(), 'year' => $now->isoWeekYear()]];
-        }
-
-        $weekLabels = [];
-        foreach ($scheduledWeeks as $i => $weekInfo) {
-            $monday = Carbon::now()->setISODate($weekInfo['year'], $weekInfo['week'], 1);
-            $sunday = $monday->copy()->addDays(6);
-            $dateRange = $monday->format('d.m').' - '.$sunday->format('d.m');
-            $weekLabels[$i] = 'W'.$weekInfo['week'].', '.$weekInfo['year']
-                .'<br><span class="text-[10px] font-normal text-zinc-400 dark:text-zinc-500">'.$dateRange.'</span>';
-        }
-
-        $weekSessions = [];
-        $sessionsPerWeek = 1;
-        if ($scheduled) {
-            $weekSlotCounts = $slotDates->groupBy(fn ($date) => Carbon::parse($date)->isoWeekYear().'-'.Carbon::parse($date)->isoWeek())
-                ->map->count();
-            $sessionsPerWeek = max(1, (int) $weekSlotCounts->max());
-
-            foreach ($scheduledWeeks as $i => $weekInfo) {
-                $key = $weekInfo['year'].'-'.$weekInfo['week'];
-                $weekSessions[$i] = (int) ($weekSlotCounts[$key] ?? 1);
-            }
-        }
-
-        $this->dispatch('open-calendar-exercise-settings', data: [
-            'exerciseId' => $exerciseId,
-            'exerciseProgramId' => $exerciseProgramId,
-            'exerciseName' => $exercise->name,
-            'config' => $effectiveConfig,
-            'weeks' => $weeks,
-            'sessionsPerWeek' => $sessionsPerWeek,
-            'weekLabels' => $weekLabels,
-            'weekSessions' => $weekSessions,
-            'scheduled' => $scheduled,
-            'userId' => $userId,
-        ]);
-    }
-
-    #[On('calendar-exercise-settings.saved')]
-    public function onCalendarExerciseSettingsSaved(array $data): void
-    {
-        $exerciseId = (int) $data['exerciseId'];
-        $exerciseProgramId = (int) $data['exerciseProgramId'];
-        $settingsConfig = $data['config'] ?? [];
-        $userId = isset($data['userId']) ? (int) $data['userId'] : null;
-
-        $exercise = Exercise::findOrFail($exerciseId);
         $exerciseProgram = ExerciseProgram::findOrFail($exerciseProgramId);
         $config = $exerciseProgram->config;
+        $userId = $this->user !== '' ? (int) $this->user : null;
 
         if ($userId !== null) {
             $planOverrides = $config->defaultExerciseOverrides($exerciseId);
-            $parentConfig = EffectiveExerciseConfig::resolve($exercise->config, $planOverrides);
-            $overrides = $config->userExerciseOverrides($userId, $exerciseId);
+            $userOverrides = $config->userExerciseOverrides($userId, $exerciseId);
+            $currentlyDisabled = EffectiveExerciseConfig::resolveDisabled($planOverrides, $userOverrides);
+            $userOverrides->disabled = $currentlyDisabled ? false : true;
+
+            $defaultDisabled = $planOverrides->disabled ?? false;
+            if ($userOverrides->disabled === $defaultDisabled) {
+                $userOverrides->disabled = null;
+            }
+
+            $config->setUserExerciseOverrides($userId, $exerciseId, $userOverrides);
         } else {
-            $parentConfig = $exercise->config->toArray();
             $overrides = $config->defaultExerciseOverrides($exerciseId);
-        }
-
-        $overrides = $this->buildOverridesFromDiff($overrides, $settingsConfig, $parentConfig);
-
-        if ($userId !== null) {
-            $config->setUserExerciseOverrides($userId, $exerciseId, $overrides);
-        } else {
+            $overrides->disabled = ! ($overrides->disabled ?? false) ?: null;
             $config->setDefaultExerciseOverrides($exerciseId, $overrides);
         }
 
         $exerciseProgram->config = $config;
         $exerciseProgram->save();
+
+        unset($this->programs, $this->groupedPrograms);
     }
 
-    protected function buildOverridesFromDiff(ExerciseOverrides $overrides, array $settingsConfig, array $parentConfig): ExerciseOverrides
+    public function isExerciseDisabled(int $exerciseId, ExerciseProgram $program): bool
     {
-        $overrides->settings = ($settingsConfig['settings'] ?? null) == ($parentConfig['settings'] ?? null)
-            ? null
-            : ($settingsConfig['settings'] ?? null);
+        $config = $program->config;
+        $planOverrides = $config->defaultExerciseOverrides($exerciseId);
 
-        $formSets = $settingsConfig['sets'] ?? null;
-        $parentSets = $parentConfig['sets'] ?? null;
-        if (is_array($formSets) && is_array($parentSets)) {
-            $formSets = array_merge($parentSets, $formSets);
-        }
-        $overrides->sets = $formSets == $parentSets
-            ? null
-            : \App\Data\Exercise\Settings\SetsSetting::from($formSets);
+        if ($this->user !== '') {
+            $userOverrides = $config->userExerciseOverrides((int) $this->user, $exerciseId);
 
-        $settingKeys = ['reps', 'weight', 'tempo', 'rest', 'distance', 'duration', 'heartRate', 'heartRateZone', 'pace', 'watts'];
-
-        foreach ($settingKeys as $key) {
-            $formValue = $settingsConfig[$key] ?? null;
-            $parentValue = $parentConfig[$key] ?? null;
-
-            if (is_array($formValue) && is_array($parentValue)) {
-                $formValue = array_merge($parentValue, $formValue);
-            }
-
-            if ($formValue == $parentValue) {
-                $overrides->{$key} = null;
-            } else {
-                $enum = ExerciseSetting::tryFrom($key);
-                if ($enum && $settingClass = $enum->settingClass()) {
-                    $overrides->{$key} = isset($formValue) ? $settingClass::from($formValue) : null;
-                }
-            }
+            return EffectiveExerciseConfig::resolveDisabled($planOverrides, $userOverrides);
         }
 
-        if (isset($settingsConfig['overrides'])) {
-            $overrides->gridOverrides = $settingsConfig['overrides'];
-        }
-
-        return $overrides;
+        return $planOverrides->disabled ?? false;
     }
 
     public function openAddContent(): void
