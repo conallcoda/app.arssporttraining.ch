@@ -2,9 +2,9 @@
 
 namespace App\Form\Fields\Athlete;
 
-use Coda\Cms\Form\Fields\Date;
+use Coda\Cms\Form\Fields\Text;
 
-class DateOfBirth extends Date
+class DateOfBirth extends Text
 {
     public function __construct(string $name)
     {
@@ -13,6 +13,8 @@ class DateOfBirth extends Date
         $this->label = 'Date of Birth';
         $this->required = false;
         $this->default = null;
-        $this->validationRules = 'nullable|date';
+        $this->placeholder = 'dd.mm.yyyy';
+        $this->mask = '99.99.9999';
+        $this->validationRules = 'nullable|date_format:d.m.Y';
     }
 }

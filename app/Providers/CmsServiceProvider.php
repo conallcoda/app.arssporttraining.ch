@@ -11,7 +11,6 @@ use App\Cms\Modules\CoachModule;
 use App\Cms\Modules\EquipmentModule;
 use App\Cms\Modules\ExerciseExternalModule;
 use App\Cms\Modules\ExerciseModule;
-use App\Cms\Modules\ExercisePlanModule;
 use App\Cms\Modules\ExerciseProgramModule;
 use App\Cms\Modules\ExerciseTemplateModule;
 use App\Cms\Modules\ModifiersModule;
@@ -36,7 +35,6 @@ class CmsServiceProvider extends ServiceProvider
         $registry->register(new EquipmentModule);
         $registry->register(new ModifiersModule);
         $registry->register(new ExerciseExternalModule);
-        $registry->register(new ExercisePlanModule);
         $registry->register(new ExerciseProgramModule);
         $registry->register(new CategoryListModule);
         $registry->register(new CalendarModule);
@@ -56,10 +54,7 @@ class CmsServiceProvider extends ServiceProvider
                     Tab::make('Modifiers', 'modifiers-index'),
                     Tab::make('Import', 'exercise-external-index'),
                 ]),
-                SidebarItem::make('Programs', 'exercise-program-index')->icon('layout-list')->tabs([
-                    Tab::make('Programs', 'exercise-program-index'),
-                    Tab::make('Plans', 'exercise-plan-index'),
-                ]),
+                SidebarItem::make('Programs', 'exercise-program-index')->icon('layout-list'),
                 SidebarItem::make('Categories', 'category-list-index')->icon('tag'),
             ]),
             SidebarGroup::make('calendar', 'Calendar')->icon('calendar')->items([
