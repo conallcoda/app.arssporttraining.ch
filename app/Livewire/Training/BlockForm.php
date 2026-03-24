@@ -8,6 +8,7 @@ use App\Models\Training\TrainingProgramBlock;
 use App\Models\Training\TrainingProgramBlockTypeEnum;
 use App\Models\Users\UserGroup;
 use Coda\Cms\Form\Form;
+use Coda\Cms\Form\FormFieldset;
 use Coda\Cms\Livewire\FormModal;
 use Flux\Flux;
 use Illuminate\View\View;
@@ -34,6 +35,8 @@ class BlockForm extends FormModal
     public ?string $categoryName = null;
 
     public ?int $parentBlockId = null;
+
+    public array $categoryOptions = [];
 
     public function mount(
         string $name = 'block',
@@ -69,6 +72,14 @@ class BlockForm extends FormModal
         $this->categorySlug = $data['categorySlug'] ?? null;
         $this->categoryName = $data['categoryName'] ?? null;
         $this->parentBlockId = $data['parentId'] ?? null;
+        $this->categoryOptions = $data['categoryOptions'] ?? [];
+
+        if ($this->categoryId === null && ! empty($this->categoryOptions)) {
+            $firstKey = array_key_first($this->categoryOptions);
+            $this->categoryId = $firstKey;
+            $this->categorySlug = $this->categoryOptions[$firstKey]['slug'] ?? null;
+            $this->categoryName = $this->categoryOptions[$firstKey]['name'] ?? null;
+        }
 
         unset($this->formConfig, $this->fieldsets);
         $this->openCount++;
@@ -76,11 +87,12 @@ class BlockForm extends FormModal
         if ($this->categoryId !== null) {
             $this->data = [
                 'type' => 'category',
+                'category_id' => $this->categoryId,
                 'start' => $data['date'] ?? '',
                 'end' => $data['endDate'] ?? '',
                 'note' => '',
                 'color' => null,
-                'config' => $this->categorySlug === 'strength' ? ['goal' => 10, 'autoRecord1rm' => false] : [],
+                'config' => $this->categorySlug === 'strength' ? ['goal' => 10, 'autoRecord1rm' => true] : [],
             ];
         } else {
             $defaultType = 'focus';
@@ -157,12 +169,27 @@ class BlockForm extends FormModal
         $this->openCount++;
     }
 
+    public function updatedDataCategoryId(int $value): void
+    {
+        if (! isset($this->categoryOptions[$value])) {
+            return;
+        }
+
+        $this->categoryId = $value;
+        $this->categorySlug = $this->categoryOptions[$value]['slug'] ?? null;
+        $this->categoryName = $this->categoryOptions[$value]['name'] ?? null;
+        $this->data['config'] = $this->categorySlug === 'strength' ? ['goal' => 10, 'autoRecord1rm' => true] : [];
+
+        unset($this->formConfig, $this->fieldsets);
+        $this->openCount++;
+    }
+
     protected function loadMembers(): void
     {
         $this->members = [];
         $this->selectedMembers = [];
 
-        if ($this->groupId === null || $this->userId !== null || $this->categoryId !== null) {
+        if ($this->groupId === null || $this->userId !== null) {
             return;
         }
 
@@ -187,6 +214,21 @@ class BlockForm extends FormModal
         $existingBlock = TrainingProgramBlock::find($this->editingBlockId);
         if ($existingBlock === null) {
             $this->selectedMembers = array_map('strval', $allMemberIds);
+
+            return;
+        }
+
+        if ($existingBlock->category_id !== null) {
+            $inactiveUserIds = TrainingProgramBlock::query()
+                ->where('parent_id', $this->editingBlockId)
+                ->where('active', false)
+                ->pluck('user_id')
+                ->map(fn ($id) => (string) $id)
+                ->all();
+
+            $this->selectedMembers = array_values(
+                array_diff(array_map('strval', $allMemberIds), $inactiveUserIds)
+            );
 
             return;
         }
@@ -271,15 +313,35 @@ class BlockForm extends FormModal
     public function formConfig(): Form
     {
         if ($this->categoryId !== null) {
+            $categoryOptions = collect($this->categoryOptions)
+                ->mapWithKeys(fn (array $opt, int $id) => [$id => $opt['name']])
+                ->all();
+
             return CategoryBlockFormData::getForm([
                 'type' => 'category',
                 'categorySlug' => $this->categorySlug,
+                'categoryOptions' => $categoryOptions,
             ]);
         }
 
         return NoteBlockFormData::getForm([
             'type' => $this->data['type'] ?? 'focus',
         ]);
+    }
+
+    #[Computed]
+    public function fieldsets(): array
+    {
+        $fieldsets = parent::fieldsets();
+
+        if (count($this->members) > 0) {
+            $fieldsets[] = FormFieldset::make('athletes')
+                ->label(__('Athletes'))
+                ->view('livewire.training.partials.block-form-athletes')
+                ->viewData(['members' => $this->members]);
+        }
+
+        return $fieldsets;
     }
 
     public function render(): View

@@ -29,7 +29,7 @@ class DeloadSetsStrategy implements DefinesEditability
         return $set < ($state->getSetsPerWeek()[$week] ?? 0);
     }
 
-    private function getSetsForWeek(int $weekIndex): int
+    public function getSetsForWeek(int $weekIndex): int
     {
         if ($this->setting->deload === 'none') {
             return $this->setting->default;

@@ -428,9 +428,15 @@
                                         @if ($programInBlock) title="{{ $programBlockNote }}" @endif
                                         class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 cursor-pointer hover:brightness-95 dark:hover:brightness-125 {{ $programBgClass }}"
                                         :class="(endIdx !== null ? ({{ $dayIdx }} >= Math.min(anchorIdx, endIdx) && {{ $dayIdx }} <= Math.max(anchorIdx, endIdx)) : anchorIdx === {{ $dayIdx }}) && 'ring ring-inset ring-black dark:ring-white'">
-                                        <div class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm {{ $colorClass ?: 'bg-emerald-400/80 dark:bg-emerald-500/60' }}">
-                                            {{ $slotCount }}
-                                        </div>
+                                        @if (isset($this->athleteSlotOrder[$dateKey]))
+                                            <div class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm {{ $colorClass ?: 'bg-emerald-400/80 dark:bg-emerald-500/60' }}">
+                                                {{ $this->athleteSlotOrder[$dateKey] }}
+                                            </div>
+                                        @else
+                                            <div class="w-full aspect-square flex items-center justify-center">
+                                                <span class="block w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                                            </div>
+                                        @endif
                                     </td>
                                 @else
                                     <td @if ($programInBlock) title="{{ $programBlockNote }}" @endif
@@ -441,25 +447,34 @@
                                                 class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm cursor-pointer {{ $colorClass ?: 'bg-emerald-400/80 dark:bg-emerald-500/60' }}">
                                                 {{ $slotCount }}
                                             </button>
-                                            <flux:popover class="min-w-[10rem] p-2">
+                                            <flux:popover class="min-w-[10rem] max-w-[16rem] p-2">
                                                 <div class="flex flex-col gap-1.5">
                                                     @foreach ($slotTimes as $time => $athletes)
-                                                        @if ($categoryColor)
-                                                            <button type="button"
-                                                                wire:click="editWeekSlot({{ $entry->id }}, '{{ $day['date'] }}', '{{ $time }}')"
-                                                                class="flex flex-col px-2 py-1.5 rounded-lg text-left cursor-pointer hover:opacity-80 transition-opacity"
-                                                                style="{{ \Coda\Cms\Support\ColorPalette::solid($categoryColor) }}">
-                                                                <span class="text-[10px] opacity-80">{{ $time }}</span>
-                                                                <span class="text-[10px] opacity-80 truncate">{{ implode(', ', $athletes) }}</span>
-                                                            </button>
-                                                        @else
-                                                            <button type="button"
-                                                                wire:click="editWeekSlot({{ $entry->id }}, '{{ $day['date'] }}', '{{ $time }}')"
-                                                                class="flex flex-col px-2 py-1.5 rounded-lg text-left cursor-pointer hover:opacity-80 transition-opacity bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
-                                                                <span class="text-[10px] opacity-60">{{ $time }}</span>
-                                                                <span class="text-[10px] opacity-60 truncate">{{ implode(', ', $athletes) }}</span>
-                                                            </button>
-                                                        @endif
+                                                        @foreach ($athletes as $athlete)
+                                                            @php $sessionNum = $this->groupSlotOrder[$entry->id . '-' . $day['date'] . '-' . $athlete['userId']] ?? null; @endphp
+                                                            @if ($categoryColor)
+                                                                <button type="button"
+                                                                    wire:click="editWeekSlot({{ $entry->id }}, '{{ $day['date'] }}', '{{ $time }}')"
+                                                                    class="flex flex-col px-2 py-1.5 rounded-lg text-left cursor-pointer hover:opacity-80 transition-opacity"
+                                                                    style="{{ \Coda\Cms\Support\ColorPalette::solid($categoryColor) }}">
+                                                                    <span class="text-[10px] opacity-80">{{ $time }}</span>
+                                                                    <span class="text-[10px] opacity-80 truncate">{{ $athlete['name'] }}</span>
+                                                                    @if ($sessionNum)
+                                                                        <span class="text-[10px] opacity-60">Session {{ $sessionNum }}</span>
+                                                                    @endif
+                                                                </button>
+                                                            @else
+                                                                <button type="button"
+                                                                    wire:click="editWeekSlot({{ $entry->id }}, '{{ $day['date'] }}', '{{ $time }}')"
+                                                                    class="flex flex-col px-2 py-1.5 rounded-lg text-left cursor-pointer hover:opacity-80 transition-opacity bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                                                                    <span class="text-[10px] opacity-60">{{ $time }}</span>
+                                                                    <span class="text-[10px] opacity-60 truncate">{{ $athlete['name'] }}</span>
+                                                                    @if ($sessionNum)
+                                                                        <span class="text-[10px] opacity-40">Session {{ $sessionNum }}</span>
+                                                                    @endif
+                                                                </button>
+                                                            @endif
+                                                        @endforeach
                                                     @endforeach
                                                 </div>
                                             </flux:popover>

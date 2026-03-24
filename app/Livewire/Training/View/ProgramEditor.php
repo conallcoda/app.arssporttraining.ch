@@ -45,6 +45,10 @@ class ProgramEditor extends Component
 
     public array $weekSessions = [];
 
+    public bool $sessionLabels = false;
+
+    public bool $showNameInput = false;
+
     public string $gridLayout = 'side-by-side';
 
     public int $planId;
@@ -80,6 +84,7 @@ class ProgramEditor extends Component
         ?int $planIatPercent = null,
         array $weekLabels = [],
         array $weekSessions = [],
+        bool $sessionLabels = false,
         string $gridLayout = 'side-by-side',
     ): void {
         $this->exerciseProgram = $exerciseProgram;
@@ -96,6 +101,7 @@ class ProgramEditor extends Component
         $this->planIatPercent = $planIatPercent;
         $this->weekLabels = $weekLabels;
         $this->weekSessions = $weekSessions;
+        $this->sessionLabels = $sessionLabels;
         $this->gridLayout = $gridLayout;
         $this->loadExerciseData();
     }
@@ -111,6 +117,7 @@ class ProgramEditor extends Component
                 'id' => $e->id,
                 '_key' => uniqid('item_', true),
                 'sort' => $e->pivot->sort ?? 0,
+                'group' => $e->pivot->group,
             ])->values()->all(),
             'warm_up_program_id' => $this->exerciseProgram->warm_up_program_id,
             'warm_down_program_id' => $this->exerciseProgram->warm_down_program_id,
@@ -122,7 +129,7 @@ class ProgramEditor extends Component
     {
         return Form::make()
             ->fieldset('Exercises', [
-                Exercises::make('exercises')->withOptions(),
+                Exercises::make('exercises')->withOptions()->groupable(),
             ]);
     }
 
@@ -144,6 +151,27 @@ class ProgramEditor extends Component
         return $this->exerciseProgram->exercises()
             ->orderByPivot('sort')
             ->get();
+    }
+
+    #[Computed]
+    public function exerciseGroupLabels(): array
+    {
+        $labels = [];
+        $groupCounters = [];
+
+        foreach ($this->exercises as $exercise) {
+            $group = $exercise->pivot->group;
+
+            if ($group) {
+                if (! isset($groupCounters[$group])) {
+                    $groupCounters[$group] = 0;
+                }
+                $groupCounters[$group]++;
+                $labels[$exercise->id] = $group.$groupCounters[$group];
+            }
+        }
+
+        return $labels;
     }
 
     public function updated(string $property, mixed $value): void
@@ -252,11 +280,14 @@ class ProgramEditor extends Component
             $exerciseId = $exerciseData['id'];
             $sort = $exerciseData['sort'] ?? $index;
 
+            $group = ! empty($exerciseData['group']) ? $exerciseData['group'] : null;
+
             if (in_array($exerciseId, $exercisesToAdd)) {
                 ExerciseProgramExercise::create([
                     'exercise_program_id' => $this->exerciseProgram->id,
                     'exercise_id' => $exerciseId,
                     'sort' => $sort,
+                    'group' => $group,
                 ]);
 
                 $exercise = Exercise::find($exerciseId);
@@ -268,7 +299,7 @@ class ProgramEditor extends Component
             } else {
                 ExerciseProgramExercise::where('exercise_program_id', $this->exerciseProgram->id)
                     ->where('exercise_id', $exerciseId)
-                    ->update(['sort' => $sort]);
+                    ->update(['sort' => $sort, 'group' => $group]);
             }
         }
 
@@ -278,7 +309,7 @@ class ProgramEditor extends Component
         }
 
         $this->exerciseProgram->refresh();
-        unset($this->exercises);
+        unset($this->exercises, $this->exerciseGroupLabels);
         $this->loadExerciseData();
     }
 

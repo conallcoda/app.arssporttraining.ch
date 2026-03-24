@@ -1,6 +1,10 @@
 <div class="space-y-6">
     <div class="flex gap-6">
         <x-section :title="__('General')" class="flex-1">
+            @if ($showNameInput)
+                <flux:input wire:model="$parent.planProgramName" wire:blur="$parent.savePlanProgramName" :label="__('Name')" size="sm" />
+            @endif
+
             @foreach ($this->fieldsets as $item)
                 <x-cms::form.fieldset
                     :fieldset="$item"
@@ -31,7 +35,6 @@
     </div>
 
     @if ($this->exercises->isNotEmpty())
-        <flux:heading size="lg">{{ $exerciseProgram->name }}</flux:heading>
         <div class="{{ $gridLayout === 'stacked' ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-1 lg:grid-cols-2 gap-4' }}" wire:key="grids-{{ $this->exercises->pluck('id')->implode('-') }}">
             @foreach ($this->exercises as $exercise)
                 <div wire:key="grid-{{ $exercise->id }}-{{ $userId ?? 'default' }}" class="min-w-0">
@@ -40,12 +43,14 @@
                         :exercisePlanId="$planId"
                         :planType="$planType"
                         :exerciseId="$exercise->id"
+                        :groupLabel="$this->exerciseGroupLabels[$exercise->id] ?? null"
                         :userId="$userId"
                         :disabled="false"
                         :weeks="$weeks"
                         :sessionsPerWeek="$sessionsPerWeek"
                         :weekLabels="$weekLabels"
                         :weekSessions="$weekSessions"
+                        :sessionLabels="$sessionLabels"
                         :planMeasuredReps="$planMeasuredReps"
                         :planMeasuredWeight="$planMeasuredWeight"
                         :planTargetGoal="$planTargetGoal"

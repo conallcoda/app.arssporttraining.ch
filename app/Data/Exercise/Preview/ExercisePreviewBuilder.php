@@ -5,6 +5,7 @@ namespace App\Data\Exercise\Preview;
 use App\Data\Exercise\ExerciseSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use Coda\Cms\Support\ColorPalette;
+use Illuminate\Support\Str;
 
 class ExercisePreviewBuilder
 {
@@ -84,6 +85,24 @@ class ExercisePreviewBuilder
             }
         }
 
+        $setsCells = [];
+        $setsOverrideMap = [];
+
+        for ($week = 0; $week < $weeks; $week++) {
+            $setsCells[$week] = $setsPerWeek[$week];
+            $setsOverrideMap[$week] = $state->isWeekOverridden('sets', $week);
+        }
+
+        $weekColumns[] = new PreviewGridRow(
+            field: 'sets',
+            label: Str::plural($data['sets']['label'] ?? 'Set'),
+            color: self::WEEK_COLUMN_COLOR,
+            cells: $setsCells,
+            overrideColor: self::WEEK_COLUMN_OVERRIDE_COLOR,
+            overrides: $setsOverrideMap,
+            inputMeta: new CellInputMeta(inputType: 'number', inputStep: '1', min: 0),
+        );
+
         $summary = $state->getMetadata('weight', 'summary');
 
         if ($summary !== null) {
@@ -122,6 +141,7 @@ class ExercisePreviewBuilder
 
         $inputMeta = self::resolveInputMeta($setting, $config);
         $editableMap = self::buildEditableMap($setting, $weeks, $state->maxSets(), $state);
+        [$cellColorMap, $cellOverrideColorMap] = self::buildCellColorMaps($setting, $cells, $state);
 
         return new PreviewGridRow(
             field: $setting,
@@ -132,6 +152,8 @@ class ExercisePreviewBuilder
             overrides: $overrideMap,
             inputMeta: $inputMeta,
             editableMap: $editableMap,
+            cellColorMap: $cellColorMap,
+            cellOverrideColorMap: $cellOverrideColorMap,
         );
     }
 
@@ -232,6 +254,23 @@ class ExercisePreviewBuilder
 
         $inputMeta = self::resolveInputMeta($setting, $config);
 
+        $cellColorMap = [];
+        $cellOverrideColorMap = [];
+
+        foreach ($cells as $week => $value) {
+            $color = $state->getCellColorByValue($setting, $value);
+
+            if ($color !== null) {
+                $cellColorMap[$week] = $color;
+            }
+
+            $overrideColor = $state->getCellOverrideColorByValue($setting, $value);
+
+            if ($overrideColor !== null) {
+                $cellOverrideColorMap[$week] = $overrideColor;
+            }
+        }
+
         return new PreviewGridRow(
             field: $setting,
             label: self::resolveLabel($setting, $config),
@@ -240,6 +279,8 @@ class ExercisePreviewBuilder
             overrideColor: self::WEEK_COLUMN_OVERRIDE_COLOR,
             overrides: $overrideMap,
             inputMeta: $inputMeta,
+            cellColorMap: $cellColorMap,
+            cellOverrideColorMap: $cellOverrideColorMap,
         );
     }
 
@@ -288,6 +329,35 @@ class ExercisePreviewBuilder
         }
 
         return $editableMap;
+    }
+
+    /**
+     * @return array{array<int, array<int, string>>, array<int, array<int, string>>}
+     */
+    private static function buildCellColorMaps(string $setting, array $cells, GridState $state): array
+    {
+        $colorMap = [];
+        $overrideColorMap = [];
+
+        foreach ($cells as $week => $weekCells) {
+            foreach ($weekCells as $set => $value) {
+                $color = $state->getCellColor($setting, $week, $set)
+                    ?? $state->getCellColorByValue($setting, $value);
+
+                if ($color !== null) {
+                    $colorMap[$week][$set] = $color;
+                }
+
+                $overrideColor = $state->getCellOverrideColor($setting, $week, $set)
+                    ?? $state->getCellOverrideColorByValue($setting, $value);
+
+                if ($overrideColor !== null) {
+                    $overrideColorMap[$week][$set] = $overrideColor;
+                }
+            }
+        }
+
+        return [$colorMap, $overrideColorMap];
     }
 
     /**

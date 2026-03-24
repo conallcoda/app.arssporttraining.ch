@@ -1,5 +1,5 @@
 <div>
-    <x-section :title="$exerciseName">
+    <x-section :title="($groupLabel ? $groupLabel . ' - ' : '') . $exerciseName">
         @if ($this->isDisabled)
             <div class="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-6 text-center space-y-3">
                 @if ($this->userId !== null && $this->isDisabledByDefault)
@@ -91,6 +91,7 @@
                             :collapseWeeks="false"
                             :weekLabels="$weekLabels"
                             :weekSessions="$weekSessions"
+                            :sessionLabels="$sessionLabels"
                         />
                     </div>
                 @endif

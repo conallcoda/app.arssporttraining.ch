@@ -14,6 +14,9 @@
         :planId="$exerciseProgram->id"
         :planType="App\Models\Exercise\ExerciseProgram::class"
         :showWeeksInput="true"
+        :planMeasuredReps="1"
+        :planMeasuredWeight="50"
+        :planTargetGoal="10"
         wire:key="editor-{{ $exerciseProgram->id }}"
     />
 </flux:main>

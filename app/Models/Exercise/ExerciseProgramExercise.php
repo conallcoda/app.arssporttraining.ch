@@ -15,6 +15,7 @@ class ExerciseProgramExercise extends Pivot
         'exercise_program_id',
         'exercise_id',
         'sort',
+        'group',
     ];
 
     public function exerciseProgram(): BelongsTo

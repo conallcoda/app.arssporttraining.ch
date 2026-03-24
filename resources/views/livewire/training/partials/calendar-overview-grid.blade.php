@@ -135,13 +135,20 @@
                                             <div class="flex flex-col gap-1">
                                                 @foreach ($memberRow['dates'][$day['date']] as $prog)
                                                     @if ($prog['color'])
-                                                        <div class="text-[11px] px-1.5 py-0.5 rounded truncate {{ \Coda\Cms\Support\ColorPalette::solidClasses($prog['color']) }}">
-                                                            {{ $prog['time'] }} – {{ $prog['name'] }}
+                                                        <div class="flex flex-col text-[11px] px-1.5 py-0.5 rounded {{ \Coda\Cms\Support\ColorPalette::solidClasses($prog['color']) }}">
+                                                            <span>{{ $prog['time'] }}</span>
+                                                            <span class="truncate">{{ $prog['name'] }}</span>
+                                                            @if ($prog['session'])
+                                                                <span class="opacity-60">Session {{ $prog['session'] }}</span>
+                                                            @endif
                                                         </div>
                                                     @else
-                                                        <div
-                                                            class="text-[11px] px-1.5 py-0.5 rounded truncate bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
-                                                            {{ $prog['time'] }} – {{ $prog['name'] }}
+                                                        <div class="flex flex-col text-[11px] px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                                                            <span>{{ $prog['time'] }}</span>
+                                                            <span class="truncate">{{ $prog['name'] }}</span>
+                                                            @if ($prog['session'])
+                                                                <span class="opacity-60">Session {{ $prog['session'] }}</span>
+                                                            @endif
                                                         </div>
                                                     @endif
                                                 @endforeach

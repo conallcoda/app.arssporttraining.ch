@@ -2,6 +2,7 @@
 
 namespace App\Data\Exercise\Preview;
 
+use App\Data\Exercise\Strategies\Contracts\DefinesCellColors;
 use App\Data\Exercise\Strategies\Contracts\DefinesEditability;
 
 class GridState
@@ -21,6 +22,15 @@ class GridState
 
     /** @var array<DefinesEditability> */
     private array $editabilityStrategies = [];
+
+    /** @var array<DefinesCellColors> */
+    private array $cellColorStrategies = [];
+
+    /** @var array<string, array<int, array<int, string>>> */
+    private array $cellColorGrids = [];
+
+    /** @var array<string, array<int, array<int, string>>> */
+    private array $cellOverrideColorGrids = [];
 
     /** @param array<int, int> $setsPerWeek */
     public function setSetsPerWeek(array $setsPerWeek): void
@@ -163,5 +173,60 @@ class GridState
         }
 
         return true;
+    }
+
+    public function addCellColorStrategy(DefinesCellColors $strategy): void
+    {
+        $this->cellColorStrategies[] = $strategy;
+    }
+
+    /** @param array<int, array<int, string>> $colorGrid */
+    public function setCellColorGrid(string $field, array $colorGrid): void
+    {
+        $this->cellColorGrids[$field] = $colorGrid;
+    }
+
+    /** @param array<int, array<int, string>> $colorGrid */
+    public function setCellOverrideColorGrid(string $field, array $colorGrid): void
+    {
+        $this->cellOverrideColorGrids[$field] = $colorGrid;
+    }
+
+    public function getCellColor(string $field, int $week, int $set): ?string
+    {
+        return $this->cellColorGrids[$field][$week][$set] ?? null;
+    }
+
+    public function getCellOverrideColor(string $field, int $week, int $set): ?string
+    {
+        return $this->cellOverrideColorGrids[$field][$week][$set] ?? null;
+    }
+
+    public function getCellColorByValue(string $field, mixed $value): ?string
+    {
+        foreach ($this->cellColorStrategies as $strategy) {
+            $color = $strategy->cellColor($field, $value);
+
+            if ($color !== null) {
+                return $color;
+            }
+        }
+
+        return null;
+    }
+
+    public function getCellOverrideColorByValue(string $field, mixed $value): ?string
+    {
+        foreach ($this->cellColorStrategies as $strategy) {
+            if (method_exists($strategy, 'cellOverrideColor')) {
+                $color = $strategy->cellOverrideColor($field, $value);
+
+                if ($color !== null) {
+                    return $color;
+                }
+            }
+        }
+
+        return null;
     }
 }

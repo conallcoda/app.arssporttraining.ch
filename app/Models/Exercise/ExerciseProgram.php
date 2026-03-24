@@ -86,7 +86,7 @@ class ExerciseProgram extends Model implements Taggable
     {
         return $this->belongsToMany(Exercise::class, 'exercise_program_exercises')
             ->using(ExerciseProgramExercise::class)
-            ->withPivot(['id', 'sort'])
+            ->withPivot(['id', 'sort', 'group'])
             ->orderByPivot('sort')
             ->withTimestamps();
     }
@@ -112,6 +112,7 @@ class ExerciseProgram extends Model implements Taggable
                 'exercise_program_id' => $clone->id,
                 'exercise_id' => $exercise->id,
                 'sort' => $exercise->pivot->sort ?? 0,
+                'group' => $exercise->pivot->group,
             ]);
         }
 

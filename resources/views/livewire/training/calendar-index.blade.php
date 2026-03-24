@@ -13,13 +13,17 @@
                 <div class="px-4 pt-3 pb-2 flex items-center justify-between">
                     <div class="flex items-center gap-2">
                         <flux:heading size="xl">
-                            @if ($this->selectionName)
+                            @if ($view === 'plan')
+                                {{ $this->selectionName ?? __('Calendar') }}
+                            @elseif ($this->selectionName)
                                 {{ $this->selectionName }}, {{ $this->title }}
                             @else
                                 {{ $this->title }}
                             @endif
                         </flux:heading>
-                        <flux:button variant="ghost" icon="pencil" size="sm" wire:click="openCalendarRange" />
+                        @if ($view !== 'plan')
+                            <flux:button variant="ghost" icon="pencil" size="sm" wire:click="openCalendarRange" />
+                        @endif
                     </div>
                     @if ($this->hasSelection())
                         <flux:radio.group wire:model.live="view" variant="segmented" size="sm">
@@ -32,7 +36,8 @@
 
                 @if ($this->hasSelection() && $this->programs->isNotEmpty())
                     @if ($view === 'overview')
-                        <div class="px-4 py-2 flex justify-end">
+                        <div class="px-4 py-2 flex justify-end gap-2">
+                            <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddBlock">{{ __('Add Block') }}</flux:button>
                             <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddContent">{{ __('Add Program') }}</flux:button>
                         </div>
                     @endif
@@ -66,10 +71,6 @@
                         </div>
 
                         @if ($this->planSelectedProgram)
-                            <div class="px-4 pt-2">
-                                <flux:input wire:model="planProgramName" wire:blur="savePlanProgramName" :label="__('Name')" size="sm" />
-                            </div>
-
                             @if (! $this->planHasBlock && $this->planHasAutoWeightExercises)
                                 <div class="px-4 py-3">
                                     <div class="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-600 dark:text-amber-400">
@@ -93,6 +94,8 @@
                                         :sessionsPerWeek="$this->planScheduleInfo['sessionsPerWeek']"
                                         :weekLabels="$this->planScheduleInfo['weekLabels']"
                                         :weekSessions="$this->planScheduleInfo['weekSessions']"
+                                        :sessionLabels="true"
+                                        :showNameInput="true"
                                         :planMeasuredReps="$this->planMeasuredData['measuredReps']"
                                         :planMeasuredWeight="$this->planMeasuredData['measuredWeight']"
                                         :planTargetGoal="$this->planBlockGoal"
@@ -139,6 +142,11 @@
                     @else
                         @include('livewire.training.partials.calendar-programs-grid')
                     @endif
+                @elseif ($this->hasSelection() && !$this->hasGroupAthletes)
+                    <div class="flex flex-col items-center justify-center py-20 text-center">
+                        <flux:icon.users class="size-10 text-zinc-300 dark:text-zinc-600 mb-3" />
+                        <flux:heading size="lg" class="text-zinc-500 dark:text-zinc-400">{{ __('No athletes in this group') }}</flux:heading>
+                    </div>
                 @elseif ($this->hasSelection())
                     <div class="flex flex-col items-center justify-center py-20 text-center">
                         <flux:icon.calendar class="size-10 text-zinc-300 dark:text-zinc-600 mb-3" />

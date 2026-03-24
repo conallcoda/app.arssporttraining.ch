@@ -63,6 +63,68 @@ class OverrideManager
         return self::setWeekOverride($overrides, $weekIndex, $field, $value);
     }
 
+    /**
+     * @param  array{cells: array, weeks: array}  $overrides
+     * @return array{cells: array, weeks: array}
+     */
+    public static function copyWeekOverrides(
+        array $overrides,
+        PreviewGrid $grid,
+        PreviewGrid $defaultsGrid,
+        int $sourceWeek,
+        int $targetWeek,
+    ): array {
+        $defaultRows = [];
+        foreach ($defaultsGrid->rows as $row) {
+            $defaultRows[$row->field] = $row;
+        }
+        $defaultWeekCols = [];
+        foreach ($defaultsGrid->weekColumns as $col) {
+            $defaultWeekCols[$col->field] = $col;
+        }
+
+        foreach ($grid->rows as $row) {
+            if ($row->lastSessionOnly) {
+                continue;
+            }
+            for ($set = 0; $set < $grid->setCount; $set++) {
+                $value = $row->cells[$sourceWeek][$set] ?? null;
+                if ($value === null || $value === '-') {
+                    continue;
+                }
+
+                $defaultValue = $defaultRows[$row->field]->cells[$targetWeek][$set] ?? null;
+                $matches = self::cellValuesMatch($value, $defaultValue);
+
+                for ($session = 0; $session < $grid->sessionsPerWeek; $session++) {
+                    if ($matches) {
+                        $overrides = self::removeCellOverride($overrides, $targetWeek, $session, $set, $row->field);
+                    } else {
+                        $overrides = self::setCellOverride($overrides, $targetWeek, $session, $set, $row->field, $value);
+                    }
+                }
+            }
+        }
+
+        foreach ($grid->weekColumns as $weekCol) {
+            $value = $weekCol->cells[$sourceWeek] ?? null;
+            if ($value === null || $value === '-') {
+                continue;
+            }
+
+            $defaultValue = $defaultWeekCols[$weekCol->field]->cells[$targetWeek] ?? null;
+            $matches = self::weekValuesMatch($value, $defaultValue, $weekCol->field);
+
+            if ($matches) {
+                $overrides = self::removeWeekOverride($overrides, $targetWeek, $weekCol->field);
+            } else {
+                $overrides = self::setWeekOverride($overrides, $targetWeek, $weekCol->field, $value);
+            }
+        }
+
+        return $overrides;
+    }
+
     /** @return array{cells: array, weeks: array} */
     public static function reset(): array
     {

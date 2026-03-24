@@ -7,7 +7,9 @@ use App\Data\Exercise\Settings\RepsSetting;
 use App\Data\Exercise\Settings\SetsSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Exercise\Settings\WeightSetting;
+use App\Data\Exercise\Strategies\Contracts\DefinesCellColors;
 use App\Data\Exercise\Strategies\Contracts\DefinesEditability;
+use App\Data\Exercise\Strategies\HeartRate\HeartRateZoneCellColors;
 use App\Data\Exercise\Strategies\HeartRate\NorwegianIntensityStrategy;
 use App\Data\Exercise\Strategies\Reps\PairedRepStrategy;
 use App\Data\Exercise\Strategies\Sets\DeloadSetsStrategy;
@@ -47,6 +49,20 @@ class StrategyOrchestrator
         $strategy = new DeloadSetsStrategy($setsSetting);
         $strategy->generate($this->weeks, $state);
         $this->registerEditability($strategy, $state);
+
+        if ($this->overrides !== null) {
+            $setsPerWeek = $state->getSetsPerWeek();
+
+            for ($week = 0; $week < $this->weeks; $week++) {
+                $overrideValue = $this->overrides->getWeekOverrideValue($week, 'sets');
+
+                if ($overrideValue !== null) {
+                    $setsPerWeek[$week] = max(0, (int) $overrideValue);
+                }
+            }
+
+            $state->setSetsPerWeek($setsPerWeek);
+        }
     }
 
     private function executeRepsPhase(GridState $state): void
@@ -116,6 +132,8 @@ class StrategyOrchestrator
         $config = $this->data['heartRateZone'] ?? [];
         $applyPer = $config['applyPer'] ?? 'session';
 
+        $state->addCellColorStrategy(new HeartRateZoneCellColors);
+
         if ($applyPer === 'week') {
             return;
         }
@@ -164,6 +182,10 @@ class StrategyOrchestrator
     {
         if ($strategy instanceof DefinesEditability) {
             $state->addEditabilityStrategy($strategy);
+        }
+
+        if ($strategy instanceof DefinesCellColors) {
+            $state->addCellColorStrategy($strategy);
         }
     }
 

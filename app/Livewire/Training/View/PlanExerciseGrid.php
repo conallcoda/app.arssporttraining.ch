@@ -38,7 +38,12 @@ class PlanExerciseGrid extends Component
 
     public array $weekSessions = [];
 
+    public bool $sessionLabels = false;
+
     public string $exerciseName = '';
+
+    #[Reactive]
+    public ?string $groupLabel = null;
 
     public array $exerciseConfigArray = [];
 
@@ -76,6 +81,8 @@ class PlanExerciseGrid extends Component
         ?int $planIatPercent = null,
         array $weekLabels = [],
         array $weekSessions = [],
+        bool $sessionLabels = false,
+        ?string $groupLabel = null,
     ): void {
         $this->exercisePlanId = $exercisePlanId;
         $this->exerciseId = $exerciseId;
@@ -89,6 +96,8 @@ class PlanExerciseGrid extends Component
         $this->planIatPercent = $planIatPercent;
         $this->weekLabels = $weekLabels;
         $this->weekSessions = $weekSessions;
+        $this->sessionLabels = $sessionLabels;
+        $this->groupLabel = $groupLabel;
 
         $exercise = Exercise::with(['equipment', 'modifiers'])->findOrFail($exerciseId);
         $this->exerciseName = $exercise->name;
@@ -431,6 +440,60 @@ class PlanExerciseGrid extends Component
 
         $this->saveOverrides($overrides);
         unset($this->configFingerprint, $this->previewGrid);
+    }
+
+    public function copyWeek(int $sourceWeek, int $targetWeek): void
+    {
+        $grid = $this->previewGrid;
+        $defaultsGrid = $this->buildDefaultsGrid();
+        $overrides = $this->getCurrentOverrides();
+
+        $overrides->gridOverrides = OverrideManager::copyWeekOverrides(
+            $overrides->gridOverrides ?? OverrideManager::reset(),
+            $grid,
+            $defaultsGrid,
+            $sourceWeek,
+            $targetWeek,
+        );
+
+        $this->saveOverrides($overrides);
+        unset($this->configFingerprint, $this->previewGrid);
+    }
+
+    public function copyWeekToAll(int $sourceWeek): void
+    {
+        $grid = $this->previewGrid;
+        $defaultsGrid = $this->buildDefaultsGrid();
+        $overrides = $this->getCurrentOverrides();
+        $gridOverrides = $overrides->gridOverrides ?? OverrideManager::reset();
+
+        for ($week = 0; $week < $this->weeks; $week++) {
+            if ($week !== $sourceWeek) {
+                $gridOverrides = OverrideManager::copyWeekOverrides($gridOverrides, $grid, $defaultsGrid, $sourceWeek, $week);
+            }
+        }
+
+        $overrides->gridOverrides = $gridOverrides;
+        $this->saveOverrides($overrides);
+        unset($this->configFingerprint, $this->previewGrid);
+    }
+
+    protected function buildDefaultsGrid(): PreviewGrid
+    {
+        $effectiveConfig = $this->getEffectiveConfig();
+        $baseOverrides = $this->getBaseGridOverrides();
+        $measuredData = $this->getPlanMeasuredData();
+
+        return ExercisePreviewBuilder::build(
+            $effectiveConfig,
+            $measuredData,
+            $this->weeks,
+            GridOverrides::fromArrays($baseOverrides['cells'] ?? [], $baseOverrides['weeks'] ?? []),
+            $this->sessionsPerWeek,
+            null,
+            $this->planMaxHR,
+            $this->planIatPercent,
+        );
     }
 
     public function resetOverrides(): void

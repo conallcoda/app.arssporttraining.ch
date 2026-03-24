@@ -8,20 +8,6 @@
                     @foreach ($this->fieldsets as $item)
                         <x-cms::form.fieldset :fieldset="$item" :prefix="$item->prefix ?? 'data'" :showLegend="$categoryId !== null || $item->name !== 'general'" />
                     @endforeach
-                    @if (count($members) > 0)
-                        <flux:field>
-                            <flux:label>{{ __('Athletes') }}</flux:label>
-                            <div class="flex flex-col gap-1">
-                                @foreach ($members as $member)
-                                    <flux:checkbox
-                                        wire:model="selectedMembers"
-                                        :label="$member['name']"
-                                        :value="$member['id']"
-                                    />
-                                @endforeach
-                            </div>
-                        </flux:field>
-                    @endif
                 </div>
                 <div class="flex items-center gap-2">
                     <flux:button variant="primary" wire:click="submit" class="flex-1">

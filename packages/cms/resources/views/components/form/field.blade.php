@@ -438,6 +438,19 @@
                                 <div class="flex items-center gap-2"
                                     wire:key="{{ $field->name }}-{{ $item['_key'] ?? $index }}">
                             @endif
+                                @if (property_exists($field, 'groupable') && $field->groupable)
+                                    <div class="w-20 shrink-0">
+                                        <flux:select
+                                            wire:key="{{ $field->name }}-group-{{ $item['_key'] ?? $index }}"
+                                            wire:model.live="{{ $wireModel }}.{{ $index }}.group"
+                                            placeholder="-" size="sm"
+                                            variant="listbox" clearable>
+                                            @foreach ($field->groupOptions as $groupValue => $groupLabel)
+                                                <flux:select.option value="{{ $groupValue }}">{{ $groupLabel }}</flux:select.option>
+                                            @endforeach
+                                        </flux:select>
+                                    </div>
+                                @endif
                                 <div class="flex-1 min-w-0">
                                     <flux:select
                                         wire:key="{{ $field->name }}-select-{{ $item['_key'] ?? $index }}"

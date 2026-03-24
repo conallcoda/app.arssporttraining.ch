@@ -6,6 +6,7 @@ use App\Models\Training\TrainingProgramBlockTypeEnum;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Form\Concerns\InteractsWithForms;
 use Coda\Cms\Form\Fields\Date;
+use Coda\Cms\Form\Fields\Select;
 use Coda\Cms\Form\Fields\Text;
 use Coda\Cms\Form\Form;
 use Coda\Cms\Models\Contracts\HasForms;
@@ -24,12 +25,23 @@ class CategoryBlockFormData extends AbstractData implements HasForms
 
     public static function getForm(array $context = []): Form
     {
+        $generalFields = [];
+
+        if (! empty($context['categoryOptions'])) {
+            $generalFields[] = Select::make('category_id')
+                ->label(__('Category'))
+                ->options($context['categoryOptions'])
+                ->variant('listbox')
+                ->required()
+                ->live();
+        }
+
+        $generalFields[] = Date::make('start')->label(__('Start Date'))->required();
+        $generalFields[] = Date::make('end')->label(__('End Date'));
+        $generalFields[] = Text::make('note')->label(__('Name'))->required();
+
         return Form::make()
-            ->fieldset('General', [
-                Date::make('start')->label(__('Start Date'))->required(),
-                Date::make('end')->label(__('End Date')),
-                Text::make('note')->label(__('Name'))->required(),
-            ])
+            ->fieldset('General', $generalFields)
             ->fieldset(
                 'Settings',
                 function (array $data) use ($context) {

@@ -30,8 +30,11 @@ class NorwegianIntensityStrategy implements DefinesEditability
             return null;
         }
 
+        $zoneCellColors = new HeartRateZoneCellColors;
         $setsPerWeek = $state->getSetsPerWeek();
         $heartRateGrid = [];
+        $colorGrid = [];
+        $overrideColorGrid = [];
 
         for ($week = 0; $week < $weeks; $week++) {
             $setCount = $setsPerWeek[$week];
@@ -43,10 +46,22 @@ class NorwegianIntensityStrategy implements DefinesEditability
                     $this->maxHR,
                     $this->iatPercent,
                 );
+
+                $zoneOverridden = $state->isCellOverridden('heartRateZone', $week, $set);
+                $color = $zoneOverridden
+                    ? $zoneCellColors->cellOverrideColor('heartRateZone', $zone)
+                    : $zoneCellColors->cellColor('heartRateZone', $zone);
+
+                if ($color !== null) {
+                    $colorGrid[$week][$set] = $color;
+                    $overrideColorGrid[$week][$set] = $color;
+                }
             }
         }
 
         $state->setGrid('heartRate', $heartRateGrid);
+        $state->setCellColorGrid('heartRate', $colorGrid);
+        $state->setCellOverrideColorGrid('heartRate', $overrideColorGrid);
 
         return $heartRateGrid;
     }
