@@ -311,12 +311,13 @@ class DatabaseImportSeeder extends Seeder
         $trainingPrograms = $this->loadFile('training_programs.php');
 
         foreach ($trainingPrograms as $tp) {
-            $groupId = $this->resolveGroupName($tp['group']);
             $programData = $tp['program'] ?? null;
 
-            if ($programData === null) {
+            if ($tp['group'] === null || $programData === null) {
                 continue;
             }
+
+            $groupId = $this->resolveGroupName($tp['group']);
 
             $config = $this->remapProgramConfigForImport($programData['config'] ?? null);
 
@@ -373,10 +374,12 @@ class DatabaseImportSeeder extends Seeder
         $blocks = $this->loadFile('training_program_blocks.php');
 
         foreach ($blocks as $block) {
+            if ($block['group'] === null) {
+                continue;
+            }
+
             $model = TrainingProgramBlock::create([
-                'group_id' => $block['group'] !== null
-                    ? $this->resolveGroupName($block['group'])
-                    : null,
+                'group_id' => $this->resolveGroupName($block['group']),
                 'user_id' => $block['user'] !== null
                     ? $this->resolveUserEmail($block['user'])
                     : null,
@@ -415,8 +418,8 @@ class DatabaseImportSeeder extends Seeder
             $group = $slot['training_program_group'] ?? null;
             $program = $slot['training_program_exercise_program'] ?? null;
 
-            if ($group === null || $program === null) {
-                $this->command->warn('Training program slot missing group or program reference, skipping.');
+            if ($group === null || $program === null || $slot['user'] === null) {
+                $this->command->warn('Training program slot missing group, program, or user reference, skipping.');
 
                 continue;
             }
@@ -447,6 +450,10 @@ class DatabaseImportSeeder extends Seeder
         $submissions = $this->loadFile('metric_submissions.php');
 
         foreach ($submissions as $submission) {
+            if ($submission['user'] === null) {
+                continue;
+            }
+
             $ownerId = null;
             $ownerType = $submission['owner_type'] ?? null;
             $ownerRef = $submission['owner_ref'] ?? null;

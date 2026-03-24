@@ -80,31 +80,31 @@ class ExportDatabaseCommand extends Command
 
     private function buildLookups(): void
     {
-        Tag::all()->each(function (Tag $tag) {
+        Tag::withTrashed()->each(function (Tag $tag) {
             $this->tagIdMap[$tag->id] = ['scope' => $tag->scope, 'slug' => $tag->slug];
         });
 
-        ExerciseTemplate::all()->each(function (ExerciseTemplate $template) {
+        ExerciseTemplate::withTrashed()->each(function (ExerciseTemplate $template) {
             $this->templateIdToName[$template->id] = $template->name;
         });
 
-        Exercise::all()->each(function (Exercise $exercise) {
+        Exercise::withTrashed()->each(function (Exercise $exercise) {
             $this->exerciseIdToName[$exercise->id] = $exercise->name;
         });
 
-        UserGroup::all()->each(function (UserGroup $group) {
+        UserGroup::withTrashed()->each(function (UserGroup $group) {
             $this->groupIdToName[$group->id] = $group->name;
         });
 
-        User::all()->each(function (User $user) {
+        User::withTrashed()->each(function (User $user) {
             $this->userIdToEmail[$user->id] = $user->email;
         });
 
-        ExercisePlan::all()->each(function (ExercisePlan $plan) {
+        ExercisePlan::withTrashed()->each(function (ExercisePlan $plan) {
             $this->planIdToName[$plan->id] = $plan->name;
         });
 
-        ExerciseProgram::all()->each(function (ExerciseProgram $program) {
+        ExerciseProgram::withTrashed()->each(function (ExerciseProgram $program) {
             $this->programIdToName[$program->id] = $program->name;
         });
     }
