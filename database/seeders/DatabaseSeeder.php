@@ -14,7 +14,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             CoachSeeder::class,
             DatabaseImportSeeder::class,
-            ExerciseExternalSeeder::class,
+           // ExerciseExternalSeeder::class,
         ]);
     }
 }
