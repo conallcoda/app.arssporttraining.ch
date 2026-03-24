@@ -2220,8 +2220,10 @@ class CalendarIndex extends Component
 
     public function removeTrainingProgram(int $trainingProgramId): void
     {
-        TrainingProgram::findOrFail($trainingProgramId)->delete();
-        unset($this->programs, $this->groupedPrograms);
+        $trainingProgram = TrainingProgram::with('program')->findOrFail($trainingProgramId);
+        $this->cleanupOrphanedCategoryBlocks($trainingProgram);
+        $trainingProgram->delete();
+        unset($this->programs, $this->groupedPrograms, $this->categoryBlocks);
     }
 
     public function openEditProgram(int $trainingProgramId): void
@@ -2258,12 +2260,50 @@ class CalendarIndex extends Component
 
     public function deleteEditingTrainingProgram(): void
     {
-        TrainingProgram::findOrFail($this->editingTrainingProgramId)->delete();
+        $trainingProgram = TrainingProgram::with('program')->findOrFail($this->editingTrainingProgramId);
+        $this->cleanupOrphanedCategoryBlocks($trainingProgram);
+        $trainingProgram->delete();
 
         $this->editingTrainingProgramId = null;
-        unset($this->programs, $this->groupedPrograms);
+        unset($this->programs, $this->groupedPrograms, $this->categoryBlocks);
         Flux::modal('confirm-delete-program')->close();
         Flux::modal('edit-program')->close();
+    }
+
+    private function cleanupOrphanedCategoryBlocks(TrainingProgram $trainingProgram): void
+    {
+        $categoryId = $trainingProgram->program?->exercise_category_id;
+
+        if ($categoryId === null) {
+            return;
+        }
+
+        $otherProgramsExist = TrainingProgram::where('group_id', $trainingProgram->group_id)
+            ->where('id', '!=', $trainingProgram->id)
+            ->whereHas('program', fn ($q) => $q->where('exercise_category_id', $categoryId))
+            ->exists();
+
+        if ($otherProgramsExist) {
+            return;
+        }
+
+        $blocks = TrainingProgramBlock::where('group_id', $trainingProgram->group_id)
+            ->where('category_id', $categoryId)
+            ->where('type', TrainingProgramBlockTypeEnum::Category)
+            ->get();
+
+        $projectedService = app(ProjectedOneRepMaxService::class);
+
+        foreach ($blocks as $block) {
+            $children = TrainingProgramBlock::where('parent_id', $block->id)->get();
+            foreach ($children as $child) {
+                $projectedService->removeForBlock($child);
+            }
+            TrainingProgramBlock::where('parent_id', $block->id)->delete();
+
+            $projectedService->removeForBlock($block);
+            $block->delete();
+        }
     }
 
     public function render()

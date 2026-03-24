@@ -108,7 +108,7 @@ class DatabaseImportSeeder extends Seeder
                 foreach ($tags as $tag) {
                     $syncData[$tag['tag_id']] = ['sort' => $tag['sort']];
                 }
-                Exercise::find($exercise['id'])->tags()->sync($syncData);
+                Exercise::withTrashed()->find($exercise['id'])->tags()->sync($syncData);
             }
         }
 
@@ -135,7 +135,7 @@ class DatabaseImportSeeder extends Seeder
                 foreach ($tags as $tag) {
                     $syncData[$tag['tag_id']] = ['sort' => $tag['sort']];
                 }
-                ExerciseExternal::find($external['id'])->tags()->sync($syncData);
+                ExerciseExternal::withTrashed()->find($external['id'])->tags()->sync($syncData);
             }
         }
 
@@ -171,7 +171,7 @@ class DatabaseImportSeeder extends Seeder
                 foreach ($exercises as $exercise) {
                     $syncData[$exercise['exercise_id']] = ['sort' => $exercise['sort']];
                 }
-                ExerciseProgram::find($program['id'])->exercises()->sync($syncData);
+                ExerciseProgram::withTrashed()->find($program['id'])->exercises()->sync($syncData);
             }
         }
 
@@ -236,7 +236,7 @@ class DatabaseImportSeeder extends Seeder
                 foreach ($groups as $group) {
                     $syncData[$group['group_id']] = ['sort' => $group['sort']];
                 }
-                User::find($user['id'])->groups()->sync($syncData);
+                User::withTrashed()->find($user['id'])->groups()->sync($syncData);
             }
         }
 
