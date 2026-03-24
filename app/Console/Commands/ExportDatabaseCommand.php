@@ -23,30 +23,9 @@ class ExportDatabaseCommand extends Command
 {
     protected $signature = 'db:export';
 
-    protected $description = 'Export tags, exercises, exercise templates, programs, users, and groups to PHP files';
+    protected $description = 'Export all business data to PHP files using original IDs';
 
     private string $exportPath;
-
-    /** @var array<int, array{scope: string, slug: string}> */
-    private array $tagIdMap = [];
-
-    /** @var array<int, string> */
-    private array $templateIdToName = [];
-
-    /** @var array<int, string> */
-    private array $exerciseIdToName = [];
-
-    /** @var array<int, string> */
-    private array $groupIdToName = [];
-
-    /** @var array<int, string> */
-    private array $userIdToEmail = [];
-
-    /** @var array<int, string> */
-    private array $planIdToName = [];
-
-    /** @var array<int, string> */
-    private array $programIdToName = [];
 
     public function handle(): int
     {
@@ -56,8 +35,6 @@ class ExportDatabaseCommand extends Command
         File::ensureDirectoryExists($this->exportPath);
 
         $this->info("Exporting to: import/database/{$timestamp}");
-
-        $this->buildLookups();
 
         $this->exportTags();
         $this->exportExerciseTemplates();
@@ -78,107 +55,38 @@ class ExportDatabaseCommand extends Command
         return 0;
     }
 
-    private function buildLookups(): void
-    {
-        Tag::withTrashed()->each(function (Tag $tag) {
-            $this->tagIdMap[$tag->id] = ['scope' => $tag->scope, 'slug' => $tag->slug];
-        });
-
-        ExerciseTemplate::withTrashed()->each(function (ExerciseTemplate $template) {
-            $this->templateIdToName[$template->id] = $template->name;
-        });
-
-        Exercise::withTrashed()->each(function (Exercise $exercise) {
-            $this->exerciseIdToName[$exercise->id] = $exercise->name;
-        });
-
-        UserGroup::withTrashed()->each(function (UserGroup $group) {
-            $this->groupIdToName[$group->id] = $group->name;
-        });
-
-        User::withTrashed()->each(function (User $user) {
-            $this->userIdToEmail[$user->id] = $user->email;
-        });
-
-        ExercisePlan::withTrashed()->each(function (ExercisePlan $plan) {
-            $this->planIdToName[$plan->id] = $plan->name;
-        });
-
-        ExerciseProgram::withTrashed()->each(function (ExerciseProgram $program) {
-            $this->programIdToName[$program->id] = $program->name;
-        });
-    }
-
-    private function tagKey(int $id): string
-    {
-        $tag = $this->tagIdMap[$id] ?? null;
-
-        if (! $tag) {
-            throw new \RuntimeException("Tag ID {$id} not found.");
-        }
-
-        return $tag['scope'].':'.$tag['slug'];
-    }
-
     private function exportTags(): void
     {
-        $allTags = Tag::query()
-            ->orderBy('scope')
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get();
-
-        $rootTags = $allTags->whereNull('parent_id');
-        $childrenByParentId = $allTags->whereNotNull('parent_id')->groupBy('parent_id');
-
-        $tags = $rootTags->values()
-            ->map(fn (Tag $tag) => $this->buildExportTagNode($tag, $childrenByParentId))
+        $tags = Tag::withTrashed()
+            ->orderBy('id')
+            ->get()
+            ->map(fn (Tag $tag) => [
+                'id' => $tag->id,
+                'parent_id' => $tag->parent_id,
+                'scope' => $tag->scope,
+                'name' => $tag->name,
+                'short_name' => $tag->short_name,
+                'slug' => $tag->slug,
+                'sort_order' => $tag->sort_order,
+                'color' => $tag->color,
+                'deleted_at' => $tag->deleted_at?->toIso8601String(),
+            ])
             ->all();
 
         $this->writeFile('tags.php', $tags);
-        $this->info('Exported '.count($allTags).' tags.');
-    }
-
-    /** @return array<string, mixed> */
-    private function buildExportTagNode(Tag $tag, $childrenByParentId): array
-    {
-        $node = [
-            'scope' => $tag->scope,
-            'name' => $tag->name,
-            'short_name' => $tag->short_name,
-            'slug' => $tag->slug,
-            'sort_order' => $tag->sort_order,
-        ];
-
-        if ($tag->color !== null) {
-            $node['color'] = $tag->color;
-        }
-
-        $children = $childrenByParentId->get($tag->id);
-
-        if ($children && $children->isNotEmpty()) {
-            $node['children'] = $children
-                ->map(function (Tag $child) use ($childrenByParentId) {
-                    $childNode = $this->buildExportTagNode($child, $childrenByParentId);
-                    unset($childNode['scope']);
-
-                    return $childNode;
-                })
-                ->values()
-                ->all();
-        }
-
-        return $node;
+        $this->info('Exported '.count($tags).' tags.');
     }
 
     private function exportExerciseTemplates(): void
     {
-        $templates = ExerciseTemplate::query()
-            ->orderBy('name')
+        $templates = ExerciseTemplate::withTrashed()
+            ->orderBy('id')
             ->get()
             ->map(fn (ExerciseTemplate $template) => [
+                'id' => $template->id,
                 'name' => $template->name,
                 'config' => json_decode($template->getRawOriginal('config'), true),
+                'deleted_at' => $template->deleted_at?->toIso8601String(),
             ])
             ->all();
 
@@ -188,23 +96,23 @@ class ExportDatabaseCommand extends Command
 
     private function exportExercises(): void
     {
-        $exercises = Exercise::query()
+        $exercises = Exercise::withTrashed()
             ->with('tags')
-            ->orderBy('name')
+            ->orderBy('id')
             ->get()
             ->map(fn (Exercise $exercise) => [
+                'id' => $exercise->id,
                 'name' => $exercise->name,
-                'category' => $this->tagKey($exercise->category_id),
-                'template' => $exercise->template_id !== null
-                    ? ($this->templateIdToName[$exercise->template_id] ?? null)
-                    : null,
+                'category_id' => $exercise->category_id,
+                'template_id' => $exercise->template_id,
                 'video_url' => $exercise->video_url,
                 'instructions' => $exercise->instructions,
                 'config' => json_decode($exercise->getRawOriginal('config'), true),
                 'tags' => $exercise->tags->map(fn (Tag $tag) => [
-                    'tag' => $this->tagKey($tag->id),
+                    'tag_id' => $tag->id,
                     'sort' => $tag->pivot->sort,
                 ])->all(),
+                'deleted_at' => $exercise->deleted_at?->toIso8601String(),
             ])
             ->all();
 
@@ -212,53 +120,85 @@ class ExportDatabaseCommand extends Command
         $this->info('Exported '.count($exercises).' exercises.');
     }
 
+    private function exportExerciseExternals(): void
+    {
+        $externals = ExerciseExternal::withTrashed()
+            ->with('tags')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (ExerciseExternal $external) => [
+                'id' => $external->id,
+                'source' => $external->source,
+                'name' => $external->name,
+                'video_url' => $external->video_url,
+                'category_id' => $external->category_id,
+                'tags' => $external->tags->map(fn (Tag $tag) => [
+                    'tag_id' => $tag->id,
+                    'sort' => $tag->pivot->sort,
+                ])->all(),
+                'deleted_at' => $external->deleted_at?->toIso8601String(),
+            ])
+            ->all();
+
+        $this->writeFile('exercise_externals.php', $externals);
+        $this->info('Exported '.count($externals).' exercise externals.');
+    }
+
     private function exportExercisePrograms(): void
     {
-        $programs = ExerciseProgram::query()
-            ->whereNull('parent_type')
+        $programs = ExerciseProgram::withTrashed()
             ->with('exercises')
-            ->orderBy('name')
+            ->orderBy('id')
             ->get()
-            ->map(fn (ExerciseProgram $program) => $this->buildProgramExport($program))
+            ->map(fn (ExerciseProgram $program) => [
+                'id' => $program->id,
+                'parent_type' => $program->parent_type,
+                'parent_id' => $program->parent_id,
+                'name' => $program->name,
+                'exercise_category_id' => $program->exercise_category_id,
+                'warm_up_program_id' => $program->warm_up_program_id,
+                'warm_down_program_id' => $program->warm_down_program_id,
+                'sort' => $program->sort,
+                'config' => json_decode($program->getRawOriginal('config'), true),
+                'exercises' => $program->exercises->map(fn (Exercise $exercise) => [
+                    'exercise_id' => $exercise->id,
+                    'sort' => $exercise->pivot->sort,
+                ])->all(),
+                'deleted_at' => $program->deleted_at?->toIso8601String(),
+            ])
             ->all();
 
         $this->writeFile('exercise_programs.php', $programs);
         $this->info('Exported '.count($programs).' exercise programs.');
     }
 
-    /** @return array<string, mixed> */
-    private function buildProgramExport(ExerciseProgram $program): array
+    private function exportExercisePlans(): void
     {
-        return [
-            'name' => $program->name,
-            'exercise_category' => $program->exercise_category_id !== null
-                ? $this->tagKey($program->exercise_category_id)
-                : null,
-            'warm_up_program' => $program->warm_up_program_id !== null
-                ? ($this->programIdToName[$program->warm_up_program_id] ?? null)
-                : null,
-            'warm_down_program' => $program->warm_down_program_id !== null
-                ? ($this->programIdToName[$program->warm_down_program_id] ?? null)
-                : null,
-            'sort' => $program->sort,
-            'config' => $this->remapProgramConfigForExport(
-                json_decode($program->getRawOriginal('config'), true)
-            ),
-            'exercises' => $program->exercises->map(fn (Exercise $exercise) => [
-                'exercise' => $exercise->name,
-                'sort' => $exercise->pivot->sort,
-            ])->all(),
-        ];
+        $plans = ExercisePlan::withTrashed()
+            ->orderBy('id')
+            ->get()
+            ->map(fn (ExercisePlan $plan) => [
+                'id' => $plan->id,
+                'name' => $plan->name,
+                'config' => json_decode($plan->getRawOriginal('config'), true),
+                'deleted_at' => $plan->deleted_at?->toIso8601String(),
+            ])
+            ->all();
+
+        $this->writeFile('exercise_plans.php', $plans);
+        $this->info('Exported '.count($plans).' exercise plans.');
     }
 
     private function exportUserGroups(): void
     {
-        $groups = UserGroup::query()
-            ->orderBy('name')
+        $groups = UserGroup::withTrashed()
+            ->orderBy('id')
             ->get()
             ->map(fn (UserGroup $group) => [
+                'id' => $group->id,
                 'name' => $group->name,
                 'config' => json_decode($group->getRawOriginal('config'), true),
+                'deleted_at' => $group->deleted_at?->toIso8601String(),
             ])
             ->all();
 
@@ -268,12 +208,12 @@ class ExportDatabaseCommand extends Command
 
     private function exportUsers(): void
     {
-        $users = User::query()
+        $users = User::withTrashed()
             ->with('groups')
-            ->orderBy('forename')
-            ->orderBy('surname')
+            ->orderBy('id')
             ->get()
             ->map(fn (User $user) => [
+                'id' => $user->id,
                 'type' => $user->getRawOriginal('type'),
                 'forename' => $user->forename,
                 'surname' => $user->surname,
@@ -285,9 +225,10 @@ class ExportDatabaseCommand extends Command
                 'color' => $user->color,
                 'config' => json_decode($user->getRawOriginal('config'), true),
                 'groups' => $user->groups->map(fn (UserGroup $group) => [
-                    'group' => $group->name,
+                    'group_id' => $group->id,
                     'sort' => $group->pivot->sort,
                 ])->all(),
+                'deleted_at' => $user->deleted_at?->toIso8601String(),
             ])
             ->all();
 
@@ -295,60 +236,16 @@ class ExportDatabaseCommand extends Command
         $this->info('Exported '.count($users).' users.');
     }
 
-    private function exportExerciseExternals(): void
-    {
-        $externals = ExerciseExternal::query()
-            ->with('tags')
-            ->orderBy('name')
-            ->get()
-            ->map(fn (ExerciseExternal $external) => [
-                'source' => $external->source,
-                'name' => $external->name,
-                'video_url' => $external->video_url,
-                'category' => $external->category_id !== null
-                    ? $this->tagKey($external->category_id)
-                    : null,
-                'tags' => $external->tags->map(fn (Tag $tag) => [
-                    'tag' => $this->tagKey($tag->id),
-                    'sort' => $tag->pivot->sort,
-                ])->all(),
-            ])
-            ->all();
-
-        $this->writeFile('exercise_externals.php', $externals);
-        $this->info('Exported '.count($externals).' exercise externals.');
-    }
-
-    private function exportExercisePlans(): void
-    {
-        $plans = ExercisePlan::query()
-            ->orderBy('name')
-            ->get()
-            ->map(fn (ExercisePlan $plan) => [
-                'name' => $plan->name,
-                'config' => $this->remapPlanConfigForExport(
-                    json_decode($plan->getRawOriginal('config'), true)
-                ),
-            ])
-            ->all();
-
-        $this->writeFile('exercise_plans.php', $plans);
-        $this->info('Exported '.count($plans).' exercise plans.');
-    }
-
     private function exportTrainingPrograms(): void
     {
         $programs = TrainingProgram::query()
-            ->with(['program.exercises'])
-            ->orderBy('group_id')
-            ->orderBy('sort')
+            ->orderBy('id')
             ->get()
             ->map(fn (TrainingProgram $tp) => [
-                'group' => $this->groupIdToName[$tp->group_id] ?? null,
+                'id' => $tp->id,
+                'group_id' => $tp->group_id,
+                'exercise_program_id' => $tp->exercise_program_id,
                 'sort' => $tp->sort,
-                'program' => $tp->program !== null
-                    ? $this->buildProgramExport($tp->program)
-                    : null,
             ])
             ->all();
 
@@ -358,20 +255,15 @@ class ExportDatabaseCommand extends Command
 
     private function exportTrainingProgramBlocks(): void
     {
-        $blocks = TrainingProgramBlock::query()
-            ->orderBy('group_id')
-            ->orderBy('start')
+        $blocks = TrainingProgramBlock::withTrashed()
+            ->orderBy('id')
             ->get()
             ->map(fn (TrainingProgramBlock $block) => [
-                'group' => $block->group_id !== null
-                    ? ($this->groupIdToName[$block->group_id] ?? null)
-                    : null,
-                'user' => $block->user_id !== null
-                    ? ($this->userIdToEmail[$block->user_id] ?? null)
-                    : null,
-                'category' => $block->category_id !== null
-                    ? $this->tagKey($block->category_id)
-                    : null,
+                'id' => $block->id,
+                'parent_id' => $block->parent_id,
+                'group_id' => $block->group_id,
+                'user_id' => $block->user_id,
+                'category_id' => $block->category_id,
                 'type' => $block->getRawOriginal('type'),
                 'start' => $block->start?->format('Y-m-d'),
                 'end' => $block->end?->format('Y-m-d'),
@@ -379,8 +271,7 @@ class ExportDatabaseCommand extends Command
                 'color' => $block->color,
                 'config' => json_decode($block->getRawOriginal('config'), true),
                 'active' => $block->active,
-                'parent_id' => $block->parent_id,
-                'id' => $block->id,
+                'deleted_at' => $block->deleted_at?->toIso8601String(),
             ])
             ->all();
 
@@ -391,20 +282,12 @@ class ExportDatabaseCommand extends Command
     private function exportTrainingProgramSlots(): void
     {
         $slots = TrainingProgramSlot::query()
-            ->with('trainingProgram.program')
-            ->orderBy('datetime')
+            ->orderBy('id')
             ->get()
             ->map(fn (TrainingProgramSlot $slot) => [
-                'training_program_group' => $slot->trainingProgram
-                    ? ($this->groupIdToName[$slot->trainingProgram->group_id] ?? null)
-                    : null,
-                'training_program_exercise_program' => $slot->trainingProgram?->program
-                    ? $slot->trainingProgram->program->name
-                    : null,
-                'training_program_sort' => $slot->trainingProgram?->sort,
-                'user' => $slot->user_id !== null
-                    ? ($this->userIdToEmail[$slot->user_id] ?? null)
-                    : null,
+                'id' => $slot->id,
+                'training_program_id' => $slot->training_program_id,
+                'user_id' => $slot->user_id,
                 'datetime' => $slot->datetime?->toIso8601String(),
             ])
             ->all();
@@ -415,104 +298,29 @@ class ExportDatabaseCommand extends Command
 
     private function exportMetricSubmissions(): void
     {
-        $submissions = MetricSubmission::query()
+        $submissions = MetricSubmission::withTrashed()
             ->with('values')
-            ->orderBy('user_id')
-            ->orderBy('recorded_at')
+            ->orderBy('id')
             ->get()
             ->map(fn (MetricSubmission $submission) => [
-                'user' => $this->userIdToEmail[$submission->user_id] ?? null,
+                'id' => $submission->id,
+                'user_id' => $submission->user_id,
                 'metric' => $submission->getRawOriginal('metric'),
-                'recorded_by' => $submission->recorded_by !== null
-                    ? ($this->userIdToEmail[$submission->recorded_by] ?? null)
-                    : null,
+                'recorded_by' => $submission->recorded_by,
                 'recorded_at' => $submission->recorded_at?->format('Y-m-d'),
                 'owner_type' => $submission->owner_type,
-                'owner_ref' => $this->resolveMetricOwnerRef($submission->owner_type, $submission->owner_id),
+                'owner_id' => $submission->owner_id,
                 'values' => $submission->values->map(fn (MetricValue $value) => [
+                    'id' => $value->id,
                     'field' => $value->field,
                     'value' => $value->value,
                 ])->all(),
+                'deleted_at' => $submission->deleted_at?->toIso8601String(),
             ])
             ->all();
 
         $this->writeFile('metric_submissions.php', $submissions);
         $this->info('Exported '.count($submissions).' metric submissions.');
-    }
-
-    /** @return array<string, mixed>|null */
-    private function remapProgramConfigForExport(?array $config): ?array
-    {
-        if ($config === null) {
-            return null;
-        }
-
-        if (! empty($config['exercises'])) {
-            $remapped = [];
-            foreach ($config['exercises'] as $exerciseId => $overrides) {
-                $name = $this->exerciseIdToName[(int) $exerciseId] ?? null;
-                if ($name !== null) {
-                    $remapped[$name] = $overrides;
-                }
-            }
-            $config['exercises'] = $remapped;
-        }
-
-        if (! empty($config['userExercises']) && is_array($config['userExercises'])) {
-            $remapped = [];
-            foreach ($config['userExercises'] as $userId => $exercises) {
-                $email = $this->userIdToEmail[(int) $userId] ?? null;
-                if ($email === null || ! is_array($exercises)) {
-                    continue;
-                }
-                $remapped[$email] = [];
-                foreach ($exercises as $exerciseId => $overrides) {
-                    $name = $this->exerciseIdToName[(int) $exerciseId] ?? null;
-                    if ($name !== null) {
-                        $remapped[$email][$name] = $overrides;
-                    }
-                }
-            }
-            $config['userExercises'] = $remapped;
-        }
-
-        return $config;
-    }
-
-    /** @return array<string, mixed>|null */
-    private function remapPlanConfigForExport(?array $config): ?array
-    {
-        if ($config === null) {
-            return null;
-        }
-
-        $weeks = $config['schedule']['weeks'] ?? [];
-        foreach ($weeks as &$week) {
-            $slots = $week['slots'] ?? [];
-            foreach ($slots as &$slot) {
-                $slot['programs'] = array_map(
-                    fn (int $id) => $this->programIdToName[$id] ?? "unknown_{$id}",
-                    $slot['programs'] ?? [],
-                );
-            }
-            $week['slots'] = $slots;
-        }
-        $config['schedule']['weeks'] = $weeks;
-
-        return $config;
-    }
-
-    private function resolveMetricOwnerRef(?string $ownerType, ?int $ownerId): mixed
-    {
-        if ($ownerType === null || $ownerId === null) {
-            return null;
-        }
-
-        if ($ownerType === User::class) {
-            return $this->userIdToEmail[$ownerId] ?? null;
-        }
-
-        return $ownerId;
     }
 
     private function writeFile(string $filename, array $data): void

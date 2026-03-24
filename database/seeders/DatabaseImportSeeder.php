@@ -15,35 +15,13 @@ use App\Models\Training\TrainingProgramBlock;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class DatabaseImportSeeder extends Seeder
 {
     private string $importPath;
-
-    /** @var array<string, int> */
-    private array $tagLookup = [];
-
-    /** @var array<string, int> */
-    private array $templateLookup = [];
-
-    /** @var array<string, int> */
-    private array $exerciseLookup = [];
-
-    /** @var array<string, int> */
-    private array $groupLookup = [];
-
-    /** @var array<string, int> */
-    private array $userLookup = [];
-
-    /** @var array<string, int> */
-    private array $programLookup = [];
-
-    /** @var array<int, int> */
-    private array $blockIdMap = [];
-
-    /** @var array<string, int> */
-    private array $trainingProgramLookup = [];
 
     public function run(): void
     {
@@ -51,56 +29,45 @@ class DatabaseImportSeeder extends Seeder
 
         $this->command->info("Importing from: {$this->importPath}");
 
+        Model::unguard();
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+
         $this->seedTags();
         $this->seedExerciseTemplates();
         $this->seedExercises();
         $this->seedExerciseExternals();
         $this->seedExercisePrograms();
+        $this->seedExercisePlans();
         $this->seedUserGroups();
         $this->seedUsers();
-        $this->seedExercisePlans();
         $this->seedTrainingPrograms();
         $this->seedTrainingProgramBlocks();
         $this->seedTrainingProgramSlots();
         $this->seedMetricSubmissions();
+
+        DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        Model::reguard();
     }
 
     private function seedTags(): void
     {
         $tags = $this->loadFile('tags.php');
-        $count = 0;
 
         foreach ($tags as $tag) {
-            $count += $this->seedTagNode($tag, $tag['scope'], null);
-        }
-
-        $this->command->info('Imported '.$count.' tags.');
-    }
-
-    private function seedTagNode(array $tag, string $scope, ?int $parentId): int
-    {
-        $model = Tag::updateOrCreate(
-            ['scope' => $scope, 'slug' => $tag['slug']],
-            [
+            Tag::create([
+                'id' => $tag['id'],
+                'parent_id' => $tag['parent_id'],
+                'scope' => $tag['scope'],
                 'name' => $tag['name'],
-                'short_name' => $tag['short_name'] ?? null,
-                'color' => $tag['color'] ?? null,
-                'parent_id' => $parentId,
+                'short_name' => $tag['short_name'],
+                'slug' => $tag['slug'],
                 'sort_order' => $tag['sort_order'],
-            ],
-        );
-
-        $this->tagLookup[$scope.':'.$tag['slug']] = $model->id;
-
-        $count = 1;
-
-        if (! empty($tag['children'])) {
-            foreach ($tag['children'] as $child) {
-                $count += $this->seedTagNode($child, $scope, $model->id);
-            }
+                'color' => $tag['color'] ?? null,
+                'deleted_at' => $tag['deleted_at'] ?? null,
+            ]);
         }
 
-        return $count;
+        $this->command->info('Imported '.count($tags).' tags.');
     }
 
     private function seedExerciseTemplates(): void
@@ -108,12 +75,12 @@ class DatabaseImportSeeder extends Seeder
         $templates = $this->loadFile('exercise_templates.php');
 
         foreach ($templates as $template) {
-            $model = ExerciseTemplate::updateOrCreate(
-                ['name' => $template['name']],
-                ['config' => $template['config']],
-            );
-
-            $this->templateLookup[$template['name']] = $model->id;
+            ExerciseTemplate::create([
+                'id' => $template['id'],
+                'name' => $template['name'],
+                'config' => $template['config'],
+                'deleted_at' => $template['deleted_at'] ?? null,
+            ]);
         }
 
         $this->command->info('Imported '.count($templates).' exercise templates.');
@@ -124,30 +91,25 @@ class DatabaseImportSeeder extends Seeder
         $exercises = $this->loadFile('exercises.php');
 
         foreach ($exercises as $exercise) {
+            Exercise::create([
+                'id' => $exercise['id'],
+                'name' => $exercise['name'],
+                'category_id' => $exercise['category_id'],
+                'template_id' => $exercise['template_id'],
+                'video_url' => $exercise['video_url'],
+                'instructions' => $exercise['instructions'],
+                'config' => $exercise['config'],
+                'deleted_at' => $exercise['deleted_at'] ?? null,
+            ]);
+
             $tags = $exercise['tags'] ?? [];
-
-            $model = Exercise::updateOrCreate(
-                ['name' => $exercise['name']],
-                [
-                    'category_id' => $this->resolveTagKey($exercise['category']),
-                    'template_id' => $exercise['template'] !== null
-                        ? $this->resolveTemplateName($exercise['template'])
-                        : null,
-                    'video_url' => $exercise['video_url'],
-                    'instructions' => $exercise['instructions'],
-                    'config' => $exercise['config'],
-                ],
-            );
-
             if (! empty($tags)) {
                 $syncData = [];
                 foreach ($tags as $tag) {
-                    $syncData[$this->resolveTagKey($tag['tag'])] = ['sort' => $tag['sort']];
+                    $syncData[$tag['tag_id']] = ['sort' => $tag['sort']];
                 }
-                $model->tags()->sync($syncData);
+                Exercise::find($exercise['id'])->tags()->sync($syncData);
             }
-
-            $this->exerciseLookup[$exercise['name']] = $model->id;
         }
 
         $this->command->info('Imported '.count($exercises).' exercises.');
@@ -158,24 +120,22 @@ class DatabaseImportSeeder extends Seeder
         $externals = $this->loadFile('exercise_externals.php');
 
         foreach ($externals as $external) {
+            ExerciseExternal::create([
+                'id' => $external['id'],
+                'source' => $external['source'],
+                'name' => $external['name'],
+                'video_url' => $external['video_url'],
+                'category_id' => $external['category_id'],
+                'deleted_at' => $external['deleted_at'] ?? null,
+            ]);
+
             $tags = $external['tags'] ?? [];
-
-            $model = ExerciseExternal::updateOrCreate(
-                ['source' => $external['source'], 'name' => $external['name']],
-                [
-                    'video_url' => $external['video_url'],
-                    'category_id' => $external['category'] !== null
-                        ? $this->resolveTagKey($external['category'])
-                        : null,
-                ],
-            );
-
             if (! empty($tags)) {
                 $syncData = [];
                 foreach ($tags as $tag) {
-                    $syncData[$this->resolveTagKey($tag['tag'])] = ['sort' => $tag['sort']];
+                    $syncData[$tag['tag_id']] = ['sort' => $tag['sort']];
                 }
-                $model->tags()->sync($syncData);
+                ExerciseExternal::find($external['id'])->tags()->sync($syncData);
             }
         }
 
@@ -187,46 +147,31 @@ class DatabaseImportSeeder extends Seeder
         $programs = $this->loadFile('exercise_programs.php');
 
         foreach ($programs as $program) {
-            $exercises = $program['exercises'] ?? [];
-            $config = $this->remapProgramConfigForImport($program['config'] ?? null);
-
             $attributes = [
-                'exercise_category_id' => $program['exercise_category'] !== null
-                    ? $this->resolveTagKey($program['exercise_category'])
-                    : null,
+                'id' => $program['id'],
+                'parent_type' => $program['parent_type'],
+                'parent_id' => $program['parent_id'],
+                'name' => $program['name'],
+                'exercise_category_id' => $program['exercise_category_id'],
+                'warm_up_program_id' => $program['warm_up_program_id'],
+                'warm_down_program_id' => $program['warm_down_program_id'],
                 'sort' => $program['sort'],
+                'deleted_at' => $program['deleted_at'] ?? null,
             ];
 
-            if ($config !== null) {
-                $attributes['config'] = $config;
+            if ($program['config'] !== null) {
+                $attributes['config'] = $program['config'];
             }
 
-            $model = ExerciseProgram::updateOrCreate(
-                ['name' => $program['name'], 'parent_type' => null],
-                $attributes,
-            );
+            ExerciseProgram::create($attributes);
 
+            $exercises = $program['exercises'] ?? [];
             if (! empty($exercises)) {
                 $syncData = [];
                 foreach ($exercises as $exercise) {
-                    $syncData[$this->resolveExerciseName($exercise['exercise'])] = ['sort' => $exercise['sort']];
+                    $syncData[$exercise['exercise_id']] = ['sort' => $exercise['sort']];
                 }
-                $model->exercises()->sync($syncData);
-            }
-
-            $this->programLookup[$program['name']] = $model->id;
-        }
-
-        foreach ($programs as $program) {
-            $warmUp = $program['warm_up_program'] ?? null;
-            $warmDown = $program['warm_down_program'] ?? null;
-
-            if ($warmUp !== null || $warmDown !== null) {
-                ExerciseProgram::where('id', $this->programLookup[$program['name']])
-                    ->update([
-                        'warm_up_program_id' => $warmUp !== null ? $this->resolveProgramName($warmUp) : null,
-                        'warm_down_program_id' => $warmDown !== null ? $this->resolveProgramName($warmDown) : null,
-                    ]);
+                ExerciseProgram::find($program['id'])->exercises()->sync($syncData);
             }
         }
 
@@ -238,17 +183,12 @@ class DatabaseImportSeeder extends Seeder
         $plans = $this->loadFile('exercise_plans.php');
 
         foreach ($plans as $plan) {
-            $config = $this->remapPlanConfigForImport($plan['config'] ?? null);
-
-            $attributes = [];
-            if ($config !== null) {
-                $attributes['config'] = $config;
-            }
-
-            ExercisePlan::updateOrCreate(
-                ['name' => $plan['name']],
-                $attributes,
-            );
+            ExercisePlan::create([
+                'id' => $plan['id'],
+                'name' => $plan['name'],
+                'config' => $plan['config'],
+                'deleted_at' => $plan['deleted_at'] ?? null,
+            ]);
         }
 
         $this->command->info('Imported '.count($plans).' exercise plans.');
@@ -259,12 +199,12 @@ class DatabaseImportSeeder extends Seeder
         $groups = $this->loadFile('user_groups.php');
 
         foreach ($groups as $group) {
-            $model = UserGroup::updateOrCreate(
-                ['name' => $group['name']],
-                ['config' => $group['config']],
-            );
-
-            $this->groupLookup[$group['name']] = $model->id;
+            UserGroup::create([
+                'id' => $group['id'],
+                'name' => $group['name'],
+                'config' => $group['config'],
+                'deleted_at' => $group['deleted_at'] ?? null,
+            ]);
         }
 
         $this->command->info('Imported '.count($groups).' user groups.');
@@ -275,32 +215,29 @@ class DatabaseImportSeeder extends Seeder
         $users = $this->loadFile('users.php');
 
         foreach ($users as $user) {
+            User::create([
+                'id' => $user['id'],
+                'type' => $user['type'],
+                'forename' => $user['forename'],
+                'surname' => $user['surname'],
+                'email' => $user['email'],
+                'phone' => $user['phone'],
+                'password' => $user['password'],
+                'gender' => $user['gender'] ?? null,
+                'date_of_birth' => $user['date_of_birth'] ?? null,
+                'color' => $user['color'] ?? null,
+                'config' => $user['config'],
+                'deleted_at' => $user['deleted_at'] ?? null,
+            ]);
+
             $groups = $user['groups'] ?? [];
-
-            $model = User::firstOrCreate(
-                ['email' => $user['email']],
-                [
-                    'type' => $user['type'],
-                    'forename' => $user['forename'],
-                    'surname' => $user['surname'],
-                    'phone' => $user['phone'],
-                    'password' => $user['password'],
-                    'gender' => $user['gender'] ?? null,
-                    'date_of_birth' => $user['date_of_birth'] ?? null,
-                    'color' => $user['color'] ?? null,
-                    'config' => $user['config'],
-                ],
-            );
-
             if (! empty($groups)) {
                 $syncData = [];
                 foreach ($groups as $group) {
-                    $syncData[$this->resolveGroupName($group['group'])] = ['sort' => $group['sort']];
+                    $syncData[$group['group_id']] = ['sort' => $group['sort']];
                 }
-                $model->groups()->sync($syncData);
+                User::find($user['id'])->groups()->sync($syncData);
             }
-
-            $this->userLookup[$user['email']] = $model->id;
         }
 
         $this->command->info('Imported '.count($users).' users.');
@@ -311,59 +248,12 @@ class DatabaseImportSeeder extends Seeder
         $trainingPrograms = $this->loadFile('training_programs.php');
 
         foreach ($trainingPrograms as $tp) {
-            $programData = $tp['program'] ?? null;
-
-            if ($tp['group'] === null || $programData === null) {
-                continue;
-            }
-
-            $groupId = $this->resolveGroupName($tp['group']);
-
-            $config = $this->remapProgramConfigForImport($programData['config'] ?? null);
-
-            $programAttributes = [
-                'name' => $programData['name'],
-                'exercise_category_id' => ($programData['exercise_category'] ?? null) !== null
-                    ? $this->resolveTagKey($programData['exercise_category'])
-                    : null,
-                'sort' => $programData['sort'],
-                'parent_type' => TrainingProgram::class,
-            ];
-
-            if ($config !== null) {
-                $programAttributes['config'] = $config;
-            }
-
-            $program = ExerciseProgram::create($programAttributes);
-
-            $exercises = $programData['exercises'] ?? [];
-            if (! empty($exercises)) {
-                $syncData = [];
-                foreach ($exercises as $exercise) {
-                    $syncData[$this->resolveExerciseName($exercise['exercise'])] = ['sort' => $exercise['sort']];
-                }
-                $program->exercises()->sync($syncData);
-            }
-
-            $trainingProgram = TrainingProgram::create([
-                'group_id' => $groupId,
-                'exercise_program_id' => $program->id,
+            TrainingProgram::create([
+                'id' => $tp['id'],
+                'group_id' => $tp['group_id'],
+                'exercise_program_id' => $tp['exercise_program_id'],
                 'sort' => $tp['sort'],
             ]);
-
-            $program->update(['parent_id' => $trainingProgram->id]);
-
-            $warmUp = $programData['warm_up_program'] ?? null;
-            $warmDown = $programData['warm_down_program'] ?? null;
-            if ($warmUp !== null || $warmDown !== null) {
-                $program->update([
-                    'warm_up_program_id' => $warmUp !== null ? $this->resolveProgramName($warmUp) : null,
-                    'warm_down_program_id' => $warmDown !== null ? $this->resolveProgramName($warmDown) : null,
-                ]);
-            }
-
-            $key = $tp['group'].'|'.$programData['name'];
-            $this->trainingProgramLookup[$key] = $trainingProgram->id;
         }
 
         $this->command->info('Imported '.count($trainingPrograms).' training programs.');
@@ -374,18 +264,12 @@ class DatabaseImportSeeder extends Seeder
         $blocks = $this->loadFile('training_program_blocks.php');
 
         foreach ($blocks as $block) {
-            if ($block['group'] === null) {
-                continue;
-            }
-
-            $model = TrainingProgramBlock::create([
-                'group_id' => $this->resolveGroupName($block['group']),
-                'user_id' => $block['user'] !== null
-                    ? $this->resolveUserEmail($block['user'])
-                    : null,
-                'category_id' => $block['category'] !== null
-                    ? $this->resolveTagKey($block['category'])
-                    : null,
+            TrainingProgramBlock::create([
+                'id' => $block['id'],
+                'parent_id' => $block['parent_id'],
+                'group_id' => $block['group_id'],
+                'user_id' => $block['user_id'],
+                'category_id' => $block['category_id'],
                 'type' => $block['type'],
                 'start' => $block['start'],
                 'end' => $block['end'],
@@ -393,18 +277,8 @@ class DatabaseImportSeeder extends Seeder
                 'color' => $block['color'],
                 'config' => $block['config'],
                 'active' => $block['active'],
+                'deleted_at' => $block['deleted_at'] ?? null,
             ]);
-
-            $this->blockIdMap[$block['id']] = $model->id;
-        }
-
-        foreach ($blocks as $block) {
-            if ($block['parent_id'] !== null && isset($this->blockIdMap[$block['id']])) {
-                TrainingProgramBlock::where('id', $this->blockIdMap[$block['id']])
-                    ->update([
-                        'parent_id' => $this->blockIdMap[$block['parent_id']] ?? null,
-                    ]);
-            }
         }
 
         $this->command->info('Imported '.count($blocks).' training program blocks.');
@@ -415,29 +289,10 @@ class DatabaseImportSeeder extends Seeder
         $slots = $this->loadFile('training_program_slots.php');
 
         foreach ($slots as $slot) {
-            $group = $slot['training_program_group'] ?? null;
-            $program = $slot['training_program_exercise_program'] ?? null;
-
-            if ($group === null || $program === null || $slot['user'] === null) {
-                $this->command->warn('Training program slot missing group, program, or user reference, skipping.');
-
-                continue;
-            }
-
-            $key = $group.'|'.$program;
-            $trainingProgramId = $this->trainingProgramLookup[$key] ?? null;
-
-            if ($trainingProgramId === null) {
-                $this->command->warn("Training program not found for slot: {$key}, skipping.");
-
-                continue;
-            }
-
             TrainingProgramSlot::create([
-                'training_program_id' => $trainingProgramId,
-                'user_id' => $slot['user'] !== null
-                    ? $this->resolveUserEmail($slot['user'])
-                    : null,
+                'id' => $slot['id'],
+                'training_program_id' => $slot['training_program_id'],
+                'user_id' => $slot['user_id'],
                 'datetime' => $slot['datetime'],
             ]);
         }
@@ -450,36 +305,21 @@ class DatabaseImportSeeder extends Seeder
         $submissions = $this->loadFile('metric_submissions.php');
 
         foreach ($submissions as $submission) {
-            if ($submission['user'] === null) {
-                continue;
-            }
-
-            $ownerId = null;
-            $ownerType = $submission['owner_type'] ?? null;
-            $ownerRef = $submission['owner_ref'] ?? null;
-
-            if ($ownerType !== null && $ownerRef !== null) {
-                if ($ownerType === User::class) {
-                    $ownerId = $this->resolveUserEmail($ownerRef);
-                } elseif ($ownerType === TrainingProgramBlock::class) {
-                    $ownerId = $this->blockIdMap[(int) $ownerRef] ?? null;
-                }
-            }
-
-            $model = MetricSubmission::create([
-                'user_id' => $this->resolveUserEmail($submission['user']),
+            MetricSubmission::create([
+                'id' => $submission['id'],
+                'user_id' => $submission['user_id'],
                 'metric' => $submission['metric'],
-                'recorded_by' => $submission['recorded_by'] !== null
-                    ? $this->resolveUserEmail($submission['recorded_by'])
-                    : null,
+                'recorded_by' => $submission['recorded_by'],
                 'recorded_at' => $submission['recorded_at'],
-                'owner_type' => $ownerType,
-                'owner_id' => $ownerId,
+                'owner_type' => $submission['owner_type'],
+                'owner_id' => $submission['owner_id'],
+                'deleted_at' => $submission['deleted_at'] ?? null,
             ]);
 
             foreach ($submission['values'] ?? [] as $value) {
                 MetricValue::create([
-                    'submission_id' => $model->id,
+                    'id' => $value['id'],
+                    'submission_id' => $submission['id'],
                     'field' => $value['field'],
                     'value' => $value['value'],
                 ]);
@@ -487,122 +327,6 @@ class DatabaseImportSeeder extends Seeder
         }
 
         $this->command->info('Imported '.count($submissions).' metric submissions.');
-    }
-
-    private function resolveTagKey(string $key): int
-    {
-        if (! isset($this->tagLookup[$key])) {
-            throw new \RuntimeException("Tag key '{$key}' not found. Ensure tags are seeded first.");
-        }
-
-        return $this->tagLookup[$key];
-    }
-
-    private function resolveTemplateName(string $name): int
-    {
-        if (! isset($this->templateLookup[$name])) {
-            throw new \RuntimeException("Exercise template '{$name}' not found. Ensure templates are seeded first.");
-        }
-
-        return $this->templateLookup[$name];
-    }
-
-    private function resolveExerciseName(string $name): int
-    {
-        if (! isset($this->exerciseLookup[$name])) {
-            throw new \RuntimeException("Exercise '{$name}' not found. Ensure exercises are seeded first.");
-        }
-
-        return $this->exerciseLookup[$name];
-    }
-
-    private function resolveGroupName(string $name): int
-    {
-        if (! isset($this->groupLookup[$name])) {
-            throw new \RuntimeException("User group '{$name}' not found. Ensure user groups are seeded first.");
-        }
-
-        return $this->groupLookup[$name];
-    }
-
-    private function resolveUserEmail(string $email): int
-    {
-        if (! isset($this->userLookup[$email])) {
-            throw new \RuntimeException("User '{$email}' not found. Ensure users are seeded first.");
-        }
-
-        return $this->userLookup[$email];
-    }
-
-    private function resolveProgramName(string $name): int
-    {
-        if (! isset($this->programLookup[$name])) {
-            throw new \RuntimeException("Exercise program '{$name}' not found. Ensure exercise programs are seeded first.");
-        }
-
-        return $this->programLookup[$name];
-    }
-
-    /** @return array<string, mixed>|null */
-    private function remapProgramConfigForImport(?array $config): ?array
-    {
-        if ($config === null) {
-            return null;
-        }
-
-        if (! empty($config['exercises'])) {
-            $remapped = [];
-            foreach ($config['exercises'] as $exerciseName => $overrides) {
-                $newId = $this->exerciseLookup[$exerciseName] ?? null;
-                if ($newId !== null) {
-                    $remapped[$newId] = $overrides;
-                }
-            }
-            $config['exercises'] = $remapped;
-        }
-
-        if (! empty($config['userExercises'])) {
-            $remapped = [];
-            foreach ($config['userExercises'] as $userEmail => $exercises) {
-                $userId = $this->userLookup[$userEmail] ?? null;
-                if ($userId === null) {
-                    continue;
-                }
-                $remapped[$userId] = [];
-                foreach ($exercises as $exerciseName => $overrides) {
-                    $exId = $this->exerciseLookup[$exerciseName] ?? null;
-                    if ($exId !== null) {
-                        $remapped[$userId][$exId] = $overrides;
-                    }
-                }
-            }
-            $config['userExercises'] = $remapped;
-        }
-
-        return $config;
-    }
-
-    /** @return array<string, mixed>|null */
-    private function remapPlanConfigForImport(?array $config): ?array
-    {
-        if ($config === null) {
-            return null;
-        }
-
-        $weeks = $config['schedule']['weeks'] ?? [];
-        foreach ($weeks as &$week) {
-            $slots = $week['slots'] ?? [];
-            foreach ($slots as &$slot) {
-                $slot['programs'] = array_map(
-                    fn (string $name) => $this->resolveProgramName($name),
-                    $slot['programs'] ?? [],
-                );
-            }
-            $week['slots'] = $slots;
-        }
-        $config['schedule']['weeks'] = $weeks;
-
-        return $config;
     }
 
     private function resolveImportPath(): string
