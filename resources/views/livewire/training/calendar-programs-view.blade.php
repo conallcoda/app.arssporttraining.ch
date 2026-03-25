@@ -335,9 +335,9 @@
                                     <button x-show="getCellCount({{ $entry->id }}, day.date) > 0"
                                         x-cloak
                                         type="button"
-                                        @click.stop="$wire.editWeekSlot({{ $entry->id }}, day.date, getCellTime({{ $entry->id }}, day.date))"
+                                        @click.stop="let _t = getCellTime({{ $entry->id }}, day.date); _t ? $wire.editWeekSlot({{ $entry->id }}, day.date, _t) : $wire.openProgramSlot({{ $entry->id }}, day.date)"
                                         class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm cursor-pointer {{ $colorClass ?: 'bg-emerald-400/80 dark:bg-emerald-500/60' }}"
-                                        x-text="getCellCount({{ $entry->id }}, day.date)">
+                                        x-text="getCellSession({{ $entry->id }}, day.date) || getCellCount({{ $entry->id }}, day.date)">
                                     </button>
                                     <div x-show="cellDataLoaded && getCellCount({{ $entry->id }}, day.date) === 0"
                                         x-cloak
@@ -393,17 +393,14 @@
                     </div>
                 </template>
                 <template x-if="slotDetails && !loading">
-                    <template x-for="slot in slotDetails" :key="slot.time + '-' + slot.userId">
+                    <template x-for="slot in slotDetails" :key="slot.time">
                         <button type="button"
                             @click="editSlot(slot.time)"
                             class="flex flex-col px-2 py-1.5 rounded-lg text-left cursor-pointer hover:opacity-80 transition-opacity"
                             :class="color ? '' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'"
                             :style="color ? 'background-color: var(--color-' + color + '-500); color: white;' : ''">
                             <span class="text-[10px]" :class="color ? 'opacity-80' : 'opacity-60'" x-text="slot.time"></span>
-                            <span class="text-xs font-medium truncate" x-text="slot.name"></span>
-                            <template x-if="slot.session">
-                                <span class="text-[10px]" :class="color ? 'opacity-60' : 'opacity-40'" x-text="'Session ' + slot.session"></span>
-                            </template>
+                            <span class="text-xs font-medium truncate" x-text="(slot.names || []).join(', ')"></span>
                         </button>
                     </template>
                 </template>
@@ -421,16 +418,6 @@
     maxWidth="max-w-lg"
     :showDelete="true"
     :excludeFields="['owner_id', 'internalTags']"
-/>
-
-<livewire:database.athlete-metric-form-modal
-    name="calendar-metric-form"
-    :title="__('Add Metric')"
-    :formDataClass="App\Data\Athlete\Metric\MetricSubmissionData::class"
-    :flyout="true"
-    maxWidth="max-w-sm"
-    :showDelete="true"
-    :excludeFields="['recorded_at']"
 />
 
 <x-cms::confirm-modal

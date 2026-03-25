@@ -79,6 +79,8 @@ class ProgramEditor extends Component
 
     public bool $planHasBlock = false;
 
+    public array $planGroupMemberMetrics = [];
+
     public array $data = [];
 
     public function mount(
@@ -104,6 +106,7 @@ class ProgramEditor extends Component
         bool $hasAutoWeightExercises = false,
         bool $hasHeartRateExercises = false,
         bool $planHasBlock = false,
+        array $planGroupMemberMetrics = [],
     ): void {
         $this->exerciseProgram = $exerciseProgram;
         $this->planId = $planId;
@@ -127,6 +130,7 @@ class ProgramEditor extends Component
         $this->hasAutoWeightExercises = $hasAutoWeightExercises;
         $this->hasHeartRateExercises = $hasHeartRateExercises;
         $this->planHasBlock = $planHasBlock;
+        $this->planGroupMemberMetrics = $planGroupMemberMetrics;
         $this->loadExerciseData();
     }
 

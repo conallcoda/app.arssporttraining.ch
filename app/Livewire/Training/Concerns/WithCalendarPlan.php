@@ -5,21 +5,28 @@ namespace App\Livewire\Training\Concerns;
 use App\Data\Athlete\Metric\MetricEnum;
 use App\Data\Athlete\Metric\Metrics\HeartRateMetric;
 use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
+use App\Data\Athlete\Metric\MetricSubmissionData;
 use App\Models\Athlete\MetricSubmission;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramBlock;
+use App\Models\Training\TrainingProgramBlockTypeEnum;
 use App\Models\Training\TrainingProgramSlot;
+use App\Models\Users\UserGroup;
 use App\Training\CalendarBlockService;
+use App\Training\ProjectedOneRepMaxService;
 use Carbon\Carbon;
+use Flux\Flux;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
+use Livewire\Attributes\Renderless;
 
 trait WithCalendarPlan
 {
     public function updatedPlanCategory(): void
     {
         $this->planBlock = 'ungrouped';
+        unset($this->planBlockOptions, $this->planProgramOptions);
         $this->selectOverlappingBlock();
         $this->planProgram = '';
         $options = $this->planProgramOptions;
@@ -76,11 +83,17 @@ trait WithCalendarPlan
         $this->planProgram = (string) $trainingProgramId;
         $this->planProgramName = $trainingProgram->program->name;
 
-        $this->selectOverlappingBlock();
+        unset($this->planBlockOptions, $this->planProgramOptions, $this->planCategoryOptions);
+
+        $slotDate = TrainingProgramSlot::where('training_program_id', $trainingProgramId)
+            ->orderBy('datetime')
+            ->value('datetime');
+
+        $this->selectOverlappingBlock($slotDate ? Carbon::parse($slotDate) : null);
 
     }
 
-    protected function selectOverlappingBlock(): void
+    protected function selectOverlappingBlock(?Carbon $referenceDate = null): void
     {
         $categoryId = (int) $this->planCategory;
         if ($categoryId === 0 || $this->group === '') {
@@ -92,6 +105,7 @@ trait WithCalendarPlan
             (int) $this->group,
             $this->user !== '' ? (int) $this->user : null,
             $categoryId,
+            $referenceDate,
         );
 
         if ($block) {
@@ -138,7 +152,7 @@ trait WithCalendarPlan
             $categoryId,
         );
 
-        return $options->merge($blockOptions);
+        return $options->union(collect($blockOptions)->mapWithKeys(fn ($label, $id) => [(string) $id => $label]));
     }
 
     #[Computed]
@@ -198,8 +212,18 @@ trait WithCalendarPlan
         }
 
         $block = TrainingProgramBlock::find((int) $this->planBlock);
+        if (! $block) {
+            return null;
+        }
 
-        return $block?->config?->goal;
+        if ($this->user !== '' && $block->category_id !== null) {
+            $override = $block->athleteOverride((int) $this->user);
+            if ($override) {
+                return $override->config?->goal;
+            }
+        }
+
+        return $block->config?->goal;
     }
 
     #[Computed]
@@ -254,11 +278,14 @@ trait WithCalendarPlan
             return ['maxHR' => null, 'iatPercent' => null];
         }
 
+        $block = $this->planBlock !== 'ungrouped' ? TrainingProgramBlock::find((int) $this->planBlock) : null;
+        $cutoffDate = $block?->start?->format('Y-m-d') ?? now()->format('Y-m-d');
+
         $submission = MetricSubmission::query()
             ->forAthlete((int) $this->user)
             ->forMetric(MetricEnum::HeartRate)
             ->manual()
-            ->where('recorded_at', '<=', now()->format('Y-m-d'))
+            ->where('recorded_at', '<=', $cutoffDate)
             ->orderByDesc('recorded_at')
             ->with('values')
             ->first();
@@ -344,6 +371,7 @@ trait WithCalendarPlan
         return $label;
     }
 
+    #[Renderless]
     public function openPlanBlockEdit(): void
     {
         if (! $this->planHasBlock) {
@@ -379,56 +407,222 @@ trait WithCalendarPlan
         ]);
     }
 
+    #[Renderless]
     public function openPlan1rmEdit(): void
     {
         if ($this->user === '') {
             return;
         }
 
-        $data = $this->planMeasuredData;
+        $block = $this->planBlock !== 'ungrouped' ? TrainingProgramBlock::find((int) $this->planBlock) : null;
+        $cutoffDate = $block?->start?->format('Y-m-d') ?? now()->format('Y-m-d');
 
-        if ($data['measuredWeight'] !== null) {
-            $this->dispatch('open-calendar-metric-form', data: [
-                'metric' => MetricEnum::OneRepMax->value,
-                'recorded_at' => now()->format('Y-m-d'),
-                'user_id' => (int) $this->user,
-            ], title: __('Edit Metric').' ('.MetricEnum::OneRepMax->label().')');
+        $submission = MetricSubmission::query()
+            ->forAthlete((int) $this->user)
+            ->forMetric(MetricEnum::OneRepMax)
+            ->where('recorded_at', '<=', $cutoffDate)
+            ->orderByDesc('recorded_at')
+            ->with('values')
+            ->first();
+
+        if ($submission) {
+            $eventData = array_merge(
+                MetricSubmissionData::fromModel($submission)->toArray(),
+                ['metric' => MetricEnum::OneRepMax->value],
+            );
+            $this->dispatch('open-calendar-metric-form', data: $eventData, title: __('Edit Metric').' ('.MetricEnum::OneRepMax->label().')');
         } else {
-            $block = $this->planBlock !== 'ungrouped' ? TrainingProgramBlock::find((int) $this->planBlock) : null;
-            $recordedAt = $block?->start?->format('Y-m-d') ?? now()->format('Y-m-d');
-
             $this->dispatch('open-calendar-metric-form', data: [
                 'metric' => MetricEnum::OneRepMax->value,
-                'recorded_at' => $recordedAt,
+                'recorded_at' => $cutoffDate,
                 'user_id' => (int) $this->user,
             ], title: __('Add Metric').' ('.MetricEnum::OneRepMax->label().')');
         }
     }
 
+    #[Renderless]
     public function openPlanHeartRateEdit(): void
     {
         if ($this->user === '') {
             return;
         }
 
-        $data = $this->planHeartRateData;
+        $block = $this->planBlock !== 'ungrouped' ? TrainingProgramBlock::find((int) $this->planBlock) : null;
+        $cutoffDate = $block?->start?->format('Y-m-d') ?? now()->format('Y-m-d');
 
-        if ($data['maxHR'] !== null) {
-            $this->dispatch('open-calendar-metric-form', data: [
-                'metric' => MetricEnum::HeartRate->value,
-                'recorded_at' => now()->format('Y-m-d'),
-                'user_id' => (int) $this->user,
-            ], title: __('Edit Metric').' ('.MetricEnum::HeartRate->label().')');
+        $submission = MetricSubmission::query()
+            ->forAthlete((int) $this->user)
+            ->forMetric(MetricEnum::HeartRate)
+            ->manual()
+            ->where('recorded_at', '<=', $cutoffDate)
+            ->orderByDesc('recorded_at')
+            ->with('values')
+            ->first();
+
+        if ($submission) {
+            $eventData = array_merge(
+                MetricSubmissionData::fromModel($submission)->toArray(),
+                ['metric' => MetricEnum::HeartRate->value],
+            );
+            $this->dispatch('open-calendar-metric-form', data: $eventData, title: __('Edit Metric').' ('.MetricEnum::HeartRate->label().')');
         } else {
-            $block = $this->planBlock !== 'ungrouped' ? TrainingProgramBlock::find((int) $this->planBlock) : null;
-            $recordedAt = $block?->start?->format('Y-m-d') ?? now()->format('Y-m-d');
-
             $this->dispatch('open-calendar-metric-form', data: [
                 'metric' => MetricEnum::HeartRate->value,
-                'recorded_at' => $recordedAt,
+                'recorded_at' => $cutoffDate,
                 'user_id' => (int) $this->user,
             ], title: __('Add Metric').' ('.MetricEnum::HeartRate->label().')');
         }
+    }
+
+    #[Computed]
+    public function planGroupMemberMetrics(): array
+    {
+        if ($this->user !== '' || $this->group === '') {
+            return ['oneRepMax' => [], 'heartRate' => []];
+        }
+
+        $group = UserGroup::with('members')->find((int) $this->group);
+        if (! $group) {
+            return ['oneRepMax' => [], 'heartRate' => []];
+        }
+
+        $block = $this->planBlock !== 'ungrouped' ? TrainingProgramBlock::find((int) $this->planBlock) : null;
+        $cutoffDate = $block?->start?->format('Y-m-d') ?? now()->format('Y-m-d');
+
+        $oneRepMax = [];
+        $heartRate = [];
+
+        foreach ($group->members as $member) {
+            $ormSubmission = MetricSubmission::query()
+                ->forAthlete($member->id)
+                ->forMetric(MetricEnum::OneRepMax)
+                ->where('recorded_at', '<=', $cutoffDate)
+                ->orderByDesc('recorded_at')
+                ->with('values')
+                ->first();
+
+            $ormLabel = null;
+            if ($ormSubmission) {
+                $fieldValues = $ormSubmission->values->pluck('value', 'field')->all();
+                $metric = OneRepMaxMetric::from($fieldValues);
+                if ($metric->measuredWeight !== null) {
+                    $weight = rtrim(rtrim(number_format($metric->measuredWeight, 1), '0'), '.');
+                    $ormLabel = "{$weight}kg";
+                }
+            }
+
+            $oneRepMax[] = [
+                'user_id' => $member->id,
+                'name' => $member->name,
+                'label' => $ormLabel,
+            ];
+
+            $hrSubmission = MetricSubmission::query()
+                ->forAthlete($member->id)
+                ->forMetric(MetricEnum::HeartRate)
+                ->manual()
+                ->where('recorded_at', '<=', $cutoffDate)
+                ->orderByDesc('recorded_at')
+                ->with('values')
+                ->first();
+
+            $hrLabel = null;
+            if ($hrSubmission) {
+                $fieldValues = $hrSubmission->values->pluck('value', 'field')->all();
+                $hrMetric = HeartRateMetric::from($fieldValues);
+                if ($hrMetric->heartRate !== null) {
+                    $hrLabel = $hrMetric->heartRate.' HR';
+                    if ($hrMetric->anaerobicThreshold !== null) {
+                        $hrLabel .= ' - '.$hrMetric->anaerobicThreshold.'% IAT';
+                    }
+                }
+            }
+
+            $heartRate[] = [
+                'user_id' => $member->id,
+                'name' => $member->name,
+                'label' => $hrLabel,
+            ];
+        }
+
+        return ['oneRepMax' => $oneRepMax, 'heartRate' => $heartRate];
+    }
+
+    #[Renderless]
+    public function openPlanGroupMemberMetricEdit(int $userId, string $metric): void
+    {
+        $metricEnum = MetricEnum::from($metric);
+
+        $block = $this->planBlock !== 'ungrouped' ? TrainingProgramBlock::find((int) $this->planBlock) : null;
+        $cutoffDate = $block?->start?->format('Y-m-d') ?? now()->format('Y-m-d');
+
+        $query = MetricSubmission::query()
+            ->forAthlete($userId)
+            ->forMetric($metricEnum)
+            ->where('recorded_at', '<=', $cutoffDate)
+            ->orderByDesc('recorded_at')
+            ->with('values');
+
+        if ($metricEnum === MetricEnum::HeartRate) {
+            $query->manual();
+        }
+
+        $submission = $query->first();
+
+        if ($submission) {
+            $eventData = array_merge(
+                MetricSubmissionData::fromModel($submission)->toArray(),
+                ['metric' => $metric],
+            );
+            $this->dispatch('open-calendar-metric-form', data: $eventData, title: __('Edit Metric').' ('.$metricEnum->label().')');
+        } else {
+            $this->dispatch('open-calendar-metric-form', data: [
+                'metric' => $metric,
+                'recorded_at' => $cutoffDate,
+                'user_id' => $userId,
+            ], title: __('Add Metric').' ('.$metricEnum->label().')');
+        }
+    }
+
+    #[Renderless]
+    public function openPlanGroupMetricAdd(string $metric): void
+    {
+        if ($this->group === '') {
+            return;
+        }
+
+        $metricEnum = MetricEnum::from($metric);
+
+        $group = UserGroup::with('members')->find((int) $this->group);
+        if (! $group) {
+            return;
+        }
+
+        $block = $this->planBlock !== 'ungrouped' ? TrainingProgramBlock::find((int) $this->planBlock) : null;
+        $cutoffDate = $block?->start?->format('Y-m-d') ?? now()->format('Y-m-d');
+
+        $existingUserIds = MetricSubmission::query()
+            ->whereIn('user_id', $group->members->pluck('id'))
+            ->forMetric($metricEnum)
+            ->where('recorded_at', '<=', $cutoffDate)
+            ->when($metricEnum === MetricEnum::HeartRate, fn ($q) => $q->manual())
+            ->distinct()
+            ->pluck('user_id')
+            ->all();
+
+        $availableAthletes = $group->members
+            ->reject(fn ($member) => in_array($member->id, $existingUserIds, true))
+            ->map(fn ($member) => ['id' => $member->id, 'name' => $member->name])
+            ->values()
+            ->all();
+
+        $this->dispatch('open-calendar-metric-form', data: [
+            'metric' => $metric,
+            'recorded_at' => $cutoffDate,
+            'user_id' => null,
+            '_group_mode' => true,
+            '_available_athletes' => $availableAthletes,
+        ], title: __('Add Metric').' ('.$metricEnum->label().')');
     }
 
     #[Computed]
@@ -527,5 +721,202 @@ trait WithCalendarPlan
         foreach ($ranges as [$start, $end]) {
             $query->whereNotBetween('datetime', [$start, $end]);
         }
+    }
+
+    public ?int $pendingPlanMetricDeleteId = null;
+
+    #[On('calendar-metric-form.delete-requested')]
+    public function onPlanMetricDeleteRequested(array $data): void
+    {
+        if (! property_exists($this, 'view') || $this->view !== 'plan') {
+            return;
+        }
+
+        $id = $data['id'] ?? null;
+        if (! $id) {
+            return;
+        }
+
+        $this->pendingPlanMetricDeleteId = (int) $id;
+
+        Flux::modal('calendar-metric-form')->close();
+        Flux::modal('confirm-delete-plan-metric')->show();
+    }
+
+    public function deletePlanMetricSubmission(): void
+    {
+        if (empty($this->pendingPlanMetricDeleteId)) {
+            return;
+        }
+
+        $submission = MetricSubmission::find($this->pendingPlanMetricDeleteId);
+        $this->pendingPlanMetricDeleteId = null;
+
+        Flux::modal('confirm-delete-plan-metric')->close();
+
+        if ($submission) {
+            $submission->delete();
+        }
+
+        unset($this->planMeasuredData, $this->planHeartRateData, $this->planGroupMemberMetrics);
+    }
+
+    #[On('calendar-metric-form.submitted')]
+    public function onPlanMetricFormSubmitted(array $data): void
+    {
+        if (! property_exists($this, 'view') || $this->view !== 'plan') {
+            return;
+        }
+
+        if (empty($data['_persisted'])) {
+            $metric = MetricEnum::from($data['metric']);
+            $metricClass = $metric->metricClass();
+            $targetUserId = (int) ($data['user_id'] ?? ($this->user !== '' ? (int) $this->user : 0));
+
+            $submission = new MetricSubmissionData(
+                id: $data['id'] ?? null,
+                user_id: $targetUserId,
+                metric: $metric,
+                recorded_by: auth()->id(),
+                recorded_at: $data['recorded_at'] ?? null,
+                data: $metricClass::from($data['data'] ?? []),
+            );
+
+            $submission->persist();
+
+            if ($metric === MetricEnum::OneRepMax) {
+                app(ProjectedOneRepMaxService::class)->syncForAthleteBlocks($targetUserId);
+            }
+        }
+
+        unset($this->planMeasuredData, $this->planHeartRateData, $this->planGroupMemberMetrics);
+    }
+
+    #[On('block.submitted')]
+    public function onPlanBlockSubmitted(array $data): void
+    {
+        if (! property_exists($this, 'view') || $this->view !== 'plan') {
+            return;
+        }
+
+        $editingBlockId = $data['editing_block_id'] ?? null;
+        $parentId = $data['parentId'] ?? null;
+        $userId = $data['userId'] ?? null;
+        $groupId = $data['groupId'];
+        $config = $data['config'] ?? null;
+        $projectedService = app(ProjectedOneRepMaxService::class);
+
+        if ($parentId !== null) {
+            if ($editingBlockId !== null) {
+                $block = TrainingProgramBlock::find($editingBlockId);
+                if ($block) {
+                    $block->update([
+                        'start' => $data['start'],
+                        'end' => $data['end'] ?: null,
+                        'note' => $data['note'],
+                        'color' => $data['color'] ?: null,
+                        'config' => $config,
+                    ]);
+                    $projectedService->syncForBlock($block->fresh());
+                }
+            } else {
+                $parentBlock = TrainingProgramBlock::find($parentId);
+                if ($parentBlock) {
+                    $childBlock = TrainingProgramBlock::create([
+                        'group_id' => $groupId,
+                        'user_id' => $userId,
+                        'parent_id' => $parentId,
+                        'category_id' => $parentBlock->category_id,
+                        'type' => $parentBlock->type,
+                        'start' => $data['start'],
+                        'end' => $data['end'] ?: null,
+                        'note' => $data['note'],
+                        'color' => $data['color'] ?: null,
+                        'config' => $config,
+                        'active' => true,
+                    ]);
+                    $projectedService->syncForBlock($childBlock);
+                    $projectedService->syncForBlock($parentBlock->fresh());
+                }
+            }
+        } elseif ($editingBlockId !== null) {
+            $block = TrainingProgramBlock::find($editingBlockId);
+            if ($block) {
+                $block->update([
+                    'start' => $data['start'],
+                    'end' => $data['end'] ?: null,
+                    'note' => $data['note'],
+                    'color' => $data['color'] ?: null,
+                    'config' => $config,
+                ]);
+                $projectedService->syncForBlock($block->fresh());
+
+                $children = TrainingProgramBlock::where('parent_id', $editingBlockId)->get();
+                foreach ($children as $child) {
+                    $projectedService->syncForBlock($child);
+                }
+            }
+        }
+
+        unset($this->planBlockGoal, $this->planHasBlock, $this->planMeasuredData, $this->planHeartRateData, $this->planGroupMemberMetrics, $this->planBlockOptions);
+    }
+
+    #[On('block.deleted')]
+    public function onPlanBlockDeleted(array $data): void
+    {
+        if (! property_exists($this, 'view') || $this->view !== 'plan') {
+            return;
+        }
+
+        $editingBlockId = $data['editing_block_id'] ?? null;
+        $groupId = $data['groupId'];
+        $userId = $data['userId'] ?? null;
+
+        if ($editingBlockId === null) {
+            return;
+        }
+
+        $existingBlock = TrainingProgramBlock::find($editingBlockId);
+        if (! $existingBlock) {
+            return;
+        }
+
+        $projectedService = app(ProjectedOneRepMaxService::class);
+
+        if ($existingBlock->parent_id !== null) {
+            $projectedService->removeForBlock($existingBlock);
+            $existingBlock->update(['active' => false]);
+
+            $parentBlock = TrainingProgramBlock::find($existingBlock->parent_id);
+            if ($parentBlock) {
+                $projectedService->syncForBlock($parentBlock);
+            }
+
+            unset($this->planBlockGoal, $this->planMeasuredData, $this->planHeartRateData, $this->planGroupMemberMetrics);
+
+            return;
+        }
+
+        $projectedService->removeForBlock($existingBlock);
+
+        if ($existingBlock->category_id !== null) {
+            $children = TrainingProgramBlock::where('parent_id', $editingBlockId)->get();
+            foreach ($children as $child) {
+                $projectedService->removeForBlock($child);
+            }
+            TrainingProgramBlock::where('parent_id', $editingBlockId)->delete();
+            TrainingProgramBlock::destroy($editingBlockId);
+        } elseif ($userId !== null) {
+            TrainingProgramBlock::destroy($editingBlockId);
+        } else {
+            TrainingProgramBlock::query()
+                ->where('group_id', $groupId)
+                ->where('type', $existingBlock->type)
+                ->where('start', $existingBlock->start)
+                ->where('note', $existingBlock->note)
+                ->delete();
+        }
+
+        unset($this->planBlockGoal, $this->planHasBlock, $this->planBlockOptions, $this->planMeasuredData, $this->planHeartRateData, $this->planGroupMemberMetrics);
     }
 }

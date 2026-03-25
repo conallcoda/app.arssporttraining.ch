@@ -36,7 +36,7 @@
 
                 @if ($this->hasSelection())
                     @if ($view === 'plan' && $this->programs->isNotEmpty())
-                        <div class="px-4 py-2 flex items-center gap-4">
+                        <div class="px-4 py-2 flex items-center gap-4" wire:key="plan-selects-{{ $planCategory }}-{{ $planBlock }}-{{ $planProgram }}">
                             <flux:field class="min-w-[180px]">
                                 <flux:label>{{ __('Category') }}</flux:label>
                                 <flux:select variant="listbox" searchable size="sm" wire:model.live="planCategory">
@@ -78,7 +78,7 @@
                             @if ($this->planScheduleInfo['scheduled'])
                                 <div class="px-4 py-4">
                                     <livewire:training.view.program-editor
-                                        :key="'plan-editor-' . $this->planSelectedProgram->id . '-' . $this->planScheduleInfo['weeks'] . '-' . ($user !== '' ? $user : 'group') . '-' . $planBlock . '-' . md5(json_encode($this->planMeasuredData)) . '-' . md5(json_encode($this->planHeartRateData))"
+                                        :key="'plan-editor-' . $this->planSelectedProgram->id . '-' . $this->planScheduleInfo['weeks'] . '-' . ($user !== '' ? $user : 'group') . '-' . $planBlock . '-' . $this->planBlockGoal . '-' . md5(json_encode($this->planMeasuredData)) . '-' . md5(json_encode($this->planHeartRateData)) . '-' . ($user === '' ? md5(json_encode($this->planGroupMemberMetrics)) : '')"
                                         :exerciseProgram="$this->planSelectedProgram->program"
                                         :planId="$this->planSelectedProgram->program->id"
                                         :userId="$user !== '' ? (int) $user : null"
@@ -101,6 +101,7 @@
                                         :hasAutoWeightExercises="$this->planHasAutoWeightExercises"
                                         :hasHeartRateExercises="$this->planHasHeartRateExercises"
                                         :planHasBlock="$this->planHasBlock"
+                                        :planGroupMemberMetrics="$user === '' ? $this->planGroupMemberMetrics : []"
                                     />
                                 </div>
                             @else
@@ -156,4 +157,22 @@
     <livewire:training.calendar-range-form />
 
     <livewire:training.block-form />
+
+    <livewire:database.athlete-metric-form-modal
+        name="calendar-metric-form"
+        :title="__('Add Metric')"
+        :formDataClass="App\Data\Athlete\Metric\MetricSubmissionData::class"
+        :flyout="true"
+        maxWidth="max-w-sm"
+        :showDelete="true"
+        :excludeFields="['recorded_at']"
+    />
+
+    <x-cms::confirm-modal
+        name="confirm-delete-plan-metric"
+        :heading="__('Delete Metric?')"
+        :description="__('You\'re about to delete this metric. This action cannot be reversed.')"
+        :confirmLabel="__('Delete')"
+        action="deletePlanMetricSubmission"
+    />
 </flux:main>

@@ -70,6 +70,13 @@ class CalendarIndex extends Component
         $this->weekStartsOn = (int) config('training.week_starts_on', Carbon::MONDAY);
         $this->weekEndsOn = ($this->weekStartsOn + 6) % 7;
 
+        if ($this->groupFilter === 'mine' && ! request()->has('groupFilter')) {
+            $ownsGroups = UserGroup::where('owner_id', auth()->id())->exists();
+            if (! $ownsGroups) {
+                $this->groupFilter = 'all';
+            }
+        }
+
         $hasUrlOverride = request()->hasAny(['period', 'date', 'start', 'end']);
 
         if (! $hasUrlOverride) {
@@ -96,6 +103,11 @@ class CalendarIndex extends Component
     public function updatedView(): void
     {
         if ($this->view !== 'plan') {
+            $this->planCategory = '';
+            $this->planBlock = 'ungrouped';
+            $this->planProgram = '';
+            $this->planProgramName = '';
+
             $stored = $this->loadPersistedCalendarSettings();
             if ($stored) {
                 $this->applyCalendarSettings($stored);
@@ -103,8 +115,13 @@ class CalendarIndex extends Component
             }
         }
 
-        if ($this->view === 'plan' && $this->planBlock === 'ungrouped' && $this->planCategory !== '') {
-            $this->selectOverlappingBlock();
+        if ($this->view === 'plan' && $this->planBlock === 'ungrouped') {
+            if ($this->planCategory === '' && $this->hasSelection()) {
+                $_ = $this->planCategoryOptions;
+            }
+            if ($this->planCategory !== '') {
+                $this->selectOverlappingBlock();
+            }
         }
 
         if ($this->view === 'plan') {

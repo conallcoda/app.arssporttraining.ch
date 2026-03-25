@@ -1,6 +1,6 @@
 <div class="space-y-6">
-    <div class="flex gap-6">
-        <x-section :title="__('General')" class="{{ $this->showAthleteContext ? 'w-[65%]' : 'flex-1' }}">
+    <div class="flex flex-col md:flex-row gap-6">
+        <x-section :title="__('General')" class="{{ $this->showAthleteContext ? 'md:w-3/4' : 'flex-1' }}">
             @if ($showNameInput)
                 <flux:input wire:model="$parent.planProgramName" wire:blur="$parent.savePlanProgramName" :label="__('Name')" size="sm" />
             @endif
@@ -25,47 +25,83 @@
         </x-section>
 
         @if ($this->showAthleteContext)
-            <x-section :title="__('Athlete')" class="w-[35%] shrink-0">
+            <x-section :title="$userId === null ? __('Group') : __('Athlete')" class="md:w-1/4 shrink-0">
                 <div class="space-y-4">
                     @if ($hasAutoWeightExercises && $planHasBlock && $planBlockGoalLabel)
                         <div>
                             <flux:label class="mb-1.5">{{ __('Block Goal') }}</flux:label>
-                            <flux:badge size="sm" color="zinc" class="cursor-pointer" wire:click="$parent.openPlanBlockEdit">
-                                {{ $planBlockGoalLabel }}
-                            </flux:badge>
+                            <div>
+                                <flux:badge color="zinc" class="text-lg px-3 py-1.5 cursor-pointer" wire:click="$parent.openPlanBlockEdit">
+                                    {{ $planBlockGoalLabel }}
+                                </flux:badge>
+                            </div>
                         </div>
                     @endif
 
                     @if ($hasAutoWeightExercises)
                         <div>
-                            <flux:label class="mb-1.5">{{ __('1RM') }}</flux:label>
-                            @if ($plan1rmLabel)
-                                <flux:badge size="sm" color="zinc" class="cursor-pointer" wire:click="$parent.openPlan1rmEdit">
-                                    {{ $plan1rmLabel }}
-                                </flux:badge>
-                            @else
-                                <div>
-                                    <flux:button size="xs" variant="subtle" wire:click="$parent.openPlan1rmEdit">
-                                        {{ __('Add 1RM') }}
-                                    </flux:button>
+                            @if ($userId === null)
+                                <flux:label class="mb-1.5">{{ __('1RM') }}</flux:label>
+                                <div class="flex flex-wrap gap-1.5">
+                                    @foreach ($planGroupMemberMetrics['oneRepMax'] ?? [] as $member)
+                                        <flux:badge
+                                            color="{{ $member['label'] ? 'zinc' : 'red' }}"
+                                            class="px-2 py-1 cursor-pointer text-xs"
+                                            wire:click="$parent.openPlanGroupMemberMetricEdit({{ $member['user_id'] }}, 'oneRepMax')"
+                                        >
+                                            {{ $member['name'] }}: {{ $member['label'] ?? '—' }}
+                                        </flux:badge>
+                                    @endforeach
                                 </div>
+                            @else
+                                <flux:label class="mb-1.5">{{ __('1RM') }}</flux:label>
+                                @if ($plan1rmLabel)
+                                    <div>
+                                        <flux:badge color="zinc" class="text-lg px-3 py-1.5 cursor-pointer" wire:click="$parent.openPlan1rmEdit">
+                                            {{ $plan1rmLabel }}
+                                        </flux:badge>
+                                    </div>
+                                @else
+                                    <div>
+                                        <flux:badge color="red" class="text-lg px-3 py-1.5 cursor-pointer" wire:click="$parent.openPlan1rmEdit">
+                                            {{ __('Not set') }}
+                                        </flux:badge>
+                                    </div>
+                                @endif
                             @endif
                         </div>
                     @endif
 
                     @if ($hasHeartRateExercises)
                         <div>
-                            <flux:label class="mb-1.5">{{ __('Heart Rate') }}</flux:label>
-                            @if ($planHeartRateLabel)
-                                <flux:badge size="sm" color="zinc" class="cursor-pointer" wire:click="$parent.openPlanHeartRateEdit">
-                                    {{ $planHeartRateLabel }}
-                                </flux:badge>
-                            @else
-                                <div>
-                                    <flux:button size="xs" variant="subtle" wire:click="$parent.openPlanHeartRateEdit">
-                                        {{ __('Add Heart Rate') }}
-                                    </flux:button>
+                            @if ($userId === null)
+                                <flux:label class="mb-1.5">{{ __('Heart Rate') }}</flux:label>
+                                <div class="flex flex-wrap gap-1.5">
+                                    @foreach ($planGroupMemberMetrics['heartRate'] ?? [] as $member)
+                                        <flux:badge
+                                            color="{{ $member['label'] ? 'zinc' : 'red' }}"
+                                            class="px-2 py-1 cursor-pointer text-xs"
+                                            wire:click="$parent.openPlanGroupMemberMetricEdit({{ $member['user_id'] }}, 'heartRate')"
+                                        >
+                                            {{ $member['name'] }}: {{ $member['label'] ?? '—' }}
+                                        </flux:badge>
+                                    @endforeach
                                 </div>
+                            @else
+                                <flux:label class="mb-1.5">{{ __('Heart Rate') }}</flux:label>
+                                @if ($planHeartRateLabel)
+                                    <div>
+                                        <flux:badge color="zinc" class="text-lg px-3 py-1.5 cursor-pointer" wire:click="$parent.openPlanHeartRateEdit">
+                                            {{ $planHeartRateLabel }}
+                                        </flux:badge>
+                                    </div>
+                                @else
+                                    <div>
+                                        <flux:badge color="red" class="text-lg px-3 py-1.5 cursor-pointer" wire:click="$parent.openPlanHeartRateEdit">
+                                            {{ __('Not set') }}
+                                        </flux:badge>
+                                    </div>
+                                @endif
                             @endif
                         </div>
                     @endif

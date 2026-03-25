@@ -75,6 +75,12 @@ document.addEventListener('alpine:init', () => {
             return null
         },
 
+        getCellSession(programId, date) {
+            let val = this.cellData[programId + '-' + date]
+            if (val && typeof val === 'object') return val.session || null
+            return null
+        },
+
         hasCategoryData(programIds, date) {
             return programIds.some(pid => this.getCellCount(pid, date) > 0)
         },

@@ -12,10 +12,10 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-         //   CoachSeeder::class,
+            //   CoachSeeder::class,
             DatabaseImportSeeder::class,
-            PerformanceTestSeeder::class,
-           // ExerciseExternalSeeder::class,
+            // PerformanceTestSeeder::class,
+            // ExerciseExternalSeeder::class,
         ]);
     }
 }

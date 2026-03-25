@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Training;
 
 use App\Models\Training\TrainingProgramSlot;
+use App\Training\CalendarBlockService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -64,13 +65,25 @@ class SlotDetailsController
             $query->where('training_program_slots.user_id', $request->integer('user_id'));
         }
 
-        $slots = $query->get()->map(fn ($row) => [
-            'time' => $row->datetime->format('H:i'),
-            'name' => trim("{$row->forename} {$row->surname}"),
-            'userId' => $row->user_id,
-        ]);
+        $slots = $query->get();
 
-        return response()->json($slots);
+        if ($request->filled('user_id')) {
+            $result = $slots->map(fn ($row) => [
+                'time' => $row->datetime->format('H:i'),
+                'name' => trim("{$row->forename} {$row->surname}"),
+                'userId' => $row->user_id,
+            ]);
+        } else {
+            $grouped = [];
+            foreach ($slots as $row) {
+                $time = $row->datetime->format('H:i');
+                $grouped[$time]['time'] = $time;
+                $grouped[$time]['names'][] = trim("{$row->forename} {$row->surname}");
+            }
+            $result = array_values($grouped);
+        }
+
+        return response()->json($result);
     }
 
     public function weekPage(Request $request): JsonResponse
@@ -197,31 +210,95 @@ class SlotDetailsController
 
         $rows = DB::select("
             SELECT tp.id as program_id,
+                   ep.exercise_category_id as category_id,
                    DATE(tps.datetime) as slot_date,
                    COUNT(DISTINCT tps.user_id) as user_count
                    {$timeSelect}
             FROM training_program_slots tps
             JOIN training_programs tp ON tps.training_program_id = tp.id
+            JOIN exercise_programs ep ON tp.exercise_program_id = ep.id
             WHERE tp.group_id = ?
               AND tp.deleted_at IS NULL
               AND tps.datetime BETWEEN ? AND ?
               {$userFilter}
-            GROUP BY tp.id, DATE(tps.datetime)
+            GROUP BY tp.id, ep.exercise_category_id, DATE(tps.datetime)
         ", $bindings);
+
+        $sessionNumbers = $this->computeSessionNumbers($rows, $groupId, $userId, $start, $end);
 
         $cells = [];
         foreach ($rows as $row) {
+            $key = $row->program_id.'-'.$row->slot_date;
+            $session = $sessionNumbers[$key] ?? null;
+
             if ($userId) {
-                $cells[$row->program_id.'-'.$row->slot_date] = [
+                $cell = [
                     'count' => (int) $row->user_count,
                     'time' => substr($row->first_time, 0, 5),
                 ];
             } else {
-                $cells[$row->program_id.'-'.$row->slot_date] = (int) $row->user_count;
+                $cell = ['count' => (int) $row->user_count];
             }
+
+            if ($session !== null) {
+                $cell['session'] = $session;
+            }
+
+            $cells[$key] = $cell;
         }
 
         return response()->json($cells);
+    }
+
+    private function computeSessionNumbers(array $rows, int $groupId, ?int $userId, Carbon $start, Carbon $end): array
+    {
+        $blockService = app(CalendarBlockService::class);
+        $data = $blockService->getCategoryBlocksForDateRange($groupId, $userId, $start, $end);
+        $blocks = $data['blocks'];
+        $overridesByParent = $data['overridesByParent'];
+
+        $blockRanges = [];
+        foreach ($blocks as $block) {
+            if ($block->user_id !== null) {
+                $effective = $block;
+            } else {
+                $override = $overridesByParent->get($block->id);
+                if ($override && ! $override->active) {
+                    continue;
+                }
+                $effective = $override ?? $block;
+            }
+
+            $blockRanges[$effective->category_id][] = [
+                'start' => $effective->start->format('Y-m-d'),
+                'end' => ($effective->end ?? $effective->start)->format('Y-m-d'),
+            ];
+        }
+
+        $datesByProgram = [];
+        foreach ($rows as $row) {
+            $datesByProgram[$row->program_id]['category_id'] = $row->category_id;
+            $datesByProgram[$row->program_id]['dates'][] = $row->slot_date;
+        }
+
+        $sessionNumbers = [];
+        foreach ($datesByProgram as $programId => $info) {
+            $catBlocks = $blockRanges[$info['category_id']] ?? [];
+            $dates = $info['dates'];
+            sort($dates);
+
+            foreach ($catBlocks as $block) {
+                $counter = 0;
+                foreach ($dates as $date) {
+                    if ($date >= $block['start'] && $date <= $block['end']) {
+                        $counter++;
+                        $sessionNumbers[$programId.'-'.$date] = $counter;
+                    }
+                }
+            }
+        }
+
+        return $sessionNumbers;
     }
 
     public function userDaySlots(Request $request): JsonResponse
