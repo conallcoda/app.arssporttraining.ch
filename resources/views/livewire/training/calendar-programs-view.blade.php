@@ -4,7 +4,7 @@
     <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddBlock">{{ __('Add Block') }}</flux:button>
     <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddContent">{{ __('Add Program') }}</flux:button>
 </div>
-<div class="overflow-x-auto" x-data="calendar_slot_popover({ groupId: '{{ $this->groupId }}', userId: '{{ $this->userId ?? '' }}', startDate: '{{ $gridStart->format('Y-m-d') }}', endDate: '{{ $gridEnd->format('Y-m-d') }}', gridCellsUrl: '{{ route('api.program-grid-cells') }}', slotDetailsUrl: '{{ route('api.slot-details') }}', days: {{ \Illuminate\Support\Js::from($this->days) }} })">
+<div class="overflow-x-auto" x-data="calendar_slot_popover({ groupId: '{{ $this->groupId }}', userId: '{{ $this->userId ?? '' }}', startDate: '{{ $gridStart->format('Y-m-d') }}', endDate: '{{ $gridEnd->format('Y-m-d') }}', gridCellsUrl: '{{ route('api.program-grid-cells') }}', slotDetailsUrl: '{{ route('api.slot-details') }}', days: {{ \Illuminate\Support\Js::from($this->days) }}, wireId: '{{ $this->getId() }}' })">
     <table class="border-separate border-spacing-0 text-sm border-t border-l border-zinc-300 dark:border-zinc-600">
         <thead>
             <tr class="bg-zinc-50 dark:bg-zinc-800/50">
@@ -45,7 +45,7 @@
                     <td colspan="{{ count($this->days) }}"
                         class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 relative"
                         style="height: {{ max(1, $this->allBlocks['laneCount']) * 28 + 8 }}px">
-                        <div class="absolute inset-0 flex" wire:ignore>
+                        <div class="absolute inset-0 flex">
                             <template x-for="(day, dayIdx) in days" :key="'note-' + day.date">
                                 <div @mousedown.stop="startDrag(dayIdx, day.date, $event)"
                                      @mouseover="dragOver(dayIdx, day.date)"
@@ -90,7 +90,7 @@
             <tbody x-data="{ ...metric_cell_popover(), expanded: $persist(false).as('cal-metrics'), metricSummaryDates: {{ \Illuminate\Support\Js::from($this->metricSummaryDates) }} }"
                    x-init="if (expanded && !$wire.metricsLoaded) $wire.loadMetrics()"
                    wire:key="metrics-section">
-                <tr wire:ignore>
+                <tr>
                     <td @click="expanded = !expanded; if (expanded && !$wire.metricsLoaded) $wire.loadMetrics()"
                         class="sticky left-0 z-10 cursor-pointer border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] bg-zinc-300 dark:bg-zinc-700">
                         <div class="flex items-center gap-2">
@@ -110,7 +110,7 @@
                 @if ($metricsLoaded)
                     @foreach (\App\Data\Athlete\Metric\MetricEnum::cases() as $metricCase)
                         @php $metricRowData = $this->getMetricRowData($metricCase->value); @endphp
-                        <tr wire:ignore wire:key="metric-row-{{ $metricCase->value }}" x-show="expanded" x-cloak x-data="{ metricData: {{ \Illuminate\Support\Js::from($metricRowData) }} }">
+                        <tr wire:key="metric-row-{{ $metricCase->value }}" x-show="expanded" x-cloak x-data="{ metricData: {{ \Illuminate\Support\Js::from($metricRowData) }} }">
                             <td class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 pl-7 pr-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] bg-white dark:bg-zinc-900">
                                 {{ $metricCase->label() }}
                                 @if (isset($this->currentMetricValues[$metricCase->value]))
@@ -250,7 +250,7 @@
 
                 @php $categoryProgramIds = $groupEntries->pluck('id')->all(); @endphp
                 {{-- Indicator squares row --}}
-                <tr wire:ignore>
+                <tr>
                     @if (!$hasBlocks)
                         <td @click="expanded = !expanded"
                             class="sticky left-0 z-10 cursor-pointer border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] {{ $categoryColorClass }}">
@@ -285,7 +285,7 @@
                             : '';
                         $exercises = $entry->program->exercises->sortBy('pivot.sort');
                     @endphp
-                    <tr wire:ignore wire:key="program-{{ $entry->id }}" x-show="expanded" x-cloak class="group/program">
+                    <tr wire:key="program-{{ $entry->id }}" x-show="expanded" x-cloak class="group/program">
                         <td
                             class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 pl-7 pr-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] bg-white dark:bg-zinc-900">
                             <div class="flex items-center gap-2">
@@ -331,19 +331,35 @@
                                     (endIdx !== null ? (dayIdx >= Math.min(anchorIdx, endIdx) && dayIdx <= Math.max(anchorIdx, endIdx)) : anchorIdx === dayIdx) && 'ring ring-inset ring-black dark:ring-white'
                                 ]"
                                 :title="blockDayMap[dayIdx]?.note || ''">
-                                <button x-show="getCellCount({{ $entry->id }}, day.date) > 0"
-                                    x-cloak
-                                    type="button"
-                                    @click.stop="handleCellClick($event.currentTarget, {{ $entry->id }}, day.date, '{{ $categoryColor }}')"
-                                    class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm cursor-pointer {{ $colorClass ?: 'bg-emerald-400/80 dark:bg-emerald-500/60' }}"
-                                    x-text="getCellCount({{ $entry->id }}, day.date)">
-                                </button>
-                                <div x-show="cellDataLoaded && getCellCount({{ $entry->id }}, day.date) === 0"
-                                    x-cloak
-                                    @click="handleCellClick($event.currentTarget, {{ $entry->id }}, day.date, '{{ $categoryColor }}')"
-                                    class="aspect-square flex items-center justify-center cursor-pointer group/empty">
-                                    <svg class="size-3 text-zinc-400 dark:text-zinc-500 opacity-0 group-hover/empty:opacity-100 transition-opacity" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                                </div>
+                                @if ($this->userId !== null)
+                                    <button x-show="getCellCount({{ $entry->id }}, day.date) > 0"
+                                        x-cloak
+                                        type="button"
+                                        @click.stop="$wire.editWeekSlot({{ $entry->id }}, day.date, getCellTime({{ $entry->id }}, day.date))"
+                                        class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm cursor-pointer {{ $colorClass ?: 'bg-emerald-400/80 dark:bg-emerald-500/60' }}"
+                                        x-text="getCellCount({{ $entry->id }}, day.date)">
+                                    </button>
+                                    <div x-show="cellDataLoaded && getCellCount({{ $entry->id }}, day.date) === 0"
+                                        x-cloak
+                                        @click="$wire.openProgramSlot({{ $entry->id }}, day.date)"
+                                        class="aspect-square flex items-center justify-center cursor-pointer group/empty">
+                                        <svg class="size-3 text-zinc-400 dark:text-zinc-500 opacity-0 group-hover/empty:opacity-100 transition-opacity" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                                    </div>
+                                @else
+                                    <button x-show="getCellCount({{ $entry->id }}, day.date) > 0"
+                                        x-cloak
+                                        type="button"
+                                        @click.stop="openPopover($event.currentTarget, {{ $entry->id }}, day.date, '{{ $categoryColor }}')"
+                                        class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm cursor-pointer {{ $colorClass ?: 'bg-emerald-400/80 dark:bg-emerald-500/60' }}"
+                                        x-text="getCellCount({{ $entry->id }}, day.date)">
+                                    </button>
+                                    <div x-show="cellDataLoaded && getCellCount({{ $entry->id }}, day.date) === 0"
+                                        x-cloak
+                                        @click="$wire.openProgramSlot({{ $entry->id }}, day.date)"
+                                        class="aspect-square flex items-center justify-center cursor-pointer group/empty">
+                                        <svg class="size-3 text-zinc-400 dark:text-zinc-500 opacity-0 group-hover/empty:opacity-100 transition-opacity" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                                    </div>
+                                @endif
                             </td>
                         </template>
                     </tr>
@@ -395,6 +411,8 @@
         </div>
     </template>
 </div>
+
+<livewire:training.week-slot-form />
 
 <livewire:training.exercise-program-form-modal
     name="edit-program"

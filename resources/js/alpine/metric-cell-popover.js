@@ -9,11 +9,8 @@ document.addEventListener('alpine:init', () => {
         x: 0,
         y: 0,
         _above: false,
-        _wire: null,
 
         init() {
-            this._wire = this.$wire
-
             this._onClickOutside = (e) => {
                 if (!this.open) return
                 const popover = document.getElementById('metric-cell-popover')
@@ -55,15 +52,15 @@ document.addEventListener('alpine:init', () => {
         },
 
         editEntry(userId, submissionId) {
-            if (this._wire) {
-                this._wire.openGroupMetricCell(this.metricValue, this.date, userId, submissionId)
+            if (this.$wire) {
+                this.$wire.openGroupMetricCell(this.metricValue, this.date, userId, submissionId)
             }
             this.close()
         },
 
         addNew() {
-            if (this._wire) {
-                this._wire.openGroupMetricCell(this.metricValue, this.date)
+            if (this.$wire) {
+                this.$wire.openGroupMetricCell(this.metricValue, this.date)
             }
             this.close()
         },

@@ -1,5 +1,8 @@
 document.addEventListener('alpine:init', () => {
-    Alpine.data('calendar_slot_popover', (config = {}) => ({
+    Alpine.data('calendar_slot_popover', (config = {}) => {
+        const wireId = config.wireId || null
+
+        return {
         cellData: {},
         cellDataLoaded: false,
         groupId: config.groupId || null,
@@ -9,6 +12,7 @@ document.addEventListener('alpine:init', () => {
         gridCellsUrl: config.gridCellsUrl || '/admin/api/program-grid-cells',
         slotDetailsUrl: config.slotDetailsUrl || '/admin/api/slot-details',
         days: config.days || [],
+        wireId,
 
         open: false,
         loading: false,
@@ -19,11 +23,8 @@ document.addEventListener('alpine:init', () => {
         x: 0,
         y: 0,
         _above: false,
-        _wire: null,
 
         init() {
-            this._wire = this.$wire
-
             this._onClickOutside = (e) => {
                 if (!this.open) return
                 let popover = document.getElementById('calendar-slot-popover')
@@ -42,6 +43,10 @@ document.addEventListener('alpine:init', () => {
             if (this._onClickOutside) {
                 document.removeEventListener('click', this._onClickOutside, true)
             }
+        },
+
+        getWire() {
+            return wireId ? Livewire.find(wireId) : null
         },
 
         async loadCellData() {
@@ -76,25 +81,23 @@ document.addEventListener('alpine:init', () => {
 
         handleCellClick(el, trainingProgramId, date, color) {
             let count = this.getCellCount(trainingProgramId, date)
+            let wire = this.getWire()
+            if (!wire) return
 
             if (this.userId) {
                 if (count > 0) {
                     let time = this.getCellTime(trainingProgramId, date)
-                    if (time && this._wire) {
-                        this._wire.editWeekSlot(trainingProgramId, date, time)
+                    if (time) {
+                        wire.editWeekSlot(trainingProgramId, date, time)
                     }
                 } else {
-                    if (this._wire) {
-                        this._wire.openProgramSlot(trainingProgramId, date)
-                    }
+                    wire.openProgramSlot(trainingProgramId, date)
                 }
             } else {
                 if (count > 0) {
                     this.openPopover(el, trainingProgramId, date, color)
                 } else {
-                    if (this._wire) {
-                        this._wire.openProgramSlot(trainingProgramId, date)
-                    }
+                    wire.openProgramSlot(trainingProgramId, date)
                 }
             }
         },
@@ -137,10 +140,11 @@ document.addEventListener('alpine:init', () => {
         },
 
         editSlot(time) {
-            if (this._wire) {
-                this._wire.editWeekSlot(this.trainingProgramId, this.date, time)
+            let wire = this.getWire()
+            if (wire) {
+                wire.editWeekSlot(this.trainingProgramId, this.date, time)
             }
             this.close()
         },
-    }))
+    }})
 })
