@@ -3,6 +3,8 @@
 namespace App\Livewire\Training;
 
 use App\Data\Athlete\Metric\MetricEnum;
+use App\Data\Athlete\Metric\Metrics\HeartRateMetric;
+use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
 use App\Data\Athlete\Metric\MetricSubmissionData;
 use App\Data\Training\Calendar\CalendarSettingsData;
 use App\Data\Training\Config\EffectiveExerciseConfig;
@@ -14,6 +16,7 @@ use App\Models\Tag;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramBlock;
 use App\Models\Training\TrainingProgramBlockTypeEnum;
+use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\UserGroup;
 use App\Training\CalendarBlockService;
 use App\Training\CalendarDateService;
@@ -65,19 +68,23 @@ class CalendarProgramsView extends Component
                 $this->groupedPrograms,
                 $this->allBlocks,
                 $this->categoryBlocks,
+                $this->visibleMetrics,
                 $this->metricSummaryDates,
                 $this->metricCellData,
                 $this->groupMetricCellData,
                 $this->currentMetricValues,
+                $this->groupCurrentMetricValues,
             );
         } else {
             unset(
                 $this->metricCellData,
                 $this->groupMetricCellData,
                 $this->currentMetricValues,
+                $this->groupCurrentMetricValues,
                 $this->metricSummaryDates,
             );
         }
+
     }
 
     #[On('calendar-range-changed')]
@@ -93,10 +100,12 @@ class CalendarProgramsView extends Component
             $this->months,
             $this->allBlocks,
             $this->categoryBlocks,
+            $this->visibleMetrics,
             $this->metricSummaryDates,
             $this->metricCellData,
             $this->groupMetricCellData,
             $this->currentMetricValues,
+            $this->groupCurrentMetricValues,
         );
     }
 
@@ -345,6 +354,55 @@ class CalendarProgramsView extends Component
     }
 
     #[Computed]
+    public function visibleMetrics(): array
+    {
+        $strengthRootId = Tag::query()
+            ->where('scope', 'exercise_category')
+            ->where('slug', 'strength')
+            ->whereNull('parent_id')
+            ->value('id');
+
+        $enduranceRootId = Tag::query()
+            ->where('scope', 'exercise_category')
+            ->where('slug', 'endurance')
+            ->whereNull('parent_id')
+            ->value('id');
+
+        $strengthCategoryIds = $strengthRootId
+            ? Tag::query()
+                ->where('scope', 'exercise_category')
+                ->where(fn ($q) => $q->where('id', $strengthRootId)->orWhere('parent_id', $strengthRootId))
+                ->pluck('id')
+                ->all()
+            : [];
+
+        $enduranceCategoryIds = $enduranceRootId
+            ? Tag::query()
+                ->where('scope', 'exercise_category')
+                ->where(fn ($q) => $q->where('id', $enduranceRootId)->orWhere('parent_id', $enduranceRootId))
+                ->pluck('id')
+                ->all()
+            : [];
+
+        $categoryBlocks = $this->categoryBlocks;
+
+        $hasStrengthBlock = collect($strengthCategoryIds)->contains(fn ($id) => ! empty($categoryBlocks[$id]['notes']));
+        $hasEnduranceBlock = collect($enduranceCategoryIds)->contains(fn ($id) => ! empty($categoryBlocks[$id]['notes']));
+
+        $visible = [];
+
+        if ($hasStrengthBlock) {
+            $visible[] = MetricEnum::OneRepMax;
+        }
+
+        if ($hasEnduranceBlock) {
+            $visible[] = MetricEnum::HeartRate;
+        }
+
+        return $visible;
+    }
+
+    #[Computed]
     public function metricSummaryDates(): array
     {
         [$start, $end] = $this->dateRange();
@@ -509,6 +567,77 @@ class CalendarProgramsView extends Component
         return $result;
     }
 
+    #[Computed]
+    public function groupCurrentMetricValues(): array
+    {
+        if ($this->userId !== null) {
+            return [];
+        }
+
+        $group = UserGroup::with('members')->find($this->groupId);
+        if (! $group || $group->members->isEmpty()) {
+            return [];
+        }
+
+        $cutoffDate = now()->format('Y-m-d');
+        $result = [];
+
+        foreach (MetricEnum::cases() as $metricCase) {
+            $members = [];
+            $withValue = 0;
+
+            foreach ($group->members as $member) {
+                $submission = MetricSubmission::query()
+                    ->forAthlete($member->id)
+                    ->forMetric($metricCase)
+                    ->manual()
+                    ->where('recorded_at', '<=', $cutoffDate)
+                    ->orderByDesc('recorded_at')
+                    ->with('values')
+                    ->first();
+
+                $label = null;
+                if ($submission) {
+                    $fieldValues = $submission->values->pluck('value', 'field')->all();
+
+                    if ($metricCase === MetricEnum::OneRepMax) {
+                        $metric = OneRepMaxMetric::from($fieldValues);
+                        if ($metric->measuredWeight !== null) {
+                            $weight = rtrim(rtrim(number_format($metric->measuredWeight, 1), '0'), '.');
+                            $label = "{$weight}kg";
+                        }
+                    } elseif ($metricCase === MetricEnum::HeartRate) {
+                        $hrMetric = HeartRateMetric::from($fieldValues);
+                        if ($hrMetric->heartRate !== null) {
+                            $label = $hrMetric->heartRate.' HR';
+                            if ($hrMetric->anaerobicThreshold !== null) {
+                                $label .= ' - '.$hrMetric->anaerobicThreshold.'% IAT';
+                            }
+                        }
+                    }
+                }
+
+                if ($label !== null) {
+                    $withValue++;
+                }
+
+                $members[] = [
+                    'user_id' => $member->id,
+                    'name' => $member->name,
+                    'label' => $label,
+                ];
+            }
+
+            $result[$metricCase->value] = [
+                'members' => $members,
+                'total' => count($members),
+                'withValue' => $withValue,
+            ];
+        }
+
+        return $result;
+    }
+
     public function getMetricRowData(string $metricValue): array
     {
         $data = $this->userId !== null ? $this->metricCellData : $this->groupMetricCellData;
@@ -535,6 +664,36 @@ class CalendarProgramsView extends Component
         $metricLabel = MetricEnum::from($metricValue)->label();
 
         $this->dispatch('open-calendar-metric-form', data: $eventData, title: __('Edit Metric')." ({$metricLabel})");
+    }
+
+    public function openGroupCurrentMetricEdit(int $userId, string $metricValue): void
+    {
+        $metricEnum = MetricEnum::from($metricValue);
+        $cutoffDate = now()->format('Y-m-d');
+
+        $query = MetricSubmission::query()
+            ->forAthlete($userId)
+            ->forMetric($metricEnum)
+            ->manual()
+            ->where('recorded_at', '<=', $cutoffDate)
+            ->orderByDesc('recorded_at')
+            ->with('values');
+
+        $submission = $query->first();
+
+        if ($submission) {
+            $eventData = array_merge(
+                MetricSubmissionData::fromModel($submission)->toArray(),
+                ['metric' => $metricValue],
+            );
+            $this->dispatch('open-calendar-metric-form', data: $eventData, title: __('Edit Metric').' ('.$metricEnum->label().')');
+        } else {
+            $this->dispatch('open-calendar-metric-form', data: [
+                'metric' => $metricValue,
+                'recorded_at' => $cutoffDate,
+                'user_id' => $userId,
+            ], title: __('Add Metric').' ('.$metricEnum->label().')');
+        }
     }
 
     public function openMetricCell(string $metricValue, string $date): void
@@ -645,7 +804,7 @@ class CalendarProgramsView extends Component
             $submission->delete();
         }
 
-        unset($this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData);
+        unset($this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData, $this->groupCurrentMetricValues);
     }
 
     #[On('calendar-metric-form.submitted')]
@@ -673,7 +832,7 @@ class CalendarProgramsView extends Component
             }
         }
 
-        unset($this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData);
+        unset($this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData, $this->groupCurrentMetricValues);
     }
 
     public function openProgramSlot(int $trainingProgramId, string $date): void
@@ -852,7 +1011,7 @@ class CalendarProgramsView extends Component
                 $projectedService->syncForBlock($parentBlock->fresh());
             }
 
-            unset($this->allBlocks, $this->categoryBlocks, $this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData);
+            unset($this->allBlocks, $this->categoryBlocks, $this->visibleMetrics, $this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData, $this->groupCurrentMetricValues);
 
             return;
         }
@@ -928,7 +1087,7 @@ class CalendarProgramsView extends Component
             }
         }
 
-        unset($this->allBlocks, $this->categoryBlocks, $this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData);
+        unset($this->allBlocks, $this->categoryBlocks, $this->visibleMetrics, $this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData, $this->groupCurrentMetricValues);
     }
 
     #[On('block.deleted')]
@@ -958,7 +1117,7 @@ class CalendarProgramsView extends Component
                 $projectedService->syncForBlock($parentBlock);
             }
 
-            unset($this->allBlocks, $this->categoryBlocks, $this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData);
+            unset($this->allBlocks, $this->categoryBlocks, $this->visibleMetrics, $this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData, $this->groupCurrentMetricValues);
 
             return;
         }
@@ -983,7 +1142,7 @@ class CalendarProgramsView extends Component
                 ->delete();
         }
 
-        unset($this->allBlocks, $this->categoryBlocks, $this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData);
+        unset($this->allBlocks, $this->categoryBlocks, $this->visibleMetrics, $this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData, $this->groupCurrentMetricValues);
     }
 
     public function toggleExerciseDisabled(int $exerciseId, int $exerciseProgramId): void
@@ -1031,9 +1190,100 @@ class CalendarProgramsView extends Component
 
     public function openAddContent(): void
     {
-        $this->addContentSearch = '';
-        $this->addContentTab = 'program';
-        Flux::modal('add-content')->show();
+        $this->dispatch('trigger-add-content');
+    }
+
+    #[On('programs-changed')]
+    public function onProgramsChanged(): void
+    {
+        unset($this->programs, $this->groupedPrograms);
+    }
+
+    #[On('week-slot.submitted')]
+    public function onWeekSlotSubmitted(array $data): void
+    {
+        $trainingProgramId = (int) $data['training_program_id'];
+        $datetime = $data['date'].' '.$data['start_time'].':00';
+
+        $originalProgramId = $data['original_training_program_id'] ?? null;
+        $originalStartTime = $data['original_start_time'] ?? null;
+        $originalDatetime = $originalStartTime !== null ? $data['date'].' '.$originalStartTime.':00' : null;
+
+        $programChanged = $originalProgramId !== null && (int) $originalProgramId !== $trainingProgramId;
+        $timeChanged = $originalDatetime !== null && $originalDatetime !== $datetime;
+
+        $selectedMembers = $data['selected_members'] ?? [];
+        $deselectedMembers = $data['deselected_members'] ?? [];
+
+        if (empty($selectedMembers) && empty($deselectedMembers) && $this->userId !== null) {
+            if ($programChanged || $timeChanged) {
+                TrainingProgramSlot::query()
+                    ->where('training_program_id', (int) $originalProgramId)
+                    ->where('user_id', $this->userId)
+                    ->where('datetime', $originalDatetime)
+                    ->delete();
+            }
+
+            TrainingProgramSlot::firstOrCreate([
+                'training_program_id' => $trainingProgramId,
+                'user_id' => $this->userId,
+                'datetime' => $datetime,
+            ]);
+        } else {
+            $allMembers = array_merge($selectedMembers, $deselectedMembers);
+
+            if ($programChanged || $timeChanged) {
+                TrainingProgramSlot::query()
+                    ->where('training_program_id', (int) $originalProgramId)
+                    ->whereIn('user_id', $allMembers)
+                    ->where('datetime', $originalDatetime)
+                    ->delete();
+            }
+
+            foreach ($selectedMembers as $memberId) {
+                TrainingProgramSlot::firstOrCreate([
+                    'training_program_id' => $trainingProgramId,
+                    'user_id' => $memberId,
+                    'datetime' => $datetime,
+                ]);
+            }
+
+            if (! empty($deselectedMembers)) {
+                TrainingProgramSlot::query()
+                    ->where('training_program_id', $trainingProgramId)
+                    ->whereIn('user_id', $deselectedMembers)
+                    ->where('datetime', $datetime)
+                    ->delete();
+            }
+        }
+
+        $this->dispatch('grid-cells-changed');
+    }
+
+    #[On('week-slot.deleted')]
+    public function onWeekSlotDeleted(array $data): void
+    {
+        $trainingProgramId = (int) $data['training_program_id'];
+        $datetime = $data['date'].' '.$data['start_time'].':00';
+
+        if ($this->userId !== null) {
+            TrainingProgramSlot::query()
+                ->where('training_program_id', $trainingProgramId)
+                ->where('user_id', $this->userId)
+                ->where('datetime', $datetime)
+                ->delete();
+        } else {
+            $group = UserGroup::with('members')->find($this->groupId);
+            if ($group !== null) {
+                TrainingProgramSlot::query()
+                    ->where('training_program_id', $trainingProgramId)
+                    ->whereIn('user_id', $group->members->pluck('id'))
+                    ->where('datetime', $datetime)
+                    ->delete();
+            }
+        }
+
+        $this->dispatch('grid-cells-changed');
     }
 
     public function updatedAddContentTab(): void
@@ -1096,7 +1346,7 @@ class CalendarProgramsView extends Component
         $trainingProgram = TrainingProgram::with('program')->findOrFail($trainingProgramId);
         $this->cleanupOrphanedCategoryBlocks($trainingProgram);
         $trainingProgram->delete();
-        unset($this->programs, $this->groupedPrograms, $this->categoryBlocks);
+        unset($this->programs, $this->groupedPrograms, $this->categoryBlocks, $this->visibleMetrics);
     }
 
     public function openEditProgram(int $trainingProgramId): void
@@ -1138,7 +1388,7 @@ class CalendarProgramsView extends Component
         $trainingProgram->delete();
 
         $this->editingTrainingProgramId = null;
-        unset($this->programs, $this->groupedPrograms, $this->categoryBlocks);
+        unset($this->programs, $this->groupedPrograms, $this->categoryBlocks, $this->visibleMetrics);
         Flux::modal('confirm-delete-program')->close();
         Flux::modal('edit-program')->close();
     }

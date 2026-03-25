@@ -1,5 +1,5 @@
 <div>
-    <div class="px-4 py-2 flex items-center gap-4">
+    <div class="py-2 flex items-center gap-4">
         <flux:radio.group wire:model.live="weekEditMode" variant="segmented" size="sm">
             <flux:radio value="view" :label="__('View')" />
             <flux:radio value="edit" :label="__('Edit')" />

@@ -1,10 +1,6 @@
 @php [$gridStart, $gridEnd] = $this->dateRange(); @endphp
 <div>
-<div class="px-4 py-2 flex justify-end gap-2">
-    <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddBlock">{{ __('Add Block') }}</flux:button>
-    <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddContent">{{ __('Add Program') }}</flux:button>
-</div>
-<div class="overflow-x-auto" x-data="calendar_slot_popover({ groupId: '{{ $this->groupId }}', userId: '{{ $this->userId ?? '' }}', startDate: '{{ $gridStart->format('Y-m-d') }}', endDate: '{{ $gridEnd->format('Y-m-d') }}', gridCellsUrl: '{{ route('api.program-grid-cells') }}', slotDetailsUrl: '{{ route('api.slot-details') }}', days: {{ \Illuminate\Support\Js::from($this->days) }}, wireId: '{{ $this->getId() }}' })">
+<div class="overflow-x-auto" wire:key="grid-{{ $this->groupId }}-{{ $this->userId ?? 'group' }}" x-data="calendar_slot_popover({ groupId: '{{ $this->groupId }}', userId: '{{ $this->userId ?? '' }}', startDate: '{{ $gridStart->format('Y-m-d') }}', endDate: '{{ $gridEnd->format('Y-m-d') }}', gridCellsUrl: '{{ route('api.program-grid-cells') }}', slotDetailsUrl: '{{ route('api.slot-details') }}', days: {{ \Illuminate\Support\Js::from($this->days) }}, wireId: '{{ $this->getId() }}' })">
     <table class="border-separate border-spacing-0 text-sm border-t border-l border-zinc-300 dark:border-zinc-600">
         <thead>
             <tr class="bg-zinc-50 dark:bg-zinc-800/50">
@@ -86,7 +82,7 @@
                 </template>
             </tbody>
         @endif
-        @if (true)
+        @if ($this->visibleMetrics)
             <tbody x-data="{ ...metric_cell_popover(), expanded: $persist(false).as('cal-metrics'), metricSummaryDates: {{ \Illuminate\Support\Js::from($this->metricSummaryDates) }} }"
                    x-init="if (expanded && !$wire.metricsLoaded) $wire.loadMetrics()"
                    wire:key="metrics-section">
@@ -108,7 +104,7 @@
                 </tr>
 
                 @if ($metricsLoaded)
-                    @foreach (\App\Data\Athlete\Metric\MetricEnum::cases() as $metricCase)
+                    @foreach ($this->visibleMetrics as $metricCase)
                         @php $metricRowData = $this->getMetricRowData($metricCase->value); @endphp
                         <tr wire:key="metric-row-{{ $metricCase->value }}" x-show="expanded" x-cloak x-data="{ metricData: {{ \Illuminate\Support\Js::from($metricRowData) }} }">
                             <td class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 pl-7 pr-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] bg-white dark:bg-zinc-900">
@@ -118,6 +114,31 @@
                                         <flux:badge size="sm" color="zinc" class="text-xs" title="{{ __('Current value. Recorded') }} {{ $this->currentMetricValues[$metricCase->value]['recorded_at'] }}">
                                             {{ $this->currentMetricValues[$metricCase->value]['summary'] }}
                                         </flux:badge>
+                                    </div>
+                                @elseif ($this->userId === null && isset($this->groupCurrentMetricValues[$metricCase->value]))
+                                    @php $groupMetric = $this->groupCurrentMetricValues[$metricCase->value]; @endphp
+                                    <div class="mt-1" x-data="{ showPopover: false, popX: 0, popY: 0 }">
+                                        <flux:badge size="sm" color="zinc" class="text-xs cursor-pointer" @click.stop="let r = $el.getBoundingClientRect(); popX = r.left; popY = r.bottom + 4; showPopover = !showPopover">
+                                            {{ $groupMetric['withValue'] }}/{{ $groupMetric['total'] }}
+                                        </flux:badge>
+                                        <template x-teleport="body">
+                                            <div x-show="showPopover" x-cloak
+                                                 @click.outside="showPopover = false"
+                                                 class="fixed z-50 bg-white dark:bg-zinc-800 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-700 p-2 min-w-[10rem] max-w-[16rem]"
+                                                 :style="'left: ' + popX + 'px; top: ' + popY + 'px'">
+                                                <div class="flex flex-wrap gap-1.5">
+                                                    @foreach ($groupMetric['members'] as $member)
+                                                        <flux:badge
+                                                            color="{{ $member['label'] ? 'zinc' : 'red' }}"
+                                                            class="px-2 py-1 cursor-pointer text-xs"
+                                                            wire:click="openGroupCurrentMetricEdit({{ $member['user_id'] }}, '{{ $metricCase->value }}')"
+                                                        >
+                                                            {{ $member['name'] }}: {{ $member['label'] ?? '—' }}
+                                                        </flux:badge>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        </template>
                                     </div>
                                 @endif
                             </td>
@@ -436,58 +457,4 @@
     action="deleteMetricSubmission"
 />
 
-<flux:modal name="add-content" variant="flyout" class="max-w-md">
-    <div class="flex flex-col gap-4 p-2">
-        <flux:heading size="lg">{{ __('Add Program') }}</flux:heading>
-
-        <flux:tab.group>
-            <flux:tabs wire:model.live="addContentTab">
-                <flux:tab name="program">{{ __('Program') }}</flux:tab>
-                <flux:tab name="exercise">{{ __('Exercise') }}</flux:tab>
-            </flux:tabs>
-
-            <flux:tab.panel name="program" class="!px-0">
-                <div class="flex flex-col gap-3">
-                    <x-cms::form.field :field="\Coda\Cms\Form\Fields\Search::make('addContentSearch')" />
-                    <div class="flex flex-col gap-1 max-h-80 overflow-y-auto">
-                        @foreach ($this->addContentOptions as $option)
-                            <button type="button" wire:click="addFromProgram({{ $option->id }})"
-                                class="flex items-center gap-2 px-3 py-2 text-sm text-left rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300">
-                                @if ($option->exerciseCategory?->color)
-                                    <span class="w-2 h-2 rounded-full shrink-0"
-                                        style="{{ \Coda\Cms\Support\ColorPalette::solid($option->exerciseCategory->color) }}"></span>
-                                @endif
-                                {{ $option->name }}
-                            </button>
-                        @endforeach
-                        @if ($this->addContentOptions->isEmpty())
-                            <flux:text class="px-3 py-4 text-center text-zinc-400">{{ __('No programs found.') }}</flux:text>
-                        @endif
-                    </div>
-                </div>
-            </flux:tab.panel>
-
-            <flux:tab.panel name="exercise" class="!px-0">
-                <div class="flex flex-col gap-3">
-                    <x-cms::form.field :field="\Coda\Cms\Form\Fields\Search::make('addContentSearch')" />
-                    <div class="flex flex-col gap-1 max-h-80 overflow-y-auto">
-                        @foreach ($this->addContentOptions as $option)
-                            <button type="button" wire:click="addFromExercise({{ $option->id }})"
-                                class="flex items-center gap-2 px-3 py-2 text-sm text-left rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300">
-                                @if ($option->category?->rootAncestorOrSelf?->color)
-                                    <span class="w-2 h-2 rounded-full shrink-0"
-                                        style="{{ \Coda\Cms\Support\ColorPalette::solid($option->category->rootAncestorOrSelf->color) }}"></span>
-                                @endif
-                                {{ $option->name }}
-                            </button>
-                        @endforeach
-                        @if ($this->addContentOptions->isEmpty())
-                            <flux:text class="px-3 py-4 text-center text-zinc-400">{{ __('No exercises found.') }}</flux:text>
-                        @endif
-                    </div>
-                </div>
-            </flux:tab.panel>
-        </flux:tab.group>
-    </div>
-</flux:modal>
 </div>

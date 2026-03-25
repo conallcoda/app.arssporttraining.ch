@@ -37,6 +37,10 @@ document.addEventListener('alpine:init', () => {
             if (this.groupId && this.startDate && this.endDate) {
                 this.loadCellData()
             }
+
+            Livewire.on('grid-cells-changed', () => {
+                this.loadCellData()
+            })
         },
 
         destroy() {

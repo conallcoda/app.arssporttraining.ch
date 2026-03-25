@@ -9,34 +9,53 @@
         <livewire:user-group-sidebar mode="single-athlete" :initial-group="$group !== '' ? (int) $group : null" :initial-user="$user !== '' ? (int) $user : null" :show-group-filter="true" :initial-group-filter="$groupFilter" />
 
         <div class="flex-1 min-w-0">
-            <x-section :title="__('Calendar')" class="!p-0">
-                <div class="px-4 pt-3 pb-2 flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <flux:heading size="xl">
-                            @if ($view === 'plan')
-                                {{ $this->selectionName ?? __('Calendar') }}
-                            @elseif ($this->selectionName)
-                                {{ $this->selectionName }}, {{ $this->title }}
-                            @else
-                                {{ $this->title }}
-                            @endif
-                        </flux:heading>
-                        @if ($view !== 'plan')
-                            <flux:button variant="ghost" icon="pencil" size="sm" wire:click="openCalendarRange" />
-                        @endif
+            <div>
+                @if ($this->hasSelection() && !$this->hasGroupAthletes)
+                    {{-- No athletes --}}
+                    <div class="flex items-center gap-3">
+                        <flux:heading size="xl">{{ $this->selectionName }}</flux:heading>
+                        <flux:badge size="lg" color="blue">{{ __('Group') }}</flux:badge>
                     </div>
-                    @if ($this->hasSelection())
-                        <flux:radio.group wire:model.live="view" variant="segmented" size="sm">
-                            <flux:radio value="overview" :label="__('Overview')" />
-                            <flux:radio value="schedule" :label="__('Schedule')" />
-                            <flux:radio value="plan" :label="__('Plan')" />
+                    <div class="flex flex-col items-center justify-center py-20 text-center">
+                        <flux:icon.users class="size-10 text-zinc-300 dark:text-zinc-600 mb-3" />
+                        <flux:heading size="lg" class="text-zinc-500 dark:text-zinc-400">{{ __('No athletes in this group') }}</flux:heading>
+                    </div>
+                @elseif ($this->hasSelection() && $this->programs->isEmpty())
+                    {{-- No programs --}}
+                    <div class="flex items-center gap-3">
+                        <flux:heading size="xl">{{ $this->selectionName }}</flux:heading>
+                        <flux:badge size="lg" color="blue">{{ __('Group') }}</flux:badge>
+                    </div>
+                    <div class="flex flex-col items-center justify-center py-20 text-center">
+                        <flux:icon.calendar class="size-10 text-zinc-300 dark:text-zinc-600 mb-3" />
+                        <flux:heading size="lg" class="text-zinc-500 dark:text-zinc-400">{{ __('No programs in this group') }}</flux:heading>
+                        <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddProgram" class="mt-3">{{ __('Add Program') }}</flux:button>
+                    </div>
+                @elseif ($this->hasSelection())
+                    {{-- Row 1: Selection name + view switch --}}
+                    <div class="flex items-center justify-between pb-8">
+                        <div class="flex items-center gap-3">
+                            @if ($this->selectionGroupName)
+                                <flux:heading size="xl" class="text-zinc-400 dark:text-zinc-500">{{ $this->selectionGroupName }}</flux:heading>
+                                <flux:icon.chevron-right class="size-5 text-zinc-400 dark:text-zinc-500" />
+                            @endif
+                            <flux:heading size="xl">{{ $this->selectionName }}</flux:heading>
+                            @if ($this->selectionType === 'athlete')
+                                <flux:badge size="lg" color="green">{{ __('Athlete') }}</flux:badge>
+                            @else
+                                <flux:badge size="lg" color="blue">{{ __('Group') }}</flux:badge>
+                            @endif
+                        </div>
+                        <flux:radio.group wire:model.live="view" variant="segmented" size="lg">
+                            <flux:radio value="overview" :label="__('Overview')" icon="grid-2x2" />
+                            <flux:radio value="schedule" :label="__('Schedule')" icon="calendar-plus" />
+                            <flux:radio value="plan" :label="__('Plan')" icon="biceps-flexed" />
                         </flux:radio.group>
-                    @endif
-                </div>
+                    </div>
 
-                @if ($this->hasSelection())
-                    @if ($view === 'plan' && $this->programs->isNotEmpty())
-                        <div class="px-4 py-2 flex items-center gap-4" wire:key="plan-selects-{{ $planCategory }}-{{ $planBlock }}-{{ $planProgram }}">
+                    {{-- Row 2: View-dependent toolbar + content --}}
+                    @if ($view === 'plan')
+                        <div class="py-2 flex items-center gap-4" wire:key="plan-selects-{{ $planCategory }}-{{ $planBlock }}-{{ $planProgram }}">
                             <flux:field class="min-w-[180px]">
                                 <flux:label>{{ __('Category') }}</flux:label>
                                 <flux:select variant="listbox" searchable size="sm" wire:model.live="planCategory">
@@ -65,7 +84,7 @@
 
                         @if ($this->planSelectedProgram)
                             @if (! $this->planHasBlock && $this->planHasAutoWeightExercises)
-                                <div class="px-4 py-3">
+                                <div class="py-3">
                                     <div class="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-600 dark:text-amber-400">
                                         <p class="font-medium">{{ __('This program contains one or more exercises that involve automatic 1RM calculations. Please make sure that:') }}</p>
                                         <ul class="mt-2 list-disc list-inside space-y-1">
@@ -76,7 +95,7 @@
                                 </div>
                             @endif
                             @if ($this->planScheduleInfo['scheduled'])
-                                <div class="px-4 py-4">
+                                <div class="py-4">
                                     <livewire:training.view.program-editor
                                         :key="'plan-editor-' . $this->planSelectedProgram->id . '-' . $this->planScheduleInfo['weeks'] . '-' . ($user !== '' ? $user : 'group') . '-' . $planBlock . '-' . $this->planBlockGoal . '-' . md5(json_encode($this->planMeasuredData)) . '-' . md5(json_encode($this->planHeartRateData)) . '-' . ($user === '' ? md5(json_encode($this->planGroupMemberMetrics)) : '')"
                                         :exerciseProgram="$this->planSelectedProgram->program"
@@ -111,26 +130,36 @@
                                 </div>
                             @endif
                         @endif
-                    @elseif ($view === 'schedule' && $this->programs->isNotEmpty())
-                        <livewire:training.calendar-schedule-view
-                            :groupId="(int) $group"
-                            :userId="$user !== '' ? (int) $user : null"
-                            :calendarSettings="$calendarSettings"
-                            :weekStartsOn="$weekStartsOn"
-                        />
-                    @elseif (!$this->hasGroupAthletes)
-                        <div class="flex flex-col items-center justify-center py-20 text-center">
-                            <flux:icon.users class="size-10 text-zinc-300 dark:text-zinc-600 mb-3" />
-                            <flux:heading size="lg" class="text-zinc-500 dark:text-zinc-400">{{ __('No athletes in this group') }}</flux:heading>
-                        </div>
                     @else
-                        <livewire:training.calendar-programs-view
-                            :groupId="(int) $group"
-                            :userId="$user !== '' ? (int) $user : null"
-                            :calendarSettings="$calendarSettings"
-                            :weekStartsOn="$weekStartsOn"
-                            :weekEndsOn="$weekEndsOn"
-                        />
+                        <div class="flex items-center justify-between pt-4 pb-2">
+                            <div class="flex items-center gap-2">
+                                <flux:heading size="xl">{{ $this->title }}</flux:heading>
+                                <flux:button variant="ghost" icon="pencil" size="sm" wire:click="openCalendarRange" />
+                            </div>
+                            @if ($view === 'overview')
+                                <div class="flex items-center gap-2">
+                                    <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddBlock">{{ __('Add Block') }}</flux:button>
+                                    <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddProgram">{{ __('Add Program') }}</flux:button>
+                                </div>
+                            @endif
+                        </div>
+
+                        @if ($view === 'schedule')
+                            <livewire:training.calendar-schedule-view
+                                :groupId="(int) $group"
+                                :userId="$user !== '' ? (int) $user : null"
+                                :calendarSettings="$calendarSettings"
+                                :weekStartsOn="$weekStartsOn"
+                            />
+                        @else
+                            <livewire:training.calendar-programs-view
+                                :groupId="(int) $group"
+                                :userId="$user !== '' ? (int) $user : null"
+                                :calendarSettings="$calendarSettings"
+                                :weekStartsOn="$weekStartsOn"
+                                :weekEndsOn="$weekEndsOn"
+                            />
+                        @endif
                     @endif
                 @elseif ($this->hasOverviewGroups)
                     <livewire:training.calendar-overview-grid
@@ -150,9 +179,64 @@
                         @endif
                     </div>
                 @endif
-            </x-section>
+            </div>
         </div>
     </div>
+
+    <flux:modal name="add-content" variant="flyout" class="max-w-md">
+        <div class="flex flex-col gap-4 p-2">
+            <flux:heading size="lg">{{ __('Add Program') }}</flux:heading>
+
+            <flux:tab.group>
+                <flux:tabs wire:model.live="addContentTab">
+                    <flux:tab name="program">{{ __('Program') }}</flux:tab>
+                    <flux:tab name="exercise">{{ __('Exercise') }}</flux:tab>
+                </flux:tabs>
+
+                <flux:tab.panel name="program" class="!px-0">
+                    <div class="flex flex-col gap-3">
+                        <x-cms::form.field :field="\Coda\Cms\Form\Fields\Search::make('addContentSearch')" />
+                        <div class="flex flex-col gap-1 max-h-80 overflow-y-auto">
+                            @foreach ($this->addContentOptions as $option)
+                                <button type="button" wire:click="addFromProgram({{ $option->id }})"
+                                    class="flex items-center gap-2 px-3 py-2 text-sm text-left rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300">
+                                    @if ($option->exerciseCategory?->color)
+                                        <span class="w-2 h-2 rounded-full shrink-0"
+                                            style="{{ \Coda\Cms\Support\ColorPalette::solid($option->exerciseCategory->color) }}"></span>
+                                    @endif
+                                    {{ $option->name }}
+                                </button>
+                            @endforeach
+                            @if ($this->addContentOptions->isEmpty())
+                                <flux:text class="px-3 py-4 text-center text-zinc-400">{{ __('No programs found.') }}</flux:text>
+                            @endif
+                        </div>
+                    </div>
+                </flux:tab.panel>
+
+                <flux:tab.panel name="exercise" class="!px-0">
+                    <div class="flex flex-col gap-3">
+                        <x-cms::form.field :field="\Coda\Cms\Form\Fields\Search::make('addContentSearch')" />
+                        <div class="flex flex-col gap-1 max-h-80 overflow-y-auto">
+                            @foreach ($this->addContentOptions as $option)
+                                <button type="button" wire:click="addFromExercise({{ $option->id }})"
+                                    class="flex items-center gap-2 px-3 py-2 text-sm text-left rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300">
+                                    @if ($option->category?->rootAncestorOrSelf?->color)
+                                        <span class="w-2 h-2 rounded-full shrink-0"
+                                            style="{{ \Coda\Cms\Support\ColorPalette::solid($option->category->rootAncestorOrSelf->color) }}"></span>
+                                    @endif
+                                    {{ $option->name }}
+                                </button>
+                            @endforeach
+                            @if ($this->addContentOptions->isEmpty())
+                                <flux:text class="px-3 py-4 text-center text-zinc-400">{{ __('No exercises found.') }}</flux:text>
+                            @endif
+                        </div>
+                    </div>
+                </flux:tab.panel>
+            </flux:tab.group>
+        </div>
+    </flux:modal>
 
     <livewire:training.calendar-range-form />
 

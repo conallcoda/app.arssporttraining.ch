@@ -38,7 +38,7 @@
                         </div>
                     @endif
 
-                    @if ($hasAutoWeightExercises)
+                    @if ($hasAutoWeightExercises && $planHasBlock)
                         <div>
                             @if ($userId === null)
                                 <flux:label class="mb-1.5">{{ __('1RM') }}</flux:label>

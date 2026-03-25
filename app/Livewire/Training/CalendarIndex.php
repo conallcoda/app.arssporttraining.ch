@@ -5,11 +5,14 @@ namespace App\Livewire\Training;
 use App\Data\Training\Calendar\CalendarModeSettingsData;
 use App\Data\Training\Calendar\CalendarSettingsData;
 use App\Livewire\Training\Concerns\WithCalendarPlan;
+use App\Models\Exercise\Exercise;
+use App\Models\Exercise\ExerciseProgram;
 use App\Models\Training\TrainingProgram;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use App\Training\CalendarDateService;
 use Carbon\Carbon;
+use Flux\Flux;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -58,6 +61,10 @@ class CalendarIndex extends Component
     public string $groupFilter = 'mine';
 
     public string $planProgramName = '';
+
+    public string $addContentSearch = '';
+
+    public string $addContentTab = 'program';
 
     public CalendarSettingsData $calendarSettings;
 
@@ -133,6 +140,8 @@ class CalendarIndex extends Component
             $this->groupedPrograms,
             $this->hasOverviewGroups,
             $this->selectionName,
+            $this->selectionGroupName,
+            $this->selectionType,
             $this->days,
             $this->weeks,
             $this->months,
@@ -227,7 +236,7 @@ class CalendarIndex extends Component
             $this->planCategory = '';
             $this->planBlock = 'ungrouped';
             $this->planProgram = '';
-            unset($this->selectionName, $this->programs, $this->groupedPrograms);
+            unset($this->selectionName, $this->selectionGroupName, $this->selectionType, $this->programs, $this->groupedPrograms);
 
             return;
         }
@@ -251,7 +260,7 @@ class CalendarIndex extends Component
             $this->selectOverlappingBlock();
         }
 
-        unset($this->selectionName, $this->programs, $this->groupedPrograms);
+        unset($this->selectionName, $this->selectionGroupName, $this->selectionType, $this->programs, $this->groupedPrograms);
 
         if ($this->group !== '') {
             $this->dispatch('calendar-selection-changed',
@@ -277,6 +286,30 @@ class CalendarIndex extends Component
 
         if ($this->group !== '') {
             return UserGroup::find((int) $this->group)?->name;
+        }
+
+        return null;
+    }
+
+    #[Computed]
+    public function selectionGroupName(): ?string
+    {
+        if ($this->user !== '' && $this->group !== '') {
+            return UserGroup::find((int) $this->group)?->name;
+        }
+
+        return null;
+    }
+
+    #[Computed]
+    public function selectionType(): ?string
+    {
+        if ($this->user !== '') {
+            return 'athlete';
+        }
+
+        if ($this->group !== '') {
+            return 'group';
         }
 
         return null;
@@ -391,10 +424,98 @@ class CalendarIndex extends Component
 
         unset(
             $this->selectionName,
+            $this->selectionGroupName,
+            $this->selectionType,
             $this->programs,
             $this->groupedPrograms,
             $this->hasOverviewGroups,
         );
+    }
+
+    public function openAddBlock(): void
+    {
+        $categoryOptions = $this->groupedPrograms
+            ->filter(fn (array $group, int $categoryId) => $categoryId > 0 && $group['category'] !== null)
+            ->mapWithKeys(fn (array $group, int $categoryId) => [
+                $categoryId => [
+                    'name' => $group['category']->name,
+                    'slug' => $group['category']->slug,
+                ],
+            ])
+            ->all();
+
+        $this->dispatch('open-block', data: [
+            'groupId' => (int) $this->group,
+            'userId' => $this->user !== '' ? (int) $this->user : null,
+            'categoryOptions' => $categoryOptions,
+        ]);
+    }
+
+    #[On('trigger-add-content')]
+    public function openAddProgram(): void
+    {
+        $this->addContentSearch = '';
+        $this->addContentTab = 'program';
+        Flux::modal('add-content')->show();
+    }
+
+    public function updatedAddContentTab(): void
+    {
+        $this->addContentSearch = '';
+        unset($this->addContentOptions);
+    }
+
+    public function updatedAddContentSearch(): void
+    {
+        unset($this->addContentOptions);
+    }
+
+    #[Computed]
+    public function addContentOptions(): Collection
+    {
+        $search = trim($this->addContentSearch);
+
+        return match ($this->addContentTab) {
+            'program' => ExerciseProgram::query()
+                ->with('exerciseCategory:id,name,color')
+                ->whereNull('parent_id')
+                ->whereNull('parent_type')
+                ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%"))
+                ->orderBy('name')
+                ->limit(20)
+                ->get(['id', 'name', 'exercise_category_id']),
+            'exercise' => Exercise::query()
+                ->with('category.rootAncestorOrSelf')
+                ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%"))
+                ->orderBy('name')
+                ->limit(20)
+                ->get(['id', 'name', 'category_id']),
+            default => collect(),
+        };
+    }
+
+    public function addFromProgram(int $programId): void
+    {
+        $program = ExerciseProgram::findOrFail($programId);
+
+        TrainingProgram::importProgram($program, (int) $this->group);
+
+        unset($this->programs, $this->groupedPrograms);
+        Flux::modal('add-content')->close();
+
+        $this->dispatch('programs-changed');
+    }
+
+    public function addFromExercise(int $exerciseId): void
+    {
+        $exercise = Exercise::findOrFail($exerciseId);
+
+        TrainingProgram::importExercise($exercise, (int) $this->group, categoryId: $exercise->category_id);
+
+        unset($this->programs, $this->groupedPrograms);
+        Flux::modal('add-content')->close();
+
+        $this->dispatch('programs-changed');
     }
 
     public function render()

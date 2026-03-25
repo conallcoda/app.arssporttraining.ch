@@ -439,7 +439,7 @@ class ProgramEditor extends Component
     #[Computed]
     public function showAthleteContext(): bool
     {
-        return $this->hasAutoWeightExercises || $this->hasHeartRateExercises;
+        return ($this->hasAutoWeightExercises && $this->planHasBlock) || $this->hasHeartRateExercises;
     }
 
     #[On('exercise-overrides-changed')]
