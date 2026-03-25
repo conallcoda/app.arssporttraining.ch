@@ -193,10 +193,13 @@ class SlotDetailsController
             ? [$groupId, $start, $end, $userId]
             : [$groupId, $start, $end];
 
+        $timeSelect = $userId ? ', MIN(TIME(tps.datetime)) as first_time' : '';
+
         $rows = DB::select("
             SELECT tp.id as program_id,
                    DATE(tps.datetime) as slot_date,
                    COUNT(DISTINCT tps.user_id) as user_count
+                   {$timeSelect}
             FROM training_program_slots tps
             JOIN training_programs tp ON tps.training_program_id = tp.id
             WHERE tp.group_id = ?
@@ -208,7 +211,14 @@ class SlotDetailsController
 
         $cells = [];
         foreach ($rows as $row) {
-            $cells[$row->program_id . '-' . $row->slot_date] = (int) $row->user_count;
+            if ($userId) {
+                $cells[$row->program_id.'-'.$row->slot_date] = [
+                    'count' => (int) $row->user_count,
+                    'time' => substr($row->first_time, 0, 5),
+                ];
+            } else {
+                $cells[$row->program_id.'-'.$row->slot_date] = (int) $row->user_count;
+            }
         }
 
         return response()->json($cells);
@@ -223,7 +233,7 @@ class SlotDetailsController
 
         $date = Carbon::parse($request->date);
 
-        $slots = DB::select("
+        $slots = DB::select('
             SELECT tps.datetime,
                    ep.name as program_name,
                    t.color as category_color
@@ -235,7 +245,7 @@ class SlotDetailsController
               AND tp.deleted_at IS NULL
               AND tps.datetime BETWEEN ? AND ?
             ORDER BY tps.datetime
-        ", [$request->integer('user_id'), $date->startOfDay(), $date->copy()->endOfDay()]);
+        ', [$request->integer('user_id'), $date->startOfDay(), $date->copy()->endOfDay()]);
 
         $result = array_map(fn ($row) => [
             'time' => Carbon::parse($row->datetime)->format('H:i'),

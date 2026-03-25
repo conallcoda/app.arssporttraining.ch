@@ -49,14 +49,15 @@
         @foreach ($this->overviewData as $groupRow)
             @php
                 $members = collect($groupRow['members'])->map(fn ($m) => ['id' => $m['user']->id, 'name' => $m['user']->name])->values()->all();
-                $days = collect($this->days)->map(fn ($d) => ['date' => $d['date'], 'isToday' => $d['isToday'], 'oddWeek' => $d['oddWeek']])->values()->all();
             @endphp
             <tbody x-data="{
                 expanded: false,
                 memberColors: null,
                 loading: false,
                 members: {{ \Illuminate\Support\Js::from($members) }},
-                days: {{ \Illuminate\Support\Js::from($days) }},
+                days: {{ \Illuminate\Support\Js::from(collect($this->days)->map(fn ($d) => ['date' => $d['date'], 'isToday' => $d['isToday'], 'oddWeek' => $d['oddWeek']])->values()->all()) }},
+                dates: {{ \Illuminate\Support\Js::from($groupRow['dates']) }},
+                dateColors: {{ \Illuminate\Support\Js::from($groupRow['dateColors']) }},
                 memberRows: [],
                 async toggle() {
                     this.expanded = !this.expanded;
@@ -92,9 +93,27 @@
                         });
                         return { id: m.id, name: m.name, cells: dayCells };
                     });
-                }
+                },
+                buildGradient(colorCounts) {
+                    if (!colorCounts) return '';
+                    let entries = Object.entries(colorCounts);
+                    let total = entries.reduce((s, [, c]) => s + c, 0);
+                    if (entries.length === 1) {
+                        let c = entries[0][0];
+                        return 'background-color: ' + (c === '_none' ? 'var(--color-zinc-300)' : 'var(--color-' + c + '-600)') + ';';
+                    }
+                    let pos = 0;
+                    let stops = entries.map(([c, cnt]) => {
+                        let pct = (cnt / total * 100).toFixed(2);
+                        let css = c === '_none' ? 'var(--color-zinc-300)' : 'var(--color-' + c + '-600)';
+                        let s = css + ' ' + pos + '% ' + (parseFloat(pos) + parseFloat(pct)) + '%';
+                        pos = parseFloat(pos) + parseFloat(pct);
+                        return s;
+                    });
+                    return 'background: linear-gradient(to bottom, ' + stops.join(', ') + ');';
+                },
             }" wire:key="overview-group-{{ $groupRow['group']->id }}">
-                <tr>
+                <tr wire:ignore>
                     <td
                         class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] bg-zinc-100 dark:bg-zinc-800">
                         <div class="flex items-center gap-2">
@@ -110,39 +129,13 @@
                                 class="text-xs font-normal text-zinc-500 dark:text-zinc-400">({{ count($groupRow['members']) }})</span>
                         </div>
                     </td>
-                    @foreach ($this->days as $day)
-                        @if (isset($groupRow['dates'][$day['date']]))
-                            @php
-                                $groupColorCounts = $groupRow['dateColors'][$day['date']] ?? [];
-                                $groupTotal = array_sum($groupColorCounts);
-                                $groupStops = [];
-                                $groupPos = 0;
-                                foreach ($groupColorCounts as $c => $count) {
-                                    $pct = round(($count / $groupTotal) * 100, 2);
-                                    $cssColor = $c === '_none' ? 'var(--color-zinc-300)' : "var(--color-{$c}-600)";
-                                    $groupStops[] = "{$cssColor} {$groupPos}% " . ($groupPos + $pct) . '%';
-                                    $groupPos += $pct;
-                                }
-                                $groupGradient =
-                                    count($groupStops) === 1
-                                        ? 'background-color: ' .
-                                            (array_key_first($groupColorCounts) === '_none'
-                                                ? 'var(--color-zinc-300)'
-                                                : 'var(--color-' . array_key_first($groupColorCounts) . '-600)') .
-                                            ';'
-                                        : 'background: linear-gradient(to bottom, ' . implode(', ', $groupStops) . ');';
-                            @endphp
-                            <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0"
-                                style="{{ $groupGradient }}">
-                                <div class="aspect-square"></div>
-                            </td>
-                        @else
-                            <td
-                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 {{ $day['isToday'] ? 'bg-blue-50/50 dark:bg-blue-900/10' : ($day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '') }}">
-                                <div class="aspect-square"></div>
-                            </td>
-                        @endif
-                    @endforeach
+                    <template x-for="(day, dayIdx) in days" :key="'g-{{ $groupRow['group']->id }}-' + day.date">
+                        <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0"
+                            :class="!dates[day.date] && (day.isToday ? 'bg-blue-50/50 dark:bg-blue-900/10' : (day.oddWeek ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : ''))"
+                            :style="dates[day.date] ? buildGradient(dateColors[day.date]) : ''">
+                            <div class="aspect-square"></div>
+                        </td>
+                    </template>
                 </tr>
 
                 <template x-if="expanded && memberRows.length > 0">

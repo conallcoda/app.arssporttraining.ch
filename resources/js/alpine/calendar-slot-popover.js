@@ -8,6 +8,7 @@ document.addEventListener('alpine:init', () => {
         endDate: config.endDate || null,
         gridCellsUrl: config.gridCellsUrl || '/admin/api/program-grid-cells',
         slotDetailsUrl: config.slotDetailsUrl || '/admin/api/slot-details',
+        days: config.days || [],
 
         open: false,
         loading: false,
@@ -21,92 +22,125 @@ document.addEventListener('alpine:init', () => {
         _wire: null,
 
         init() {
-            this._wire = this.$wire;
+            this._wire = this.$wire
 
             this._onClickOutside = (e) => {
-                if (!this.open) return;
-                const popover = document.getElementById('calendar-slot-popover');
+                if (!this.open) return
+                let popover = document.getElementById('calendar-slot-popover')
                 if (popover && !popover.contains(e.target)) {
-                    this.close();
+                    this.close()
                 }
-            };
-            document.addEventListener('click', this._onClickOutside, true);
+            }
+            document.addEventListener('click', this._onClickOutside, true)
 
             if (this.groupId && this.startDate && this.endDate) {
-                this.loadCellData();
+                this.loadCellData()
             }
         },
 
         destroy() {
             if (this._onClickOutside) {
-                document.removeEventListener('click', this._onClickOutside, true);
+                document.removeEventListener('click', this._onClickOutside, true)
             }
         },
 
         async loadCellData() {
-            const params = new URLSearchParams({
+            let params = new URLSearchParams({
                 group_id: this.groupId,
                 start: this.startDate,
                 end: this.endDate,
-            });
+            })
             if (this.userId) {
-                params.set('user_id', this.userId);
+                params.set('user_id', this.userId)
             }
-            const resp = await fetch(this.gridCellsUrl + '?' + params);
-            this.cellData = await resp.json();
-            this.cellDataLoaded = true;
+            let resp = await fetch(this.gridCellsUrl + '?' + params)
+            this.cellData = await resp.json()
+            this.cellDataLoaded = true
         },
 
         getCellCount(programId, date) {
-            return this.cellData[programId + '-' + date] || 0;
+            let val = this.cellData[programId + '-' + date]
+            if (val && typeof val === 'object') return val.count || 0
+            return val || 0
+        },
+
+        getCellTime(programId, date) {
+            let val = this.cellData[programId + '-' + date]
+            if (val && typeof val === 'object') return val.time || null
+            return null
         },
 
         hasCategoryData(programIds, date) {
-            return programIds.some(pid => this.cellData[pid + '-' + date] > 0);
+            return programIds.some(pid => this.getCellCount(pid, date) > 0)
+        },
+
+        handleCellClick(el, trainingProgramId, date, color) {
+            let count = this.getCellCount(trainingProgramId, date)
+
+            if (this.userId) {
+                if (count > 0) {
+                    let time = this.getCellTime(trainingProgramId, date)
+                    if (time && this._wire) {
+                        this._wire.editWeekSlot(trainingProgramId, date, time)
+                    }
+                } else {
+                    if (this._wire) {
+                        this._wire.openProgramSlot(trainingProgramId, date)
+                    }
+                }
+            } else {
+                if (count > 0) {
+                    this.openPopover(el, trainingProgramId, date, color)
+                } else {
+                    if (this._wire) {
+                        this._wire.openProgramSlot(trainingProgramId, date)
+                    }
+                }
+            }
         },
 
         openPopover(el, trainingProgramId, date, color) {
-            const rect = el.getBoundingClientRect();
-            this.x = rect.left + rect.width / 2;
-            this.y = rect.bottom + 4;
+            let rect = el.getBoundingClientRect()
+            this.x = rect.left + rect.width / 2
+            this.y = rect.bottom + 4
 
             if (this.y + 200 > window.innerHeight) {
-                this.y = rect.top - 4;
-                this._above = true;
+                this.y = rect.top - 4
+                this._above = true
             } else {
-                this._above = false;
+                this._above = false
             }
 
-            this.trainingProgramId = trainingProgramId;
-            this.date = date;
-            this.color = color;
-            this.slotDetails = null;
-            this.loading = true;
-            this.open = true;
+            this.trainingProgramId = trainingProgramId
+            this.date = date
+            this.color = color
+            this.slotDetails = null
+            this.loading = true
+            this.open = true
 
-            const params = new URLSearchParams({
+            let params = new URLSearchParams({
                 training_program_id: trainingProgramId,
                 date: date,
-            });
+            })
 
             fetch(this.slotDetailsUrl + '?' + params)
                 .then(r => r.json())
                 .then(data => {
-                    this.slotDetails = data;
-                    this.loading = false;
-                });
+                    this.slotDetails = data
+                    this.loading = false
+                })
         },
 
         close() {
-            this.open = false;
-            this.slotDetails = null;
+            this.open = false
+            this.slotDetails = null
         },
 
         editSlot(time) {
             if (this._wire) {
-                this._wire.editWeekSlot(this.trainingProgramId, this.date, time);
+                this._wire.editWeekSlot(this.trainingProgramId, this.date, time)
             }
-            this.close();
+            this.close()
         },
-    }));
-});
+    }))
+})

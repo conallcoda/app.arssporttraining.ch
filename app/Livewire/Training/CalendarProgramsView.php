@@ -14,7 +14,6 @@ use App\Models\Tag;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramBlock;
 use App\Models\Training\TrainingProgramBlockTypeEnum;
-use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\UserGroup;
 use App\Training\CalendarBlockService;
 use App\Training\CalendarDateService;
@@ -59,15 +58,11 @@ class CalendarProgramsView extends Component
         $groupChanged = $this->groupId !== $groupId;
         $this->groupId = $groupId;
         $this->userId = $userId;
-        $this->metricsLoaded = false;
 
         if ($groupChanged) {
             unset(
                 $this->programs,
                 $this->groupedPrograms,
-                $this->programCellSlots,
-                $this->athleteSlotOrder,
-                $this->groupSlotOrder,
                 $this->allBlocks,
                 $this->categoryBlocks,
                 $this->metricSummaryDates,
@@ -77,9 +72,6 @@ class CalendarProgramsView extends Component
             );
         } else {
             unset(
-                $this->programCellSlots,
-                $this->athleteSlotOrder,
-                $this->groupSlotOrder,
                 $this->metricCellData,
                 $this->groupMetricCellData,
                 $this->currentMetricValues,
@@ -164,193 +156,6 @@ class CalendarProgramsView extends Component
         [$start, $end] = $this->dateRange();
 
         return app(CalendarDateService::class)->buildMonths($start, $end);
-    }
-
-    #[Computed]
-    public function programCellSlots(): array
-    {
-        [$start, $end] = $this->dateRange();
-        $programIds = $this->programs->pluck('id');
-
-        if ($programIds->isEmpty()) {
-            return [];
-        }
-
-        $query = TrainingProgramSlot::query()
-            ->whereIn('training_program_id', $programIds)
-            ->whereBetween('datetime', [$start->copy()->startOfDay(), $end->copy()->endOfDay()])
-            ->selectRaw('training_program_id, DATE(datetime) as slot_date, MIN(TIME(datetime)) as first_time, COUNT(DISTINCT user_id) as user_count')
-            ->groupByRaw('training_program_id, DATE(datetime)');
-
-        if ($this->userId !== null) {
-            $query->where('user_id', $this->userId);
-        }
-
-        $map = [];
-
-        foreach ($query->get() as $row) {
-            $dateKey = $row->training_program_id.'-'.$row->slot_date;
-            $time = substr($row->first_time, 0, 5);
-
-            $map[$dateKey] = [
-                '_userCount' => $row->user_count,
-                $time => [
-                    ['name' => '', 'userId' => 0],
-                ],
-            ];
-        }
-
-        return $map;
-    }
-
-    #[Computed]
-    public function athleteSlotOrder(): array
-    {
-        if ($this->userId === null) {
-            return [];
-        }
-
-        $cellSlots = $this->programCellSlots;
-        $days = $this->days;
-        $dayIndex = [];
-        foreach ($days as $i => $day) {
-            $dayIndex[$day['date']] = $i;
-        }
-
-        $programCategoryMap = [];
-        foreach ($this->groupedPrograms as $categoryId => $group) {
-            foreach ($group['entries'] as $entry) {
-                $programCategoryMap[$entry->id] = $categoryId;
-            }
-        }
-
-        $categoryBlocks = $this->categoryBlocks;
-
-        $blockSlots = [];
-
-        foreach ($cellSlots as $key => $times) {
-            [$programId, $date] = explode('-', $key, 2);
-            $categoryId = $programCategoryMap[(int) $programId] ?? null;
-
-            if ($categoryId === null) {
-                continue;
-            }
-
-            $catBlocks = $categoryBlocks[$categoryId] ?? null;
-            if (! $catBlocks) {
-                continue;
-            }
-
-            $dayIdx = $dayIndex[$date] ?? null;
-            if ($dayIdx === null) {
-                continue;
-            }
-
-            $blockId = null;
-            foreach ($catBlocks['notes'] as $block) {
-                if ($dayIdx >= $block['startIdx'] && $dayIdx <= $block['endIdx']) {
-                    $blockId = $block['id'];
-                    break;
-                }
-            }
-
-            if ($blockId === null) {
-                continue;
-            }
-
-            $blockSlots[$blockId.'-'.$programId][] = ['date' => $date, 'key' => $key];
-        }
-
-        $order = [];
-
-        foreach ($blockSlots as $entries) {
-            usort($entries, fn ($a, $b) => strcmp($a['date'], $b['date']));
-
-            foreach ($entries as $i => $entry) {
-                $order[$entry['key']] = $i + 1;
-            }
-        }
-
-        return $order;
-    }
-
-    #[Computed]
-    public function groupSlotOrder(): array
-    {
-        if ($this->userId !== null) {
-            return [];
-        }
-
-        $cellSlots = $this->programCellSlots;
-        $days = $this->days;
-        $dayIndex = [];
-        foreach ($days as $i => $day) {
-            $dayIndex[$day['date']] = $i;
-        }
-
-        $programCategoryMap = [];
-        foreach ($this->groupedPrograms as $categoryId => $group) {
-            foreach ($group['entries'] as $entry) {
-                $programCategoryMap[$entry->id] = $categoryId;
-            }
-        }
-
-        $categoryBlocks = $this->categoryBlocks;
-
-        $blockSlots = [];
-
-        foreach ($cellSlots as $key => $times) {
-            [$programId, $date] = explode('-', $key, 2);
-            $categoryId = $programCategoryMap[(int) $programId] ?? null;
-
-            if ($categoryId === null) {
-                continue;
-            }
-
-            $catBlocks = $categoryBlocks[$categoryId] ?? null;
-            if (! $catBlocks) {
-                continue;
-            }
-
-            $dayIdx = $dayIndex[$date] ?? null;
-            if ($dayIdx === null) {
-                continue;
-            }
-
-            $blockId = null;
-            foreach ($catBlocks['notes'] as $block) {
-                if ($dayIdx >= $block['startIdx'] && $dayIdx <= $block['endIdx']) {
-                    $blockId = $block['id'];
-                    break;
-                }
-            }
-
-            if ($blockId === null) {
-                continue;
-            }
-
-            foreach ($times as $timeKey => $athletes) {
-                if ($timeKey === '_userCount' || ! is_array($athletes)) {
-                    continue;
-                }
-                foreach ($athletes as $athlete) {
-                    $userKey = $blockId.'-'.$programId.'-'.$athlete['userId'];
-                    $blockSlots[$userKey][] = ['date' => $date, 'programId' => $programId, 'userId' => $athlete['userId']];
-                }
-            }
-        }
-
-        $order = [];
-
-        foreach ($blockSlots as $entries) {
-            usort($entries, fn ($a, $b) => strcmp($a['date'], $b['date']));
-
-            foreach ($entries as $i => $entry) {
-                $order[$entry['programId'].'-'.$entry['date'].'-'.$entry['userId']] = $i + 1;
-            }
-        }
-
-        return $order;
     }
 
     #[Computed]
@@ -707,6 +512,20 @@ class CalendarProgramsView extends Component
         return $result;
     }
 
+    public function getMetricRowData(string $metricValue): array
+    {
+        $data = $this->userId !== null ? $this->metricCellData : $this->groupMetricCellData;
+        $filtered = [];
+        foreach ($data as $key => $value) {
+            if (str_starts_with($key, $metricValue.'-')) {
+                $date = substr($key, strlen($metricValue) + 1);
+                $filtered[$date] = $value;
+            }
+        }
+
+        return $filtered;
+    }
+
     public function openCurrentMetric(string $metricValue): void
     {
         $current = $this->currentMetricValues[$metricValue] ?? null;
@@ -873,6 +692,17 @@ class CalendarProgramsView extends Component
         ]);
     }
 
+    public function editWeekSlot(int $trainingProgramId, string $date, string $startTime): void
+    {
+        $this->dispatch('open-week-slot', data: [
+            'date' => $date,
+            'start_time' => $startTime,
+            'training_program_id' => $trainingProgramId,
+            'groupId' => $this->groupId,
+            'userId' => $this->userId,
+        ]);
+    }
+
     public function openAddBlock(): void
     {
         $categoryOptions = $this->groupedPrograms
@@ -1025,7 +855,7 @@ class CalendarProgramsView extends Component
                 $projectedService->syncForBlock($parentBlock->fresh());
             }
 
-            unset($this->allBlocks, $this->categoryBlocks, $this->athleteSlotOrder, $this->groupSlotOrder, $this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData);
+            unset($this->allBlocks, $this->categoryBlocks, $this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData);
 
             return;
         }
@@ -1101,7 +931,7 @@ class CalendarProgramsView extends Component
             }
         }
 
-        unset($this->allBlocks, $this->categoryBlocks, $this->athleteSlotOrder, $this->groupSlotOrder, $this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData);
+        unset($this->allBlocks, $this->categoryBlocks, $this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData);
     }
 
     #[On('block.deleted')]
@@ -1131,7 +961,7 @@ class CalendarProgramsView extends Component
                 $projectedService->syncForBlock($parentBlock);
             }
 
-            unset($this->allBlocks, $this->categoryBlocks, $this->athleteSlotOrder, $this->groupSlotOrder, $this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData);
+            unset($this->allBlocks, $this->categoryBlocks, $this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData);
 
             return;
         }
@@ -1156,7 +986,7 @@ class CalendarProgramsView extends Component
                 ->delete();
         }
 
-        unset($this->allBlocks, $this->categoryBlocks, $this->athleteSlotOrder, $this->groupSlotOrder, $this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData);
+        unset($this->allBlocks, $this->categoryBlocks, $this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData);
     }
 
     public function toggleExerciseDisabled(int $exerciseId, int $exerciseProgramId): void
@@ -1269,7 +1099,7 @@ class CalendarProgramsView extends Component
         $trainingProgram = TrainingProgram::with('program')->findOrFail($trainingProgramId);
         $this->cleanupOrphanedCategoryBlocks($trainingProgram);
         $trainingProgram->delete();
-        unset($this->programs, $this->groupedPrograms, $this->categoryBlocks, $this->athleteSlotOrder, $this->groupSlotOrder);
+        unset($this->programs, $this->groupedPrograms, $this->categoryBlocks);
     }
 
     public function openEditProgram(int $trainingProgramId): void
@@ -1311,7 +1141,7 @@ class CalendarProgramsView extends Component
         $trainingProgram->delete();
 
         $this->editingTrainingProgramId = null;
-        unset($this->programs, $this->groupedPrograms, $this->categoryBlocks, $this->athleteSlotOrder, $this->groupSlotOrder);
+        unset($this->programs, $this->groupedPrograms, $this->categoryBlocks);
         Flux::modal('confirm-delete-program')->close();
         Flux::modal('edit-program')->close();
     }

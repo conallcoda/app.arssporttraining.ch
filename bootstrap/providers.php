@@ -5,4 +5,5 @@ return [
     App\Providers\CmsServiceProvider::class,
     App\Providers\FortifyServiceProvider::class,
     App\Providers\VoltServiceProvider::class,
+    App\Providers\LivewireProfilerServiceProvider::class,
 ];
