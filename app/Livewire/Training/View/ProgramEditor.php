@@ -67,6 +67,18 @@ class ProgramEditor extends Component
 
     public ?int $planIatPercent = null;
 
+    public ?string $planBlockGoalLabel = null;
+
+    public ?string $plan1rmLabel = null;
+
+    public ?string $planHeartRateLabel = null;
+
+    public bool $hasAutoWeightExercises = false;
+
+    public bool $hasHeartRateExercises = false;
+
+    public bool $planHasBlock = false;
+
     public array $data = [];
 
     public function mount(
@@ -86,6 +98,12 @@ class ProgramEditor extends Component
         array $weekSessions = [],
         bool $sessionLabels = false,
         string $gridLayout = 'side-by-side',
+        ?string $planBlockGoalLabel = null,
+        ?string $plan1rmLabel = null,
+        ?string $planHeartRateLabel = null,
+        bool $hasAutoWeightExercises = false,
+        bool $hasHeartRateExercises = false,
+        bool $planHasBlock = false,
     ): void {
         $this->exerciseProgram = $exerciseProgram;
         $this->planId = $planId;
@@ -103,6 +121,12 @@ class ProgramEditor extends Component
         $this->weekSessions = $weekSessions;
         $this->sessionLabels = $sessionLabels;
         $this->gridLayout = $gridLayout;
+        $this->planBlockGoalLabel = $planBlockGoalLabel;
+        $this->plan1rmLabel = $plan1rmLabel;
+        $this->planHeartRateLabel = $planHeartRateLabel;
+        $this->hasAutoWeightExercises = $hasAutoWeightExercises;
+        $this->hasHeartRateExercises = $hasHeartRateExercises;
+        $this->planHasBlock = $planHasBlock;
         $this->loadExerciseData();
     }
 
@@ -406,6 +430,12 @@ class ProgramEditor extends Component
         $this->exerciseProgram->update([
             'warm_down_program_id' => $this->data['warm_down_program_id'] ?: null,
         ]);
+    }
+
+    #[Computed]
+    public function showAthleteContext(): bool
+    {
+        return $this->hasAutoWeightExercises || $this->hasHeartRateExercises;
     }
 
     #[On('exercise-overrides-changed')]

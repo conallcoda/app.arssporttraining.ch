@@ -91,6 +91,13 @@ class CalendarIndex extends Component
 
     public array $quickSelectedAthletes = [];
 
+    public bool $metricsLoaded = false;
+
+    public function loadMetrics(): void
+    {
+        $this->metricsLoaded = true;
+    }
+
     public function mount(): void
     {
         $this->weekStartsOn = (int) config('training.week_starts_on', Carbon::MONDAY);
@@ -126,6 +133,7 @@ class CalendarIndex extends Component
             if ($stored) {
                 $this->applyCalendarSettings($stored);
                 unset($this->days, $this->weeks, $this->months, $this->title, $this->weekGridData, $this->overviewData, $this->allBlocks, $this->categoryBlocks, $this->athleteSlotOrder, $this->groupSlotOrder, $this->metricCellData);
+
             }
         }
 
@@ -137,7 +145,26 @@ class CalendarIndex extends Component
             $this->syncPlanProgramName();
         }
 
-        unset($this->weekGridData);
+        $this->metricsLoaded = false;
+
+        unset(
+            $this->weekGridData,
+            $this->programs,
+            $this->groupedPrograms,
+            $this->slotMap,
+            $this->programCellSlots,
+            $this->athleteSlotOrder,
+            $this->groupSlotOrder,
+            $this->overviewData,
+            $this->selectionName,
+            $this->metricCellData,
+            $this->metricSummaryDates,
+            $this->days,
+            $this->weeks,
+            $this->months,
+            $this->title,
+        );
+        gc_collect_cycles();
     }
 
     public function updatedPlanCategory(): void
@@ -201,6 +228,7 @@ class CalendarIndex extends Component
         $this->selectOverlappingBlock();
 
         unset($this->weekGridData);
+
     }
 
     protected function selectOverlappingBlock(): void
@@ -287,6 +315,7 @@ class CalendarIndex extends Component
         $this->persistCalendarSettings();
 
         unset($this->days, $this->weeks, $this->months, $this->title, $this->weekGridData, $this->overviewData, $this->allBlocks, $this->categoryBlocks, $this->athleteSlotOrder, $this->groupSlotOrder, $this->metricCellData);
+
     }
 
     private function persistCalendarSettings(): void
@@ -375,6 +404,7 @@ class CalendarIndex extends Component
         }
 
         unset($this->selectionName, $this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->athleteSlotOrder, $this->groupSlotOrder, $this->weekGridData, $this->allBlocks, $this->categoryBlocks, $this->metricCellData, $this->planMeasuredData);
+
     }
 
     #[On('group-filter-changed')]
@@ -454,7 +484,7 @@ class CalendarIndex extends Component
         $groups = $groupsQuery->get();
         $groupIds = $groups->pluck('id');
 
-        $slots = TrainingProgramSlot::query()
+        $colorAgg = TrainingProgramSlot::query()
             ->join('training_programs', 'training_program_slots.training_program_id', '=', 'training_programs.id')
             ->join('exercise_programs', 'training_programs.exercise_program_id', '=', 'exercise_programs.id')
             ->leftJoin('tags', 'exercise_programs.exercise_category_id', '=', 'tags.id')
@@ -464,96 +494,28 @@ class CalendarIndex extends Component
                 $start->copy()->startOfDay(),
                 $end->copy()->endOfDay(),
             ])
-            ->selectRaw('training_programs.group_id, training_programs.id as training_program_id, exercise_programs.exercise_category_id, training_program_slots.user_id, DATE(training_program_slots.datetime) as slot_date, TIME(training_program_slots.datetime) as slot_time, exercise_programs.name as program_name, tags.color as category_color')
+            ->selectRaw('training_programs.group_id, DATE(training_program_slots.datetime) as slot_date, COALESCE(tags.color, \'_none\') as category_color, COUNT(*) as cnt')
+            ->groupByRaw('training_programs.group_id, DATE(training_program_slots.datetime), COALESCE(tags.color, \'_none\')')
             ->get();
 
-        $blocks = TrainingProgramBlock::query()
-            ->whereIn('group_id', $groupIds)
-            ->whereNotNull('category_id')
-            ->whereNull('parent_id')
-            ->where('type', TrainingProgramBlockTypeEnum::Category)
-            ->whereNull('user_id')
-            ->where(function ($q) use ($start, $end) {
-                $q->where(function ($q2) use ($start, $end) {
-                    $q2->where('start', '<=', $end->format('Y-m-d'))
-                        ->where(function ($q3) use ($start) {
-                            $q3->where('end', '>=', $start->format('Y-m-d'))
-                                ->orWhereNull('end');
-                        });
-                })->orWhereBetween('start', [$start->format('Y-m-d'), $end->format('Y-m-d')]);
-            })
-            ->get();
-
-        $blockLookup = [];
-        foreach ($blocks as $block) {
-            $blockLookup[$block->group_id][$block->category_id][] = $block;
-        }
-
-        $blockSlots = [];
-
-        foreach ($slots as $slot) {
-            $catBlocks = $blockLookup[$slot->group_id][$slot->exercise_category_id] ?? [];
-            $blockId = null;
-            $slotDate = Carbon::parse($slot->slot_date);
-
-            foreach ($catBlocks as $block) {
-                $blockEnd = $block->end ?? $block->start;
-                if ($slotDate->gte($block->start) && $slotDate->lte($blockEnd)) {
-                    $blockId = $block->id;
-                    break;
-                }
-            }
-
-            $key = $slot->group_id.'-'.$slot->user_id.'-'.($blockId ?? 'none').'-'.$slot->training_program_id;
-            $blockSlots[$key][] = [
-                'group_id' => $slot->group_id,
-                'user_id' => $slot->user_id,
-                'date' => $slot->slot_date,
-                'program_id' => $slot->training_program_id,
-            ];
-        }
-
-        $sessionNumbers = [];
-        foreach ($blockSlots as $entries) {
-            usort($entries, fn ($a, $b) => strcmp($a['date'], $b['date']));
-            foreach ($entries as $i => $entry) {
-                $sessionNumbers[$entry['group_id']][$entry['user_id']][$entry['date']][$entry['program_id']] = $i + 1;
-            }
-        }
-
+        $groupDateColors = [];
         $groupDates = [];
-        $userSlots = [];
 
-        foreach ($slots as $slot) {
-            $groupId = $slot->group_id;
-            $date = $slot->slot_date;
-
-            $groupDates[$groupId][$date] = true;
-
-            $userSlots[$groupId][$slot->user_id][$date][] = [
-                'name' => $slot->program_name,
-                'color' => $slot->category_color,
-                'time' => substr($slot->slot_time, 0, 5),
-                'session' => $sessionNumbers[$groupId][$slot->user_id][$date][$slot->training_program_id] ?? null,
-            ];
+        foreach ($colorAgg as $row) {
+            $groupDateColors[$row->group_id][$row->slot_date][$row->category_color] = $row->cnt;
+            $groupDates[$row->group_id][$row->slot_date] = true;
         }
+
         $result = [];
 
         foreach ($groups as $group) {
             $gid = $group->id;
-            $members = [];
-
-            foreach ($group->members as $member) {
-                $members[] = [
-                    'user' => $member,
-                    'dates' => $userSlots[$gid][$member->id] ?? [],
-                ];
-            }
 
             $result[] = [
                 'group' => $group,
                 'dates' => $groupDates[$gid] ?? [],
-                'members' => $members,
+                'dateColors' => $groupDateColors[$gid] ?? [],
+                'members' => $group->members->map(fn ($m) => ['user' => $m])->all(),
             ];
         }
 
@@ -806,6 +768,108 @@ class CalendarIndex extends Component
     }
 
     #[Computed]
+    public function planHasHeartRateExercises(): bool
+    {
+        $program = $this->planSelectedProgram;
+        if (! $program) {
+            return false;
+        }
+
+        foreach ($program->program->exercises as $exercise) {
+            $config = $exercise->config;
+            $settings = $config->settings ?? [];
+            if (in_array('heartRate', $settings) || in_array('heartRateZone', $settings)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    #[Computed]
+    public function plan1rmLabel(): ?string
+    {
+        $data = $this->planMeasuredData;
+        if ($data['measuredWeight'] === null) {
+            return null;
+        }
+
+        $weight = rtrim(rtrim(number_format($data['measuredWeight'], 1), '0'), '.');
+        $reps = $data['measuredReps'] ?? 1;
+
+        return "{$weight}kg ({$reps}x{$weight}kg)";
+    }
+
+    #[Computed]
+    public function planHeartRateLabel(): ?string
+    {
+        $data = $this->planHeartRateData;
+        if ($data['maxHR'] === null) {
+            return null;
+        }
+
+        $label = $data['maxHR'].' HR';
+        if ($data['iatPercent'] !== null) {
+            $label .= ' - '.$data['iatPercent'].'% IAT';
+        }
+
+        return $label;
+    }
+
+    public function openPlanBlockEdit(): void
+    {
+        if (! $this->planHasBlock) {
+            return;
+        }
+
+        $this->editBlock((int) $this->planBlock);
+    }
+
+    public function openPlan1rmEdit(): void
+    {
+        if ($this->user === '') {
+            return;
+        }
+
+        $data = $this->planMeasuredData;
+
+        if ($data['measuredWeight'] !== null) {
+            $this->openMetricCell(MetricEnum::OneRepMax->value, now()->format('Y-m-d'));
+        } else {
+            $block = $this->planBlock !== 'ungrouped' ? TrainingProgramBlock::find((int) $this->planBlock) : null;
+            $recordedAt = $block?->start?->format('Y-m-d') ?? now()->format('Y-m-d');
+
+            $this->dispatch('open-calendar-metric-form', data: [
+                'metric' => MetricEnum::OneRepMax->value,
+                'recorded_at' => $recordedAt,
+                'user_id' => (int) $this->user,
+            ], title: __('Add Metric').' ('.MetricEnum::OneRepMax->label().')');
+        }
+    }
+
+    public function openPlanHeartRateEdit(): void
+    {
+        if ($this->user === '') {
+            return;
+        }
+
+        $data = $this->planHeartRateData;
+
+        if ($data['maxHR'] !== null) {
+            $this->openMetricCell(MetricEnum::HeartRate->value, now()->format('Y-m-d'));
+        } else {
+            $block = $this->planBlock !== 'ungrouped' ? TrainingProgramBlock::find((int) $this->planBlock) : null;
+            $recordedAt = $block?->start?->format('Y-m-d') ?? now()->format('Y-m-d');
+
+            $this->dispatch('open-calendar-metric-form', data: [
+                'metric' => MetricEnum::HeartRate->value,
+                'recorded_at' => $recordedAt,
+                'user_id' => (int) $this->user,
+            ], title: __('Add Metric').' ('.MetricEnum::HeartRate->label().')');
+        }
+    }
+
+    #[Computed]
     public function planSelectedProgram(): ?TrainingProgram
     {
         if ($this->planProgram === '') {
@@ -1028,29 +1092,6 @@ class CalendarIndex extends Component
     }
 
     #[Computed]
-    public function slotMap(): array
-    {
-        [$start, $end] = $this->dateRange();
-        $programIds = $this->programs->pluck('id');
-
-        $query = TrainingProgramSlot::query()
-            ->whereIn('training_program_id', $programIds)
-            ->whereBetween('datetime', [$start->copy()->startOfDay(), $end->copy()->endOfDay()]);
-
-        if ($this->user !== '') {
-            $query->where('user_id', (int) $this->user);
-        }
-
-        $map = [];
-        foreach ($query->get() as $slot) {
-            $key = $slot->training_program_id.'-'.$slot->datetime->format('Y-m-d H:i:s');
-            $map[$key] = true;
-        }
-
-        return $map;
-    }
-
-    #[Computed]
     public function programCellSlots(): array
     {
         [$start, $end] = $this->dateRange();
@@ -1063,39 +1104,25 @@ class CalendarIndex extends Component
         $query = TrainingProgramSlot::query()
             ->whereIn('training_program_id', $programIds)
             ->whereBetween('datetime', [$start->copy()->startOfDay(), $end->copy()->endOfDay()])
-            ->join('users', 'training_program_slots.user_id', '=', 'users.id')
-            ->select('training_program_id', 'training_program_slots.user_id', 'datetime', 'users.forename', 'users.surname');
+            ->selectRaw('training_program_id, DATE(datetime) as slot_date, MIN(TIME(datetime)) as first_time, COUNT(DISTINCT user_id) as user_count')
+            ->groupByRaw('training_program_id, DATE(datetime)');
 
         if ($this->user !== '') {
-            $query->where('training_program_slots.user_id', (int) $this->user);
+            $query->where('user_id', (int) $this->user);
         }
 
         $map = [];
 
         foreach ($query->get() as $row) {
-            $dateKey = $row->training_program_id.'-'.$row->datetime->format('Y-m-d');
-            $time = $row->datetime->format('H:i');
-            $name = trim("{$row->forename} {$row->surname}");
+            $dateKey = $row->training_program_id.'-'.$row->slot_date;
+            $time = substr($row->first_time, 0, 5);
 
-            if (! isset($map[$dateKey])) {
-                $map[$dateKey] = [];
-            }
-
-            if (! isset($map[$dateKey][$time])) {
-                $map[$dateKey][$time] = [];
-            }
-
-            $existing = array_column($map[$dateKey][$time], 'name');
-            if (! in_array($name, $existing, true)) {
-                $map[$dateKey][$time][] = [
-                    'name' => $name,
-                    'userId' => $row->user_id,
-                ];
-            }
-        }
-
-        foreach ($map as &$times) {
-            ksort($times);
+            $map[$dateKey] = [
+                '_userCount' => $row->user_count,
+                $time => [
+                    ['name' => '', 'userId' => 0],
+                ],
+            ];
         }
 
         return $map;
@@ -1227,7 +1254,10 @@ class CalendarIndex extends Component
                 continue;
             }
 
-            foreach ($times as $athletes) {
+            foreach ($times as $timeKey => $athletes) {
+                if ($timeKey === '_userCount' || ! is_array($athletes)) {
+                    continue;
+                }
                 foreach ($athletes as $athlete) {
                     $userKey = $blockId.'-'.$programId.'-'.$athlete['userId'];
                     $blockSlots[$userKey][] = ['date' => $date, 'programId' => $programId, 'userId' => $athlete['userId']];
@@ -1471,6 +1501,36 @@ class CalendarIndex extends Component
         }
 
         return $result;
+    }
+
+    #[Computed]
+    public function metricSummaryDates(): array
+    {
+        [$start, $end] = $this->dateRange();
+
+        if ($this->user !== '') {
+            $dates = \Illuminate\Support\Facades\DB::select(
+                'SELECT DISTINCT DATE(recorded_at) as d FROM user_metric_submissions WHERE user_id = ? AND recorded_at BETWEEN ? AND ?',
+                [(int) $this->user, $start->format('Y-m-d'), $end->format('Y-m-d')]
+            );
+        } elseif ($this->group !== '') {
+            $groupId = (int) $this->group;
+            $memberIds = \App\Models\Users\UserGroup::find($groupId)?->members->pluck('id')->all() ?? [];
+
+            if (empty($memberIds)) {
+                return [];
+            }
+
+            $placeholders = implode(',', array_fill(0, count($memberIds), '?'));
+            $dates = \Illuminate\Support\Facades\DB::select(
+                "SELECT DISTINCT DATE(recorded_at) as d FROM user_metric_submissions WHERE user_id IN ({$placeholders}) AND recorded_at BETWEEN ? AND ?",
+                [...$memberIds, $start->format('Y-m-d'), $end->format('Y-m-d')]
+            );
+        } else {
+            return [];
+        }
+
+        return array_flip(array_map(fn ($r) => $r->d, $dates));
     }
 
     #[Computed]
@@ -1775,118 +1835,11 @@ class CalendarIndex extends Component
     {
         [$start, $end] = $this->dateRange();
 
-        if ($this->group !== '' && $this->user === '') {
-            return $this->buildAthleteWeekGrid($start, $end);
-        }
-
-        return $this->buildProgramWeekGrid($start, $end);
+        return $this->buildWeekGridSkeleton($start, $end);
     }
 
-    protected function buildProgramWeekGrid(Carbon $start, Carbon $end): array
+    protected function buildWeekGridSkeleton(Carbon $start, Carbon $end): array
     {
-        $programs = $this->programs;
-        $slotMap = $this->slotMap;
-        $userName = $this->selectionName;
-        $weeks = [];
-        $current = $start->copy()->startOfWeek($this->weekStartsOn);
-
-        $slotsByProgramDate = [];
-        foreach ($slotMap as $key => $active) {
-            $datetime = substr($key, -19);
-            $programId = substr($key, 0, strlen($key) - 20);
-            $date = substr($datetime, 0, 10);
-            $time = substr($datetime, 11, 5);
-            $slotsByProgramDate[$programId.'-'.$date][] = $time;
-        }
-
-        while ($current->lte($end)) {
-            $weekStart = $current->copy();
-            $days = [];
-
-            for ($d = 0; $d < 7; $d++) {
-                $day = $weekStart->copy()->addDays($d);
-                $dateStr = $day->format('Y-m-d');
-                $amPrograms = [];
-                $pmPrograms = [];
-
-                foreach ($programs as $program) {
-                    $times = $slotsByProgramDate[$program->id.'-'.$dateStr] ?? [];
-
-                    foreach ($times as $time) {
-                        $entry = [
-                            'trainingProgramId' => $program->id,
-                            'name' => $program->program->name,
-                            'color' => $program->program->exerciseCategory?->color,
-                            'time' => $time,
-                            'userNames' => [$userName],
-                        ];
-
-                        if ($time < '12:00') {
-                            $amPrograms[] = $entry;
-                        } else {
-                            $pmPrograms[] = $entry;
-                        }
-                    }
-                }
-
-                usort($amPrograms, fn ($a, $b) => $a['time'] <=> $b['time']);
-                usort($pmPrograms, fn ($a, $b) => $a['time'] <=> $b['time']);
-
-                $days[] = [
-                    'date' => $dateStr,
-                    'day' => $day->day,
-                    'monthLabel' => $day->format('M'),
-                    'isToday' => $day->isToday(),
-                    'am' => $amPrograms,
-                    'pm' => $pmPrograms,
-                ];
-            }
-
-            $weeks[] = [
-                'key' => $current->isoWeekYear().'-W'.$current->isoWeek(),
-                'label' => 'W'.$current->isoWeek(),
-                'dateRange' => $weekStart->format('d M').' – '.$weekStart->copy()->addDays(6)->format('d M'),
-                'days' => $days,
-            ];
-
-            $current->addWeek();
-        }
-
-        return $weeks;
-    }
-
-    protected function buildAthleteWeekGrid(Carbon $start, Carbon $end): array
-    {
-        $groupId = (int) $this->group;
-
-        $slots = TrainingProgramSlot::query()
-            ->join('training_programs', 'training_program_slots.training_program_id', '=', 'training_programs.id')
-            ->join('exercise_programs', 'training_programs.exercise_program_id', '=', 'exercise_programs.id')
-            ->leftJoin('tags', 'exercise_programs.exercise_category_id', '=', 'tags.id')
-            ->join('users', 'training_program_slots.user_id', '=', 'users.id')
-            ->whereNull('training_programs.deleted_at')
-            ->where('training_programs.group_id', $groupId)
-            ->whereBetween('training_program_slots.datetime', [
-                $start->copy()->startOfDay(),
-                $end->copy()->endOfDay(),
-            ])
-            ->selectRaw("training_programs.id as training_program_id, training_programs.exercise_program_id, DATE(training_program_slots.datetime) as slot_date, TIME(training_program_slots.datetime) as slot_time, exercise_programs.name as program_name, tags.color as category_color, TRIM(CONCAT(users.forename, ' ', users.surname)) as user_name")
-            ->get();
-
-        $rawSlotsByDate = [];
-
-        foreach ($slots as $slot) {
-            $date = $slot->slot_date;
-            $time = substr($slot->slot_time, 0, 5);
-            $key = $slot->exercise_program_id.'-'.$time;
-
-            $rawSlotsByDate[$date][$key]['trainingProgramId'] = $slot->training_program_id;
-            $rawSlotsByDate[$date][$key]['name'] = $slot->program_name;
-            $rawSlotsByDate[$date][$key]['color'] = $slot->category_color;
-            $rawSlotsByDate[$date][$key]['time'] = $time;
-            $rawSlotsByDate[$date][$key]['userNames'][] = $slot->user_name;
-        }
-
         $weeks = [];
         $current = $start->copy()->startOfWeek($this->weekStartsOn);
 
@@ -1896,22 +1849,14 @@ class CalendarIndex extends Component
 
             for ($d = 0; $d < 7; $d++) {
                 $day = $weekStart->copy()->addDays($d);
-                $dateStr = $day->format('Y-m-d');
-                $dayEntries = array_values($rawSlotsByDate[$dateStr] ?? []);
-
-                $am = array_filter($dayEntries, fn ($e) => $e['time'] < '12:00');
-                $pm = array_filter($dayEntries, fn ($e) => $e['time'] >= '12:00');
-
-                usort($am, fn ($a, $b) => $a['time'] <=> $b['time'] ?: $a['name'] <=> $b['name']);
-                usort($pm, fn ($a, $b) => $a['time'] <=> $b['time'] ?: $a['name'] <=> $b['name']);
 
                 $days[] = [
-                    'date' => $dateStr,
+                    'date' => $day->format('Y-m-d'),
                     'day' => $day->day,
                     'monthLabel' => $day->format('M'),
                     'isToday' => $day->isToday(),
-                    'am' => array_values($am),
-                    'pm' => array_values($pm),
+                    'am' => [],
+                    'pm' => [],
                 ];
             }
 
@@ -2052,6 +1997,7 @@ class CalendarIndex extends Component
         }
 
         unset($this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->athleteSlotOrder, $this->groupSlotOrder, $this->weekGridData);
+
     }
 
     public function quickRemoveWeekSlot(int $trainingProgramId, string $date, string $startTime): void
@@ -2076,6 +2022,7 @@ class CalendarIndex extends Component
         }
 
         unset($this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->athleteSlotOrder, $this->groupSlotOrder, $this->weekGridData);
+
     }
 
     public function openWeekSlot(string $date, string $period): void
@@ -2200,6 +2147,7 @@ class CalendarIndex extends Component
         }
 
         unset($this->programs, $this->groupedPrograms, $this->slotMap, $this->programCellSlots, $this->athleteSlotOrder, $this->groupSlotOrder, $this->weekGridData);
+
     }
 
     public function openAddBlock(): void

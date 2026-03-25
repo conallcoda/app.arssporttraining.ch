@@ -102,6 +102,12 @@
                                         :planMaxHR="$this->planHeartRateData['maxHR']"
                                         :planIatPercent="$this->planHeartRateData['iatPercent']"
                                         gridLayout="stacked"
+                                        :planBlockGoalLabel="$this->planBlockGoal ? $this->planBlockGoal . '%' : null"
+                                        :plan1rmLabel="$this->plan1rmLabel"
+                                        :planHeartRateLabel="$this->planHeartRateLabel"
+                                        :hasAutoWeightExercises="$this->planHasAutoWeightExercises"
+                                        :hasHeartRateExercises="$this->planHasHeartRateExercises"
+                                        :planHasBlock="$this->planHasBlock"
                                     />
                                 </div>
                             @else

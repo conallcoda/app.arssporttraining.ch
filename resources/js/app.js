@@ -7,4 +7,5 @@ import './alpine/tree-select';
 import './alpine/model-tree';
 import './alpine/youtube-player';
 import './alpine/calendar-cell-select';
+import './alpine/calendar-slot-popover';
 

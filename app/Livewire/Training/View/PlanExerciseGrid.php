@@ -8,7 +8,9 @@ use App\Data\Exercise\Preview\GridOverrides;
 use App\Data\Exercise\Preview\OverrideManager;
 use App\Data\Exercise\Preview\PreviewGrid;
 use App\Data\Exercise\Preview\StrategyOrchestrator;
+use App\Data\Exercise\Settings\SetsSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
+use App\Data\Exercise\Strategies\Sets\DeloadSetsStrategy;
 use App\Data\Training\Config\EffectiveExerciseConfig;
 use App\Data\Training\Config\ExerciseOverrides;
 use App\Models\Exercise\Exercise;
@@ -193,6 +195,12 @@ class PlanExerciseGrid extends Component
         $weekValue = $overrides->getWeekOverrideValue($weekIndex, $field);
         if ($weekValue !== null) {
             return $weekValue;
+        }
+
+        if ($field === 'sets') {
+            $strategy = new DeloadSetsStrategy(SetsSetting::from($effectiveConfig['sets'] ?? []));
+
+            return $strategy->getSetsForWeek($weekIndex);
         }
 
         return $effectiveConfig[$field]['default'] ?? null;

@@ -7,7 +7,9 @@ use App\Data\Exercise\Preview\ExercisePreviewBuilder;
 use App\Data\Exercise\Preview\GridOverrides;
 use App\Data\Exercise\Preview\OverrideManager;
 use App\Data\Exercise\Preview\PreviewGrid;
+use App\Data\Exercise\Settings\SetsSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
+use App\Data\Exercise\Strategies\Sets\DeloadSetsStrategy;
 use App\Models\Exercise\ExerciseProgram;
 use Coda\Cms\Form\Form;
 use Coda\Cms\Form\FormFieldsetGroup;
@@ -175,12 +177,20 @@ class CalendarExerciseSettingsForm extends FormModal
 
     public function updateWeekOverride(int $weekIndex, string $field, mixed $value): void
     {
+        $effectiveDefault = null;
+
+        if ($field === 'sets') {
+            $strategy = new DeloadSetsStrategy(SetsSetting::from($this->data['config']['sets'] ?? []));
+            $effectiveDefault = $strategy->getSetsForWeek($weekIndex);
+        }
+
         $this->data['config']['overrides'] = OverrideManager::updateWeekOverride(
             $this->data['config']['overrides'] ?? OverrideManager::reset(),
             $this->data['config'],
             $weekIndex,
             $field,
             $value,
+            $effectiveDefault,
         );
 
         unset($this->previewGrid);

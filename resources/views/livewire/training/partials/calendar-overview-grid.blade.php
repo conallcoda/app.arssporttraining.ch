@@ -1,4 +1,20 @@
-<div class="overflow-x-auto">
+<div class="overflow-x-auto" x-data="{
+    popover: { open: false, loading: false, slots: [], x: 0, y: 0, above: false },
+    openMemberPopover(el, userId, date) {
+        const rect = el.getBoundingClientRect();
+        this.popover.x = rect.left + rect.width / 2;
+        this.popover.y = rect.bottom + 4;
+        this.popover.above = (this.popover.y + 200 > window.innerHeight);
+        if (this.popover.above) this.popover.y = rect.top - 4;
+        this.popover.slots = [];
+        this.popover.loading = true;
+        this.popover.open = true;
+        fetch('{{ route('api.user-day-slots') }}?user_id=' + userId + '&date=' + date)
+            .then(r => r.json())
+            .then(d => { this.popover.slots = d; this.popover.loading = false; });
+    },
+    closePopover() { this.popover.open = false; this.popover.slots = []; },
+}">
     <table class="border-separate border-spacing-0 text-sm border-t border-l border-zinc-300 dark:border-zinc-600">
         <thead>
             <tr class="bg-zinc-50 dark:bg-zinc-800/50">
@@ -31,12 +47,58 @@
             </tr>
         </thead>
         @foreach ($this->overviewData as $groupRow)
-            <tbody x-data="{ expanded: false }" wire:key="overview-group-{{ $groupRow['group']->id }}">
+            @php
+                $members = collect($groupRow['members'])->map(fn ($m) => ['id' => $m['user']->id, 'name' => $m['user']->name])->values()->all();
+                $days = collect($this->days)->map(fn ($d) => ['date' => $d['date'], 'isToday' => $d['isToday'], 'oddWeek' => $d['oddWeek']])->values()->all();
+            @endphp
+            <tbody x-data="{
+                expanded: false,
+                memberColors: null,
+                loading: false,
+                members: {{ \Illuminate\Support\Js::from($members) }},
+                days: {{ \Illuminate\Support\Js::from($days) }},
+                memberRows: [],
+                async toggle() {
+                    this.expanded = !this.expanded;
+                    if (this.expanded && !this.memberColors && !this.loading) {
+                        this.loading = true;
+                        const resp = await fetch('{{ route('api.slot-member-colors') }}?group_id={{ $groupRow['group']->id }}&start={{ $this->days[0]['date'] }}&end={{ $this->days[count($this->days) - 1]['date'] }}');
+                        this.memberColors = await resp.json();
+                        this.loading = false;
+                        this.buildMemberRows();
+                    }
+                },
+                buildMemberRows() {
+                    if (!this.memberColors) return;
+                    this.memberRows = this.members.map(m => {
+                        const dayCells = this.days.map(d => {
+                            const colors = this.memberColors[m.id]?.[d.date];
+                            if (!colors) return { style: '', hasData: false };
+                            const entries = Object.entries(colors);
+                            const total = entries.reduce((s, [, c]) => s + c, 0);
+                            if (entries.length === 1) {
+                                const c = entries[0][0];
+                                return { style: 'background-color: ' + (c === '_none' ? 'var(--color-zinc-300)' : 'var(--color-' + c + '-600)') + ';', hasData: true };
+                            }
+                            let pos = 0;
+                            const stops = entries.map(([c, cnt]) => {
+                                const pct = (cnt / total * 100).toFixed(2);
+                                const css = c === '_none' ? 'var(--color-zinc-300)' : 'var(--color-' + c + '-600)';
+                                const s = css + ' ' + pos + '% ' + (parseFloat(pos) + parseFloat(pct)) + '%';
+                                pos = parseFloat(pos) + parseFloat(pct);
+                                return s;
+                            });
+                            return { style: 'background: linear-gradient(to bottom, ' + stops.join(', ') + ');', hasData: true };
+                        });
+                        return { id: m.id, name: m.name, cells: dayCells };
+                    });
+                }
+            }" wire:key="overview-group-{{ $groupRow['group']->id }}">
                 <tr>
                     <td
                         class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] bg-zinc-100 dark:bg-zinc-800">
                         <div class="flex items-center gap-2">
-                            <button @click.stop="expanded = !expanded" class="shrink-0 text-zinc-400 transition-colors">
+                            <button @click.stop="toggle()" class="shrink-0 text-zinc-400 transition-colors">
                                 <flux:icon.chevron-right class="size-4 transition-transform duration-200"
                                     ::class="expanded && 'rotate-90'" />
                             </button>
@@ -51,13 +113,7 @@
                     @foreach ($this->days as $day)
                         @if (isset($groupRow['dates'][$day['date']]))
                             @php
-                                $groupColorCounts = [];
-                                foreach ($groupRow['members'] as $mr) {
-                                    foreach ($mr['dates'][$day['date']] ?? [] as $p) {
-                                        $c = $p['color'] ?? '_none';
-                                        $groupColorCounts[$c] = ($groupColorCounts[$c] ?? 0) + 1;
-                                    }
-                                }
+                                $groupColorCounts = $groupRow['dateColors'][$day['date']] ?? [];
                                 $groupTotal = array_sum($groupColorCounts);
                                 $groupStops = [];
                                 $groupPos = 0;
@@ -89,83 +145,63 @@
                     @endforeach
                 </tr>
 
-                @foreach ($groupRow['members'] as $memberRow)
-                    <tr x-show="expanded" x-cloak
-                        wire:key="overview-member-{{ $groupRow['group']->id }}-{{ $memberRow['user']->id }}">
-                        <td
-                            class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 pl-9 font-medium text-zinc-600 dark:text-zinc-400 whitespace-nowrap min-w-[180px] bg-white dark:bg-zinc-900">
-                            <button type="button"
-                                wire:click="selectFromOverview({{ $groupRow['group']->id }}, {{ $memberRow['user']->id }})"
-                                class="hover:underline">
-                                {{ $memberRow['user']->name }}
-                            </button>
-                        </td>
-                        @foreach ($this->days as $day)
-                            @if (!empty($memberRow['dates'][$day['date']]))
-                                @php
-                                    $progs = $memberRow['dates'][$day['date']];
-                                    $colorCounts = [];
-                                    foreach ($progs as $p) {
-                                        $c = $p['color'] ?? '_none';
-                                        $colorCounts[$c] = ($colorCounts[$c] ?? 0) + 1;
-                                    }
-                                    $total = array_sum($colorCounts);
-                                    $stops = [];
-                                    $pos = 0;
-                                    foreach ($colorCounts as $c => $count) {
-                                        $pct = round(($count / $total) * 100, 2);
-                                        $cssColor = $c === '_none' ? 'var(--color-zinc-300)' : "var(--color-{$c}-600)";
-                                        $stops[] = "{$cssColor} {$pos}% " . ($pos + $pct) . '%';
-                                        $pos += $pct;
-                                    }
-                                    $gradient =
-                                        count($stops) === 1
-                                            ? 'background-color: ' .
-                                                (array_key_first($colorCounts) === '_none'
-                                                    ? 'var(--color-zinc-300)'
-                                                    : 'var(--color-' . array_key_first($colorCounts) . '-600)') .
-                                                ';'
-                                            : 'background: linear-gradient(to bottom, ' . implode(', ', $stops) . ');';
-                                @endphp
+                <template x-if="expanded && memberRows.length > 0">
+                    <template x-for="member in memberRows" :key="member.id">
+                        <tr>
+                            <td class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 pl-9 font-medium text-zinc-600 dark:text-zinc-400 whitespace-nowrap min-w-[180px] bg-white dark:bg-zinc-900">
+                                <button type="button"
+                                    @click="$wire.selectFromOverview({{ $groupRow['group']->id }}, member.id)"
+                                    class="hover:underline" x-text="member.name">
+                                </button>
+                            </td>
+                            <template x-for="(cell, idx) in member.cells" :key="idx">
                                 <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0"
-                                    style="{{ $gradient }}">
-                                    <flux:dropdown position="bottom center">
-                                        <button type="button" class="aspect-square w-full"></button>
-                                        <flux:popover class="min-w-[10rem]">
-                                            <div class="flex flex-col gap-1">
-                                                @foreach ($memberRow['dates'][$day['date']] as $prog)
-                                                    @if ($prog['color'])
-                                                        <div class="flex flex-col text-[11px] px-1.5 py-0.5 rounded {{ \Coda\Cms\Support\ColorPalette::solidClasses($prog['color']) }}">
-                                                            <span>{{ $prog['time'] }}</span>
-                                                            <span class="truncate">{{ $prog['name'] }}</span>
-                                                            @if ($prog['session'])
-                                                                <span class="opacity-60">Session {{ $prog['session'] }}</span>
-                                                            @endif
-                                                        </div>
-                                                    @else
-                                                        <div class="flex flex-col text-[11px] px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
-                                                            <span>{{ $prog['time'] }}</span>
-                                                            <span class="truncate">{{ $prog['name'] }}</span>
-                                                            @if ($prog['session'])
-                                                                <span class="opacity-60">Session {{ $prog['session'] }}</span>
-                                                            @endif
-                                                        </div>
-                                                    @endif
-                                                @endforeach
-                                            </div>
-                                        </flux:popover>
-                                    </flux:dropdown>
-                                </td>
-                            @else
-                                <td
-                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 {{ $day['isToday'] ? 'bg-blue-50/50 dark:bg-blue-900/10' : ($day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '') }}">
+                                    :style="cell.style"
+                                    :class="cell.hasData && 'cursor-pointer hover:brightness-90'"
+                                    @click="cell.hasData && openMemberPopover($el, member.id, days[idx].date)">
                                     <div class="aspect-square"></div>
                                 </td>
-                            @endif
-                        @endforeach
+                            </template>
+                        </tr>
+                    </template>
+                </template>
+
+                <template x-if="expanded && loading">
+                    <tr>
+                        <td colspan="{{ count($this->days) + 1 }}" class="border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-3 text-center text-xs text-zinc-400">
+                            <div class="flex items-center justify-center gap-2">
+                                <div class="h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600"></div>
+                                {{ __('Loading...') }}
+                            </div>
+                        </td>
                     </tr>
-                @endforeach
+                </template>
             </tbody>
         @endforeach
     </table>
+    <template x-teleport="body">
+        <div x-show="popover.open"
+             x-cloak
+             @click.outside="closePopover()"
+             class="fixed z-50 bg-white dark:bg-zinc-800 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-700 p-2 min-w-[10rem] max-w-[16rem]"
+             :style="'left: ' + popover.x + 'px; top: ' + popover.y + 'px; transform: translateX(-50%)' + (popover.above ? ' translateY(-100%)' : '')">
+            <div class="flex flex-col gap-1">
+                <template x-if="popover.loading">
+                    <div class="flex items-center justify-center py-2">
+                        <div class="h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600"></div>
+                    </div>
+                </template>
+                <template x-if="!popover.loading && popover.slots.length > 0">
+                    <template x-for="(slot, si) in popover.slots" :key="si">
+                        <div class="flex flex-col text-[11px] px-1.5 py-0.5 rounded"
+                             :class="slot.color ? '' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'"
+                             :style="slot.color ? 'background-color: var(--color-' + slot.color + '-600); color: white;' : ''">
+                            <span x-text="slot.time"></span>
+                            <span class="truncate" x-text="slot.name"></span>
+                        </div>
+                    </template>
+                </template>
+            </div>
+        </div>
+    </template>
 </div>
