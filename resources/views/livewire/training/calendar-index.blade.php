@@ -162,6 +162,11 @@
                         @endif
                     @endif
                 @elseif ($this->hasOverviewGroups)
+                    <flux:heading size="xl">{{ __('Summary') }}</flux:heading>
+                    <div class="flex items-center gap-2 pt-4 pb-2">
+                        <flux:heading size="xl">{{ $this->title }}</flux:heading>
+                        <flux:button variant="ghost" icon="pencil" size="sm" wire:click="openCalendarRange" />
+                    </div>
                     <livewire:training.calendar-overview-grid
                         :groupFilter="$groupFilter"
                         :calendarSettings="$calendarSettings"
