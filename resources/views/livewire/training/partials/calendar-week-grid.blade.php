@@ -6,8 +6,8 @@
     $allWeeks = $this->weekGridData;
     $pageSize = 2;
     $pages = array_chunk($allWeeks, $pageSize);
-    $groupId = $this->group !== '' ? $this->group : '';
-    $userId = $this->user !== '' ? $this->user : '';
+    $groupId = property_exists($this, 'groupId') ? $this->groupId : ($this->group !== '' ? $this->group : '');
+    $userId = property_exists($this, 'userId') ? ($this->userId ?? '') : ($this->user !== '' ? $this->user : '');
 @endphp
 
 <div x-data="{

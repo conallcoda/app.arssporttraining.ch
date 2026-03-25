@@ -34,15 +34,8 @@
                     @endif
                 </div>
 
-                @if ($this->hasSelection() && $this->programs->isNotEmpty())
-                    @if ($view === 'overview')
-                        <div class="px-4 py-2 flex justify-end gap-2">
-                            <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddBlock">{{ __('Add Block') }}</flux:button>
-                            <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddContent">{{ __('Add Program') }}</flux:button>
-                        </div>
-                    @endif
-
-                    @if ($view === 'plan')
+                @if ($this->hasSelection())
+                    @if ($view === 'plan' && $this->programs->isNotEmpty())
                         <div class="px-4 py-2 flex items-center gap-4">
                             <flux:field class="min-w-[180px]">
                                 <flux:label>{{ __('Category') }}</flux:label>
@@ -117,51 +110,34 @@
                                 </div>
                             @endif
                         @endif
-                    @elseif ($view === 'schedule')
-                        <div class="px-4 py-2 flex items-center gap-4">
-                            <flux:radio.group wire:model.live="weekEditMode" variant="segmented" size="sm">
-                                <flux:radio value="view" :label="__('View')" />
-                                <flux:radio value="edit" :label="__('Edit')" />
-                                <flux:radio value="remove" :label="__('Remove')" />
-                            </flux:radio.group>
-
-                            @if ($weekEditMode === 'edit')
-                                <div class="flex items-center gap-3 flex-1">
-                                    <flux:select variant="listbox" searchable size="sm" wire:model.live="quickProgramId" :placeholder="__('Select program...')" :invalid="$errors->has('quickProgramId')">
-                                        @foreach ($this->quickProgramOptions as $id => $name)
-                                            <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
-                                        @endforeach
-                                    </flux:select>
-
-                                    @if ($this->quickAthleteOptions->isNotEmpty())
-                                        <flux:select variant="listbox" searchable multiple size="sm" wire:model.live="quickSelectedAthletes" :placeholder="__('Athletes...')" :invalid="$errors->has('quickSelectedAthletes')">
-                                            @foreach ($this->quickAthleteOptions as $athlete)
-                                                <flux:select.option value="{{ $athlete['id'] }}">{{ $athlete['name'] }}</flux:select.option>
-                                            @endforeach
-                                        </flux:select>
-                                    @endif
-                                </div>
-                            @endif
+                    @elseif ($view === 'schedule' && $this->programs->isNotEmpty())
+                        <livewire:training.calendar-schedule-view
+                            :groupId="(int) $group"
+                            :userId="$user !== '' ? (int) $user : null"
+                            :calendarSettings="$calendarSettings"
+                            :weekStartsOn="$weekStartsOn"
+                        />
+                    @elseif (!$this->hasGroupAthletes)
+                        <div class="flex flex-col items-center justify-center py-20 text-center">
+                            <flux:icon.users class="size-10 text-zinc-300 dark:text-zinc-600 mb-3" />
+                            <flux:heading size="lg" class="text-zinc-500 dark:text-zinc-400">{{ __('No athletes in this group') }}</flux:heading>
                         </div>
-
-                        @include('livewire.training.partials.calendar-week-grid')
                     @else
-                        @include('livewire.training.partials.calendar-programs-grid')
+                        <livewire:training.calendar-programs-view
+                            :groupId="(int) $group"
+                            :userId="$user !== '' ? (int) $user : null"
+                            :calendarSettings="$calendarSettings"
+                            :weekStartsOn="$weekStartsOn"
+                            :weekEndsOn="$weekEndsOn"
+                        />
                     @endif
-                @elseif ($this->hasSelection() && !$this->hasGroupAthletes)
-                    <div class="flex flex-col items-center justify-center py-20 text-center">
-                        <flux:icon.users class="size-10 text-zinc-300 dark:text-zinc-600 mb-3" />
-                        <flux:heading size="lg" class="text-zinc-500 dark:text-zinc-400">{{ __('No athletes in this group') }}</flux:heading>
-                    </div>
-                @elseif ($this->hasSelection())
-                    <div class="flex flex-col items-center justify-center py-20 text-center">
-                        <flux:icon.calendar class="size-10 text-zinc-300 dark:text-zinc-600 mb-3" />
-                        <flux:heading size="lg" class="text-zinc-500 dark:text-zinc-400">{{ __('No programs assigned') }}
-                        </flux:heading>
-                        <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddContent" class="mt-3">{{ __('Add Program') }}</flux:button>
-                    </div>
-                @elseif (count($this->overviewData) > 0)
-                    @include('livewire.training.partials.calendar-overview-grid')
+                @elseif ($this->hasOverviewGroups)
+                    <livewire:training.calendar-overview-grid
+                        :groupFilter="$groupFilter"
+                        :calendarSettings="$calendarSettings"
+                        :weekStartsOn="$weekStartsOn"
+                        :weekEndsOn="$weekEndsOn"
+                    />
                 @else
                     <div class="flex flex-col items-center justify-center py-20 text-center">
                         <flux:icon.users class="size-10 text-zinc-300 dark:text-zinc-600 mb-3" />
@@ -179,97 +155,5 @@
 
     <livewire:training.calendar-range-form />
 
-    <livewire:training.week-slot-form />
-
     <livewire:training.block-form />
-
-    <livewire:training.exercise-program-form-modal
-        name="edit-program"
-        :title="__('Edit Exercise Program')"
-        :flyout="true"
-        maxWidth="max-w-lg"
-        :showDelete="true"
-        :excludeFields="['owner_id', 'internalTags']"
-    />
-
-    <livewire:database.athlete-metric-form-modal
-        name="calendar-metric-form"
-        :title="__('Add Metric')"
-        :formDataClass="App\Data\Athlete\Metric\MetricSubmissionData::class"
-        :flyout="true"
-        maxWidth="max-w-sm"
-        :showDelete="true"
-        :excludeFields="['recorded_at']"
-    />
-
-    <x-cms::confirm-modal
-        name="confirm-delete-program"
-        :heading="__('Remove program?')"
-        :description="__('You\'re about to remove this program from the calendar. This action cannot be reversed.')"
-        :confirmLabel="__('Delete')"
-        action="deleteEditingTrainingProgram"
-    />
-
-    <x-cms::confirm-modal
-        name="confirm-delete-metric"
-        :heading="__('Delete Metric?')"
-        :description="__('You\'re about to delete this metric. This action cannot be reversed.')"
-        :confirmLabel="__('Delete')"
-        action="deleteMetricSubmission"
-    />
-
-    <flux:modal name="add-content" variant="flyout" class="max-w-md">
-        <div class="flex flex-col gap-4 p-2">
-            <flux:heading size="lg">{{ __('Add Program') }}</flux:heading>
-
-            <flux:tab.group>
-                <flux:tabs wire:model.live="addContentTab">
-                    <flux:tab name="program">{{ __('Program') }}</flux:tab>
-                    <flux:tab name="exercise">{{ __('Exercise') }}</flux:tab>
-                </flux:tabs>
-
-                <flux:tab.panel name="program" class="!px-0">
-                    <div class="flex flex-col gap-3">
-                        <x-cms::form.field :field="\Coda\Cms\Form\Fields\Search::make('addContentSearch')" />
-                        <div class="flex flex-col gap-1 max-h-80 overflow-y-auto">
-                            @foreach ($this->addContentOptions as $option)
-                                <button type="button" wire:click="addFromProgram({{ $option->id }})"
-                                    class="flex items-center gap-2 px-3 py-2 text-sm text-left rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300">
-                                    @if ($option->exerciseCategory?->color)
-                                        <span class="w-2 h-2 rounded-full shrink-0"
-                                            style="{{ \Coda\Cms\Support\ColorPalette::solid($option->exerciseCategory->color) }}"></span>
-                                    @endif
-                                    {{ $option->name }}
-                                </button>
-                            @endforeach
-                            @if ($this->addContentOptions->isEmpty())
-                                <flux:text class="px-3 py-4 text-center text-zinc-400">{{ __('No programs found.') }}</flux:text>
-                            @endif
-                        </div>
-                    </div>
-                </flux:tab.panel>
-
-                <flux:tab.panel name="exercise" class="!px-0">
-                    <div class="flex flex-col gap-3">
-                        <x-cms::form.field :field="\Coda\Cms\Form\Fields\Search::make('addContentSearch')" />
-                        <div class="flex flex-col gap-1 max-h-80 overflow-y-auto">
-                            @foreach ($this->addContentOptions as $option)
-                                <button type="button" wire:click="addFromExercise({{ $option->id }})"
-                                    class="flex items-center gap-2 px-3 py-2 text-sm text-left rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300">
-                                    @if ($option->category?->rootAncestorOrSelf?->color)
-                                        <span class="w-2 h-2 rounded-full shrink-0"
-                                            style="{{ \Coda\Cms\Support\ColorPalette::solid($option->category->rootAncestorOrSelf->color) }}"></span>
-                                    @endif
-                                    {{ $option->name }}
-                                </button>
-                            @endforeach
-                            @if ($this->addContentOptions->isEmpty())
-                                <flux:text class="px-3 py-4 text-center text-zinc-400">{{ __('No exercises found.') }}</flux:text>
-                            @endif
-                        </div>
-                    </div>
-                </flux:tab.panel>
-            </flux:tab.group>
-        </div>
-    </flux:modal>
 </flux:main>

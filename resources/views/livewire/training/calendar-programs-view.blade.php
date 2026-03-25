@@ -1,0 +1,563 @@
+@php [$gridStart, $gridEnd] = $this->dateRange(); @endphp
+<div>
+<div class="px-4 py-2 flex justify-end gap-2">
+    <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddBlock">{{ __('Add Block') }}</flux:button>
+    <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddContent">{{ __('Add Program') }}</flux:button>
+</div>
+<div class="overflow-x-auto" x-data="calendar_slot_popover({ groupId: '{{ $this->groupId }}', userId: '{{ $this->userId ?? '' }}', startDate: '{{ $gridStart->format('Y-m-d') }}', endDate: '{{ $gridEnd->format('Y-m-d') }}', gridCellsUrl: '{{ route('api.program-grid-cells') }}', slotDetailsUrl: '{{ route('api.slot-details') }}' })">
+    <table class="border-separate border-spacing-0 text-sm border-t border-l border-zinc-300 dark:border-zinc-600">
+        <thead>
+            <tr class="bg-zinc-50 dark:bg-zinc-800/50">
+                <th rowspan="3"
+                    class="sticky left-0 z-10 bg-zinc-100 dark:bg-zinc-800 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 text-left min-w-[180px]">
+                </th>
+                @foreach ($this->months as $month)
+                    <th colspan="{{ $month['colspan'] }}"
+                        class="border-r border-b border-zinc-300 dark:border-zinc-600 px-2 py-1.5 text-center text-xs font-semibold text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800">
+                        {{ $month['label'] }}
+                    </th>
+                @endforeach
+            </tr>
+            <tr class="bg-zinc-50 dark:bg-zinc-800/50">
+                @foreach ($this->weeks as $week)
+                    <th colspan="{{ $week['colspan'] }}"
+                        class="border-r border-b border-zinc-300 dark:border-zinc-600 px-1 py-1 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 {{ $week['week'] % 2 !== 0 ? 'bg-zinc-100/50 dark:bg-zinc-700/20' : '' }}">
+                        W{{ $week['week'] }}
+                    </th>
+                @endforeach
+            </tr>
+            <tr class="bg-zinc-100 dark:bg-zinc-800">
+                @foreach ($this->days as $day)
+                    <th
+                        class="border-r border-b border-zinc-300 dark:border-zinc-600 px-1 py-2 text-center min-w-[40px] {{ $day['isToday'] ? 'bg-blue-100 dark:bg-blue-900/30' : ($day['oddWeek'] ? 'bg-zinc-100/50 dark:bg-zinc-700/20' : '') }}">
+                        <div class="text-[10px] leading-tight">{{ $day['label'] }}</div>
+                        <div class="font-medium text-xs">{{ $day['day'] }}</div>
+                    </th>
+                @endforeach
+            </tr>
+        </thead>
+        @if ($this->programs->isNotEmpty())
+            <tbody x-data="calendar_cell_select({ type: 'notes' })" data-cell-select-id="notes-notes" wire:ignore.self @keydown.escape.window="clearSelection()">
+                <tr>
+                    <td class="sticky left-0 z-20 bg-zinc-100 dark:bg-zinc-800 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-1 min-w-[180px] text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                        {{ __('Notes') }}
+                    </td>
+                    <td colspan="{{ count($this->days) }}"
+                        class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 relative"
+                        style="height: {{ max(1, $this->allBlocks['laneCount']) * 28 + 8 }}px">
+                        <div class="absolute inset-0 flex" wire:ignore.self>
+                            @foreach ($this->days as $dayIdx => $day)
+                                <div @mousedown.stop="startDrag({{ $dayIdx }}, '{{ $day['date'] }}', $event)"
+                                     @mouseover="dragOver({{ $dayIdx }}, '{{ $day['date'] }}')"
+                                     @contextmenu="showContextMenu($event, {{ $dayIdx }}, '{{ $day['date'] }}')"
+                                     wire:key="block-bg-{{ $dayIdx }}"
+                                     class="flex-1 cursor-pointer h-full border-r border-zinc-300 dark:border-zinc-600 last:border-r-0 select-none {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}"
+                                     :class="(endIdx !== null ? ({{ $dayIdx }} >= Math.min(anchorIdx, endIdx) && {{ $dayIdx }} <= Math.max(anchorIdx, endIdx)) : anchorIdx === {{ $dayIdx }}) && 'ring ring-inset ring-black dark:ring-white'">
+                                </div>
+                            @endforeach
+                        </div>
+                        @foreach ($this->allBlocks['notes'] as $block)
+                            <div wire:click.stop="editBlock({{ $block['id'] }})"
+                                 wire:key="block-{{ $block['id'] }}"
+                                 class="absolute cursor-pointer z-10 px-0.5"
+                                 style="left: {{ ($block['startIdx'] / $this->allBlocks['totalDays']) * 100 }}%; width: {{ ($block['colspan'] / $this->allBlocks['totalDays']) * 100 }}%; top: {{ $block['lane'] * 28 + 4 }}px; height: 24px;">
+                                <div class="rounded-sm flex items-center justify-center h-full px-1"
+                                     style="{{ \Coda\Cms\Support\ColorPalette::solid($block['color']) }}">
+                                    <span class="text-xs font-medium text-white truncate">{{ $block['note'] }}</span>
+                                </div>
+                            </div>
+                        @endforeach
+                    </td>
+                </tr>
+                <template x-teleport="body">
+                    <div x-show="contextMenu"
+                         x-cloak
+                         @click.outside="clearSelection()"
+                         class="fixed z-50 bg-white dark:bg-zinc-800 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-700 py-1 min-w-[160px]"
+                         :style="'left: ' + contextMenuX + 'px; top: ' + contextMenuY + 'px'">
+                        <button type="button"
+                                @click="performAction()"
+                                class="w-full text-left px-3 py-1.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700">
+                            {{ __('Add Note') }}
+                        </button>
+                    </div>
+                </template>
+            </tbody>
+        @endif
+        @if (true)
+            <tbody x-data="{ expanded: $persist(false).as('cal-metrics') }"
+                   x-init="if (expanded && !$wire.metricsLoaded) $wire.loadMetrics()"
+                   wire:key="metrics-section">
+                <tr>
+                    <td @click="expanded = !expanded; if (expanded && !$wire.metricsLoaded) $wire.loadMetrics()"
+                        class="sticky left-0 z-10 cursor-pointer border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] bg-zinc-300 dark:bg-zinc-700">
+                        <div class="flex items-center gap-2">
+                            <flux:icon.chevron-right class="size-4 transition-transform duration-200"
+                                ::class="expanded && 'rotate-90'" />
+                            <span>{{ __('Metrics') }}</span>
+                        </div>
+                    </td>
+                    @foreach ($this->days as $day)
+                        <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}">
+                            @if (isset($this->metricSummaryDates[$day['date']]))
+                                <div class="aspect-square rounded-sm bg-zinc-300 dark:bg-zinc-700"></div>
+                            @else
+                                <div class="aspect-square"></div>
+                            @endif
+                        </td>
+                    @endforeach
+                </tr>
+
+                @if ($metricsLoaded)
+                    @foreach (\App\Data\Athlete\Metric\MetricEnum::cases() as $metricCase)
+                        <tr wire:key="metric-row-{{ $metricCase->value }}" x-show="expanded" x-cloak>
+                            <td class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 pl-7 pr-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] bg-white dark:bg-zinc-900">
+                                {{ $metricCase->label() }}
+                                @if (isset($this->currentMetricValues[$metricCase->value]))
+                                    <div class="mt-1">
+                                        <flux:dropdown>
+                                            <button type="button" class="cursor-pointer">
+                                                <flux:badge size="sm" color="zinc" class="text-xs pointer-events-none">
+                                                    {{ $this->currentMetricValues[$metricCase->value]['summary'] }}
+                                                </flux:badge>
+                                            </button>
+                                            <flux:popover class="max-w-xs">
+                                                <p class="text-sm">Current value. Recorded {{ $this->currentMetricValues[$metricCase->value]['recorded_at'] }}</p>
+                                            </flux:popover>
+                                        </flux:dropdown>
+                                    </div>
+                                @endif
+                            </td>
+                            @foreach ($this->days as $day)
+                                @php
+                                    $metricCellKey = $metricCase->value . '-' . $day['date'];
+                                    $metricCell = $this->metricCellData[$metricCellKey] ?? null;
+                                @endphp
+                                @if ($this->userId !== null)
+                                    <td wire:click="openMetricCell('{{ $metricCase->value }}', '{{ $day['date'] }}')"
+                                        title="{{ $metricCell ? $metricCell['summary'] : '' }}"
+                                        class="group/cell border-r border-b border-zinc-300 dark:border-zinc-600 p-1 cursor-pointer hover:brightness-95 dark:hover:brightness-125 {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}">
+                                        @if ($metricCell)
+                                            <div class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm bg-zinc-500/80 dark:bg-zinc-500/60">
+                                                {{ $metricCell['label'] }}
+                                            </div>
+                                        @else
+                                            <div class="aspect-square flex items-center justify-center">
+                                                <svg class="size-3 text-zinc-400 dark:text-zinc-500 opacity-0 group-hover/cell:opacity-100 transition-opacity" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                                            </div>
+                                        @endif
+                                    </td>
+                                @elseif ($this->userId === null)
+                                    @php
+                                        $groupCell = $this->groupMetricCellData[$metricCellKey] ?? null;
+                                    @endphp
+                                    @if ($groupCell)
+                                        <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 hover:brightness-95 dark:hover:brightness-125 {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}">
+                                            <flux:dropdown position="bottom center">
+                                                <button type="button"
+                                                    class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm cursor-pointer bg-zinc-500/80 dark:bg-zinc-500/60">
+                                                    {{ $groupCell['count'] }}
+                                                </button>
+                                                <flux:popover class="min-w-[10rem] p-2">
+                                                    <div class="flex flex-col gap-1.5">
+                                                        @foreach ($groupCell['entries'] as $entry)
+                                                            <button type="button"
+                                                                wire:click="openGroupMetricCell('{{ $metricCase->value }}', '{{ $day['date'] }}', {{ $entry['user_id'] }}, {{ $entry['submission_id'] }})"
+                                                                class="flex flex-col px-2 py-1.5 rounded-lg bg-zinc-500/80 dark:bg-zinc-500/60 text-left cursor-pointer hover:opacity-80 transition-opacity">
+                                                                <span class="text-[10px] text-white opacity-80">{{ $entry['summary'] }}</span>
+                                                                <span class="text-[10px] text-white opacity-80 truncate">{{ $entry['athlete'] }}</span>
+                                                            </button>
+                                                        @endforeach
+                                                        @if ($groupCell['count'] < $groupCell['memberCount'])
+                                                            <button type="button"
+                                                                wire:click="openGroupMetricCell('{{ $metricCase->value }}', '{{ $day['date'] }}')"
+                                                                class="flex items-center justify-center w-full py-1 rounded-lg cursor-pointer text-zinc-400 dark:text-zinc-500 hover:bg-white/10 hover:text-zinc-200 transition-all">
+                                                                <svg class="size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                                                            </button>
+                                                        @endif
+                                                    </div>
+                                                </flux:popover>
+                                            </flux:dropdown>
+                                        </td>
+                                    @else
+                                        <td wire:click="openGroupMetricCell('{{ $metricCase->value }}', '{{ $day['date'] }}')"
+                                            class="group/cell border-r border-b border-zinc-300 dark:border-zinc-600 p-1 cursor-pointer hover:brightness-95 dark:hover:brightness-125 {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}">
+                                            <div class="aspect-square flex items-center justify-center">
+                                                <svg class="size-3 text-zinc-400 dark:text-zinc-500 opacity-0 group-hover/cell:opacity-100 transition-opacity" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                                            </div>
+                                        </td>
+                                    @endif
+                                @else
+                                    <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 {{ $day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '' }}">
+                                        <div class="aspect-square"></div>
+                                    </td>
+                                @endif
+                            @endforeach
+                        </tr>
+                    @endforeach
+                @endif
+            </tbody>
+        @endif
+        @foreach ($this->groupedPrograms as $categoryId => $group)
+            @php
+                $category = $group['category'];
+                $groupEntries = $group['entries'];
+                $categoryColorClass = $category?->color
+                    ? \Coda\Cms\Support\ColorPalette::solidClasses($category->color)
+                    : 'bg-zinc-100 dark:bg-zinc-800';
+            @endphp
+            @php
+                $catBlocks = $this->categoryBlocks[$categoryId] ?? ['notes' => [], 'laneCount' => 0, 'totalDays' => count($this->days)];
+                $blockDayMap = [];
+                foreach ($catBlocks['notes'] as $catBlock) {
+                    for ($di = $catBlock['startIdx']; $di <= $catBlock['endIdx']; $di++) {
+                        $blockDayMap[$di] = ['id' => $catBlock['id'], 'note' => $catBlock['note']];
+                    }
+                }
+                $categoryBlockBgClass = $category?->color
+                    ? \Coda\Cms\Support\ColorPalette::blockTint($category->color)
+                    : '';
+            @endphp
+            @php
+                $hasBlocks = !empty($catBlocks['notes']);
+                $isFirst = $loop->first;
+                $labelRowspan = 1 + ($hasBlocks ? 1 : 0);
+                $blockStartMap = [];
+                if ($hasBlocks) {
+                    foreach ($catBlocks['notes'] as $catBlock) {
+                        $blockStartMap[$catBlock['startIdx']] = $catBlock;
+                    }
+                }
+            @endphp
+            <tbody x-data="calendar_cell_select({ type: 'category', categoryId: {{ $categoryId }}, persistKey: 'cal-cat-{{ $categoryId }}' })"
+                  data-cell-select-id="category-{{ $categoryId }}"
+                  @keydown.escape.window="clearSelection()"
+                  wire:ignore.self
+                  wire:key="category-{{ $categoryId }}-{{ md5(json_encode($catBlocks)) }}">
+                {{-- Block labels row (only if blocks exist) --}}
+                @if ($hasBlocks)
+                    <tr>
+                        <td @click="expanded = !expanded"
+                            rowspan="{{ $labelRowspan }}"
+                            class="sticky left-0 z-10 cursor-pointer border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] {{ $categoryColorClass }}">
+                            <div class="flex items-center gap-2">
+                                <flux:icon.chevron-right class="size-4 transition-transform duration-200"
+                                    ::class="expanded && 'rotate-90'" />
+                                <span>{{ $category?->name ?? 'Uncategorized' }}</span>
+                                <span class="text-xs font-normal text-zinc-500 dark:text-zinc-200">({{ $groupEntries->count() }})</span>
+                            </div>
+                        </td>
+                        @php $skipUntil = -1; @endphp
+                        @foreach ($this->days as $dayIdx => $day)
+                            @if ($dayIdx <= $skipUntil)
+                                @continue
+                            @endif
+                            @if (isset($blockStartMap[$dayIdx]))
+                                @php
+                                    $block = $blockStartMap[$dayIdx];
+                                    $span = $block['colspan'];
+                                    $skipUntil = $block['endIdx'];
+                                @endphp
+                                    <td wire:click="editBlock({{ $block['id'] }})"
+                                        colspan="{{ $span }}"
+                                        class="border-r border-b border-zinc-300 dark:border-zinc-600 px-1 cursor-pointer max-w-0 overflow-hidden {{ $categoryBlockBgClass }}"
+                                        style="height: 26px">
+                                        <span class="text-sm font-medium truncate block text-center text-zinc-600 dark:text-zinc-300">{{ $block['note'] }}</span>
+                                    </td>
+                            @else
+                                <td @mousedown.stop="startDrag({{ $dayIdx }}, '{{ $day['date'] }}', $event)"
+                                    @mouseover="dragOver({{ $dayIdx }}, '{{ $day['date'] }}')"
+                                    @contextmenu="showContextMenu($event, {{ $dayIdx }}, '{{ $day['date'] }}')"
+                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer select-none"
+                                    :class="(endIdx !== null ? ({{ $dayIdx }} >= Math.min(anchorIdx, endIdx) && {{ $dayIdx }} <= Math.max(anchorIdx, endIdx)) : anchorIdx === {{ $dayIdx }}) && 'ring ring-inset ring-black dark:ring-white'"
+                                    style="height: 22px"></td>
+                            @endif
+                        @endforeach
+                    </tr>
+                @endif
+
+                @php $categoryProgramIds = $groupEntries->pluck('id')->all(); @endphp
+                {{-- Indicator squares row --}}
+                <tr>
+                    @if (!$hasBlocks)
+                        <td @click="expanded = !expanded"
+                            class="sticky left-0 z-10 cursor-pointer border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] {{ $categoryColorClass }}">
+                            <div class="flex items-center gap-2">
+                                <flux:icon.chevron-right class="size-4 transition-transform duration-200"
+                                    ::class="expanded && 'rotate-90'" />
+                                <span>{{ $category?->name ?? 'Uncategorized' }}</span>
+                                <span class="text-xs font-normal text-zinc-500 dark:text-zinc-200">({{ $groupEntries->count() }})</span>
+                            </div>
+                        </td>
+                    @endif
+                    @foreach ($this->days as $dayIdx => $day)
+                        @php
+                            $inBlock = isset($blockDayMap[$dayIdx]);
+                            $blockId = $inBlock ? $blockDayMap[$dayIdx]['id'] : null;
+                            $blockNote = $inBlock ? $blockDayMap[$dayIdx]['note'] : null;
+                            $bgClass = $inBlock ? $categoryBlockBgClass : ($day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '');
+                        @endphp
+                        @if ($inBlock)
+                            <td wire:click="editBlock({{ $blockId }})"
+                                title="{{ $blockNote }}"
+                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 cursor-pointer hover:brightness-95 dark:hover:brightness-125 {{ $bgClass }}"
+                                :class="(endIdx !== null ? ({{ $dayIdx }} >= Math.min(anchorIdx, endIdx) && {{ $dayIdx }} <= Math.max(anchorIdx, endIdx)) : anchorIdx === {{ $dayIdx }}) && 'ring ring-inset ring-black dark:ring-white'">
+                                <div class="aspect-square" :class="hasCategoryData({{ json_encode($categoryProgramIds) }}, '{{ $day['date'] }}') && 'rounded-sm {{ $categoryColorClass }}'"></div>
+                            </td>
+                        @else
+                            <td @mousedown.stop="startDrag({{ $dayIdx }}, '{{ $day['date'] }}', $event)"
+                                @mouseover="dragOver({{ $dayIdx }}, '{{ $day['date'] }}')"
+                                @contextmenu="showContextMenu($event, {{ $dayIdx }}, '{{ $day['date'] }}')"
+                                class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 cursor-pointer select-none hover:brightness-95 dark:hover:brightness-125 {{ $bgClass }}"
+                                :class="(endIdx !== null ? ({{ $dayIdx }} >= Math.min(anchorIdx, endIdx) && {{ $dayIdx }} <= Math.max(anchorIdx, endIdx)) : anchorIdx === {{ $dayIdx }}) && 'ring ring-inset ring-black dark:ring-white'">
+                                <div class="aspect-square" :class="hasCategoryData({{ json_encode($categoryProgramIds) }}, '{{ $day['date'] }}') && 'rounded-sm {{ $categoryColorClass }}'"></div>
+                            </td>
+                        @endif
+                    @endforeach
+                </tr>
+
+                @foreach ($groupEntries as $entry)
+                    @php
+                        $categoryColor = $entry->program->exerciseCategory?->color;
+                        $colorClass = $categoryColor
+                            ? \Coda\Cms\Support\ColorPalette::solidClasses($categoryColor)
+                            : '';
+                        $exercises = $entry->program->exercises->sortBy('pivot.sort');
+                    @endphp
+                    <tr wire:key="program-{{ $entry->id }}" x-show="expanded" x-cloak class="group/program">
+                        <td
+                            class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 pl-7 pr-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] bg-white dark:bg-zinc-900">
+                            <div class="flex items-center gap-2">
+                                @if ($exercises->isNotEmpty())
+                                    <button type="button" @click.stop="programExpanded[{{ $entry->id }}] = !programExpanded[{{ $entry->id }}]" class="shrink-0">
+                                        <flux:icon.chevron-right class="size-4 transition-transform duration-200"
+                                            ::class="programExpanded[{{ $entry->id }}] && 'rotate-90'" />
+                                    </button>
+                                @endif
+                                @if ($categoryColor)
+                                    <span class="w-2 h-2 rounded-full shrink-0"
+                                        style="{{ \Coda\Cms\Support\ColorPalette::solid($categoryColor) }}"></span>
+                                @endif
+                                <button type="button" wire:click="navigateToPlan({{ $entry->id }})"
+                                    class="text-left hover:underline">
+                                    {{ $entry->program->name }}
+                                </button>
+                                <button type="button" wire:click.stop="openEditProgram({{ $entry->id }})"
+                                    class="opacity-0 group-hover/program:opacity-100 transition-opacity shrink-0 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
+                                    <flux:icon.pencil class="size-3.5" />
+                                </button>
+                            </div>
+                            @if ($exercises->isNotEmpty())
+                                <div x-show="programExpanded[{{ $entry->id }}]" x-cloak class="mt-1 ml-10 flex flex-col gap-0.5">
+                                    @foreach ($exercises as $exercise)
+                                        <label wire:key="exercise-check-{{ $exercise->pivot->id }}" class="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                wire:click="toggleExerciseDisabled({{ $exercise->id }}, {{ $entry->exercise_program_id }})"
+                                                @if (!$this->isExerciseDisabled($exercise->id, $entry->program)) checked @endif
+                                                class="rounded border-zinc-300 dark:border-zinc-600 text-zinc-800 dark:text-white focus:ring-zinc-500 dark:bg-zinc-700"
+                                            />
+                                            {{ $exercise->name }}
+                                        </label>
+                                    @endforeach
+                                </div>
+                            @endif
+                        </td>
+                        @foreach ($this->days as $dayIdx => $day)
+                            @php
+                                $programInBlock = isset($blockDayMap[$dayIdx]);
+                                $programBlockNote = $programInBlock ? $blockDayMap[$dayIdx]['note'] : null;
+                                $programBgClass = $programInBlock ? $categoryBlockBgClass : ($day['oddWeek'] ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : '');
+                            @endphp
+                            @if ($this->userId !== null)
+                                @php
+                                    $dateKey = $entry->id . '-' . $day['date'];
+                                    $slotTimes = $this->programCellSlots[$dateKey] ?? null;
+                                    $slotCount = $slotTimes['_userCount'] ?? ($slotTimes !== null ? 1 : 0);
+                                @endphp
+                                @if ($slotCount > 0)
+                                    @php $firstTime = collect($slotTimes)->keys()->first(fn ($k) => $k !== '_userCount'); @endphp
+                                    <td wire:click="editWeekSlot({{ $entry->id }}, '{{ $day['date'] }}', '{{ $firstTime }}')"
+                                        @if ($programInBlock) title="{{ $programBlockNote }}" @endif
+                                        class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 cursor-pointer hover:brightness-95 dark:hover:brightness-125 {{ $programBgClass }}"
+                                        :class="(endIdx !== null ? ({{ $dayIdx }} >= Math.min(anchorIdx, endIdx) && {{ $dayIdx }} <= Math.max(anchorIdx, endIdx)) : anchorIdx === {{ $dayIdx }}) && 'ring ring-inset ring-black dark:ring-white'">
+                                        @if (isset($this->athleteSlotOrder[$dateKey]))
+                                            <div class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm {{ $colorClass ?: 'bg-emerald-400/80 dark:bg-emerald-500/60' }}">
+                                                {{ $this->athleteSlotOrder[$dateKey] }}
+                                            </div>
+                                        @else
+                                            <div class="w-full aspect-square flex items-center justify-center">
+                                                <span class="block w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                                            </div>
+                                        @endif
+                                    </td>
+                                @else
+                                    <td wire:click="openProgramSlot({{ $entry->id }}, '{{ $day['date'] }}')"
+                                        @if ($programInBlock) title="{{ $programBlockNote }}" @endif
+                                        class="group/cell border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer hover:brightness-95 dark:hover:brightness-125 {{ $programBgClass }}"
+                                        :class="(endIdx !== null ? ({{ $dayIdx }} >= Math.min(anchorIdx, endIdx) && {{ $dayIdx }} <= Math.max(anchorIdx, endIdx)) : anchorIdx === {{ $dayIdx }}) && 'ring ring-inset ring-black dark:ring-white'">
+                                        <div class="aspect-square flex items-center justify-center">
+                                            <svg class="size-3 text-zinc-400 dark:text-zinc-500 opacity-0 group-hover/cell:opacity-100 transition-opacity" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                                        </div>
+                                    </td>
+                                @endif
+                            @else
+                                <td @if ($programInBlock) title="{{ $programBlockNote }}" @endif
+                                    class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 hover:brightness-95 dark:hover:brightness-125 {{ $programBgClass }}"
+                                    :class="(endIdx !== null ? ({{ $dayIdx }} >= Math.min(anchorIdx, endIdx) && {{ $dayIdx }} <= Math.max(anchorIdx, endIdx)) : anchorIdx === {{ $dayIdx }}) && 'ring ring-inset ring-black dark:ring-white'">
+                                    <button x-show="getCellCount({{ $entry->id }}, '{{ $day['date'] }}') > 0"
+                                        x-cloak
+                                        type="button"
+                                        @click.stop="openPopover($event.currentTarget, {{ $entry->id }}, '{{ $day['date'] }}', '{{ $categoryColor }}')"
+                                        class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm cursor-pointer {{ $colorClass ?: 'bg-emerald-400/80 dark:bg-emerald-500/60' }}"
+                                        x-text="getCellCount({{ $entry->id }}, '{{ $day['date'] }}')">
+                                    </button>
+                                    <div x-show="cellDataLoaded && getCellCount({{ $entry->id }}, '{{ $day['date'] }}') === 0"
+                                        x-cloak
+                                        @click="$wire.openProgramSlot({{ $entry->id }}, '{{ $day['date'] }}')"
+                                        class="aspect-square flex items-center justify-center cursor-pointer group/empty">
+                                        <svg class="size-3 text-zinc-400 dark:text-zinc-500 opacity-0 group-hover/empty:opacity-100 transition-opacity" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                                    </div>
+                                </td>
+                            @endif
+                        @endforeach
+                    </tr>
+                @endforeach
+                <template x-teleport="body">
+                    <div x-show="contextMenu"
+                         x-cloak
+                         @click.outside="clearSelection()"
+                         class="fixed z-50 bg-white dark:bg-zinc-800 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-700 py-1 min-w-[160px]"
+                         :style="'left: ' + contextMenuX + 'px; top: ' + contextMenuY + 'px'">
+                        <button type="button"
+                                @click="performAction()"
+                                class="w-full text-left px-3 py-1.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700">
+                            {{ __('Create Block') }}
+                        </button>
+                    </div>
+                </template>
+            </tbody>
+        @endforeach
+    </table>
+    <template x-teleport="body">
+        <div x-show="open"
+             x-cloak
+             id="calendar-slot-popover"
+             class="fixed z-50 bg-white dark:bg-zinc-800 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-700 p-2 min-w-[10rem] max-w-[16rem]"
+             :style="'left: ' + x + 'px; top: ' + y + 'px; transform: translateX(-50%)' + (_above ? ' translateY(-100%)' : '')">
+            <div class="flex flex-col gap-1.5">
+                <template x-if="loading">
+                    <div class="flex items-center justify-center py-2">
+                        <div class="h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600"></div>
+                    </div>
+                </template>
+                <template x-if="slotDetails && !loading">
+                    <template x-for="slot in slotDetails" :key="slot.time + '-' + slot.userId">
+                        <button type="button"
+                            @click="editSlot(slot.time)"
+                            class="flex flex-col px-2 py-1.5 rounded-lg text-left cursor-pointer hover:opacity-80 transition-opacity"
+                            :class="color ? '' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'"
+                            :style="color ? 'background-color: var(--color-' + color + '-500); color: white;' : ''">
+                            <span class="text-[10px]" :class="color ? 'opacity-80' : 'opacity-60'" x-text="slot.time"></span>
+                            <span class="text-xs font-medium truncate" x-text="slot.name"></span>
+                            <template x-if="slot.session">
+                                <span class="text-[10px]" :class="color ? 'opacity-60' : 'opacity-40'" x-text="'Session ' + slot.session"></span>
+                            </template>
+                        </button>
+                    </template>
+                </template>
+            </div>
+        </div>
+    </template>
+</div>
+
+<livewire:training.exercise-program-form-modal
+    name="edit-program"
+    :title="__('Edit Exercise Program')"
+    :flyout="true"
+    maxWidth="max-w-lg"
+    :showDelete="true"
+    :excludeFields="['owner_id', 'internalTags']"
+/>
+
+<livewire:database.athlete-metric-form-modal
+    name="calendar-metric-form"
+    :title="__('Add Metric')"
+    :formDataClass="App\Data\Athlete\Metric\MetricSubmissionData::class"
+    :flyout="true"
+    maxWidth="max-w-sm"
+    :showDelete="true"
+    :excludeFields="['recorded_at']"
+/>
+
+<x-cms::confirm-modal
+    name="confirm-delete-program"
+    :heading="__('Remove program?')"
+    :description="__('You\'re about to remove this program from the calendar. This action cannot be reversed.')"
+    :confirmLabel="__('Delete')"
+    action="deleteEditingTrainingProgram"
+/>
+
+<x-cms::confirm-modal
+    name="confirm-delete-metric"
+    :heading="__('Delete Metric?')"
+    :description="__('You\'re about to delete this metric. This action cannot be reversed.')"
+    :confirmLabel="__('Delete')"
+    action="deleteMetricSubmission"
+/>
+
+<flux:modal name="add-content" variant="flyout" class="max-w-md">
+    <div class="flex flex-col gap-4 p-2">
+        <flux:heading size="lg">{{ __('Add Program') }}</flux:heading>
+
+        <flux:tab.group>
+            <flux:tabs wire:model.live="addContentTab">
+                <flux:tab name="program">{{ __('Program') }}</flux:tab>
+                <flux:tab name="exercise">{{ __('Exercise') }}</flux:tab>
+            </flux:tabs>
+
+            <flux:tab.panel name="program" class="!px-0">
+                <div class="flex flex-col gap-3">
+                    <x-cms::form.field :field="\Coda\Cms\Form\Fields\Search::make('addContentSearch')" />
+                    <div class="flex flex-col gap-1 max-h-80 overflow-y-auto">
+                        @foreach ($this->addContentOptions as $option)
+                            <button type="button" wire:click="addFromProgram({{ $option->id }})"
+                                class="flex items-center gap-2 px-3 py-2 text-sm text-left rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300">
+                                @if ($option->exerciseCategory?->color)
+                                    <span class="w-2 h-2 rounded-full shrink-0"
+                                        style="{{ \Coda\Cms\Support\ColorPalette::solid($option->exerciseCategory->color) }}"></span>
+                                @endif
+                                {{ $option->name }}
+                            </button>
+                        @endforeach
+                        @if ($this->addContentOptions->isEmpty())
+                            <flux:text class="px-3 py-4 text-center text-zinc-400">{{ __('No programs found.') }}</flux:text>
+                        @endif
+                    </div>
+                </div>
+            </flux:tab.panel>
+
+            <flux:tab.panel name="exercise" class="!px-0">
+                <div class="flex flex-col gap-3">
+                    <x-cms::form.field :field="\Coda\Cms\Form\Fields\Search::make('addContentSearch')" />
+                    <div class="flex flex-col gap-1 max-h-80 overflow-y-auto">
+                        @foreach ($this->addContentOptions as $option)
+                            <button type="button" wire:click="addFromExercise({{ $option->id }})"
+                                class="flex items-center gap-2 px-3 py-2 text-sm text-left rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300">
+                                @if ($option->category?->rootAncestorOrSelf?->color)
+                                    <span class="w-2 h-2 rounded-full shrink-0"
+                                        style="{{ \Coda\Cms\Support\ColorPalette::solid($option->category->rootAncestorOrSelf->color) }}"></span>
+                                @endif
+                                {{ $option->name }}
+                            </button>
+                        @endforeach
+                        @if ($this->addContentOptions->isEmpty())
+                            <flux:text class="px-3 py-4 text-center text-zinc-400">{{ __('No exercises found.') }}</flux:text>
+                        @endif
+                    </div>
+                </div>
+            </flux:tab.panel>
+        </flux:tab.group>
+    </div>
+</flux:modal>
+</div>
