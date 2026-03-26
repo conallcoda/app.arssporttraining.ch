@@ -3,8 +3,6 @@
 namespace App\Livewire\Training\Concerns;
 
 use App\Data\Athlete\Metric\MetricEnum;
-use App\Data\Athlete\Metric\Metrics\HeartRateMetric;
-use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
 use App\Data\Athlete\Metric\MetricSubmissionData;
 use App\Models\Athlete\MetricSubmission;
 use App\Models\Training\TrainingProgram;
@@ -232,6 +230,29 @@ trait WithCalendarPlan
         return $this->planBlock !== 'ungrouped';
     }
 
+    protected function planCutoffDate(): string
+    {
+        $block = $this->planBlock !== 'ungrouped' ? TrainingProgramBlock::find((int) $this->planBlock) : null;
+
+        return $block?->start?->format('Y-m-d') ?? now()->format('Y-m-d');
+    }
+
+    protected function findLatestSubmission(int $userId, MetricEnum $metric, string $cutoffDate): ?MetricSubmission
+    {
+        $query = MetricSubmission::query()
+            ->forAthlete($userId)
+            ->forMetric($metric)
+            ->where('recorded_at', '<=', $cutoffDate)
+            ->orderByDesc('recorded_at')
+            ->with('values');
+
+        if ($metric === MetricEnum::HeartRate) {
+            $query->manual();
+        }
+
+        return $query->first();
+    }
+
     /** @return array{measuredReps: ?int, measuredWeight: ?float} */
     #[Computed]
     public function planMeasuredData(): array
@@ -244,25 +265,14 @@ trait WithCalendarPlan
             return ['measuredReps' => null, 'measuredWeight' => null];
         }
 
-        $block = TrainingProgramBlock::find((int) $this->planBlock);
-        if (! $block) {
-            return ['measuredReps' => null, 'measuredWeight' => null];
-        }
-
-        $submission = MetricSubmission::query()
-            ->forAthlete((int) $this->user)
-            ->forMetric(MetricEnum::OneRepMax)
-            ->where('recorded_at', '<=', $block->start->format('Y-m-d'))
-            ->orderByDesc('recorded_at')
-            ->with('values')
-            ->first();
+        $submission = $this->findLatestSubmission((int) $this->user, MetricEnum::OneRepMax, $this->planCutoffDate());
 
         if (! $submission) {
             return ['measuredReps' => null, 'measuredWeight' => null];
         }
 
         $fieldValues = $submission->values->pluck('value', 'field')->all();
-        $metric = OneRepMaxMetric::from($fieldValues);
+        $metric = MetricEnum::OneRepMax->metricClass()::from($fieldValues);
 
         return [
             'measuredReps' => $metric->measuredReps,
@@ -278,24 +288,14 @@ trait WithCalendarPlan
             return ['maxHR' => null, 'iatPercent' => null];
         }
 
-        $block = $this->planBlock !== 'ungrouped' ? TrainingProgramBlock::find((int) $this->planBlock) : null;
-        $cutoffDate = $block?->start?->format('Y-m-d') ?? now()->format('Y-m-d');
-
-        $submission = MetricSubmission::query()
-            ->forAthlete((int) $this->user)
-            ->forMetric(MetricEnum::HeartRate)
-            ->manual()
-            ->where('recorded_at', '<=', $cutoffDate)
-            ->orderByDesc('recorded_at')
-            ->with('values')
-            ->first();
+        $submission = $this->findLatestSubmission((int) $this->user, MetricEnum::HeartRate, $this->planCutoffDate());
 
         if (! $submission) {
             return ['maxHR' => null, 'iatPercent' => null];
         }
 
         $fieldValues = $submission->values->pluck('value', 'field')->all();
-        $metric = HeartRateMetric::from($fieldValues);
+        $metric = MetricEnum::HeartRate->metricClass()::from($fieldValues);
 
         return [
             'maxHR' => $metric->heartRate,
@@ -414,30 +414,7 @@ trait WithCalendarPlan
             return;
         }
 
-        $block = $this->planBlock !== 'ungrouped' ? TrainingProgramBlock::find((int) $this->planBlock) : null;
-        $cutoffDate = $block?->start?->format('Y-m-d') ?? now()->format('Y-m-d');
-
-        $submission = MetricSubmission::query()
-            ->forAthlete((int) $this->user)
-            ->forMetric(MetricEnum::OneRepMax)
-            ->where('recorded_at', '<=', $cutoffDate)
-            ->orderByDesc('recorded_at')
-            ->with('values')
-            ->first();
-
-        if ($submission) {
-            $eventData = array_merge(
-                MetricSubmissionData::fromModel($submission)->toArray(),
-                ['metric' => MetricEnum::OneRepMax->value],
-            );
-            $this->dispatch('open-calendar-metric-form', data: $eventData, title: __('Edit Metric').' ('.MetricEnum::OneRepMax->label().')');
-        } else {
-            $this->dispatch('open-calendar-metric-form', data: [
-                'metric' => MetricEnum::OneRepMax->value,
-                'recorded_at' => $cutoffDate,
-                'user_id' => (int) $this->user,
-            ], title: __('Add Metric').' ('.MetricEnum::OneRepMax->label().')');
-        }
+        $this->openPlanMetricEdit((int) $this->user, MetricEnum::OneRepMax->value);
     }
 
     #[Renderless]
@@ -447,31 +424,7 @@ trait WithCalendarPlan
             return;
         }
 
-        $block = $this->planBlock !== 'ungrouped' ? TrainingProgramBlock::find((int) $this->planBlock) : null;
-        $cutoffDate = $block?->start?->format('Y-m-d') ?? now()->format('Y-m-d');
-
-        $submission = MetricSubmission::query()
-            ->forAthlete((int) $this->user)
-            ->forMetric(MetricEnum::HeartRate)
-            ->manual()
-            ->where('recorded_at', '<=', $cutoffDate)
-            ->orderByDesc('recorded_at')
-            ->with('values')
-            ->first();
-
-        if ($submission) {
-            $eventData = array_merge(
-                MetricSubmissionData::fromModel($submission)->toArray(),
-                ['metric' => MetricEnum::HeartRate->value],
-            );
-            $this->dispatch('open-calendar-metric-form', data: $eventData, title: __('Edit Metric').' ('.MetricEnum::HeartRate->label().')');
-        } else {
-            $this->dispatch('open-calendar-metric-form', data: [
-                'metric' => MetricEnum::HeartRate->value,
-                'recorded_at' => $cutoffDate,
-                'user_id' => (int) $this->user,
-            ], title: __('Add Metric').' ('.MetricEnum::HeartRate->label().')');
-        }
+        $this->openPlanMetricEdit((int) $this->user, MetricEnum::HeartRate->value);
     }
 
     #[Computed]
@@ -486,25 +439,41 @@ trait WithCalendarPlan
             return ['oneRepMax' => [], 'heartRate' => []];
         }
 
-        $block = $this->planBlock !== 'ungrouped' ? TrainingProgramBlock::find((int) $this->planBlock) : null;
-        $cutoffDate = $block?->start?->format('Y-m-d') ?? now()->format('Y-m-d');
+        $cutoffDate = $this->planCutoffDate();
+        $memberIds = $group->members->pluck('id');
+
+        $ormSubmissions = MetricSubmission::query()
+            ->whereIn('user_id', $memberIds)
+            ->forMetric(MetricEnum::OneRepMax)
+            ->where('recorded_at', '<=', $cutoffDate)
+            ->orderByDesc('recorded_at')
+            ->with('values')
+            ->get()
+            ->groupBy('user_id')
+            ->map->first();
+
+        $hrSubmissions = MetricSubmission::query()
+            ->whereIn('user_id', $memberIds)
+            ->forMetric(MetricEnum::HeartRate)
+            ->manual()
+            ->where('recorded_at', '<=', $cutoffDate)
+            ->orderByDesc('recorded_at')
+            ->with('values')
+            ->get()
+            ->groupBy('user_id')
+            ->map->first();
 
         $oneRepMax = [];
         $heartRate = [];
+        $ormMetricClass = MetricEnum::OneRepMax->metricClass();
+        $hrMetricClass = MetricEnum::HeartRate->metricClass();
 
         foreach ($group->members as $member) {
-            $ormSubmission = MetricSubmission::query()
-                ->forAthlete($member->id)
-                ->forMetric(MetricEnum::OneRepMax)
-                ->where('recorded_at', '<=', $cutoffDate)
-                ->orderByDesc('recorded_at')
-                ->with('values')
-                ->first();
-
             $ormLabel = null;
+            $ormSubmission = $ormSubmissions->get($member->id);
             if ($ormSubmission) {
                 $fieldValues = $ormSubmission->values->pluck('value', 'field')->all();
-                $metric = OneRepMaxMetric::from($fieldValues);
+                $metric = $ormMetricClass::from($fieldValues);
                 if ($metric->measuredWeight !== null) {
                     $weight = rtrim(rtrim(number_format($metric->measuredWeight, 1), '0'), '.');
                     $ormLabel = "{$weight}kg";
@@ -517,19 +486,11 @@ trait WithCalendarPlan
                 'label' => $ormLabel,
             ];
 
-            $hrSubmission = MetricSubmission::query()
-                ->forAthlete($member->id)
-                ->forMetric(MetricEnum::HeartRate)
-                ->manual()
-                ->where('recorded_at', '<=', $cutoffDate)
-                ->orderByDesc('recorded_at')
-                ->with('values')
-                ->first();
-
             $hrLabel = null;
+            $hrSubmission = $hrSubmissions->get($member->id);
             if ($hrSubmission) {
                 $fieldValues = $hrSubmission->values->pluck('value', 'field')->all();
-                $hrMetric = HeartRateMetric::from($fieldValues);
+                $hrMetric = $hrMetricClass::from($fieldValues);
                 if ($hrMetric->heartRate !== null) {
                     $hrLabel = $hrMetric->heartRate.' HR';
                     if ($hrMetric->anaerobicThreshold !== null) {
@@ -549,25 +510,11 @@ trait WithCalendarPlan
     }
 
     #[Renderless]
-    public function openPlanGroupMemberMetricEdit(int $userId, string $metric): void
+    public function openPlanMetricEdit(int $userId, string $metric): void
     {
         $metricEnum = MetricEnum::from($metric);
-
-        $block = $this->planBlock !== 'ungrouped' ? TrainingProgramBlock::find((int) $this->planBlock) : null;
-        $cutoffDate = $block?->start?->format('Y-m-d') ?? now()->format('Y-m-d');
-
-        $query = MetricSubmission::query()
-            ->forAthlete($userId)
-            ->forMetric($metricEnum)
-            ->where('recorded_at', '<=', $cutoffDate)
-            ->orderByDesc('recorded_at')
-            ->with('values');
-
-        if ($metricEnum === MetricEnum::HeartRate) {
-            $query->manual();
-        }
-
-        $submission = $query->first();
+        $cutoffDate = $this->planCutoffDate();
+        $submission = $this->findLatestSubmission($userId, $metricEnum, $cutoffDate);
 
         if ($submission) {
             $eventData = array_merge(
@@ -585,6 +532,12 @@ trait WithCalendarPlan
     }
 
     #[Renderless]
+    public function openPlanGroupMemberMetricEdit(int $userId, string $metric): void
+    {
+        $this->openPlanMetricEdit($userId, $metric);
+    }
+
+    #[Renderless]
     public function openPlanGroupMetricAdd(string $metric): void
     {
         if ($this->group === '') {
@@ -598,8 +551,7 @@ trait WithCalendarPlan
             return;
         }
 
-        $block = $this->planBlock !== 'ungrouped' ? TrainingProgramBlock::find((int) $this->planBlock) : null;
-        $cutoffDate = $block?->start?->format('Y-m-d') ?? now()->format('Y-m-d');
+        $cutoffDate = $this->planCutoffDate();
 
         $existingUserIds = MetricSubmission::query()
             ->whereIn('user_id', $group->members->pluck('id'))

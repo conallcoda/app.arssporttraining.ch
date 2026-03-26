@@ -47,7 +47,7 @@
                                         <flux:badge
                                             color="{{ $member['label'] ? 'zinc' : 'red' }}"
                                             class="px-2 py-1 cursor-pointer text-xs"
-                                            wire:click="$parent.openPlanGroupMemberMetricEdit({{ $member['user_id'] }}, 'oneRepMax')"
+                                            wire:click="$parent.openPlanMetricEdit({{ $member['user_id'] }}, 'oneRepMax')"
                                         >
                                             {{ $member['name'] }}: {{ $member['label'] ?? '—' }}
                                         </flux:badge>
@@ -81,7 +81,7 @@
                                         <flux:badge
                                             color="{{ $member['label'] ? 'zinc' : 'red' }}"
                                             class="px-2 py-1 cursor-pointer text-xs"
-                                            wire:click="$parent.openPlanGroupMemberMetricEdit({{ $member['user_id'] }}, 'heartRate')"
+                                            wire:click="$parent.openPlanMetricEdit({{ $member['user_id'] }}, 'heartRate')"
                                         >
                                             {{ $member['name'] }}: {{ $member['label'] ?? '—' }}
                                         </flux:badge>
