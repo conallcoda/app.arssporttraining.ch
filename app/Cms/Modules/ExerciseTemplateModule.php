@@ -21,7 +21,6 @@ class ExerciseTemplateModule extends Module
         return [
             PageDefinition::make('exercise-template-index')
                 ->route('/exercises/templates')
-                ->title('ARS - Athlete Training // Exercise Templates')
                 ->heading('Exercise Templates')
                 ->content(['database.exercise-template-list']),
         ];

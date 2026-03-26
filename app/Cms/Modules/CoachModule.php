@@ -20,7 +20,6 @@ class CoachModule extends Module
         return [
             PageDefinition::make('coach-index')
                 ->route('/coaches')
-                ->title('ARS - Athlete Training // Coaches')
                 ->heading('Coaches')
                 ->content(['database.coach-list']),
         ];

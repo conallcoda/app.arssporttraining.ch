@@ -10,7 +10,8 @@ trait HasQueryBuilder
 {
     public static function newEloquentQueryBuilder(): DefaultQueryBuilder
     {
-        $concreteClass = 'App\\QueryBuilders\\'.class_basename(static::class).'QueryBuilder';
+        $namespace = config('cms.query_builder_namespace', 'App\\QueryBuilders');
+        $concreteClass = $namespace.'\\'.class_basename(static::class).'QueryBuilder';
 
         if (class_exists($concreteClass)) {
             return $concreteClass::for(static::query());
@@ -21,8 +22,9 @@ trait HasQueryBuilder
 
     public static function buildQueryBuilder(Builder $baseQuery, ?Request $request = null): DefaultQueryBuilder
     {
+        $namespace = config('cms.query_builder_namespace', 'App\\QueryBuilders');
         $modelClass = get_class($baseQuery->getModel());
-        $concreteClass = 'App\\QueryBuilders\\'.class_basename($modelClass).'QueryBuilder';
+        $concreteClass = $namespace.'\\'.class_basename($modelClass).'QueryBuilder';
 
         if (class_exists($concreteClass)) {
             return $concreteClass::for($baseQuery, $request);

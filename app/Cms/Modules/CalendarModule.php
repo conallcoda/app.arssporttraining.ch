@@ -18,7 +18,6 @@ class CalendarModule extends Module
         return [
             PageDefinition::make('calendar-index')
                 ->route('/calendar')
-                ->title('ARS - Athlete Training // Calendar')
                 ->component(CalendarIndex::class),
         ];
     }

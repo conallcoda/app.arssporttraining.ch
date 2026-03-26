@@ -3,17 +3,17 @@
 namespace App\Livewire\Database;
 
 use App\Data\Coach\CoachData;
-use App\Display\DisplayFields\PersonName;
-use App\Form\AdminChangePasswordForm;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
 use Coda\Cms\Display\DisplayFields\Ago;
 use Coda\Cms\Display\DisplayFields\ColorBadge;
 use Coda\Cms\Display\DisplayFields\Id;
+use Coda\Cms\Display\DisplayFields\PersonName;
 use Coda\Cms\Display\Table;
 use Coda\Cms\Display\TableFilter;
 use Coda\Cms\Form\Action;
 use Coda\Cms\Form\Fields\Text as TextField;
+use Coda\Cms\Form\Forms\ChangePasswordForm;
 use Coda\Cms\Livewire\AbstractModelList;
 use Coda\Cms\Support\ColorPalette;
 use Flux\Flux;
@@ -44,7 +44,7 @@ class CoachList extends AbstractModelList
             Action::make('changePassword', __('Change Password'))
                 ->rowMenu()
                 ->icon('lock')
-                ->formModal(AdminChangePasswordForm::class, __('Change Password'))
+                ->formModal(ChangePasswordForm::class, __('Change Password'))
                 ->prepareData(fn (User $model) => [
                     'id' => $model->id,
                     '_name' => $model->name,

@@ -2,6 +2,7 @@
 
 namespace App\Data\Exercise\Settings;
 
+use App\Form\Fields\Weight;
 use Coda\Cms\Form\Fields;
 
 class WeightProgressionSetting extends AbstractSetting
@@ -30,7 +31,7 @@ class WeightProgressionSetting extends AbstractSetting
                 ->step(1)
                 ->default(1)
                 ->suffix('rep(s)'),
-            Fields\Weight::make('measuredWeight')
+            Weight::make('measuredWeight')
                 ->label('Measured Weight')
                 ->default(50),
             Fields\Percentage::make('targetGoal')

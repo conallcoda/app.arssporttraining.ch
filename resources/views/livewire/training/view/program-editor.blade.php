@@ -1,6 +1,6 @@
 <div class="space-y-6">
     <div class="flex flex-col md:flex-row gap-6">
-        <x-section :title="__('General')" class="{{ $this->showAthleteContext ? 'md:w-3/4' : 'flex-1' }}">
+        <x-cms::section :title="__('General')" class="{{ $this->showAthleteContext ? 'md:w-3/4' : 'flex-1' }}">
             @if ($showNameInput)
                 <flux:input wire:model="$parent.planProgramName" wire:blur="$parent.savePlanProgramName" :label="__('Name')" size="sm" />
             @endif
@@ -22,10 +22,10 @@
                     />
                 @endforeach
             </div>
-        </x-section>
+        </x-cms::section>
 
         @if ($this->showAthleteContext)
-            <x-section :title="$userId === null ? __('Group') : __('Athlete')" class="md:w-1/4 shrink-0">
+            <x-cms::section :title="$userId === null ? __('Group') : __('Athlete')" class="md:w-1/4 shrink-0">
                 <div class="space-y-4">
                     @if ($hasAutoWeightExercises && $planHasBlock && $planBlockGoalLabel)
                         <div>
@@ -106,16 +106,16 @@
                         </div>
                     @endif
                 </div>
-            </x-section>
+            </x-cms::section>
         @endif
 
         @if ($showWeeksInput)
-            <x-section :title="__('Settings')" class="w-64 shrink-0">
+            <x-cms::section :title="__('Settings')" class="w-64 shrink-0">
                 <flux:field>
                     <flux:label>{{ __('Weeks') }}</flux:label>
                     <flux:input wire:model.live="weeks" type="number" min="1" max="52" step="1" />
                 </flux:field>
-            </x-section>
+            </x-cms::section>
         @endif
     </div>
 

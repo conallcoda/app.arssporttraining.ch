@@ -1,4 +1,4 @@
-<x-section :title="__('Groups')" class="w-64 shrink-0 sticky top-4 self-start max-h-[calc(100vh-6rem)] overflow-y-auto">
+<x-cms::section :title="__('Groups')" class="w-64 shrink-0 sticky top-4 self-start max-h-[calc(100vh-6rem)] overflow-y-auto">
     @if ($showGroupFilter)
         <flux:tabs wire:model.live="groupFilter" class="mb-3">
             <flux:tab name="mine">{{ __('My Groups') }}</flux:tab>
@@ -70,4 +70,4 @@
             </div>
         @endforeach
     </div>
-</x-section>
+</x-cms::section>

@@ -2,8 +2,8 @@
 
 namespace App\Form\Fields\Training\Program;
 
-use App\Form\Fields\SelectEntity;
 use App\Models\Tag;
+use Coda\Cms\Form\Fields\SelectEntity;
 
 class ExerciseCategory extends SelectEntity
 {

@@ -2,7 +2,6 @@
 
 namespace Coda\Cms\Form\Fields;
 
-use App\Models\Tag;
 use Coda\Cms\Form\Concerns\HasPlaceholder;
 use Coda\Cms\Form\Field;
 
@@ -42,7 +41,9 @@ class Tags extends Field
         $scope = $this->scope;
 
         $this->optionLoader = function () use ($scope) {
-            $tags = Tag::query()
+            $tagModel = config('cms.models.tag');
+
+            $tags = $tagModel::query()
                 ->forScope($scope)
                 ->whereNull('parent_id')
                 ->orderBy('name')

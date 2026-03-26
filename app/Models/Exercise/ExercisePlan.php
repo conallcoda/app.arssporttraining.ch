@@ -3,7 +3,7 @@
 namespace App\Models\Exercise;
 
 use App\Data\Training\Config\ExercisePlanConfig;
-use App\Models\Concerns\HasOwner;
+use Coda\Cms\Models\Concerns\HasOwner;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;
 use Coda\Cms\Models\Concerns\SyncsSortableRelations;
 use Illuminate\Database\Eloquent\Casts\Attribute;

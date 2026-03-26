@@ -12,17 +12,14 @@ use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use App\Training\CalendarDateService;
 use Carbon\Carbon;
+use Coda\Cms\Livewire\CmsPage;
 use Flux\Flux;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
-use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
-use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 
-#[Layout('components.layouts.admin')]
-#[Title('ARS - Athlete Training // Calendar')]
 class CalendarIndex extends Component
 {
     use WithCalendarPlan;
@@ -524,6 +521,8 @@ class CalendarIndex extends Component
             $this->syncPlanProgramName();
         }
 
-        return view('livewire.training.calendar-index');
+        return view('livewire.training.calendar-index')
+            ->layout(CmsPage::layout())
+            ->title(CmsPage::buildTitle(__('Calendar')));
     }
 }

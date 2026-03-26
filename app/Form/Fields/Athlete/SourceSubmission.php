@@ -3,8 +3,8 @@
 namespace App\Form\Fields\Athlete;
 
 use App\Data\Athlete\Metric\MetricEnum;
-use App\Form\Fields\SelectEntity;
 use App\Models\Athlete\MetricSubmission;
+use Coda\Cms\Form\Fields\SelectEntity;
 
 class SourceSubmission extends SelectEntity
 {

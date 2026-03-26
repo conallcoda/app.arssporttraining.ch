@@ -465,10 +465,8 @@
                                     </flux:select>
                                 </div>
                                 <div class="flex gap-0.5">
-                                    <flux:button type="button" size="xs" variant="ghost"
-                                        wire:click="removeRelationshipItem('{{ $field->name }}', {{ $index }})">
-                                        <x-lucide-trash-2 class="w-4 h-4" />
-                                    </flux:button>
+                                    <flux:button type="button" size="xs" variant="ghost" icon="trash-2"
+                                        wire:click="removeRelationshipItem('{{ $field->name }}', {{ $index }})" />
                                 </div>
                             </div>
                         @endforeach

@@ -3,12 +3,9 @@
 namespace App\Livewire\Database;
 
 use App\Models\Users\User;
-use Livewire\Attributes\Layout;
-use Livewire\Attributes\Title;
+use Coda\Cms\Livewire\CmsPage;
 use Livewire\Component;
 
-#[Layout('components.layouts.admin')]
-#[Title('ARS - Athlete Training // Metrics')]
 class AthleteMetricIndex extends Component
 {
     public User $athlete;
@@ -20,6 +17,8 @@ class AthleteMetricIndex extends Component
 
     public function render()
     {
-        return view('livewire.database.athlete-metric-index');
+        return view('livewire.database.athlete-metric-index')
+            ->layout(CmsPage::layout())
+            ->title(CmsPage::buildTitle(__('Metrics')));
     }
 }

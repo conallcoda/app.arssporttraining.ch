@@ -1,6 +1,6 @@
 <x-slot:navbar>
     @if(count($tabs) > 0)
-        <x-top-nav>
+        <x-cms::top-nav>
             @foreach($tabs as $tab)
                 <flux:navbar.item
                     :href="route($tab->route)"
@@ -9,7 +9,7 @@
                     {{ $tab->label }}
                 </flux:navbar.item>
             @endforeach
-        </x-top-nav>
+        </x-cms::top-nav>
     @endif
 </x-slot:navbar>
 

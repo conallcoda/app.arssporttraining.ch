@@ -2,12 +2,12 @@
 
 namespace App\Models\Training;
 
-use App\Models\Concerns\HasOwner;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExercisePlan;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
 use App\Models\Users\UserGroup;
+use Coda\Cms\Models\Concerns\HasOwner;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;
 use Database\Factories\TrainingProgramFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;

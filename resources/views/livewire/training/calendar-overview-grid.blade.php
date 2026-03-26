@@ -112,7 +112,7 @@
                     });
                     return 'background: linear-gradient(to bottom, ' + stops.join(', ') + ');';
                 },
-            }" wire:key="overview-group-{{ $groupRow['group']->id }}">
+            }" wire:key="overview-group-{{ $groupRow['group']->id }}-{{ $this->days[0]['date'] }}-{{ $this->days[count($this->days) - 1]['date'] }}">
                 <tr>
                     <td
                         class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] bg-zinc-100 dark:bg-zinc-800">

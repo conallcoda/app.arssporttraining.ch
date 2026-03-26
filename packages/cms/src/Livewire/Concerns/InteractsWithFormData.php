@@ -2,7 +2,6 @@
 
 namespace Coda\Cms\Livewire\Concerns;
 
-use App\Models\Tag;
 use Coda\Cms\Form\Field;
 use Coda\Cms\Form\Fields\Relationship;
 use Coda\Cms\Form\Fields\Repeater;
@@ -357,13 +356,15 @@ trait InteractsWithFormData
             return;
         }
 
-        $tag = Tag::query()
+        $tagModel = config('cms.models.tag');
+
+        $tag = $tagModel::query()
             ->forScope($field->scope)
             ->where('name', $name)
             ->first();
 
         if (! $tag) {
-            $tag = Tag::create([
+            $tag = $tagModel::create([
                 'name' => $name,
                 'scope' => $field->scope,
             ]);

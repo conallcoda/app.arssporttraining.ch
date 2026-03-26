@@ -20,7 +20,6 @@ class EquipmentModule extends Module
         return [
             PageDefinition::make('equipment-index')
                 ->route('/exercises/equipment')
-                ->title('ARS - Athlete Training // Equipment')
                 ->heading('Equipment')
                 ->content(['database.equipment-list']),
         ];

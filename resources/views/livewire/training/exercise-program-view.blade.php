@@ -1,13 +1,13 @@
 <x-slot:navbar>
-    <x-top-nav>
+    <x-cms::top-nav>
         <flux:navbar.item :href="route('exercise-program-index')">{{ __('Programs') }}</flux:navbar.item>
         <span class="text-zinc-400 dark:text-zinc-500">/</span>
         <flux:navbar.item current>{{ $exerciseProgram->name }}</flux:navbar.item>
-    </x-top-nav>
+    </x-cms::top-nav>
 </x-slot:navbar>
 
 <flux:main>
-    <x-editable-title :name="$exerciseProgram->name" />
+    <x-cms::editable-title :name="$exerciseProgram->name" />
 
     <livewire:training.view.program-editor
         :exerciseProgram="$exerciseProgram"

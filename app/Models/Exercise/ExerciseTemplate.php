@@ -3,7 +3,7 @@
 namespace App\Models\Exercise;
 
 use App\Data\Exercise\ExerciseConfig;
-use App\Models\Concerns\HasOwner;
+use Coda\Cms\Models\Concerns\HasOwner;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;

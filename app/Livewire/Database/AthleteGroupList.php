@@ -7,7 +7,6 @@ use App\Form\Fields\CoachFilter;
 use App\Livewire\Concerns\ClearsCoachFilterOnTabSwitch;
 use App\Models\Tag;
 use App\Models\Users\UserGroup;
-use App\Support\OwnershipTabs;
 use Coda\Cms\Display\DisplayFields\Ago;
 use Coda\Cms\Display\DisplayFields\Badge;
 use Coda\Cms\Display\DisplayFields\Id;
@@ -18,6 +17,7 @@ use Coda\Cms\Display\TableFilter;
 use Coda\Cms\Form\Fields\Pillbox;
 use Coda\Cms\Form\Fields\Text as TextField;
 use Coda\Cms\Livewire\AbstractModelList;
+use Coda\Cms\Support\OwnershipTabs;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 
 class AthleteGroupList extends AbstractModelList

@@ -1,11 +1,15 @@
 <?php
 
+use App\Data\Training\Calendar\CalendarSettingsData;
 use App\Livewire\Training\CalendarIndex;
+use App\Livewire\Training\CalendarProgramsView;
+use App\Livewire\Training\CalendarScheduleView;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -36,7 +40,15 @@ it('can edit a group program from user view', function () {
         'exercise_program_id' => $program->id,
     ]);
 
-    Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'user' => (string) $user->id])
+    $weekStartsOn = (int) config('training.week_starts_on', Carbon::MONDAY);
+
+    Livewire::test(CalendarProgramsView::class, [
+        'groupId' => $group->id,
+        'userId' => $user->id,
+        'calendarSettings' => new CalendarSettingsData(period: 'week', date: '2026-03-02'),
+        'weekStartsOn' => $weekStartsOn,
+        'weekEndsOn' => ($weekStartsOn + 6) % 7,
+    ])
         ->call('openEditProgram', $groupTp->id)
         ->assertDispatched('open-edit-program');
 });
@@ -51,7 +63,15 @@ it('can remove a group program from user view', function () {
         'exercise_program_id' => $program->id,
     ]);
 
-    Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'user' => (string) $user->id])
+    $weekStartsOn = (int) config('training.week_starts_on', Carbon::MONDAY);
+
+    Livewire::test(CalendarProgramsView::class, [
+        'groupId' => $group->id,
+        'userId' => $user->id,
+        'calendarSettings' => new CalendarSettingsData(period: 'week', date: '2026-03-02'),
+        'weekStartsOn' => $weekStartsOn,
+        'weekEndsOn' => ($weekStartsOn + 6) % 7,
+    ])
         ->call('removeTrainingProgram', $groupTp->id);
 
     expect(TrainingProgram::find($groupTp->id))->toBeNull();
@@ -69,7 +89,11 @@ it('creates individual slots per user in group mode', function () {
         'exercise_program_id' => $program->id,
     ]);
 
-    Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'period' => 'week', 'view' => 'schedule'])
+    Livewire::test(CalendarScheduleView::class, [
+        'groupId' => $group->id,
+        'calendarSettings' => new CalendarSettingsData(period: 'week', date: '2026-03-02'),
+        'weekStartsOn' => (int) config('training.week_starts_on', Carbon::MONDAY),
+    ])
         ->call('onWeekSlotSubmitted', [
             'training_program_id' => $tp->id,
             'date' => '2026-03-02',
@@ -101,7 +125,11 @@ it('deselecting a user removes their slot', function () {
     TrainingProgramSlot::create(['training_program_id' => $tp->id, 'user_id' => $user1->id, 'datetime' => $datetime]);
     TrainingProgramSlot::create(['training_program_id' => $tp->id, 'user_id' => $user2->id, 'datetime' => $datetime]);
 
-    Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'period' => 'week', 'view' => 'schedule'])
+    Livewire::test(CalendarScheduleView::class, [
+        'groupId' => $group->id,
+        'calendarSettings' => new CalendarSettingsData(period: 'week', date: '2026-03-02'),
+        'weekStartsOn' => (int) config('training.week_starts_on', Carbon::MONDAY),
+    ])
         ->call('onWeekSlotSubmitted', [
             'training_program_id' => $tp->id,
             'date' => '2026-03-02',
@@ -132,7 +160,11 @@ it('removes all user slots in group mode', function () {
     TrainingProgramSlot::create(['training_program_id' => $tp->id, 'user_id' => $user1->id, 'datetime' => $datetime]);
     TrainingProgramSlot::create(['training_program_id' => $tp->id, 'user_id' => $user2->id, 'datetime' => $datetime]);
 
-    Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'period' => 'week', 'view' => 'schedule'])
+    Livewire::test(CalendarScheduleView::class, [
+        'groupId' => $group->id,
+        'calendarSettings' => new CalendarSettingsData(period: 'week', date: '2026-03-02'),
+        'weekStartsOn' => (int) config('training.week_starts_on', Carbon::MONDAY),
+    ])
         ->call('quickRemoveWeekSlot', $tp->id, '2026-03-02', '09:00');
 
     expect(TrainingProgramSlot::where('training_program_id', $tp->id)->count())->toBe(0);
@@ -154,7 +186,12 @@ it('removes only the user slot in user mode', function () {
     TrainingProgramSlot::create(['training_program_id' => $tp->id, 'user_id' => $user1->id, 'datetime' => $datetime]);
     TrainingProgramSlot::create(['training_program_id' => $tp->id, 'user_id' => $user2->id, 'datetime' => $datetime]);
 
-    Livewire::test(CalendarIndex::class, ['group' => (string) $group->id, 'user' => (string) $user1->id, 'period' => 'week', 'view' => 'schedule'])
+    Livewire::test(CalendarScheduleView::class, [
+        'groupId' => $group->id,
+        'userId' => $user1->id,
+        'calendarSettings' => new CalendarSettingsData(period: 'week', date: '2026-03-02'),
+        'weekStartsOn' => (int) config('training.week_starts_on', Carbon::MONDAY),
+    ])
         ->call('quickRemoveWeekSlot', $tp->id, '2026-03-02', '09:00');
 
     expect(TrainingProgramSlot::where('user_id', $user1->id)->exists())->toBeFalse();
@@ -197,11 +234,11 @@ it('quick creates a slot for a single user in user mode', function () {
         'exercise_program_id' => $program->id,
     ]);
 
-    Livewire::test(CalendarIndex::class, [
-        'group' => (string) $group->id,
-        'user' => (string) $user->id,
-        'period' => 'week',
-        'view' => 'schedule',
+    Livewire::test(CalendarScheduleView::class, [
+        'groupId' => $group->id,
+        'userId' => $user->id,
+        'calendarSettings' => new CalendarSettingsData(period: 'week', date: '2026-03-02'),
+        'weekStartsOn' => (int) config('training.week_starts_on', Carbon::MONDAY),
         'weekEditMode' => 'edit',
     ])
         ->set('quickProgramId', $tp->id)

@@ -4,6 +4,7 @@ namespace App\Data\Exercise\Settings;
 
 use App\Data\Exercise\Preview\CellInputMeta;
 use App\Form\Fields\Exercise\ApplyPerField;
+use App\Form\Fields\HeartRate;
 use Coda\Cms\Form\Fields;
 
 class HeartRateSetting extends AbstractSetting
@@ -64,7 +65,7 @@ class HeartRateSetting extends AbstractSetting
                 ])
                 ->default('manual')
                 ->live(),
-            Fields\HeartRate::make('default')
+            HeartRate::make('default')
                 ->label('Default Heart Rate')
                 ->default('140')
                 ->show('mode == "manual"'),

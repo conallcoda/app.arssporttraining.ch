@@ -2,8 +2,8 @@
 
 namespace App\Models\Training;
 
-use App\Models\Concerns\HasOwner;
 use App\Models\Users\User;
+use Coda\Cms\Models\Concerns\HasOwner;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;
 use Database\Factories\TrainingProgramSlotFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;

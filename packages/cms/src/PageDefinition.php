@@ -11,7 +11,7 @@ class PageDefinition extends AbstractData
         public string $route = '',
         public string $title = '',
         public string $heading = '',
-        public string $layout = 'components.layouts.admin',
+        public string $layout = 'cms::components.layouts.admin',
         public ?string $component = null,
         /** @var string[] */
         public array $content = [],

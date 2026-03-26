@@ -20,7 +20,6 @@ class CategoryModule extends Module
         return [
             PageDefinition::make('category-index')
                 ->route('/exercises/categories')
-                ->title('ARS - Athlete Training // Exercise Categories')
                 ->heading('Exercise Categories')
                 ->content(['database.category-tree']),
         ];

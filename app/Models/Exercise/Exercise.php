@@ -3,8 +3,8 @@
 namespace App\Models\Exercise;
 
 use App\Data\Exercise\ExerciseConfig;
-use App\Models\Concerns\HasOwner;
 use App\Models\Tag;
+use Coda\Cms\Models\Concerns\HasOwner;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;
 use Coda\Cms\Models\Concerns\HasTags;
 use Coda\Cms\Models\Contracts\HasCollectionPaths;

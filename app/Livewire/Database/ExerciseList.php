@@ -7,7 +7,6 @@ use App\Form\Fields\CoachFilter;
 use App\Livewire\Concerns\ClearsCoachFilterOnTabSwitch;
 use App\Models\Exercise\Exercise;
 use App\Models\Tag;
-use App\Support\OwnershipTabs;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Display\DisplayFields\Ago;
 use Coda\Cms\Display\DisplayFields\Badge;
@@ -20,6 +19,7 @@ use Coda\Cms\Form\Action;
 use Coda\Cms\Form\Fields\Pillbox;
 use Coda\Cms\Form\Fields\Text as TextField;
 use Coda\Cms\Livewire\AbstractModelList;
+use Coda\Cms\Support\OwnershipTabs;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 

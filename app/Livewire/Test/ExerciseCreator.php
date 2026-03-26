@@ -2,12 +2,9 @@
 
 namespace App\Livewire\Test;
 
-use Livewire\Attributes\Layout;
-use Livewire\Attributes\Title;
+use Coda\Cms\Livewire\CmsPage;
 use Livewire\Component;
 
-#[Layout('components.layouts.admin')]
-#[Title('ARS - Athlete Training // Exercise Creator')]
 class ExerciseCreator extends Component
 {
     public int $defaultWeeks = 5;
@@ -37,6 +34,8 @@ class ExerciseCreator extends Component
 
     public function render()
     {
-        return view('livewire.test.exercise-creator');
+        return view('livewire.test.exercise-creator')
+            ->layout(CmsPage::layout())
+            ->title(CmsPage::buildTitle(__('Exercise Creator')));
     }
 }

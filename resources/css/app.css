@@ -1,168 +1,18 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
 @import '../../vendor/livewire/flux/dist/flux.css';
+@import '../../node_modules/treeselectjs/dist/treeselectjs.css';
+@import '../../vendor/coda/cms/resources/css/cms.css';
 
 @source '../views';
+@source '../../vendor/coda/cms/resources/views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-/* ColorPalette dynamic classes — regenerate with: php artisan color:safelist */
-@source inline("dark:bg-slate-600 bg-slate-600 !text-white bg-slate-100 dark:bg-slate-900/20 bg-slate-500/10 dark:bg-slate-500/10 !bg-slate-100 dark:!bg-slate-900/30 !text-slate-700 dark:!text-slate-300 bg-slate-300 dark:bg-slate-950 bg-slate-200 dark:bg-slate-900 dark:bg-slate-700/40 dark:bg-gray-600 bg-gray-600 bg-gray-100 dark:bg-gray-900/20 bg-gray-500/10 dark:bg-gray-500/10 !bg-gray-100 dark:!bg-gray-900/30 !text-gray-700 dark:!text-gray-300 bg-gray-300 dark:bg-gray-950 bg-gray-200 dark:bg-gray-900 dark:bg-gray-700/40 dark:bg-stone-600 bg-stone-600 bg-stone-100 dark:bg-stone-900/20 bg-stone-500/10 dark:bg-stone-500/10 !bg-stone-100 dark:!bg-stone-900/30 !text-stone-700 dark:!text-stone-300 bg-stone-300 dark:bg-stone-950 bg-stone-200 dark:bg-stone-900 dark:bg-stone-700/40 dark:bg-red-600 bg-red-600 bg-red-100 dark:bg-red-900/20 bg-red-500/10 dark:bg-red-500/10 !bg-red-100 dark:!bg-red-900/30 !text-red-700 dark:!text-red-300 bg-red-300 dark:bg-red-950 bg-red-200 dark:bg-red-900 dark:bg-red-700/40 dark:bg-orange-600 bg-orange-600 bg-orange-100 dark:bg-orange-900/20 bg-orange-500/10 dark:bg-orange-500/10 !bg-orange-100 dark:!bg-orange-900/30 !text-orange-700 dark:!text-orange-300 bg-orange-300 dark:bg-orange-950 bg-orange-200 dark:bg-orange-900 dark:bg-orange-700/40 dark:bg-amber-600 bg-amber-600 bg-amber-100 dark:bg-amber-900/20 bg-amber-500/10 dark:bg-amber-500/10 !bg-amber-100 dark:!bg-amber-900/30 !text-amber-700 dark:!text-amber-300 bg-amber-300 dark:bg-amber-950 bg-amber-200 dark:bg-amber-900 dark:bg-amber-700/40 dark:bg-yellow-600 bg-yellow-600 bg-yellow-100 dark:bg-yellow-900/20 bg-yellow-500/10 dark:bg-yellow-500/10 !bg-yellow-100 dark:!bg-yellow-900/30 !text-yellow-700 dark:!text-yellow-300 bg-yellow-300 dark:bg-yellow-950 bg-yellow-200 dark:bg-yellow-900 dark:bg-yellow-700/40 dark:bg-lime-600 bg-lime-600 bg-lime-100 dark:bg-lime-900/20 bg-lime-500/10 dark:bg-lime-500/10 !bg-lime-100 dark:!bg-lime-900/30 !text-lime-700 dark:!text-lime-300 bg-lime-300 dark:bg-lime-950 bg-lime-200 dark:bg-lime-900 dark:bg-lime-700/40 dark:bg-green-600 bg-green-600 bg-green-100 dark:bg-green-900/20 bg-green-500/10 dark:bg-green-500/10 !bg-green-100 dark:!bg-green-900/30 !text-green-700 dark:!text-green-300 bg-green-300 dark:bg-green-950 bg-green-200 dark:bg-green-900 dark:bg-green-700/40 dark:bg-emerald-600 bg-emerald-600 bg-emerald-100 dark:bg-emerald-900/20 bg-emerald-500/10 dark:bg-emerald-500/10 !bg-emerald-100 dark:!bg-emerald-900/30 !text-emerald-700 dark:!text-emerald-300 bg-emerald-300 dark:bg-emerald-950 bg-emerald-200 dark:bg-emerald-900 dark:bg-emerald-700/40 dark:bg-teal-600 bg-teal-600 bg-teal-100 dark:bg-teal-900/20 bg-teal-500/10 dark:bg-teal-500/10 !bg-teal-100 dark:!bg-teal-900/30 !text-teal-700 dark:!text-teal-300 bg-teal-300 dark:bg-teal-950 bg-teal-200 dark:bg-teal-900 dark:bg-teal-700/40 dark:bg-cyan-600 bg-cyan-600 bg-cyan-100 dark:bg-cyan-900/20 bg-cyan-500/10 dark:bg-cyan-500/10 !bg-cyan-100 dark:!bg-cyan-900/30 !text-cyan-700 dark:!text-cyan-300 bg-cyan-300 dark:bg-cyan-950 bg-cyan-200 dark:bg-cyan-900 dark:bg-cyan-700/40 dark:bg-sky-600 bg-sky-600 bg-sky-100 dark:bg-sky-900/20 bg-sky-500/10 dark:bg-sky-500/10 !bg-sky-100 dark:!bg-sky-900/30 !text-sky-700 dark:!text-sky-300 bg-sky-300 dark:bg-sky-950 bg-sky-200 dark:bg-sky-900 dark:bg-sky-700/40 dark:bg-blue-600 bg-blue-600 bg-blue-100 dark:bg-blue-900/20 bg-blue-500/10 dark:bg-blue-500/10 !bg-blue-100 dark:!bg-blue-900/30 !text-blue-700 dark:!text-blue-300 bg-blue-300 dark:bg-blue-950 bg-blue-200 dark:bg-blue-900 dark:bg-blue-700/40 dark:bg-indigo-600 bg-indigo-600 bg-indigo-100 dark:bg-indigo-900/20 bg-indigo-500/10 dark:bg-indigo-500/10 !bg-indigo-100 dark:!bg-indigo-900/30 !text-indigo-700 dark:!text-indigo-300 bg-indigo-300 dark:bg-indigo-950 bg-indigo-200 dark:bg-indigo-900 dark:bg-indigo-700/40 dark:bg-violet-600 bg-violet-600 bg-violet-100 dark:bg-violet-900/20 bg-violet-500/10 dark:bg-violet-500/10 !bg-violet-100 dark:!bg-violet-900/30 !text-violet-700 dark:!text-violet-300 bg-violet-300 dark:bg-violet-950 bg-violet-200 dark:bg-violet-900 dark:bg-violet-700/40 dark:bg-purple-600 bg-purple-600 bg-purple-100 dark:bg-purple-900/20 bg-purple-500/10 dark:bg-purple-500/10 !bg-purple-100 dark:!bg-purple-900/30 !text-purple-700 dark:!text-purple-300 bg-purple-300 dark:bg-purple-950 bg-purple-200 dark:bg-purple-900 dark:bg-purple-700/40 dark:bg-fuchsia-600 bg-fuchsia-600 bg-fuchsia-100 dark:bg-fuchsia-900/20 bg-fuchsia-500/10 dark:bg-fuchsia-500/10 !bg-fuchsia-100 dark:!bg-fuchsia-900/30 !text-fuchsia-700 dark:!text-fuchsia-300 bg-fuchsia-300 dark:bg-fuchsia-950 bg-fuchsia-200 dark:bg-fuchsia-900 dark:bg-fuchsia-700/40 dark:bg-pink-600 bg-pink-600 bg-pink-100 dark:bg-pink-900/20 bg-pink-500/10 dark:bg-pink-500/10 !bg-pink-100 dark:!bg-pink-900/30 !text-pink-700 dark:!text-pink-300 bg-pink-300 dark:bg-pink-950 bg-pink-200 dark:bg-pink-900 dark:bg-pink-700/40 dark:bg-rose-600 bg-rose-600 bg-rose-100 dark:bg-rose-900/20 bg-rose-500/10 dark:bg-rose-500/10 !bg-rose-100 dark:!bg-rose-900/30 !text-rose-700 dark:!text-rose-300 bg-rose-300 dark:bg-rose-950 bg-rose-200 dark:bg-rose-900 dark:bg-rose-700/40");
 
 /* HeartRateZoneCellColors dynamic classes */
 @source inline("dark:bg-zinc-700/40 dark:bg-green-800/40 dark:bg-yellow-800/40 dark:bg-red-800/40 bg-zinc-800 dark:bg-zinc-950 text-white dark:bg-zinc-600/50 dark:bg-green-700/50 dark:bg-yellow-700/50 dark:bg-red-700/50 bg-zinc-900 dark:bg-black");
-
-@import '../../node_modules/treeselectjs/dist/treeselectjs.css';
 
 @theme {
     --font-sans: Inter, sans-serif;
 }
 
-/* TreeSelectJS — Flux UI overrides */
-.treeselect-input {
-    @apply bg-white dark:bg-white/10 border border-zinc-200 border-b-zinc-300/80 dark:border-white/10 rounded-lg shadow-xs min-h-10 text-sm leading-5;
-    padding: 0.4375rem 2.5rem 0.4375rem 0.4375rem;
-}
-
-.treeselect-input--focused {
-    outline: auto;
-    outline-color: Highlight;
-    outline-color: -webkit-focus-ring-color;
-    outline-offset: 2px;
-}
-
-.treeselect-input__tags-element {
-    @apply flex items-center bg-zinc-400/15 dark:bg-zinc-400/40 text-zinc-700 dark:text-zinc-200 cursor-default rounded-md text-sm leading-4;
-    padding: 0.25rem 0.5rem;
-}
-
-.treeselect-input__tags-element:hover {
-    @apply bg-zinc-400/25 dark:bg-zinc-400/50;
-}
-
-.treeselect-input__tags-name {
-    @apply font-medium;
-}
-
-.treeselect-input__tags-cross {
-    @apply flex items-center text-zinc-400 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200;
-    padding: calc(0.25rem - 1px) 0.25rem;
-    margin: calc(-0.25rem + 1px) -0.5rem calc(-0.25rem + 1px) 0;
-}
-
-.treeselect-input__tags-cross svg,
-.treeselect-input__tags-element:hover .treeselect-input__tags-cross svg {
-    @apply size-4 shrink-0 fill-current;
-    stroke: none;
-}
-
-.treeselect-input__edit {
-    @apply text-sm bg-transparent dark:text-white;
-}
-
-.treeselect-input__edit::placeholder {
-    @apply text-zinc-400;
-}
-
-.treeselect-input__clear {
-    @apply hidden;
-}
-
-.treeselect-input__arrow svg {
-    @apply stroke-zinc-300 dark:stroke-white/60;
-}
-
-.treeselect-input__arrow:hover svg {
-    @apply stroke-zinc-800 dark:stroke-white;
-}
-
-.treeselect-list {
-    @apply border border-zinc-200 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 shadow-xs max-h-80 p-[0.3125rem];
-}
-
-.treeselect-list__item {
-    @apply rounded-md text-sm font-medium text-zinc-800 dark:text-white h-[1.875rem] px-2;
-}
-
-.treeselect-list__item--focused {
-    @apply !bg-zinc-100 dark:!bg-zinc-600;
-}
-
-.treeselect-list__item--checked {
-    @apply bg-zinc-100 dark:bg-zinc-600;
-}
-
-.treeselect-list.treeselect-list--single-select .treeselect-list__item--single-selected {
-    @apply bg-zinc-100 dark:bg-zinc-600;
-}
-
-.treeselect-list__item-checkbox-container {
-    @apply border-zinc-300 dark:border-zinc-500 rounded dark:bg-white/10;
-}
-
-.treeselect-list__item--checked .treeselect-list__item-checkbox-container,
-.treeselect-list__item--partial-checked .treeselect-list__item-checkbox-container {
-    @apply bg-zinc-800 dark:bg-white border-zinc-800 dark:border-white;
-}
-
-.dark .treeselect-list__item--checked .treeselect-list__item-checkbox-container svg,
-.dark .treeselect-list__item--partial-checked .treeselect-list__item-checkbox-container svg {
-    @apply stroke-zinc-800;
-}
-
-.treeselect-list__item-icon svg {
-    @apply stroke-zinc-400;
-}
-
-.treeselect-list__item-icon:hover svg {
-    @apply stroke-zinc-600 dark:stroke-zinc-200;
-}
-
-.treeselect-list__item-label {
-    @apply text-sm;
-}
-
-.treeselect-list__empty-text {
-    @apply text-sm text-zinc-500 dark:text-zinc-400;
-}
-
-.treeselect-input--opened.treeselect-input--bottom {
-    @apply border-b-transparent rounded-b-none;
-}
-
-.treeselect-input--opened.treeselect-input--top {
-    @apply border-t-transparent rounded-t-none;
-}
-
-.treeselect-list--bottom,
-.treeselect-list--bottom-to-body {
-    @apply rounded-t-none;
-}
-
-.treeselect-list--top,
-.treeselect-list--top-to-body {
-    @apply rounded-b-none;
-}
-
-[data-flux-modal] > dialog::backdrop {
-    background-color: rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(4px);
-}
-
 @custom-variant dark (&:where(.dark, .dark *));
-
-.scrollbar-none::-webkit-scrollbar {
-    display: none;
-}
-
-.override-active [data-flux-radio-group-segmented] [data-checked] {
-    background-color: var(--color-blue-200) !important;
-}
-
-.dark .override-active [data-flux-radio-group-segmented] [data-checked] {
-    background-color: var(--color-blue-800) !important;
-}
-
-[data-flux-sidebar-brand] > div:first-child {
-    height: auto !important;
-    min-width: auto !important;
-}
-

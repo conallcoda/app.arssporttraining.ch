@@ -3,12 +3,9 @@
 namespace App\Livewire\Training;
 
 use App\Models\Exercise\ExerciseProgram;
-use Livewire\Attributes\Layout;
-use Livewire\Attributes\Title;
+use Coda\Cms\Livewire\CmsPage;
 use Livewire\Component;
 
-#[Layout('components.layouts.admin')]
-#[Title('ARS - Athlete Training // Program')]
 class ExerciseProgramView extends Component
 {
     public ExerciseProgram $exerciseProgram;
@@ -26,6 +23,8 @@ class ExerciseProgramView extends Component
 
     public function render()
     {
-        return view('livewire.training.exercise-program-view');
+        return view('livewire.training.exercise-program-view')
+            ->layout(CmsPage::layout())
+            ->title(CmsPage::buildTitle(__('Program')));
     }
 }

@@ -20,7 +20,6 @@ class CategoryListModule extends Module
         return [
             PageDefinition::make('category-list-index')
                 ->route('/training/categories')
-                ->title('ARS - Athlete Training // Categories')
                 ->heading('Categories')
                 ->content(['training.category-list']),
         ];

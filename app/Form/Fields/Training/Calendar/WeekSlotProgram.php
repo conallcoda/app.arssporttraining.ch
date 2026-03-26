@@ -2,8 +2,8 @@
 
 namespace App\Form\Fields\Training\Calendar;
 
-use App\Form\Fields\SelectEntity;
 use App\Models\Training\TrainingProgram;
+use Coda\Cms\Form\Fields\SelectEntity;
 
 class WeekSlotProgram extends SelectEntity
 {

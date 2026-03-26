@@ -2,6 +2,7 @@
 
 namespace App\Data\Exercise;
 
+use App\Form\Fields\Category;
 use App\Form\Fields\Owner;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseTemplate;
@@ -122,7 +123,7 @@ class ExerciseData extends AbstractData implements HasForms, PersistsWithMedia
             ->fieldset('General', [
                 Owner::make('owner_id')->withOptions()->allowUnassigned(),
                 Fields\Text::make('name')->required(true),
-                Fields\Category::make('category', 'exercise_category')->label('Category')->required()->withOptions(),
+                Category::make('category', 'exercise_category')->label('Category')->required()->withOptions(),
                 Fields\Select::make('template')
                     ->label('Template')
                     ->options(ExerciseTemplate::query()->orderBy('name')->pluck('name', 'id')->all())

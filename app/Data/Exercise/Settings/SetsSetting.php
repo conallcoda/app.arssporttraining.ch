@@ -2,6 +2,7 @@
 
 namespace App\Data\Exercise\Settings;
 
+use App\Form\Fields\Sets;
 use Coda\Cms\Form\Fields;
 
 class SetsSetting extends AbstractSetting
@@ -25,7 +26,7 @@ class SetsSetting extends AbstractSetting
                 ])
                 ->default('none')
                 ->live(),
-            Fields\Sets::make('deloadBy')
+            Sets::make('deloadBy')
                 ->label('Deload By')
                 ->min(1)
                 ->default(1)
@@ -34,7 +35,7 @@ class SetsSetting extends AbstractSetting
                 ->label('Label')
                 ->default('Set')
                 ->suffix('set(s)'),
-            Fields\Sets::make('default')
+            Sets::make('default')
                 ->label('Default'),
         ];
     }

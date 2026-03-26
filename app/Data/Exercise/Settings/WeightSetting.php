@@ -4,6 +4,7 @@ namespace App\Data\Exercise\Settings;
 
 use App\Data\Exercise\Preview\CellInputMeta;
 use App\Form\Fields\Exercise\ApplyPerField;
+use App\Form\Fields\Weight;
 use Coda\Cms\Form\Fields;
 
 class WeightSetting extends AbstractSetting
@@ -66,7 +67,7 @@ class WeightSetting extends AbstractSetting
                 ->label('1RM Modifier')
                 ->default(100)
                 ->show('mode == "automatic"'),
-            Fields\Weight::make('default')
+            Weight::make('default')
                 ->label('Default Weight')
                 ->default(5)
                 ->show('mode == "manual"'),

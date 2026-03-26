@@ -2,11 +2,11 @@
 
 namespace App\Data\Exercise;
 
+use App\Form\Fields\Category;
 use App\Models\Tag;
 use Carbon\Carbon;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Form\Concerns\InteractsWithForms;
-use Coda\Cms\Form\Fields\Category;
 use Coda\Cms\Form\Fields\Text;
 use Coda\Cms\Form\Form;
 use Coda\Cms\Models\Contracts\HasForms;

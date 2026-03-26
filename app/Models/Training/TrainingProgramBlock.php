@@ -3,10 +3,10 @@
 namespace App\Models\Training;
 
 use App\Data\Training\Blocks\BlockConfig;
-use App\Models\Concerns\HasOwner;
 use App\Models\Tag;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
+use Coda\Cms\Models\Concerns\HasOwner;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;

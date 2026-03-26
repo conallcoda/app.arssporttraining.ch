@@ -6,19 +6,19 @@ describe('JoggingZoneTable', function () {
     it('returns correct range for each zone with default IAT', function () {
         $maxHR = 190;
 
-        expect(JoggingZoneTable::getRange(0, $maxHR))->toBe(['lower' => 105, 'upper' => 133]);
-        expect(JoggingZoneTable::getRange(1, $maxHR))->toBe(['lower' => 133, 'upper' => 152]);
-        expect(JoggingZoneTable::getRange(2, $maxHR))->toBe(['lower' => 162, 'upper' => 181]);
-        expect(JoggingZoneTable::getRange(3, $maxHR))->toBe(['lower' => 181, 'upper' => 190]);
+        expect(JoggingZoneTable::getRange(0, $maxHR))->toBe(['lower' => 105, 'upper' => 132]);
+        expect(JoggingZoneTable::getRange(1, $maxHR))->toBe(['lower' => 133, 'upper' => 151]);
+        expect(JoggingZoneTable::getRange(2, $maxHR))->toBe(['lower' => 162, 'upper' => 180]);
+        expect(JoggingZoneTable::getRange(3, $maxHR))->toBe(['lower' => 181, 'upper' => 189]);
         expect(JoggingZoneTable::getRange(4, $maxHR))->toBe(['lower' => 190, 'upper' => 200]);
     });
 
     it('uses IAT + 5 for zone 2 upper bound', function () {
         $maxHR = 200;
 
-        expect(JoggingZoneTable::getRange(2, $maxHR, 85))->toBe(['lower' => 170, 'upper' => 180]);
-        expect(JoggingZoneTable::getRange(2, $maxHR, 90))->toBe(['lower' => 170, 'upper' => 190]);
-        expect(JoggingZoneTable::getRange(2, $maxHR, 95))->toBe(['lower' => 170, 'upper' => 200]);
+        expect(JoggingZoneTable::getRange(2, $maxHR, 85))->toBe(['lower' => 170, 'upper' => 179]);
+        expect(JoggingZoneTable::getRange(2, $maxHR, 90))->toBe(['lower' => 170, 'upper' => 189]);
+        expect(JoggingZoneTable::getRange(2, $maxHR, 95))->toBe(['lower' => 170, 'upper' => 199]);
     });
 
     it('clamps zone below 0 to 0', function () {
@@ -30,13 +30,13 @@ describe('JoggingZoneTable', function () {
     });
 
     it('returns range string for single zone spec', function () {
-        expect(JoggingZoneTable::getRangeForZoneSpec('2', 190))->toBe('162-181');
+        expect(JoggingZoneTable::getRangeForZoneSpec('2', 190))->toBe('162-180');
     });
 
     it('returns range string spanning multiple zones', function () {
         $result = JoggingZoneTable::getRangeForZoneSpec('1-3', 190);
 
-        expect($result)->toBe('133-190');
+        expect($result)->toBe('133-189');
     });
 
     it('allows BPM to exceed max HR for zone MAX', function () {

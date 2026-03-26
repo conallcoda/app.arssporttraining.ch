@@ -2,9 +2,9 @@
 
 namespace App\Form\Fields\Training\Program;
 
-use App\Form\Fields\SelectEntity;
 use App\Models\Exercise\ExerciseProgram;
 use Closure;
+use Coda\Cms\Form\Fields\SelectEntity;
 
 class SelectProgram extends SelectEntity
 {

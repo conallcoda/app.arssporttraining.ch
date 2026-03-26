@@ -21,13 +21,11 @@ class ExerciseProgramModule extends Module
         return [
             PageDefinition::make('exercise-program-index')
                 ->route('/programs')
-                ->title('ARS - Athlete Training // Exercise Programs')
                 ->heading('Exercise Programs')
                 ->content(['training.exercise-program-list']),
 
             PageDefinition::make('exercise-program-view')
                 ->route('/programs/{exerciseProgram}')
-                ->title('ARS - Athlete Training // Program')
                 ->component(ExerciseProgramView::class),
         ];
     }

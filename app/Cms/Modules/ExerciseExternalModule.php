@@ -20,7 +20,6 @@ class ExerciseExternalModule extends Module
         return [
             PageDefinition::make('exercise-external-index')
                 ->route('/exercises/import')
-                ->title('ARS - Athlete Training // Import Exercises')
                 ->heading('Import Exercises')
                 ->content(['database.exercise-external-list']),
         ];

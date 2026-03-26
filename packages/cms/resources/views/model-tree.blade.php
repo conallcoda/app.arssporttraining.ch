@@ -97,11 +97,9 @@
                                             };
                                         @endphp
                                         <flux:button type="button" size="xs" variant="ghost"
+                                            icon="{{ $action->icon }}"
                                             wire:click="{{ $action->getHandler() }}({{ $item->id }})"
-                                            :disabled="$disabled">
-                                            <x-dynamic-component :component="'lucide-' . $action->icon"
-                                                class="w-4 h-4" />
-                                        </flux:button>
+                                            :disabled="$disabled" />
                                     @endif
                                 @endforeach
 

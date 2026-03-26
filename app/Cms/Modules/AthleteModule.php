@@ -22,12 +22,10 @@ class AthleteModule extends Module
         return [
             PageDefinition::make('athlete-index')
                 ->route('/athletes')
-                ->title('ARS - Athlete Training // Athletes')
                 ->heading('Athletes')
                 ->content(['database.athlete-list']),
             PageDefinition::make('athlete-metric-index')
                 ->route('/athletes/{athleteId}/metrics')
-                ->title('ARS - Athlete Training // Metrics')
                 ->component(AthleteMetricIndex::class),
         ];
     }

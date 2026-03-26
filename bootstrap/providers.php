@@ -1,9 +1,13 @@
 <?php
 
+use App\Providers\AppServiceProvider;
+use App\Providers\CmsServiceProvider;
+use App\Providers\LivewireProfilerServiceProvider;
+use App\Providers\VoltServiceProvider;
+
 return [
-    App\Providers\AppServiceProvider::class,
-    App\Providers\CmsServiceProvider::class,
-    App\Providers\FortifyServiceProvider::class,
-    App\Providers\VoltServiceProvider::class,
-    App\Providers\LivewireProfilerServiceProvider::class,
+    AppServiceProvider::class,
+    CmsServiceProvider::class,
+    VoltServiceProvider::class,
+    LivewireProfilerServiceProvider::class,
 ];

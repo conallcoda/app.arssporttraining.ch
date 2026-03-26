@@ -20,7 +20,6 @@ class AthleteGroupModule extends Module
         return [
             PageDefinition::make('athlete-group-index')
                 ->route('/athletes/groups')
-                ->title('ARS - Athlete Training // Athlete Groups')
                 ->heading('Athlete Groups')
                 ->content(['database.athlete-group-list']),
         ];

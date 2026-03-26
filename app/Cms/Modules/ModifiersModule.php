@@ -20,7 +20,6 @@ class ModifiersModule extends Module
         return [
             PageDefinition::make('modifiers-index')
                 ->route('/exercises/modifiers')
-                ->title('ARS - Athlete Training // Modifiers')
                 ->heading('Modifiers')
                 ->content(['database.modifiers-list']),
         ];

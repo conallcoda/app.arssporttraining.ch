@@ -1,7 +1,7 @@
 <x-slot:navbar>
-    <x-top-nav>
+    <x-cms::top-nav>
         <flux:navbar.item current>{{ __('Calendar') }}</flux:navbar.item>
-    </x-top-nav>
+    </x-cms::top-nav>
 </x-slot:navbar>
 
 <flux:main>
