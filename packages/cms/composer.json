@@ -7,6 +7,11 @@
             "Coda\\Cms\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Coda\\Cms\\Tests\\": "tests/"
+        }
+    },
     "require": {
         "php": "^8.2",
         "laravel/fortify": "^1.0",

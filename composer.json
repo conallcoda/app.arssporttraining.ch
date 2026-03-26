@@ -41,7 +41,8 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Tests\\": "tests/"
+            "Tests\\": "tests/",
+            "Coda\\Cms\\Tests\\": "packages/cms/tests/"
         }
     },
     "scripts": {

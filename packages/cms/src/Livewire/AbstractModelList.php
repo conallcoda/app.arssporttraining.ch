@@ -9,9 +9,6 @@ use Coda\Cms\Display\IndexTab;
 use Coda\Cms\Display\Table;
 use Coda\Cms\Display\TableFilter;
 use Coda\Cms\Form\Action;
-use Coda\Cms\Form\ActionPlacement;
-use Coda\Cms\Form\Field;
-use Coda\Cms\Form\Fields\Relationship;
 use Coda\Cms\Form\Form;
 use Flux\Flux;
 use Illuminate\Contracts\Database\Eloquent\Builder;
@@ -25,6 +22,8 @@ use Livewire\WithPagination;
 
 abstract class AbstractModelList extends Component
 {
+    use Concerns\InteractsWithCrudActions;
+    use Concerns\InteractsWithEntityDefinition;
     use Concerns\InteractsWithFormData;
     use Concerns\WithUrlPrefix;
     use WithPagination;
@@ -101,54 +100,6 @@ abstract class AbstractModelList extends Component
         return 'sort';
     }
 
-    protected function getActions(): array
-    {
-        return array_filter([
-            $this->getAddAction(),
-            $this->getEditAction(),
-            $this->getDeleteAction(),
-            ...$this->getSortActions(),
-            ...$this->getExtraActions(),
-        ]);
-    }
-
-    protected function getAddAction(): ?Action
-    {
-        if (! $this->option('showAddButton', true)) {
-            return null;
-        }
-
-        return Action::make('add', 'Add '.$this->getEntityName())
-            ->header()
-            ->icon('plus')
-            ->variant('primary')
-            ->formModal($this->getDataClass(), 'Add '.$this->getEntityName())
-            ->handler('handleFormSubmitted');
-    }
-
-    protected function getEditAction(): Action
-    {
-        return Action::make('edit', 'Edit')
-            ->row()
-            ->icon('pencil')
-            ->formModal($this->getDataClass(), 'Edit '.$this->getEntityName())
-            ->passesItemData()
-            ->handler('handleFormSubmitted');
-    }
-
-    protected function getDeleteAction(): Action
-    {
-        return Action::make('delete', 'Delete')
-            ->row()
-            ->icon('trash-2')
-            ->confirm(
-                heading: 'Delete '.$this->getEntityName().'?',
-                description: "You're about to delete this ".strtolower($this->getEntityName()).".\nThis action cannot be reversed.",
-                buttonLabel: 'Delete',
-            )
-            ->handler('removeItem');
-    }
-
     protected function getSortActions(): array
     {
         if (! $this->isSortable()) {
@@ -172,131 +123,12 @@ abstract class AbstractModelList extends Component
         return $this->resolveTable()->getActions();
     }
 
-    #[Computed]
-    public function actions(): array
-    {
-        return $this->getActions();
-    }
-
-    #[Computed]
-    public function headerActions(): array
-    {
-        return collect($this->actions)
-            ->filter(fn (Action $a) => $a->placement === ActionPlacement::Header)
-            ->values()
-            ->all();
-    }
-
-    #[Computed]
-    public function rowActions(): array
-    {
-        return collect($this->actions)
-            ->filter(fn (Action $a) => $a->placement === ActionPlacement::Row)
-            ->values()
-            ->all();
-    }
-
-    #[Computed]
-    public function rowMenuActions(): array
-    {
-        return collect($this->actions)
-            ->filter(fn (Action $a) => $a->placement === ActionPlacement::RowMenu)
-            ->values()
-            ->all();
-    }
-
-    #[Computed]
-    public function formModals(): array
-    {
-        $modals = [];
-        $seenFormClasses = [];
-
-        foreach ($this->actions as $action) {
-            if (! $action->isFormModal()) {
-                continue;
-            }
-
-            if (in_array($action->formDataClass, $seenFormClasses, true)) {
-                continue;
-            }
-
-            $seenFormClasses[] = $action->formDataClass;
-            $modals[] = [
-                'name' => $action->resolveModalName($this->getEntitySlug()),
-                'title' => $action->modalTitle,
-                'formDataClass' => $action->formDataClass,
-                'submitLabel' => $action->submitLabel ?? 'Save',
-                'formComponent' => $action->formComponent,
-                'maxWidth' => $this->getFormModalMaxWidth(),
-            ];
-        }
-
-        return $modals;
-    }
-
-    #[Computed]
-    public function confirmModals(): array
-    {
-        return collect($this->actions)
-            ->filter(fn (Action $a) => $a->isConfirm())
-            ->values()
-            ->all();
-    }
-
-    #[Computed]
-    public function editModalName(): string
-    {
-        foreach ($this->actions as $action) {
-            if ($action->isFormModal() && $action->formDataClass === $this->getDataClass()) {
-                return $action->resolveModalName($this->getEntitySlug());
-            }
-        }
-
-        return 'add-'.$this->getEntitySlug();
-    }
-
-    public function getModalNameForAction(Action $action): string
-    {
-        if (! $action->isFormModal()) {
-            return $action->resolveModalName($this->getEntitySlug());
-        }
-
-        foreach ($this->actions as $other) {
-            if ($other->isFormModal() && $other->formDataClass === $action->formDataClass) {
-                return $other->resolveModalName($this->getEntitySlug());
-            }
-        }
-
-        return $action->resolveModalName($this->getEntitySlug());
-    }
-
-    /** @return array<string, string> */
     public function getListeners(): array
     {
-        $listeners = [];
-
-        foreach ($this->getActions() as $action) {
-            if (! $action->isFormModal()) {
-                continue;
-            }
-
-            $modalName = $action->resolveModalName($this->getEntitySlug());
-            $key = "{$modalName}.submitted";
-
-            if (! isset($listeners[$key])) {
-                $listeners[$key] = $action->getHandler();
-            }
-        }
-
-        $listeners["{$this->editModalName}.closed"] = 'handleModalClosed';
+        $listeners = parent::getListeners();
         $listeners["{$this->editModalName}.delete-requested"] = 'handleFormDeleteRequested';
 
         return $listeners;
-    }
-
-    public function handleModalClosed(): void
-    {
-        $this->edit = null;
     }
 
     public function handleFormDeleteRequested(array $data): void
@@ -327,58 +159,6 @@ abstract class AbstractModelList extends Component
         Flux::modal("confirm-form-delete-{$this->getEntitySlug()}")->close();
 
         $this->removeItem($id);
-    }
-
-    public function confirmAction(string $actionName, int $id): void
-    {
-        $action = collect($this->actions)->firstWhere('name', $actionName);
-        if (! $action || ! $action->isConfirm()) {
-            return;
-        }
-
-        $this->confirmingId = $id;
-        $this->confirmingAction = $actionName;
-        Flux::modal($action->resolveModalName($this->getEntitySlug()))->show();
-    }
-
-    public function executeConfirmedAction(): void
-    {
-        if (! $this->confirmingId || ! $this->confirmingAction) {
-            return;
-        }
-
-        $action = collect($this->actions)->firstWhere('name', $this->confirmingAction);
-        if (! $action) {
-            return;
-        }
-
-        $handler = $action->getHandler();
-        $id = $this->confirmingId;
-
-        $this->confirmingId = null;
-        $this->confirmingAction = null;
-
-        Flux::modal($action->resolveModalName($this->getEntitySlug()))->close();
-
-        $this->$handler($id);
-    }
-
-    public function openActionModal(string $actionName, int $id): void
-    {
-        $action = collect($this->actions)->firstWhere('name', $actionName);
-        if (! $action || ! $action->isFormModal()) {
-            return;
-        }
-
-        $modalName = $this->getModalNameForAction($action);
-        $data = ['id' => $id];
-
-        if ($action->prepareData) {
-            $model = $this->getBaseQuery()->findOrFail($id);
-            $data = ($action->prepareData)($model, $data);
-        }
-
-        $this->dispatch("open-{$modalName}", data: $data, title: $action->modalTitle);
     }
 
     public function removeItem(int $id): void
@@ -587,11 +367,6 @@ abstract class AbstractModelList extends Component
         $this->resetPage(pageName: $this->prefixedPageName());
     }
 
-    protected function createDataFromForm(array $formData): AbstractData
-    {
-        return $this->getDataClass()::from($formData);
-    }
-
     protected function getEntitySlug(): string
     {
         return Str::of(class_basename($this))
@@ -607,11 +382,6 @@ abstract class AbstractModelList extends Component
             ->replaceLast('List', '')
             ->headline()
             ->toString();
-    }
-
-    protected function dataFromModel(Model $model): AbstractData
-    {
-        return $this->getDataClass()::from($model);
     }
 
     protected function resolveTable(): Table
@@ -656,16 +426,10 @@ abstract class AbstractModelList extends Component
         ];
     }
 
-    public function option(string $key, mixed $default = null): mixed
-    {
-        return $this->options[$key] ?? $default;
-    }
-
     public function mount(): void
     {
-        $this->options = array_merge($this->getDefaultOptions(), $this->options);
+        $this->mountEntityDefaults();
         $this->compact = $this->option('compact', $this->compact);
-        $this->data = $this->buildDefaultsFromFieldsets();
 
         if ($this->selectedTab === null) {
             $this->selectedTab = $this->getDefaultTabKey();
@@ -720,69 +484,11 @@ abstract class AbstractModelList extends Component
         return (int) ceil(($position + 1) / $this->getPerPage());
     }
 
-    public function startEdit(int $id): void
-    {
-        $this->edit = $id;
-
-        $model = $this->getBaseQuery()->findOrFail($id);
-        $data = $this->dataFromModel($model)->toArray();
-
-        $this->dispatch("open-{$this->editModalName}", data: $data, title: 'Edit '.$this->getEntityName());
-    }
-
-    protected function getFormDefinition(): Form|array
-    {
-        $dataClass = $this->getDataClass();
-
-        if (method_exists($dataClass, 'getForm')) {
-            return $dataClass::getForm();
-        }
-
-        if (method_exists($dataClass, 'getFields')) {
-            return $dataClass::getFields();
-        }
-
-        return [];
-    }
-
-    #[Computed]
-    public function formConfig(): Form
-    {
-        $definition = $this->getFormDefinition();
-
-        if ($definition instanceof Form) {
-            return $definition;
-        }
-
-        return Form::fields($definition);
-    }
-
-    #[Computed]
-    public function fields(): array
-    {
-        return $this->formConfig->getFields();
-    }
-
-    #[Computed]
-    public function fieldsets(): array
-    {
-        return $this->formConfig->resolveFieldsets($this->data);
-    }
-
     protected function getRelationshipsToLoad(): array
     {
         return collect($this->resolveTable()->getColumns())
             ->filter(fn (DisplayField $column) => $column instanceof RelationshipColumn)
             ->map(fn (DisplayField $column) => $column->field)
-            ->values()
-            ->all();
-    }
-
-    protected function getFormRelationshipsToLoad(): array
-    {
-        return collect($this->getAllFields())
-            ->filter(fn (Field $field) => $field instanceof Relationship)
-            ->map(fn (Field $field) => $field->name)
             ->values()
             ->all();
     }
@@ -891,8 +597,6 @@ abstract class AbstractModelList extends Component
     {
         return 'max-w-sm';
     }
-
-    protected function emit(): void {}
 
     public function render(): View
     {
