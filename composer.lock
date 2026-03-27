@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d660863e3451aff78eb2f8c96eee8840",
+    "content-hash": "69821e68721d01e01bb43eab703f3500",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -277,7 +277,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/cms",
-                "reference": "0edf3f36abe1c368651e010b7d79288de19c996f"
+                "reference": "950450ca5fde96307556a51c55f7e4c77beefe2f"
             },
             "require": {
                 "laravel/fortify": "^1.0",
@@ -289,7 +289,8 @@
                 "spatie/laravel-query-builder": "^6.0",
                 "spatie/laravel-schemaless-attributes": "^2.0",
                 "spatie/laravel-sluggable": "^3.0",
-                "staudenmeir/laravel-adjacency-list": "^1.0"
+                "staudenmeir/laravel-adjacency-list": "^1.0",
+                "symfony/expression-language": "^7.0 || ^8.0"
             },
             "type": "library",
             "extra": {
@@ -302,6 +303,11 @@
             "autoload": {
                 "psr-4": {
                     "Coda\\Cms\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Coda\\Cms\\Tests\\": "tests/"
                 }
             },
             "description": "Generic CMS framework for Laravel Livewire applications",
@@ -1607,16 +1613,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v12.55.1",
+            "version": "v12.56.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "6d9185a248d101b07eecaf8fd60b18129545fd33"
+                "reference": "dac16d424b59debb2273910dde88eb7050a2a709"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/6d9185a248d101b07eecaf8fd60b18129545fd33",
-                "reference": "6d9185a248d101b07eecaf8fd60b18129545fd33",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/dac16d424b59debb2273910dde88eb7050a2a709",
+                "reference": "dac16d424b59debb2273910dde88eb7050a2a709",
                 "shasum": ""
             },
             "require": {
@@ -1825,7 +1831,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2026-03-18T14:28:59+00:00"
+            "time": "2026-03-26T14:51:54+00:00"
         },
         {
             "name": "laravel/prompts",
@@ -2574,16 +2580,16 @@
         },
         {
             "name": "livewire/flux",
-            "version": "v2.13.0",
+            "version": "v2.13.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/livewire/flux.git",
-                "reference": "741be2d4526e90b97c7a59e079a2f27ecdce2461"
+                "reference": "5bee3d50ea8382e178d2b10a3412a82e6ecfb4a3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/livewire/flux/zipball/741be2d4526e90b97c7a59e079a2f27ecdce2461",
-                "reference": "741be2d4526e90b97c7a59e079a2f27ecdce2461",
+                "url": "https://api.github.com/repos/livewire/flux/zipball/5bee3d50ea8382e178d2b10a3412a82e6ecfb4a3",
+                "reference": "5bee3d50ea8382e178d2b10a3412a82e6ecfb4a3",
                 "shasum": ""
             },
             "require": {
@@ -2634,25 +2640,25 @@
             ],
             "support": {
                 "issues": "https://github.com/livewire/flux/issues",
-                "source": "https://github.com/livewire/flux/tree/v2.13.0"
+                "source": "https://github.com/livewire/flux/tree/v2.13.1"
             },
-            "time": "2026-03-03T03:32:35+00:00"
+            "time": "2026-03-26T00:02:01+00:00"
         },
         {
             "name": "livewire/flux-pro",
-            "version": "2.13.0",
+            "version": "2.13.1",
             "dist": {
                 "type": "zip",
-                "url": "https://composer.fluxui.dev/download/a1357bcd-0c9f-48ec-a532-2aced09459e7/flux-pro-2.13.0.zip",
-                "reference": "3d91059d053ac94a2f522944f581c3876963656c",
-                "shasum": "dc3d4e5baedc6e525f41f25474885413e5c1e13e"
+                "url": "https://composer.fluxui.dev/download/a16373f8-0de4-4b5e-b741-1ca11754c32b/flux-pro-2.13.1.zip",
+                "reference": "3a764f5bfc8733a4cb43459ae2cb797377725165",
+                "shasum": "40cd2207c66885e856315a258990443329e6e7a3"
             },
             "require": {
                 "illuminate/console": "^10.0|^11.0|^12.0|^13.0",
                 "illuminate/support": "^10.0|^11.0|^12.0|^13.0",
                 "illuminate/view": "^10.0|^11.0|^12.0|^13.0",
                 "laravel/prompts": "^0.1.24|^0.2|^0.3",
-                "livewire/flux": "2.13.0|dev-main",
+                "livewire/flux": "2.13.1|dev-main",
                 "livewire/livewire": "^3.7.4|^4.0",
                 "php": "^8.1",
                 "symfony/console": "^6.0|^7.0|^8.0"
@@ -2709,20 +2715,20 @@
                 "livewire",
                 "ui"
             ],
-            "time": "2026-03-03T04:07:04+00:00"
+            "time": "2026-03-26T00:33:15+00:00"
         },
         {
             "name": "livewire/livewire",
-            "version": "v4.2.1",
+            "version": "v4.2.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/livewire/livewire.git",
-                "reference": "93e972fa42c1b34fff1550093ab94f778d81ea5a"
+                "reference": "71c28888f99b4bfdaad89a07a104adbc3f98c04b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/livewire/livewire/zipball/93e972fa42c1b34fff1550093ab94f778d81ea5a",
-                "reference": "93e972fa42c1b34fff1550093ab94f778d81ea5a",
+                "url": "https://api.github.com/repos/livewire/livewire/zipball/71c28888f99b4bfdaad89a07a104adbc3f98c04b",
+                "reference": "71c28888f99b4bfdaad89a07a104adbc3f98c04b",
                 "shasum": ""
             },
             "require": {
@@ -2777,7 +2783,7 @@
             "description": "A front-end framework for Laravel.",
             "support": {
                 "issues": "https://github.com/livewire/livewire/issues",
-                "source": "https://github.com/livewire/livewire/tree/v4.2.1"
+                "source": "https://github.com/livewire/livewire/tree/v4.2.2"
             },
             "funding": [
                 {
@@ -2785,7 +2791,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-02-28T00:01:19+00:00"
+            "time": "2026-03-25T23:19:23+00:00"
         },
         {
             "name": "maatwebsite/excel",
@@ -2948,16 +2954,16 @@
         },
         {
             "name": "mallardduck/blade-lucide-icons",
-            "version": "1.26.10",
+            "version": "1.26.11",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mallardduck/blade-lucide-icons.git",
-                "reference": "a98110f1538f7cf8a00e57079b370a6d74cbc496"
+                "reference": "b56aac8c1c6d5701eead858b473449550ee94b75"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mallardduck/blade-lucide-icons/zipball/a98110f1538f7cf8a00e57079b370a6d74cbc496",
-                "reference": "a98110f1538f7cf8a00e57079b370a6d74cbc496",
+                "url": "https://api.github.com/repos/mallardduck/blade-lucide-icons/zipball/b56aac8c1c6d5701eead858b473449550ee94b75",
+                "reference": "b56aac8c1c6d5701eead858b473449550ee94b75",
                 "shasum": ""
             },
             "require": {
@@ -3002,9 +3008,9 @@
             ],
             "support": {
                 "issues": "https://github.com/mallardduck/blade-lucide-icons/issues",
-                "source": "https://github.com/mallardduck/blade-lucide-icons/tree/1.26.10"
+                "source": "https://github.com/mallardduck/blade-lucide-icons/tree/1.26.11"
             },
-            "time": "2026-03-25T00:24:05+00:00"
+            "time": "2026-03-26T00:26:22+00:00"
         },
         {
             "name": "markbaker/complex",
@@ -6665,22 +6671,21 @@
         },
         {
             "name": "symfony/expression-language",
-            "version": "v7.4.4",
+            "version": "v8.0.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/expression-language.git",
-                "reference": "f3a6497eb6573e185f2ec41cd3b3f0cd68ddf667"
+                "reference": "83989cfbcf2ba08a400be339a88468b05ddc21c9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/expression-language/zipball/f3a6497eb6573e185f2ec41cd3b3f0cd68ddf667",
-                "reference": "f3a6497eb6573e185f2ec41cd3b3f0cd68ddf667",
+                "url": "https://api.github.com/repos/symfony/expression-language/zipball/83989cfbcf2ba08a400be339a88468b05ddc21c9",
+                "reference": "83989cfbcf2ba08a400be339a88468b05ddc21c9",
                 "shasum": ""
             },
             "require": {
-                "php": ">=8.2",
-                "symfony/cache": "^6.4|^7.0|^8.0",
-                "symfony/deprecation-contracts": "^2.5|^3",
+                "php": ">=8.4",
+                "symfony/cache": "^7.4|^8.0",
                 "symfony/service-contracts": "^2.5|^3"
             },
             "type": "library",
@@ -6709,7 +6714,7 @@
             "description": "Provides an engine that can compile and evaluate expressions",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/expression-language/tree/v7.4.4"
+                "source": "https://github.com/symfony/expression-language/tree/v8.0.4"
             },
             "funding": [
                 {
@@ -6729,7 +6734,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-01-05T08:47:25+00:00"
+            "time": "2026-01-05T09:27:50+00:00"
         },
         {
             "name": "symfony/finder",

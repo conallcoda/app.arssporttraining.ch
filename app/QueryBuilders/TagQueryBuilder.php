@@ -3,29 +3,30 @@
 namespace App\QueryBuilders;
 
 use Coda\Cms\QueryBuilder\DefaultQueryBuilder;
+use Coda\Cms\QueryBuilder\QueryExpressionFilter;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\AllowedSort;
 
 class TagQueryBuilder extends DefaultQueryBuilder
 {
-    /** @return array<int, string|\Spatie\QueryBuilder\AllowedSort> */
+    /** @return array<int, string|AllowedSort> */
     public function getDefinedSorts(): array
     {
-        return [
+        return $this->resolveSorts([
             'id',
             'name',
             'color',
-            AllowedSort::field('updatedAt', 'updated_at'),
-        ];
+            'updatedAt',
+        ]);
     }
 
-    /** @return array<int, string|\Spatie\QueryBuilder\AllowedFilter> */
+    /** @return array<int, string|AllowedFilter> */
     public function getDefinedFilters(): array
     {
         return [
-            AllowedFilter::callback('search', function ($query, $value): void {
-                $query->where('name', 'like', '%'.$value.'%');
-            }),
+            QueryExpressionFilter::make('search', 'name contains $value', [
+                'fields' => ['name'],
+            ]),
         ];
     }
 }

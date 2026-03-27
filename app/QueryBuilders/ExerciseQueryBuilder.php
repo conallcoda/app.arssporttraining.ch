@@ -2,37 +2,33 @@
 
 namespace App\QueryBuilders;
 
-use App\Support\Sorts\CategorySort;
-use App\Support\Sorts\CoachSort;
 use Coda\Cms\QueryBuilder\DefaultQueryBuilder;
+use Coda\Cms\QueryBuilder\QueryExpressionFilter;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\AllowedSort;
 
 class ExerciseQueryBuilder extends DefaultQueryBuilder
 {
-    /** @return array<int, string|\Spatie\QueryBuilder\AllowedSort> */
+    /** @return array<int, string|AllowedSort> */
     public function getDefinedSorts(): array
     {
-        return [
+        return $this->resolveSorts([
             'id',
             'name',
             'type',
-            AllowedSort::field('updatedAt', 'updated_at'),
-            CoachSort::make('coach', 'exercises'),
-            CategorySort::make('category', 'category_id', 'exercises'),
-        ];
+            'updatedAt',
+            'coach => owner.surname.concat("forename")',
+            'category => category.name',
+        ]);
     }
 
-    /** @return array<int, string|\Spatie\QueryBuilder\AllowedFilter> */
+    /** @return array<int, string|AllowedFilter> */
     public function getDefinedFilters(): array
     {
         return [
-            AllowedFilter::callback('search', function ($query, $value): void {
-                $query->where(function ($subQuery) use ($value): void {
-                    $subQuery->where('name', 'like', '%'.$value.'%')
-                        ->orWhere('type', 'like', '%'.$value.'%');
-                });
-            }),
+            QueryExpressionFilter::make('search', 'name contains $value or type contains $value', [
+                'fields' => ['name', 'type'],
+            ]),
             AllowedFilter::exact('type'),
         ];
     }

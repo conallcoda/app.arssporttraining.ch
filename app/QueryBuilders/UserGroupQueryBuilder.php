@@ -2,31 +2,31 @@
 
 namespace App\QueryBuilders;
 
-use App\Support\Sorts\CoachSort;
 use Coda\Cms\QueryBuilder\DefaultQueryBuilder;
+use Coda\Cms\QueryBuilder\QueryExpressionFilter;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\AllowedSort;
 
 class UserGroupQueryBuilder extends DefaultQueryBuilder
 {
-    /** @return array<int, string|\Spatie\QueryBuilder\AllowedSort> */
+    /** @return array<int, string|AllowedSort> */
     public function getDefinedSorts(): array
     {
-        return [
+        return $this->resolveSorts([
             'id',
             'name',
-            AllowedSort::field('updatedAt', 'updated_at'),
-            CoachSort::make('coach', 'user_groups'),
-        ];
+            'updatedAt',
+            'coach => owner.surname.concat("forename")',
+        ]);
     }
 
-    /** @return array<int, string|\Spatie\QueryBuilder\AllowedFilter> */
+    /** @return array<int, string|AllowedFilter> */
     public function getDefinedFilters(): array
     {
         return [
-            AllowedFilter::callback('search', function ($query, $value): void {
-                $query->where('name', 'like', '%'.$value.'%');
-            }),
+            QueryExpressionFilter::make('search', 'name contains $value', [
+                'fields' => ['name'],
+            ]),
         ];
     }
 }

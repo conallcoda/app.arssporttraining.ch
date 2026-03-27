@@ -2,17 +2,14 @@
 
 namespace Coda\Cms\Livewire;
 
-use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Display\DisplayField;
 use Coda\Cms\Display\DisplayFields\Relationship as RelationshipColumn;
 use Coda\Cms\Display\IndexTab;
 use Coda\Cms\Display\Table;
 use Coda\Cms\Display\TableFilter;
 use Coda\Cms\Form\Action;
-use Coda\Cms\Form\Form;
 use Flux\Flux;
 use Illuminate\Contracts\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -22,7 +19,9 @@ use Livewire\WithPagination;
 
 abstract class AbstractModelList extends Component
 {
-    use Concerns\InteractsWithCrudActions;
+    use Concerns\InteractsWithCrudActions {
+        Concerns\InteractsWithCrudActions::getListeners as getCrudActionListeners;
+    }
     use Concerns\InteractsWithEntityDefinition;
     use Concerns\InteractsWithFormData;
     use Concerns\WithUrlPrefix;
@@ -125,7 +124,7 @@ abstract class AbstractModelList extends Component
 
     public function getListeners(): array
     {
-        $listeners = parent::getListeners();
+        $listeners = $this->getCrudActionListeners();
         $listeners["{$this->editModalName}.delete-requested"] = 'handleFormDeleteRequested';
 
         return $listeners;

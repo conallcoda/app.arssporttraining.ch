@@ -7,13 +7,13 @@ use Spatie\QueryBuilder\AllowedSort;
 
 class ExerciseTemplateQueryBuilder extends DefaultQueryBuilder
 {
-    /** @return array<int, string|\Spatie\QueryBuilder\AllowedSort> */
+    /** @return array<int, string|AllowedSort> */
     public function getDefinedSorts(): array
     {
-        return [
+        return $this->resolveSorts([
             'id',
             'name',
-            AllowedSort::field('updatedAt', 'updated_at'),
-        ];
+            'updatedAt',
+        ]);
     }
 }
