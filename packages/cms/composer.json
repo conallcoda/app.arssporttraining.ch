@@ -14,16 +14,18 @@
     },
     "require": {
         "php": "^8.2",
-        "laravel/fortify": "^1.0",
         "livewire/flux": "^2.0",
         "livewire/flux-pro": "^2.0",
         "livewire/livewire": "^3.0 || ^4.0",
         "spatie/laravel-data": "^4.0",
         "spatie/laravel-query-builder": "^6.0",
-        "spatie/laravel-schemaless-attributes": "^2.0",
         "spatie/laravel-sluggable": "^3.0",
         "staudenmeir/laravel-adjacency-list": "^1.0",
+        "spatie/laravel-schemaless-attributes": "^2.0",
         "symfony/expression-language": "^7.0 || ^8.0"
+    },
+    "suggest": {
+        "laravel/fortify": "Required for built-in authentication views and actions"
     },
     "extra": {
         "laravel": {

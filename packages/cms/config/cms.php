@@ -13,6 +13,12 @@ return [
 
     'home' => '/admin/dashboard',
 
+    'default_layout' => 'cms::components.layouts.admin',
+
+    'auth' => [
+        'enabled' => true,
+    ],
+
     'site_title' => null,
 
     'title_format' => ':page_name // :site_title',

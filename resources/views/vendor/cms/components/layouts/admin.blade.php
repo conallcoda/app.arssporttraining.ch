@@ -65,6 +65,10 @@
 
             <flux:spacer />
 
+            @if (config('app.user_switching'))
+                <livewire:user-switcher />
+            @endif
+
             <flux:button
                 x-data
                 variant="subtle"

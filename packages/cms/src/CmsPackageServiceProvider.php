@@ -50,31 +50,44 @@ class CmsPackageServiceProvider extends ServiceProvider
             $this->commands([InstallCommand::class]);
         }
 
-        $this->configureFortify();
+        if (config('cms.auth.enabled', true)) {
+            $this->configureFortify();
+            $this->registerAuthComponents();
+        }
 
         Livewire::component('cms.form-modal', FormModal::class);
         Livewire::component('cms.page', CmsPage::class);
         Livewire::component('cms.component-portal', ComponentPortal::class);
+        Livewire::component('cms.dashboard', Dashboard::class);
+    }
+
+    protected function registerAuthComponents(): void
+    {
         Livewire::component('auth.change-password', ChangePassword::class);
         Livewire::component('cms.user-list', UserList::class);
-        Livewire::component('cms.dashboard', Dashboard::class);
     }
 
     protected function configureFortify(): void
     {
+        if (! class_exists(Fortify::class)) {
+            return;
+        }
+
+        $fortify = Fortify::class;
+
         config(['fortify.home' => config('cms.home', '/admin/dashboard')]);
 
-        Fortify::createUsersUsing(CreateNewUser::class);
-        Fortify::updateUserProfileInformationUsing(UpdateUserProfileInformation::class);
-        Fortify::updateUserPasswordsUsing(UpdateUserPassword::class);
-        Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
+        $fortify::createUsersUsing(CreateNewUser::class);
+        $fortify::updateUserProfileInformationUsing(UpdateUserProfileInformation::class);
+        $fortify::updateUserPasswordsUsing(UpdateUserPassword::class);
+        $fortify::resetUserPasswordsUsing(ResetUserPassword::class);
 
-        Fortify::loginView(fn () => view('cms::auth.login'));
-        Fortify::requestPasswordResetLinkView(fn () => view('cms::auth.forgot-password'));
-        Fortify::resetPasswordView(fn (Request $request) => view('cms::auth.reset-password', ['request' => $request]));
+        $fortify::loginView(fn () => view('cms::auth.login'));
+        $fortify::requestPasswordResetLinkView(fn () => view('cms::auth.forgot-password'));
+        $fortify::resetPasswordView(fn (Request $request) => view('cms::auth.reset-password', ['request' => $request]));
 
-        RateLimiter::for('login', function (Request $request) {
-            $throttleKey = Str::transliterate(Str::lower($request->input(Fortify::username())).'|'.$request->ip());
+        RateLimiter::for('login', function (Request $request) use ($fortify) {
+            $throttleKey = Str::transliterate(Str::lower($request->input($fortify::username())).'|'.$request->ip());
 
             return Limit::perMinute(5)->by($throttleKey);
         });

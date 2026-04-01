@@ -28,7 +28,7 @@ class CmsPage extends Component
 
     public static function layout(): string
     {
-        return 'cms::components.layouts.admin';
+        return config('cms.default_layout', 'cms::components.layouts.admin');
     }
 
     public function render()
@@ -37,12 +37,13 @@ class CmsPage extends Component
         $tabs = app(Registry::class)->tabsForRoute($this->pageName);
 
         $title = $page->title ?: static::buildTitle($page->heading);
+        $layout = $page->layout ?: config('cms.default_layout', 'cms::components.layouts.admin');
 
         return view('cms::page', [
             'page' => $page,
             'tabs' => $tabs,
         ])
-            ->layout($page->layout)
+            ->layout($layout)
             ->title($title);
     }
 }

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "69821e68721d01e01bb43eab703f3500",
+    "content-hash": "813b058c56bf8dc2929f83f3e64d63b9",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -277,10 +277,9 @@
             "dist": {
                 "type": "path",
                 "url": "packages/cms",
-                "reference": "950450ca5fde96307556a51c55f7e4c77beefe2f"
+                "reference": "a42ab22125f9f54c533cd4ece426ad1fba5cd131"
             },
             "require": {
-                "laravel/fortify": "^1.0",
                 "livewire/flux": "^2.0",
                 "livewire/flux-pro": "^2.0",
                 "livewire/livewire": "^3.0 || ^4.0",
@@ -291,6 +290,9 @@
                 "spatie/laravel-sluggable": "^3.0",
                 "staudenmeir/laravel-adjacency-list": "^1.0",
                 "symfony/expression-language": "^7.0 || ^8.0"
+            },
+            "suggest": {
+                "laravel/fortify": "Required for built-in authentication views and actions"
             },
             "type": "library",
             "extra": {

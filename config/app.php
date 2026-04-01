@@ -2,8 +2,6 @@
 
 return [
 
-
-
     'name' => env('APP_NAME', 'Laravel'),
     'env' => env('APP_ENV', 'production'),
     'debug' => (bool) env('APP_DEBUG', false),
@@ -23,5 +21,7 @@ return [
         'driver' => env('APP_MAINTENANCE_DRIVER', 'file'),
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
+
+    'user_switching' => (bool) env('USER_SWITCHING_ENABLED', false),
 
 ];
