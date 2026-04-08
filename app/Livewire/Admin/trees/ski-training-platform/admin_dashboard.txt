@@ -1,0 +1,32 @@
+Platform Admin[color:red]:Run the platform and manage the organisations who use it.
+	Dashboard[color:pink]:See how the business is doing at a glance.
+		Active Organisations:How many orgs are using the system right now.
+		Revenue Overview:What's been invoiced and what's outstanding.
+		Total Coaches:How many coaches are active across all organisations.
+	Content & Products[color:green]:What you sell to organisations.
+		Exercise Library:Create and manage the global pool of exercises.
+		Program Library:Create and manage the global pool of programs.
+		Products:Bundle exercises, programs, and features into packages.
+			Free Bundles:Applied to all organisations by default.
+			Paid Bundles:Organisations can opt in and pay for these.
+			Custom Bundles:Bespoke combinations built for specific organisations.
+	Customers & Billing[color:blue]:The organisations who use the system and how they pay.
+		Organisation List:See all your customers and their status.
+			Usage Overview:Coaches and activity per org.
+			Assigned Bundles:What each org has access to.
+			Price Overrides:Discount or free access for specific orgs.
+		Onboarding:Steps to get a new org up and running.
+			1. Create Organisation:Set up the org account.
+			2. Assign First Coach Admin:Create their first coach admin login.
+			3. Pick Bundles:Assign free, paid, or custom bundles.
+			4. Send Welcome Credentials:Email login details to the new org.
+		Invoices:All invoices, paid and outstanding.
+		Send Reminders:Chase up unpaid invoices.
+		Payment History:Track what's been paid and when.
+	Platform Management[color:purple]:Keep the platform running and configured.
+		Features:All features and their availability per organisation.
+		Authentication:Login, password reset, and role management.
+		Languages:Supported languages (DE, FR, IT, EN).
+		Support & Documentation:Help centre, user guides, and support channel.
+		Operations:Server health, monitoring, deployments, and bug tracking.
+		Settings:Default features, email templates, and global configuration.

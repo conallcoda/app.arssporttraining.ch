@@ -27,4 +27,15 @@ return [
     ],
 
     'query_builder_namespace' => 'App\\QueryBuilders',
+
+    'admin_user_types' => ['coach', 'admin'],
+
+    'home_by_type' => [
+        'athlete' => '/dashboard',
+        '*' => '/admin/programs',
+    ],
+
+    'user_switching' => (bool) env('USER_SWITCHING_ENABLED', false),
+
+    'mobile_preview' => (bool) env('MOBILE_PREVIEW_ENABLED', false),
 ];

@@ -3,7 +3,20 @@
     "allow": [
       "Bash(# Check the factory for stale references to non-existent models grep -n \"\"ExerciseExternalTemplate\"\" /Users/conalloreilly/Development/ars/athlete-training/database/factories/ExerciseExternalFactory.php # That references an Enum that may not exist find /Users/conalloreilly/Development/ars/athlete-training/app -name \"\"ExerciseExternalTemplate.php\"\" # Check for tests directory find /Users/conalloreilly/Development/ars/athlete-training/tests -type f)",
       "Bash(# Check VoltServiceProvider \\(referenced in bootstrap/providers.php but not in app/Providers\\) find /Users/conalloreilly/Development/ars/athlete-training -name \"\"VoltServiceProvider.php\"\")",
-      "Bash(/Users/Shared/DBngin/mariadb/10.11.6_arm/bin/mysql -u root -h 127.0.0.1 -P 3306 -e \"SELECT id, name FROM athlete_training.exercises WHERE name LIKE ''Lastheben%'';\")"
+      "Bash(/Users/Shared/DBngin/mariadb/10.11.6_arm/bin/mysql -u root -h 127.0.0.1 -P 3306 -e \"SELECT id, name FROM athlete_training.exercises WHERE name LIKE ''Lastheben%'';\")",
+      "Bash(printf 'Coach Dashboard[orange]\\\\n\\\\tExercise Management\\\\n\\\\tCoach Management\\\\n\\\\tProgram Management\\\\n\\\\tAthlete/Group Management\\\\n\\\\tScheduling\\\\n\\\\tReview\\\\n')",
+      "Bash(npm view:*)",
+      "Bash(curl -sL \"https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip\" -o /tmp/inter-font.zip)",
+      "Bash(unzip -o /tmp/inter-font.zip -d /tmp/inter-font/)",
+      "Bash(curl -sL \"https://github.com/rsms/inter/releases/download/v3.19/Inter-3.19.zip\" -o /tmp/inter-v3.zip)",
+      "Bash(unzip -o /tmp/inter-v3.zip -d /tmp/inter-v3/)",
+      "Bash(curl -sL \"https://raw.githubusercontent.com/google/fonts/main/ofl/inter/Inter%5Bopsz%2Cwght%5D.ttf\" -o /tmp/inter-variable.ttf)",
+      "Bash(npm pack:*)",
+      "Bash(tar -xzf /tmp/fontsource-inter-*.tgz -C /tmp/fontsource-inter-unpacked --strip-components=0)",
+      "Bash(tar -xzf /tmp/fontsource-inter-*.tgz -C /tmp/fontsource-inter-unpacked)",
+      "Bash(pip3 install:*)",
+      "Bash(mv coach-athlete-system:*)",
+      "Bash(mv organisation-coach-athlete-system:*)"
     ]
   }
 }

@@ -18,6 +18,7 @@ class CategoryData extends AbstractData implements HasForms
     public function __construct(
         public ?int $id,
         public string $name,
+        public ?string $shortName = null,
         public ?string $color = null,
         public ?Carbon $updatedAt = null,
     ) {}
@@ -27,6 +28,7 @@ class CategoryData extends AbstractData implements HasForms
         return new self(
             id: $tag->id,
             name: $tag->name,
+            shortName: $tag->short_name,
             color: $tag->color,
             updatedAt: $tag->updated_at,
         );
@@ -43,6 +45,7 @@ class CategoryData extends AbstractData implements HasForms
         return new static(
             id: $data['id'] ?? null,
             name: $data['name'] ?? '',
+            shortName: $data['shortName'] ?? null,
             color: $data['color'] ?? null,
         );
     }
@@ -53,6 +56,7 @@ class CategoryData extends AbstractData implements HasForms
             ['id' => $this->id],
             [
                 'name' => $this->name,
+                'short_name' => $this->shortName ? strtoupper($this->shortName) : null,
                 'color' => $this->color,
                 'scope' => 'exercise_category',
                 'parent_id' => null,
@@ -67,6 +71,7 @@ class CategoryData extends AbstractData implements HasForms
         return Form::make()
             ->fieldset('General', [
                 Text::make('name')->label('Name')->required(),
+                Text::make('shortName')->label('Short Name')->maxLength(4)->uppercase()->rules('nullable|max:4|alpha'),
                 Color::make('color'),
             ]);
     }

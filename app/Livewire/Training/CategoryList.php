@@ -53,6 +53,8 @@ class CategoryList extends AbstractModelList
                     ->label(__('Name'))
                     ->width('w-1/3')
                     ->modal(),
+                Text::make('shortName')
+                    ->label(__('Short Name')),
                 ColorBadge::make('color')
                     ->label(__('Color'))
                     ->colorLabels(ColorPalette::COLORS),

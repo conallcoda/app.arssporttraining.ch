@@ -1,0 +1,11 @@
+Athlete Dashboard[color:blue]:See your training schedule and track your progress.
+	Schedule:View your upcoming training sessions.
+		Today's Sessions:What's on today, split by AM and PM.
+		Week Overview:See all your sessions for the week at a glance.
+	Program Detail:View the exercises in a program.
+		Exercise Instructions:Reps, sets, weight, tempo, and coach notes.
+		Photos & Video:Demos and form cues.
+		Equipment:What equipment you need.
+	Record Performance:Log your results after training.
+		Mark Exercise Complete:Record that you've finished an exercise.
+		Mark Program Complete:Record that you've completed the full session.

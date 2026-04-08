@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             DatabaseImportSeeder::class,
             // PerformanceTestSeeder::class,
             // ExerciseExternalSeeder::class,
+            CategoryShortNameSeeder::class,
         ]);
     }
 }

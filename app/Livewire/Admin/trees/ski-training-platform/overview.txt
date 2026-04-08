@@ -1,0 +1,19 @@
+Platform[color:orange]:A SaaS training platform sold to organisations who train athletes.
+	Staff[color:red]:People who run the platform.
+		Admin:Full platform access.
+			Platform Admin Dashboard
+		Editor:Content management access.
+			Platform Editor Dashboard
+	Customers[color:blue]:Organisations who use the system.
+		Sandro Org[color:blue]:Sports school structure.
+			[ref:ski-training-app.overview.Staff]
+			[ref:ski-training-app.overview.Athletes]
+		Armando Org[color:green]:Personal training context.
+			[ref:ski-training-app.overview.Staff]
+			[ref:ski-training-app.overview.Athletes]
+		Lisa Org[color:teal]:Physio and coaching collaborations.
+			[ref:ski-training-app.overview.Staff]
+			[ref:ski-training-app.overview.Athletes]
+		Davos Org[color:purple]:Sports school with 5+ coaches.
+			[ref:ski-training-app.overview.Staff]
+			[ref:ski-training-app.overview.Athletes]

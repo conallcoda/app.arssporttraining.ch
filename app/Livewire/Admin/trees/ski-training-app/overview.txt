@@ -1,0 +1,12 @@
+Organisation[color:orange]:A ski club, a gym, a single coach — anyone who delivers training to athletes.
+	Staff[color:blue]:People who manage and deliver training.
+		Admins:Full system access and configuration.
+			Coach Admin Dashboard
+		Coaches:Create and manage training for their athletes.
+			Coach 1 Dashboard
+			Coach 2 Dashboard
+			Coach 3 Dashboard
+	Athletes[color:green]:People who follow training programs.
+		Athlete 1 Dashboard
+		Athlete 2 Dashboard
+		Athlete 3 Dashboard

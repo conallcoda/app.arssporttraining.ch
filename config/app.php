@@ -22,6 +22,4 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
-    'user_switching' => (bool) env('USER_SWITCHING_ENABLED', false),
-
 ];

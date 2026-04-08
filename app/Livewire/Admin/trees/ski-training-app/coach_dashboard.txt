@@ -1,0 +1,38 @@
+Coach Dashboard[color:orange]:Create and manage training schedules for your athletes.
+	My Team[color:blue]:Manage your coaches, athletes, and training groups.
+		Coaches:Add and manage coaches with colour-coded identification.
+		Athletes:Manage athlete profiles and assign them to coaches.
+			Performance Tracking:Track 1RM, readiness, and other metrics over time.
+		Groups:Organise athletes into training groups.
+	Exercise Library[color:green]:Browse, create, and organise exercises.
+		Exercises:Create exercises with videos, categories, and equipment.
+			Exercise Settings:Configure defaults for each exercise.
+				Sets & Deload:Set count with optional odd/even week deload.
+				Reps:Manual targets or automatic step-down progression.
+				Weight:Manual targets or automatic 1RM-based progression.
+				Rest, Duration & Tempo
+				Heart Rate & HR Zones:Manual targets or automatic calculation.
+				Distance, Pace & Watts
+			Photos & Video:Upload photos or link YouTube demos.
+			Live Preview:See how settings play out across weeks and sessions.
+		Templates:Save exercise settings as reusable presets.
+		Categories:Organise exercises into a category tree.
+		Equipment & Modifiers:Tag exercises with equipment and variations.
+		Import:Browse and import from an external exercise library.
+	Workouts[color:teal]:Build training programs from your exercise library.
+		Programs:Assemble exercises into reusable workout programs.
+			Exercise Order & Supersets:Drag to reorder and group exercises together.
+			Warm-Up & Cool-Down:Link separate programs for warm-up and cool-down.
+			Week-by-Week Grid:View the full program laid out across weeks and sessions.
+		Training Categories:Colour-coded types like Strength, Hypertrophy, and Conditioning.
+	Schedule[color:purple]:Plan and visualise when your athletes train.
+		Overview:Colour-coded grid showing all groups at a glance.
+		Day / Week / Month View:View and quick-add sessions into AM or PM slots.
+		Training Phases:Block-based planning for periodised training.
+			Phase Setup:Create training blocks with date ranges and goals.
+			Exercise Grid:Week-by-week, set-by-set view of every exercise.
+				Edit Cells:Adjust individual sets, reps, or weight per week.
+				Copy Weeks:Duplicate a week's pattern across the program.
+				Automatic Weight Targets:Calculate weights from athlete 1RM data.
+			Athlete Customisation:Override phase dates or goals for individual athletes.
+			Notes & Annotations:Add focus notes and deload markers to the timeline.

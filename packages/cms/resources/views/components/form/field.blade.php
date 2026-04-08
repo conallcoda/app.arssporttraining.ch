@@ -160,6 +160,9 @@
             <flux:error name="{{ $wireModel }}" />
         </flux:field>
     @elseif ($field instanceof Text)
+        @php
+            $textInputClass = $field->uppercase ? 'uppercase' : null;
+        @endphp
         <flux:field>
             <div class="flex items-center gap-1 mb-2">
                 <flux:label :badge="$field->required ? 'Required' : null">{{ $field->getLabel() }}</flux:label>
@@ -173,19 +176,23 @@
                         <div x-data="masked_input" data-mask="{{ $field->mask }}" class="flex-1">
                             @if ($field->live)
                                 <flux:input wire:model.live="{{ $wireModel }}" type="{{ $field->inputType }}"
-                                    data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
+                                    data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}"
+                                    :maxlength="$field->maxLength" :class="$textInputClass" />
                             @else
                                 <flux:input wire:model.live.blur="{{ $wireModel }}" type="{{ $field->inputType }}"
-                                    data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
+                                    data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}"
+                                    :maxlength="$field->maxLength" :class="$textInputClass" />
                             @endif
                         </div>
                     @else
                         @if ($field->live)
                             <flux:input wire:model.live="{{ $wireModel }}" type="{{ $field->inputType }}"
-                                data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
+                                data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}"
+                                :maxlength="$field->maxLength" :class="$textInputClass" />
                         @else
                             <flux:input wire:model.live.blur="{{ $wireModel }}" type="{{ $field->inputType }}"
-                                data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
+                                data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}"
+                                :maxlength="$field->maxLength" :class="$textInputClass" />
                         @endif
                     @endif
                     <flux:input.group.suffix>{{ $resolvedSuffix }}</flux:input.group.suffix>
@@ -194,19 +201,23 @@
                 <div x-data="masked_input" data-mask="{{ $field->mask }}">
                     @if ($field->live)
                         <flux:input wire:model.live="{{ $wireModel }}" type="{{ $field->inputType }}"
-                            data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
+                            data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}"
+                            :maxlength="$field->maxLength" :class="$textInputClass" />
                     @else
                         <flux:input wire:model.live.blur="{{ $wireModel }}" type="{{ $field->inputType }}"
-                            data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
+                            data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}"
+                            :maxlength="$field->maxLength" :class="$textInputClass" />
                     @endif
                 </div>
             @else
                 @if ($field->live)
                     <flux:input wire:model.live="{{ $wireModel }}" type="{{ $field->inputType }}"
-                        data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}" />
+                        data-field="{{ $field->name }}" placeholder="{{ $field->getPlaceholder() }}"
+                        :maxlength="$field->maxLength" :class="$textInputClass" />
                 @else
                     <flux:input wire:model.live.blur="{{ $wireModel }}" type="{{ $field->inputType }}" data-field="{{ $field->name }}"
-                        placeholder="{{ $field->getPlaceholder() }}" />
+                        placeholder="{{ $field->getPlaceholder() }}"
+                        :maxlength="$field->maxLength" :class="$textInputClass" />
                 @endif
             @endif
             <flux:error name="{{ $wireModel }}" />

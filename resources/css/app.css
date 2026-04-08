@@ -16,3 +16,11 @@
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
+
+.org-chart-canvas {
+    cursor: grab;
+}
+
+.org-chart-canvas.is-dragging {
+    cursor: grabbing;
+}

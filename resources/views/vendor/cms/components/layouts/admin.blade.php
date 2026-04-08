@@ -65,45 +65,19 @@
 
             <flux:spacer />
 
-            @if (config('app.user_switching'))
-                <livewire:user-switcher />
+            @if (! request()->has('_preview'))
+                @if (config('cms.user_switching'))
+                    <livewire:cms.user-switcher />
+                @endif
+
+                @if (config('cms.mobile_preview'))
+                    <x-cms::mobile-preview-toggle />
+                @endif
             @endif
 
-            <flux:button
-                x-data
-                variant="subtle"
-                square
-                aria-label="Toggle color scheme"
-                x-on:click="$flux.appearance = $flux.dark ? 'light' : 'dark'"
-            >
-                <flux:icon.sun x-show="$flux.dark" variant="mini" class="text-zinc-500 dark:text-white" />
-                <flux:icon.moon x-show="! $flux.dark" variant="mini" class="text-zinc-500 dark:text-white" />
-            </flux:button>
+            <x-cms::theme-toggle />
 
-            <flux:dropdown position="bottom" align="end">
-                <flux:profile initials="{{ auth()->user()->initials() }}" />
-
-                <flux:menu>
-                    <div class="px-3 py-1.5 text-xs text-zinc-400">
-                        {{ __('Signed in as') }}: {{ auth()->user()->email }}
-                    </div>
-
-                    <flux:menu.separator />
-
-                    <flux:modal.trigger name="change-password">
-                        <flux:menu.item icon="lock">
-                            {{ __('Change Password') }}
-                        </flux:menu.item>
-                    </flux:modal.trigger>
-
-                    <form method="POST" action="/logout">
-                        @csrf
-                        <flux:menu.item icon="log-out" type="submit">
-                            {{ __('Logout') }}
-                        </flux:menu.item>
-                    </form>
-                </flux:menu>
-            </flux:dropdown>
+            <x-cms::profile-dropdown />
         </flux:navbar>
     </flux:header>
 

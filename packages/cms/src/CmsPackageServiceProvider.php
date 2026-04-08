@@ -7,17 +7,23 @@ use Coda\Cms\Auth\Actions\ResetUserPassword;
 use Coda\Cms\Auth\Actions\UpdateUserPassword;
 use Coda\Cms\Auth\Actions\UpdateUserProfileInformation;
 use Coda\Cms\Console\InstallCommand;
+use Coda\Cms\Http\Middleware\EnsureAdminAccess;
+use Coda\Cms\Http\Responses\TypeAwareLoginResponse;
 use Coda\Cms\Livewire\Auth\ChangePassword;
 use Coda\Cms\Livewire\CmsPage;
 use Coda\Cms\Livewire\ComponentPortal;
 use Coda\Cms\Livewire\Dashboard;
 use Coda\Cms\Livewire\FormModal;
+use Coda\Cms\Livewire\MobilePreview;
 use Coda\Cms\Livewire\UserList;
+use Coda\Cms\Livewire\UserSwitcher;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
 use Laravel\Fortify\Fortify;
 use Livewire\Livewire;
 
@@ -32,6 +38,8 @@ class CmsPackageServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->app['router']->aliasMiddleware('cms.admin', EnsureAdminAccess::class);
+
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'cms');
 
         $this->publishes([
@@ -59,6 +67,14 @@ class CmsPackageServiceProvider extends ServiceProvider
         Livewire::component('cms.page', CmsPage::class);
         Livewire::component('cms.component-portal', ComponentPortal::class);
         Livewire::component('cms.dashboard', Dashboard::class);
+
+        if (config('cms.user_switching')) {
+            Livewire::component('cms.user-switcher', UserSwitcher::class);
+        }
+
+        Livewire::component('cms.mobile-preview', MobilePreview::class);
+
+        Route::middleware(['web', 'auth'])->get('/dev/mobile-preview', MobilePreview::class)->name('cms.mobile-preview');
     }
 
     protected function registerAuthComponents(): void
@@ -76,6 +92,10 @@ class CmsPackageServiceProvider extends ServiceProvider
         $fortify = Fortify::class;
 
         config(['fortify.home' => config('cms.home', '/admin/dashboard')]);
+
+        if (config('cms.home_by_type')) {
+            $this->app->singleton(LoginResponseContract::class, TypeAwareLoginResponse::class);
+        }
 
         $fortify::createUsersUsing(CreateNewUser::class);
         $fortify::updateUserProfileInformationUsing(UpdateUserProfileInformation::class);

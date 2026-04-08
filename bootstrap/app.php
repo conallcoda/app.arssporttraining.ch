@@ -13,7 +13,17 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->redirectGuestsTo('/login');
-        $middleware->redirectUsersTo(fn () => config('cms.home', '/admin/dashboard'));
+        $middleware->redirectUsersTo(function () {
+            $homeByType = config('cms.home_by_type');
+
+            if ($homeByType) {
+                $type = auth()->user()->type->value;
+
+                return $homeByType[$type] ?? $homeByType['*'] ?? config('cms.home', '/admin/dashboard');
+            }
+
+            return config('cms.home', '/admin/dashboard');
+        });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (AuthenticationException $e, $request) {
