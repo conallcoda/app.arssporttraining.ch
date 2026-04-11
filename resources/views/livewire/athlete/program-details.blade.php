@@ -44,6 +44,10 @@
                             {{ count($programExercises) }}
                             {{ Str::plural('exercise', count($programExercises)) }}
                         </flux:badge>
+
+                        <span class="inline-flex rounded-md px-2 py-1 text-[11px] font-medium sm:text-sm {{ $this->slotStatusClass() }}">
+                            {{ $this->slotStatusLabel() }}
+                        </span>
                     </div>
                 </div>
             </div>
@@ -58,6 +62,10 @@
                                 <flux:heading size="sm" class="text-sm leading-tight sm:text-lg">
                                     {{ $exercise['index'] }}. {{ $exercise['name'] }}
                                 </flux:heading>
+
+                                <span class="inline-flex rounded-md px-2 py-1 text-[10px] font-medium sm:text-xs {{ $exercise['statusClass'] }}">
+                                    {{ $exercise['statusLabel'] }}
+                                </span>
 
                                 @if ($exercise['category'])
                                     @php($exerciseCategoryStyle = $this->categoryBadgeStyle($exercise['categoryColor']))
@@ -138,6 +146,15 @@
                                     </a>
                                 </div>
                             @endif
+                        </div>
+
+                        <div class="flex flex-wrap gap-2">
+                            <flux:button size="sm" variant="primary" wire:click="markExerciseCompleted({{ $exercise['id'] }})">
+                                Mark Done
+                            </flux:button>
+                            <flux:button size="sm" variant="ghost" wire:click="markExerciseSkipped({{ $exercise['id'] }})">
+                                Skip
+                            </flux:button>
                         </div>
                     </div>
 

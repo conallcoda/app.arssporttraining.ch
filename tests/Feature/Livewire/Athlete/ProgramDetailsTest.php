@@ -6,9 +6,12 @@ use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
+use App\Models\Training\TrainingProgramSlotExerciseStatusEnum;
+use App\Models\Training\TrainingProgramSlotStatusEnum;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use Carbon\Carbon;
+use Livewire\Livewire;
 
 it('links scheduled programs to the athlete program details page', function () {
     $athlete = User::factory()->athlete()->create();
@@ -125,4 +128,70 @@ it('returns 404 when the selected program is not scheduled for the athlete on th
     $this->actingAs($athlete)
         ->get('/programs/2026-04-03/999999')
         ->assertNotFound();
+});
+
+it('lets athletes mark an exercise done or skipped from the materialized session', function () {
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Friday Strength']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $exerciseOne = Exercise::factory()->create([
+        'name' => 'Front Squat',
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 2, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 6, 'applyPer' => 'session'],
+        ],
+    ]);
+    $exerciseTwo = Exercise::factory()->create([
+        'name' => 'Split Squat',
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 8, 'applyPer' => 'session'],
+        ],
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exerciseOne->id,
+        'sort' => 0,
+    ]);
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exerciseTwo->id,
+        'sort' => 1,
+    ]);
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-04-03 09:00:00'),
+    ])->fresh('exercises');
+
+    $exerciseOneSlot = $slot->exercises->sortBy('sort')->values()->get(0);
+    $exerciseTwoSlot = $slot->exercises->sortBy('sort')->values()->get(1);
+
+    Livewire::actingAs($athlete)
+        ->test(ProgramDetails::class, [
+            'date' => '2030-04-03',
+            'trainingProgram' => $trainingProgram,
+        ])
+        ->call('markExerciseCompleted', $exerciseOneSlot->id)
+        ->call('markExerciseSkipped', $exerciseTwoSlot->id);
+
+    $slot = $slot->fresh('exercises.sets');
+    $exerciseOneSlot = $slot->exercises->firstWhere('id', $exerciseOneSlot->id);
+    $exerciseTwoSlot = $slot->exercises->firstWhere('id', $exerciseTwoSlot->id);
+
+    expect($exerciseOneSlot->status)->toBe(TrainingProgramSlotExerciseStatusEnum::Completed)
+        ->and($exerciseTwoSlot->status)->toBe(TrainingProgramSlotExerciseStatusEnum::Skipped)
+        ->and($slot->status)->toBe(TrainingProgramSlotStatusEnum::Completed)
+        ->and($slot->completed_exercise_count)->toBe(1)
+        ->and($slot->skipped_exercise_count)->toBe(1)
+        ->and($slot->pending_exercise_count)->toBe(0);
 });

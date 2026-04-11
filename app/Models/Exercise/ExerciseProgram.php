@@ -118,4 +118,9 @@ class ExerciseProgram extends Model implements Taggable
 
         return $clone;
     }
+
+    protected static function booted(): void
+    {
+        static::observe(\App\Observers\ExerciseProgramObserver::class);
+    }
 }

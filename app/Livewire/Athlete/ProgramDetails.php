@@ -2,19 +2,15 @@
 
 namespace App\Livewire\Athlete;
 
-use App\Data\Athlete\Metric\MetricEnum;
-use App\Data\Athlete\Metric\Metrics\HeartRateMetric;
-use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
 use App\Data\Exercise\ExerciseSetting;
-use App\Data\Exercise\Preview\GridOverrides;
-use App\Data\Exercise\Preview\GridState;
-use App\Data\Exercise\Preview\StrategyOrchestrator;
-use App\Data\Exercise\Settings\WeightProgressionSetting;
-use App\Data\Training\Config\EffectiveExerciseConfig;
-use App\Models\Athlete\MetricSubmission;
-use App\Models\Exercise\Exercise;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
+use App\Models\Training\TrainingProgramSlotExercise;
+use App\Models\Training\TrainingProgramSlotExerciseStatusEnum;
+use App\Models\Training\TrainingProgramSlotSetValue;
+use App\Models\Training\TrainingProgramSlotStatusEnum;
+use App\Training\TrainingSessionMaterializer;
+use App\Training\TrainingSessionProgressService;
 use Carbon\CarbonImmutable;
 use Coda\Cms\Support\ColorPalette;
 use Illuminate\Support\Collection;
@@ -72,86 +68,51 @@ class ProgramDetails extends Component
     #[Computed]
     public function trainingProgram(): TrainingProgram
     {
-        return TrainingProgram::query()
-            ->with([
-                'program.exerciseCategory',
-                'program.exercises.category',
-                'program.exercises.equipment',
-                'program.exercises.modifiers',
-                'program.exercises.media',
-            ])
-            ->findOrFail($this->trainingProgramId);
+        return $this->currentSlot->trainingProgram;
     }
 
     #[Computed]
     public function currentSlot(): TrainingProgramSlot
     {
-        return TrainingProgramSlot::query()
+        $slot = TrainingProgramSlot::query()
+            ->with([
+                'trainingProgram.program.exerciseCategory',
+                'exercises.exercise.category',
+                'exercises.exercise.equipment',
+                'exercises.exercise.modifiers',
+                'exercises.exercise.media',
+                'exercises.sets.values',
+            ])
             ->where('training_program_id', $this->trainingProgramId)
             ->where('user_id', auth()->id())
             ->whereDate('datetime', $this->date)
             ->orderBy('datetime')
             ->orderBy('id')
             ->firstOrFail();
-    }
 
-    #[Computed]
-    public function sessionContext(): array
-    {
-        $slotIds = TrainingProgramSlot::query()
-            ->where('training_program_id', $this->trainingProgramId)
-            ->where('user_id', auth()->id())
-            ->orderBy('datetime')
-            ->orderBy('id')
-            ->pluck('id')
-            ->values();
+        if ($slot->compiled_at === null) {
+            app(TrainingSessionMaterializer::class)->materialize($slot, force: true);
 
-        $slotIndex = $slotIds->search($this->currentSlot->id);
-        $slotIndex = $slotIndex === false ? 0 : (int) $slotIndex;
-
-        $sessionsPerWeek = max(1, (int) ($this->trainingProgram->program->config->preview->sessionsPerWeek ?? 1));
-
-        return [
-            'slotIndex' => $slotIndex,
-            'weekIndex' => intdiv($slotIndex, $sessionsPerWeek),
-            'sessionIndex' => $slotIndex % $sessionsPerWeek,
-            'sessionsPerWeek' => $sessionsPerWeek,
-        ];
-    }
-
-    #[Computed]
-    public function oneRepMaxMetric(): ?OneRepMaxMetric
-    {
-        $submission = $this->latestMetricSubmission(MetricEnum::OneRepMax);
-
-        if (! $submission) {
-            return null;
+            $slot = $slot->fresh([
+                'trainingProgram.program.exerciseCategory',
+                'exercises.exercise.category',
+                'exercises.exercise.equipment',
+                'exercises.exercise.modifiers',
+                'exercises.exercise.media',
+                'exercises.sets.values',
+            ]);
         }
 
-        return OneRepMaxMetric::from($submission->values->pluck('value', 'field')->all());
-    }
-
-    #[Computed]
-    public function heartRateMetric(): ?HeartRateMetric
-    {
-        $submission = $this->latestMetricSubmission(MetricEnum::HeartRate);
-
-        if (! $submission) {
-            return null;
-        }
-
-        return HeartRateMetric::from($submission->values->pluck('value', 'field')->all());
+        return $slot;
     }
 
     #[Computed]
     public function programExercises(): array
     {
-        $programConfig = $this->trainingProgram->program->config;
-        $sessionContext = $this->sessionContext;
-
-        return $this->trainingProgram->program->exercises
-            ->map(fn (Exercise $exercise, int $index) => $this->buildExerciseViewData($exercise, $programConfig, $sessionContext, $index))
-            ->filter()
+        return $this->currentSlot->exercises
+            ->sortBy('sort')
+            ->values()
+            ->map(fn (TrainingProgramSlotExercise $exercise, int $index) => $this->buildExerciseViewData($exercise, $index))
             ->values()
             ->all();
     }
@@ -172,102 +133,83 @@ class ProgramDetails extends Component
             : 'Back to Dashboard';
     }
 
-    protected function buildExerciseViewData(Exercise $exercise, mixed $programConfig, array $sessionContext, int $index): ?array
+    public function markExerciseCompleted(int $slotExerciseId): void
     {
-        $planOverrides = $programConfig->defaultExerciseOverrides($exercise->id);
-        $userOverrides = $programConfig->userExerciseOverrides((int) auth()->id(), $exercise->id);
+        $exercise = $this->currentSlot->exercises->firstWhere('id', $slotExerciseId);
+        abort_unless($exercise instanceof TrainingProgramSlotExercise, 404);
 
-        if (EffectiveExerciseConfig::resolveDisabled($planOverrides, $userOverrides)) {
-            return null;
-        }
+        app(TrainingSessionProgressService::class)->markExerciseCompleted($exercise);
 
-        $effectiveConfig = EffectiveExerciseConfig::resolve($exercise->config, $planOverrides, $userOverrides);
-        $overrideLayer = EffectiveExerciseConfig::resolveForLayer($exercise->config, $planOverrides, $userOverrides);
+        unset($this->currentSlot, $this->programExercises);
+    }
 
-        $weeks = max(
-            (int) ($effectiveConfig['preview']['weeks'] ?? 1),
-            $sessionContext['weekIndex'] + 1
+    public function markExerciseSkipped(int $slotExerciseId): void
+    {
+        $exercise = $this->currentSlot->exercises->firstWhere('id', $slotExerciseId);
+        abort_unless($exercise instanceof TrainingProgramSlotExercise, 404);
+
+        app(TrainingSessionProgressService::class)->markExerciseSkipped($exercise);
+
+        unset($this->currentSlot, $this->programExercises);
+    }
+
+    protected function buildExerciseViewData(TrainingProgramSlotExercise $slotExercise, int $index): array
+    {
+        $exercise = $slotExercise->exercise;
+        $sets = $slotExercise->sets->sortBy('set_number')->values();
+        $settingKeys = $this->orderedSettings(
+            $sets->flatMap(fn ($set) => $set->values->pluck('setting_key'))
+                ->unique()
+                ->values()
+                ->all()
         );
-
-        $orchestrator = new StrategyOrchestrator(
-            data: $effectiveConfig,
-            measuredData: $this->resolveWeightProgressionData(),
-            weeks: $weeks,
-            overrides: GridOverrides::fromArrays(
-                $overrideLayer['cells'] ?? [],
-                $overrideLayer['weeks'] ?? [],
-            ),
-            maxHR: $this->heartRateMetric?->heartRate,
-            iatPercent: $this->heartRateMetric?->anaerobicThreshold,
-        );
-
-        $state = $orchestrator->execute();
-        $weekIndex = $sessionContext['weekIndex'];
-        $setCount = (int) ($state->getSetsPerWeek()[$weekIndex] ?? ($effectiveConfig['sets']['default'] ?? 0));
 
         $sessionRows = [];
         $sessionNotes = [];
-        $weekDetails = [];
         $colorIndex = 0;
 
-        foreach ($this->orderedSettings($effectiveConfig['settings'] ?? []) as $setting) {
-            $config = $effectiveConfig[$setting] ?? [];
-            $applyPer = $config['applyPer'] ?? 'session';
-            $isTableSetting = in_array($setting, ['tempo', 'rest'], true);
-
+        foreach ($settingKeys as $setting) {
             if ($setting === 'note') {
-                $noteValue = $applyPer === 'week'
-                    ? $this->resolveWeekValue($state, $setting, $config, $weekIndex)
-                    : $this->resolveSessionNote($state, $setting, $config, $weekIndex, $setCount);
+                $notes = $sets
+                    ->map(fn ($set) => $this->extractPlannedValue($set->values->firstWhere('setting_key', 'note')))
+                    ->filter(fn ($value) => ! $this->isBlankValue($value))
+                    ->unique()
+                    ->values();
 
-                if (! $this->isBlankValue($noteValue)) {
+                if ($notes->isNotEmpty()) {
                     $sessionNotes[] = [
-                        'label' => ($config['label'] ?? '') ?: 'Note',
-                        'value' => (string) $noteValue,
+                        'label' => 'Note',
+                        'value' => $notes->implode(' / '),
                     ];
                 }
 
                 continue;
             }
 
-            if ($applyPer === 'week' && ! $isTableSetting) {
-                $value = $this->resolveWeekValue($state, $setting, $config, $weekIndex);
+            $rowColorName = ColorPalette::ROW_COLORS[$colorIndex] ?? null;
+            $labelClass = $this->opaqueRowLabelClass($rowColorName);
+            $values = [];
+            $valueClasses = [];
+            $firstValueRow = null;
 
-                if (! $this->isBlankValue($value)) {
-                    $weekDetails[] = $this->buildWeekDetailLabel($setting, $config, $value);
+            foreach ($sets as $set) {
+                $valueRow = $set->values->firstWhere('setting_key', $setting);
+                if ($valueRow instanceof TrainingProgramSlotSetValue && $firstValueRow === null) {
+                    $firstValueRow = $valueRow;
                 }
 
-                continue;
-            }
-
-            $values = [];
-
-            for ($set = 0; $set < $setCount; $set++) {
-                $rawValue = $applyPer === 'week'
-                    ? $this->resolveWeekValue($state, $setting, $config, $weekIndex)
-                    : $this->resolveSessionValue($state, $setting, $config, $weekIndex, $set);
-
+                $rawValue = $this->extractPlannedValue($valueRow);
                 $values[] = $this->formatSessionValue($setting, $rawValue);
+                $valueClasses[] = $this->opaqueCellClass($setting, $rawValue, $rowColorName);
             }
 
             if (collect($values)->every(fn (?string $value) => $value === null)) {
                 continue;
             }
 
-            $rowColorName = ColorPalette::ROW_COLORS[$colorIndex] ?? null;
-            $rowClass = $this->opaqueRowClass($rowColorName);
-            $labelClass = $this->opaqueRowLabelClass($rowColorName);
-            $valueClasses = [];
-
-            for ($set = 0; $set < $setCount; $set++) {
-                $rawValue = $this->resolveSessionValue($state, $setting, $config, $weekIndex, $set);
-                $valueClasses[] = $this->opaqueCellClass($setting, $rawValue, $rowColorName);
-            }
-
             $sessionRows[] = [
-                'label' => $this->resolveSettingLabel($setting, $config),
+                'label' => $this->resolveMaterializedSettingLabel($setting, $firstValueRow),
                 'values' => $values,
-                'rowClass' => $rowClass,
                 'labelClass' => $labelClass,
                 'valueClasses' => $valueClasses,
             ];
@@ -276,128 +218,46 @@ class ProgramDetails extends Component
         }
 
         return [
+            'id' => $slotExercise->id,
             'index' => $index + 1,
-            'name' => $exercise->name,
-            'category' => $exercise->category?->name,
-            'categoryColor' => $exercise->category?->color,
-            'equipmentBadges' => $exercise->equipment->pluck('name')->filter()->values()->all(),
-            'modifierBadges' => $exercise->modifiers->pluck('name')->filter()->values()->all(),
-            'instructions' => $exercise->instructions,
-            'videoUrl' => $exercise->video_url,
-            'photoUrls' => $exercise->getMedia('photos')->map(fn ($media) => $media->getUrl())->values()->all(),
-            'setLabel' => $effectiveConfig['sets']['label'] ?? 'Set',
-            'setCount' => $setCount,
+            'name' => $exercise?->name ?? 'Exercise',
+            'category' => $exercise?->category?->name,
+            'categoryColor' => $exercise?->category?->color,
+            'equipmentBadges' => $exercise?->equipment?->pluck('name')->filter()->values()->all() ?? [],
+            'modifierBadges' => $exercise?->modifiers?->pluck('name')->filter()->values()->all() ?? [],
+            'instructions' => $exercise?->instructions,
+            'videoUrl' => $exercise?->video_url,
+            'photoUrls' => $exercise?->getMedia('photos')->map(fn ($media) => $media->getUrl())->values()->all() ?? [],
+            'setLabel' => $exercise?->config->sets->label ?? 'Set',
+            'setCount' => $sets->count(),
             'sessionRows' => $sessionRows,
-            'weekDetails' => $weekDetails,
+            'weekDetails' => [],
             'notes' => $sessionNotes,
+            'status' => $slotExercise->status,
+            'statusLabel' => $this->exerciseStatusLabel($slotExercise->status),
+            'statusClass' => $this->exerciseStatusClass($slotExercise->status),
         ];
     }
 
-    protected function orderedSettings(array $settings): Collection
+    protected function formatSessionValue(string $setting, mixed $value): ?string
     {
-        return collect($settings)
-            ->unique()
-            ->sortBy(function (string $setting): int {
-                $priority = array_search($setting, self::SETTING_PRIORITY, true);
-
-                return $priority === false ? PHP_INT_MAX : $priority;
-            })
-            ->values();
-    }
-
-    protected function resolveWeightProgressionData(): ?WeightProgressionSetting
-    {
-        if (! $this->oneRepMaxMetric) {
+        if ($this->isBlankValue($value)) {
             return null;
         }
 
-        return new WeightProgressionSetting(
-            measuredReps: $this->oneRepMaxMetric->measuredReps,
-            measuredWeight: $this->oneRepMaxMetric->measuredWeight,
-            targetGoal: $this->trainingProgram->program->config->defaultTargetGoal(),
-        );
+        return match ($setting) {
+            'heartRateZone' => 'Zone '.trim((string) $value),
+            default => $this->normalizeScalar($value),
+        };
     }
 
-    protected function latestMetricSubmission(MetricEnum $metric): ?MetricSubmission
+    protected function resolveMaterializedSettingLabel(string $setting, ?TrainingProgramSlotSetValue $valueRow): string
     {
-        return MetricSubmission::query()
-            ->forAthlete((int) auth()->id())
-            ->forMetric($metric)
-            ->whereDate('recorded_at', '<=', $this->date)
-            ->manual()
-            ->with('values')
-            ->latest('recorded_at')
-            ->latest('id')
-            ->first();
-    }
-
-    protected function resolveSessionValue(GridState $state, string $setting, array $config, int $weekIndex, int $setIndex): mixed
-    {
-        $resolved = $state->getResolvedCellValue($setting, $weekIndex, $setIndex);
-
-        if ($resolved !== null) {
-            return $resolved;
-        }
-
-        return $this->defaultValue($config);
-    }
-
-    protected function resolveSessionNote(mixed $state, string $setting, array $config, int $weekIndex, int $setCount): mixed
-    {
-        if ($setCount < 1) {
-            return $this->defaultValue($config);
-        }
-
-        $values = collect(range(0, max($setCount - 1, 0)))
-            ->map(fn (int $setIndex) => $this->resolveSessionValue($state, $setting, $config, $weekIndex, $setIndex))
-            ->filter(fn (mixed $value) => ! $this->isBlankValue($value))
-            ->unique()
-            ->values();
-
-        if ($values->isEmpty()) {
-            return $this->defaultValue($config);
-        }
-
-        return $values->implode(' / ');
-    }
-
-    protected function resolveWeekValue(mixed $state, string $setting, array $config, int $weekIndex): mixed
-    {
-        return $state->getResolvedWeekValue($setting, $weekIndex, $this->defaultValue($config));
-    }
-
-    protected function defaultValue(array $config): mixed
-    {
-        $default = $config['default'] ?? null;
-
-        return $this->isBlankValue($default) ? null : $default;
-    }
-
-    protected function resolveSettingLabel(string $setting, array $config): string
-    {
-        if (! empty($config['label'])) {
-            return $config['label'];
-        }
-
         $enum = ExerciseSetting::tryFrom($setting);
         $label = $enum?->label() ?? ucfirst($setting);
+        $unit = $valueRow?->unit;
 
-        if ($enum?->settingClass()) {
-            $unit = $enum->settingClass()::resolveUnitLabel($config);
-
-            if ($unit !== null) {
-                return "{$label} ({$unit})";
-            }
-        }
-
-        return $label;
-    }
-
-    protected function opaqueRowClass(?string $color): string
-    {
-        return $color
-            ? ColorPalette::lightOpaqueSubtle($color)
-            : 'bg-zinc-200 dark:bg-zinc-800';
+        return $unit ? "{$label} ({$unit})" : $label;
     }
 
     protected function opaqueRowLabelClass(?string $color): string
@@ -418,42 +278,6 @@ class ProgramDetails extends Component
         return $this->opaqueRowLabelClass($rowColor);
     }
 
-    protected function buildWeekDetailLabel(string $setting, array $config, mixed $value): string
-    {
-        $label = ($config['label'] ?? '') ?: (ExerciseSetting::tryFrom($setting)?->label() ?? ucfirst($setting));
-        $formattedValue = $this->formatBadgeValue($setting, $value, $config);
-
-        return trim("{$label} {$formattedValue}");
-    }
-
-    protected function formatSessionValue(string $setting, mixed $value): ?string
-    {
-        if ($this->isBlankValue($value)) {
-            return null;
-        }
-
-        return match ($setting) {
-            'heartRateZone' => 'Zone '.trim((string) $value),
-            default => $this->normalizeScalar($value),
-        };
-    }
-
-    protected function formatBadgeValue(string $setting, mixed $value, array $config): string
-    {
-        if ($this->isBlankValue($value)) {
-            return '';
-        }
-
-        return match ($setting) {
-            'heartRate' => $this->normalizeScalar($value).' bpm',
-            'heartRateZone' => 'Zone '.$this->normalizeScalar($value),
-            'rest' => $this->normalizeScalar($value).'s',
-            'weight' => $this->normalizeScalar($value).'kg',
-            'pace' => $this->normalizeScalar($value).'/km',
-            default => $this->normalizeScalar($value),
-        };
-    }
-
     protected function normalizeScalar(mixed $value): string
     {
         if (is_float($value)) {
@@ -471,9 +295,77 @@ class ProgramDetails extends Component
         return trim((string) $value);
     }
 
+    protected function extractPlannedValue(?TrainingProgramSlotSetValue $valueRow): mixed
+    {
+        if (! $valueRow) {
+            return null;
+        }
+
+        return match ($valueRow->planned_value_type) {
+            'int' => $valueRow->planned_int_value,
+            'decimal' => $valueRow->planned_decimal_value !== null ? (float) $valueRow->planned_decimal_value : null,
+            'json' => $valueRow->planned_json_value,
+            default => $valueRow->planned_string_value,
+        };
+    }
+
+    protected function orderedSettings(array $settings): Collection
+    {
+        return collect($settings)
+            ->unique()
+            ->sortBy(function (string $setting): int {
+                $priority = array_search($setting, self::SETTING_PRIORITY, true);
+
+                return $priority === false ? PHP_INT_MAX : $priority;
+            })
+            ->values();
+    }
+
     protected function isBlankValue(mixed $value): bool
     {
         return $value === null || trim((string) $value) === '' || $value === '-';
+    }
+
+    public function slotStatusLabel(): string
+    {
+        return match ($this->currentSlot->status) {
+            TrainingProgramSlotStatusEnum::Completed => 'Completed',
+            TrainingProgramSlotStatusEnum::PartiallyCompleted => 'Partially Completed',
+            TrainingProgramSlotStatusEnum::Skipped => 'Skipped',
+            TrainingProgramSlotStatusEnum::Cancelled => 'Cancelled',
+            default => 'Pending',
+        };
+    }
+
+    public function slotStatusClass(): string
+    {
+        return match ($this->currentSlot->status) {
+            TrainingProgramSlotStatusEnum::Completed => 'bg-green-100 text-green-800 dark:bg-green-900/60 dark:text-green-100',
+            TrainingProgramSlotStatusEnum::PartiallyCompleted => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/60 dark:text-yellow-100',
+            TrainingProgramSlotStatusEnum::Skipped => 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-100',
+            TrainingProgramSlotStatusEnum::Cancelled => 'bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-100',
+            default => 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-100',
+        };
+    }
+
+    protected function exerciseStatusLabel(TrainingProgramSlotExerciseStatusEnum $status): string
+    {
+        return match ($status) {
+            TrainingProgramSlotExerciseStatusEnum::Completed => 'Completed',
+            TrainingProgramSlotExerciseStatusEnum::PartiallyCompleted => 'Partially Completed',
+            TrainingProgramSlotExerciseStatusEnum::Skipped => 'Skipped',
+            default => 'Pending',
+        };
+    }
+
+    protected function exerciseStatusClass(TrainingProgramSlotExerciseStatusEnum $status): string
+    {
+        return match ($status) {
+            TrainingProgramSlotExerciseStatusEnum::Completed => 'bg-green-100 text-green-800 dark:bg-green-900/60 dark:text-green-100',
+            TrainingProgramSlotExerciseStatusEnum::PartiallyCompleted => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/60 dark:text-yellow-100',
+            TrainingProgramSlotExerciseStatusEnum::Skipped => 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-100',
+            default => 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-100',
+        };
     }
 
     protected function sanitizeReturnUrl(mixed $url): ?string
@@ -540,6 +432,7 @@ class ProgramDetails extends Component
     {
         return view('livewire.athlete.program-details', [
             'trainingProgram' => $this->trainingProgram,
+            'currentSlot' => $this->currentSlot,
             'programExercises' => $this->programExercises,
         ])->layout('components.layouts.athlete', ['title' => $this->trainingProgram->program->name]);
     }

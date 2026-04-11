@@ -91,4 +91,9 @@ class MetricSubmission extends Model
     {
         return $this->values->firstWhere('field', $field)?->value;
     }
+
+    protected static function booted(): void
+    {
+        static::observe(\App\Observers\MetricSubmissionObserver::class);
+    }
 }

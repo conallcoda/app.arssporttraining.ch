@@ -27,4 +27,9 @@ class ExerciseProgramExercise extends Pivot
     {
         return $this->belongsTo(Exercise::class);
     }
+
+    protected static function booted(): void
+    {
+        static::observe(\App\Observers\ExerciseProgramExerciseObserver::class);
+    }
 }

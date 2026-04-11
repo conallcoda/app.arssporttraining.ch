@@ -9,6 +9,7 @@ use Database\Factories\TrainingProgramSlotFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TrainingProgramSlot extends Model
 {
@@ -29,6 +30,18 @@ class TrainingProgramSlot extends Model
         'training_program_id',
         'user_id',
         'datetime',
+        'scheduled_date',
+        'status',
+        'compiled_at',
+        'compiled_version',
+        'exercise_count',
+        'completed_exercise_count',
+        'partial_exercise_count',
+        'skipped_exercise_count',
+        'pending_exercise_count',
+        'has_any_modification',
+        'completed_at',
+        'cancelled_at',
         'owner_id',
     ];
 
@@ -36,6 +49,12 @@ class TrainingProgramSlot extends Model
     {
         return [
             'datetime' => 'datetime',
+            'scheduled_date' => 'date',
+            'status' => TrainingProgramSlotStatusEnum::class,
+            'compiled_at' => 'datetime',
+            'has_any_modification' => 'bool',
+            'completed_at' => 'datetime',
+            'cancelled_at' => 'datetime',
         ];
     }
 
@@ -47,5 +66,15 @@ class TrainingProgramSlot extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function exercises(): HasMany
+    {
+        return $this->hasMany(TrainingProgramSlotExercise::class);
+    }
+
+    protected static function booted(): void
+    {
+        static::observe(\App\Observers\TrainingProgramSlotObserver::class);
     }
 }

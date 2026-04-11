@@ -15,6 +15,7 @@ use App\Models\Training\TrainingProgramBlock;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
+use App\Training\TrainingSessionMaterializer;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -30,23 +31,32 @@ class DatabaseImportSeeder extends Seeder
         $this->command->info("Importing from: {$this->importPath}");
 
         Model::unguard();
-        DB::statement('SET FOREIGN_KEY_CHECKS=0');
 
-        $this->seedTags();
-        $this->seedExerciseTemplates();
-        $this->seedExercises();
-        $this->seedExerciseExternals();
-        $this->seedExercisePrograms();
-        $this->seedExercisePlans();
-        $this->seedUserGroups();
-        $this->seedUsers();
-        $this->seedTrainingPrograms();
-        $this->seedTrainingProgramBlocks();
-        $this->seedTrainingProgramSlots();
-        $this->seedMetricSubmissions();
+        try {
+            DB::statement('SET FOREIGN_KEY_CHECKS=0');
 
-        DB::statement('SET FOREIGN_KEY_CHECKS=1');
-        Model::reguard();
+            Model::withoutEvents(function (): void {
+                $this->seedTags();
+                $this->seedExerciseTemplates();
+                $this->seedExercises();
+                $this->seedExerciseExternals();
+                $this->seedExercisePrograms();
+                $this->seedExercisePlans();
+                $this->seedUserGroups();
+                $this->seedUsers();
+                $this->seedTrainingPrograms();
+                $this->seedTrainingProgramBlocks();
+                $this->seedTrainingProgramSlots();
+                $this->seedMetricSubmissions();
+            });
+
+            DB::statement('SET FOREIGN_KEY_CHECKS=1');
+
+            $this->materializeTrainingSessions();
+        } finally {
+            DB::statement('SET FOREIGN_KEY_CHECKS=1');
+            Model::reguard();
+        }
     }
 
     private function seedTags(): void
@@ -327,6 +337,25 @@ class DatabaseImportSeeder extends Seeder
         }
 
         $this->command->info('Imported '.count($submissions).' metric submissions.');
+    }
+
+    private function materializeTrainingSessions(): void
+    {
+        $this->command->info('Materializing compiled training sessions...');
+
+        $materializer = app(TrainingSessionMaterializer::class);
+        $count = 0;
+
+        TrainingProgramSlot::query()
+            ->orderBy('id')
+            ->chunkById(100, function ($slots) use ($materializer, &$count): void {
+                foreach ($slots as $slot) {
+                    $materializer->materialize($slot, force: true);
+                    $count++;
+                }
+            });
+
+        $this->command->info("Materialized {$count} training program slots.");
     }
 
     private function resolveImportPath(): string
