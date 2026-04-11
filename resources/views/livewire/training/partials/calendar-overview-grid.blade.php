@@ -193,12 +193,13 @@
                 </template>
                 <template x-if="!popover.loading && popover.slots.length > 0">
                     <template x-for="(slot, si) in popover.slots" :key="si">
-                        <div class="flex flex-col text-[11px] px-1.5 py-0.5 rounded"
-                             :class="slot.color ? '' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'"
-                             :style="slot.color ? 'background-color: var(--color-' + slot.color + '-600); color: white;' : ''">
-                            <span x-text="slot.time"></span>
-                            <span class="truncate" x-text="slot.name"></span>
-                        </div>
+                        <x-training.calendar-slot-card
+                            as="div"
+                            compact
+                            color-expr="slot.color"
+                            time-expr="slot.time"
+                            name-expr="slot.name"
+                        />
                     </template>
                 </template>
             </div>

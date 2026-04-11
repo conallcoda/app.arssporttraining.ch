@@ -79,14 +79,15 @@
                                 class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer {{ $day['isToday'] ? 'bg-blue-50/50 dark:bg-blue-900/10' : '' }}">
                                 <div class="flex flex-col gap-1 px-1.5 py-1.5">
                                     <template x-for="prog in getSlots({{ $pageIndex }}, '{{ $day['date'] }}', 'am')">
-                                        <button type="button" @click.stop="$wire.editWeekSlot(prog.trainingProgramId, '{{ $day['date'] }}', prog.time)"
-                                            class="flex flex-col px-2 py-1.5 rounded-lg text-left cursor-pointer hover:opacity-80 transition-opacity w-full"
-                                            :class="prog.color ? '' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'"
-                                            :style="cardStyle(prog)">
-                                            <span class="text-[10px]" :class="prog.color ? 'opacity-80' : 'opacity-60'" x-text="prog.time"></span>
-                                            <span class="text-xs font-medium truncate" x-text="prog.name"></span>
-                                            <span class="text-[10px] truncate" :class="prog.color ? 'opacity-80' : 'opacity-60'" x-text="(prog.userNames || []).join(', ')"></span>
-                                        </button>
+                                        <x-training.calendar-slot-card
+                                            type="button"
+                                            @click.stop="$wire.editWeekSlot(prog.trainingProgramId, '{{ $day['date'] }}', prog.time)"
+                                            class="w-full"
+                                            color-expr="prog.color"
+                                            time-expr="prog.time"
+                                            name-expr="prog.name"
+                                            subtitle-expr="(prog.userNames || []).join(', ')"
+                                        />
                                     </template>
                                     <div x-show="!isLoaded({{ $pageIndex }})" class="h-4 w-full animate-pulse rounded bg-zinc-200 dark:bg-zinc-700"></div>
                                     <div class="flex items-center justify-center text-zinc-300 dark:text-zinc-600 py-1">
@@ -105,14 +106,15 @@
                                 class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer {{ $day['isToday'] ? 'bg-blue-50/50 dark:bg-blue-900/10' : '' }}">
                                 <div class="flex flex-col gap-1 px-1.5 py-1.5">
                                     <template x-for="prog in getSlots({{ $pageIndex }}, '{{ $day['date'] }}', 'pm')">
-                                        <button type="button" @click.stop="$wire.editWeekSlot(prog.trainingProgramId, '{{ $day['date'] }}', prog.time)"
-                                            class="flex flex-col px-2 py-1.5 rounded-lg text-left cursor-pointer hover:opacity-80 transition-opacity w-full"
-                                            :class="prog.color ? '' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'"
-                                            :style="cardStyle(prog)">
-                                            <span class="text-[10px]" :class="prog.color ? 'opacity-80' : 'opacity-60'" x-text="prog.time"></span>
-                                            <span class="text-xs font-medium truncate" x-text="prog.name"></span>
-                                            <span class="text-[10px] truncate" :class="prog.color ? 'opacity-80' : 'opacity-60'" x-text="(prog.userNames || []).join(', ')"></span>
-                                        </button>
+                                        <x-training.calendar-slot-card
+                                            type="button"
+                                            @click.stop="$wire.editWeekSlot(prog.trainingProgramId, '{{ $day['date'] }}', prog.time)"
+                                            class="w-full"
+                                            color-expr="prog.color"
+                                            time-expr="prog.time"
+                                            name-expr="prog.name"
+                                            subtitle-expr="(prog.userNames || []).join(', ')"
+                                        />
                                     </template>
                                     <div x-show="!isLoaded({{ $pageIndex }})" class="h-4 w-full animate-pulse rounded bg-zinc-200 dark:bg-zinc-700"></div>
                                     <div class="flex items-center justify-center text-zinc-300 dark:text-zinc-600 py-1">

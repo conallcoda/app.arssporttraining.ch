@@ -5,6 +5,7 @@
 @import '../../vendor/coda/cms/resources/css/cms.css';
 
 @source '../views';
+@source '../js';
 @source '../../vendor/coda/cms/resources/views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 

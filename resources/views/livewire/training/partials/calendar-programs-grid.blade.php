@@ -448,17 +448,14 @@
                 </template>
                 <template x-if="slotDetails && !loading">
                     <template x-for="slot in slotDetails" :key="slot.time + '-' + slot.userId">
-                        <button type="button"
+                        <x-training.calendar-slot-card
+                            type="button"
                             @click="editSlot(slot.time)"
-                            class="flex flex-col px-2 py-1.5 rounded-lg text-left cursor-pointer hover:opacity-80 transition-opacity"
-                            :class="color ? '' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'"
-                            :style="color ? 'background-color: var(--color-' + color + '-500); color: white;' : ''">
-                            <span class="text-[10px]" :class="color ? 'opacity-80' : 'opacity-60'" x-text="slot.time"></span>
-                            <span class="text-xs font-medium truncate" x-text="slot.name"></span>
-                            <template x-if="slot.session">
-                                <span class="text-[10px]" :class="color ? 'opacity-60' : 'opacity-40'" x-text="'Session ' + slot.session"></span>
-                            </template>
-                        </button>
+                            color-expr="color"
+                            time-expr="slot.time"
+                            name-expr="slot.name"
+                            subtitle-expr="slot.session ? 'Session ' + slot.session : ''"
+                        />
                     </template>
                 </template>
             </div>

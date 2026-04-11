@@ -1,7 +1,17 @@
-@php [$gridStart, $gridEnd] = $this->dateRange(); @endphp
+@php
+    [$gridStart, $gridEnd] = $this->dateRange();
+    $dayCellWidth = 32;
+    $dayCellStyle = "width: {$dayCellWidth}px; min-width: {$dayCellWidth}px; max-width: {$dayCellWidth}px;";
+@endphp
 <div>
 <div class="overflow-x-auto" wire:key="grid-{{ $this->groupId }}-{{ $this->userId ?? 'group' }}" x-data="calendar_slot_popover({ groupId: '{{ $this->groupId }}', userId: '{{ $this->userId ?? '' }}', startDate: '{{ $gridStart->format('Y-m-d') }}', endDate: '{{ $gridEnd->format('Y-m-d') }}', gridCellsUrl: '{{ route('api.program-grid-cells') }}', slotDetailsUrl: '{{ route('api.slot-details') }}', days: {{ \Illuminate\Support\Js::from($this->days) }}, wireId: '{{ $this->getId() }}' })">
     <table class="border-separate border-spacing-0 text-sm border-t border-l border-zinc-300 dark:border-zinc-600">
+        <colgroup>
+            <col>
+            @foreach ($this->days as $day)
+                <col style="{{ $dayCellStyle }}">
+            @endforeach
+        </colgroup>
         <thead>
             <tr class="bg-zinc-50 dark:bg-zinc-800/50">
                 <th rowspan="3"
@@ -25,7 +35,8 @@
             <tr class="bg-zinc-100 dark:bg-zinc-800">
                 @foreach ($this->days as $day)
                     <th
-                        class="border-r border-b border-zinc-300 dark:border-zinc-600 px-1 py-2 text-center min-w-[28px] {{ $day['isToday'] ? 'bg-blue-100 dark:bg-blue-900/30' : ($day['oddWeek'] ? 'bg-zinc-100/50 dark:bg-zinc-700/20' : '') }}">
+                        class="border-r border-b border-zinc-300 dark:border-zinc-600 px-1 py-2 text-center {{ $day['isToday'] ? 'bg-blue-100 dark:bg-blue-900/30' : ($day['oddWeek'] ? 'bg-zinc-100/50 dark:bg-zinc-700/20' : '') }}"
+                        style="{{ $dayCellStyle }}">
                         <div class="text-[10px] leading-tight">{{ $day['label'] }}</div>
                         <div class="font-medium text-[10px]">{{ $day['day'] }}</div>
                     </th>
@@ -97,8 +108,10 @@
                     </td>
                     <template x-for="day in days" :key="'ms-' + day.date">
                         <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0.5"
+                            style="{{ $dayCellStyle }}"
                             :class="day.oddWeek ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : ''">
-                            <div class="aspect-square" :class="metricSummaryDates[day.date] !== undefined && 'rounded-sm bg-zinc-300 dark:bg-zinc-700'"></div>
+                            <div class="aspect-square box-border rounded-sm border-2 border-transparent bg-clip-padding"
+                                :class="metricSummaryDates[day.date] !== undefined && 'bg-zinc-300 dark:bg-zinc-700'"></div>
                         </td>
                     </template>
                 </tr>
@@ -144,6 +157,7 @@
                             </td>
                             <template x-for="day in days" :key="'m-{{ $metricCase->value }}-' + day.date">
                                 <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0.5 cursor-pointer hover:brightness-95 dark:hover:brightness-125"
+                                    style="{{ $dayCellStyle }}"
                                     :class="day.oddWeek ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : ''"
                                     @click="metricData[day.date]
                                         ? ({{ $this->userId !== null ? 'true' : 'false' }}
@@ -153,7 +167,7 @@
                                             ? $wire.openMetricCell('{{ $metricCase->value }}', day.date)
                                             : $wire.openGroupMetricCell('{{ $metricCase->value }}', day.date))">
                                     <div x-show="metricData[day.date]"
-                                        class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm bg-zinc-500/80 dark:bg-zinc-500/60"
+                                        class="w-full aspect-square box-border flex items-center justify-center border-2 border-transparent bg-clip-padding text-[10px] font-medium text-white rounded-sm bg-zinc-500/80 dark:bg-zinc-500/60"
                                         x-text="metricData[day.date]?.label ?? metricData[day.date]?.count ?? ''">
                                     </div>
                                     <div x-show="!metricData[day.date]"
@@ -263,7 +277,7 @@
                                     @contextmenu="showContextMenu($event, {{ $dayIdx }}, '{{ $day['date'] }}')"
                                     class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer select-none"
                                     :class="(endIdx !== null ? ({{ $dayIdx }} >= Math.min(anchorIdx, endIdx) && {{ $dayIdx }} <= Math.max(anchorIdx, endIdx)) : anchorIdx === {{ $dayIdx }}) && 'ring ring-inset ring-black dark:ring-white'"
-                                    style="height: 22px"></td>
+                                    style="{{ $dayCellStyle }} height: 22px;"></td>
                             @endif
                         @endforeach
                     </tr>
@@ -285,6 +299,7 @@
                     @endif
                     <template x-for="(day, dayIdx) in days" :key="'ind-{{ $categoryId }}-' + day.date">
                         <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0.5 cursor-pointer hover:brightness-95 dark:hover:brightness-125"
+                            style="{{ $dayCellStyle }}"
                             :class="[
                                 blockDayMap[dayIdx] ? '{{ $categoryBlockBgClass }}' : (day.oddWeek ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : ''),
                                 (endIdx !== null ? (dayIdx >= Math.min(anchorIdx, endIdx) && dayIdx <= Math.max(anchorIdx, endIdx)) : anchorIdx === dayIdx) && 'ring ring-inset ring-black dark:ring-white'
@@ -293,7 +308,8 @@
                             @mouseover="!blockDayMap[dayIdx] && dragOver(dayIdx, day.date)"
                             @contextmenu="!blockDayMap[dayIdx] && showContextMenu($event, dayIdx, day.date)"
                             @click="blockDayMap[dayIdx] && $wire.editBlock(blockDayMap[dayIdx].id)">
-                            <div class="aspect-square" :class="hasCategoryData({{ json_encode($categoryProgramIds) }}, day.date) && 'rounded-sm {{ $categoryColorClass }}'"></div>
+                            <div class="aspect-square box-border rounded-sm border-2 border-transparent bg-clip-padding"
+                                :class="hasCategoryData({{ json_encode($categoryProgramIds) }}, day.date) && '{{ $categoryColorClass }}'"></div>
                         </td>
                     </template>
                 </tr>
@@ -347,17 +363,19 @@
                         </td>
                         <template x-for="(day, dayIdx) in days" :key="'p-{{ $entry->id }}-' + day.date">
                             <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0.5 cursor-pointer hover:brightness-95 dark:hover:brightness-125"
+                                style="{{ $dayCellStyle }}"
                                 :class="[
                                     blockDayMap[dayIdx] ? '{{ $categoryBlockBgClass }}' : (day.oddWeek ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : ''),
                                     (endIdx !== null ? (dayIdx >= Math.min(anchorIdx, endIdx) && dayIdx <= Math.max(anchorIdx, endIdx)) : anchorIdx === dayIdx) && 'ring ring-inset ring-black dark:ring-white'
-                                ]"
-                                :title="blockDayMap[dayIdx]?.note || ''">
+                                ]">
                                 @if ($this->userId !== null)
                                     <button x-show="getCellCount({{ $entry->id }}, day.date) > 0"
                                         x-cloak
                                         type="button"
                                         @click.stop="let _t = getCellTime({{ $entry->id }}, day.date); _t ? $wire.editWeekSlot({{ $entry->id }}, day.date, _t) : $wire.openProgramSlot({{ $entry->id }}, day.date)"
-                                        class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm cursor-pointer {{ $colorClass ?: 'bg-emerald-400/80 dark:bg-emerald-500/60' }}"
+                                        class="relative box-border w-full aspect-square flex items-center justify-center border-2 bg-clip-padding text-[10px] font-medium text-white rounded-sm cursor-pointer overflow-hidden {{ $colorClass ?: 'bg-emerald-400/80 dark:bg-emerald-500/60' }}"
+                                        :class="getCellStatusClasses({{ $entry->id }}, day.date)"
+                                        :title="getCellStatusLabel({{ $entry->id }}, day.date)"
                                         x-text="getCellSession({{ $entry->id }}, day.date) || getCellCount({{ $entry->id }}, day.date)">
                                     </button>
                                     <div x-show="cellDataLoaded && getCellCount({{ $entry->id }}, day.date) === 0"
@@ -371,7 +389,7 @@
                                         x-cloak
                                         type="button"
                                         @click.stop="openPopover($event.currentTarget, {{ $entry->id }}, day.date, '{{ $categoryColor }}')"
-                                        class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm cursor-pointer {{ $colorClass ?: 'bg-emerald-400/80 dark:bg-emerald-500/60' }}"
+                                        class="w-full aspect-square box-border flex items-center justify-center border-2 border-transparent bg-clip-padding text-[10px] font-medium text-white rounded-sm cursor-pointer {{ $colorClass ?: 'bg-emerald-400/80 dark:bg-emerald-500/60' }}"
                                         x-text="getCellCount({{ $entry->id }}, day.date)">
                                     </button>
                                     <div x-show="cellDataLoaded && getCellCount({{ $entry->id }}, day.date) === 0"
@@ -415,14 +433,13 @@
                 </template>
                 <template x-if="slotDetails && !loading">
                     <template x-for="slot in slotDetails" :key="slot.time">
-                        <button type="button"
+                        <x-training.calendar-slot-card
+                            type="button"
                             @click="editSlot(slot.time)"
-                            class="flex flex-col px-2 py-1.5 rounded-lg text-left cursor-pointer hover:opacity-80 transition-opacity"
-                            :class="color ? '' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'"
-                            :style="color ? 'background-color: var(--color-' + color + '-500); color: white;' : ''">
-                            <span class="text-[10px]" :class="color ? 'opacity-80' : 'opacity-60'" x-text="slot.time"></span>
-                            <span class="text-xs font-medium truncate" x-text="(slot.names || []).join(', ')"></span>
-                        </button>
+                            color-expr="color"
+                            time-expr="slot.time"
+                            name-expr="(slot.names || []).join(', ')"
+                        />
                     </template>
                 </template>
             </div>

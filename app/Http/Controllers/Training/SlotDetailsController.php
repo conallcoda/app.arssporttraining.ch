@@ -212,7 +212,12 @@ class SlotDetailsController
             SELECT tp.id as program_id,
                    ep.exercise_category_id as category_id,
                    DATE(tps.datetime) as slot_date,
-                   COUNT(DISTINCT tps.user_id) as user_count
+                   COUNT(DISTINCT tps.user_id) as user_count,
+                   SUM(CASE WHEN tps.status = 'completed' THEN 1 ELSE 0 END) as completed_count,
+                   SUM(CASE WHEN tps.status = 'partially_completed' THEN 1 ELSE 0 END) as partial_count,
+                   SUM(CASE WHEN tps.status = 'skipped' THEN 1 ELSE 0 END) as skipped_count,
+                   SUM(CASE WHEN tps.status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_count,
+                   SUM(CASE WHEN tps.status = 'pending' OR tps.status IS NULL THEN 1 ELSE 0 END) as pending_count
                    {$timeSelect}
             FROM training_program_slots tps
             JOIN training_programs tp ON tps.training_program_id = tp.id
@@ -230,14 +235,30 @@ class SlotDetailsController
         foreach ($rows as $row) {
             $key = $row->program_id.'-'.$row->slot_date;
             $session = $sessionNumbers[$key] ?? null;
+            $statusCounts = [
+                'completed' => (int) $row->completed_count,
+                'partial' => (int) $row->partial_count,
+                'skipped' => (int) $row->skipped_count,
+                'cancelled' => (int) $row->cancelled_count,
+                'pending' => (int) $row->pending_count,
+            ];
 
             if ($userId) {
                 $cell = [
                     'count' => (int) $row->user_count,
                     'time' => substr($row->first_time, 0, 5),
+                    'status' => $this->resolveAggregateStatus($statusCounts),
                 ];
             } else {
-                $cell = ['count' => (int) $row->user_count];
+                $cell = [
+                    'count' => (int) $row->user_count,
+                    'completedCount' => $statusCounts['completed'],
+                    'partialCount' => $statusCounts['partial'],
+                    'skippedCount' => $statusCounts['skipped'],
+                    'cancelledCount' => $statusCounts['cancelled'],
+                    'pendingCount' => $statusCounts['pending'],
+                    'status' => $this->resolveAggregateStatus($statusCounts),
+                ];
             }
 
             if ($session !== null) {
@@ -248,6 +269,36 @@ class SlotDetailsController
         }
 
         return response()->json($cells);
+    }
+
+    /**
+     * @param  array{completed:int, partial:int, skipped:int, cancelled:int, pending:int}  $counts
+     */
+    private function resolveAggregateStatus(array $counts): string
+    {
+        $total = array_sum($counts);
+
+        if ($total === 0 || $counts['pending'] === $total) {
+            return 'pending';
+        }
+
+        if ($counts['cancelled'] === $total) {
+            return 'cancelled';
+        }
+
+        if ($counts['skipped'] === $total) {
+            return 'skipped';
+        }
+
+        if ($counts['partial'] > 0) {
+            return 'partially_completed';
+        }
+
+        if ($counts['pending'] === 0 && $counts['cancelled'] === 0 && ($counts['completed'] + $counts['skipped']) === $total && $counts['completed'] > 0) {
+            return 'completed';
+        }
+
+        return 'partially_completed';
     }
 
     private function computeSessionNumbers(array $rows, int $groupId, ?int $userId, Carbon $start, Carbon $end): array
