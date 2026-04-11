@@ -6,7 +6,7 @@
         </flux:tabs>
     @endif
     <div class="mb-3">
-        <x-cms::form.field :field="\Coda\Cms\Form\Fields\Search::make('search')" />
+        <x-form-kit::form.field :field="\Coda\FormKit\Fields\Search::make('search')" />
     </div>
     <div class="flex flex-col gap-1">
         @foreach ($this->groups as $group)

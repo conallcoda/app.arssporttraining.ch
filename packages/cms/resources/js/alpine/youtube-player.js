@@ -1,6 +1,7 @@
 document.addEventListener('alpine:init', () => {
     Alpine.data('youtube_player', () => ({
         videoId: '',
+        videoUrl: '',
 
         extractVideoId(url) {
             if (!url) {
@@ -30,8 +31,18 @@ document.addEventListener('alpine:init', () => {
                 return;
             }
 
+            this.videoUrl = url;
             this.videoId = id;
             Flux.modal('youtube-player').show();
+        },
+
+        openOnYouTube() {
+            if (!this.videoUrl) {
+                return;
+            }
+
+            Flux.modal('youtube-player').close();
+            window.open(this.videoUrl, '_blank', 'noopener,noreferrer');
         },
     }));
 });

@@ -2,7 +2,7 @@
 
 namespace App\Form\Fields\AthleteGroup;
 
-use Coda\Cms\Form\Fields\Text;
+use Coda\FormKit\Fields\Text;
 
 class GroupName extends Text
 {

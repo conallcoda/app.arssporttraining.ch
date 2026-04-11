@@ -3,8 +3,8 @@
 namespace App\Data\Training\Blocks;
 
 use Coda\Cms\Data\AbstractData;
-use Coda\Cms\Form\Concerns\InteractsWithForms;
-use Coda\Cms\Models\Contracts\HasForms;
+use Coda\FormKit\Concerns\InteractsWithForms;
+use Coda\FormKit\Contracts\HasForms;
 
 abstract class AbstractBlockType extends AbstractData implements HasForms
 {

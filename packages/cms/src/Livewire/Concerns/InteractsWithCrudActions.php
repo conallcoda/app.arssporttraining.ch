@@ -2,8 +2,8 @@
 
 namespace Coda\Cms\Livewire\Concerns;
 
-use Coda\Cms\Form\Action;
-use Coda\Cms\Form\ActionPlacement;
+use Coda\FormKit\Action;
+use Coda\FormKit\ActionPlacement;
 use Flux\Flux;
 use Livewire\Attributes\Computed;
 

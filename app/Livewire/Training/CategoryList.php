@@ -11,9 +11,9 @@ use Coda\Cms\Display\DisplayFields\Id;
 use Coda\Cms\Display\DisplayFields\Text;
 use Coda\Cms\Display\Table;
 use Coda\Cms\Display\TableFilter;
-use Coda\Cms\Form\Fields\Text as TextField;
 use Coda\Cms\Livewire\AbstractModelList;
 use Coda\Cms\Support\ColorPalette;
+use Coda\FormKit\Fields\Text as TextField;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 

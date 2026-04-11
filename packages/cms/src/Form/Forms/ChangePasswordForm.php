@@ -2,8 +2,8 @@
 
 namespace Coda\Cms\Form\Forms;
 
-use Coda\Cms\Form\Field;
-use Coda\Cms\Form\Fields\Text;
+use Coda\FormKit\Field;
+use Coda\FormKit\Fields\Text;
 
 class ChangePasswordForm
 {

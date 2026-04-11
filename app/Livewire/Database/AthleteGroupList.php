@@ -14,10 +14,10 @@ use Coda\Cms\Display\DisplayFields\Relationship;
 use Coda\Cms\Display\DisplayFields\Text;
 use Coda\Cms\Display\Table;
 use Coda\Cms\Display\TableFilter;
-use Coda\Cms\Form\Fields\Pillbox;
-use Coda\Cms\Form\Fields\Text as TextField;
 use Coda\Cms\Livewire\AbstractModelList;
 use Coda\Cms\Support\OwnershipTabs;
+use Coda\FormKit\Fields\Pillbox;
+use Coda\FormKit\Fields\Text as TextField;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 
 class AthleteGroupList extends AbstractModelList

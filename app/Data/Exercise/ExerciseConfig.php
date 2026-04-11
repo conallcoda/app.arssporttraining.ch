@@ -3,8 +3,8 @@
 namespace App\Data\Exercise;
 
 use Coda\Cms\Data\AbstractData;
-use Coda\Cms\Form\Fields;
-use Coda\Cms\Form\Form;
+use Coda\FormKit\Fields;
+use Coda\FormKit\Form;
 
 class ExerciseConfig extends AbstractData
 {

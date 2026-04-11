@@ -11,6 +11,7 @@
     "require": {
         "php": "^8.2",
         "coda/cms": "*",
+        "coda/form-kit": "*",
         "codeat3/blade-fluentui-system-icons": "^1.35",
         "laravel/fortify": "^1.0",
         "laravel/framework": "^12.0",
@@ -44,7 +45,8 @@
     "autoload-dev": {
         "psr-4": {
             "Tests\\": "tests/",
-            "Coda\\Cms\\Tests\\": "packages/cms/tests/"
+            "Coda\\Cms\\Tests\\": "packages/cms/tests/",
+            "Coda\\FormKit\\Tests\\": "packages/form-kit/tests/"
         }
     },
     "scripts": {
@@ -105,6 +107,10 @@
     "minimum-stability": "dev",
     "prefer-stable": true,
     "repositories": {
+        "form-kit": {
+            "type": "path",
+            "url": "packages/form-kit"
+        },
         "cms": {
             "type": "path",
             "url": "packages/cms"

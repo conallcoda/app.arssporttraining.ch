@@ -4,7 +4,7 @@ namespace App\Form\Fields\AthleteGroup;
 
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
-use Coda\Cms\Form\Fields\Relationship;
+use Coda\FormKit\Fields\Relationship;
 
 class Members extends Relationship
 {

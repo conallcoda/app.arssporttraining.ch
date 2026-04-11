@@ -4,9 +4,9 @@ namespace App\Livewire\Training\View;
 
 use App\Data\Exercise\ExerciseConfig;
 use App\Data\Exercise\Preview\OverrideManager;
-use Coda\Cms\Form\Form;
-use Coda\Cms\Form\FormFieldsetGroup;
 use Coda\Cms\Livewire\FormModal;
+use Coda\FormKit\Form;
+use Coda\FormKit\FormFieldsetGroup;
 use Flux\Flux;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;

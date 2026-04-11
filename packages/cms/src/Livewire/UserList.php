@@ -9,7 +9,7 @@ use Coda\Cms\Display\DisplayFields\PersonName;
 use Coda\Cms\Display\DisplayFields\Text;
 use Coda\Cms\Display\Table;
 use Coda\Cms\Display\TableFilter;
-use Coda\Cms\Form\Fields\Text as TextField;
+use Coda\FormKit\Fields\Text as TextField;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 
 class UserList extends AbstractModelList

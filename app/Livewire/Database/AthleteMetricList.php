@@ -10,9 +10,9 @@ use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Display\DisplayFields\Date;
 use Coda\Cms\Display\IndexTab;
 use Coda\Cms\Display\Table;
-use Coda\Cms\Form\Action;
-use Coda\Cms\Form\Form;
 use Coda\Cms\Livewire\AbstractModelList;
+use Coda\FormKit\Action;
+use Coda\FormKit\Form;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 

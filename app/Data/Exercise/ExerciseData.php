@@ -8,12 +8,13 @@ use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseTemplate;
 use Carbon\Carbon;
 use Coda\Cms\Data\AbstractData;
-use Coda\Cms\Form\Concerns\InteractsWithForms;
-use Coda\Cms\Form\Fields;
-use Coda\Cms\Form\Fields\FileUpload;
-use Coda\Cms\Form\Form;
-use Coda\Cms\Models\Contracts\HasForms;
+use Coda\Cms\Form\Fields\Tags;
 use Coda\Cms\Models\Contracts\PersistsWithMedia;
+use Coda\FormKit\Concerns\InteractsWithForms;
+use Coda\FormKit\Contracts\HasForms;
+use Coda\FormKit\Fields;
+use Coda\FormKit\Fields\FileUpload;
+use Coda\FormKit\Form;
 use Illuminate\Database\Eloquent\Model;
 
 class ExerciseData extends AbstractData implements HasForms, PersistsWithMedia
@@ -131,9 +132,9 @@ class ExerciseData extends AbstractData implements HasForms, PersistsWithMedia
                     ->searchable()
                     ->clearable()
                     ->live(),
-                Fields\Tags::make('equipment', 'exercise_equipment')->label('Equipment')->withOptions()->create(),
-                Fields\Tags::make('modifiers', 'exercise_modifiers')->label('Modifiers')->withOptions()->create(),
-                Fields\Tags::make('internalTags', 'exercise_internal')->label('Tags')->withOptions()->create(),
+                Tags::make('equipment', 'exercise_equipment')->label('Equipment')->withOptions()->create(),
+                Tags::make('modifiers', 'exercise_modifiers')->label('Modifiers')->withOptions()->create(),
+                Tags::make('internalTags', 'exercise_internal')->label('Tags')->withOptions()->create(),
             ])
             ->fieldset('Instructions', [
                 FileUpload::make('photos')

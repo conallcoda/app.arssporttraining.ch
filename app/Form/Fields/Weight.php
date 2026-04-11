@@ -2,7 +2,7 @@
 
 namespace App\Form\Fields;
 
-use Coda\Cms\Form\Fields\Number;
+use Coda\FormKit\Fields\Number;
 
 class Weight extends Number
 {

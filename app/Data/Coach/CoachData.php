@@ -11,9 +11,9 @@ use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
 use Carbon\Carbon;
 use Coda\Cms\Data\AbstractData;
-use Coda\Cms\Form\Concerns\InteractsWithForms;
-use Coda\Cms\Form\Form;
-use Coda\Cms\Models\Contracts\HasForms;
+use Coda\FormKit\Concerns\InteractsWithForms;
+use Coda\FormKit\Contracts\HasForms;
+use Coda\FormKit\Form;
 
 class CoachData extends AbstractData implements HasForms
 {

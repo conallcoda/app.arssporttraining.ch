@@ -11,10 +11,10 @@ use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
 use Carbon\Carbon;
 use Coda\Cms\Data\AbstractData;
-use Coda\Cms\Form\Concerns\InteractsWithForms;
-use Coda\Cms\Form\Fields;
-use Coda\Cms\Form\Form;
-use Coda\Cms\Models\Contracts\HasForms;
+use Coda\Cms\Form\Fields\Tags;
+use Coda\FormKit\Concerns\InteractsWithForms;
+use Coda\FormKit\Contracts\HasForms;
+use Coda\FormKit\Form;
 
 class ExerciseProgramData extends AbstractData implements HasForms
 {
@@ -157,7 +157,7 @@ class ExerciseProgramData extends AbstractData implements HasForms
                 Exercises::make('exercises')->withOptions(),
                 SelectProgram::make('warm_up_program_id')->label('Warm Up')->withOptions(fn ($q) => $q->whereNull('parent_type')->whereNull('parent_id')->when($excludeId, fn ($q) => $q->where('id', '!=', $excludeId))),
                 SelectProgram::make('warm_down_program_id')->label('Warm Down')->withOptions(fn ($q) => $q->whereNull('parent_type')->whereNull('parent_id')->when($excludeId, fn ($q) => $q->where('id', '!=', $excludeId))),
-                Fields\Tags::make('internalTags', 'program_internal')->label('Tags')->withOptions()->create(),
+                Tags::make('internalTags', 'program_internal')->label('Tags')->withOptions()->create(),
             ]);
     }
 }

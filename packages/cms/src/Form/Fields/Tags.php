@@ -2,8 +2,8 @@
 
 namespace Coda\Cms\Form\Fields;
 
-use Coda\Cms\Form\Concerns\HasPlaceholder;
-use Coda\Cms\Form\Field;
+use Coda\FormKit\Concerns\HasPlaceholder;
+use Coda\FormKit\Field;
 
 class Tags extends Field
 {

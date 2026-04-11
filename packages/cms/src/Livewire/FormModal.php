@@ -2,10 +2,11 @@
 
 namespace Coda\Cms\Livewire;
 
-use Coda\Cms\Form\Form;
 use Coda\Cms\Livewire\Concerns\InteractsWithFormData;
 use Coda\Cms\Livewire\Concerns\InteractsWithMediaUploads;
 use Coda\Cms\Models\Contracts\PersistsWithMedia;
+use Coda\FormKit\Form;
+use Coda\FormKit\FormFieldset;
 use Flux\Flux;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
@@ -95,7 +96,7 @@ class FormModal extends Component
 
         if (! empty($this->excludeFields)) {
             foreach ($fieldsets as $fieldset) {
-                if ($fieldset instanceof \Coda\Cms\Form\FormFieldset) {
+                if ($fieldset instanceof FormFieldset) {
                     $fieldset->fields(
                         array_values(array_filter(
                             $fieldset->fields,
@@ -106,7 +107,7 @@ class FormModal extends Component
             }
 
             $fieldsets = array_values(array_filter($fieldsets, function ($fieldset) {
-                return ! $fieldset instanceof \Coda\Cms\Form\FormFieldset || ! empty($fieldset->fields);
+                return ! $fieldset instanceof FormFieldset || ! empty($fieldset->fields);
             }));
         }
 

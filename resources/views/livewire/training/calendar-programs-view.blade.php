@@ -5,11 +5,11 @@
         <thead>
             <tr class="bg-zinc-50 dark:bg-zinc-800/50">
                 <th rowspan="3"
-                    class="sticky left-0 z-10 bg-zinc-100 dark:bg-zinc-800 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 text-left min-w-[180px]">
+                    class="sticky left-0 z-10 bg-zinc-100 dark:bg-zinc-800 border-r border-b border-zinc-300 dark:border-zinc-600 px-2 py-2 text-left min-w-fit">
                 </th>
                 @foreach ($this->months as $month)
                     <th colspan="{{ $month['colspan'] }}"
-                        class="border-r border-b border-zinc-300 dark:border-zinc-600 px-2 py-1.5 text-center text-xs font-semibold text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800">
+                        class="border-r border-b border-zinc-300 dark:border-zinc-600 px-1.5 py-1 text-center text-xs font-semibold text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800">
                         {{ $month['label'] }}
                     </th>
                 @endforeach
@@ -17,7 +17,7 @@
             <tr class="bg-zinc-50 dark:bg-zinc-800/50">
                 @foreach ($this->weeks as $week)
                     <th colspan="{{ $week['colspan'] }}"
-                        class="border-r border-b border-zinc-300 dark:border-zinc-600 px-1 py-1 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 {{ $week['week'] % 2 !== 0 ? 'bg-zinc-100/50 dark:bg-zinc-700/20' : '' }}">
+                        class="border-r border-b border-zinc-300 dark:border-zinc-600 px-0.5 py-0.5 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 {{ $week['week'] % 2 !== 0 ? 'bg-zinc-100/50 dark:bg-zinc-700/20' : '' }}">
                         W{{ $week['week'] }}
                     </th>
                 @endforeach
@@ -25,9 +25,9 @@
             <tr class="bg-zinc-100 dark:bg-zinc-800">
                 @foreach ($this->days as $day)
                     <th
-                        class="border-r border-b border-zinc-300 dark:border-zinc-600 px-1 py-2 text-center min-w-[40px] {{ $day['isToday'] ? 'bg-blue-100 dark:bg-blue-900/30' : ($day['oddWeek'] ? 'bg-zinc-100/50 dark:bg-zinc-700/20' : '') }}">
+                        class="border-r border-b border-zinc-300 dark:border-zinc-600 px-1 py-2 text-center min-w-[28px] {{ $day['isToday'] ? 'bg-blue-100 dark:bg-blue-900/30' : ($day['oddWeek'] ? 'bg-zinc-100/50 dark:bg-zinc-700/20' : '') }}">
                         <div class="text-[10px] leading-tight">{{ $day['label'] }}</div>
-                        <div class="font-medium text-xs">{{ $day['day'] }}</div>
+                        <div class="font-medium text-[10px]">{{ $day['day'] }}</div>
                     </th>
                 @endforeach
             </tr>
@@ -35,7 +35,7 @@
         @if ($this->programs->isNotEmpty())
             <tbody x-data="calendar_cell_select({ type: 'notes' })" data-cell-select-id="notes-notes" wire:ignore.self @keydown.escape.window="clearSelection()">
                 <tr>
-                    <td class="sticky left-0 z-20 bg-zinc-100 dark:bg-zinc-800 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-1 min-w-[180px] text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                    <td class="sticky left-0 z-20 bg-zinc-100 dark:bg-zinc-800 border-r border-b border-zinc-300 dark:border-zinc-600 px-2 py-2 min-w-fit whitespace-nowrap text-xs font-medium text-zinc-500 dark:text-zinc-400">
                         {{ __('Notes') }}
                     </td>
                     <td colspan="{{ count($this->days) }}"
@@ -88,7 +88,7 @@
                    wire:key="metrics-section">
                 <tr>
                     <td @click="expanded = !expanded; if (expanded && !$wire.metricsLoaded) $wire.loadMetrics()"
-                        class="sticky left-0 z-10 cursor-pointer border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] bg-zinc-300 dark:bg-zinc-700">
+                        class="sticky left-0 z-10 cursor-pointer border-r border-b border-zinc-300 dark:border-zinc-600 px-2 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-fit bg-zinc-300 dark:bg-zinc-700">
                         <div class="flex items-center gap-2">
                             <flux:icon.chevron-right class="size-4 transition-transform duration-200"
                                 ::class="expanded && 'rotate-90'" />
@@ -96,7 +96,7 @@
                         </div>
                     </td>
                     <template x-for="day in days" :key="'ms-' + day.date">
-                        <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1"
+                        <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0.5"
                             :class="day.oddWeek ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : ''">
                             <div class="aspect-square" :class="metricSummaryDates[day.date] !== undefined && 'rounded-sm bg-zinc-300 dark:bg-zinc-700'"></div>
                         </td>
@@ -107,7 +107,7 @@
                     @foreach ($this->visibleMetrics as $metricCase)
                         @php $metricRowData = $this->getMetricRowData($metricCase->value); @endphp
                         <tr wire:key="metric-row-{{ $metricCase->value }}" x-show="expanded" x-cloak x-data="{ metricData: {{ \Illuminate\Support\Js::from($metricRowData) }} }">
-                            <td class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 pl-7 pr-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] bg-white dark:bg-zinc-900">
+                            <td class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 pl-5 pr-2 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-fit bg-white dark:bg-zinc-900">
                                 {{ $metricCase->label() }}
                                 @if (isset($this->currentMetricValues[$metricCase->value]))
                                     <div class="mt-1">
@@ -143,7 +143,7 @@
                                 @endif
                             </td>
                             <template x-for="day in days" :key="'m-{{ $metricCase->value }}-' + day.date">
-                                <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 cursor-pointer hover:brightness-95 dark:hover:brightness-125"
+                                <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0.5 cursor-pointer hover:brightness-95 dark:hover:brightness-125"
                                     :class="day.oddWeek ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : ''"
                                     @click="metricData[day.date]
                                         ? ({{ $this->userId !== null ? 'true' : 'false' }}
@@ -232,11 +232,11 @@
                     <tr>
                         <td @click="expanded = !expanded"
                             rowspan="{{ $labelRowspan }}"
-                            class="sticky left-0 z-10 cursor-pointer border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] {{ $categoryColorClass }}">
+                            class="sticky left-0 z-10 cursor-pointer border-r border-b border-zinc-300 dark:border-zinc-600 px-2 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-fit {{ $categoryColorClass }}">
                             <div class="flex items-center gap-2">
                                 <flux:icon.chevron-right class="size-4 transition-transform duration-200"
                                     ::class="expanded && 'rotate-90'" />
-                                <span>{{ $category?->name ?? 'Uncategorized' }}</span>
+                                <span>{{ $category ? ($category->short_name ?: strtoupper(substr($category->name, 0, 3))) : 'Uncategorized' }}</span>
                                 <span class="text-xs font-normal text-zinc-500 dark:text-zinc-200">({{ $groupEntries->count() }})</span>
                             </div>
                         </td>
@@ -274,17 +274,17 @@
                 <tr>
                     @if (!$hasBlocks)
                         <td @click="expanded = !expanded"
-                            class="sticky left-0 z-10 cursor-pointer border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] {{ $categoryColorClass }}">
+                            class="sticky left-0 z-10 cursor-pointer border-r border-b border-zinc-300 dark:border-zinc-600 px-2 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-fit {{ $categoryColorClass }}">
                             <div class="flex items-center gap-2">
                                 <flux:icon.chevron-right class="size-4 transition-transform duration-200"
                                     ::class="expanded && 'rotate-90'" />
-                                <span>{{ $category?->name ?? 'Uncategorized' }}</span>
+                                <span>{{ $category ? ($category->short_name ?: strtoupper(substr($category->name, 0, 3))) : 'Uncategorized' }}</span>
                                 <span class="text-xs font-normal text-zinc-500 dark:text-zinc-200">({{ $groupEntries->count() }})</span>
                             </div>
                         </td>
                     @endif
                     <template x-for="(day, dayIdx) in days" :key="'ind-{{ $categoryId }}-' + day.date">
-                        <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 cursor-pointer hover:brightness-95 dark:hover:brightness-125"
+                        <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0.5 cursor-pointer hover:brightness-95 dark:hover:brightness-125"
                             :class="[
                                 blockDayMap[dayIdx] ? '{{ $categoryBlockBgClass }}' : (day.oddWeek ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : ''),
                                 (endIdx !== null ? (dayIdx >= Math.min(anchorIdx, endIdx) && dayIdx <= Math.max(anchorIdx, endIdx)) : anchorIdx === dayIdx) && 'ring ring-inset ring-black dark:ring-white'
@@ -308,7 +308,7 @@
                     @endphp
                     <tr wire:key="program-{{ $entry->id }}" x-show="expanded" x-cloak class="group/program">
                         <td
-                            class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 pl-7 pr-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] bg-white dark:bg-zinc-900">
+                            class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 pl-5 pr-2 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-fit bg-white dark:bg-zinc-900">
                             <div class="flex items-center gap-2">
                                 @if ($exercises->isNotEmpty())
                                     <button type="button" @click.stop="programExpanded[{{ $entry->id }}] = !programExpanded[{{ $entry->id }}]" class="shrink-0">
@@ -346,7 +346,7 @@
                             @endif
                         </td>
                         <template x-for="(day, dayIdx) in days" :key="'p-{{ $entry->id }}-' + day.date">
-                            <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-1 cursor-pointer hover:brightness-95 dark:hover:brightness-125"
+                            <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0.5 cursor-pointer hover:brightness-95 dark:hover:brightness-125"
                                 :class="[
                                     blockDayMap[dayIdx] ? '{{ $categoryBlockBgClass }}' : (day.oddWeek ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : ''),
                                     (endIdx !== null ? (dayIdx >= Math.min(anchorIdx, endIdx) && dayIdx <= Math.max(anchorIdx, endIdx)) : anchorIdx === dayIdx) && 'ring ring-inset ring-black dark:ring-white'

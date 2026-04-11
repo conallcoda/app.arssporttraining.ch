@@ -5,8 +5,8 @@ namespace App\Livewire\Database;
 use App\Data\Exercise\ExerciseTemplateData;
 use App\Data\Exercise\Settings\PreviewSetting;
 use App\Livewire\Concerns\InteractsWithPreview;
-use Coda\Cms\Form\Form;
 use Coda\Cms\Livewire\FormModal;
+use Coda\FormKit\Form;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
 

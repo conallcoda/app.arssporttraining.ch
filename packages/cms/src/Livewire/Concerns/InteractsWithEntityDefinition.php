@@ -3,9 +3,9 @@
 namespace Coda\Cms\Livewire\Concerns;
 
 use Coda\Cms\Data\AbstractData;
-use Coda\Cms\Form\Field;
-use Coda\Cms\Form\Fields\Relationship;
-use Coda\Cms\Form\Form;
+use Coda\FormKit\Field;
+use Coda\FormKit\Fields\Relationship;
+use Coda\FormKit\Form;
 use Illuminate\Database\Eloquent\Model;
 use Livewire\Attributes\Computed;
 

@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
     <title>{{ $title ?? __('Athlete') }}</title>
     <link rel="icon" href="{{ asset('favicon.png') }}" type="image/png">
@@ -33,7 +33,7 @@
     @endif
 </head>
 
-<body class="min-h-screen bg-zinc-100 dark:bg-zinc-800 antialiased">
+<body class="athlete-shell min-h-screen bg-zinc-100 antialiased dark:bg-zinc-800" data-athlete-shell>
     <flux:header class="bg-white lg:bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700">
         <flux:navbar class="w-full">
             <flux:brand href="/dashboard" name="{{ config('cms.name') ?? config('app.name', 'Athlete') }}" class="max-lg:hidden" />
@@ -60,7 +60,7 @@
         <livewire:auth.change-password />
     </flux:modal>
 
-    <flux:main class="w-full !p-2 !pb-20 sm:!p-6 sm:!pb-6 lg:!p-8 lg:!pb-8">
+    <flux:main class="athlete-shell__main w-full !p-0 sm:!p-6 sm:!pb-6 lg:!p-8 lg:!pb-8" data-athlete-main>
         {{ $slot }}
     </flux:main>
 
@@ -68,6 +68,8 @@
         <livewire:athlete.athlete-layout />
     @endpersist
 
+    @include('cms::components.youtube-player-modal')
+    <x-athlete.exercise-gallery-modal />
     <flux:toast />
     @fluxScripts
 </body>

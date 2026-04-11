@@ -17,6 +17,54 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+@layer base {
+    .athlete-shell {
+        --athlete-bottom-nav-height: 0px;
+        --athlete-bottom-nav-gap: 0.5rem;
+        min-height: 100vh;
+        min-height: 100dvh;
+    }
+
+    .athlete-shell__nav {
+        padding-bottom: env(safe-area-inset-bottom);
+        transition: transform 180ms ease, opacity 180ms ease;
+        will-change: transform;
+    }
+
+    .athlete-shell__main {
+        padding-bottom: calc(var(--athlete-bottom-nav-height) + var(--athlete-bottom-nav-gap)) !important;
+    }
+
+    .athlete-shell--keyboard-open {
+        --athlete-bottom-nav-height: 0px;
+    }
+
+    .athlete-shell--keyboard-open .athlete-shell__nav {
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(calc(100% + env(safe-area-inset-bottom)));
+    }
+
+    @media (min-width: 640px) {
+        .athlete-shell__main {
+            padding-bottom: 1.5rem !important;
+        }
+    }
+
+    @media (min-width: 1024px) {
+        .athlete-shell__main {
+            padding-bottom: 2rem !important;
+        }
+    }
+
+    @media (max-width: 639px) {
+        .athlete-toolbar,
+        .athlete-toolbar * {
+            border-radius: 0 !important;
+        }
+    }
+}
+
 .org-chart-canvas {
     cursor: grab;
 }

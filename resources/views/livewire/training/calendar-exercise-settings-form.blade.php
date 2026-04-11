@@ -17,10 +17,10 @@
                 <div wire:key="form-{{ $this->contextExerciseId }}-{{ $this->contextExerciseProgramId }}-{{ md5(json_encode($data['config'] ?? [])) }}">
                     <form wire:submit="submit" class="space-y-4">
                         @foreach ($this->fieldsets as $item)
-                            @if ($item instanceof \Coda\Cms\Form\FormFieldsetGroup)
-                                <x-cms::form.fieldset-tabs :group="$item" />
+                            @if ($item instanceof \Coda\FormKit\FormFieldsetGroup)
+                                <x-form-kit::form.fieldset-tabs :group="$item" />
                             @else
-                                <x-cms::form.fieldset :fieldset="$item" :prefix="$item->prefix ?? 'data'" :showLegend="true" />
+                                <x-form-kit::form.fieldset :fieldset="$item" :prefix="$item->prefix ?? 'data'" :showLegend="true" />
                             @endif
                         @endforeach
                         <div class="flex gap-2 pt-4">

@@ -2,7 +2,7 @@
 
 namespace App\Form\Fields\Athlete;
 
-use Coda\Cms\Form\Fields\Text;
+use Coda\FormKit\Fields\Text;
 
 class Surname extends Text
 {

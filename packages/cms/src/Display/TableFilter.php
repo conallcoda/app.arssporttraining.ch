@@ -2,7 +2,7 @@
 
 namespace Coda\Cms\Display;
 
-use Coda\Cms\Form\Field;
+use Coda\FormKit\Field;
 use Spatie\QueryBuilder\AllowedFilter;
 
 class TableFilter

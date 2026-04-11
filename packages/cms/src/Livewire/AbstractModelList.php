@@ -7,7 +7,7 @@ use Coda\Cms\Display\DisplayFields\Relationship as RelationshipColumn;
 use Coda\Cms\Display\IndexTab;
 use Coda\Cms\Display\Table;
 use Coda\Cms\Display\TableFilter;
-use Coda\Cms\Form\Action;
+use Coda\FormKit\Action;
 use Flux\Flux;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Http\Request;

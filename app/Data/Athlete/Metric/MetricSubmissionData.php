@@ -6,10 +6,10 @@ use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
 use App\Models\Athlete\MetricSubmission;
 use App\Models\Users\User;
 use Coda\Cms\Data\AbstractData;
-use Coda\Cms\Form\Concerns\InteractsWithForms;
-use Coda\Cms\Form\Fields;
-use Coda\Cms\Form\Form;
-use Coda\Cms\Models\Contracts\HasForms;
+use Coda\FormKit\Concerns\InteractsWithForms;
+use Coda\FormKit\Contracts\HasForms;
+use Coda\FormKit\Fields;
+use Coda\FormKit\Form;
 
 class MetricSubmissionData extends AbstractData implements HasForms
 {

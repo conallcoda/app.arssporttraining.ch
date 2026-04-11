@@ -2,8 +2,8 @@
 
 namespace App\Data\Training\Blocks;
 
-use Coda\Cms\Form\Fields\Number;
-use Coda\Cms\Form\Fields\SwitchField;
+use Coda\FormKit\Fields\Number;
+use Coda\FormKit\Fields\SwitchField;
 
 class CategoryBlockType extends AbstractBlockType
 {

@@ -6,10 +6,11 @@ use App\Form\Fields\Category;
 use App\Models\Exercise\ExerciseExternal;
 use Carbon\Carbon;
 use Coda\Cms\Data\AbstractData;
-use Coda\Cms\Form\Concerns\InteractsWithForms;
-use Coda\Cms\Form\Fields;
-use Coda\Cms\Form\Form;
-use Coda\Cms\Models\Contracts\HasForms;
+use Coda\Cms\Form\Fields\Tags;
+use Coda\FormKit\Concerns\InteractsWithForms;
+use Coda\FormKit\Contracts\HasForms;
+use Coda\FormKit\Fields;
+use Coda\FormKit\Form;
 
 class ExerciseExternalData extends AbstractData implements HasForms
 {
@@ -100,8 +101,8 @@ class ExerciseExternalData extends AbstractData implements HasForms
             ->fieldset('General', [
                 Fields\Text::make('name')->label('Name'),
                 Category::make('category', 'exercise_category')->label('Category')->withOptions(),
-                Fields\Tags::make('equipment', 'exercise_equipment')->label('Equipment')->withOptions()->create(),
-                Fields\Tags::make('modifiers', 'exercise_modifiers')->label('Modifiers')->withOptions()->create(),
+                Tags::make('equipment', 'exercise_equipment')->label('Equipment')->withOptions()->create(),
+                Tags::make('modifiers', 'exercise_modifiers')->label('Modifiers')->withOptions()->create(),
                 Fields\Url::make('videoUrl')->label('Video URL')->placeholder('https://'),
             ]);
     }

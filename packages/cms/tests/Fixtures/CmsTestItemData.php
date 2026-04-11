@@ -3,14 +3,14 @@
 namespace Coda\Cms\Tests\Fixtures;
 
 use Coda\Cms\Data\AbstractData;
-use Coda\Cms\Form\Concerns\InteractsWithForms;
-use Coda\Cms\Form\Fields\Date;
-use Coda\Cms\Form\Fields\Number;
-use Coda\Cms\Form\Fields\Select;
-use Coda\Cms\Form\Fields\SwitchField;
-use Coda\Cms\Form\Fields\Text;
-use Coda\Cms\Form\Form;
-use Coda\Cms\Models\Contracts\HasForms;
+use Coda\FormKit\Concerns\InteractsWithForms;
+use Coda\FormKit\Contracts\HasForms;
+use Coda\FormKit\Fields\Date;
+use Coda\FormKit\Fields\Number;
+use Coda\FormKit\Fields\Select;
+use Coda\FormKit\Fields\SwitchField;
+use Coda\FormKit\Fields\Text;
+use Coda\FormKit\Form;
 use Illuminate\Database\Eloquent\Model;
 
 class CmsTestItemData extends AbstractData implements HasForms

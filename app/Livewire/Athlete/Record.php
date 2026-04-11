@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Athlete;
 
+use App\Support\AthleteDashboardDate;
 use Illuminate\View\View;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -14,7 +15,12 @@ class Record extends Component
 
     public ?string $readinessColor = null;
 
-    public function mount(): void {}
+    public string $dashboardDate;
+
+    public function mount(): void
+    {
+        $this->dashboardDate = AthleteDashboardDate::todayDateString();
+    }
 
     #[On('readiness-updated')]
     public function onReadinessUpdated(int $score, ?string $label = null, ?string $color = null): void
@@ -27,6 +33,6 @@ class Record extends Component
     public function render(): View
     {
         return view('livewire.athlete.record')
-            ->layout('components.layouts.athlete', ['title' => 'Record']);
+            ->layout('components.layouts.athlete', ['title' => 'Train']);
     }
 }

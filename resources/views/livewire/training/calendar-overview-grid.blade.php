@@ -19,11 +19,11 @@
         <thead>
             <tr class="bg-zinc-50 dark:bg-zinc-800/50">
                 <th rowspan="3"
-                    class="sticky left-0 z-10 bg-zinc-100 dark:bg-zinc-800 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 text-left min-w-[180px]">
+                    class="sticky left-0 z-10 bg-zinc-100 dark:bg-zinc-800 border-r border-b border-zinc-300 dark:border-zinc-600 px-2 py-2 text-left min-w-fit">
                 </th>
                 @foreach ($this->months as $month)
                     <th colspan="{{ $month['colspan'] }}"
-                        class="border-r border-b border-zinc-300 dark:border-zinc-600 px-2 py-1.5 text-center text-xs font-semibold text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800">
+                        class="border-r border-b border-zinc-300 dark:border-zinc-600 px-1.5 py-1 text-center text-xs font-semibold text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800">
                         {{ $month['label'] }}
                     </th>
                 @endforeach
@@ -31,7 +31,7 @@
             <tr class="bg-zinc-50 dark:bg-zinc-800/50">
                 @foreach ($this->weeks as $week)
                     <th colspan="{{ $week['colspan'] }}"
-                        class="border-r border-b border-zinc-300 dark:border-zinc-600 px-1 py-1 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 {{ $week['week'] % 2 !== 0 ? 'bg-zinc-100/50 dark:bg-zinc-700/20' : '' }}">
+                        class="border-r border-b border-zinc-300 dark:border-zinc-600 px-0.5 py-0.5 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400 {{ $week['week'] % 2 !== 0 ? 'bg-zinc-100/50 dark:bg-zinc-700/20' : '' }}">
                         W{{ $week['week'] }}
                     </th>
                 @endforeach
@@ -39,9 +39,9 @@
             <tr class="bg-zinc-100 dark:bg-zinc-800">
                 @foreach ($this->days as $day)
                     <th
-                        class="border-r border-b border-zinc-300 dark:border-zinc-600 px-1 py-2 text-center min-w-[40px] {{ $day['isToday'] ? 'bg-blue-100 dark:bg-blue-900/30' : ($day['oddWeek'] ? 'bg-zinc-100/50 dark:bg-zinc-700/20' : '') }}">
+                        class="border-r border-b border-zinc-300 dark:border-zinc-600 px-1 py-2 text-center min-w-[28px] {{ $day['isToday'] ? 'bg-blue-100 dark:bg-blue-900/30' : ($day['oddWeek'] ? 'bg-zinc-100/50 dark:bg-zinc-700/20' : '') }}">
                         <div class="text-[10px] leading-tight">{{ $day['label'] }}</div>
-                        <div class="font-medium text-xs">{{ $day['day'] }}</div>
+                        <div class="font-medium text-[10px]">{{ $day['day'] }}</div>
                     </th>
                 @endforeach
             </tr>
@@ -115,7 +115,7 @@
             }" wire:key="overview-group-{{ $groupRow['group']->id }}-{{ $this->days[0]['date'] }}-{{ $this->days[count($this->days) - 1]['date'] }}">
                 <tr>
                     <td
-                        class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-[180px] bg-zinc-100 dark:bg-zinc-800">
+                        class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 px-2 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-fit bg-zinc-100 dark:bg-zinc-800">
                         <div class="flex items-center gap-2">
                             <button @click.stop="toggle()" class="shrink-0 text-zinc-400 transition-colors">
                                 <flux:icon.chevron-right class="size-4 transition-transform duration-200"
@@ -141,7 +141,7 @@
                 <template x-if="expanded && memberRows.length > 0">
                     <template x-for="member in memberRows" :key="member.id">
                         <tr>
-                            <td class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 px-3 py-2 pl-9 font-medium text-zinc-600 dark:text-zinc-400 whitespace-nowrap min-w-[180px] bg-white dark:bg-zinc-900">
+                            <td class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 px-2 py-2 pl-7 font-medium text-zinc-600 dark:text-zinc-400 whitespace-nowrap min-w-fit bg-white dark:bg-zinc-900">
                                 <button type="button"
                                     @click="$wire.selectFromOverview({{ $groupRow['group']->id }}, member.id)"
                                     class="hover:underline" x-text="member.name">

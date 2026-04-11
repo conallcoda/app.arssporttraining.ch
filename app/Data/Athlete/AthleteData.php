@@ -14,10 +14,10 @@ use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
 use Carbon\Carbon;
 use Coda\Cms\Data\AbstractData;
-use Coda\Cms\Form\Concerns\InteractsWithForms;
-use Coda\Cms\Form\Fields;
-use Coda\Cms\Form\Form;
-use Coda\Cms\Models\Contracts\HasForms;
+use Coda\Cms\Form\Fields\Tags;
+use Coda\FormKit\Concerns\InteractsWithForms;
+use Coda\FormKit\Contracts\HasForms;
+use Coda\FormKit\Form;
 
 class AthleteData extends AbstractData implements HasForms
 {
@@ -115,7 +115,7 @@ class AthleteData extends AbstractData implements HasForms
                 Phone::make('phone'),
                 Gender::make('gender'),
                 DateOfBirth::make('dateOfBirth'),
-                Fields\Tags::make('internalTags', 'athlete_internal')->label('Tags')->withOptions()->create(),
+                Tags::make('internalTags', 'athlete_internal')->label('Tags')->withOptions()->create(),
             ]);
     }
 }

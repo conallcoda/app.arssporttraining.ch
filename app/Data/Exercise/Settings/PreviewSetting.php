@@ -2,7 +2,7 @@
 
 namespace App\Data\Exercise\Settings;
 
-use Coda\Cms\Form\Fields;
+use Coda\FormKit\Fields;
 
 class PreviewSetting extends AbstractSetting
 {

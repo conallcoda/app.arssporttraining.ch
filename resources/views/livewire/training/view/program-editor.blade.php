@@ -6,7 +6,7 @@
             @endif
 
             @foreach ($this->fieldsets as $item)
-                <x-cms::form.fieldset
+                <x-form-kit::form.fieldset
                     :fieldset="$item"
                     :prefix="$item->prefix ?? 'data'"
                     :showLegend="false"
@@ -15,7 +15,7 @@
 
             <div class="grid grid-cols-2 gap-4">
                 @foreach ($this->warmProgramFieldsets as $item)
-                    <x-cms::form.fieldset
+                    <x-form-kit::form.fieldset
                         :fieldset="$item"
                         :prefix="$item->prefix ?? 'data'"
                         :showLegend="false"

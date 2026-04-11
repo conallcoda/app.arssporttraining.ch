@@ -1,5 +1,6 @@
 import '../../packages/cms/resources/js/alpine';
 
+import './athlete-mobile-shell';
 import './alpine/schedule-grid';
 import './alpine/calendar-cell-select';
 import './alpine/calendar-slot-popover';

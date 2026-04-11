@@ -24,6 +24,8 @@ use App\Training\ProjectedOneRepMaxService;
 use Carbon\Carbon;
 use Flux\Flux;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\View\View;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -356,50 +358,7 @@ class CalendarProgramsView extends Component
     #[Computed]
     public function visibleMetrics(): array
     {
-        $strengthRootId = Tag::query()
-            ->where('scope', 'exercise_category')
-            ->where('slug', 'strength')
-            ->whereNull('parent_id')
-            ->value('id');
-
-        $enduranceRootId = Tag::query()
-            ->where('scope', 'exercise_category')
-            ->where('slug', 'endurance')
-            ->whereNull('parent_id')
-            ->value('id');
-
-        $strengthCategoryIds = $strengthRootId
-            ? Tag::query()
-                ->where('scope', 'exercise_category')
-                ->where(fn ($q) => $q->where('id', $strengthRootId)->orWhere('parent_id', $strengthRootId))
-                ->pluck('id')
-                ->all()
-            : [];
-
-        $enduranceCategoryIds = $enduranceRootId
-            ? Tag::query()
-                ->where('scope', 'exercise_category')
-                ->where(fn ($q) => $q->where('id', $enduranceRootId)->orWhere('parent_id', $enduranceRootId))
-                ->pluck('id')
-                ->all()
-            : [];
-
-        $categoryBlocks = $this->categoryBlocks;
-
-        $hasStrengthBlock = collect($strengthCategoryIds)->contains(fn ($id) => ! empty($categoryBlocks[$id]['notes']));
-        $hasEnduranceBlock = collect($enduranceCategoryIds)->contains(fn ($id) => ! empty($categoryBlocks[$id]['notes']));
-
-        $visible = [];
-
-        if ($hasStrengthBlock) {
-            $visible[] = MetricEnum::OneRepMax;
-        }
-
-        if ($hasEnduranceBlock) {
-            $visible[] = MetricEnum::HeartRate;
-        }
-
-        return $visible;
+        return MetricEnum::cases();
     }
 
     #[Computed]
@@ -408,7 +367,7 @@ class CalendarProgramsView extends Component
         [$start, $end] = $this->dateRange();
 
         if ($this->userId !== null) {
-            $dates = \Illuminate\Support\Facades\DB::select(
+            $dates = DB::select(
                 'SELECT DISTINCT DATE(recorded_at) as d FROM user_metric_submissions WHERE user_id = ? AND recorded_at BETWEEN ? AND ?',
                 [$this->userId, $start->format('Y-m-d'), $end->format('Y-m-d')]
             );
@@ -420,7 +379,7 @@ class CalendarProgramsView extends Component
             }
 
             $placeholders = implode(',', array_fill(0, count($memberIds), '?'));
-            $dates = \Illuminate\Support\Facades\DB::select(
+            $dates = DB::select(
                 "SELECT DISTINCT DATE(recorded_at) as d FROM user_metric_submissions WHERE user_id IN ({$placeholders}) AND recorded_at BETWEEN ? AND ?",
                 [...$memberIds, $start->format('Y-m-d'), $end->format('Y-m-d')]
             );
@@ -1434,7 +1393,7 @@ class CalendarProgramsView extends Component
         }
     }
 
-    public function render(): \Illuminate\View\View
+    public function render(): View
     {
         return view('livewire.training.calendar-programs-view');
     }

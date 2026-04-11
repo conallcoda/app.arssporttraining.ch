@@ -4,8 +4,8 @@ namespace App\Livewire\Training;
 
 use App\Data\Training\Calendar\CalendarSettingsData;
 use Carbon\Carbon;
-use Coda\Cms\Form\Form;
 use Coda\Cms\Livewire\FormModal;
+use Coda\FormKit\Form;
 use Flux\Flux;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;

@@ -4,8 +4,8 @@ namespace App\Livewire\Database;
 
 use App\Data\Athlete\Metric\MetricEnum;
 use App\Data\Athlete\Metric\MetricSubmissionData;
-use Coda\Cms\Form\Form;
 use Coda\Cms\Livewire\FormModal;
+use Coda\FormKit\Form;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
 

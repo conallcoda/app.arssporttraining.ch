@@ -2,7 +2,7 @@
 
 namespace App\Form\Fields\Exercise;
 
-use Coda\Cms\Form\Fields;
+use Coda\FormKit\Fields;
 
 class ApplyPerField
 {

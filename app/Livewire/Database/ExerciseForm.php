@@ -6,8 +6,8 @@ use App\Data\Exercise\ExerciseData;
 use App\Data\Exercise\Settings\PreviewSetting;
 use App\Livewire\Concerns\InteractsWithPreview;
 use App\Models\Exercise\ExerciseTemplate;
-use Coda\Cms\Form\Form;
 use Coda\Cms\Livewire\FormModal;
+use Coda\FormKit\Form;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
 

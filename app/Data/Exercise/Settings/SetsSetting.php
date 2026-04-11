@@ -3,7 +3,7 @@
 namespace App\Data\Exercise\Settings;
 
 use App\Form\Fields\Sets;
-use Coda\Cms\Form\Fields;
+use Coda\FormKit\Fields;
 
 class SetsSetting extends AbstractSetting
 {

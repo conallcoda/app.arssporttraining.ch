@@ -3,10 +3,12 @@
 use App\Http\Controllers\Training\SlotDetailsController;
 use App\Livewire\Admin\Docs;
 use App\Livewire\Athlete\Calendar;
+use App\Livewire\Athlete\ProgramDetails;
 use App\Livewire\Athlete\Record;
 use App\Livewire\Test\ExerciseCreator;
 use App\Livewire\Test\PortalDemo;
 use Coda\Cms\Registry;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/login');
@@ -15,13 +17,22 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/dashboard', Record::class)
         ->name('athlete.dashboard');
 
-    Route::get('/dashboard/calendar', Calendar::class)
+    Route::get('/dashboard/calendar', function (Request $request) {
+        return redirect()->route('athlete.dashboard.calendar', [
+            'date' => $request->query('date'),
+        ]);
+    })->name('athlete.dashboard.calendar.legacy');
+
+    Route::get('/dashboard/calendar/day/{date?}', Calendar::class)
         ->name('athlete.dashboard.calendar')
         ->defaults('calendarView', 'day');
 
-    Route::get('/dashboard/calendar/week', Calendar::class)
+    Route::get('/dashboard/calendar/week/{date?}', Calendar::class)
         ->name('athlete.dashboard.calendar.week')
         ->defaults('calendarView', 'week');
+
+    Route::get('/programs/{date}/{trainingProgram}', ProgramDetails::class)
+        ->name('athlete.programs.show');
 });
 
 Route::prefix('admin')->middleware(['auth', 'cms.admin'])->group(function (): void {

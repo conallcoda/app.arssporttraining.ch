@@ -2,7 +2,7 @@
 
 namespace App\Form\Fields\Training\Calendar;
 
-use Coda\Cms\Form\Fields\RadioSegmented;
+use Coda\FormKit\Fields\RadioSegmented;
 
 class TimePeriod extends RadioSegmented
 {

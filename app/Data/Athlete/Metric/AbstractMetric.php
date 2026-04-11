@@ -3,9 +3,10 @@
 namespace App\Data\Athlete\Metric;
 
 use Coda\Cms\Data\AbstractData;
-use Coda\Cms\Form\Concerns\InteractsWithForms;
-use Coda\Cms\Form\Form;
-use Coda\Cms\Models\Contracts\HasForms;
+use Coda\FormKit\Concerns\InteractsWithForms;
+use Coda\FormKit\Contracts\HasForms;
+use Coda\FormKit\Fields\Field;
+use Coda\FormKit\Form;
 
 abstract class AbstractMetric extends AbstractData implements HasForms
 {
@@ -18,7 +19,7 @@ abstract class AbstractMetric extends AbstractData implements HasForms
         return preg_replace('/([a-z])([A-Z])/', '$1 $2', $name);
     }
 
-    /** @return array<\Coda\Cms\Form\Fields\Field> */
+    /** @return array<Field> */
     abstract public static function fields(): array;
 
     /** @return array<string, string> */

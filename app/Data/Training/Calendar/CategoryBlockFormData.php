@@ -4,12 +4,12 @@ namespace App\Data\Training\Calendar;
 
 use App\Models\Training\TrainingProgramBlockTypeEnum;
 use Coda\Cms\Data\AbstractData;
-use Coda\Cms\Form\Concerns\InteractsWithForms;
-use Coda\Cms\Form\Fields\Date;
-use Coda\Cms\Form\Fields\Select;
-use Coda\Cms\Form\Fields\Text;
-use Coda\Cms\Form\Form;
-use Coda\Cms\Models\Contracts\HasForms;
+use Coda\FormKit\Concerns\InteractsWithForms;
+use Coda\FormKit\Contracts\HasForms;
+use Coda\FormKit\Fields\Date;
+use Coda\FormKit\Fields\Select;
+use Coda\FormKit\Fields\Text;
+use Coda\FormKit\Form;
 
 class CategoryBlockFormData extends AbstractData implements HasForms
 {

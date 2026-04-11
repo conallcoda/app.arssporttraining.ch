@@ -3,8 +3,8 @@
 namespace App\Livewire\Training;
 
 use App\Data\Training\ExerciseProgramData;
-use Coda\Cms\Form\Form;
 use Coda\Cms\Livewire\FormModal;
+use Coda\FormKit\Form;
 use Livewire\Attributes\Computed;
 
 class ExerciseProgramFormModal extends FormModal

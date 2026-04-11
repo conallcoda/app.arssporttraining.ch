@@ -6,10 +6,10 @@ use App\Form\Fields\Category;
 use App\Models\Tag;
 use Carbon\Carbon;
 use Coda\Cms\Data\AbstractData;
-use Coda\Cms\Form\Concerns\InteractsWithForms;
-use Coda\Cms\Form\Fields\Text;
-use Coda\Cms\Form\Form;
-use Coda\Cms\Models\Contracts\HasForms;
+use Coda\FormKit\Concerns\InteractsWithForms;
+use Coda\FormKit\Contracts\HasForms;
+use Coda\FormKit\Fields\Text;
+use Coda\FormKit\Form;
 
 class ExerciseCategoryData extends AbstractData implements HasForms
 {

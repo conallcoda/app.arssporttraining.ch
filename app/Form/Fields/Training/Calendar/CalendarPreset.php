@@ -3,8 +3,8 @@
 namespace App\Form\Fields\Training\Calendar;
 
 use Carbon\Carbon;
-use Coda\Cms\Form\Fields\Date;
-use Coda\Cms\Form\Fields\Preset;
+use Coda\FormKit\Fields\Date;
+use Coda\FormKit\Fields\Preset;
 
 class CalendarPreset extends Preset
 {

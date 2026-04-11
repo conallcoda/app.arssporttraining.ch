@@ -4,7 +4,7 @@ namespace App\Form\Fields\Training\Program;
 
 use App\Models\Exercise\ExerciseProgram;
 use Closure;
-use Coda\Cms\Form\Fields\SelectEntity;
+use Coda\FormKit\Fields\SelectEntity;
 
 class SelectProgram extends SelectEntity
 {

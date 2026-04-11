@@ -8,10 +8,10 @@ use App\Form\Fields\Owner;
 use App\Models\Users\UserGroup;
 use Carbon\Carbon;
 use Coda\Cms\Data\AbstractData;
-use Coda\Cms\Form\Concerns\InteractsWithForms;
-use Coda\Cms\Form\Fields;
-use Coda\Cms\Form\Form;
-use Coda\Cms\Models\Contracts\HasForms;
+use Coda\Cms\Form\Fields\Tags;
+use Coda\FormKit\Concerns\InteractsWithForms;
+use Coda\FormKit\Contracts\HasForms;
+use Coda\FormKit\Form;
 
 class AthleteGroupData extends AbstractData implements HasForms
 {
@@ -74,7 +74,7 @@ class AthleteGroupData extends AbstractData implements HasForms
                 Owner::make('owner_id')->withOptions()->allowUnassigned(),
                 GroupName::make('name'),
                 Members::make('members')->withOptions(),
-                Fields\Tags::make('internalTags', 'athlete_group_internal')->label('Tags')->withOptions()->create(),
+                Tags::make('internalTags', 'athlete_group_internal')->label('Tags')->withOptions()->create(),
             ]);
     }
 }

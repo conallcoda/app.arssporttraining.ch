@@ -3,27 +3,31 @@
 namespace App\Support;
 
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 
 class WeekOptions
 {
-    public static function generate(int $monthsBefore = 3, int $monthsAfter = 9, ?int $weekStartsOn = null): array
+    public static function generate(int $monthsBefore = 3, int $monthsAfter = 9, ?int $weekStartsOn = null, CarbonInterface|string|null $referenceDate = null): array
     {
         $weekStartsOn ??= (int) config('training.week_starts_on', Carbon::MONDAY);
         $weekEndsOn = ($weekStartsOn + 6) % 7;
         $options = [];
 
-        $start = Carbon::now()->subMonths($monthsBefore)->startOfWeek($weekStartsOn);
-        $end = Carbon::now()->addMonths($monthsAfter)->endOfWeek($weekEndsOn);
+        $reference = $referenceDate instanceof CarbonInterface
+            ? Carbon::instance($referenceDate)
+            : ($referenceDate ? Carbon::parse($referenceDate) : Carbon::now());
+
+        $start = $reference->copy()->subMonths($monthsBefore)->startOfWeek($weekStartsOn);
+        $end = $reference->copy()->addMonths($monthsAfter)->endOfWeek($weekEndsOn);
 
         $current = $start->copy();
 
         while ($current->lte($end)) {
             $weekNumber = $current->isoWeek();
             $year = $current->isoWeekYear();
-            $dateFormatted = $current->format('d.m.Y');
 
             $value = $current->format('Y-m-d');
-            $label = "{$dateFormatted} - W{$weekNumber}";
+            $label = "Week {$weekNumber}, {$year}";
 
             $options[$value] = $label;
 
@@ -33,11 +37,15 @@ class WeekOptions
         return $options;
     }
 
-    public static function getCurrentWeekValue(?int $weekStartsOn = null): string
+    public static function getCurrentWeekValue(?int $weekStartsOn = null, CarbonInterface|string|null $referenceDate = null): string
     {
         $weekStartsOn ??= (int) config('training.week_starts_on', Carbon::MONDAY);
 
-        return Carbon::now()->startOfWeek($weekStartsOn)->format('Y-m-d');
+        $reference = $referenceDate instanceof CarbonInterface
+            ? Carbon::instance($referenceDate)
+            : ($referenceDate ? Carbon::parse($referenceDate) : Carbon::now());
+
+        return $reference->startOfWeek($weekStartsOn)->format('Y-m-d');
     }
 
     /** @return array<int, array{week: int, colspan: int}> */

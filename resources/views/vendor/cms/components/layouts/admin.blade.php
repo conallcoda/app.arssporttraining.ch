@@ -85,6 +85,10 @@
         <livewire:auth.change-password />
     </flux:modal>
 
+    <flux:modal name="coach-settings" flyout>
+        <livewire:coach-settings />
+    </flux:modal>
+
     {{ $slot }}
 
     <livewire:cms.component-portal />

@@ -4,7 +4,7 @@ namespace App\Data\Exercise\Settings;
 
 use App\Data\Exercise\Preview\CellInputMeta;
 use App\Form\Fields\Exercise\ApplyPerField;
-use Coda\Cms\Form\Fields;
+use Coda\FormKit\Fields;
 
 class PaceSetting extends AbstractSetting
 {

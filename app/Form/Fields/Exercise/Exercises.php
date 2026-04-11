@@ -3,7 +3,7 @@
 namespace App\Form\Fields\Exercise;
 
 use App\Models\Exercise\Exercise;
-use Coda\Cms\Form\Fields\Relationship;
+use Coda\FormKit\Fields\Relationship;
 
 class Exercises extends Relationship
 {

@@ -8,6 +8,12 @@
 
         <flux:menu.separator />
 
+        <flux:modal.trigger name="coach-settings">
+            <flux:menu.item icon="settings">
+                {{ __('Settings') }}
+            </flux:menu.item>
+        </flux:modal.trigger>
+
         <flux:modal.trigger name="change-password">
             <flux:menu.item icon="lock">
                 {{ __('Change Password') }}

@@ -6,9 +6,33 @@
 
 <flux:main>
     <div class="flex gap-6">
-        <livewire:user-group-sidebar mode="single-athlete" :initial-group="$group !== '' ? (int) $group : null" :initial-user="$user !== '' ? (int) $user : null" :show-group-filter="true" :initial-group-filter="$groupFilter" />
+        @if ($this->showSidebar)
+            <div class="hidden lg:block">
+                <livewire:user-group-sidebar mode="single-athlete" :initial-group="$group !== '' ? (int) $group : null" :initial-user="$user !== '' ? (int) $user : null" :show-group-filter="true" :initial-group-filter="$groupFilter" />
+            </div>
+        @endif
 
         <div class="flex-1 min-w-0">
+            <div class="{{ $this->showSidebar ? 'lg:hidden' : '' }} flex flex-col sm:flex-row items-stretch sm:items-end gap-4 pb-6">
+                <flux:field class="w-full sm:min-w-[200px] sm:w-auto">
+                    <flux:label>{{ __('Group') }}</flux:label>
+                    <flux:select variant="listbox" searchable wire:model.live="group" placeholder="{{ __('Select group...') }}">
+                        @foreach ($this->groupOptions as $id => $name)
+                            <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                </flux:field>
+                @if ($group !== '')
+                    <flux:field class="w-full sm:min-w-[200px] sm:w-auto">
+                        <flux:label>{{ __('Athlete') }}</flux:label>
+                        <flux:select variant="listbox" searchable clearable wire:model.live="user" placeholder="{{ __('All athletes') }}">
+                            @foreach ($this->athleteOptions as $id => $name)
+                                <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
+                            @endforeach
+                        </flux:select>
+                    </flux:field>
+                @endif
+            </div>
             <div>
                 @if ($this->hasSelection() && !$this->hasGroupAthletes)
                     {{-- No athletes --}}
@@ -33,8 +57,8 @@
                     </div>
                 @elseif ($this->hasSelection())
                     {{-- Row 1: Selection name + view switch --}}
-                    <div class="flex items-center justify-between pb-8">
-                        <div class="flex items-center gap-3">
+                    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-8">
+                        <div class="flex items-center gap-3 flex-wrap">
                             @if ($this->selectionGroupName)
                                 <flux:heading size="xl" class="text-zinc-400 dark:text-zinc-500">{{ $this->selectionGroupName }}</flux:heading>
                                 <flux:icon.chevron-right class="size-5 text-zinc-400 dark:text-zinc-500" />
@@ -46,17 +70,19 @@
                                 <flux:badge size="lg" color="blue">{{ __('Group') }}</flux:badge>
                             @endif
                         </div>
-                        <flux:radio.group wire:model.live="view" variant="segmented" size="lg">
-                            <flux:radio value="overview" :label="__('Overview')" icon="grid-2x2" />
-                            <flux:radio value="schedule" :label="__('Schedule')" icon="calendar-plus" />
-                            <flux:radio value="plan" :label="__('Plan')" icon="biceps-flexed" />
-                        </flux:radio.group>
+                        <div class="overflow-x-auto -mx-2 px-2">
+                            <flux:radio.group wire:model.live="view" variant="segmented" size="lg" class="min-w-fit">
+                                <flux:radio value="overview" :label="__('Overview')" icon="grid-2x2" />
+                                <flux:radio value="schedule" :label="__('Schedule')" icon="calendar-plus" />
+                                <flux:radio value="plan" :label="__('Plan')" icon="biceps-flexed" />
+                            </flux:radio.group>
+                        </div>
                     </div>
 
                     {{-- Row 2: View-dependent toolbar + content --}}
                     @if ($view === 'plan')
-                        <div class="py-2 flex items-center gap-4" wire:key="plan-selects-{{ $planCategory }}-{{ $planBlock }}-{{ $planProgram }}">
-                            <flux:field class="min-w-[180px]">
+                        <div class="py-2 flex flex-col sm:flex-row sm:items-center gap-4" wire:key="plan-selects-{{ $planCategory }}-{{ $planBlock }}-{{ $planProgram }}">
+                            <flux:field class="w-full sm:min-w-[180px] sm:w-auto">
                                 <flux:label>{{ __('Category') }}</flux:label>
                                 <flux:select variant="listbox" searchable size="sm" wire:model.live="planCategory">
                                     @foreach ($this->planCategoryOptions as $id => $name)
@@ -64,7 +90,7 @@
                                     @endforeach
                                 </flux:select>
                             </flux:field>
-                            <flux:field class="min-w-[180px]">
+                            <flux:field class="w-full sm:min-w-[180px] sm:w-auto">
                                 <flux:label>{{ __('Block') }}</flux:label>
                                 <flux:select variant="listbox" searchable size="sm" wire:model.live="planBlock">
                                     @foreach ($this->planBlockOptions as $id => $name)
@@ -72,7 +98,7 @@
                                     @endforeach
                                 </flux:select>
                             </flux:field>
-                            <flux:field class="min-w-[180px]">
+                            <flux:field class="w-full sm:min-w-[180px] sm:w-auto">
                                 <flux:label>{{ __('Program') }}</flux:label>
                                 <flux:select variant="listbox" searchable size="sm" wire:model.live="planProgram">
                                     @foreach ($this->planProgramOptions as $id => $name)
@@ -131,7 +157,7 @@
                             @endif
                         @endif
                     @else
-                        <div class="flex items-center justify-between pt-4 pb-2">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-4 pb-2">
                             <div class="flex items-center gap-2">
                                 <flux:heading size="xl">{{ $this->title }}</flux:heading>
                                 <flux:button variant="ghost" icon="pencil" size="sm" wire:click="openCalendarRange" />
@@ -200,7 +226,7 @@
 
                 <flux:tab.panel name="program" class="!px-0">
                     <div class="flex flex-col gap-3">
-                        <x-cms::form.field :field="\Coda\Cms\Form\Fields\Search::make('addContentSearch')" />
+                        <x-form-kit::form.field :field="\Coda\FormKit\Fields\Search::make('addContentSearch')" />
                         <div class="flex flex-col gap-1 max-h-80 overflow-y-auto">
                             @foreach ($this->addContentOptions as $option)
                                 <button type="button" wire:click="addFromProgram({{ $option->id }})"
@@ -221,7 +247,7 @@
 
                 <flux:tab.panel name="exercise" class="!px-0">
                     <div class="flex flex-col gap-3">
-                        <x-cms::form.field :field="\Coda\Cms\Form\Fields\Search::make('addContentSearch')" />
+                        <x-form-kit::form.field :field="\Coda\FormKit\Fields\Search::make('addContentSearch')" />
                         <div class="flex flex-col gap-1 max-h-80 overflow-y-auto">
                             @foreach ($this->addContentOptions as $option)
                                 <button type="button" wire:click="addFromExercise({{ $option->id }})"

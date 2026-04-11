@@ -3,7 +3,7 @@
 namespace App\Form\Fields\Training\Plan;
 
 use App\Support\WeekOptions;
-use Coda\Cms\Form\Fields\Select;
+use Coda\FormKit\Fields\Select;
 
 class StartDate extends Select
 {

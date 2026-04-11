@@ -3,7 +3,7 @@
 namespace App\Form\Fields;
 
 use App\Models\Tag;
-use Coda\Cms\Form\Fields\Tree;
+use Coda\FormKit\Fields\Tree;
 use Illuminate\Support\Collection;
 
 class Category extends Tree

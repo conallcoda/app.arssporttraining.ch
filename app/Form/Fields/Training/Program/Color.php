@@ -2,8 +2,8 @@
 
 namespace App\Form\Fields\Training\Program;
 
-use Coda\Cms\Form\Fields\Select;
 use Coda\Cms\Support\ColorPalette;
+use Coda\FormKit\Fields\Select;
 
 class Color extends Select
 {

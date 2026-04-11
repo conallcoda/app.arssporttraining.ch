@@ -2,12 +2,12 @@
 
 namespace Coda\Cms\Livewire\Concerns;
 
-use Coda\Cms\Form\Field;
-use Coda\Cms\Form\Fields\Relationship;
-use Coda\Cms\Form\Fields\Repeater;
 use Coda\Cms\Form\Fields\Tags;
-use Coda\Cms\Form\FormFieldset;
-use Coda\Cms\Form\FormFieldsetGroup;
+use Coda\FormKit\Field;
+use Coda\FormKit\Fields\Relationship;
+use Coda\FormKit\Fields\Repeater;
+use Coda\FormKit\FormFieldset;
+use Coda\FormKit\FormFieldsetGroup;
 use Illuminate\Support\Arr;
 
 trait InteractsWithFormData

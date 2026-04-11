@@ -3,7 +3,7 @@
 namespace App\Data\Exercise\Settings;
 
 use App\Form\Fields\Weight;
-use Coda\Cms\Form\Fields;
+use Coda\FormKit\Fields;
 
 class WeightProgressionSetting extends AbstractSetting
 {

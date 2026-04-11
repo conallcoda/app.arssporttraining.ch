@@ -3,6 +3,7 @@
 namespace Coda\Cms\Display;
 
 use Coda\Cms\Display\DisplayFields\Id;
+use Coda\FormKit\Field;
 
 class Table
 {
@@ -116,7 +117,7 @@ class Table
         return count($this->filters) > 0;
     }
 
-    /** @return \Coda\Cms\Form\Field[] */
+    /** @return Field[] */
     public function getFilterFields(): array
     {
         return collect($this->filters)

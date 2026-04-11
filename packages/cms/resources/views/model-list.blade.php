@@ -5,9 +5,9 @@
     use Coda\Cms\Display\DisplayFields\Relationship as RelationshipColumn;
     use Coda\Cms\Display\DisplayFields\TextWithBadgeGroups as TextWithBadgeGroupsColumn;
     use Coda\Cms\Display\DisplayFields\View as ViewColumn;
-    use Coda\Cms\Form\Fields\Pillbox as PillboxField;
-    use Coda\Cms\Form\Fields\Select as SelectField;
-    use Coda\Cms\Form\Fields\Tree;
+    use Coda\FormKit\Fields\Pillbox as PillboxField;
+    use Coda\FormKit\Fields\Select as SelectField;
+    use Coda\FormKit\Fields\Tree;
 @endphp
 
 <div>
@@ -87,7 +87,7 @@
                 <flux:heading size="lg">Filter</flux:heading>
                 <div class="space-y-4">
                     @foreach ($filterFields as $field)
-                        <x-cms::form.field :field="$field" prefix="filters" />
+                        <x-form-kit::form.field :field="$field" prefix="filters" />
                     @endforeach
                 </div>
                 <div class="flex gap-2 pt-4">

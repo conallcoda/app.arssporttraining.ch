@@ -6,7 +6,7 @@
             @if ($openCount > 0)
                 <div wire:key="block-{{ $openCount }}" class="flex flex-col gap-6">
                     @foreach ($this->fieldsets as $item)
-                        <x-cms::form.fieldset :fieldset="$item" :prefix="$item->prefix ?? 'data'" :showLegend="$categoryId !== null || $item->name !== 'general'" />
+                        <x-form-kit::form.fieldset :fieldset="$item" :prefix="$item->prefix ?? 'data'" :showLegend="$categoryId !== null || $item->name !== 'general'" />
                     @endforeach
                 </div>
                 <div class="flex items-center gap-2">

@@ -6,10 +6,11 @@ use App\Actions\DeleteCategoryTree as DeleteAction;
 use App\Data\Exercise\ExerciseCategoryData;
 use App\Models\Tag;
 use Coda\Cms\Data\AbstractData;
-use Coda\Cms\Form\Action;
 use Coda\Cms\Livewire\AbstractModelTree;
+use Coda\FormKit\Action;
 use Flux\Flux;
 use Illuminate\Contracts\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
@@ -131,7 +132,7 @@ class CategoryTree extends AbstractModelTree
 
     protected function eagerLoadNestedChildren($items): void
     {
-        $children = new \Illuminate\Database\Eloquent\Collection(
+        $children = new Collection(
             $items->pluck('children')->flatten()->all()
         );
 

@@ -2,11 +2,10 @@
 
 namespace Coda\Cms\Livewire;
 
-use Coda\Cms\Data\AbstractData;
-use Coda\Cms\Form\Action;
-use Coda\Cms\Form\Form;
+use Coda\FormKit\Action;
 use Flux\Flux;
 use Illuminate\Contracts\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -71,7 +70,7 @@ abstract class AbstractModelTree extends Component
 
     protected function eagerLoadNestedChildren($items): void
     {
-        $children = new \Illuminate\Database\Eloquent\Collection(
+        $children = new Collection(
             $items->pluck('children')->flatten()->all()
         );
 

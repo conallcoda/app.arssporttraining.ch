@@ -274,6 +274,12 @@ class CalendarIndex extends Component
         unset($this->hasOverviewGroups);
     }
 
+    #[On('coach-settings-saved')]
+    public function onCoachSettingsSaved(): void
+    {
+        unset($this->showSidebar, $this->groupOptions, $this->athleteOptions);
+    }
+
     #[Computed]
     public function selectionName(): ?string
     {
@@ -347,6 +353,91 @@ class CalendarIndex extends Component
         }
 
         return $query->exists();
+    }
+
+    #[Computed]
+    public function showSidebar(): bool
+    {
+        return auth()->user()->config->get('settings.calendar_sidebar.enabled', true);
+    }
+
+    #[Computed]
+    public function groupOptions(): Collection
+    {
+        return UserGroup::query()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->pluck('name', 'id');
+    }
+
+    #[Computed]
+    public function athleteOptions(): Collection
+    {
+        if ($this->group === '') {
+            return collect();
+        }
+
+        return UserGroup::find((int) $this->group)
+            ?->members()
+            ->orderBy('forename')
+            ->get(['users.id', 'forename', 'surname'])
+            ->pluck('name', 'id') ?? collect();
+    }
+
+    public function updatedGroup(string $value): void
+    {
+        $previousGroup = $this->group;
+        $this->user = '';
+
+        unset(
+            $this->athleteOptions,
+            $this->selectionName,
+            $this->selectionGroupName,
+            $this->selectionType,
+            $this->programs,
+            $this->groupedPrograms,
+            $this->hasGroupAthletes,
+        );
+
+        if ($this->group === '') {
+            $this->view = 'overview';
+            $this->planCategory = '';
+            $this->planBlock = 'ungrouped';
+            $this->planProgram = '';
+
+            return;
+        }
+
+        if ($this->group !== $previousGroup) {
+            $this->view = 'overview';
+            $this->planCategory = '';
+            $this->planBlock = 'ungrouped';
+            $this->planProgram = '';
+            $this->planProgramName = '';
+        }
+
+        $this->dispatch('calendar-selection-changed',
+            groupId: (int) $this->group,
+            userId: null,
+        );
+    }
+
+    public function updatedUser(): void
+    {
+        unset(
+            $this->selectionName,
+            $this->selectionGroupName,
+            $this->selectionType,
+            $this->programs,
+            $this->groupedPrograms,
+        );
+
+        if ($this->group !== '') {
+            $this->dispatch('calendar-selection-changed',
+                groupId: (int) $this->group,
+                userId: $this->user !== '' ? (int) $this->user : null,
+            );
+        }
     }
 
     #[Computed]

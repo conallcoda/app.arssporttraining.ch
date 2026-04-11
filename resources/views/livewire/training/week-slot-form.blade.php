@@ -6,7 +6,7 @@
             @if ($openCount > 0)
                 <div wire:key="week-slot-{{ $openCount }}" class="flex flex-col gap-6">
                     @foreach ($this->fieldsets as $item)
-                        <x-cms::form.fieldset :fieldset="$item" :prefix="$item->prefix ?? 'data'" :showLegend="false" />
+                        <x-form-kit::form.fieldset :fieldset="$item" :prefix="$item->prefix ?? 'data'" :showLegend="false" />
                     @endforeach
                     <flux:time-picker wire:model="data.start_time" :label="__('Start Time')" time-format="24-hour" :interval="15" />
                     @if (count($members) > 0)

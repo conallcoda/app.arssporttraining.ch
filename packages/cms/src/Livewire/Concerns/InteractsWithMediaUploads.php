@@ -2,8 +2,8 @@
 
 namespace Coda\Cms\Livewire\Concerns;
 
-use Coda\Cms\Form\Fields\FileUpload;
-use Coda\Cms\Form\FormFieldset;
+use Coda\FormKit\Fields\FileUpload;
+use Coda\FormKit\FormFieldset;
 use Spatie\MediaLibrary\HasMedia;
 
 trait InteractsWithMediaUploads

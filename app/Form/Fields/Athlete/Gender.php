@@ -3,7 +3,7 @@
 namespace App\Form\Fields\Athlete;
 
 use App\Models\Users\GenderEnum;
-use Coda\Cms\Form\Fields\Select;
+use Coda\FormKit\Fields\Select;
 
 class Gender extends Select
 {

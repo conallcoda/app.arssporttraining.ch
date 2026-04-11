@@ -2,7 +2,7 @@
 
 namespace App\Form\Fields\Training\Plan;
 
-use Coda\Cms\Form\Fields\Text;
+use Coda\FormKit\Fields\Text;
 
 class PlanName extends Text
 {

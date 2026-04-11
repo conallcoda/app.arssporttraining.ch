@@ -29,10 +29,10 @@
                     @endif
 
                     @foreach ($this->fieldsets as $item)
-                        @if ($item instanceof \Coda\Cms\Form\FormFieldsetGroup)
-                            <x-cms::form.fieldset-tabs :group="$item" />
+                        @if ($item instanceof \Coda\FormKit\FormFieldsetGroup)
+                            <x-form-kit::form.fieldset-tabs :group="$item" />
                         @else
-                            <x-cms::form.fieldset
+                            <x-form-kit::form.fieldset
                                 :fieldset="$item"
                                 :prefix="$item->prefix ?? 'data'"
                                 :showLegend="count($this->fieldsets) > 1"

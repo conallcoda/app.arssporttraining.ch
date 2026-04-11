@@ -2,7 +2,7 @@
 
 namespace App\Form\Fields;
 
-use Coda\Cms\Form\Fields\Text;
+use Coda\FormKit\Fields\Text;
 
 class HeartRate extends Text
 {

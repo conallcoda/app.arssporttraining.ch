@@ -2,7 +2,7 @@
 
 namespace App\Form\Fields\Training\Program;
 
-use Coda\Cms\Form\Fields\Slider;
+use Coda\FormKit\Fields\Slider;
 
 class Sets extends Slider
 {

@@ -4,7 +4,7 @@ namespace App\Form\Fields\Athlete;
 
 use App\Data\Athlete\Metric\MetricEnum;
 use App\Models\Athlete\MetricSubmission;
-use Coda\Cms\Form\Fields\SelectEntity;
+use Coda\FormKit\Fields\SelectEntity;
 
 class SourceSubmission extends SelectEntity
 {

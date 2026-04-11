@@ -2,7 +2,7 @@
 
 namespace App\Form\Fields\Coach;
 
-use Coda\Cms\Form\Fields\Text;
+use Coda\FormKit\Fields\Text;
 use Illuminate\Validation\Rule;
 
 class Email extends Text

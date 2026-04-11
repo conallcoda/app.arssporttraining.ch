@@ -4,7 +4,7 @@ namespace App\Form\Fields\Athlete;
 
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
-use Coda\Cms\Form\Fields\Pillbox;
+use Coda\FormKit\Fields\Pillbox;
 
 class Athletes extends Pillbox
 {

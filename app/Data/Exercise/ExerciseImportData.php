@@ -4,9 +4,9 @@ namespace App\Data\Exercise;
 
 use App\Models\Exercise\Exercise;
 use Coda\Cms\Data\AbstractData;
-use Coda\Cms\Form\Concerns\InteractsWithForms;
-use Coda\Cms\Form\Form;
-use Coda\Cms\Models\Contracts\HasForms;
+use Coda\FormKit\Concerns\InteractsWithForms;
+use Coda\FormKit\Contracts\HasForms;
+use Coda\FormKit\Form;
 
 class ExerciseImportData extends AbstractData implements HasForms
 {

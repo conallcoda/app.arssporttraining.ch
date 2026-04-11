@@ -10,9 +10,9 @@ use Coda\Cms\Display\DisplayFields\ColorBadge;
 use Coda\Cms\Display\DisplayFields\Relationship;
 use Coda\Cms\Display\DisplayFields\Text;
 use Coda\Cms\Display\Table;
-use Coda\Cms\Form\Action;
 use Coda\Cms\Livewire\AbstractModelList;
 use Coda\Cms\Livewire\Concerns\InteractsWithParentView;
+use Coda\FormKit\Action;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
