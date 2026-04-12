@@ -2,6 +2,7 @@
 
 use Coda\Cms\Models\Enums\GenderEnum;
 use Coda\Cms\Models\Enums\UserTypeEnum;
+use Coda\Cms\Models\Media;
 use Coda\Cms\Models\Tag;
 use Coda\Cms\Models\User;
 use Coda\Cms\Models\UserGroup;
@@ -27,6 +28,7 @@ return [
         'user' => User::class,
         'user_group' => UserGroup::class,
         'tag' => Tag::class,
+        'media' => Media::class,
     ],
 
     'enums' => [

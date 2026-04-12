@@ -15,6 +15,7 @@ use App\Data\Training\Config\EffectiveExerciseConfig;
 use App\Data\Training\Config\ExerciseOverrides;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExercisePlan;
+use App\Models\Exercise\ExerciseProgram;
 use Coda\Cms\Livewire\Concerns\InteractsWithParentView;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Reactive;
@@ -39,6 +40,10 @@ class PlanExerciseGrid extends Component
     public array $weekLabels = [];
 
     public array $weekSessions = [];
+
+    public array $expandedWeeks = [];
+
+    public array $lockedSessionsByWeek = [];
 
     public bool $sessionLabels = false;
 
@@ -83,6 +88,8 @@ class PlanExerciseGrid extends Component
         ?int $planIatPercent = null,
         array $weekLabels = [],
         array $weekSessions = [],
+        array $expandedWeeks = [],
+        array $lockedSessionsByWeek = [],
         bool $sessionLabels = false,
         ?string $groupLabel = null,
     ): void {
@@ -98,6 +105,8 @@ class PlanExerciseGrid extends Component
         $this->planIatPercent = $planIatPercent;
         $this->weekLabels = $weekLabels;
         $this->weekSessions = $weekSessions;
+        $this->expandedWeeks = $expandedWeeks;
+        $this->lockedSessionsByWeek = $lockedSessionsByWeek;
         $this->sessionLabels = $sessionLabels;
         $this->groupLabel = $groupLabel;
 
@@ -624,4 +633,5 @@ class PlanExerciseGrid extends Component
     {
         return view('livewire.training.view.plan-exercise-grid');
     }
+
 }

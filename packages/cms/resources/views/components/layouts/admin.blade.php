@@ -81,9 +81,11 @@
         </flux:navbar>
     </flux:header>
 
-    <flux:modal name="change-password" flyout>
-        <livewire:auth.change-password />
-    </flux:modal>
+    @auth
+        <flux:modal name="change-password" flyout>
+            <livewire:auth.change-password />
+        </flux:modal>
+    @endauth
 
     {{ $slot }}
 

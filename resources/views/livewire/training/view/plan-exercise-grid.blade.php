@@ -91,6 +91,8 @@
                             :collapseWeeks="false"
                             :weekLabels="$weekLabels"
                             :weekSessions="$weekSessions"
+                            :expandedWeeks="$expandedWeeks"
+                            :lockedSessionsByWeek="$lockedSessionsByWeek"
                             :sessionLabels="$sessionLabels"
                         />
                     </div>

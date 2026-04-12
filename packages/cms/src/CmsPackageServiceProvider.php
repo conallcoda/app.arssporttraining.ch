@@ -7,7 +7,11 @@ use Coda\Cms\Auth\Actions\ResetUserPassword;
 use Coda\Cms\Auth\Actions\UpdateUserPassword;
 use Coda\Cms\Auth\Actions\UpdateUserProfileInformation;
 use Coda\Cms\Console\InstallCommand;
+use Coda\Cms\Http\Controllers\MediaController;
 use Coda\Cms\Http\Middleware\EnsureAdminAccess;
+use Coda\Cms\Models\Media;
+use Coda\Cms\Models\Observers\MediaObserver;
+use Coda\Cms\Support\PathGenerator\CollectionPathGenerator;
 use Coda\Cms\Http\Responses\TypeAwareLoginResponse;
 use Coda\Cms\Livewire\Auth\ChangePassword;
 use Coda\Cms\Livewire\CmsPage;
@@ -32,6 +36,12 @@ class CmsPackageServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/cms.php', 'cms');
+
+        config([
+            'media-library.media_model' => config('cms.models.media', Media::class),
+            'media-library.media_observer' => MediaObserver::class,
+            'media-library.path_generator' => CollectionPathGenerator::class,
+        ]);
 
         $this->app->singleton(Registry::class);
     }
@@ -67,6 +77,7 @@ class CmsPackageServiceProvider extends ServiceProvider
         Livewire::component('cms.page', CmsPage::class);
         Livewire::component('cms.component-portal', ComponentPortal::class);
         Livewire::component('cms.dashboard', Dashboard::class);
+        Livewire::component('cms.user-list', UserList::class);
 
         if (config('cms.user_switching')) {
             Livewire::component('cms.user-switcher', UserSwitcher::class);
@@ -75,12 +86,15 @@ class CmsPackageServiceProvider extends ServiceProvider
         Livewire::component('cms.mobile-preview', MobilePreview::class);
 
         Route::middleware(['web', 'auth'])->get('/dev/mobile-preview', MobilePreview::class)->name('cms.mobile-preview');
+
+        Route::middleware(['web'])
+            ->get('/cms/media/{media}/{filename}', [MediaController::class, 'show'])
+            ->name('cms.media.show');
     }
 
     protected function registerAuthComponents(): void
     {
         Livewire::component('auth.change-password', ChangePassword::class);
-        Livewire::component('cms.user-list', UserList::class);
     }
 
     protected function configureFortify(): void

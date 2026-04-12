@@ -1,6 +1,8 @@
 <?php
 
 use Coda\Cms\Tests\Fixtures\CmsTestItem;
+use Coda\Cms\Tests\Fixtures\TestCardEnabledList;
+use Coda\Cms\Tests\Fixtures\TestInfiniteList;
 use Coda\Cms\Tests\Fixtures\TestItemList;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
@@ -20,6 +22,8 @@ beforeEach(function () {
     });
 
     Livewire::component('test-item-list', TestItemList::class);
+    Livewire::component('test-infinite-list', TestInfiniteList::class);
+    Livewire::component('test-card-enabled-list', TestCardEnabledList::class);
 });
 
 // --- Setup & Rendering ---
@@ -218,6 +222,115 @@ it('opens edit from URL parameter on mount', function () {
     $component->assertDispatched("open-{$editModalName}", function ($event, $params) use ($item) {
         return ($params['data']['id'] ?? null) === $item->id;
     });
+});
+
+// --- View Mode (opt-out: cards not enabled) ---
+
+it('initialises view mode to table by default', function () {
+    $instance = Livewire::test(TestItemList::class)->instance();
+
+    expect($instance->viewMode)->toBe('table');
+});
+
+it('reports cardsEnabled as false when cards() was not declared', function () {
+    $instance = Livewire::test(TestItemList::class)->instance();
+
+    expect($instance->cardsEnabled)->toBeFalse();
+});
+
+it('returns empty cards array when cards are not enabled', function () {
+    $cards = Livewire::test(TestItemList::class)->instance()->cards;
+
+    expect($cards)->toBe([]);
+});
+
+it('ignores setView(cards) when cards are not enabled', function () {
+    Livewire::test(TestItemList::class)
+        ->call('setView', 'cards')
+        ->assertSet('viewMode', 'table');
+});
+
+it('ignores invalid view modes', function () {
+    Livewire::test(TestItemList::class)
+        ->call('setView', 'unknown')
+        ->assertSet('viewMode', 'table');
+});
+
+// --- View Mode (opt-in: cards enabled) ---
+
+it('reports cardsEnabled as true when cards() is declared', function () {
+    $instance = Livewire::test(TestCardEnabledList::class)->instance();
+
+    expect($instance->cardsEnabled)->toBeTrue();
+});
+
+it('switches to card view via setView when cards are enabled', function () {
+    Livewire::test(TestCardEnabledList::class)
+        ->call('setView', 'cards')
+        ->assertSet('viewMode', 'cards');
+});
+
+it('exposes declared card fields via computed property', function () {
+    $cards = Livewire::test(TestCardEnabledList::class)->instance()->cards;
+
+    expect($cards)->toHaveCount(2);
+});
+
+// --- Pagination: Load More / Infinite / Hybrid (accumulation) ---
+
+it('defaults loadedPages to 1 on mount', function () {
+    $instance = Livewire::test(TestInfiniteList::class)->instance();
+
+    expect($instance->loadedPages)->toBe(1);
+});
+
+it('loadMore is a no-op under classic pagination', function () {
+    $component = Livewire::test(TestItemList::class)->call('loadMore');
+
+    expect($component->instance()->loadedPages)->toBe(1);
+});
+
+it('loadMore increments loadedPages under an accumulating strategy', function () {
+    CmsTestItem::factory(15)->create();
+
+    $component = Livewire::test(TestInfiniteList::class)
+        ->call('loadMore');
+
+    expect($component->instance()->loadedPages)->toBe(2);
+});
+
+it('accumulates items across loadMore calls and reports hasMorePages correctly', function () {
+    CmsTestItem::factory(25)->create();
+
+    $component = Livewire::test(TestInfiniteList::class);
+
+    $items = $component->instance()->items();
+    expect($items->count())->toBe(10);
+    expect($items->hasMorePages())->toBeTrue();
+
+    $component->call('loadMore');
+    $items = $component->instance()->items();
+    expect($items->count())->toBe(20);
+    expect($items->hasMorePages())->toBeTrue();
+
+    $component->call('loadMore');
+    $items = $component->instance()->items();
+    expect($items->count())->toBe(25);
+    expect($items->hasMorePages())->toBeFalse();
+});
+
+it('resets loadedPages to 1 when filters change', function () {
+    CmsTestItem::factory(25)->create();
+
+    $component = Livewire::test(TestInfiniteList::class)
+        ->call('loadMore')
+        ->call('loadMore');
+
+    expect($component->instance()->loadedPages)->toBe(3);
+
+    $component->call('clearFilters');
+
+    expect($component->instance()->loadedPages)->toBe(1);
 });
 
 // --- Entity Helpers ---

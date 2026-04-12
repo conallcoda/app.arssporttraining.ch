@@ -8,6 +8,8 @@
     'editable' => true,
     'weekLabels' => null,
     'weekSessions' => null,
+    'expandedWeeks' => [],
+    'lockedSessionsByWeek' => [],
     'collapseWeeks' => true,
     'settingClickable' => false,
     'sessionLabels' => false,
@@ -18,7 +20,11 @@
         {{ __('No settings configured for this exercise.') }}
     </div>
 @else
-    <div class="{{ $showHeader ? 'space-y-2 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4' : 'space-y-2' }}" x-data="{ expanded: false }">
+    @php
+        $expandedWeekLookup = collect($expandedWeeks ?? [])->mapWithKeys(fn ($week) => [(int) $week => true])->all();
+        $showSessionColumn = ! empty($expandedWeekLookup);
+    @endphp
+    <div class="{{ $showHeader ? 'space-y-2 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4' : 'space-y-2' }}" x-data="{ expandedAll: false }">
         @if ($showHeader)
             <div class="flex items-center justify-between">
                 <div class="space-y-1">
@@ -59,11 +65,11 @@
                     <flux:dropdown>
                         <flux:button variant="ghost" size="sm" icon="ellipsis" class="!p-1" />
                         <flux:menu>
-                            <div x-show="!expanded">
-                                <flux:menu.item icon="unfold-vertical" x-on:click="expanded = true">{{ __('Expand') }}</flux:menu.item>
+                            <div x-show="!expandedAll">
+                                <flux:menu.item icon="unfold-vertical" x-on:click="expandedAll = true">{{ __('Expand') }}</flux:menu.item>
                             </div>
-                            <div x-show="expanded" x-cloak>
-                                <flux:menu.item icon="fold-vertical" x-on:click="expanded = false">{{ __('Collapse') }}</flux:menu.item>
+                            <div x-show="expandedAll" x-cloak>
+                                <flux:menu.item icon="fold-vertical" x-on:click="expandedAll = false">{{ __('Collapse') }}</flux:menu.item>
                             </div>
                             <flux:menu.item icon="pencil" wire:click="openSettingsForm">{{ __('Edit Settings') }}</flux:menu.item>
                             <flux:menu.item icon="rotate-ccw" wire:click="resetOverrides">{{ __('Reset Overrides') }}</flux:menu.item>
@@ -84,7 +90,10 @@
                         @if ($showWeekColumn)
                             <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 w-20">{{ __('Week') }}</th>
                         @endif
-                        <th class="border border-zinc-300 dark:border-zinc-600 px-2 py-2 w-12" x-show="expanded" x-cloak>{{ __('Session') }}</th>
+                        <th
+                            class="border border-zinc-300 dark:border-zinc-600 px-2 py-2 w-12"
+                            @if (! $showSessionColumn) x-show="expandedAll" x-cloak @endif
+                        >{{ __('Session') }}</th>
                         @if (count($grid->rows) > 0)
                             <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2"></th>
                         @endif
@@ -126,15 +135,143 @@
                         @endif
                     </tr>
                 </thead>
-                <tbody x-show="!expanded">
+                <tbody x-show="!expandedAll">
                     @php $runningSessionCounter = 0; @endphp
                     @for ($week = 0; $week < $grid->weekCount; $week++)
-                        @if (count($grid->rows) === 0)
+                        @php
+                            $weekSessionCount = $weekSessions[$week] ?? $grid->sessionsPerWeek;
+                            $weekExpanded = (bool) ($expandedWeekLookup[$week] ?? false);
+                            $weekLockedSessions = $lockedSessionsByWeek[$week] ?? [];
+                            $weekHasLockedSessions = in_array(true, $weekLockedSessions, true);
+                        @endphp
+                        @if ($weekExpanded && count($grid->rows) > 0)
+                            @for ($session = 0; $session < $weekSessionCount; $session++)
+                                @foreach ($grid->rows as $rowIdx => $row)
+                                    @php
+                                        $isFirstRow = $rowIdx === 0;
+                                        $sessionLocked = (bool) ($weekLockedSessions[$session] ?? false);
+                                        $isLastSession = $session === $weekSessionCount - 1;
+                                    @endphp
+                                    <tr wire:key="mixed-expanded-w{{ $week }}-s{{ $session }}-r{{ $rowIdx }}">
+                                        @if ($showWeekColumn && $session === 0 && $isFirstRow)
+                                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle text-center"
+                                                rowspan="{{ $weekSessionCount * count($grid->rows) }}">
+                                                <div class="whitespace-nowrap">{!! $weekLabels[$week] ?? 'TW' . ($week + 1) !!}</div>
+                                            </td>
+                                        @endif
+                                        @if ($isFirstRow)
+                                            <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 text-center bg-zinc-100 dark:bg-zinc-700/50 text-xs font-medium {{ $sessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}"
+                                                rowspan="{{ count($grid->rows) }}">
+                                                {{ $session + 1 }}
+                                            </td>
+                                        @endif
+                                        @php $settingKey = match($row->field) { 'oneRepMax' => 'weight', default => Str::snake($row->field) }; @endphp
+                                        @if ($settingClickable)
+                                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-medium whitespace-nowrap cursor-pointer hover:brightness-125 {{ $row->color }}"
+                                                @click="$dispatch('grid-setting-click', { field: '{{ $settingKey }}' })">
+                                        @else
+                                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-medium whitespace-nowrap {{ $row->color }}">
+                                        @endif
+                                            {{ $row->label }}
+                                        </td>
+                                        @for ($set = 0; $set < $grid->setCount; $set++)
+                                            @php
+                                                $cellValue = ($row->lastSessionOnly && !$isLastSession)
+                                                    ? '-'
+                                                    : ($row->cells[$week][$set] ?? '-');
+                                                $cellOverridden = $row->overrides[$week][$set] ?? false;
+                                            @endphp
+                                            @if ($editable && ! $sessionLocked && $row->isCellEditable($week, $set) && $cellValue !== '-')
+                                                <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $row->resolveCellColor($week, $set, $cellOverridden) }}"
+                                                    x-data="editable_cell"
+                                                    data-msg-invalid-number="{{ __('Please enter a valid number') }}"
+                                                    data-msg-invalid-value="{{ __('Please enter a valid value') }}"
+                                                    data-edit-type="cell"
+                                                    data-field="{{ $row->field }}"
+                                                    data-week="{{ $week }}"
+                                                    data-set="{{ $set }}"
+                                                    data-session="{{ $session }}"
+                                                    @if ($row->inputMeta && $row->inputMeta->mask)
+                                                        data-mask="{{ $row->inputMeta->mask }}"
+                                                    @endif
+                                                    @click="startEditing()">
+                                                    <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $cellValue }}</span>
+                                                    <x-training.exercise-grid-input :meta="$row->inputMeta" :value="$cellValue" size="sm" />
+                                                </td>
+                                            @else
+                                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $row->resolveCellColor($week, $set, false) }} {{ $sessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
+                                                    {{ $cellValue }}
+                                                </td>
+                                            @endif
+                                        @endfor
+                                        @if ($session === 0 && $isFirstRow)
+                                            @foreach ($grid->weekColumns as $weekCol)
+                                                @php
+                                                    $wcValue = $weekCol->cells[$week] ?? '-';
+                                                    $wcOverridden = $weekCol->overrides[$week] ?? false;
+                                                @endphp
+                                                @if ($editable && ! $weekHasLockedSessions && $weekCol->isCellEditable($week))
+                                                    <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $weekCol->resolveCellColor($week, null, $wcOverridden) }}"
+                                                        rowspan="{{ $weekSessionCount * count($grid->rows) }}"
+                                                        x-data="editable_cell"
+                                                        data-msg-invalid-number="{{ __('Please enter a valid number') }}"
+                                                        data-msg-invalid-value="{{ __('Please enter a valid value') }}"
+                                                        data-edit-type="week"
+                                                        data-field="{{ $weekCol->field }}"
+                                                        data-week="{{ $week }}"
+                                                        @if ($weekCol->inputMeta && $weekCol->inputMeta->mask)
+                                                            data-mask="{{ $weekCol->inputMeta->mask }}"
+                                                        @endif
+                                                        @click="startEditing()">
+                                                        <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $wcValue }}</span>
+                                                        <x-training.exercise-grid-input :meta="$weekCol->inputMeta" :value="$wcValue" size="xs" type="text" />
+                                                    </td>
+                                                @else
+                                                    <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $weekCol->resolveCellColor($week, null, false) }} {{ $weekHasLockedSessions ? 'text-zinc-400 dark:text-zinc-500' : '' }}"
+                                                        rowspan="{{ $weekSessionCount * count($grid->rows) }}">
+                                                        {{ $wcValue }}
+                                                    </td>
+                                                @endif
+                                            @endforeach
+                                            @if ($showCopyMenu)
+                                                <td class="border border-zinc-300 dark:border-zinc-600 px-1 py-2 align-middle text-center bg-zinc-50 dark:bg-zinc-800/50"
+                                                    rowspan="{{ $weekSessionCount * count($grid->rows) }}">
+                                                    @if (! $weekHasLockedSessions)
+                                                        <flux:dropdown position="bottom" align="end">
+                                                            <flux:button variant="ghost" size="xs" icon="ellipsis" class="!p-0.5" />
+                                                            <flux:menu>
+                                                                <flux:menu.submenu heading="{{ __('Copy From') }}">
+                                                                    @for ($w = 0; $w < $grid->weekCount; $w++)
+                                                                        @if ($w !== $week)
+                                                                            <flux:menu.item wire:click="copyWeek({{ $w }}, {{ $week }})">{{ __('Week') }} {{ $w + 1 }}</flux:menu.item>
+                                                                        @endif
+                                                                    @endfor
+                                                                </flux:menu.submenu>
+                                                                <flux:menu.submenu heading="{{ __('Copy To') }}">
+                                                                    <flux:menu.item wire:click="copyWeekToAll({{ $week }})">{{ __('All') }}</flux:menu.item>
+                                                                    @for ($w = 0; $w < $grid->weekCount; $w++)
+                                                                        @if ($w !== $week)
+                                                                            <flux:menu.item wire:click="copyWeek({{ $week }}, {{ $w }})">{{ __('Week') }} {{ $w + 1 }}</flux:menu.item>
+                                                                        @endif
+                                                                    @endfor
+                                                                </flux:menu.submenu>
+                                                            </flux:menu>
+                                                        </flux:dropdown>
+                                                    @endif
+                                                </td>
+                                            @endif
+                                        @endif
+                                    </tr>
+                                @endforeach
+                            @endfor
+                            @if ($sessionLabels)
+                                @php $runningSessionCounter += $weekSessionCount; @endphp
+                            @endif
+                        @elseif (count($grid->rows) === 0)
                             <tr wire:key="collapsed-w{{ $week }}-weekonly">
                                 @if ($showWeekColumn)
                                     <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle text-center">
                                         <div class="whitespace-nowrap">{!! $weekLabels[$week] ?? 'TW' . ($week + 1) !!}</div>
-                                        @php $weekSessionCount = $weekSessions[$week] ?? $grid->sessionsPerWeek; @endphp
                                         @if ($sessionLabels)
                                             @for ($s = 1; $s <= $weekSessionCount; $s++)
                                                 <div class="text-[10px] font-normal text-zinc-400 dark:text-zinc-500 whitespace-nowrap">{{ __('Session') }} {{ $runningSessionCounter + $s }}</div>
@@ -147,13 +284,16 @@
                                         @endif
                                     </td>
                                 @endif
+                                @if ($showSessionColumn)
+                                    <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 bg-zinc-50/70 dark:bg-zinc-800/30"></td>
+                                @endif
                                 @foreach ($grid->weekColumns as $weekCol)
                                     @php
                                         $wcValue = $weekCol->cells[$week] ?? '-';
                                         $wcOverridden = $weekCol->overrides[$week] ?? false;
                                     @endphp
                                     @if ($editable && $weekCol->isCellEditable($week))
-                                            <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $weekCol->resolveCellColor($week, null, $wcOverridden) }}"
+                                        <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $weekCol->resolveCellColor($week, null, $wcOverridden) }}"
                                             x-data="editable_cell"
                                             data-msg-invalid-number="{{ __('Please enter a valid number') }}"
                                             data-msg-invalid-value="{{ __('Please enter a valid value') }}"
@@ -205,7 +345,6 @@
                                         <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle text-center"
                                             rowspan="{{ count($grid->rows) }}">
                                             <div class="whitespace-nowrap">{!! $weekLabels[$week] ?? 'TW' . ($week + 1) !!}</div>
-                                            @php $weekSessionCount = $weekSessions[$week] ?? $grid->sessionsPerWeek; @endphp
                                             @if ($sessionLabels)
                                                 @for ($s = 1; $s <= $weekSessionCount; $s++)
                                                     <div class="text-[10px] font-normal text-zinc-400 dark:text-zinc-500 whitespace-nowrap">{{ __('Session') }} {{ $runningSessionCounter + $s }}</div>
@@ -217,6 +356,10 @@
                                                 <div class="text-[10px] font-normal text-zinc-400 dark:text-zinc-500 whitespace-nowrap">({{ $weekSessionCount }} {{ __('session') }})</div>
                                             @endif
                                         </td>
+                                    @endif
+                                    @if ($showSessionColumn && $rowIdx === 0)
+                                        <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 bg-zinc-50/70 dark:bg-zinc-800/30"
+                                            rowspan="{{ count($grid->rows) }}"></td>
                                     @endif
                                     @php $settingKey = match($row->field) { 'oneRepMax' => 'weight', default => Str::snake($row->field) }; @endphp
                                     @if ($settingClickable)
@@ -233,15 +376,15 @@
                                             $cellOverridden = $row->overrides[$week][$set] ?? false;
                                         @endphp
                                         @if ($editable && $row->isCellEditable($week, $set) && $cellValue !== '-')
-                                                <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $row->resolveCellColor($week, $set, $cellOverridden) }}"
+                                            <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $row->resolveCellColor($week, $set, $cellOverridden) }}"
                                                 x-data="editable_cell"
-                                            data-msg-invalid-number="{{ __('Please enter a valid number') }}"
-                                            data-msg-invalid-value="{{ __('Please enter a valid value') }}"
+                                                data-msg-invalid-number="{{ __('Please enter a valid number') }}"
+                                                data-msg-invalid-value="{{ __('Please enter a valid value') }}"
                                                 data-edit-type="cell"
                                                 data-field="{{ $row->field }}"
                                                 data-week="{{ $week }}"
                                                 data-set="{{ $set }}"
-                                                data-session="{{ $grid->sessionsPerWeek - 1 }}"
+                                                data-session="{{ $weekSessionCount - 1 }}"
                                                 data-apply-to-all="true"
                                                 @if ($row->inputMeta && $row->inputMeta->mask)
                                                     data-mask="{{ $row->inputMeta->mask }}"
@@ -263,15 +406,11 @@
                                                 $wcOverridden = $weekCol->overrides[$week] ?? false;
                                             @endphp
                                             @if ($editable && $weekCol->isCellEditable($week))
-                                                @if ($wcOverridden)
-                                                    <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $weekCol->overrideColor }}"
-                                                @else
-                                                    <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $weekCol->color }}"
-                                                @endif
+                                                <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $weekCol->resolveCellColor($week, null, $wcOverridden) }}"
                                                     rowspan="{{ count($grid->rows) }}"
                                                     x-data="editable_cell"
-                                            data-msg-invalid-number="{{ __('Please enter a valid number') }}"
-                                            data-msg-invalid-value="{{ __('Please enter a valid value') }}"
+                                                    data-msg-invalid-number="{{ __('Please enter a valid number') }}"
+                                                    data-msg-invalid-value="{{ __('Please enter a valid value') }}"
                                                     data-edit-type="week"
                                                     data-field="{{ $weekCol->field }}"
                                                     data-week="{{ $week }}"
@@ -283,7 +422,7 @@
                                                     <x-training.exercise-grid-input :meta="$weekCol->inputMeta" :value="$wcValue" size="xs" type="text" />
                                                 </td>
                                             @else
-                                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $weekCol->color }}"
+                                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $weekCol->resolveCellColor($week, null, false) }}"
                                                     rowspan="{{ count($grid->rows) }}">
                                                     {{ $wcValue }}
                                                 </td>
@@ -320,8 +459,13 @@
                         @endif
                     @endfor
                 </tbody>
-                <tbody x-show="expanded" x-cloak>
+                <tbody x-show="expandedAll" x-cloak>
                     @for ($week = 0; $week < $grid->weekCount; $week++)
+                        @php
+                            $weekSessionCount = $weekSessions[$week] ?? $grid->sessionsPerWeek;
+                            $weekLockedSessions = $lockedSessionsByWeek[$week] ?? [];
+                            $weekHasLockedSessions = in_array(true, $weekLockedSessions, true);
+                        @endphp
                         @if (count($grid->rows) === 0)
                             <tr wire:key="expanded-w{{ $week }}-weekonly">
                                 @if ($showWeekColumn)
@@ -329,12 +473,15 @@
                                         <div class="whitespace-nowrap">{!! $weekLabels[$week] ?? 'TW' . ($week + 1) !!}</div>
                                     </td>
                                 @endif
+                                @if ($showSessionColumn)
+                                    <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 bg-zinc-50/70 dark:bg-zinc-800/30"></td>
+                                @endif
                                 @foreach ($grid->weekColumns as $weekCol)
                                     @php
                                         $wcValue = $weekCol->cells[$week] ?? '-';
                                         $wcOverridden = $weekCol->overrides[$week] ?? false;
                                     @endphp
-                                    @if ($editable && $weekCol->isCellEditable($week))
+                                    @if ($editable && ! $weekHasLockedSessions && $weekCol->isCellEditable($week))
                                             <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $weekCol->resolveCellColor($week, null, $wcOverridden) }}"
                                             x-data="editable_cell"
                                             data-msg-invalid-number="{{ __('Please enter a valid number') }}"
@@ -381,18 +528,21 @@
                                 @endif
                             </tr>
                         @else
-                        @for ($session = 0; $session < $grid->sessionsPerWeek; $session++)
+                        @for ($session = 0; $session < $weekSessionCount; $session++)
                             @foreach ($grid->rows as $rowIdx => $row)
-                                @php $isFirstRow = $rowIdx === 0; @endphp
+                                @php
+                                    $isFirstRow = $rowIdx === 0;
+                                    $sessionLocked = (bool) ($weekLockedSessions[$session] ?? false);
+                                @endphp
                                 <tr wire:key="expanded-w{{ $week }}-s{{ $session }}-r{{ $rowIdx }}">
                                     @if ($showWeekColumn && $session === 0 && $isFirstRow)
                                         <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle text-center"
-                                            rowspan="{{ $grid->sessionsPerWeek * count($grid->rows) }}">
+                                            rowspan="{{ $weekSessionCount * count($grid->rows) }}">
                                             <div class="whitespace-nowrap">{!! $weekLabels[$week] ?? 'TW' . ($week + 1) !!}</div>
                                         </td>
                                     @endif
                                     @if ($isFirstRow)
-                                        <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 text-center bg-zinc-100 dark:bg-zinc-700/50 text-xs font-medium"
+                                        <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 text-center bg-zinc-100 dark:bg-zinc-700/50 text-xs font-medium {{ $sessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}"
                                             rowspan="{{ count($grid->rows) }}">
                                             {{ $session + 1 }}
                                         </td>
@@ -407,7 +557,7 @@
                                         {{ $row->label }}
                                     </td>
                                     @php
-                                        $isLastSession = $session === $grid->sessionsPerWeek - 1;
+                                        $isLastSession = $session === $weekSessionCount - 1;
                                     @endphp
                                     @for ($set = 0; $set < $grid->setCount; $set++)
                                         @php
@@ -416,7 +566,7 @@
                                                 : ($row->cells[$week][$set] ?? '-');
                                             $cellOverridden = $row->overrides[$week][$set] ?? false;
                                         @endphp
-                                        @if ($editable && $row->isCellEditable($week, $set) && $cellValue !== '-')
+                                        @if ($editable && ! $sessionLocked && $row->isCellEditable($week, $set) && $cellValue !== '-')
                                                 <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $row->resolveCellColor($week, $set, $cellOverridden) }}"
                                                 x-data="editable_cell"
                                             data-msg-invalid-number="{{ __('Please enter a valid number') }}"
@@ -434,7 +584,7 @@
                                                 <x-training.exercise-grid-input :meta="$row->inputMeta" :value="$cellValue" size="sm" />
                                             </td>
                                         @else
-                                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $row->resolveCellColor($week, $set, false) }}">
+                                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $row->resolveCellColor($week, $set, false) }} {{ $sessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
                                                 {{ $cellValue }}
                                             </td>
                                         @endif
@@ -445,13 +595,13 @@
                                                 $wcValue = $weekCol->cells[$week] ?? '-';
                                                 $wcOverridden = $weekCol->overrides[$week] ?? false;
                                             @endphp
-                                            @if ($editable && $weekCol->isCellEditable($week))
+                                            @if ($editable && ! $weekHasLockedSessions && $weekCol->isCellEditable($week))
                                                 @if ($wcOverridden)
                                                     <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $weekCol->overrideColor }}"
                                                 @else
                                                     <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $weekCol->color }}"
                                                 @endif
-                                                    rowspan="{{ $grid->sessionsPerWeek * count($grid->rows) }}"
+                                                    rowspan="{{ $weekSessionCount * count($grid->rows) }}"
                                                     x-data="editable_cell"
                                             data-msg-invalid-number="{{ __('Please enter a valid number') }}"
                                             data-msg-invalid-value="{{ __('Please enter a valid value') }}"
@@ -466,35 +616,37 @@
                                                     <x-training.exercise-grid-input :meta="$weekCol->inputMeta" :value="$wcValue" size="xs" type="text" />
                                                 </td>
                                             @else
-                                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $weekCol->color }}"
-                                                    rowspan="{{ $grid->sessionsPerWeek * count($grid->rows) }}">
+                                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $weekCol->color }} {{ $weekHasLockedSessions ? 'text-zinc-400 dark:text-zinc-500' : '' }}"
+                                                    rowspan="{{ $weekSessionCount * count($grid->rows) }}">
                                                     {{ $wcValue }}
                                                 </td>
                                             @endif
                                         @endforeach
                                         @if ($showCopyMenu)
                                             <td class="border border-zinc-300 dark:border-zinc-600 px-1 py-2 align-middle text-center bg-zinc-50 dark:bg-zinc-800/50"
-                                                rowspan="{{ $grid->sessionsPerWeek * count($grid->rows) }}">
-                                                <flux:dropdown position="bottom" align="end">
-                                                    <flux:button variant="ghost" size="xs" icon="ellipsis" class="!p-0.5" />
-                                                    <flux:menu>
-                                                        <flux:menu.submenu heading="{{ __('Copy From') }}">
-                                                            @for ($w = 0; $w < $grid->weekCount; $w++)
-                                                                @if ($w !== $week)
-                                                                    <flux:menu.item wire:click="copyWeek({{ $w }}, {{ $week }})">{{ __('Week') }} {{ $w + 1 }}</flux:menu.item>
-                                                                @endif
-                                                            @endfor
-                                                        </flux:menu.submenu>
-                                                        <flux:menu.submenu heading="{{ __('Copy To') }}">
-                                                            <flux:menu.item wire:click="copyWeekToAll({{ $week }})">{{ __('All') }}</flux:menu.item>
-                                                            @for ($w = 0; $w < $grid->weekCount; $w++)
-                                                                @if ($w !== $week)
-                                                                    <flux:menu.item wire:click="copyWeek({{ $week }}, {{ $w }})">{{ __('Week') }} {{ $w + 1 }}</flux:menu.item>
-                                                                @endif
-                                                            @endfor
-                                                        </flux:menu.submenu>
-                                                    </flux:menu>
-                                                </flux:dropdown>
+                                                rowspan="{{ $weekSessionCount * count($grid->rows) }}">
+                                                @if (! $weekHasLockedSessions)
+                                                    <flux:dropdown position="bottom" align="end">
+                                                        <flux:button variant="ghost" size="xs" icon="ellipsis" class="!p-0.5" />
+                                                        <flux:menu>
+                                                            <flux:menu.submenu heading="{{ __('Copy From') }}">
+                                                                @for ($w = 0; $w < $grid->weekCount; $w++)
+                                                                    @if ($w !== $week)
+                                                                        <flux:menu.item wire:click="copyWeek({{ $w }}, {{ $week }})">{{ __('Week') }} {{ $w + 1 }}</flux:menu.item>
+                                                                    @endif
+                                                                @endfor
+                                                            </flux:menu.submenu>
+                                                            <flux:menu.submenu heading="{{ __('Copy To') }}">
+                                                                <flux:menu.item wire:click="copyWeekToAll({{ $week }})">{{ __('All') }}</flux:menu.item>
+                                                                @for ($w = 0; $w < $grid->weekCount; $w++)
+                                                                    @if ($w !== $week)
+                                                                        <flux:menu.item wire:click="copyWeek({{ $week }}, {{ $w }})">{{ __('Week') }} {{ $w + 1 }}</flux:menu.item>
+                                                                    @endif
+                                                                @endfor
+                                                            </flux:menu.submenu>
+                                                        </flux:menu>
+                                                    </flux:dropdown>
+                                                @endif
                                             </td>
                                         @endif
                                     @endif

@@ -592,7 +592,7 @@ trait WithCalendarPlan
     public function planScheduleInfo(): array
     {
         if ($this->planProgram === '') {
-            return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false, 'weekLabels' => [], 'weekSessions' => []];
+            return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false, 'weekLabels' => [], 'weekSessions' => [], 'expandedWeeks' => [], 'lockedSessionsByWeek' => []];
         }
 
         $slotQuery = TrainingProgramSlot::query()
@@ -614,44 +614,62 @@ trait WithCalendarPlan
             }
         }
 
-        $slotDates = $slotQuery->pluck('datetime')
-            ->map(fn ($dt) => Carbon::parse($dt)->format('Y-m-d'))
-            ->unique()
-            ->sort()
+        $sessionDatetimes = $slotQuery
+            ->select('datetime')
+            ->distinct()
+            ->orderBy('datetime')
+            ->pluck('datetime')
+            ->map(fn ($dt) => Carbon::parse($dt))
             ->values();
 
-        $scheduledWeeks = [];
-        foreach ($slotDates as $date) {
-            $d = Carbon::parse($date);
-            $key = $d->isoWeekYear().'-'.$d->isoWeek();
-            if (! isset($scheduledWeeks[$key])) {
-                $scheduledWeeks[$key] = ['week' => $d->isoWeek(), 'year' => $d->isoWeekYear()];
-            }
-        }
-        $scheduledWeeks = array_values($scheduledWeeks);
+        $scheduledWeeks = $sessionDatetimes
+            ->groupBy(fn (Carbon $datetime) => $datetime->isoWeekYear().'-'.$datetime->isoWeek())
+            ->map(fn ($sessions, $key) => [
+                'key' => $key,
+                'sessions' => $sessions->values(),
+                'week' => $sessions->first()->isoWeek(),
+                'year' => $sessions->first()->isoWeekYear(),
+            ])
+            ->values();
 
         $weeks = count($scheduledWeeks);
         if ($weeks === 0) {
-            return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false, 'weekLabels' => [], 'weekSessions' => []];
+            return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false, 'weekLabels' => [], 'weekSessions' => [], 'expandedWeeks' => [], 'lockedSessionsByWeek' => []];
         }
 
-        $weekSlotCounts = $slotDates->groupBy(fn ($date) => Carbon::parse($date)->isoWeekYear().'-'.Carbon::parse($date)->isoWeek())
-            ->map->count();
-        $sessionsPerWeek = max(1, (int) $weekSlotCounts->max());
+        $sessionsPerWeek = max(1, (int) $scheduledWeeks->map(fn (array $week) => count($week['sessions']))->max());
 
         $weekLabels = [];
         $weekSessions = [];
+        $expandedWeeks = [];
+        $lockedSessionsByWeek = [];
+        $now = now();
+
         foreach ($scheduledWeeks as $i => $weekInfo) {
             $monday = Carbon::now()->setISODate($weekInfo['year'], $weekInfo['week'], 1);
             $sunday = $monday->copy()->addDays(6);
             $dateRange = $monday->format('d.m').' - '.$sunday->format('d.m');
             $weekLabels[$i] = 'W'.$weekInfo['week'].', '.$weekInfo['year']
                 .'<br><span class="text-[10px] font-normal text-zinc-400 dark:text-zinc-500">'.$dateRange.'</span>';
-            $key = $weekInfo['year'].'-'.$weekInfo['week'];
-            $weekSessions[$i] = (int) ($weekSlotCounts[$key] ?? 1);
+            $weekSessions[$i] = count($weekInfo['sessions']);
+            $lockedSessionsByWeek[$i] = collect($weekInfo['sessions'])
+                ->map(fn (Carbon $sessionDatetime) => $sessionDatetime->lessThanOrEqualTo($now))
+                ->all();
+
+            if (in_array(true, $lockedSessionsByWeek[$i], true)) {
+                $expandedWeeks[] = $i;
+            }
         }
 
-        return ['weeks' => $weeks, 'sessionsPerWeek' => $sessionsPerWeek, 'scheduled' => true, 'weekLabels' => $weekLabels, 'weekSessions' => $weekSessions];
+        return [
+            'weeks' => $weeks,
+            'sessionsPerWeek' => $sessionsPerWeek,
+            'scheduled' => true,
+            'weekLabels' => $weekLabels,
+            'weekSessions' => $weekSessions,
+            'expandedWeeks' => $expandedWeeks,
+            'lockedSessionsByWeek' => $lockedSessionsByWeek,
+        ];
     }
 
     protected function getActiveBlockDateRanges(): array

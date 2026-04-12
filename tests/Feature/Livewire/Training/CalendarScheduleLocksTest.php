@@ -1,0 +1,52 @@
+<?php
+
+use App\Data\Training\Calendar\CalendarSettingsData;
+use App\Livewire\Training\CalendarScheduleView;
+use App\Models\Exercise\ExerciseProgram;
+use App\Models\Training\TrainingProgram;
+use App\Models\Training\TrainingProgramSlot;
+use App\Models\Training\TrainingProgramSlotStatusEnum;
+use App\Models\Users\User;
+use App\Models\Users\UserGroup;
+use Carbon\Carbon;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
+
+uses(RefreshDatabase::class);
+
+it('does not delete a recorded slot from the schedule view', function () {
+    $coach = User::factory()->coach()->create();
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $group->members()->attach($athlete);
+
+    $exerciseProgram = ExerciseProgram::factory()->create();
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $exerciseProgram->id,
+    ]);
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-04-10 09:00:00'),
+        'status' => TrainingProgramSlotStatusEnum::Completed,
+        'completed_at' => Carbon::parse('2030-04-10 10:00:00'),
+    ]);
+
+    $this->actingAs($coach);
+
+    Livewire::test(CalendarScheduleView::class, [
+        'groupId' => $group->id,
+        'userId' => $athlete->id,
+        'calendarSettings' => new CalendarSettingsData(period: 'month', date: '2030-04-01', start: null, end: null),
+        'weekStartsOn' => Carbon::MONDAY,
+    ])
+        ->call('onWeekSlotDeleted', [
+            'training_program_id' => $trainingProgram->id,
+            'date' => '2030-04-10',
+            'start_time' => '09:00',
+        ]);
+
+    expect($slot->fresh())->not->toBeNull();
+});

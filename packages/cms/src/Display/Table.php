@@ -3,11 +3,18 @@
 namespace Coda\Cms\Display;
 
 use Coda\Cms\Display\DisplayFields\Id;
+use Coda\Cms\Display\Pagination\Classic;
 use Coda\FormKit\Field;
 
 class Table
 {
     protected array $columns = [];
+
+    protected ?array $cardFields = null;
+
+    protected string $defaultView = 'table';
+
+    protected ?Pagination $paginationConfig = null;
 
     protected array $actions = [];
 
@@ -89,6 +96,47 @@ class Table
     public function getColumns(): array
     {
         return $this->columns;
+    }
+
+    public function cards(array $fields): static
+    {
+        $this->cardFields = $fields;
+
+        return $this;
+    }
+
+    public function getCards(): array
+    {
+        return $this->cardFields ?? [];
+    }
+
+    public function hasCards(): bool
+    {
+        return $this->cardFields !== null;
+    }
+
+    public function defaultView(string $view): static
+    {
+        $this->defaultView = $view;
+
+        return $this;
+    }
+
+    public function getDefaultView(): string
+    {
+        return $this->defaultView;
+    }
+
+    public function pagination(Pagination $pagination): static
+    {
+        $this->paginationConfig = $pagination;
+
+        return $this;
+    }
+
+    public function getPagination(): Pagination
+    {
+        return $this->paginationConfig ?? (new Classic)->perPage($this->limit);
     }
 
     public function getActions(): array

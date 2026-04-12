@@ -13,10 +13,10 @@ class CollectionPathGenerator extends DefaultPathGenerator
         $model = $media->model;
 
         if ($model instanceof HasCollectionPaths) {
-            $collectionPath = $model->getCollectionBasePath($media->collection_name);
+            $collectionPath = $model->getCollectionBasePath($media->collection_name, $media);
 
             if ($collectionPath !== null) {
-                return $collectionPath;
+                return rtrim($collectionPath, '/');
             }
         }
 

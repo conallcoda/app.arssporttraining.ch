@@ -22,7 +22,8 @@
         "spatie/laravel-query-builder": "^6.0",
         "spatie/laravel-sluggable": "^3.0",
         "staudenmeir/laravel-adjacency-list": "^1.0",
-        "spatie/laravel-schemaless-attributes": "^2.0"
+        "spatie/laravel-schemaless-attributes": "^2.0",
+        "spatie/laravel-medialibrary": "^11.0"
     },
     "suggest": {
         "laravel/fortify": "Required for built-in authentication views and actions"

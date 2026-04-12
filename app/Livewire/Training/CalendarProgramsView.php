@@ -17,6 +17,7 @@ use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramBlock;
 use App\Models\Training\TrainingProgramBlockTypeEnum;
 use App\Models\Training\TrainingProgramSlot;
+use App\Training\TrainingSessionEditGuard;
 use App\Models\Users\UserGroup;
 use App\Training\CalendarBlockService;
 use App\Training\CalendarDateService;
@@ -809,6 +810,13 @@ class CalendarProgramsView extends Component
 
     public function editWeekSlot(int $trainingProgramId, string $date, string $startTime): void
     {
+        $lockedCount = $this->lockedSlotCountForOccurrence($trainingProgramId, $date.' '.$startTime.':00');
+        if ($lockedCount > 0) {
+            Flux::toast(text: app(TrainingSessionEditGuard::class)->immutableSlotMessage($lockedCount), variant: 'danger');
+
+            return;
+        }
+
         $this->dispatch('open-week-slot', data: [
             'date' => $date,
             'start_time' => $startTime,
@@ -1173,6 +1181,22 @@ class CalendarProgramsView extends Component
 
         $selectedMembers = $data['selected_members'] ?? [];
         $deselectedMembers = $data['deselected_members'] ?? [];
+        $affectedMembers = $this->affectedMemberIds($selectedMembers, $deselectedMembers);
+
+        if ($originalProgramId !== null && $originalDatetime !== null) {
+            $lockedCount = app(TrainingSessionEditGuard::class)->countImmutableSlotsForOccurrence(
+                (int) $originalProgramId,
+                $originalDatetime,
+                $this->userId,
+                $affectedMembers,
+            );
+
+            if ($lockedCount > 0) {
+                Flux::toast(text: app(TrainingSessionEditGuard::class)->immutableSlotMessage($lockedCount), variant: 'danger');
+
+                return;
+            }
+        }
 
         if (empty($selectedMembers) && empty($deselectedMembers) && $this->userId !== null) {
             if ($programChanged || $timeChanged) {
@@ -1224,6 +1248,13 @@ class CalendarProgramsView extends Component
     {
         $trainingProgramId = (int) $data['training_program_id'];
         $datetime = $data['date'].' '.$data['start_time'].':00';
+
+        $lockedCount = $this->lockedSlotCountForOccurrence($trainingProgramId, $datetime);
+        if ($lockedCount > 0) {
+            Flux::toast(text: app(TrainingSessionEditGuard::class)->immutableSlotMessage($lockedCount), variant: 'danger');
+
+            return;
+        }
 
         if ($this->userId !== null) {
             TrainingProgramSlot::query()
@@ -1302,6 +1333,13 @@ class CalendarProgramsView extends Component
 
     public function removeTrainingProgram(int $trainingProgramId): void
     {
+        $lockedCount = app(TrainingSessionEditGuard::class)->countImmutableSlotsForTrainingProgram($trainingProgramId);
+        if ($lockedCount > 0) {
+            Flux::toast(text: app(TrainingSessionEditGuard::class)->immutableProgramMessage($lockedCount), variant: 'danger');
+
+            return;
+        }
+
         $trainingProgram = TrainingProgram::with('program')->findOrFail($trainingProgramId);
         $this->cleanupOrphanedCategoryBlocks($trainingProgram);
         $trainingProgram->delete();
@@ -1322,6 +1360,10 @@ class CalendarProgramsView extends Component
     #[On('edit-program.submitted')]
     public function handleEditProgramSubmitted(array $data): void
     {
+        if ($this->editingTrainingProgramId === null) {
+            return;
+        }
+
         $trainingProgram = TrainingProgram::findOrFail($this->editingTrainingProgramId);
 
         $programData = ExerciseProgramData::from([
@@ -1342,6 +1384,17 @@ class CalendarProgramsView extends Component
 
     public function deleteEditingTrainingProgram(): void
     {
+        if ($this->editingTrainingProgramId === null) {
+            return;
+        }
+
+        $lockedCount = app(TrainingSessionEditGuard::class)->countImmutableSlotsForTrainingProgram($this->editingTrainingProgramId);
+        if ($lockedCount > 0) {
+            Flux::toast(text: app(TrainingSessionEditGuard::class)->immutableProgramMessage($lockedCount), variant: 'danger');
+
+            return;
+        }
+
         $trainingProgram = TrainingProgram::with('program')->findOrFail($this->editingTrainingProgramId);
         $this->cleanupOrphanedCategoryBlocks($trainingProgram);
         $trainingProgram->delete();
@@ -1355,6 +1408,34 @@ class CalendarProgramsView extends Component
     public function navigateToPlan(int $trainingProgramId): void
     {
         $this->dispatch('navigate-to-plan', trainingProgramId: $trainingProgramId);
+    }
+
+    private function lockedSlotCountForOccurrence(int $trainingProgramId, string $datetime): int
+    {
+        return app(TrainingSessionEditGuard::class)->countImmutableSlotsForOccurrence(
+            $trainingProgramId,
+            $datetime,
+            $this->userId,
+            $this->groupMemberIds(),
+        );
+    }
+
+    private function affectedMemberIds(array $selectedMembers, array $deselectedMembers): array
+    {
+        if ($this->userId !== null) {
+            return [];
+        }
+
+        $memberIds = array_unique(array_map('intval', array_merge($selectedMembers, $deselectedMembers)));
+
+        return ! empty($memberIds) ? $memberIds : $this->groupMemberIds();
+    }
+
+    private function groupMemberIds(): array
+    {
+        $group = UserGroup::with('members:id')->find($this->groupId);
+
+        return $group?->members->pluck('id')->all() ?? [];
     }
 
     private function cleanupOrphanedCategoryBlocks(TrainingProgram $trainingProgram): void

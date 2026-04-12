@@ -43,6 +43,10 @@ abstract class AbstractModelList extends Component
 
     public string $sort = '';
 
+    public string $viewMode = '';
+
+    public int $loadedPages = 1;
+
     public array $filters = [];
 
     public ?string $selectedTab = null;
@@ -392,17 +396,43 @@ abstract class AbstractModelList extends Component
     {
         unset($this->items);
         $this->resolvedTable = null;
+        $this->loadedPages = 1;
     }
 
     protected function getPerPage(): int
     {
-        return $this->resolveTable()->getLimit();
+        return $this->resolveTable()->getPagination()->getPerPage();
     }
 
     #[Computed]
     public function columns(): array
     {
         return $this->resolveTable()->getColumns();
+    }
+
+    #[Computed]
+    public function cards(): array
+    {
+        return $this->resolveTable()->getCards();
+    }
+
+    #[Computed]
+    public function cardsEnabled(): bool
+    {
+        return $this->resolveTable()->hasCards();
+    }
+
+    public function setView(string $mode): void
+    {
+        if (! in_array($mode, ['table', 'cards'], true)) {
+            return;
+        }
+
+        if ($mode === 'cards' && ! $this->resolveTable()->hasCards()) {
+            return;
+        }
+
+        $this->viewMode = $mode;
     }
 
     protected function urlProperties(): array
@@ -412,6 +442,7 @@ abstract class AbstractModelList extends Component
             'sort' => ['except' => ''],
             'filters' => ['except' => []],
             'selectedTab' => ['except' => null],
+            'viewMode' => ['except' => '', 'as' => 'view'],
         ];
     }
 
@@ -429,6 +460,14 @@ abstract class AbstractModelList extends Component
     {
         $this->mountEntityDefaults();
         $this->compact = $this->option('compact', $this->compact);
+
+        if ($this->viewMode === '') {
+            $this->viewMode = $this->resolveTable()->getDefaultView();
+        }
+
+        if ($this->viewMode === 'cards' && ! $this->resolveTable()->hasCards()) {
+            $this->viewMode = 'table';
+        }
 
         if ($this->selectedTab === null) {
             $this->selectedTab = $this->getDefaultTabKey();
@@ -565,7 +604,28 @@ abstract class AbstractModelList extends Component
     #[Computed(persist: false)]
     public function items()
     {
-        return $this->buildItemsQuery()->paginate($this->getPerPage(), pageName: $this->prefixedPageName());
+        $pagination = $this->resolveTable()->getPagination();
+        $query = $this->buildItemsQuery();
+
+        if ($pagination->isAccumulating()) {
+            return $query->paginate(
+                $pagination->getPerPage() * max($this->loadedPages, 1),
+                pageName: $this->prefixedPageName(),
+                page: 1,
+            );
+        }
+
+        return $query->paginate($pagination->getPerPage(), pageName: $this->prefixedPageName());
+    }
+
+    public function loadMore(): void
+    {
+        if (! $this->resolveTable()->getPagination()->isAccumulating()) {
+            return;
+        }
+
+        $this->loadedPages++;
+        unset($this->items);
     }
 
     public function handleFormSubmitted(array $data): void
@@ -611,6 +671,7 @@ abstract class AbstractModelList extends Component
             'filterFields' => $table->getFilterFields(),
             'options' => $this->options,
             'indexTabs' => $this->tabs,
+            'pagination' => $table->getPagination(),
         ]);
     }
 }
