@@ -96,7 +96,8 @@
                                     })" />
                             @elseif ($action->isConfirm())
                                 <flux:button variant="filled" size="xs" icon="{{ $action->icon }}"
-                                    wire:click="confirmAction('{{ $action->name }}', {{ $item->id }})" />
+                                    wire:click="confirmAction('{{ $action->name }}', {{ $item->id }})"
+                                    class="text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400" />
                             @elseif ($action->isAlpineEvent())
                                 <flux:button variant="filled" size="xs" icon="{{ $action->icon }}"
                                     x-on:click="$dispatch('{{ $action->alpineEventName }}', {{ Js::from($action->getAlpineEventData($item)) }})" />
