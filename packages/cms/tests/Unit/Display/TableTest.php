@@ -72,3 +72,48 @@ it('stores a configured pagination strategy', function () {
     expect($table->getPagination())->toBe($configured);
     expect($table->getPagination()->getPerPage())->toBe(30);
 });
+
+it('defaults cardLayout to grid', function () {
+    $table = Table::make()->cards([Text::make('name')]);
+    expect($table->getCardLayout())->toBe('grid');
+});
+
+it('allows cardLayout to be set to masonry', function () {
+    $table = Table::make()->cards([Text::make('name')])->cardLayout('masonry');
+    expect($table->getCardLayout())->toBe('masonry');
+});
+
+it('defaults cardWidth to 260', function () {
+    $table = Table::make()->cards([Text::make('name')]);
+    expect($table->getCardWidth())->toBe(260);
+});
+
+it('allows cardWidth to be overridden', function () {
+    $table = Table::make()->cards([Text::make('name')])->cardWidth(220);
+    expect($table->getCardWidth())->toBe(220);
+});
+
+it('defaults cardTitleField to null', function () {
+    $table = Table::make()->cards([Text::make('name')]);
+    expect($table->getCardTitleField())->toBeNull();
+});
+
+it('allows cardTitleField to be overridden', function () {
+    $table = Table::make()->cards([Text::make('name')])->cardTitleField('slug');
+    expect($table->getCardTitleField())->toBe('slug');
+});
+
+it('defaults cardView and masonryOverlayView to null', function () {
+    $table = Table::make()->cards([Text::make('name')]);
+    expect($table->getCardView())->toBeNull();
+    expect($table->getMasonryOverlayView())->toBeNull();
+});
+
+it('allows cardView and masonryOverlayView to be overridden', function () {
+    $table = Table::make()
+        ->cards([Text::make('name')])
+        ->cardView('my.card')
+        ->masonryOverlayView('my.overlay');
+    expect($table->getCardView())->toBe('my.card');
+    expect($table->getMasonryOverlayView())->toBe('my.overlay');
+});

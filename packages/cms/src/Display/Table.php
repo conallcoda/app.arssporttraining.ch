@@ -12,6 +12,16 @@ class Table
 
     protected ?array $cardFields = null;
 
+    protected string $cardLayout = 'grid';
+
+    protected int $cardWidth = 260;
+
+    protected ?string $cardTitleField = null;
+
+    protected ?string $cardView = null;
+
+    protected ?string $masonryOverlayView = null;
+
     protected string $defaultView = 'table';
 
     protected ?Pagination $paginationConfig = null;
@@ -113,6 +123,66 @@ class Table
     public function hasCards(): bool
     {
         return $this->cardFields !== null;
+    }
+
+    public function cardLayout(string $layout): static
+    {
+        $this->cardLayout = $layout;
+
+        return $this;
+    }
+
+    public function getCardLayout(): string
+    {
+        return $this->cardLayout;
+    }
+
+    public function cardWidth(int $width): static
+    {
+        $this->cardWidth = $width;
+
+        return $this;
+    }
+
+    public function getCardWidth(): int
+    {
+        return $this->cardWidth;
+    }
+
+    public function cardTitleField(string $field): static
+    {
+        $this->cardTitleField = $field;
+
+        return $this;
+    }
+
+    public function getCardTitleField(): ?string
+    {
+        return $this->cardTitleField;
+    }
+
+    public function cardView(string $view): static
+    {
+        $this->cardView = $view;
+
+        return $this;
+    }
+
+    public function getCardView(): ?string
+    {
+        return $this->cardView;
+    }
+
+    public function masonryOverlayView(string $view): static
+    {
+        $this->masonryOverlayView = $view;
+
+        return $this;
+    }
+
+    public function getMasonryOverlayView(): ?string
+    {
+        return $this->masonryOverlayView;
     }
 
     public function defaultView(string $view): static
