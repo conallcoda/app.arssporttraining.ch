@@ -422,6 +422,36 @@ abstract class AbstractModelList extends Component
         return $this->resolveTable()->hasCards();
     }
 
+    #[Computed]
+    public function cardLayout(): string
+    {
+        return $this->resolveTable()->getCardLayout();
+    }
+
+    #[Computed]
+    public function cardWidth(): int
+    {
+        return $this->resolveTable()->getCardWidth();
+    }
+
+    #[Computed]
+    public function cardTitleField(): ?string
+    {
+        return $this->resolveTable()->getCardTitleField();
+    }
+
+    #[Computed]
+    public function cardView(): ?string
+    {
+        return $this->resolveTable()->getCardView();
+    }
+
+    #[Computed]
+    public function masonryOverlayView(): ?string
+    {
+        return $this->resolveTable()->getMasonryOverlayView();
+    }
+
     public function setView(string $mode): void
     {
         if (! in_array($mode, ['table', 'cards'], true)) {

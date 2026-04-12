@@ -276,6 +276,18 @@ it('exposes declared card fields via computed property', function () {
     expect($cards)->toHaveCount(2);
 });
 
+it('exposes cardLayout as computed property', function () {
+    $instance = Livewire::test(TestCardEnabledList::class)->instance();
+
+    expect($instance->cardLayout)->toBe('grid');
+});
+
+it('exposes cardWidth as computed property', function () {
+    $instance = Livewire::test(TestCardEnabledList::class)->instance();
+
+    expect($instance->cardWidth)->toBe(260);
+});
+
 // --- Pagination: Load More / Infinite / Hybrid (accumulation) ---
 
 it('defaults loadedPages to 1 on mount', function () {
