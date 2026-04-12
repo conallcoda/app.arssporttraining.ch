@@ -3,33 +3,8 @@
     $cardViewOverride = $this->cardView;
 @endphp
 
-@once
-    <style>
-        .cms-masonry-grid {
-            column-width: var(--cms-card-width, 220px);
-            column-gap: 4px;
-        }
-        .cms-masonry-item {
-            break-inside: avoid;
-            margin-bottom: 4px;
-            display: block;
-        }
-        @supports (grid-template-rows: masonry) {
-            .cms-masonry-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(var(--cms-card-width, 220px), 1fr));
-                grid-template-rows: masonry;
-                gap: 4px;
-                column-width: auto;
-            }
-            .cms-masonry-item {
-                margin-bottom: 0;
-            }
-        }
-    </style>
-@endonce
-
-<div class="cms-masonry-grid" style="--cms-card-width: {{ $cardWidth }}px;">
+<div class="[column-width:var(--cms-card-width,220px)] [column-gap:4px] supports-[grid-template-rows:masonry]:grid supports-[grid-template-rows:masonry]:grid-cols-[repeat(auto-fill,minmax(var(--cms-card-width,220px),1fr))] supports-[grid-template-rows:masonry]:[grid-template-rows:masonry] supports-[grid-template-rows:masonry]:gap-1"
+     style="--cms-card-width: {{ $cardWidth }}px;">
     @foreach ($this->items as $model)
         @php
             $item = $this->dataFromModel($model);
@@ -47,7 +22,7 @@
             ])
         @else
             <div wire:key="masonry-{{ $item->id }}-{{ $this->refreshKey }}"
-                 class="cms-masonry-item group relative overflow-hidden">
+                 class="break-inside-avoid mb-1 block supports-[grid-template-rows:masonry]:mb-0 group relative overflow-hidden">
                 @if ($imageUrl)
                     <img src="{{ $imageUrl }}" alt="" class="w-full h-auto block" loading="lazy" />
                 @else
