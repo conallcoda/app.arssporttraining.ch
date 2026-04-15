@@ -97,9 +97,9 @@ class ExercisePlanConfig extends AbstractConfig
         ]);
     }
 
-    public function defaultExerciseOverrides(int $exerciseId): ExerciseOverrides
+    public function defaultExerciseOverrides(int $programExerciseId): ExerciseOverrides
     {
-        $data = $this->exercises[$exerciseId] ?? null;
+        $data = $this->exercises[$programExerciseId] ?? null;
 
         if ($data === null) {
             return new ExerciseOverrides;
@@ -110,24 +110,24 @@ class ExercisePlanConfig extends AbstractConfig
         }
 
         $overrides = ExerciseOverrides::from($data);
-        $this->exercises[$exerciseId] = $overrides;
+        $this->exercises[$programExerciseId] = $overrides;
 
         return $overrides;
     }
 
-    public function setDefaultExerciseOverrides(int $exerciseId, ExerciseOverrides $overrides): void
+    public function setDefaultExerciseOverrides(int $programExerciseId, ExerciseOverrides $overrides): void
     {
-        $this->exercises[$exerciseId] = $overrides;
+        $this->exercises[$programExerciseId] = $overrides;
     }
 
-    public function removeExerciseOverrides(int $exerciseId): void
+    public function removeExerciseOverrides(int $programExerciseId): void
     {
-        unset($this->exercises[$exerciseId]);
+        unset($this->exercises[$programExerciseId]);
     }
 
-    public function userExerciseOverrides(int $userId, int $exerciseId): ExerciseOverrides
+    public function userExerciseOverrides(int $userId, int $programExerciseId): ExerciseOverrides
     {
-        $data = $this->userExercises[$userId][$exerciseId] ?? null;
+        $data = $this->userExercises[$userId][$programExerciseId] ?? null;
 
         if ($data === null) {
             return new ExerciseOverrides;
@@ -138,18 +138,18 @@ class ExercisePlanConfig extends AbstractConfig
         }
 
         $overrides = ExerciseOverrides::from($data);
-        $this->userExercises[$userId][$exerciseId] = $overrides;
+        $this->userExercises[$userId][$programExerciseId] = $overrides;
 
         return $overrides;
     }
 
-    public function setUserExerciseOverrides(int $userId, int $exerciseId, ExerciseOverrides $overrides): void
+    public function setUserExerciseOverrides(int $userId, int $programExerciseId, ExerciseOverrides $overrides): void
     {
         if (! isset($this->userExercises[$userId])) {
             $this->userExercises[$userId] = [];
         }
 
-        $this->userExercises[$userId][$exerciseId] = $overrides;
+        $this->userExercises[$userId][$programExerciseId] = $overrides;
     }
 
     public function hasDefaultOverrides(): bool

@@ -137,10 +137,10 @@
                 @if ($isMasked)
                     <div x-data="masked_input" data-mask="{{ $mask }}" class="flex-1">
                         @if ($field->live)
-                            <flux:input wire:model.live="{{ $wireModel }}" type="{{ $field->inputType }}"
+                            <flux:input wire:model.live="{{ $wireModel }}" type="text"
                                 data-field="{{ $field->name }}" placeholder="00:00" />
                         @else
-                            <flux:input wire:model.live.blur="{{ $wireModel }}" type="{{ $field->inputType }}"
+                            <flux:input wire:model.live.blur="{{ $wireModel }}" type="text"
                                 data-field="{{ $field->name }}" placeholder="00:00" />
                         @endif
                     </div>

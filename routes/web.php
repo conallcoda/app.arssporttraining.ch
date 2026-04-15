@@ -7,6 +7,7 @@ use App\Livewire\Athlete\ProgramDetails;
 use App\Livewire\Athlete\Record;
 use App\Livewire\Test\ExerciseCreator;
 use App\Livewire\Test\PortalDemo;
+use App\Livewire\Test\ReadinessForm;
 use Coda\Cms\Registry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -49,3 +50,4 @@ Route::prefix('admin')->middleware(['auth', 'cms.admin'])->group(function (): vo
 
 Route::get('/test/exercise-creator', ExerciseCreator::class)->name('test.exercise-creator');
 Route::get('/test/portal-demo', PortalDemo::class)->name('test.portal-demo');
+Route::get('/test/readiness', ReadinessForm::class)->name('test.readiness');

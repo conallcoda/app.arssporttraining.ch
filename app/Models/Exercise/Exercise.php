@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class Exercise extends Model implements HasCollectionPaths, HasMedia, Taggable
 {
@@ -47,7 +48,7 @@ class Exercise extends Model implements HasCollectionPaths, HasMedia, Taggable
         'config' => '{"settings":[],"overrides":{"cells":[],"weeks":[]}}',
     ];
 
-    public function getCollectionBasePath(string $collectionName): ?string
+    public function getCollectionBasePath(string $collectionName, ?Media $media = null): ?string
     {
         return match ($collectionName) {
             'photos' => 'exercises/'.$this->getKey(),

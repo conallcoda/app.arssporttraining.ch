@@ -1,113 +1,61 @@
-<x-athlete.section>
-    <div>
-        <div class="flex items-start justify-between gap-3 sm:items-center">
-            <flux:heading size="lg">{{ $day['formattedDate'] }}</flux:heading>
-            <div class="hidden sm:block">
-                <flux:badge size="sm">{{ $day['sessionCount'] }} {{ Str::plural('session', $day['sessionCount']) }}</flux:badge>
-            </div>
+@php
+    $totalSessions = $day['programs']->count();
+    $fullyRecordedSessions = $day['programs']->filter(
+        fn ($program) => $program->totalExerciseCount > 0 && $program->recordedExerciseCount >= $program->totalExerciseCount
+    )->count();
+
+    if ($totalSessions > 0 && $fullyRecordedSessions === $totalSessions) {
+        $dayStatusLabel = 'Recorded';
+        $dayStatusColor = ['light' => '110 231 183', 'dark' => '52 211 153'];
+    } else {
+        $dayStatusLabel = 'Pending';
+        $dayStatusColor = ['light' => '228 228 231', 'dark' => '161 161 170'];
+    }
+@endphp
+
+<x-athlete.section :row="$row ?? null" x-data="{ open: false }" class="py-0" content-class="py-3 sm:py-5">
+    <button
+        type="button"
+        x-on:click="open = !open"
+        :aria-expanded="open"
+        class="flex w-full items-center justify-between gap-3 text-left text-base font-normal text-zinc-800 dark:text-white"
+    >
+        <div class="flex min-w-0 items-center gap-2">
+            <span class="truncate">{{ $day['formattedDate'] }}</span>
+            <span
+                class="status-badge inline-flex shrink-0 rounded-md px-2 py-1 text-[10px] font-medium sm:text-xs"
+                style="--status-bar-light: {{ $dayStatusColor['light'] }}; --status-bar-dark: {{ $dayStatusColor['dark'] }};"
+            >
+                {{ $dayStatusLabel }}
+            </span>
         </div>
-        <div class="mt-2 sm:hidden">
-            <flux:badge size="sm">{{ $day['sessionCount'] }} {{ Str::plural('session', $day['sessionCount']) }}</flux:badge>
+        <flux:icon.chevron-up x-show="open" x-cloak class="size-5 shrink-0 text-zinc-500 dark:text-zinc-400" />
+        <flux:icon.chevron-down x-show="!open" x-cloak class="size-5 shrink-0 text-zinc-500 dark:text-zinc-400" />
+    </button>
+
+    @if ($day['programs']->count() > 0)
+        <div x-show="open" x-cloak x-collapse class="space-y-3 pt-3">
+            @foreach ($day['programs'] as $program)
+                <a
+                    wire:key="{{ $day['date'] }}-{{ $program->slotId }}"
+                    href="{{ route('athlete.programs.show', ['date' => $day['date'], 'trainingProgram' => $program->trainingProgramId, 'from' => request()->fullUrl()]) }}"
+                    wire:navigate
+                    class="flex items-stretch justify-between gap-0 overflow-hidden rounded-lg bg-zinc-50 transition hover:bg-zinc-100 dark:bg-zinc-800 dark:hover:bg-zinc-700/80"
+                >
+                    <div class="flex w-12 shrink-0 items-center justify-center self-stretch text-white {{ $program->period === 'pm' ? 'bg-blue-500 dark:bg-blue-600' : 'bg-amber-400 dark:bg-amber-500' }}">
+                        <div class="text-sm font-medium uppercase tracking-wide">
+                            {{ \Carbon\CarbonImmutable::createFromFormat('H:i', $program->time)->format('g A') }}
+                        </div>
+                    </div>
+                    <div class="flex min-w-0 flex-1 items-center justify-between gap-3 px-3 py-2">
+                        <div class="min-w-0 flex-1 space-y-2">
+                            <x-athlete.category-badge :label="$program->categoryName" :color="$program->categoryColor" />
+                            <x-athlete.recorded-progress :segments="$program->progressSegments" class="max-w-40" />
+                        </div>
+                        <flux:icon.chevron-right class="size-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
+                    </div>
+                </a>
+            @endforeach
         </div>
-    </div>
-
-    <div class="space-y-4">
-        @if ($day['amPrograms']->count() > 0)
-            <div class="space-y-2">
-                <flux:badge color="amber" size="sm">AM</flux:badge>
-
-                <div class="space-y-1">
-                    @foreach ($day['amPrograms'] as $program)
-                        <a
-                            wire:key="{{ $day['date'] }}-am-{{ $program->slotId }}"
-                            href="{{ route('athlete.programs.show', ['date' => $day['date'], 'trainingProgram' => $program->trainingProgramId, 'from' => request()->fullUrl()]) }}"
-                            wire:navigate
-                            class="flex items-stretch justify-between gap-0 overflow-hidden rounded-lg bg-zinc-50 transition hover:bg-zinc-100 dark:bg-zinc-800 dark:hover:bg-zinc-700/80"
-                        >
-                            @if ($program->categoryColor && $program->categoryShortName)
-                                <div
-                                    class="flex w-8 shrink-0 items-center justify-center self-stretch"
-                                    style="background-color: {{ $program->categoryColor }}"
-                                >
-                                    <span
-                                        class="text-[10px] font-semibold uppercase tracking-[0.18em] text-white"
-                                        style="writing-mode: vertical-rl; transform: rotate(180deg);"
-                                    >
-                                        {{ $program->categoryShortName }}
-                                    </span>
-                                </div>
-                            @endif
-                            <div class="flex min-w-0 flex-1 items-start justify-between gap-3 px-3 py-2 sm:items-center">
-                                <div class="min-w-0 flex-1">
-                                    <span class="block text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400 sm:hidden">{{ $program->time }}</span>
-                                    <div class="min-w-0 sm:flex sm:items-center sm:gap-2">
-                                        <span class="hidden text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400 sm:inline">{{ $program->time }}</span>
-                                        <span class="block text-sm font-medium text-zinc-900 dark:text-white sm:truncate">{{ $program->name }}</span>
-                                    </div>
-                                    <span class="mt-1 inline-flex rounded-md bg-zinc-200 px-2 py-1 text-[11px] font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200 sm:hidden">
-                                        {{ $program->exerciseCount }} {{ Str::plural('exercise', $program->exerciseCount) }}
-                                    </span>
-                                </div>
-                                <div class="flex shrink-0 items-center self-center gap-2">
-                                    <span class="hidden rounded-md bg-zinc-200 px-2 py-1 text-[11px] font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200 sm:inline-flex">
-                                        {{ $program->exerciseCount }} {{ Str::plural('exercise', $program->exerciseCount) }}
-                                    </span>
-                                    <flux:icon.chevron-right class="size-4 text-zinc-400 dark:text-zinc-500" />
-                                </div>
-                            </div>
-                        </a>
-                    @endforeach
-                </div>
-            </div>
-        @endif
-
-        @if ($day['pmPrograms']->count() > 0)
-            <div class="space-y-2">
-                <flux:badge color="blue" size="sm">PM</flux:badge>
-
-                <div class="space-y-1">
-                    @foreach ($day['pmPrograms'] as $program)
-                        <a
-                            wire:key="{{ $day['date'] }}-pm-{{ $program->slotId }}"
-                            href="{{ route('athlete.programs.show', ['date' => $day['date'], 'trainingProgram' => $program->trainingProgramId, 'from' => request()->fullUrl()]) }}"
-                            wire:navigate
-                            class="flex items-stretch justify-between gap-0 overflow-hidden rounded-lg bg-zinc-50 transition hover:bg-zinc-100 dark:bg-zinc-800 dark:hover:bg-zinc-700/80"
-                        >
-                            @if ($program->categoryColor && $program->categoryShortName)
-                                <div
-                                    class="flex w-8 shrink-0 items-center justify-center self-stretch"
-                                    style="background-color: {{ $program->categoryColor }}"
-                                >
-                                    <span
-                                        class="text-[10px] font-semibold uppercase tracking-[0.18em] text-white"
-                                        style="writing-mode: vertical-rl; transform: rotate(180deg);"
-                                    >
-                                        {{ $program->categoryShortName }}
-                                    </span>
-                                </div>
-                            @endif
-                            <div class="flex min-w-0 flex-1 items-start justify-between gap-3 px-3 py-2 sm:items-center">
-                                <div class="min-w-0 flex-1">
-                                    <span class="block text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400 sm:hidden">{{ $program->time }}</span>
-                                    <div class="min-w-0 sm:flex sm:items-center sm:gap-2">
-                                        <span class="hidden text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400 sm:inline">{{ $program->time }}</span>
-                                        <span class="block text-sm font-medium text-zinc-900 dark:text-white sm:truncate">{{ $program->name }}</span>
-                                    </div>
-                                    <span class="mt-1 inline-flex rounded-md bg-zinc-200 px-2 py-1 text-[11px] font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200 sm:hidden">
-                                        {{ $program->exerciseCount }} {{ Str::plural('exercise', $program->exerciseCount) }}
-                                    </span>
-                                </div>
-                                <div class="flex shrink-0 items-center self-center gap-2">
-                                    <span class="hidden rounded-md bg-zinc-200 px-2 py-1 text-[11px] font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200 sm:inline-flex">
-                                        {{ $program->exerciseCount }} {{ Str::plural('exercise', $program->exerciseCount) }}
-                                    </span>
-                                    <flux:icon.chevron-right class="size-4 text-zinc-400 dark:text-zinc-500" />
-                                </div>
-                            </div>
-                        </a>
-                    @endforeach
-                </div>
-            </div>
-        @endif
-    </div>
+    @endif
 </x-athlete.section>

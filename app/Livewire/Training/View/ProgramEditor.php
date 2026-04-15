@@ -15,13 +15,17 @@ use App\Data\Exercise\Settings\TempoSetting;
 use App\Data\Exercise\Settings\WattsSetting;
 use App\Data\Exercise\Settings\WeightSetting;
 use App\Data\Training\Config\ExerciseOverrides;
+use App\Data\Training\Config\ExercisePlanConfig;
 use App\Form\Fields\Exercise\Exercises;
-use App\Form\Fields\Training\Program\SelectProgram;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
+use App\Models\Exercise\ExerciseProgramTypeEnum;
+use App\Training\ExerciseGroupLabeler;
+use App\Training\TrainingSessionRebuildService;
 use Coda\Cms\Livewire\Concerns\InteractsWithFormData;
 use Coda\FormKit\Form;
+use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
@@ -32,6 +36,8 @@ class ProgramEditor extends Component
     use InteractsWithFormData {
         InteractsWithFormData::updated as traitUpdated;
     }
+
+    private const SECTION_TYPES = ['main', 'warm_up', 'warm_down'];
 
     public ExerciseProgram $exerciseProgram;
 
@@ -87,6 +93,10 @@ class ProgramEditor extends Component
 
     public array $data = [];
 
+    public string $activeSection = 'main';
+
+    public ?int $importProgramId = null;
+
     public function mount(
         ExerciseProgram $exerciseProgram,
         int $planId,
@@ -115,6 +125,9 @@ class ProgramEditor extends Component
         array $planGroupMemberMetrics = [],
     ): void {
         $this->exerciseProgram = $exerciseProgram;
+        if ($exerciseProgram->type !== ExerciseProgramTypeEnum::Program) {
+            $this->activeSection = 'main';
+        }
         $this->planId = $planId;
         $this->showWeeksInput = $showWeeksInput;
         $this->weeks = $showWeeksInput ? $exerciseProgram->config->weeks : $weeks;
@@ -144,20 +157,42 @@ class ProgramEditor extends Component
 
     protected function loadExerciseData(): void
     {
-        $this->exerciseProgram->loadMissing([
-            'exercises' => fn ($q) => $q->orderByPivot('sort'),
+        $this->exerciseProgram->unsetRelation('exercises');
+        $this->exerciseProgram->load([
+            'exercises' => fn ($q) => $q->orderByPivot('type')->orderByPivot('sort')->orderByPivot('id'),
         ]);
 
-        $this->data = [
-            'exercises' => $this->exerciseProgram->exercises->map(fn ($e) => [
-                'id' => $e->id,
+        foreach (self::SECTION_TYPES as $type) {
+            $this->data[$this->sectionFieldName($type)] = $this->serializeSectionExercises($type);
+        }
+
+        $this->syncSectionFormData();
+    }
+
+    protected function serializeSectionExercises(string $type): array
+    {
+        return $this->exerciseProgram->exercises
+            ->filter(fn (Exercise $exercise) => ($exercise->pivot->type ?? 'main') === $type)
+            ->sortBy(fn (Exercise $exercise) => [$exercise->pivot->sort ?? 0, $exercise->pivot->id ?? 0])
+            ->values()
+            ->map(fn (Exercise $exercise) => [
+                'id' => $exercise->id,
+                'program_exercise_id' => $exercise->pivot->id,
                 '_key' => uniqid('item_', true),
-                'sort' => $e->pivot->sort ?? 0,
-                'group' => $e->pivot->group,
-            ])->values()->all(),
-            'warm_up_program_id' => $this->exerciseProgram->warm_up_program_id,
-            'warm_down_program_id' => $this->exerciseProgram->warm_down_program_id,
-        ];
+                'sort' => $exercise->pivot->sort ?? 0,
+                'group' => $exercise->pivot->group,
+            ])
+            ->all();
+    }
+
+    protected function syncSectionFormData(): void
+    {
+        $this->data['section_exercises'] = $this->data[$this->sectionFieldName($this->activeSection)] ?? [];
+    }
+
+    protected function sectionFieldName(string $type): string
+    {
+        return $type.'_exercises';
     }
 
     #[Computed]
@@ -165,7 +200,7 @@ class ProgramEditor extends Component
     {
         return Form::make()
             ->fieldset('Exercises', [
-                Exercises::make('exercises')->withOptions()->groupable(),
+                Exercises::make('section_exercises')->withOptions()->groupable(),
             ]);
     }
 
@@ -185,43 +220,81 @@ class ProgramEditor extends Component
     public function exercises(): Collection
     {
         return $this->exerciseProgram->exercises()
+            ->wherePivot('type', $this->activeSection)
             ->orderByPivot('sort')
+            ->orderByPivot('id')
             ->get();
     }
 
     #[Computed]
     public function exerciseGroupLabels(): array
     {
-        $labels = [];
-        $groupCounters = [];
+        return ExerciseGroupLabeler::label(
+            $this->exercises,
+            fn (Exercise $exercise): ?string => $exercise->pivot->group,
+            fn (Exercise $exercise): int => $exercise->pivot->id,
+        );
+    }
 
-        foreach ($this->exercises as $exercise) {
-            $group = $exercise->pivot->group;
+    #[Computed]
+    public function importProgramOptions(): array
+    {
+        return ExerciseProgram::query()
+            ->whereNull('exercise_programs.owner_id')
+            ->whereNull('exercise_programs.parent_id')
+            ->whereNull('exercise_programs.parent_type')
+            ->where('exercise_programs.type', $this->importProgramType()->value)
+            ->where('id', '!=', $this->exerciseProgram->id)
+            ->orderBy('name')
+            ->pluck('name', 'id')
+            ->all();
+    }
 
-            if ($group) {
-                if (! isset($groupCounters[$group])) {
-                    $groupCounters[$group] = 0;
-                }
-                $groupCounters[$group]++;
-                $labels[$exercise->id] = $group.$groupCounters[$group];
-            }
-        }
+    #[Computed]
+    public function availableSections(): array
+    {
+        return match ($this->programType) {
+            ExerciseProgramTypeEnum::WarmUp, ExerciseProgramTypeEnum::WarmDown => ['main'],
+            default => self::SECTION_TYPES,
+        };
+    }
 
-        return $labels;
+    #[Computed]
+    public function showSectionTabs(): bool
+    {
+        return count($this->availableSections) > 1;
+    }
+
+    #[Computed]
+    public function programType(): ExerciseProgramTypeEnum
+    {
+        return $this->exerciseProgram->type ?? ExerciseProgramTypeEnum::Program;
     }
 
     public function updated(string $property, mixed $value): void
     {
         $this->traitUpdated($property, $value);
 
-        if (str_starts_with($property, 'data.exercises.') || $property === 'data.exercises') {
-            $hasCompleteExercises = collect($this->data['exercises'] ?? [])
+        if (str_starts_with($property, 'data.section_exercises.') || $property === 'data.section_exercises') {
+            $this->data[$this->sectionFieldName($this->activeSection)] = $this->data['section_exercises'] ?? [];
+
+            $hasCompleteExercises = collect($this->data['section_exercises'] ?? [])
                 ->contains(fn ($item) => ! empty($item['id']));
 
             if ($hasCompleteExercises) {
-                $this->saveExercises();
+                $this->saveSectionExercises();
             }
         }
+    }
+
+    public function updatedActiveSection(): void
+    {
+        if (! in_array($this->activeSection, $this->availableSections, true)) {
+            $this->activeSection = $this->availableSections[0] ?? 'main';
+        }
+
+        $this->syncSectionFormData();
+        unset($this->fieldsets, $this->exercises, $this->exerciseGroupLabels);
     }
 
     public function updatedWeeks(): void
@@ -252,8 +325,9 @@ class ProgramEditor extends Component
             }
         }
 
-        if ($fieldName === 'exercises') {
-            $this->saveExercises();
+        if ($fieldName === 'section_exercises') {
+            $this->data[$this->sectionFieldName($this->activeSection)] = $this->data[$fieldName];
+            $this->saveSectionExercises();
         }
     }
 
@@ -280,62 +354,193 @@ class ProgramEditor extends Component
 
         $this->data[$fieldName] = $items;
 
-        if ($fieldName === 'exercises') {
-            $this->saveExercises();
+        if ($fieldName === 'section_exercises') {
+            $this->data[$this->sectionFieldName($this->activeSection)] = $items;
+            $this->saveSectionExercises();
         }
     }
 
-    public function saveExercises(): void
+    public function importSectionExercises(): void
     {
-        $currentExerciseIds = $this->exerciseProgram->exercises()->pluck('exercises.id')->toArray();
-        $newExerciseIds = collect($this->data['exercises'] ?? [])
-            ->filter(fn ($exercise) => ! empty($exercise['id']))
-            ->pluck('id')
-            ->toArray();
+        if ($this->importProgramId === null) {
+            return;
+        }
 
-        $exercisesToAdd = array_diff($newExerciseIds, $currentExerciseIds);
-        $exercisesToRemove = array_diff($currentExerciseIds, $newExerciseIds);
+        Flux::modal($this->importConfirmModalName())->show();
+    }
 
-        ExerciseProgramExercise::where('exercise_program_id', $this->exerciseProgram->id)
-            ->whereIn('exercise_id', $exercisesToRemove)
-            ->delete();
+    public function confirmImportSectionExercises(): void
+    {
+        if ($this->importProgramId === null) {
+            return;
+        }
+
+        $sourceProgram = ExerciseProgram::query()
+            ->with([
+                'exercises' => fn ($q) => $q->orderByPivot('type')->orderByPivot('sort')->orderByPivot('id'),
+            ])
+            ->findOrFail($this->importProgramId);
+
+        $sourceSection = $this->importSourceSection($sourceProgram);
+        $sourceRows = $sourceProgram->exercises
+            ->filter(fn (Exercise $exercise) => ($exercise->pivot->type ?? 'main') === $sourceSection)
+            ->sortBy(fn (Exercise $exercise) => [$exercise->pivot->sort ?? 0, $exercise->pivot->id ?? 0])
+            ->values();
+
+        $config = $this->exerciseProgram->config;
+        $currentRows = $this->exerciseProgram->exercises()
+            ->wherePivot('type', $this->activeSection)
+            ->get()
+            ->keyBy(fn (Exercise $exercise) => (int) $exercise->pivot->id);
+
+        foreach ($currentRows->keys() as $programExerciseId) {
+            $config->removeExerciseOverrides((int) $programExerciseId);
+
+            foreach (array_keys($config->userExercises) as $userId) {
+                unset($config->userExercises[$userId][(int) $programExerciseId]);
+            }
+        }
+
+        if ($currentRows->isNotEmpty()) {
+            ExerciseProgramExercise::query()
+                ->where('exercise_program_id', $this->exerciseProgram->id)
+                ->whereIn('id', $currentRows->keys()->all())
+                ->delete();
+        }
+
+        $pivotIdMap = [];
+
+        foreach ($sourceRows as $index => $exercise) {
+            $newPivot = ExerciseProgramExercise::create([
+                'exercise_program_id' => $this->exerciseProgram->id,
+                'exercise_id' => $exercise->id,
+                'sort' => $exercise->pivot->sort ?? $index,
+                'group' => $exercise->pivot->group,
+                'type' => $this->activeSection,
+            ]);
+
+            $pivotIdMap[(int) $exercise->pivot->id] = (int) $newPivot->id;
+        }
+
+        $sourceConfig = $sourceProgram->config;
+
+        foreach ($pivotIdMap as $sourcePivotId => $targetPivotId) {
+            if (isset($sourceConfig->exercises[$sourcePivotId])) {
+                $config->setDefaultExerciseOverrides(
+                    $targetPivotId,
+                    ExerciseOverrides::from($sourceConfig->defaultExerciseOverrides($sourcePivotId)->toArray())
+                );
+            }
+        }
+
+        foreach ($sourceConfig->userExercises as $userId => $overridesByExercise) {
+            foreach ($overridesByExercise as $sourcePivotId => $overrides) {
+                $targetPivotId = $pivotIdMap[(int) $sourcePivotId] ?? null;
+
+                if ($targetPivotId === null) {
+                    continue;
+                }
+
+                $config->setUserExerciseOverrides(
+                    (int) $userId,
+                    $targetPivotId,
+                    ExerciseOverrides::from(
+                        ($overrides instanceof ExerciseOverrides ? $overrides : ExerciseOverrides::from($overrides))->toArray()
+                    )
+                );
+            }
+        }
+
+        $this->exerciseProgram->config = $config;
+        $this->exerciseProgram->save();
+        $this->exerciseProgram->refresh();
+        $this->loadExerciseData();
+        unset($this->fieldsets, $this->exercises, $this->exerciseGroupLabels);
+        app(TrainingSessionRebuildService::class)->rebuildFutureSlotsForExerciseProgram($this->exerciseProgram->id);
+        Flux::modal($this->importConfirmModalName())->close();
+
+        Flux::toast(
+            text: __('Imported :name into :section', [
+                'name' => $sourceProgram->name,
+                'section' => $this->sectionLabel($this->activeSection),
+            ]),
+            variant: 'success',
+        );
+    }
+
+    public function saveSectionExercises(): void
+    {
+        $currentRows = $this->exerciseProgram->exercises()
+            ->wherePivot('type', $this->activeSection)
+            ->get()
+            ->keyBy(fn (Exercise $exercise) => (int) $exercise->pivot->id);
+
+        $newRows = collect($this->data['section_exercises'] ?? []);
+        $currentIds = $currentRows->keys()->all();
+        $newIds = $newRows
+            ->pluck('program_exercise_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        $programExerciseIdsToRemove = array_diff($currentIds, $newIds);
+
+        if ($programExerciseIdsToRemove !== []) {
+            ExerciseProgramExercise::query()
+                ->where('exercise_program_id', $this->exerciseProgram->id)
+                ->whereIn('id', $programExerciseIdsToRemove)
+                ->delete();
+        }
 
         $config = $this->exerciseProgram->config;
         $configChanged = false;
 
-        foreach ($exercisesToRemove as $exerciseId) {
-            $config->removeExerciseOverrides($exerciseId);
+        foreach ($programExerciseIdsToRemove as $programExerciseId) {
+            $config->removeExerciseOverrides((int) $programExerciseId);
             $configChanged = true;
         }
 
-        foreach ($this->data['exercises'] as $index => $exerciseData) {
-            if (empty($exerciseData['id'])) {
+        foreach ($newRows->values() as $index => $exerciseData) {
+            $exerciseId = isset($exerciseData['id']) ? (int) $exerciseData['id'] : null;
+            if ($exerciseId === null || $exerciseId === 0) {
                 continue;
             }
 
-            $exerciseId = $exerciseData['id'];
+            $programExerciseId = isset($exerciseData['program_exercise_id']) ? (int) $exerciseData['program_exercise_id'] : null;
             $sort = $exerciseData['sort'] ?? $index;
-
             $group = ! empty($exerciseData['group']) ? $exerciseData['group'] : null;
 
-            if (in_array($exerciseId, $exercisesToAdd)) {
-                ExerciseProgramExercise::create([
+            if ($programExerciseId === null || ! $currentRows->has($programExerciseId)) {
+                $newPivot = ExerciseProgramExercise::create([
                     'exercise_program_id' => $this->exerciseProgram->id,
                     'exercise_id' => $exerciseId,
                     'sort' => $sort,
                     'group' => $group,
+                    'type' => $this->activeSection,
                 ]);
 
-                $exercise = Exercise::find($exerciseId);
-                if ($exercise) {
-                    $configArray = json_decode($exercise->getRawOriginal('config') ?? '{}', true) ?: [];
-                    $config->setDefaultExerciseOverrides($exerciseId, $this->buildExerciseOverrides($configArray));
-                    $configChanged = true;
-                }
-            } else {
-                ExerciseProgramExercise::where('exercise_program_id', $this->exerciseProgram->id)
-                    ->where('exercise_id', $exerciseId)
-                    ->update(['sort' => $sort, 'group' => $group]);
+                $this->setDefaultOverridesForExercise($config, $exerciseId, $newPivot->id);
+                $configChanged = true;
+
+                continue;
+            }
+
+            $currentExercise = $currentRows->get($programExerciseId);
+            $exerciseChanged = (int) $currentExercise->id !== $exerciseId;
+
+            ExerciseProgramExercise::query()
+                ->where('id', $programExerciseId)
+                ->update([
+                    'exercise_id' => $exerciseId,
+                    'sort' => $sort,
+                    'group' => $group,
+                    'type' => $this->activeSection,
+                ]);
+
+            if ($exerciseChanged) {
+                $this->setDefaultOverridesForExercise($config, $exerciseId, $programExerciseId);
+                $configChanged = true;
             }
         }
 
@@ -345,8 +550,21 @@ class ProgramEditor extends Component
         }
 
         $this->exerciseProgram->refresh();
-        unset($this->exercises, $this->exerciseGroupLabels);
+        unset($this->fieldsets, $this->exercises, $this->exerciseGroupLabels);
         $this->loadExerciseData();
+        app(TrainingSessionRebuildService::class)->rebuildFutureSlotsForExerciseProgram($this->exerciseProgram->id);
+    }
+
+    protected function setDefaultOverridesForExercise(ExercisePlanConfig $config, int $exerciseId, int $programExerciseId): void
+    {
+        $exercise = Exercise::find($exerciseId);
+
+        if (! $exercise) {
+            return;
+        }
+
+        $configArray = json_decode($exercise->getRawOriginal('config') ?? '{}', true) ?: [];
+        $config->setDefaultExerciseOverrides($programExerciseId, $this->buildExerciseOverrides($configArray));
     }
 
     protected function buildExerciseOverrides(array $configArray): ExerciseOverrides
@@ -413,38 +631,6 @@ class ProgramEditor extends Component
     }
 
     #[Computed]
-    public function warmProgramsForm(): Form
-    {
-        return Form::make()
-            ->fieldset('Warm Up', [
-                SelectProgram::make('warm_up_program_id')->label('Warm Up')->withOptions(fn ($q) => $q->whereNull('parent_type')->whereNull('parent_id')->where('id', '!=', $this->exerciseProgram->id)),
-            ])
-            ->fieldset('Warm Down', [
-                SelectProgram::make('warm_down_program_id')->label('Warm Down')->withOptions(fn ($q) => $q->whereNull('parent_type')->whereNull('parent_id')->where('id', '!=', $this->exerciseProgram->id)),
-            ]);
-    }
-
-    #[Computed]
-    public function warmProgramFieldsets(): array
-    {
-        return $this->warmProgramsForm->resolveFieldsets($this->data);
-    }
-
-    public function updatedDataWarmUpProgramId(): void
-    {
-        $this->exerciseProgram->update([
-            'warm_up_program_id' => $this->data['warm_up_program_id'] ?: null,
-        ]);
-    }
-
-    public function updatedDataWarmDownProgramId(): void
-    {
-        $this->exerciseProgram->update([
-            'warm_down_program_id' => $this->data['warm_down_program_id'] ?: null,
-        ]);
-    }
-
-    #[Computed]
     public function showAthleteContext(): bool
     {
         return ($this->hasAutoWeightExercises && $this->planHasBlock) || $this->hasHeartRateExercises;
@@ -456,8 +642,51 @@ class ProgramEditor extends Component
         $this->exerciseProgram->refresh();
     }
 
+    public function sectionLabel(string $section): string
+    {
+        return match ($section) {
+            'warm_up' => __('Warm Up'),
+            'warm_down' => __('Warm Down'),
+            default => __('Main'),
+        };
+    }
+
+    protected function importProgramType(): ExerciseProgramTypeEnum
+    {
+        if ($this->programType === ExerciseProgramTypeEnum::WarmUp) {
+            return ExerciseProgramTypeEnum::WarmUp;
+        }
+
+        if ($this->programType === ExerciseProgramTypeEnum::WarmDown) {
+            return ExerciseProgramTypeEnum::WarmDown;
+        }
+
+        return match ($this->activeSection) {
+            'warm_up' => ExerciseProgramTypeEnum::WarmUp,
+            'warm_down' => ExerciseProgramTypeEnum::WarmDown,
+            default => ExerciseProgramTypeEnum::Program,
+        };
+    }
+
+    protected function importSourceSection(ExerciseProgram $sourceProgram): string
+    {
+        return $sourceProgram->type === ExerciseProgramTypeEnum::Program
+            ? $this->activeSection
+            : 'main';
+    }
+
+    public function importConfirmModalName(): string
+    {
+        return 'confirm-import-program-exercises-'.$this->exerciseProgram->id.'-'.$this->planId;
+    }
+
     public function render()
     {
+        if (! in_array($this->activeSection, $this->availableSections, true)) {
+            $this->activeSection = $this->availableSections[0] ?? 'main';
+            $this->syncSectionFormData();
+        }
+
         return view('livewire.training.view.program-editor');
     }
 }

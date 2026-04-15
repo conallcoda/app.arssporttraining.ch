@@ -59,13 +59,17 @@ trait InteractsWithFormData
 
         if (str_starts_with($property, 'data.')) {
             unset($this->fieldsets);
-            $this->syncConditionalFieldData();
+            $this->syncConditionalFieldData($property);
             unset($this->fieldsets);
         }
     }
 
-    protected function syncConditionalFieldData(): void
+    protected function syncConditionalFieldData(?string $updatedProperty = null): void
     {
+        $updatedKey = $updatedProperty !== null && str_starts_with($updatedProperty, 'data.')
+            ? substr($updatedProperty, 5)
+            : null;
+
         foreach ($this->flatFieldsets() as $fieldset) {
             $prefix = $this->getFieldsetDataPrefix($fieldset);
 
@@ -84,7 +88,7 @@ trait InteractsWithFormData
                 $key = $prefix ? "{$prefix}.{$field->name}" : $field->name;
                 $currentValue = data_get($this->data, $key);
 
-                if ($currentValue !== null && method_exists($field, 'resolveDefault') && ! empty($field->defaultMap)) {
+                if ($key !== $updatedKey && $currentValue !== null && method_exists($field, 'resolveDefault') && ! empty($field->defaultMap)) {
                     $siblingData = $prefix ? (data_get($this->data, $prefix) ?? []) : $this->data;
                     $resolvedDefault = $field->resolveDefault($siblingData);
 

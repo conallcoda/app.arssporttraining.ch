@@ -144,6 +144,21 @@ class ExerciseList extends AbstractModelList
                         ->placeholder(__('Filter by tags...'))
                         ->options(Tag::query()->forScope($tagScope)->pluck('name', 'id')->all())
                 ),
+            TableFilter::callback('modifiers', function (Builder $query, mixed $value): void {
+                $ids = is_array($value) ? array_filter($value) : [];
+
+                if (empty($ids)) {
+                    return;
+                }
+
+                $query->whereHas('modifiers', fn (Builder $q) => $q->whereIn('tags.id', $ids));
+            })
+                ->field(
+                    (new Pillbox('modifiers'))
+                        ->label(__('Modifiers'))
+                        ->placeholder(__('Filter by modifiers...'))
+                        ->options(Tag::query()->forScope('exercise_modifiers')->orderBy('name')->pluck('name', 'id')->all())
+                ),
         ];
 
         if ($this->selectedTab === 'all') {

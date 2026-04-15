@@ -38,7 +38,7 @@
         @endif
     </x-athlete.page-tabs>
 
-    <div class="mx-auto max-w-2xl px-2 py-6 sm:px-4 sm:py-8">
+    <div class="mx-auto max-w-2xl px-2 py-0 sm:px-4 sm:py-0">
         @if ($calendarView === 'day')
             <livewire:athlete.day-schedule :date="$this->selectedDateValue" :show-readiness="false" />
         @elseif ($calendarView === 'week')

@@ -129,6 +129,12 @@
     </div>
 @endif
 
+@include('cms::model-list.partials._lightbox', [
+    'titleField' => $titleField,
+    'bodyFields' => $bodyFields,
+    'imageField' => $imageField,
+])
+
 <div class="[&_[data-flux-pagination]]:!border-t-0">
     @include('cms::model-list.partials._pagination')
 </div>

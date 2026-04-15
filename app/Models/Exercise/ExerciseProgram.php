@@ -4,6 +4,7 @@ namespace App\Models\Exercise;
 
 use App\Data\Training\Config\ExercisePlanConfig;
 use App\Models\Tag;
+use App\Observers\ExerciseProgramObserver;
 use Coda\Cms\Models\Concerns\HasOwner;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;
 use Coda\Cms\Models\Concerns\HasTags;
@@ -35,6 +36,7 @@ class ExerciseProgram extends Model implements Taggable
 
     protected $fillable = [
         'name',
+        'type',
         'exercise_category_id',
         'warm_up_program_id',
         'warm_down_program_id',
@@ -55,6 +57,13 @@ class ExerciseProgram extends Model implements Taggable
                 $value instanceof ExercisePlanConfig ? $value->toArray() : $value
             ),
         );
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'type' => ExerciseProgramTypeEnum::class,
+        ];
     }
 
     public function parent(): MorphTo
@@ -86,7 +95,7 @@ class ExerciseProgram extends Model implements Taggable
     {
         return $this->belongsToMany(Exercise::class, 'exercise_program_exercises')
             ->using(ExerciseProgramExercise::class)
-            ->withPivot(['id', 'sort', 'group'])
+            ->withPivot(['id', 'sort', 'group', 'type'])
             ->orderByPivot('sort')
             ->withTimestamps();
     }
@@ -96,31 +105,63 @@ class ExerciseProgram extends Model implements Taggable
         $clone = $this->replicate(['id']);
 
         $config = $clone->config;
-        foreach ($config->exercises as $exerciseId => $overrides) {
-            $overrides = $config->defaultExerciseOverrides($exerciseId);
+        foreach (array_keys($config->exercises) as $programExerciseId) {
+            $overrides = $config->defaultExerciseOverrides((int) $programExerciseId);
             if ($overrides->hasAnyGridOverrides()) {
                 $overrides->baselineGridOverrides = $overrides->gridOverrides;
-                $config->setDefaultExerciseOverrides($exerciseId, $overrides);
+                $config->setDefaultExerciseOverrides((int) $programExerciseId, $overrides);
             }
         }
-        $clone->config = $config;
 
         $clone->save();
 
-        foreach ($this->exercises()->withPivot('sort')->get() as $exercise) {
-            ExerciseProgramExercise::create([
+        $pivotIdMap = [];
+
+        foreach ($this->exercises()->withPivot(['id', 'sort', 'group', 'type'])->get() as $exercise) {
+            $newPivot = ExerciseProgramExercise::create([
                 'exercise_program_id' => $clone->id,
                 'exercise_id' => $exercise->id,
                 'sort' => $exercise->pivot->sort ?? 0,
                 'group' => $exercise->pivot->group,
+                'type' => $exercise->pivot->type ?? 'main',
             ]);
+
+            $pivotIdMap[(int) $exercise->pivot->id] = $newPivot->id;
         }
+
+        $cloneConfig = $clone->config;
+        $cloneConfig->exercises = $this->remapOverrideCollection($cloneConfig->exercises, $pivotIdMap);
+
+        $userExercises = [];
+        foreach ($cloneConfig->userExercises as $userId => $overrides) {
+            $userExercises[$userId] = $this->remapOverrideCollection($overrides, $pivotIdMap);
+        }
+        $cloneConfig->userExercises = $userExercises;
+        $clone->config = $cloneConfig;
+        $clone->save();
 
         return $clone;
     }
 
+    private function remapOverrideCollection(array $overrides, array $pivotIdMap): array
+    {
+        $remapped = [];
+
+        foreach ($overrides as $programExerciseId => $data) {
+            $newProgramExerciseId = $pivotIdMap[(int) $programExerciseId] ?? null;
+
+            if ($newProgramExerciseId === null) {
+                continue;
+            }
+
+            $remapped[$newProgramExerciseId] = $data;
+        }
+
+        return $remapped;
+    }
+
     protected static function booted(): void
     {
-        static::observe(\App\Observers\ExerciseProgramObserver::class);
+        static::observe(ExerciseProgramObserver::class);
     }
 }

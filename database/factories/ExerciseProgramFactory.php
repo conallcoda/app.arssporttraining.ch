@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Exercise\ExerciseProgram;
+use App\Models\Exercise\ExerciseProgramTypeEnum;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -16,6 +17,7 @@ class ExerciseProgramFactory extends Factory
     {
         return [
             'name' => fake()->words(2, true),
+            'type' => ExerciseProgramTypeEnum::Program,
         ];
     }
 }

@@ -136,7 +136,10 @@
                     </tr>
                 </thead>
                 <tbody x-show="!expandedAll">
-                    @php $runningSessionCounter = 0; @endphp
+                    @php
+                        $runningSessionCounter = 0;
+                        $cumulativeSessionStart = 0;
+                    @endphp
                     @for ($week = 0; $week < $grid->weekCount; $week++)
                         @php
                             $weekSessionCount = $weekSessions[$week] ?? $grid->sessionsPerWeek;
@@ -160,9 +163,9 @@
                                             </td>
                                         @endif
                                         @if ($isFirstRow)
-                                            <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 text-center bg-zinc-100 dark:bg-zinc-700/50 text-xs font-medium {{ $sessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}"
+                                            <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 text-center text-xs font-medium {{ $sessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}"
                                                 rowspan="{{ count($grid->rows) }}">
-                                                {{ $session + 1 }}
+                                                {{ $cumulativeSessionStart + $session + 1 }}
                                             </td>
                                         @endif
                                         @php $settingKey = match($row->field) { 'oneRepMax' => 'weight', default => Str::snake($row->field) }; @endphp
@@ -272,20 +275,27 @@
                                 @if ($showWeekColumn)
                                     <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle text-center">
                                         <div class="whitespace-nowrap">{!! $weekLabels[$week] ?? 'TW' . ($week + 1) !!}</div>
-                                        @if ($sessionLabels)
+                                        @if ($sessionLabels && ! $showSessionColumn)
                                             @for ($s = 1; $s <= $weekSessionCount; $s++)
                                                 <div class="text-[10px] font-normal text-zinc-400 dark:text-zinc-500 whitespace-nowrap">{{ __('Session') }} {{ $runningSessionCounter + $s }}</div>
                                             @endfor
-                                            @php $runningSessionCounter += $weekSessionCount; @endphp
-                                        @elseif ($weekSessionCount > 1)
+                                        @elseif (! $sessionLabels && $weekSessionCount > 1)
                                             <div class="text-[10px] font-normal text-zinc-400 dark:text-zinc-500 whitespace-nowrap">({{ $weekSessionCount }} {{ __('sessions') }})</div>
-                                        @elseif ($weekSessions !== null)
+                                        @elseif (! $sessionLabels && $weekSessions !== null)
                                             <div class="text-[10px] font-normal text-zinc-400 dark:text-zinc-500 whitespace-nowrap">({{ $weekSessionCount }} {{ __('session') }})</div>
+                                        @endif
+                                        @if ($sessionLabels)
+                                            @php $runningSessionCounter += $weekSessionCount; @endphp
                                         @endif
                                     </td>
                                 @endif
                                 @if ($showSessionColumn)
-                                    <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 bg-zinc-50/70 dark:bg-zinc-800/30"></td>
+                                    @php
+                                        $rangeStart = $cumulativeSessionStart + 1;
+                                        $rangeEnd = $cumulativeSessionStart + $weekSessionCount;
+                                        $sessionRangeLabel = $rangeStart === $rangeEnd ? (string) $rangeStart : $rangeStart.'-'.$rangeEnd;
+                                    @endphp
+                                    <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 text-center text-xs font-medium text-zinc-400 dark:text-zinc-500">{{ $sessionRangeLabel }}</td>
                                 @endif
                                 @foreach ($grid->weekColumns as $weekCol)
                                     @php
@@ -345,21 +355,28 @@
                                         <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle text-center"
                                             rowspan="{{ count($grid->rows) }}">
                                             <div class="whitespace-nowrap">{!! $weekLabels[$week] ?? 'TW' . ($week + 1) !!}</div>
-                                            @if ($sessionLabels)
+                                            @if ($sessionLabels && ! $showSessionColumn)
                                                 @for ($s = 1; $s <= $weekSessionCount; $s++)
                                                     <div class="text-[10px] font-normal text-zinc-400 dark:text-zinc-500 whitespace-nowrap">{{ __('Session') }} {{ $runningSessionCounter + $s }}</div>
                                                 @endfor
-                                                @php $runningSessionCounter += $weekSessionCount; @endphp
-                                            @elseif ($weekSessionCount > 1)
+                                            @elseif (! $sessionLabels && $weekSessionCount > 1)
                                                 <div class="text-[10px] font-normal text-zinc-400 dark:text-zinc-500 whitespace-nowrap">({{ $weekSessionCount }} {{ __('sessions') }})</div>
-                                            @elseif ($weekSessions !== null)
+                                            @elseif (! $sessionLabels && $weekSessions !== null)
                                                 <div class="text-[10px] font-normal text-zinc-400 dark:text-zinc-500 whitespace-nowrap">({{ $weekSessionCount }} {{ __('session') }})</div>
+                                            @endif
+                                            @if ($sessionLabels)
+                                                @php $runningSessionCounter += $weekSessionCount; @endphp
                                             @endif
                                         </td>
                                     @endif
                                     @if ($showSessionColumn && $rowIdx === 0)
-                                        <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 bg-zinc-50/70 dark:bg-zinc-800/30"
-                                            rowspan="{{ count($grid->rows) }}"></td>
+                                        @php
+                                            $rangeStart = $cumulativeSessionStart + 1;
+                                            $rangeEnd = $cumulativeSessionStart + $weekSessionCount;
+                                            $sessionRangeLabel = $rangeStart === $rangeEnd ? (string) $rangeStart : $rangeStart.'-'.$rangeEnd;
+                                        @endphp
+                                        <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 text-center text-xs font-medium text-zinc-400 dark:text-zinc-500"
+                                            rowspan="{{ count($grid->rows) }}">{{ $sessionRangeLabel }}</td>
                                     @endif
                                     @php $settingKey = match($row->field) { 'oneRepMax' => 'weight', default => Str::snake($row->field) }; @endphp
                                     @if ($settingClickable)
@@ -457,9 +474,11 @@
                                 </tr>
                             @endforeach
                         @endif
+                        @php $cumulativeSessionStart += $weekSessionCount; @endphp
                     @endfor
                 </tbody>
                 <tbody x-show="expandedAll" x-cloak>
+                    @php $cumulativeSessionStart = 0; @endphp
                     @for ($week = 0; $week < $grid->weekCount; $week++)
                         @php
                             $weekSessionCount = $weekSessions[$week] ?? $grid->sessionsPerWeek;
@@ -474,7 +493,12 @@
                                     </td>
                                 @endif
                                 @if ($showSessionColumn)
-                                    <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 bg-zinc-50/70 dark:bg-zinc-800/30"></td>
+                                    @php
+                                        $rangeStart = $cumulativeSessionStart + 1;
+                                        $rangeEnd = $cumulativeSessionStart + $weekSessionCount;
+                                        $sessionRangeLabel = $rangeStart === $rangeEnd ? (string) $rangeStart : $rangeStart.'-'.$rangeEnd;
+                                    @endphp
+                                    <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 text-center text-xs font-medium text-zinc-400 dark:text-zinc-500">{{ $sessionRangeLabel }}</td>
                                 @endif
                                 @foreach ($grid->weekColumns as $weekCol)
                                     @php
@@ -542,9 +566,9 @@
                                         </td>
                                     @endif
                                     @if ($isFirstRow)
-                                        <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 text-center bg-zinc-100 dark:bg-zinc-700/50 text-xs font-medium {{ $sessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}"
+                                        <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 text-center text-xs font-medium {{ $sessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}"
                                             rowspan="{{ count($grid->rows) }}">
-                                            {{ $session + 1 }}
+                                            {{ $cumulativeSessionStart + $session + 1 }}
                                         </td>
                                     @endif
                                     @php $settingKey = match($row->field) { 'oneRepMax' => 'weight', default => Str::snake($row->field) }; @endphp
@@ -654,6 +678,7 @@
                             @endforeach
                         @endfor
                         @endif
+                        @php $cumulativeSessionStart += $weekSessionCount; @endphp
                     @endfor
                 </tbody>
             </table>

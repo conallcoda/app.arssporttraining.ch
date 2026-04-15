@@ -1,14 +1,25 @@
 @php
+    use Coda\Cms\Display\DisplayFields\View as ViewColumn;
+
     $overlayViewOverride = $this->masonryOverlayView;
     $cardViewOverride = $this->cardView;
 @endphp
 
-<div class="[column-width:var(--cms-card-width,220px)] [column-gap:4px] supports-[grid-template-rows:masonry]:grid supports-[grid-template-rows:masonry]:grid-cols-[repeat(auto-fill,minmax(var(--cms-card-width,220px),1fr))] supports-[grid-template-rows:masonry]:[grid-template-rows:masonry] supports-[grid-template-rows:masonry]:gap-1"
-     style="--cms-card-width: {{ $cardWidth }}px;">
+<div x-data="cmsMasonry({{ (int) $cardWidth }}, 4)"
+     wire:ignore.self
+     class="w-full relative">
     @foreach ($this->items as $model)
         @php
             $item = $this->dataFromModel($model);
             $imageUrl = $imageField ? ($item->{$imageField->field} ?? null) : null;
+
+            $titleLinkUrl = null;
+            $titleModalField = null;
+            if ($titleField instanceof ViewColumn && $titleField->getViewRouteName()) {
+                $titleLinkUrl = route($titleField->getViewRouteName(), $model);
+            } elseif ($titleField && property_exists($titleField, 'modalField') && $titleField->modalField) {
+                $titleModalField = $titleField->modalField;
+            }
         @endphp
 
         @if ($cardViewOverride)
@@ -22,7 +33,9 @@
             ])
         @else
             <div wire:key="masonry-{{ $item->id }}-{{ $this->refreshKey }}"
-                 class="break-inside-avoid mb-1 block supports-[grid-template-rows:masonry]:mb-0 group relative overflow-hidden">
+                 wire:ignore.self
+                 data-masonry-item
+                 class="group absolute top-0 left-0 overflow-hidden">
                 @if ($imageUrl)
                     <img src="{{ $imageUrl }}" alt="" class="w-full h-auto block" loading="lazy" />
                 @else
@@ -53,8 +66,28 @@
                     </div>
                 @endif
 
-                @if (count($this->rowActions) > 0 || count($this->rowMenuActions) > 0)
-                    <div class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5">
+                @if ($titleLinkUrl)
+                    <a href="{{ $titleLinkUrl }}"
+                       aria-label="{{ $item->{$titleField->field} ?? '' }}"
+                       class="absolute inset-0 z-[1]"></a>
+                @elseif ($titleModalField)
+                    <button type="button"
+                        class="absolute inset-0 z-[1] cursor-pointer bg-transparent border-0 p-0 m-0 appearance-none"
+                        aria-label="{{ $item->{$titleField->field} ?? '' }}"
+                        x-on:click="Livewire.dispatch('open-{{ $this->editModalName }}', {
+                            data: {{ Js::from($item->toArray()) }},
+                            title: 'Edit {{ $entityName }}',
+                            focusField: '{{ $titleModalField }}'
+                        })"></button>
+                @endif
+
+                @if ($imageUrl || count($this->rowActions) > 0 || count($this->rowMenuActions) > 0)
+                    <div class="absolute top-1 right-1 z-[2] opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5">
+                        @if ($imageUrl)
+                            <flux:button variant="filled" size="xs" icon="eye"
+                                x-on:click="$dispatch('open-lightbox', { index: {{ $loop->index }} })" />
+                        @endif
+
                         @foreach ($this->rowActions as $action)
                             @if (! $action->isVisible($item))
                                 @continue

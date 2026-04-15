@@ -2,6 +2,7 @@
 
 namespace App\Models\Exercise;
 
+use App\Observers\ExerciseProgramExerciseObserver;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 
@@ -16,6 +17,7 @@ class ExerciseProgramExercise extends Pivot
         'exercise_id',
         'sort',
         'group',
+        'type',
     ];
 
     public function exerciseProgram(): BelongsTo
@@ -30,6 +32,6 @@ class ExerciseProgramExercise extends Pivot
 
     protected static function booted(): void
     {
-        static::observe(\App\Observers\ExerciseProgramExerciseObserver::class);
+        static::observe(ExerciseProgramExerciseObserver::class);
     }
 }

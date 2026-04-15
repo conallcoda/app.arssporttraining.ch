@@ -4,6 +4,7 @@ namespace App\Livewire\Athlete;
 
 use App\Data\Athlete\ScheduledProgramData;
 use App\Models\Training\TrainingProgramSlot;
+use App\Support\AthleteDashboardDate;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\App;
 use Illuminate\View\View;
@@ -18,13 +19,15 @@ class DaySchedule extends Component
 
     public bool $showReadiness = true;
 
+    public string $scheduleFilter = 'today';
+
     public ?int $readinessScore = null;
 
     public ?string $readinessLabel = null;
 
     public ?string $readinessColor = null;
 
-    public function mount(string $date, string $viewMode = 'day', bool $showReadiness = true, ?int $readinessScore = null, ?string $readinessLabel = null, ?string $readinessColor = null): void
+    public function mount(string $date, string $viewMode = 'day', bool $showReadiness = true, ?int $readinessScore = null, ?string $readinessLabel = null, ?string $readinessColor = null, string $scheduleFilter = 'today'): void
     {
         $this->date = $date;
         $this->viewMode = $viewMode;
@@ -32,6 +35,7 @@ class DaySchedule extends Component
         $this->readinessScore = $readinessScore;
         $this->readinessLabel = $readinessLabel;
         $this->readinessColor = $readinessColor;
+        $this->scheduleFilter = in_array($scheduleFilter, ['today', 'unrecorded'], true) ? $scheduleFilter : 'today';
     }
 
     #[On('readiness-updated')]
@@ -46,6 +50,7 @@ class DaySchedule extends Component
     {
         $requireReadinessForTrainingVisibility = (bool) config('athlete.require_readiness_for_training_visibility', true);
         $selectedDate = CarbonImmutable::parse($this->date);
+        $dashboardToday = AthleteDashboardDate::today();
 
         $rangeStart = $this->viewMode === 'week'
             ? $selectedDate->startOfWeek()
@@ -56,18 +61,43 @@ class DaySchedule extends Component
             : $selectedDate;
 
         $slots = TrainingProgramSlot::query()
-            ->with(['trainingProgram.program.exerciseCategory', 'trainingProgram.program.exercises'])
+            ->with(['trainingProgram.program.exerciseCategory', 'trainingProgram.program.exercises', 'exercises'])
             ->where('user_id', auth()->id())
-            ->whereBetween('datetime', [
-                $rangeStart->startOfDay(),
-                $rangeEnd->endOfDay(),
-            ])
-            ->orderBy('datetime')
+            ->when(
+                $this->scheduleFilter === 'unrecorded',
+                fn ($query) => $query
+                    ->where('datetime', '<', $dashboardToday->startOfDay())
+                    ->orderByDesc('datetime'),
+                fn ($query) => $query
+                    ->whereBetween('datetime', [
+                        $rangeStart->startOfDay(),
+                        $rangeEnd->endOfDay(),
+                    ])
+                    ->orderBy('datetime')
+            )
             ->get();
 
         $days = collect();
 
-        if ($this->viewMode === 'week') {
+        if ($this->scheduleFilter === 'unrecorded') {
+            $days = $slots
+                ->map(fn (TrainingProgramSlot $slot) => [
+                    'date' => $slot->datetime->format('Y-m-d'),
+                    'datetime' => $slot->datetime,
+                    'program' => ScheduledProgramData::fromSlot($slot),
+                ])
+                ->filter(fn (array $row) => $row['program']->exerciseCount > 0)
+                ->filter(fn (array $row) => $row['program']->recordedExerciseCount < $row['program']->totalExerciseCount)
+                ->groupBy('date')
+                ->map(fn ($rows, string $dateKey) => [
+                    'date' => $dateKey,
+                    'formattedDate' => CarbonImmutable::parse($dateKey)->locale(App::currentLocale())->translatedFormat('l, d.m.Y'),
+                    'sessionCount' => $rows->count(),
+                    'programs' => $rows->sortByDesc(fn (array $row) => $row['datetime'])->pluck('program')->values(),
+                ])
+                ->sortByDesc('date')
+                ->values();
+        } elseif ($this->viewMode === 'week') {
             $currentDate = $rangeStart;
 
             while ($currentDate->lte($rangeEnd)) {
@@ -84,8 +114,7 @@ class DaySchedule extends Component
                         'date' => $dateKey,
                         'formattedDate' => $currentDate->locale(App::currentLocale())->translatedFormat('l, d.m.Y'),
                         'sessionCount' => $dayPrograms->count(),
-                        'amPrograms' => $dayPrograms->filter(fn (ScheduledProgramData $program) => $program->period === 'am')->values(),
-                        'pmPrograms' => $dayPrograms->filter(fn (ScheduledProgramData $program) => $program->period === 'pm')->values(),
+                        'programs' => $dayPrograms,
                     ]);
                 }
 
@@ -101,8 +130,7 @@ class DaySchedule extends Component
                 'date' => $selectedDate->format('Y-m-d'),
                 'formattedDate' => $selectedDate->locale(App::currentLocale())->translatedFormat('l, d.m.Y'),
                 'sessionCount' => $programs->count(),
-                'amPrograms' => $programs->filter(fn (ScheduledProgramData $program) => $program->period === 'am')->values(),
-                'pmPrograms' => $programs->filter(fn (ScheduledProgramData $program) => $program->period === 'pm')->values(),
+                'programs' => $programs,
             ]);
         }
 
@@ -114,9 +142,11 @@ class DaySchedule extends Component
             'canShowTraining' => ! $this->showReadiness
                 || ! $requireReadinessForTrainingVisibility
                 || $this->readinessScore !== null,
-            'emptyStateMessage' => $this->viewMode === 'week'
-                ? 'No training programs for this week.'
-                : 'No training programs for this day.',
+            'emptyStateMessage' => $this->scheduleFilter === 'unrecorded'
+                ? 'No unrecorded training sessions before today.'
+                : ($this->viewMode === 'week'
+                    ? 'No training programs for this week.'
+                    : 'No training programs for this day.'),
         ]);
     }
 }

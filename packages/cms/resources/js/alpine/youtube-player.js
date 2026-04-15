@@ -2,6 +2,7 @@ document.addEventListener('alpine:init', () => {
     Alpine.data('youtube_player', () => ({
         videoId: '',
         videoUrl: '',
+        aspectMode: 'landscape',
 
         extractVideoId(url) {
             if (!url) {
@@ -22,6 +23,36 @@ document.addEventListener('alpine:init', () => {
             return null;
         },
 
+        detectAspectMode(url) {
+            if (!url) {
+                return 'landscape';
+            }
+
+            return /(?:youtube\.com\/shorts\/|youtu\.be\/shorts\/)/i.test(url)
+                ? 'portrait'
+                : 'landscape';
+        },
+
+        setAspectMode(mode) {
+            if (!['portrait', 'landscape'].includes(mode)) {
+                return;
+            }
+
+            this.aspectMode = mode;
+        },
+
+        resetPlayer() {
+            this.videoId = '';
+            this.videoUrl = '';
+            this.aspectMode = 'landscape';
+        },
+
+        frameClass() {
+            return this.aspectMode === 'portrait'
+                ? 'aspect-[9/16] max-w-sm sm:max-w-md'
+                : 'aspect-video max-w-full';
+        },
+
         openVideo(url) {
             const id = this.extractVideoId(url);
             if (!id) {
@@ -33,6 +64,7 @@ document.addEventListener('alpine:init', () => {
 
             this.videoUrl = url;
             this.videoId = id;
+            this.aspectMode = this.detectAspectMode(url);
             Flux.modal('youtube-player').show();
         },
 

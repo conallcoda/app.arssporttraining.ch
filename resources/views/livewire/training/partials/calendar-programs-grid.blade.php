@@ -317,7 +317,9 @@
                         $colorClass = $categoryColor
                             ? \Coda\Cms\Support\ColorPalette::solidClasses($categoryColor)
                             : '';
-                        $exercises = $entry->program->exercises->sortBy('pivot.sort');
+                        $exercises = $entry->program->exercises
+                            ->filter(fn ($exercise) => ($exercise->pivot->type ?? 'main') === 'main')
+                            ->sortBy('pivot.sort');
                     @endphp
                     <tr wire:key="program-{{ $entry->id }}" x-show="expanded" x-cloak class="group/program">
                         <td
@@ -348,8 +350,8 @@
                                         <label wire:key="exercise-check-{{ $exercise->pivot->id }}" class="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400 cursor-pointer">
                                             <input
                                                 type="checkbox"
-                                                wire:click="toggleExerciseDisabled({{ $exercise->id }}, {{ $entry->exercise_program_id }})"
-                                                @if (!$this->isExerciseDisabled($exercise->id, $entry->program)) checked @endif
+                                                wire:click="toggleExerciseDisabled({{ $exercise->pivot->id }}, {{ $entry->exercise_program_id }})"
+                                                @if (!$this->isExerciseDisabled($exercise->pivot->id, $entry->program)) checked @endif
                                                 class="rounded border-zinc-300 dark:border-zinc-600 text-zinc-800 dark:text-white focus:ring-zinc-500 dark:bg-zinc-700"
                                             />
                                             {{ $exercise->name }}

@@ -7,6 +7,7 @@ use App\Data\Training\Calendar\CalendarSettingsData;
 use App\Livewire\Training\Concerns\WithCalendarPlan;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
+use App\Models\Exercise\ExerciseProgramTypeEnum;
 use App\Models\Training\TrainingProgram;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
@@ -566,6 +567,7 @@ class CalendarIndex extends Component
         return match ($this->addContentTab) {
             'program' => ExerciseProgram::query()
                 ->with('exerciseCategory:id,name,color')
+                ->where('type', ExerciseProgramTypeEnum::Program)
                 ->whereNull('parent_id')
                 ->whereNull('parent_type')
                 ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%"))

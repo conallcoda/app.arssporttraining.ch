@@ -12,6 +12,8 @@ document.addEventListener('alpine:init', () => {
             gridCellsUrl: config.gridCellsUrl || '/admin/api/program-grid-cells',
             slotDetailsUrl: config.slotDetailsUrl || '/admin/api/slot-details',
             days: config.days || [],
+            athleteSlotOrder: config.athleteSlotOrder || {},
+            statusBarColors: config.statusBarColors || {},
             wireId,
 
             open: false,
@@ -91,6 +93,11 @@ document.addEventListener('alpine:init', () => {
             },
 
             getCellSession(programId, date) {
+                let key = programId + '-' + date
+                if (this.athleteSlotOrder[key] !== undefined) {
+                    return this.athleteSlotOrder[key]
+                }
+
                 return this.getCell(programId, date).session || null
             },
 
@@ -98,34 +105,20 @@ document.addEventListener('alpine:init', () => {
                 return this.getCell(programId, date).status || 'pending'
             },
 
-            getCellStatusClasses(programId, date) {
-                switch (this.getCellStatus(programId, date)) {
-                    case 'completed':
-                        return 'border-2 border-emerald-300 dark:border-emerald-400'
-                    case 'partially_completed':
-                        return 'border-2 border-amber-300 dark:border-amber-400'
-                    case 'skipped':
-                        return 'border-2 border-zinc-300 dark:border-zinc-500'
-                    case 'cancelled':
-                        return 'border-2 border-rose-300 dark:border-rose-400'
-                    default:
-                        return 'border-2 border-transparent'
+            getCellStatusStyle(programId, date) {
+                let status = this.getCellStatus(programId, date)
+                let colors = this.statusBarColors[status] || this.statusBarColors.pending || null
+                if (!colors) return {}
+
+                return {
+                    '--status-bar-light': colors.light,
+                    '--status-bar-dark': colors.dark,
                 }
             },
 
             getCellStatusLabel(programId, date) {
-                switch (this.getCellStatus(programId, date)) {
-                    case 'completed':
-                        return 'Completed'
-                    case 'partially_completed':
-                        return 'Partially completed'
-                    case 'skipped':
-                        return 'Skipped'
-                    case 'cancelled':
-                        return 'Cancelled'
-                    default:
-                        return 'Pending'
-                }
+                let status = this.getCellStatus(programId, date)
+                return (this.statusBarColors[status] && this.statusBarColors[status].label) || 'Pending'
             },
 
             hasCategoryData(programIds, date) {

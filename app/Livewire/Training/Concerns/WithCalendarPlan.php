@@ -7,7 +7,6 @@ use App\Data\Athlete\Metric\MetricSubmissionData;
 use App\Models\Athlete\MetricSubmission;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramBlock;
-use App\Models\Training\TrainingProgramBlockTypeEnum;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\UserGroup;
 use App\Training\CalendarBlockService;
@@ -311,7 +310,7 @@ trait WithCalendarPlan
             return false;
         }
 
-        foreach ($program->program->exercises as $exercise) {
+        foreach ($program->program->exercises->filter(fn ($exercise) => ($exercise->pivot->type ?? 'main') === 'main') as $exercise) {
             $config = $exercise->config;
             if (in_array('weight', $config->settings ?? [])
                 && ($config->weight?->mode ?? 'manual') === 'automatic') {
@@ -330,7 +329,7 @@ trait WithCalendarPlan
             return false;
         }
 
-        foreach ($program->program->exercises as $exercise) {
+        foreach ($program->program->exercises->filter(fn ($exercise) => ($exercise->pivot->type ?? 'main') === 'main') as $exercise) {
             $config = $exercise->config;
             $settings = $config->settings ?? [];
             if (in_array('heartRate', $settings) || in_array('heartRateZone', $settings)) {

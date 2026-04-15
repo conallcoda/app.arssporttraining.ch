@@ -2,9 +2,10 @@
     [$gridStart, $gridEnd] = $this->dateRange();
     $dayCellWidth = 32;
     $dayCellStyle = "width: {$dayCellWidth}px; min-width: {$dayCellWidth}px; max-width: {$dayCellWidth}px;";
+    $statusBarColors = \App\Models\Training\TrainingProgramSlotStatusEnum::barColorMap();
 @endphp
 <div>
-<div class="overflow-x-auto" wire:key="grid-{{ $this->groupId }}-{{ $this->userId ?? 'group' }}" x-data="calendar_slot_popover({ groupId: '{{ $this->groupId }}', userId: '{{ $this->userId ?? '' }}', startDate: '{{ $gridStart->format('Y-m-d') }}', endDate: '{{ $gridEnd->format('Y-m-d') }}', gridCellsUrl: '{{ route('api.program-grid-cells') }}', slotDetailsUrl: '{{ route('api.slot-details') }}', days: {{ \Illuminate\Support\Js::from($this->days) }}, wireId: '{{ $this->getId() }}' })">
+<div class="overflow-x-auto" wire:key="grid-{{ $this->groupId }}-{{ $this->userId ?? 'group' }}-{{ md5(json_encode($this->athleteSlotOrder)) }}" x-data="calendar_slot_popover({ groupId: '{{ $this->groupId }}', userId: '{{ $this->userId ?? '' }}', startDate: '{{ $gridStart->format('Y-m-d') }}', endDate: '{{ $gridEnd->format('Y-m-d') }}', gridCellsUrl: '{{ route('api.program-grid-cells') }}', slotDetailsUrl: '{{ route('api.slot-details') }}', days: {{ \Illuminate\Support\Js::from($this->days) }}, athleteSlotOrder: {{ \Illuminate\Support\Js::from($this->athleteSlotOrder) }}, statusBarColors: {{ \Illuminate\Support\Js::from($statusBarColors) }}, wireId: '{{ $this->getId() }}' })">
     <table class="border-separate border-spacing-0 text-sm border-t border-l border-zinc-300 dark:border-zinc-600">
         <colgroup>
             <col>
@@ -110,7 +111,7 @@
                         <td class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0.5"
                             style="{{ $dayCellStyle }}"
                             :class="day.oddWeek ? 'bg-zinc-50/50 dark:bg-zinc-700/10' : ''">
-                            <div class="aspect-square box-border rounded-sm border-2 border-transparent bg-clip-padding"
+                            <div class="aspect-square rounded-sm"
                                 :class="metricSummaryDates[day.date] !== undefined && 'bg-zinc-300 dark:bg-zinc-700'"></div>
                         </td>
                     </template>
@@ -167,7 +168,7 @@
                                             ? $wire.openMetricCell('{{ $metricCase->value }}', day.date)
                                             : $wire.openGroupMetricCell('{{ $metricCase->value }}', day.date))">
                                     <div x-show="metricData[day.date]"
-                                        class="w-full aspect-square box-border flex items-center justify-center border-2 border-transparent bg-clip-padding text-[10px] font-medium text-white rounded-sm bg-zinc-500/80 dark:bg-zinc-500/60"
+                                        class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm bg-zinc-500/80 dark:bg-zinc-500/60"
                                         x-text="metricData[day.date]?.label ?? metricData[day.date]?.count ?? ''">
                                     </div>
                                     <div x-show="!metricData[day.date]"
@@ -308,7 +309,7 @@
                             @mouseover="!blockDayMap[dayIdx] && dragOver(dayIdx, day.date)"
                             @contextmenu="!blockDayMap[dayIdx] && showContextMenu($event, dayIdx, day.date)"
                             @click="blockDayMap[dayIdx] && $wire.editBlock(blockDayMap[dayIdx].id)">
-                            <div class="aspect-square box-border rounded-sm border-2 border-transparent bg-clip-padding"
+                            <div class="aspect-square rounded-sm"
                                 :class="hasCategoryData({{ json_encode($categoryProgramIds) }}, day.date) && '{{ $categoryColorClass }}'"></div>
                         </td>
                     </template>
@@ -320,7 +321,9 @@
                         $colorClass = $categoryColor
                             ? \Coda\Cms\Support\ColorPalette::solidClasses($categoryColor)
                             : '';
-                        $exercises = $entry->program->exercises->sortBy('pivot.sort');
+                        $exercises = $entry->program->exercises
+                            ->filter(fn ($exercise) => ($exercise->pivot->type ?? 'main') === 'main')
+                            ->sortBy('pivot.sort');
                     @endphp
                     <tr wire:key="program-{{ $entry->id }}" x-show="expanded" x-cloak class="group/program">
                         <td
@@ -351,8 +354,8 @@
                                         <label wire:key="exercise-check-{{ $exercise->pivot->id }}" class="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400 cursor-pointer">
                                             <input
                                                 type="checkbox"
-                                                wire:click="toggleExerciseDisabled({{ $exercise->id }}, {{ $entry->exercise_program_id }})"
-                                                @if (!$this->isExerciseDisabled($exercise->id, $entry->program)) checked @endif
+                                                wire:click="toggleExerciseDisabled({{ $exercise->pivot->id }}, {{ $entry->exercise_program_id }})"
+                                                @if (!$this->isExerciseDisabled($exercise->pivot->id, $entry->program)) checked @endif
                                                 class="rounded border-zinc-300 dark:border-zinc-600 text-zinc-800 dark:text-white focus:ring-zinc-500 dark:bg-zinc-700"
                                             />
                                             {{ $exercise->name }}
@@ -373,8 +376,8 @@
                                         x-cloak
                                         type="button"
                                         @click.stop="let _t = getCellTime({{ $entry->id }}, day.date); _t ? $wire.editWeekSlot({{ $entry->id }}, day.date, _t) : $wire.openProgramSlot({{ $entry->id }}, day.date)"
-                                        class="relative box-border w-full aspect-square flex items-center justify-center border-2 bg-clip-padding text-[10px] font-medium text-white rounded-sm cursor-pointer overflow-hidden {{ $colorClass ?: 'bg-emerald-400/80 dark:bg-emerald-500/60' }}"
-                                        :class="getCellStatusClasses({{ $entry->id }}, day.date)"
+                                        class="status-bar relative w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm cursor-pointer overflow-hidden {{ $colorClass ?: 'bg-emerald-400/80 dark:bg-emerald-500/60' }}"
+                                        :style="getCellStatusStyle({{ $entry->id }}, day.date)"
                                         :title="getCellStatusLabel({{ $entry->id }}, day.date)"
                                         x-text="getCellSession({{ $entry->id }}, day.date) || getCellCount({{ $entry->id }}, day.date)">
                                     </button>
@@ -389,7 +392,9 @@
                                         x-cloak
                                         type="button"
                                         @click.stop="openPopover($event.currentTarget, {{ $entry->id }}, day.date, '{{ $categoryColor }}')"
-                                        class="w-full aspect-square box-border flex items-center justify-center border-2 border-transparent bg-clip-padding text-[10px] font-medium text-white rounded-sm cursor-pointer {{ $colorClass ?: 'bg-emerald-400/80 dark:bg-emerald-500/60' }}"
+                                        class="status-bar w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm cursor-pointer {{ $colorClass ?: 'bg-emerald-400/80 dark:bg-emerald-500/60' }}"
+                                        :style="getCellStatusStyle({{ $entry->id }}, day.date)"
+                                        :title="getCellStatusLabel({{ $entry->id }}, day.date)"
                                         x-text="getCellCount({{ $entry->id }}, day.date)">
                                     </button>
                                     <div x-show="cellDataLoaded && getCellCount({{ $entry->id }}, day.date) === 0"

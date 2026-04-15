@@ -73,3 +73,37 @@
 .org-chart-canvas.is-dragging {
     cursor: grabbing;
 }
+
+.status-bar {
+    box-shadow: inset 0 -4px 0 0 rgb(var(--status-bar-light));
+}
+
+.dark .status-bar {
+    box-shadow: inset 0 -4px 0 0 rgb(var(--status-bar-dark, var(--status-bar-light)));
+}
+
+.status-fill {
+    background-color: rgb(var(--status-bar-light));
+}
+
+.dark .status-fill {
+    background-color: rgb(var(--status-bar-dark, var(--status-bar-light)));
+}
+
+.status-badge {
+    background-color: rgb(var(--status-bar-light));
+    color: rgb(15 23 42);
+}
+
+.dark .status-badge {
+    background-color: rgb(var(--status-bar-dark, var(--status-bar-light)));
+    color: rgb(15 23 42);
+}
+
+.status-dot {
+    background-color: rgb(var(--status-bar-light));
+}
+
+.dark .status-dot {
+    background-color: rgb(var(--status-bar-dark, var(--status-bar-light)));
+}

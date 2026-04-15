@@ -1,11 +1,13 @@
 <div>
     @if ($hasSchedule)
-        <div class="space-y-4">
+        <div class="space-y-0">
             @if ($showReadiness)
                 @if ($readinessScore === null)
-                    <flux:callout icon="triangle-alert" color="amber">
-                        Please fill in the readiness survey before starting your training.
-                    </flux:callout>
+                    <div class="py-3 sm:py-4">
+                        <flux:callout icon="triangle-alert" color="amber">
+                            Please fill in the readiness survey before starting your training.
+                        </flux:callout>
+                    </div>
                 @endif
 
                 <x-athlete.section>
@@ -22,7 +24,7 @@
 
             @if ($canShowTraining)
                 @foreach ($days as $day)
-                    @include('livewire.athlete.partials.schedule-day-card', ['day' => $day])
+                    @include('livewire.athlete.partials.schedule-day-card', ['day' => $day, 'row' => $loop->iteration])
                 @endforeach
             @endif
         </div>

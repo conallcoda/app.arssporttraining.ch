@@ -41,13 +41,15 @@
             <flux:spacer />
 
             @if (! request()->has('_preview'))
-                @if (config('cms.user_switching'))
-                    <livewire:cms.user-switcher />
-                @endif
+                <div class="hidden md:contents">
+                    @if (config('cms.user_switching'))
+                        <livewire:cms.user-switcher />
+                    @endif
 
-                @if (config('cms.mobile_preview'))
-                    <x-cms::mobile-preview-toggle />
-                @endif
+                    @if (config('cms.mobile_preview'))
+                        <x-cms::mobile-preview-toggle />
+                    @endif
+                </div>
             @endif
 
             <x-cms::theme-toggle />

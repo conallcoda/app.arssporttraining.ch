@@ -16,7 +16,8 @@
       "Bash(tar -xzf /tmp/fontsource-inter-*.tgz -C /tmp/fontsource-inter-unpacked)",
       "Bash(pip3 install:*)",
       "Bash(mv coach-athlete-system:*)",
-      "Bash(mv organisation-coach-athlete-system:*)"
+      "Bash(mv organisation-coach-athlete-system:*)",
+      "Bash(git log *)"
     ]
   }
 }

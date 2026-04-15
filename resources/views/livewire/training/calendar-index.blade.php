@@ -165,7 +165,27 @@
                                 <flux:button variant="ghost" icon="pencil" size="sm" wire:click="openCalendarRange" />
                             </div>
                             @if ($view === 'overview')
-                                <div class="flex items-center gap-2">
+                                <div class="relative flex items-center gap-2" x-data="{ legendOpen: false }">
+                                    <flux:button variant="ghost" size="sm" icon="information-circle" x-on:click="legendOpen = !legendOpen">
+                                        {{ __('Legend') }}
+                                    </flux:button>
+                                    <div x-show="legendOpen"
+                                        x-cloak
+                                        x-on:click.outside="legendOpen = false"
+                                        class="absolute right-full top-1/2 z-20 mr-2 w-56 -translate-y-1/2 rounded-xl border border-zinc-200 bg-white p-3 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+                                        <div class="space-y-2 text-sm text-zinc-700 dark:text-zinc-200">
+                                            @foreach (\App\Models\Training\TrainingProgramSlotStatusEnum::cases() as $status)
+                                                @php($statusColor = $status->barColor())
+                                                <div class="flex items-center gap-2">
+                                                    <span
+                                                        class="status-dot h-2.5 w-2.5 rounded-full"
+                                                        style="--status-bar-light: {{ $statusColor['light'] }}; --status-bar-dark: {{ $statusColor['dark'] }};"
+                                                    ></span>
+                                                    <span>{{ __($status->label()) }}</span>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
                                     <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddBlock">{{ __('Add Block') }}</flux:button>
                                     <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddProgram">{{ __('Add Program') }}</flux:button>
                                 </div>

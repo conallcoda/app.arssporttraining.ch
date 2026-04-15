@@ -25,6 +25,23 @@ enum ExerciseSetting: string
         };
     }
 
+    public function shortLabel(): string
+    {
+        return match ($this) {
+            self::HeartRate => 'HR',
+            self::HeartRateZone => 'HRZ',
+            default => $this->label(),
+        };
+    }
+
+    public function showsUnitInLabel(): bool
+    {
+        return match ($this) {
+            self::HeartRate, self::HeartRateZone => false,
+            default => true,
+        };
+    }
+
     /** @return class-string<Settings\AbstractSetting>|null */
     public function settingClass(): ?string
     {

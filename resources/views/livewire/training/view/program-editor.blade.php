@@ -1,9 +1,38 @@
 <div class="space-y-6">
     <div class="flex flex-col md:flex-row gap-6">
-        <x-cms::section :title="__('General')" class="{{ $this->showAthleteContext ? 'md:w-3/4' : 'flex-1' }}">
+        <x-cms::section :title="__('Exercises')" class="{{ $this->showAthleteContext ? 'md:w-3/4' : 'flex-1' }}">
             @if ($showNameInput)
                 <flux:input wire:model="$parent.planProgramName" wire:blur="$parent.savePlanProgramName" :label="__('Name')" size="sm" />
             @endif
+
+            <div class="space-y-4">
+                @if ($this->showSectionTabs)
+                    <flux:tabs wire:model.live="activeSection" variant="segmented" class="w-full [&>[data-flux-tabs]]:grid [&>[data-flux-tabs]]:w-full [&>[data-flux-tabs]]:grid-cols-3">
+                        <flux:tab name="main">{{ __('Main') }}</flux:tab>
+                        <flux:tab name="warm_up">{{ __('Warm Up') }}</flux:tab>
+                        <flux:tab name="warm_down">{{ __('Warm Down') }}</flux:tab>
+                    </flux:tabs>
+                @endif
+
+                <div class="flex flex-col gap-3 xl:flex-row xl:items-end">
+                    <div class="flex-1">
+                        <flux:field>
+                            <flux:label>{{ __('Import Exercises From') }}</flux:label>
+                            <flux:select wire:model.live="importProgramId" variant="listbox" searchable placeholder="{{ __('Select program...') }}">
+                                @foreach ($this->importProgramOptions as $id => $name)
+                                    <flux:select.option :value="$id">{{ $name }}</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                        </flux:field>
+                    </div>
+
+                    <div class="shrink-0">
+                        <flux:button wire:click="importSectionExercises" variant="primary" :disabled="blank($importProgramId)">
+                            {{ __('Import') }}
+                        </flux:button>
+                    </div>
+                </div>
+            </div>
 
             @foreach ($this->fieldsets as $item)
                 <x-form-kit::form.fieldset
@@ -12,16 +41,6 @@
                     :showLegend="false"
                 />
             @endforeach
-
-            <div class="grid grid-cols-2 gap-4">
-                @foreach ($this->warmProgramFieldsets as $item)
-                    <x-form-kit::form.fieldset
-                        :fieldset="$item"
-                        :prefix="$item->prefix ?? 'data'"
-                        :showLegend="false"
-                    />
-                @endforeach
-            </div>
         </x-cms::section>
 
         @if ($this->showAthleteContext)
@@ -120,15 +139,16 @@
     </div>
 
     @if ($this->exercises->isNotEmpty())
-        <div class="{{ $gridLayout === 'stacked' ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-1 lg:grid-cols-2 gap-4' }}" wire:key="grids-{{ $this->exercises->pluck('id')->implode('-') }}">
+        <div class="{{ $gridLayout === 'stacked' ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-1 lg:grid-cols-2 gap-4' }}" wire:key="grids-{{ $this->activeSection }}-{{ $this->exercises->pluck('pivot.id')->implode('-') }}">
             @foreach ($this->exercises as $exercise)
-                <div wire:key="grid-{{ $exercise->id }}-{{ $userId ?? 'default' }}" class="min-w-0">
+                <div wire:key="grid-{{ $exercise->pivot->id }}-{{ $userId ?? 'default' }}" class="min-w-0">
                     <livewire:training.view.plan-exercise-grid
-                        :key="'grid-' . $exercise->id . '-' . $weeks . '-' . ($userId ?? 'default')"
+                        :key="'grid-' . $exercise->pivot->id . '-' . $weeks . '-' . ($userId ?? 'default')"
                         :exercisePlanId="$planId"
                         :planType="$planType"
+                        :programExerciseId="$exercise->pivot->id"
                         :exerciseId="$exercise->id"
-                        :groupLabel="$this->exerciseGroupLabels[$exercise->id] ?? null"
+                        :groupLabel="$this->exerciseGroupLabels[$exercise->pivot->id] ?? null"
                         :userId="$userId"
                         :weeks="$weeks"
                         :sessionsPerWeek="$sessionsPerWeek"
@@ -149,6 +169,15 @@
 
         <livewire:training.view.plan-exercise-settings-form />
     @else
-        <flux:text class="text-zinc-500">{{ __('No exercises in this program. Add exercises above to see the training grids.') }}</flux:text>
+        <flux:text class="text-zinc-500">{{ __('No exercises in this section. Add exercises above to see the training grids.') }}</flux:text>
     @endif
+
+    <x-cms::confirm-modal
+        :name="$this->importConfirmModalName()"
+        :heading="__('Import exercises?')"
+        :description="__('This will replace all current exercises and their settings. This action cannot be undone.')"
+        :confirmLabel="__('Import')"
+        action="confirmImportSectionExercises"
+        variant="primary"
+    />
 </div>

@@ -48,9 +48,12 @@ class TrainingSessionCompiler
         $weightProgression = $this->resolveWeightProgressionData($oneRepMaxMetric, $programConfig->defaultTargetGoal());
 
         $compiledExercises = $program->exercises
+            ->filter(fn (Exercise $exercise) => ($exercise->pivot->type ?? 'main') === 'main')
+            ->values()
             ->map(function (Exercise $exercise, int $index) use ($programConfig, $sessionContext, $weightProgression, $heartRateMetric, $slot) {
-                $planOverrides = $programConfig->defaultExerciseOverrides($exercise->id);
-                $userOverrides = $programConfig->userExerciseOverrides($slot->user_id, $exercise->id);
+                $programExerciseId = (int) $exercise->pivot->id;
+                $planOverrides = $programConfig->defaultExerciseOverrides($programExerciseId);
+                $userOverrides = $programConfig->userExerciseOverrides($slot->user_id, $programExerciseId);
 
                 if (EffectiveExerciseConfig::resolveDisabled($planOverrides, $userOverrides)) {
                     return null;
@@ -208,7 +211,7 @@ class TrainingSessionCompiler
 
     private function isBlankValue(mixed $value): bool
     {
-        return $value === null || $value === '';
+        return $value === null || $value === '' || $value === '-' || $value === '—';
     }
 
     /**

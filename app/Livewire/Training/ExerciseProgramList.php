@@ -6,6 +6,7 @@ use App\Data\Training\ExerciseProgramData;
 use App\Form\Fields\CoachFilter;
 use App\Livewire\Concerns\ClearsCoachFilterOnTabSwitch;
 use App\Models\Exercise\ExerciseProgram;
+use App\Models\Exercise\ExerciseProgramTypeEnum;
 use App\Models\Tag;
 use Coda\Cms\Display\DisplayFields\Ago;
 use Coda\Cms\Display\DisplayFields\Badge;
@@ -88,10 +89,24 @@ class ExerciseProgramList extends AbstractModelList
             ->pluck('name', 'id')
             ->all();
 
+        $programTypeOptions = ExerciseProgramTypeEnum::options();
+
         return Table::make()
             ->columns([
                 Text::make('id')->label(__('ID'))->width('w-16')->prefix('#'),
                 View::make('name', ExerciseProgramView::class)->label(__('Name')),
+                Badge::make('type')
+                    ->label(__('Type'))
+                    ->source(fn (ExerciseProgramData $data) => [[
+                        'label' => ExerciseProgramTypeEnum::from($data->type)->label(),
+                        'color' => match ($data->type) {
+                            ExerciseProgramTypeEnum::Program->value => 'blue',
+                            ExerciseProgramTypeEnum::WarmUp->value => 'amber',
+                            ExerciseProgramTypeEnum::WarmDown->value => 'emerald',
+                            default => 'zinc',
+                        },
+                        'modalField' => 'type',
+                    ]]),
                 Badge::make('coach')
                     ->label(__('Coach'))
                     ->source(fn (ExerciseProgramData $data) => [
@@ -114,12 +129,12 @@ class ExerciseProgramList extends AbstractModelList
                     ),
                 Ago::make('updatedAt')->label(__('Last Changed')),
             ])
-            ->sortable(['id', 'name', 'coach', 'category', 'updatedAt'])
-            ->filters($this->buildFilters($exerciseCategoryOptions))
+            ->sortable(['id', 'name', 'type', 'coach', 'category', 'updatedAt'])
+            ->filters($this->buildFilters($exerciseCategoryOptions, $programTypeOptions))
             ->limit(100);
     }
 
-    private function buildFilters(array $exerciseCategoryOptions): array
+    private function buildFilters(array $exerciseCategoryOptions, array $programTypeOptions): array
     {
         $filters = [
             TableFilter::callback('search', function (Builder $query, mixed $value): void {
@@ -136,6 +151,13 @@ class ExerciseProgramList extends AbstractModelList
                         ->label(__('Category'))
                         ->placeholder(__('All categories'))
                         ->options($exerciseCategoryOptions)
+                ),
+            TableFilter::exact('type', 'type')
+                ->field(
+                    Select::make('type')
+                        ->label(__('Type'))
+                        ->placeholder(__('All types'))
+                        ->options($programTypeOptions)
                 ),
             TableFilter::callback('tags', function (Builder $query, mixed $value): void {
                 $query->whereHas('internalTags', fn (Builder $q) => $q->whereIn('tags.id', (array) $value));

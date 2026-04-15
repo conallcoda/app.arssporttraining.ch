@@ -155,14 +155,18 @@ class ExportDatabaseCommand extends Command
                 'parent_type' => $program->parent_type,
                 'parent_id' => $program->parent_id,
                 'name' => $program->name,
+                'type' => $program->type?->value ?? 'program',
                 'exercise_category_id' => $program->exercise_category_id,
                 'warm_up_program_id' => $program->warm_up_program_id,
                 'warm_down_program_id' => $program->warm_down_program_id,
                 'sort' => $program->sort,
                 'config' => json_decode($program->getRawOriginal('config'), true),
                 'exercises' => $program->exercises->map(fn (Exercise $exercise) => [
+                    'id' => $exercise->pivot->id,
                     'exercise_id' => $exercise->id,
                     'sort' => $exercise->pivot->sort,
+                    'group' => $exercise->pivot->group,
+                    'type' => $exercise->pivot->type ?? 'main',
                 ])->all(),
                 'deleted_at' => $program->deleted_at?->toIso8601String(),
             ])

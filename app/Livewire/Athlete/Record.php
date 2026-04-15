@@ -5,6 +5,7 @@ namespace App\Livewire\Athlete;
 use App\Support\AthleteDashboardDate;
 use Illuminate\View\View;
 use Livewire\Attributes\On;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 class Record extends Component
@@ -17,9 +18,13 @@ class Record extends Component
 
     public string $dashboardDate;
 
+    #[Url(except: 'today', history: true)]
+    public string $trainView = 'today';
+
     public function mount(): void
     {
         $this->dashboardDate = AthleteDashboardDate::todayDateString();
+        $this->trainView = in_array($this->trainView, ['today', 'unrecorded'], true) ? $this->trainView : 'today';
     }
 
     #[On('readiness-updated')]

@@ -16,6 +16,8 @@ class PlanExerciseSettingsForm extends FormModal
 {
     public ?int $contextExerciseId = null;
 
+    public ?int $contextProgramExerciseId = null;
+
     public ?int $contextUserId = null;
 
     public function mount(
@@ -78,6 +80,7 @@ class PlanExerciseSettingsForm extends FormModal
     public function openForExercise(array $data): void
     {
         $this->contextExerciseId = $data['exerciseId'] ?? null;
+        $this->contextProgramExerciseId = $data['programExerciseId'] ?? null;
         $this->contextUserId = $data['userId'] ?? null;
 
         $config = $data['config'] ?? [];
@@ -119,6 +122,7 @@ class PlanExerciseSettingsForm extends FormModal
 
         $this->dispatch('plan-exercise-settings.saved', data: [
             'config' => $this->data['config'],
+            'programExerciseId' => $this->contextProgramExerciseId,
             'exerciseId' => $this->contextExerciseId,
             'userId' => $this->contextUserId,
         ]);

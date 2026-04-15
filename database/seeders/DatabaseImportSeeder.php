@@ -8,6 +8,7 @@ use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseExternal;
 use App\Models\Exercise\ExercisePlan;
 use App\Models\Exercise\ExerciseProgram;
+use App\Models\Exercise\ExerciseProgramTypeEnum;
 use App\Models\Exercise\ExerciseTemplate;
 use App\Models\Tag;
 use App\Models\Training\TrainingProgram;
@@ -19,6 +20,7 @@ use App\Training\TrainingSessionMaterializer;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 
 class DatabaseImportSeeder extends Seeder
 {
@@ -41,6 +43,7 @@ class DatabaseImportSeeder extends Seeder
                 $this->seedExercises();
                 $this->seedExerciseExternals();
                 $this->seedExercisePrograms();
+                $this->normalizeLegacyWarmUpPrograms();
                 $this->seedExercisePlans();
                 $this->seedUserGroups();
                 $this->seedUsers();
@@ -162,6 +165,7 @@ class DatabaseImportSeeder extends Seeder
                 'parent_type' => $program['parent_type'],
                 'parent_id' => $program['parent_id'],
                 'name' => $program['name'],
+                'type' => $program['type'] ?? 'program',
                 'exercise_category_id' => $program['exercise_category_id'],
                 'warm_up_program_id' => $program['warm_up_program_id'],
                 'warm_down_program_id' => $program['warm_down_program_id'],
@@ -177,11 +181,18 @@ class DatabaseImportSeeder extends Seeder
 
             $exercises = $program['exercises'] ?? [];
             if (! empty($exercises)) {
-                $syncData = [];
                 foreach ($exercises as $exercise) {
-                    $syncData[$exercise['exercise_id']] = ['sort' => $exercise['sort']];
+                    DB::table('exercise_program_exercises')->insert([
+                        'id' => $exercise['id'] ?? null,
+                        'exercise_program_id' => $program['id'],
+                        'exercise_id' => $exercise['exercise_id'],
+                        'sort' => $exercise['sort'],
+                        'group' => $exercise['group'] ?? null,
+                        'type' => $exercise['type'] ?? 'main',
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
                 }
-                ExerciseProgram::withTrashed()->find($program['id'])->exercises()->sync($syncData);
             }
         }
 
@@ -202,6 +213,210 @@ class DatabaseImportSeeder extends Seeder
         }
 
         $this->command->info('Imported '.count($plans).' exercise plans.');
+    }
+
+    private function normalizeLegacyWarmUpPrograms(): void
+    {
+        $warmUpCategoryId = 302;
+
+        $warmUpCategoryExists = DB::table('tags')->where('id', $warmUpCategoryId)->exists();
+
+        if (! $warmUpCategoryExists) {
+            return;
+        }
+
+        $legacyWarmUpProgramIds = DB::table('exercise_programs')
+            ->where('exercise_category_id', $warmUpCategoryId)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $consumers = DB::table('exercise_programs')
+            ->select('id', 'warm_up_program_id', 'config')
+            ->whereNotNull('warm_up_program_id')
+            ->orderBy('id')
+            ->get();
+
+        foreach ($consumers as $program) {
+            $sourceProgramId = $program->warm_up_program_id;
+
+            if ($sourceProgramId === null) {
+                continue;
+            }
+
+            $sourceProgram = DB::table('exercise_programs')
+                ->select('id', 'config', 'exercise_category_id')
+                ->where('id', $sourceProgramId)
+                ->first();
+
+            if ($sourceProgram === null) {
+                DB::table('exercise_programs')
+                    ->where('id', $program->id)
+                    ->update([
+                        'warm_up_program_id' => null,
+                        'updated_at' => now(),
+                    ]);
+
+                continue;
+            }
+
+            if ((int) $sourceProgram->exercise_category_id !== $warmUpCategoryId) {
+                continue;
+            }
+
+            $legacyWarmUpProgramIds[] = (int) $sourceProgramId;
+
+            $sourcePivots = DB::table('exercise_program_exercises')
+                ->where('exercise_program_id', $sourceProgramId)
+                ->where('type', 'main')
+                ->orderBy('sort')
+                ->orderBy('id')
+                ->get();
+
+            $consumerConfig = $this->decodeProgramConfig($program->config);
+
+            $existingWarmUpPivotIds = DB::table('exercise_program_exercises')
+                ->where('exercise_program_id', $program->id)
+                ->where('type', 'warm_up')
+                ->pluck('id')
+                ->all();
+
+            foreach ($existingWarmUpPivotIds as $pivotId) {
+                unset($consumerConfig['exercises'][(string) $pivotId], $consumerConfig['exercises'][$pivotId]);
+
+                foreach (array_keys($consumerConfig['userExercises'] ?? []) as $userId) {
+                    unset(
+                        $consumerConfig['userExercises'][$userId][(string) $pivotId],
+                        $consumerConfig['userExercises'][$userId][$pivotId],
+                    );
+                }
+            }
+
+            DB::table('exercise_program_exercises')
+                ->where('exercise_program_id', $program->id)
+                ->where('type', 'warm_up')
+                ->delete();
+
+            $sourceKeyMap = [];
+
+            foreach ($sourcePivots as $pivot) {
+                $newPivotId = DB::table('exercise_program_exercises')->insertGetId([
+                    'exercise_program_id' => $program->id,
+                    'exercise_id' => $pivot->exercise_id,
+                    'sort' => $pivot->sort,
+                    'group' => $pivot->group,
+                    'type' => 'warm_up',
+                    'created_at' => $pivot->created_at,
+                    'updated_at' => now(),
+                ]);
+
+                if (! isset($sourceKeyMap[$pivot->exercise_id])) {
+                    $sourceKeyMap[$pivot->exercise_id] = [];
+                }
+
+                $sourceKeyMap[$pivot->exercise_id][] = $newPivotId;
+            }
+
+            $mergedConfig = $this->mergeProgramConfigs(
+                $consumerConfig,
+                $this->remapProgramConfigKeys($this->decodeProgramConfig($sourceProgram->config), $sourceKeyMap)
+            );
+
+            DB::table('exercise_programs')
+                ->where('id', $program->id)
+                ->update([
+                    'config' => $mergedConfig === [] ? null : json_encode($mergedConfig),
+                    'warm_up_program_id' => null,
+                    'updated_at' => now(),
+                ]);
+        }
+
+        $legacyWarmUpProgramIds = array_values(array_unique(array_map('intval', $legacyWarmUpProgramIds)));
+
+        if ($legacyWarmUpProgramIds !== []) {
+            DB::table('exercise_programs')
+                ->whereIn('id', $legacyWarmUpProgramIds)
+                ->update([
+                    'type' => ExerciseProgramTypeEnum::WarmUp->value,
+                    'exercise_category_id' => 7,
+                    'updated_at' => now(),
+                ]);
+        }
+
+        $warmUpCategoryStillReferenced = DB::table('exercise_programs')->where('exercise_category_id', $warmUpCategoryId)->exists()
+            || DB::table('exercises')->where('category_id', $warmUpCategoryId)->exists()
+            || DB::table('exercises_external')->where('category_id', $warmUpCategoryId)->exists();
+
+        if (! $warmUpCategoryStillReferenced) {
+            DB::table('tags')
+                ->where('id', $warmUpCategoryId)
+                ->whereNull('deleted_at')
+                ->update([
+                    'deleted_at' => now(),
+                    'updated_at' => now(),
+                ]);
+        }
+
+        $this->command->info('Normalized legacy warm-up programs.');
+    }
+
+    private function decodeProgramConfig(?string $config): array
+    {
+        return $config ? (json_decode($config, true) ?: []) : [];
+    }
+
+    private function remapProgramConfigKeys(array $config, array $keyMap): array
+    {
+        $config['exercises'] = $this->remapProgramOverrideBag($config['exercises'] ?? [], $keyMap);
+
+        $userExercises = [];
+        foreach (($config['userExercises'] ?? []) as $userId => $overrides) {
+            $userExercises[$userId] = $this->remapProgramOverrideBag($overrides, $keyMap);
+        }
+        $config['userExercises'] = $userExercises;
+
+        return $config;
+    }
+
+    private function remapProgramOverrideBag(array $overrides, array $keyMap): array
+    {
+        $remapped = [];
+        $position = [];
+
+        foreach ($overrides as $legacyKey => $data) {
+            $legacyId = (int) $legacyKey;
+            $targetIds = $keyMap[$legacyId] ?? null;
+
+            if ($targetIds === null || $targetIds === []) {
+                continue;
+            }
+
+            $currentPosition = $position[$legacyId] ?? 0;
+            $targetId = $targetIds[min($currentPosition, count($targetIds) - 1)];
+            $position[$legacyId] = $currentPosition + 1;
+            $remapped[$targetId] = $data;
+        }
+
+        return $remapped;
+    }
+
+    private function mergeProgramConfigs(array $target, array $source): array
+    {
+        $target['exercises'] = array_merge(
+            $target['exercises'] ?? [],
+            $source['exercises'] ?? [],
+        );
+
+        $mergedUserExercises = $target['userExercises'] ?? [];
+        foreach (($source['userExercises'] ?? []) as $userId => $overrides) {
+            $mergedUserExercises[$userId] = array_merge(
+                $mergedUserExercises[$userId] ?? [],
+                $overrides
+            );
+        }
+        $target['userExercises'] = $mergedUserExercises;
+
+        return $target;
     }
 
     private function seedUserGroups(): void
@@ -362,7 +577,7 @@ class DatabaseImportSeeder extends Seeder
     {
         $basePath = base_path('import/database');
 
-        $directories = collect(\Illuminate\Support\Facades\File::directories($basePath))
+        $directories = collect(File::directories($basePath))
             ->sort()
             ->values();
 

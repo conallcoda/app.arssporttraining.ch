@@ -148,12 +148,13 @@ class BlockForm extends FormModal
         }
 
         $isNote = $this->categoryId === null;
+        $isExistingBlockContext = $this->isEditing || $this->parentBlockId !== null;
         if ($title !== null) {
             $this->activeTitle = $title;
         } elseif ($isNote) {
             $this->activeTitle = $this->isEditing ? __('Edit Note') : __('Add Note');
         } else {
-            $this->activeTitle = $this->isEditing ? __('Edit Block') : __('Add Block');
+            $this->activeTitle = $isExistingBlockContext ? __('Edit Block') : __('Add Block');
         }
 
         $this->loadMembers();

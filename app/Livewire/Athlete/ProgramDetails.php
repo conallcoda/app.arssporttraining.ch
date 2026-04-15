@@ -6,9 +6,8 @@ use App\Data\Exercise\ExerciseSetting;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Training\TrainingProgramSlotExercise;
-use App\Models\Training\TrainingProgramSlotExerciseStatusEnum;
 use App\Models\Training\TrainingProgramSlotSetValue;
-use App\Models\Training\TrainingProgramSlotStatusEnum;
+use App\Training\ExerciseGroupLabeler;
 use App\Training\TrainingSessionMaterializer;
 use App\Training\TrainingSessionProgressService;
 use Carbon\CarbonImmutable;
@@ -109,12 +108,68 @@ class ProgramDetails extends Component
     #[Computed]
     public function programExercises(): array
     {
+        $sorted = $this->currentSlot->exercises
+            ->sortBy('sort')
+            ->values();
+
+        $materializedGroupLabels = ExerciseGroupLabeler::label(
+            $sorted,
+            fn (TrainingProgramSlotExercise $exercise): ?string => $exercise->group,
+            fn (TrainingProgramSlotExercise $exercise): int => $exercise->id,
+        );
+
+        $sourceExercises = $this->trainingProgram->program->exercises()
+            ->wherePivot('type', 'main')
+            ->orderByPivot('sort')
+            ->orderByPivot('id')
+            ->get()
+            ->values();
+
+        $sourceGroupLabelsByIndex = ExerciseGroupLabeler::label(
+            $sourceExercises,
+            fn ($exercise): ?string => $exercise->pivot->group,
+            fn ($exercise): int => $sourceExercises->search($exercise),
+        );
+
+        return $sorted
+            ->map(fn (TrainingProgramSlotExercise $exercise, int $index) => $this->buildExerciseViewData(
+                $exercise,
+                $index,
+                $materializedGroupLabels[$exercise->id] ?? $sourceGroupLabelsByIndex[$index] ?? null,
+            ))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array{submitted: bool, color: array{light: string, dark: string}}>
+     */
+    #[Computed]
+    public function progressSegments(): array
+    {
         return $this->currentSlot->exercises
             ->sortBy('sort')
             ->values()
-            ->map(fn (TrainingProgramSlotExercise $exercise, int $index) => $this->buildExerciseViewData($exercise, $index))
-            ->values()
+            ->map(fn (TrainingProgramSlotExercise $exercise) => [
+                'submitted' => $exercise->status->isSubmitted(),
+                'color' => $exercise->status->barColor(),
+            ])
             ->all();
+    }
+
+    #[Computed]
+    public function completionPercent(): int
+    {
+        $segments = $this->progressSegments;
+        $total = count($segments);
+
+        if ($total === 0) {
+            return 0;
+        }
+
+        $submitted = array_filter($segments, fn (array $segment): bool => $segment['submitted']);
+
+        return (int) round((count($submitted) / $total) * 100);
     }
 
     #[Computed]
@@ -153,7 +208,7 @@ class ProgramDetails extends Component
         unset($this->currentSlot, $this->programExercises);
     }
 
-    protected function buildExerciseViewData(TrainingProgramSlotExercise $slotExercise, int $index): array
+    protected function buildExerciseViewData(TrainingProgramSlotExercise $slotExercise, int $index, ?string $groupLabel = null): array
     {
         $exercise = $slotExercise->exercise;
         $sets = $slotExercise->sets->sortBy('set_number')->values();
@@ -220,9 +275,8 @@ class ProgramDetails extends Component
         return [
             'id' => $slotExercise->id,
             'index' => $index + 1,
+            'groupLabel' => $groupLabel,
             'name' => $exercise?->name ?? 'Exercise',
-            'category' => $exercise?->category?->name,
-            'categoryColor' => $exercise?->category?->color,
             'equipmentBadges' => $exercise?->equipment?->pluck('name')->filter()->values()->all() ?? [],
             'modifierBadges' => $exercise?->modifiers?->pluck('name')->filter()->values()->all() ?? [],
             'instructions' => $exercise?->instructions,
@@ -234,8 +288,8 @@ class ProgramDetails extends Component
             'weekDetails' => [],
             'notes' => $sessionNotes,
             'status' => $slotExercise->status,
-            'statusLabel' => $this->exerciseStatusLabel($slotExercise->status),
-            'statusClass' => $this->exerciseStatusClass($slotExercise->status),
+            'statusLabel' => $slotExercise->status->label(),
+            'statusColor' => $slotExercise->status->barColor(),
         ];
     }
 
@@ -254,10 +308,14 @@ class ProgramDetails extends Component
     protected function resolveMaterializedSettingLabel(string $setting, ?TrainingProgramSlotSetValue $valueRow): string
     {
         $enum = ExerciseSetting::tryFrom($setting);
-        $label = $enum?->label() ?? ucfirst($setting);
+        $label = $enum?->shortLabel() ?? ucfirst($setting);
         $unit = $valueRow?->unit;
 
-        return $unit ? "{$label} ({$unit})" : $label;
+        if ($unit && ($enum?->showsUnitInLabel() ?? true)) {
+            return "{$label} ({$unit})";
+        }
+
+        return $label;
     }
 
     protected function opaqueRowLabelClass(?string $color): string
@@ -324,48 +382,6 @@ class ProgramDetails extends Component
     protected function isBlankValue(mixed $value): bool
     {
         return $value === null || trim((string) $value) === '' || $value === '-';
-    }
-
-    public function slotStatusLabel(): string
-    {
-        return match ($this->currentSlot->status) {
-            TrainingProgramSlotStatusEnum::Completed => 'Completed',
-            TrainingProgramSlotStatusEnum::PartiallyCompleted => 'Partially Completed',
-            TrainingProgramSlotStatusEnum::Skipped => 'Skipped',
-            TrainingProgramSlotStatusEnum::Cancelled => 'Cancelled',
-            default => 'Pending',
-        };
-    }
-
-    public function slotStatusClass(): string
-    {
-        return match ($this->currentSlot->status) {
-            TrainingProgramSlotStatusEnum::Completed => 'bg-green-100 text-green-800 dark:bg-green-900/60 dark:text-green-100',
-            TrainingProgramSlotStatusEnum::PartiallyCompleted => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/60 dark:text-yellow-100',
-            TrainingProgramSlotStatusEnum::Skipped => 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-100',
-            TrainingProgramSlotStatusEnum::Cancelled => 'bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-100',
-            default => 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-100',
-        };
-    }
-
-    protected function exerciseStatusLabel(TrainingProgramSlotExerciseStatusEnum $status): string
-    {
-        return match ($status) {
-            TrainingProgramSlotExerciseStatusEnum::Completed => 'Completed',
-            TrainingProgramSlotExerciseStatusEnum::PartiallyCompleted => 'Partially Completed',
-            TrainingProgramSlotExerciseStatusEnum::Skipped => 'Skipped',
-            default => 'Pending',
-        };
-    }
-
-    protected function exerciseStatusClass(TrainingProgramSlotExerciseStatusEnum $status): string
-    {
-        return match ($status) {
-            TrainingProgramSlotExerciseStatusEnum::Completed => 'bg-green-100 text-green-800 dark:bg-green-900/60 dark:text-green-100',
-            TrainingProgramSlotExerciseStatusEnum::PartiallyCompleted => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/60 dark:text-yellow-100',
-            TrainingProgramSlotExerciseStatusEnum::Skipped => 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-100',
-            default => 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-100',
-        };
     }
 
     protected function sanitizeReturnUrl(mixed $url): ?string

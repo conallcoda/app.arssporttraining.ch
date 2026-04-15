@@ -6,14 +6,16 @@ use App\Form\Fields\Exercise\Exercises;
 use App\Form\Fields\Owner;
 use App\Form\Fields\Training\Program\ExerciseCategory;
 use App\Form\Fields\Training\Program\ProgramName;
-use App\Form\Fields\Training\Program\SelectProgram;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
+use App\Models\Exercise\ExerciseProgramTypeEnum;
+use App\Training\TrainingSessionRebuildService;
 use Carbon\Carbon;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Form\Fields\Tags;
 use Coda\FormKit\Concerns\InteractsWithForms;
 use Coda\FormKit\Contracts\HasForms;
+use Coda\FormKit\Fields\RadioSegmented;
 use Coda\FormKit\Form;
 
 class ExerciseProgramData extends AbstractData implements HasForms
@@ -23,6 +25,7 @@ class ExerciseProgramData extends AbstractData implements HasForms
     public function __construct(
         public ?int $id,
         public string $name = '',
+        public string $type = 'program',
         public ?int $exercise_category_id = null,
         public ?string $exerciseCategoryName = null,
         public ?string $exerciseCategoryColor = null,
@@ -33,8 +36,6 @@ class ExerciseProgramData extends AbstractData implements HasForms
         public ?int $owner_id = null,
         public ?string $ownerName = null,
         public ?string $ownerColor = null,
-        public ?int $warm_up_program_id = null,
-        public ?int $warm_down_program_id = null,
     ) {}
 
     public static function from(mixed ...$payloads): static
@@ -48,19 +49,18 @@ class ExerciseProgramData extends AbstractData implements HasForms
         return new static(
             id: $data['id'] ?? null,
             name: $data['name'] ?? '',
+            type: $data['type'] ?? ExerciseProgramTypeEnum::Program->value,
             exercise_category_id: isset($data['exercise_category_id']) ? (int) $data['exercise_category_id'] : null,
             exercises: $data['exercises'] ?? [],
             sort: (int) ($data['sort'] ?? 0),
             owner_id: isset($data['owner_id']) ? (int) $data['owner_id'] : null,
-            warm_up_program_id: isset($data['warm_up_program_id']) ? (int) $data['warm_up_program_id'] : null,
-            warm_down_program_id: isset($data['warm_down_program_id']) ? (int) $data['warm_down_program_id'] : null,
         );
     }
 
     public static function fromModel(ExerciseProgram $program): static
     {
-        $program->loadMissing([
-            'exercises' => fn ($q) => $q->orderByPivot('sort'),
+        $program->load([
+            'exercises' => fn ($q) => $q->wherePivot('type', 'main')->orderByPivot('sort'),
             'exerciseCategory',
             'internalTags',
             'owner',
@@ -75,6 +75,7 @@ class ExerciseProgramData extends AbstractData implements HasForms
         return new static(
             id: $program->id,
             name: $program->name,
+            type: $program->type?->value ?? ExerciseProgramTypeEnum::Program->value,
             exercise_category_id: $program->exercise_category_id,
             exerciseCategoryName: $program->exerciseCategory?->name,
             exerciseCategoryColor: $program->exerciseCategory?->color,
@@ -85,8 +86,6 @@ class ExerciseProgramData extends AbstractData implements HasForms
             owner_id: $program->owner_id ?? 0,
             ownerName: $program->owner?->name,
             ownerColor: $program->owner?->color,
-            warm_up_program_id: $program->warm_up_program_id,
-            warm_down_program_id: $program->warm_down_program_id,
         );
     }
 
@@ -96,9 +95,8 @@ class ExerciseProgramData extends AbstractData implements HasForms
             ['id' => $this->id],
             [
                 'name' => $this->name,
+                'type' => $this->type,
                 'exercise_category_id' => $this->exercise_category_id,
-                'warm_up_program_id' => $this->warm_up_program_id,
-                'warm_down_program_id' => $this->warm_down_program_id,
                 'sort' => $this->sort,
                 'owner_id' => $this->owner_id,
             ]
@@ -109,11 +107,16 @@ class ExerciseProgramData extends AbstractData implements HasForms
         $this->syncExercises($program);
 
         $program->tags()->sync($this->internalTags);
+
+        app(TrainingSessionRebuildService::class)->rebuildFutureSlotsForExerciseProgram($program->id);
     }
 
     protected function syncExercises(ExerciseProgram $program): void
     {
-        $currentExerciseIds = $program->exercises()->pluck('exercises.id')->toArray();
+        $currentExerciseIds = $program->exercises()
+            ->wherePivot('type', 'main')
+            ->pluck('exercises.id')
+            ->toArray();
         $newExerciseIds = collect($this->exercises)
             ->filter(fn ($exercise) => ! empty($exercise['id']))
             ->pluck('id')
@@ -122,6 +125,7 @@ class ExerciseProgramData extends AbstractData implements HasForms
         $exercisesToRemove = array_diff($currentExerciseIds, $newExerciseIds);
 
         ExerciseProgramExercise::where('exercise_program_id', $program->id)
+            ->where('type', 'main')
             ->whereIn('exercise_id', $exercisesToRemove)
             ->delete();
 
@@ -138,10 +142,12 @@ class ExerciseProgramData extends AbstractData implements HasForms
                     'exercise_program_id' => $program->id,
                     'exercise_id' => $exerciseId,
                     'sort' => $sort,
+                    'type' => 'main',
                 ]);
             } else {
                 ExerciseProgramExercise::where('exercise_program_id', $program->id)
                     ->where('exercise_id', $exerciseId)
+                    ->where('type', 'main')
                     ->update(['sort' => $sort]);
             }
         }
@@ -153,10 +159,14 @@ class ExerciseProgramData extends AbstractData implements HasForms
             ->fieldset('General', [
                 Owner::make('owner_id')->withOptions()->allowUnassigned(),
                 ProgramName::make('name'),
+                RadioSegmented::make('type')
+                    ->label(__('Type'))
+                    ->options(ExerciseProgramTypeEnum::options())
+                    ->default(ExerciseProgramTypeEnum::Program->value)
+                    ->required()
+                    ->live(),
                 ExerciseCategory::make('exercise_category_id')->withOptions(),
                 Exercises::make('exercises')->withOptions(),
-                SelectProgram::make('warm_up_program_id')->label('Warm Up')->withOptions(fn ($q) => $q->whereNull('parent_type')->whereNull('parent_id')->when($excludeId, fn ($q) => $q->where('id', '!=', $excludeId))),
-                SelectProgram::make('warm_down_program_id')->label('Warm Down')->withOptions(fn ($q) => $q->whereNull('parent_type')->whereNull('parent_id')->when($excludeId, fn ($q) => $q->where('id', '!=', $excludeId))),
                 Tags::make('internalTags', 'program_internal')->label('Tags')->withOptions()->create(),
             ]);
     }
