@@ -34,22 +34,22 @@
 </head>
 
 <body class="athlete-shell min-h-screen bg-zinc-100 antialiased dark:bg-zinc-800" data-athlete-shell>
-    <flux:header class="bg-white lg:bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700">
+    <flux:header class="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700">
         <flux:navbar class="w-full">
-            <flux:brand href="/dashboard" name="{{ config('cms.name') ?? config('app.name', 'Athlete') }}" class="max-lg:hidden" />
+            <flux:brand href="/dashboard" :logo="asset(config('cms.logo', 'images/logo.webp'))" alt="{{ config('cms.name') ?? config('app.name', 'Athlete') }}" />
 
             <flux:spacer />
 
             @if (! request()->has('_preview'))
-                <div class="hidden md:contents">
-                    @if (config('cms.user_switching'))
+                @if (config('cms.user_switching'))
+                    <div class="hidden sm:flex">
                         <livewire:cms.user-switcher />
-                    @endif
+                    </div>
+                @endif
 
-                    @if (config('cms.mobile_preview'))
-                        <x-cms::mobile-preview-toggle />
-                    @endif
-                </div>
+                @if (config('cms.mobile_preview'))
+                    <x-cms::mobile-preview-toggle />
+                @endif
             @endif
 
             <x-cms::theme-toggle />
@@ -62,7 +62,7 @@
         <livewire:auth.change-password />
     </flux:modal>
 
-    <flux:main class="athlete-shell__main w-full !p-0 sm:!p-6 sm:!pb-6 lg:!p-8 lg:!pb-8" data-athlete-main>
+    <flux:main class="athlete-shell__main w-full !p-0" data-athlete-main>
         {{ $slot }}
     </flux:main>
 

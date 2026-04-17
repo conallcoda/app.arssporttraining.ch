@@ -425,12 +425,25 @@
                         @foreach ($items as $index => $item)
                             @php
                                 $currentValue = $item[$field->valueAttribute] ?? null;
-                                $filteredOptions = collect($field->getOptions())
-                                    ->filter(
-                                        fn($label, $value) => $value == $currentValue ||
-                                            !in_array((int) $value, $selectedIds, true),
-                                    )
-                                    ->toArray();
+                                $hasSearch = $field->searchCallback !== null;
+                                $searchQuery = $hasSearch
+                                    ? data_get($this, "relationshipSearch.{$field->name}.{$index}", '')
+                                    : '';
+                                $excludedIds = collect($selectedIds)
+                                    ->reject(fn($id) => (int) $id === (int) $currentValue)
+                                    ->values()
+                                    ->all();
+                                $searchResults = $hasSearch
+                                    ? collect($field->getSearchResults((string) $searchQuery, $currentValue, $excludedIds))
+                                    : collect();
+                                $filteredOptions = $hasSearch
+                                    ? []
+                                    : collect($field->getOptions())
+                                        ->filter(
+                                            fn($label, $value) => $value == $currentValue ||
+                                                !in_array((int) $value, $selectedIds, true),
+                                        )
+                                        ->toArray();
                             @endphp
                             @if ($field->sortable)
                                 <div class="flex items-center gap-2"
@@ -463,17 +476,48 @@
                                     </div>
                                 @endif
                                 <div class="flex-1 min-w-0">
-                                    <flux:select
-                                        wire:key="{{ $field->name }}-select-{{ $item['_key'] ?? $index }}"
-                                        wire:model.live="{{ $wireModel }}.{{ $index }}.{{ $field->valueAttribute }}"
-                                        placeholder="{{ $field->getPlaceholder() }}" size="sm"
-                                        variant="listbox" searchable clearable
-                                        data-field="{{ $field->name }}" data-index="{{ $index }}">
-                                        @foreach ($filteredOptions as $value => $optionLabel)
-                                            <flux:select.option value="{{ $value }}">{{ $optionLabel }}
-                                            </flux:select.option>
-                                        @endforeach
-                                    </flux:select>
+                                    @if ($hasSearch)
+                                        <flux:select
+                                            wire:key="{{ $field->name }}-select-{{ $item['_key'] ?? $index }}"
+                                            wire:model.live="{{ $wireModel }}.{{ $index }}.{{ $field->valueAttribute }}"
+                                            placeholder="{{ $field->getPlaceholder() }}" size="sm"
+                                            variant="listbox" searchable clearable :filter="false"
+                                            data-field="{{ $field->name }}" data-index="{{ $index }}">
+                                            <x-slot name="search">
+                                                <flux:select.search
+                                                    wire:model.live.debounce.300ms="relationshipSearch.{{ $field->name }}.{{ $index }}"
+                                                    placeholder="Search..." />
+                                            </x-slot>
+                                            @foreach ($searchResults as $option)
+                                                <flux:select.option value="{{ $option->getKey() }}"
+                                                    selected-label="{{ $option->name ?? $option->getKey() }}"
+                                                    wire:key="{{ $field->name }}-option-{{ $item['_key'] ?? $index }}-{{ $option->getKey() }}">
+                                                    @if ($field->optionView)
+                                                        @include($field->optionView, ['option' => $option])
+                                                    @else
+                                                        {{ $option->name ?? $option->getKey() }}
+                                                    @endif
+                                                </flux:select.option>
+                                            @endforeach
+                                            <x-slot name="empty">
+                                                <flux:select.option.empty when-loading="Searching...">
+                                                    No matches.
+                                                </flux:select.option.empty>
+                                            </x-slot>
+                                        </flux:select>
+                                    @else
+                                        <flux:select
+                                            wire:key="{{ $field->name }}-select-{{ $item['_key'] ?? $index }}"
+                                            wire:model.live="{{ $wireModel }}.{{ $index }}.{{ $field->valueAttribute }}"
+                                            placeholder="{{ $field->getPlaceholder() }}" size="sm"
+                                            variant="listbox" searchable clearable
+                                            data-field="{{ $field->name }}" data-index="{{ $index }}">
+                                            @foreach ($filteredOptions as $value => $optionLabel)
+                                                <flux:select.option value="{{ $value }}">{{ $optionLabel }}
+                                                </flux:select.option>
+                                            @endforeach
+                                        </flux:select>
+                                    @endif
                                 </div>
                                 <div class="flex gap-0.5">
                                     <flux:button type="button" size="xs" variant="ghost" icon="trash-2"

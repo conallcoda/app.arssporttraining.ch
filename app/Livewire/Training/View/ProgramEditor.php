@@ -2,18 +2,6 @@
 
 namespace App\Livewire\Training\View;
 
-use App\Data\Exercise\BilateralReps;
-use App\Data\Exercise\Settings\DistanceSetting;
-use App\Data\Exercise\Settings\DurationSetting;
-use App\Data\Exercise\Settings\HeartRateSetting;
-use App\Data\Exercise\Settings\HeartRateZoneSetting;
-use App\Data\Exercise\Settings\PaceSetting;
-use App\Data\Exercise\Settings\RepsSetting;
-use App\Data\Exercise\Settings\RestSetting;
-use App\Data\Exercise\Settings\SetsSetting;
-use App\Data\Exercise\Settings\TempoSetting;
-use App\Data\Exercise\Settings\WattsSetting;
-use App\Data\Exercise\Settings\WeightSetting;
 use App\Data\Training\Config\ExerciseOverrides;
 use App\Data\Training\Config\ExercisePlanConfig;
 use App\Form\Fields\Exercise\Exercises;
@@ -50,6 +38,8 @@ class ProgramEditor extends Component
     public array $weekLabels = [];
 
     public array $weekSessions = [];
+
+    public array $weekSessionDates = [];
 
     public array $expandedWeeks = [];
 
@@ -93,6 +83,8 @@ class ProgramEditor extends Component
 
     public array $data = [];
 
+    public array $relationshipSearch = [];
+
     public string $activeSection = 'main';
 
     public ?int $importProgramId = null;
@@ -112,6 +104,7 @@ class ProgramEditor extends Component
         ?int $planIatPercent = null,
         array $weekLabels = [],
         array $weekSessions = [],
+        array $weekSessionDates = [],
         array $expandedWeeks = [],
         array $lockedSessionsByWeek = [],
         bool $sessionLabels = false,
@@ -141,6 +134,7 @@ class ProgramEditor extends Component
         $this->planIatPercent = $planIatPercent;
         $this->weekLabels = $weekLabels;
         $this->weekSessions = $weekSessions;
+        $this->weekSessionDates = $weekSessionDates;
         $this->expandedWeeks = $expandedWeeks;
         $this->lockedSessionsByWeek = $lockedSessionsByWeek;
         $this->sessionLabels = $sessionLabels;
@@ -200,7 +194,7 @@ class ProgramEditor extends Component
     {
         return Form::make()
             ->fieldset('Exercises', [
-                Exercises::make('section_exercises')->withOptions()->groupable(),
+                Exercises::make('section_exercises')->withOptions()->withSearch()->withOptionView()->groupable(),
             ]);
     }
 
@@ -317,6 +311,7 @@ class ProgramEditor extends Component
 
         unset($this->data[$fieldName][$index]);
         $this->data[$fieldName] = array_values($this->data[$fieldName]);
+        unset($this->relationshipSearch[$fieldName]);
 
         $field = collect($this->getAllFields())->firstWhere('name', $fieldName);
         if ($field?->sortable) {
@@ -423,12 +418,16 @@ class ProgramEditor extends Component
         }
 
         $sourceConfig = $sourceProgram->config;
+        $startsAtDate = $this->defaultStartsAtDate();
 
         foreach ($pivotIdMap as $sourcePivotId => $targetPivotId) {
             if (isset($sourceConfig->exercises[$sourcePivotId])) {
+                $overrides = ExerciseOverrides::from($sourceConfig->defaultExerciseOverrides($sourcePivotId)->toArray());
+                $overrides->startsAtDate = $startsAtDate ?? $overrides->startsAtDate;
+
                 $config->setDefaultExerciseOverrides(
                     $targetPivotId,
-                    ExerciseOverrides::from($sourceConfig->defaultExerciseOverrides($sourcePivotId)->toArray())
+                    $overrides
                 );
             }
         }
@@ -444,9 +443,11 @@ class ProgramEditor extends Component
                 $config->setUserExerciseOverrides(
                     (int) $userId,
                     $targetPivotId,
-                    ExerciseOverrides::from(
+                    tap(ExerciseOverrides::from(
                         ($overrides instanceof ExerciseOverrides ? $overrides : ExerciseOverrides::from($overrides))->toArray()
-                    )
+                    ), function (ExerciseOverrides $copiedOverrides) use ($startsAtDate): void {
+                        $copiedOverrides->startsAtDate = $startsAtDate ?? $copiedOverrides->startsAtDate;
+                    })
                 );
             }
         }
@@ -520,7 +521,7 @@ class ProgramEditor extends Component
                     'type' => $this->activeSection,
                 ]);
 
-                $this->setDefaultOverridesForExercise($config, $exerciseId, $newPivot->id);
+                $this->setDefaultOverridesForExercise($config, $exerciseId, $newPivot->id, $this->defaultStartsAtDate());
                 $configChanged = true;
 
                 continue;
@@ -539,7 +540,7 @@ class ProgramEditor extends Component
                 ]);
 
             if ($exerciseChanged) {
-                $this->setDefaultOverridesForExercise($config, $exerciseId, $programExerciseId);
+                $this->setDefaultOverridesForExercise($config, $exerciseId, $programExerciseId, $this->defaultStartsAtDate());
                 $configChanged = true;
             }
         }
@@ -555,79 +556,27 @@ class ProgramEditor extends Component
         app(TrainingSessionRebuildService::class)->rebuildFutureSlotsForExerciseProgram($this->exerciseProgram->id);
     }
 
-    protected function setDefaultOverridesForExercise(ExercisePlanConfig $config, int $exerciseId, int $programExerciseId): void
+    protected function setDefaultOverridesForExercise(ExercisePlanConfig $config, int $exerciseId, int $programExerciseId, ?string $startsAtDate = null): void
     {
-        $exercise = Exercise::find($exerciseId);
-
-        if (! $exercise) {
-            return;
-        }
-
-        $configArray = json_decode($exercise->getRawOriginal('config') ?? '{}', true) ?: [];
-        $config->setDefaultExerciseOverrides($programExerciseId, $this->buildExerciseOverrides($configArray));
+        $config->setDefaultExerciseOverrides(
+            $programExerciseId,
+            new ExerciseOverrides(startsAtDate: $startsAtDate),
+        );
     }
 
-    protected function buildExerciseOverrides(array $configArray): ExerciseOverrides
+    protected function defaultStartsAtDate(): ?string
     {
-        return new ExerciseOverrides(
-            settings: $configArray['settings'] ?? null,
-            sets: isset($configArray['sets']) ? new SetsSetting(
-                deload: $configArray['sets']['deload'] ?? 'none',
-                deloadBy: $configArray['sets']['deloadBy'] ?? 1,
-                label: $configArray['sets']['label'] ?? 'Set',
-                default: $configArray['sets']['default'] ?? 4,
-            ) : null,
-            reps: isset($configArray['reps']) ? new RepsSetting(
-                mode: $configArray['reps']['mode'] ?? 'manual',
-                default: BilateralReps::parse($configArray['reps']['default'] ?? 10)->total(),
-                stepDownInterval: $configArray['reps']['stepDownInterval'] ?? 2,
-                decrement: $configArray['reps']['decrement'] ?? 2,
-                minimum: $configArray['reps']['minimum'] ?? 1,
-                label: $configArray['reps']['label'] ?? '',
-                applyPer: $configArray['reps']['applyPer'] ?? 'session',
-            ) : null,
-            weight: isset($configArray['weight']) ? new WeightSetting(
-                mode: $configArray['weight']['mode'] ?? 'manual',
-                oneRepMaxModifier: $configArray['weight']['oneRepMaxModifier'] ?? 100,
-                default: (float) ($configArray['weight']['default'] ?? 5),
-                applyPer: $configArray['weight']['applyPer'] ?? 'session',
-            ) : null,
-            tempo: isset($configArray['tempo']) ? new TempoSetting(
-                default: $configArray['tempo']['default'] ?? '3010',
-                applyPer: $configArray['tempo']['applyPer'] ?? 'week',
-            ) : null,
-            rest: isset($configArray['rest']) ? new RestSetting(
-                default: $configArray['rest']['default'] ?? 60,
-                applyPer: $configArray['rest']['applyPer'] ?? 'week',
-            ) : null,
-            distance: isset($configArray['distance']) ? new DistanceSetting(
-                unit: $configArray['distance']['unit'] ?? 'meters',
-                default: $configArray['distance']['default'] ?? 500,
-                applyPer: $configArray['distance']['applyPer'] ?? 'session',
-            ) : null,
-            duration: isset($configArray['duration']) ? new DurationSetting(
-                unit: $configArray['duration']['unit'] ?? 'seconds',
-                default: $configArray['duration']['default'] ?? 60,
-                applyPer: $configArray['duration']['applyPer'] ?? 'session',
-            ) : null,
-            heartRate: isset($configArray['heartRate']) ? new HeartRateSetting(
-                default: $configArray['heartRate']['default'] ?? '140',
-                applyPer: $configArray['heartRate']['applyPer'] ?? 'session',
-            ) : null,
-            heartRateZone: isset($configArray['heartRateZone']) ? new HeartRateZoneSetting(
-                default: $configArray['heartRateZone']['default'] ?? '3',
-                applyPer: $configArray['heartRateZone']['applyPer'] ?? 'session',
-            ) : null,
-            pace: isset($configArray['pace']) ? new PaceSetting(
-                default: $configArray['pace']['default'] ?? '5:00',
-                applyPer: $configArray['pace']['applyPer'] ?? 'session',
-            ) : null,
-            watts: isset($configArray['watts']) ? new WattsSetting(
-                default: $configArray['watts']['default'] ?? 100,
-                applyPer: $configArray['watts']['applyPer'] ?? 'session',
-            ) : null,
-            gridOverrides: $configArray['overrides'] ?? ['cells' => [], 'weeks' => []],
-        );
+        foreach ($this->weekSessionDates as $weekIndex => $sessionDates) {
+            $lockedSessions = $this->lockedSessionsByWeek[$weekIndex] ?? [];
+
+            foreach ($sessionDates as $sessionIndex => $sessionDate) {
+                if (! ($lockedSessions[$sessionIndex] ?? false)) {
+                    return $sessionDate;
+                }
+            }
+        }
+
+        return null;
     }
 
     #[Computed]

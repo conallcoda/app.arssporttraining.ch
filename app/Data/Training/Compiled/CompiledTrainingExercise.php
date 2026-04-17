@@ -11,6 +11,7 @@ final readonly class CompiledTrainingExercise
         public int $exerciseId,
         public int $sort,
         public ?string $group,
+        public string $type,
         public array $sets,
     ) {}
 }

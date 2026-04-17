@@ -21,7 +21,7 @@
 @endphp
 
 <div {{ $attributes->class([
-    '-mx-2 px-2 py-3 sm:mx-0 sm:rounded-3xl sm:border sm:border-zinc-200 sm:px-5 sm:py-5 sm:shadow-sm dark:sm:border-zinc-700',
+    'w-full mx-0 px-3 md:px-4 py-3',
     $surfaceClasses,
 ]) }}>
     <div @class([$contentClass])>

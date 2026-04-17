@@ -9,11 +9,11 @@ use Livewire\Component;
 
 class ReadinessForm extends Component
 {
-    public string $sleepDuration = '7:45';
+    public int $sleepMinutes = 450;
 
     public int $sleepQuality = 3;
 
-    public int $altitudeMeters = 0;
+    public int $altitudeMeters = 2000;
 
     public int $condition = 3;
 
@@ -21,7 +21,7 @@ class ReadinessForm extends Component
 
     public int $motivation = 3;
 
-    public int $soreness = 1;
+    public int $soreness = 5;
 
     public int $energy = 3;
 
@@ -31,11 +31,18 @@ class ReadinessForm extends Component
 
     public ?int $hrv = null;
 
+    public int $extremeOffset = -5;
+
+    public function adjustScore(int|float $score): int|float
+    {
+        return $score <= 1 ? $this->extremeOffset : $score;
+    }
+
     #[Computed]
     public function data(): ReadinessMetricData
     {
         return new ReadinessMetricData(
-            sleepMinutes: ReadinessMetricData::parseSleepDuration($this->sleepDuration),
+            sleepMinutes: $this->sleepMinutes,
             sleepQuality: $this->sleepQuality,
             altitudeMeters: $this->altitudeMeters,
             condition: $this->condition,
@@ -52,9 +59,33 @@ class ReadinessForm extends Component
     #[Computed]
     public function sleepDurationScore(): ?int
     {
-        return ReadinessMetricData::sleepDurationScore(
-            ReadinessMetricData::parseSleepDuration($this->sleepDuration),
-        );
+        return ReadinessMetricData::sleepDurationScore($this->sleepMinutes);
+    }
+
+    #[Computed]
+    public function sleepDurationFormatted(): string
+    {
+        return match ($this->sleepMinutes) {
+            360 => '<6:00',
+            510 => '>8:30',
+            default => ReadinessMetricData::formatSleepDuration($this->sleepMinutes),
+        };
+    }
+
+    #[Computed]
+    public function altitudeFormatted(): string
+    {
+        return match ($this->altitudeMeters) {
+            1500 => '<1500',
+            3000 => '>3000',
+            default => (string) $this->altitudeMeters,
+        };
+    }
+
+    #[Computed]
+    public function sleepDurationLabel(): ?string
+    {
+        return ReadinessMetricData::sleepDurationLabel($this->sleepMinutes);
     }
 
     #[Computed]
@@ -64,9 +95,9 @@ class ReadinessForm extends Component
     }
 
     #[Computed]
-    public function sorenessScore(): ?int
+    public function altitudeLabel(): ?string
     {
-        return ReadinessMetricData::sorenessScore($this->soreness);
+        return ReadinessMetricData::altitudeLabel($this->altitudeMeters);
     }
 
     #[Computed]
@@ -76,21 +107,88 @@ class ReadinessForm extends Component
     }
 
     #[Computed]
+    public function sleepQualityWeighted(): float
+    {
+        return $this->adjustScore($this->sleepQuality) * 0.40;
+    }
+
+    #[Computed]
+    public function sleepDurationWeighted(): ?float
+    {
+        $score = ReadinessMetricData::sleepDurationScore($this->sleepMinutes);
+
+        return $score === null ? null : $this->adjustScore($score) * 0.40;
+    }
+
+    #[Computed]
+    public function altitudeWeighted(): ?float
+    {
+        $score = ReadinessMetricData::altitudeScore($this->altitudeMeters);
+
+        return $score === null ? null : $this->adjustScore($score) * 0.20;
+    }
+
+    #[Computed]
     public function sleepScore(): ?float
     {
-        return $this->data->sleepScore();
+        $d = $this->sleepDurationWeighted;
+        $a = $this->altitudeWeighted;
+
+        if ($d === null || $a === null) {
+            return null;
+        }
+
+        return $this->sleepQualityWeighted + $d + $a;
+    }
+
+    #[Computed]
+    public function rhrDelta(): int
+    {
+        return $this->restingHeartRate - $this->restingHeartRateBaseline;
+    }
+
+    #[Computed]
+    public function readinessComponentsSum(): ?float
+    {
+        $sleep = $this->sleepScore;
+        $rhr = $this->rhrScore;
+
+        if ($sleep === null || $rhr === null) {
+            return null;
+        }
+
+        return $sleep
+            + $this->adjustScore($this->condition)
+            + $this->adjustScore($this->mood)
+            + $this->adjustScore($this->motivation)
+            + $this->adjustScore($this->soreness)
+            + $this->adjustScore($this->energy)
+            + $this->adjustScore($rhr);
     }
 
     #[Computed]
     public function readinessScore(): ?float
     {
-        return $this->data->readinessScore();
+        $sum = $this->readinessComponentsSum;
+
+        return $sum === null ? null : $sum / 7;
     }
 
     #[Computed]
     public function trafficLight(): ?string
     {
-        return $this->data->trafficLight();
+        $score = $this->readinessScore;
+
+        if ($score === null) {
+            return null;
+        }
+
+        return match (true) {
+            $score >= 4.0 => 'ready',
+            $score >= 3.0 => 'train_smart',
+            $score >= 2.0 => 'recovery',
+            default => 'rest',
+        };
     }
 
     public function render()

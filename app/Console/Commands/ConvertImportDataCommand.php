@@ -163,6 +163,10 @@ class ConvertImportDataCommand extends Command
             $node['color'] = $tag['color'];
         }
 
+        if (array_key_exists('default_exercise_template_id', $tag)) {
+            $node['default_exercise_template_id'] = $tag['default_exercise_template_id'];
+        }
+
         if (isset($childrenByParentId[$tag['id']])) {
             $children = [];
             foreach ($childrenByParentId[$tag['id']] as $child) {

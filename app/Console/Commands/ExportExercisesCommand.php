@@ -138,6 +138,7 @@ class ExportExercisesCommand extends Command
                 'slug' => $tag->slug,
                 'parent_id' => $tag->parent_id,
                 'sort_order' => $tag->sort_order,
+                'default_exercise_template_id' => $tag->default_exercise_template_id,
             ];
 
             $this->stats['tags']['new']++;

@@ -3,7 +3,7 @@
         <div class="space-y-0">
             @if ($showReadiness)
                 @if ($readinessScore === null)
-                    <div class="py-3 sm:py-4">
+                    <div class="px-3 py-3">
                         <flux:callout icon="triangle-alert" color="amber">
                             Please fill in the readiness survey before starting your training.
                         </flux:callout>

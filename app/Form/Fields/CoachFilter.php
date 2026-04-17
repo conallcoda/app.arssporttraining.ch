@@ -15,6 +15,7 @@ class CoachFilter extends Pillbox
         $this->label = 'Coach';
         $this->placeholder = 'Filter by coach...';
         $this->variant = 'listbox';
+        $this->searchable = true;
 
         $this->optionLoader = fn () => User::whereIn('type', [UserTypeEnum::Coach, UserTypeEnum::Admin])
             ->orderBy('forename')

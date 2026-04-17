@@ -91,6 +91,7 @@ class DaySchedule extends Component
                 ->groupBy('date')
                 ->map(fn ($rows, string $dateKey) => [
                     'date' => $dateKey,
+                    'isFuture' => AthleteDashboardDate::isFutureDate($dateKey),
                     'formattedDate' => CarbonImmutable::parse($dateKey)->locale(App::currentLocale())->translatedFormat('l, d.m.Y'),
                     'sessionCount' => $rows->count(),
                     'programs' => $rows->sortByDesc(fn (array $row) => $row['datetime'])->pluck('program')->values(),
@@ -112,6 +113,7 @@ class DaySchedule extends Component
                 if ($dayPrograms->isNotEmpty()) {
                     $days->push([
                         'date' => $dateKey,
+                        'isFuture' => AthleteDashboardDate::isFutureDate($dateKey),
                         'formattedDate' => $currentDate->locale(App::currentLocale())->translatedFormat('l, d.m.Y'),
                         'sessionCount' => $dayPrograms->count(),
                         'programs' => $dayPrograms,
@@ -128,6 +130,7 @@ class DaySchedule extends Component
 
             $days->push([
                 'date' => $selectedDate->format('Y-m-d'),
+                'isFuture' => AthleteDashboardDate::isFutureDate($selectedDate),
                 'formattedDate' => $selectedDate->locale(App::currentLocale())->translatedFormat('l, d.m.Y'),
                 'sessionCount' => $programs->count(),
                 'programs' => $programs,

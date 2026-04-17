@@ -20,6 +20,7 @@ class ExerciseOverrides extends AbstractData
     public function __construct(
         /** @var string[]|null */
         public ?array $settings = null,
+        public ?string $startsAtDate = null,
         public ?SetsSetting $sets = null,
         public ?RepsSetting $reps = null,
         public ?WeightSetting $weight = null,

@@ -55,7 +55,7 @@
 >
     <flux:modal
         name="exercise-gallery"
-        class="w-[calc(100vw-1.5rem)] max-w-4xl sm:w-full"
+        class="w-[calc(100vw-1.5rem)] max-w-4xl"
         x-on:close="close()"
     >
         <div class="space-y-4">
@@ -74,7 +74,7 @@
                         x-on:touchstart="onTouchStart($event)"
                         x-on:touchend="onTouchEnd($event)"
                     >
-                        <div class="flex aspect-[4/5] items-center justify-center sm:aspect-video">
+                        <div class="flex aspect-[4/5] items-center justify-center">
                             <img
                                 x-bind:src="images[activeIndex]"
                                 alt=""

@@ -154,6 +154,7 @@
                         :sessionsPerWeek="$sessionsPerWeek"
                         :weekLabels="$weekLabels"
                         :weekSessions="$weekSessions"
+                        :weekSessionDates="$weekSessionDates"
                         :expandedWeeks="$expandedWeeks"
                         :lockedSessionsByWeek="$lockedSessionsByWeek"
                         :sessionLabels="$sessionLabels"

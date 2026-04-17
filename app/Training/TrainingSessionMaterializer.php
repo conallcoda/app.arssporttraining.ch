@@ -65,6 +65,7 @@ class TrainingSessionMaterializer
             'exercise_id' => $exercise->exerciseId,
             'sort' => $exercise->sort,
             'group' => $exercise->group,
+            'type' => $exercise->type,
             'status' => TrainingProgramSlotExerciseStatusEnum::Pending,
             'set_count' => count($exercise->sets),
             'completed_set_count' => 0,

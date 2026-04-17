@@ -166,7 +166,7 @@ class ExerciseProgramData extends AbstractData implements HasForms
                     ->required()
                     ->live(),
                 ExerciseCategory::make('exercise_category_id')->withOptions(),
-                Exercises::make('exercises')->withOptions(),
+                Exercises::make('exercises')->withOptions()->withSearch()->withOptionView(),
                 Tags::make('internalTags', 'program_internal')->label('Tags')->withOptions()->create(),
             ]);
     }

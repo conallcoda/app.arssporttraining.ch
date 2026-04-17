@@ -444,6 +444,7 @@
                             color-expr="color"
                             time-expr="slot.time"
                             name-expr="(slot.names || []).join(', ')"
+                            status-color-expr="slot.statusColor"
                         />
                     </template>
                 </template>

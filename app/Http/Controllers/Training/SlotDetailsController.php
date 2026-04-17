@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Training;
 
 use App\Models\Training\TrainingProgramSlot;
+use App\Models\Training\TrainingProgramSlotStatusEnum;
 use App\Training\CalendarBlockService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -58,7 +59,7 @@ class SlotDetailsController
             ->where('training_program_id', $request->training_program_id)
             ->whereBetween('datetime', [$date->startOfDay()->toDateTimeString(), $date->copy()->endOfDay()->toDateTimeString()])
             ->join('users', 'training_program_slots.user_id', '=', 'users.id')
-            ->select('training_program_slots.user_id', 'datetime', 'users.forename', 'users.surname')
+            ->select('training_program_slots.user_id', 'datetime', 'training_program_slots.status', 'users.forename', 'users.surname')
             ->orderBy('datetime');
 
         if ($request->filled('user_id')) {
@@ -72,6 +73,7 @@ class SlotDetailsController
                 'time' => $row->datetime->format('H:i'),
                 'name' => trim("{$row->forename} {$row->surname}"),
                 'userId' => $row->user_id,
+                'statusColor' => $this->slotStatusColor($row->status),
             ]);
         } else {
             $grouped = [];
@@ -79,8 +81,15 @@ class SlotDetailsController
                 $time = $row->datetime->format('H:i');
                 $grouped[$time]['time'] = $time;
                 $grouped[$time]['names'][] = trim("{$row->forename} {$row->surname}");
+                $grouped[$time]['_statuses'][] = $row->status;
             }
-            $result = array_values($grouped);
+            $result = [];
+            foreach ($grouped as $entry) {
+                $statuses = $entry['_statuses'] ?? [];
+                unset($entry['_statuses']);
+                $entry['statusColor'] = $this->aggregateStatusColor($statuses);
+                $result[] = $entry;
+            }
         }
 
         return response()->json($result);
@@ -120,7 +129,7 @@ class SlotDetailsController
                 $start->copy()->startOfDay(),
                 $end->copy()->endOfDay(),
             ])
-            ->selectRaw("training_programs.id as training_program_id, training_programs.exercise_program_id, DATE(training_program_slots.datetime) as slot_date, TIME(training_program_slots.datetime) as slot_time, exercise_programs.name as program_name, tags.color as category_color, TRIM(CONCAT(users.forename, ' ', users.surname)) as user_name")
+            ->selectRaw("training_programs.id as training_program_id, training_programs.exercise_program_id, DATE(training_program_slots.datetime) as slot_date, TIME(training_program_slots.datetime) as slot_time, exercise_programs.name as program_name, tags.color as category_color, training_program_slots.status as slot_status, TRIM(CONCAT(users.forename, ' ', users.surname)) as user_name")
             ->get();
 
         $rawByDate = [];
@@ -134,11 +143,18 @@ class SlotDetailsController
             $rawByDate[$date][$key]['color'] = $slot->category_color;
             $rawByDate[$date][$key]['time'] = $time;
             $rawByDate[$date][$key]['userNames'][] = $slot->user_name;
+            $rawByDate[$date][$key]['_statuses'][] = $slot->slot_status;
         }
 
         $result = [];
         foreach ($rawByDate as $date => $entries) {
-            $dayEntries = array_values($entries);
+            $dayEntries = array_values(array_map(function (array $entry): array {
+                $statuses = $entry['_statuses'] ?? [];
+                unset($entry['_statuses']);
+                $entry['statusColor'] = $this->aggregateStatusColor($statuses);
+
+                return $entry;
+            }, $entries));
             $am = array_values(array_filter($dayEntries, fn ($e) => $e['time'] < '12:00'));
             $pm = array_values(array_filter($dayEntries, fn ($e) => $e['time'] >= '12:00'));
             usort($am, fn ($a, $b) => $a['time'] <=> $b['time'] ?: $a['name'] <=> $b['name']);
@@ -161,7 +177,7 @@ class SlotDetailsController
                 $start->copy()->startOfDay(),
                 $end->copy()->endOfDay(),
             ])
-            ->selectRaw('training_programs.id as training_program_id, DATE(training_program_slots.datetime) as slot_date, TIME(training_program_slots.datetime) as slot_time, exercise_programs.name as program_name, tags.color as category_color')
+            ->selectRaw('training_programs.id as training_program_id, DATE(training_program_slots.datetime) as slot_date, TIME(training_program_slots.datetime) as slot_time, exercise_programs.name as program_name, tags.color as category_color, training_program_slots.status as slot_status')
             ->get();
 
         $result = [];
@@ -175,6 +191,7 @@ class SlotDetailsController
                 'color' => $slot->category_color,
                 'time' => $time,
                 'userNames' => [],
+                'statusColor' => $this->slotStatusColor($slot->slot_status),
             ];
 
             if ($time < '12:00') {
@@ -216,7 +233,6 @@ class SlotDetailsController
                    SUM(CASE WHEN tps.status = 'completed' THEN 1 ELSE 0 END) as completed_count,
                    SUM(CASE WHEN tps.status = 'partially_completed' THEN 1 ELSE 0 END) as partial_count,
                    SUM(CASE WHEN tps.status = 'skipped' THEN 1 ELSE 0 END) as skipped_count,
-                   SUM(CASE WHEN tps.status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_count,
                    SUM(CASE WHEN tps.status = 'pending' OR tps.status IS NULL THEN 1 ELSE 0 END) as pending_count
                    {$timeSelect}
             FROM training_program_slots tps
@@ -239,7 +255,6 @@ class SlotDetailsController
                 'completed' => (int) $row->completed_count,
                 'partial' => (int) $row->partial_count,
                 'skipped' => (int) $row->skipped_count,
-                'cancelled' => (int) $row->cancelled_count,
                 'pending' => (int) $row->pending_count,
             ];
 
@@ -255,7 +270,6 @@ class SlotDetailsController
                     'completedCount' => $statusCounts['completed'],
                     'partialCount' => $statusCounts['partial'],
                     'skippedCount' => $statusCounts['skipped'],
-                    'cancelledCount' => $statusCounts['cancelled'],
                     'pendingCount' => $statusCounts['pending'],
                     'status' => $this->resolveAggregateStatus($statusCounts),
                 ];
@@ -272,7 +286,7 @@ class SlotDetailsController
     }
 
     /**
-     * @param  array{completed:int, partial:int, skipped:int, cancelled:int, pending:int}  $counts
+     * @param  array{completed:int, partial:int, skipped:int, pending:int}  $counts
      */
     private function resolveAggregateStatus(array $counts): string
     {
@@ -280,10 +294,6 @@ class SlotDetailsController
 
         if ($total === 0 || $counts['pending'] === $total) {
             return 'pending';
-        }
-
-        if ($counts['cancelled'] === $total) {
-            return 'cancelled';
         }
 
         if ($counts['skipped'] === $total) {
@@ -294,7 +304,7 @@ class SlotDetailsController
             return 'partially_completed';
         }
 
-        if ($counts['pending'] === 0 && $counts['cancelled'] === 0 && ($counts['completed'] + $counts['skipped']) === $total && $counts['completed'] > 0) {
+        if ($counts['pending'] === 0 && ($counts['completed'] + $counts['skipped']) === $total && $counts['completed'] > 0) {
             return 'completed';
         }
 
@@ -363,6 +373,7 @@ class SlotDetailsController
 
         $slots = DB::select('
             SELECT tps.datetime,
+                   tps.status,
                    ep.name as program_name,
                    t.color as category_color
             FROM training_program_slots tps
@@ -379,8 +390,46 @@ class SlotDetailsController
             'time' => Carbon::parse($row->datetime)->format('H:i'),
             'name' => $row->program_name,
             'color' => $row->category_color,
+            'statusColor' => $this->slotStatusColor($row->status),
         ], $slots);
 
         return response()->json($result);
+    }
+
+    /**
+     * @return array{light: string, dark: string}
+     */
+    private function slotStatusColor(?string $status): array
+    {
+        $enum = TrainingProgramSlotStatusEnum::tryFrom($status ?? TrainingProgramSlotStatusEnum::Pending->value)
+            ?? TrainingProgramSlotStatusEnum::Pending;
+
+        return $enum->barColor();
+    }
+
+    /**
+     * @param  array<int, string|null>  $statuses
+     * @return array{light: string, dark: string}
+     */
+    private function aggregateStatusColor(array $statuses): array
+    {
+        $counts = [
+            'completed' => 0,
+            'partial' => 0,
+            'skipped' => 0,
+            'pending' => 0,
+        ];
+
+        foreach ($statuses as $status) {
+            $value = $status ?? TrainingProgramSlotStatusEnum::Pending->value;
+            match ($value) {
+                TrainingProgramSlotStatusEnum::Completed->value => $counts['completed']++,
+                TrainingProgramSlotStatusEnum::PartiallyCompleted->value => $counts['partial']++,
+                TrainingProgramSlotStatusEnum::Skipped->value => $counts['skipped']++,
+                default => $counts['pending']++,
+            };
+        }
+
+        return $this->slotStatusColor($this->resolveAggregateStatus($counts));
     }
 }

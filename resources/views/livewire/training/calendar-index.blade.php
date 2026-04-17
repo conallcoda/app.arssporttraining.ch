@@ -14,6 +14,13 @@
 
         <div class="flex-1 min-w-0">
             <div class="{{ $this->showSidebar ? 'lg:hidden' : '' }} flex flex-col sm:flex-row items-stretch sm:items-end gap-4 pb-6">
+                <div class="w-full sm:w-auto sm:shrink-0">
+                    <flux:label class="mb-2">{{ __('Groups') }}</flux:label>
+                    <flux:radio.group wire:model.live="groupFilter" variant="segmented" class="w-full sm:w-auto">
+                        <flux:radio value="mine" :label="__('My Groups')" />
+                        <flux:radio value="all" :label="__('All Groups')" />
+                    </flux:radio.group>
+                </div>
                 <flux:field class="w-full sm:min-w-[200px] sm:w-auto">
                     <flux:label>{{ __('Group') }}</flux:label>
                     <flux:select variant="listbox" searchable wire:model.live="group" placeholder="{{ __('Select group...') }}">
@@ -132,6 +139,7 @@
                                         :sessionsPerWeek="$this->planScheduleInfo['sessionsPerWeek']"
                                         :weekLabels="$this->planScheduleInfo['weekLabels']"
                                         :weekSessions="$this->planScheduleInfo['weekSessions']"
+                                        :weekSessionDates="$this->planScheduleInfo['weekSessionDates']"
                                         :expandedWeeks="$this->planScheduleInfo['expandedWeeks']"
                                         :lockedSessionsByWeek="$this->planScheduleInfo['lockedSessionsByWeek']"
                                         :sessionLabels="true"
@@ -159,41 +167,30 @@
                             @endif
                         @endif
                     @else
-                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-4 pb-2">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between pt-4 pb-2">
+                            <flux:field class="sm:min-w-[440px]">
+                                <flux:date-picker
+                                    mode="range"
+                                    size="sm"
+                                    locale="de-DE"
+                                    with-presets
+                                    presets="thisWeek lastWeek thisMonth lastMonth thisQuarter lastQuarter nextQuarter next30Days next3Months next6Months custom"
+                                    max-range="184"
+                                    wire:model.live="range"
+                                />
+                            </flux:field>
                             <div class="flex items-center gap-2">
-                                <flux:heading size="xl">{{ $this->title }}</flux:heading>
-                                <flux:button variant="ghost" icon="pencil" size="sm" wire:click="openCalendarRange" />
-                            </div>
-                            @if ($view === 'overview')
-                                <div class="relative flex items-center gap-2" x-data="{ legendOpen: false }">
-                                    <flux:button variant="ghost" size="sm" icon="information-circle" x-on:click="legendOpen = !legendOpen">
-                                        {{ __('Legend') }}
-                                    </flux:button>
-                                    <div x-show="legendOpen"
-                                        x-cloak
-                                        x-on:click.outside="legendOpen = false"
-                                        class="absolute right-full top-1/2 z-20 mr-2 w-56 -translate-y-1/2 rounded-xl border border-zinc-200 bg-white p-3 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
-                                        <div class="space-y-2 text-sm text-zinc-700 dark:text-zinc-200">
-                                            @foreach (\App\Models\Training\TrainingProgramSlotStatusEnum::cases() as $status)
-                                                @php($statusColor = $status->barColor())
-                                                <div class="flex items-center gap-2">
-                                                    <span
-                                                        class="status-dot h-2.5 w-2.5 rounded-full"
-                                                        style="--status-bar-light: {{ $statusColor['light'] }}; --status-bar-dark: {{ $statusColor['dark'] }};"
-                                                    ></span>
-                                                    <span>{{ __($status->label()) }}</span>
-                                                </div>
-                                            @endforeach
-                                        </div>
-                                    </div>
+                                <x-training.status-legend position="left" />
+                                @if ($view === 'overview')
                                     <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddBlock">{{ __('Add Block') }}</flux:button>
                                     <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddProgram">{{ __('Add Program') }}</flux:button>
-                                </div>
-                            @endif
+                                @endif
+                            </div>
                         </div>
 
                         @if ($view === 'schedule')
                             <livewire:training.calendar-schedule-view
+                                :key="'calendar-schedule-' . ($group !== '' ? $group : 'none') . '-' . ($user !== '' ? $user : 'group') . '-' . ($calendarSettings->preset ?? 'custom') . '-' . ($calendarSettings->start ?? 'none') . '-' . ($calendarSettings->end ?? 'none')"
                                 :groupId="(int) $group"
                                 :userId="$user !== '' ? (int) $user : null"
                                 :calendarSettings="$calendarSettings"
@@ -201,6 +198,7 @@
                             />
                         @else
                             <livewire:training.calendar-programs-view
+                                :key="'calendar-programs-' . ($group !== '' ? $group : 'none') . '-' . ($user !== '' ? $user : 'group') . '-' . ($calendarSettings->preset ?? 'custom') . '-' . ($calendarSettings->start ?? 'none') . '-' . ($calendarSettings->end ?? 'none')"
                                 :groupId="(int) $group"
                                 :userId="$user !== '' ? (int) $user : null"
                                 :calendarSettings="$calendarSettings"
@@ -211,11 +209,40 @@
                     @endif
                 @elseif ($this->hasOverviewGroups)
                     <flux:heading size="xl">{{ __('Summary') }}</flux:heading>
-                    <div class="flex items-center gap-2 pt-4 pb-2">
-                        <flux:heading size="xl">{{ $this->title }}</flux:heading>
-                        <flux:button variant="ghost" icon="pencil" size="sm" wire:click="openCalendarRange" />
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between pt-4 pb-2">
+                        <flux:field class="sm:min-w-[440px]">
+                            <flux:date-picker
+                                mode="range"
+                                size="sm"
+                                locale="de-DE"
+                                with-presets
+                                presets="thisWeek lastWeek thisMonth lastMonth thisQuarter lastQuarter nextQuarter next30Days next3Months next6Months custom"
+                                max-range="184"
+                                wire:model.live="range"
+                            />
+                        </flux:field>
+                        <div class="relative" x-data="{ legendOpen: false }">
+                            <flux:button variant="ghost" size="sm" icon="information-circle" x-on:click="legendOpen = !legendOpen">
+                                {{ __('Legend') }}
+                            </flux:button>
+                            <div x-show="legendOpen"
+                                x-cloak
+                                x-on:click.outside="legendOpen = false"
+                                class="absolute right-0 top-full z-20 mt-2 w-56 rounded-xl border border-zinc-200 bg-white p-3 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+                                <div class="space-y-2 text-sm text-zinc-700 dark:text-zinc-200">
+                                    @foreach ($this->exerciseCategoryLegend as $category)
+                                        <div class="flex items-center gap-2">
+                                            <span class="h-2.5 w-2.5 rounded-full shrink-0"
+                                                style="{{ \Coda\Cms\Support\ColorPalette::solid($category->color) }}"></span>
+                                            <span>{{ $category->name }}</span>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <livewire:training.calendar-overview-grid
+                        :key="'calendar-overview-' . $groupFilter . '-' . ($calendarSettings->preset ?? 'custom') . '-' . ($calendarSettings->start ?? 'none') . '-' . ($calendarSettings->end ?? 'none')"
                         :groupFilter="$groupFilter"
                         :calendarSettings="$calendarSettings"
                         :weekStartsOn="$weekStartsOn"
@@ -290,8 +317,6 @@
             </flux:tab.group>
         </div>
     </flux:modal>
-
-    <livewire:training.calendar-range-form />
 
     <livewire:training.block-form />
 

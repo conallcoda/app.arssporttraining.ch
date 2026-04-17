@@ -58,11 +58,14 @@
         }
     }
 
-    @media (max-width: 639px) {
-        .athlete-toolbar,
-        .athlete-toolbar * {
-            border-radius: 0 !important;
-        }
+    .athlete-toolbar,
+    .athlete-toolbar * {
+        border-radius: 0 !important;
+    }
+
+    .athlete-segmented-tabs,
+    .athlete-segmented-tabs * {
+        border-radius: 0 !important;
     }
 }
 

@@ -19,6 +19,7 @@ class TrainingProgramSlotExercise extends Model
         'exercise_id',
         'sort',
         'group',
+        'type',
         'status',
         'set_count',
         'completed_set_count',
@@ -32,6 +33,7 @@ class TrainingProgramSlotExercise extends Model
     protected function casts(): array
     {
         return [
+            'type' => 'string',
             'status' => TrainingProgramSlotExerciseStatusEnum::class,
             'has_any_modification' => 'bool',
             'completed_at' => 'datetime',

@@ -76,7 +76,6 @@ class TrainingSessionEditGuard
                     TrainingProgramSlotStatusEnum::Completed,
                     TrainingProgramSlotStatusEnum::PartiallyCompleted,
                     TrainingProgramSlotStatusEnum::Skipped,
-                    TrainingProgramSlotStatusEnum::Cancelled,
                 ])
                 ->orWhereNotNull('completed_at');
         });

@@ -76,6 +76,7 @@ class DatabaseImportSeeder extends Seeder
                 'slug' => $tag['slug'],
                 'sort_order' => $tag['sort_order'],
                 'color' => $tag['color'] ?? null,
+                'default_exercise_template_id' => $tag['default_exercise_template_id'] ?? null,
                 'deleted_at' => $tag['deleted_at'] ?? null,
             ]);
         }

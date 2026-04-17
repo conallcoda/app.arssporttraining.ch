@@ -4,6 +4,7 @@ namespace App\Data\Athlete;
 
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Training\TrainingProgramSlotExercise;
+use App\Support\AthleteDashboardDate;
 use Coda\Cms\Data\AbstractData;
 
 class ScheduledProgramData extends AbstractData
@@ -21,6 +22,7 @@ class ScheduledProgramData extends AbstractData
         public array $progressSegments = [],
         public int $recordedExerciseCount = 0,
         public int $totalExerciseCount = 0,
+        public bool $isFuture = false,
     ) {}
 
     public static function fromSlot(TrainingProgramSlot $slot): self
@@ -54,6 +56,7 @@ class ScheduledProgramData extends AbstractData
             progressSegments: $progressSegments,
             recordedExerciseCount: $recordedExerciseCount,
             totalExerciseCount: $totalExerciseCount,
+            isFuture: AthleteDashboardDate::isFutureDate($slot->datetime->format('Y-m-d')),
         );
     }
 }

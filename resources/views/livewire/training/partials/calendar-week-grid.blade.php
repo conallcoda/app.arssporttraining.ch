@@ -87,6 +87,7 @@
                                             time-expr="prog.time"
                                             name-expr="prog.name"
                                             subtitle-expr="(prog.userNames || []).join(', ')"
+                                            status-color-expr="prog.statusColor"
                                         />
                                     </template>
                                     <div x-show="!isLoaded({{ $pageIndex }})" class="h-4 w-full animate-pulse rounded bg-zinc-200 dark:bg-zinc-700"></div>
@@ -114,6 +115,7 @@
                                             time-expr="prog.time"
                                             name-expr="prog.name"
                                             subtitle-expr="(prog.userNames || []).join(', ')"
+                                            status-color-expr="prog.statusColor"
                                         />
                                     </template>
                                     <div x-show="!isLoaded({{ $pageIndex }})" class="h-4 w-full animate-pulse rounded bg-zinc-200 dark:bg-zinc-700"></div>

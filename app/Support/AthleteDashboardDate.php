@@ -21,4 +21,13 @@ class AthleteDashboardDate
     {
         return static::today()->format('Y-m-d');
     }
+
+    public static function isFutureDate(CarbonImmutable|string $date): bool
+    {
+        $resolvedDate = $date instanceof CarbonImmutable
+            ? $date->startOfDay()
+            : CarbonImmutable::parse($date)->startOfDay();
+
+        return $resolvedDate->gt(static::today()->startOfDay());
+    }
 }

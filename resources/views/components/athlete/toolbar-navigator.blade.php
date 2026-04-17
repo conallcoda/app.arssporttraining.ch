@@ -3,7 +3,7 @@
     'nextHref',
 ])
 
-<div class="flex items-center bg-zinc-800/5 p-0 sm:rounded-xl dark:bg-white/10">
+<div class="flex items-center bg-zinc-800/5 p-0 dark:bg-white/10">
     <a
         href="{{ $previousHref }}"
         wire:navigate

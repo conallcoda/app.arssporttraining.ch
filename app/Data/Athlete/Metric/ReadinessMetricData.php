@@ -42,7 +42,7 @@ class ReadinessMetricData extends AbstractData
             $minutes >= 510 => 5,
             $minutes >= 450 => 4,
             $minutes >= 405 => 3,
-            $minutes >= 360 => 2,
+            $minutes > 360 => 2,
             default => 1,
         };
     }
@@ -57,18 +57,39 @@ class ReadinessMetricData extends AbstractData
             $meters <= 1500 => 5,
             $meters <= 1850 => 4,
             $meters <= 2400 => 3,
-            $meters <= 3000 => 2,
+            $meters < 3000 => 2,
             default => 1,
         };
     }
 
-    public static function sorenessScore(?int $rawSoreness): ?int
+    public static function sleepDurationLabel(?int $minutes): ?string
     {
-        if ($rawSoreness === null) {
+        if ($minutes === null) {
             return null;
         }
 
-        return 6 - $rawSoreness;
+        return match (true) {
+            $minutes >= 510 => 'Fully rested',
+            $minutes >= 450 => 'Well rested',
+            $minutes >= 405 => 'Adequate',
+            $minutes > 360 => 'Short',
+            default => 'Insufficient',
+        };
+    }
+
+    public static function altitudeLabel(?int $meters): ?string
+    {
+        if ($meters === null) {
+            return null;
+        }
+
+        return match (true) {
+            $meters <= 1500 => 'Near sea level',
+            $meters <= 1850 => 'Low',
+            $meters <= 2400 => 'Moderate',
+            $meters < 3000 => 'High',
+            default => 'Very high',
+        };
     }
 
     public static function rhrScore(?int $todayBpm, ?int $baselineBpm): ?int
@@ -77,7 +98,7 @@ class ReadinessMetricData extends AbstractData
             return null;
         }
 
-        $difference = $todayBpm - $baselineBpm;
+        $difference = abs($todayBpm - $baselineBpm);
 
         return match (true) {
             $difference < 5 => 5,
@@ -109,7 +130,7 @@ class ReadinessMetricData extends AbstractData
             $this->condition,
             $this->mood,
             $this->motivation,
-            self::sorenessScore($this->soreness),
+            $this->soreness,
             $this->energy,
             self::rhrScore($this->restingHeartRate, $this->restingHeartRateBaseline),
         ];
@@ -137,21 +158,6 @@ class ReadinessMetricData extends AbstractData
             $score >= self::RECOVERY_THRESHOLD => 'recovery',
             default => 'rest',
         };
-    }
-
-    public static function parseSleepDuration(?string $hhmm): ?int
-    {
-        if ($hhmm === null || ! preg_match('/^(\d{1,2}):(\d{2})$/', trim($hhmm), $matches)) {
-            return null;
-        }
-
-        $minutes = (int) $matches[2];
-
-        if ($minutes >= 60) {
-            return null;
-        }
-
-        return ((int) $matches[1]) * 60 + $minutes;
     }
 
     public static function formatSleepDuration(?int $minutes): string

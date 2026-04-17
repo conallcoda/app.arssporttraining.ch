@@ -3,11 +3,13 @@
 namespace App\Data\Exercise;
 
 use App\Form\Fields\Category;
+use App\Models\Exercise\ExerciseTemplate;
 use App\Models\Tag;
 use Carbon\Carbon;
 use Coda\Cms\Data\AbstractData;
 use Coda\FormKit\Concerns\InteractsWithForms;
 use Coda\FormKit\Contracts\HasForms;
+use Coda\FormKit\Fields\Select;
 use Coda\FormKit\Fields\Text;
 use Coda\FormKit\Form;
 
@@ -29,6 +31,7 @@ class ExerciseCategoryData extends AbstractData implements HasForms
         public int $sortOrder = 0,
         public int $depth = 0,
         public array $children = [],
+        public ?int $defaultExerciseTemplate = null,
         public ?Carbon $updatedAt = null,
     ) {}
 
@@ -52,6 +55,7 @@ class ExerciseCategoryData extends AbstractData implements HasForms
             name: $tag->name,
             parentId: $tag->parent_id,
             parents: $parents,
+            defaultExerciseTemplate: $tag->default_exercise_template_id,
             updatedAt: $tag->updated_at,
         );
     }
@@ -75,6 +79,7 @@ class ExerciseCategoryData extends AbstractData implements HasForms
             sortOrder: $tag->sort_order ?? 0,
             depth: $depth,
             children: $children,
+            defaultExerciseTemplate: $tag->default_exercise_template_id,
             updatedAt: $tag->updated_at,
         );
     }
@@ -88,6 +93,7 @@ class ExerciseCategoryData extends AbstractData implements HasForms
                 'scope' => 'exercise_category',
                 'parent_id' => $this->parentId,
                 'sort_order' => $this->sortOrder,
+                'default_exercise_template_id' => $this->defaultExerciseTemplate,
             ]
         );
 
@@ -100,6 +106,12 @@ class ExerciseCategoryData extends AbstractData implements HasForms
             ->fieldset('General', [
                 Text::make('name')->label('Name')->required(),
                 Category::make('parentId', 'exercise_category')->label('Parent')->placeholder('Select parent')->required()->withOptions(),
+                Select::make('defaultExerciseTemplate')
+                    ->label('Default Template')
+                    ->options(ExerciseTemplate::query()->orderBy('name')->pluck('name', 'id')->all())
+                    ->variant('listbox')
+                    ->searchable()
+                    ->clearable(),
             ]);
     }
 }

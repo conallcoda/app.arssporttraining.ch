@@ -79,7 +79,6 @@ document.addEventListener('alpine:init', () => {
                     completedCount: 0,
                     partialCount: 0,
                     skippedCount: 0,
-                    cancelledCount: 0,
                     pendingCount: val || 0,
                 }
             },

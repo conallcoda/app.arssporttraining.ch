@@ -69,6 +69,7 @@ class ExportDatabaseCommand extends Command
                 'slug' => $tag->slug,
                 'sort_order' => $tag->sort_order,
                 'color' => $tag->color,
+                'default_exercise_template_id' => $tag->default_exercise_template_id,
                 'deleted_at' => $tag->deleted_at?->toIso8601String(),
             ])
             ->all();

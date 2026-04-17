@@ -591,7 +591,7 @@ trait WithCalendarPlan
     public function planScheduleInfo(): array
     {
         if ($this->planProgram === '') {
-            return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false, 'weekLabels' => [], 'weekSessions' => [], 'expandedWeeks' => [], 'lockedSessionsByWeek' => []];
+            return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false, 'weekLabels' => [], 'weekSessions' => [], 'weekSessionDates' => [], 'expandedWeeks' => [], 'lockedSessionsByWeek' => []];
         }
 
         $slotQuery = TrainingProgramSlot::query()
@@ -633,13 +633,14 @@ trait WithCalendarPlan
 
         $weeks = count($scheduledWeeks);
         if ($weeks === 0) {
-            return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false, 'weekLabels' => [], 'weekSessions' => [], 'expandedWeeks' => [], 'lockedSessionsByWeek' => []];
+            return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false, 'weekLabels' => [], 'weekSessions' => [], 'weekSessionDates' => [], 'expandedWeeks' => [], 'lockedSessionsByWeek' => []];
         }
 
         $sessionsPerWeek = max(1, (int) $scheduledWeeks->map(fn (array $week) => count($week['sessions']))->max());
 
         $weekLabels = [];
         $weekSessions = [];
+        $weekSessionDates = [];
         $expandedWeeks = [];
         $lockedSessionsByWeek = [];
         $now = now();
@@ -651,6 +652,9 @@ trait WithCalendarPlan
             $weekLabels[$i] = 'W'.$weekInfo['week'].', '.$weekInfo['year']
                 .'<br><span class="text-[10px] font-normal text-zinc-400 dark:text-zinc-500">'.$dateRange.'</span>';
             $weekSessions[$i] = count($weekInfo['sessions']);
+            $weekSessionDates[$i] = collect($weekInfo['sessions'])
+                ->map(fn (Carbon $sessionDatetime) => $sessionDatetime->toDateString())
+                ->all();
             $lockedSessionsByWeek[$i] = collect($weekInfo['sessions'])
                 ->map(fn (Carbon $sessionDatetime) => $sessionDatetime->lessThanOrEqualTo($now))
                 ->all();
@@ -666,6 +670,7 @@ trait WithCalendarPlan
             'scheduled' => true,
             'weekLabels' => $weekLabels,
             'weekSessions' => $weekSessions,
+            'weekSessionDates' => $weekSessionDates,
             'expandedWeeks' => $expandedWeeks,
             'lockedSessionsByWeek' => $lockedSessionsByWeek,
         ];

@@ -7,6 +7,7 @@ use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Training\TrainingProgramSlotExercise;
 use App\Models\Training\TrainingProgramSlotSetValue;
+use App\Support\AthleteDashboardDate;
 use App\Training\ExerciseGroupLabeler;
 use App\Training\TrainingSessionMaterializer;
 use App\Training\TrainingSessionProgressService;
@@ -20,6 +21,18 @@ use Livewire\Component;
 
 class ProgramDetails extends Component
 {
+    private const SECTION_ORDER = [
+        'warm_up',
+        'main',
+        'warm_down',
+    ];
+
+    private const SECTION_LABELS = [
+        'warm_up' => 'Warm Up',
+        'main' => 'Program',
+        'warm_down' => 'Warm Down',
+    ];
+
     private const SETTING_PRIORITY = [
         'reps',
         'weight',
@@ -48,11 +61,14 @@ class ProgramDetails extends Component
 
     public ?string $from = null;
 
+    public string $activeSection = 'main';
+
     public function mount(string $date, TrainingProgram $trainingProgram): void
     {
         $this->date = CarbonImmutable::parse($date)->format('Y-m-d');
         $this->trainingProgramId = $trainingProgram->id;
         $this->from = $this->sanitizeReturnUrl(request()->query('from'));
+        $this->activeSection = 'main';
 
         abort_unless(
             TrainingProgramSlot::query()
@@ -76,6 +92,7 @@ class ProgramDetails extends Component
         $slot = TrainingProgramSlot::query()
             ->with([
                 'trainingProgram.program.exerciseCategory',
+                'trainingProgram.program.exercises',
                 'exercises.exercise.category',
                 'exercises.exercise.equipment',
                 'exercises.exercise.modifiers',
@@ -94,6 +111,19 @@ class ProgramDetails extends Component
 
             $slot = $slot->fresh([
                 'trainingProgram.program.exerciseCategory',
+                'trainingProgram.program.exercises',
+                'exercises.exercise.category',
+                'exercises.exercise.equipment',
+                'exercises.exercise.modifiers',
+                'exercises.exercise.media',
+                'exercises.sets.values',
+            ]);
+        } elseif ($this->shouldRefreshAuxiliarySections($slot)) {
+            app(TrainingSessionMaterializer::class)->materialize($slot, force: true);
+
+            $slot = $slot->fresh([
+                'trainingProgram.program.exerciseCategory',
+                'trainingProgram.program.exercises',
                 'exercises.exercise.category',
                 'exercises.exercise.equipment',
                 'exercises.exercise.modifiers',
@@ -109,6 +139,7 @@ class ProgramDetails extends Component
     public function programExercises(): array
     {
         $sorted = $this->currentSlot->exercises
+            ->where('type', $this->activeSection)
             ->sortBy('sort')
             ->values();
 
@@ -119,7 +150,7 @@ class ProgramDetails extends Component
         );
 
         $sourceExercises = $this->trainingProgram->program->exercises()
-            ->wherePivot('type', 'main')
+            ->wherePivot('type', $this->activeSection)
             ->orderByPivot('sort')
             ->orderByPivot('id')
             ->get()
@@ -139,6 +170,46 @@ class ProgramDetails extends Component
             ))
             ->values()
             ->all();
+    }
+
+    #[Computed]
+    public function sectionTabs(): array
+    {
+        $tabs = collect(self::SECTION_ORDER)
+            ->map(function (string $section): ?array {
+                $count = $this->currentSlot->exercises
+                    ->where('type', $section)
+                    ->count();
+
+                if ($count === 0) {
+                    return null;
+                }
+
+                return [
+                    'key' => $section,
+                    'label' => self::SECTION_LABELS[$section] ?? Str::headline($section),
+                    'count' => $count,
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+
+        if (! collect($tabs)->pluck('key')->contains($this->activeSection)) {
+            $this->activeSection = collect($tabs)->pluck('key')->contains('main')
+                ? 'main'
+                : (collect($tabs)->first()['key'] ?? 'main');
+        }
+
+        return $tabs;
+    }
+
+    #[Computed]
+    public function showsSectionTabs(): bool
+    {
+        return collect($this->sectionTabs)
+            ->pluck('key')
+            ->contains(fn (string $key): bool => $key !== 'main');
     }
 
     /**
@@ -190,22 +261,54 @@ class ProgramDetails extends Component
 
     public function markExerciseCompleted(int $slotExerciseId): void
     {
+        abort_if($this->isFutureSession, 403);
+
         $exercise = $this->currentSlot->exercises->firstWhere('id', $slotExerciseId);
         abort_unless($exercise instanceof TrainingProgramSlotExercise, 404);
 
         app(TrainingSessionProgressService::class)->markExerciseCompleted($exercise);
 
-        unset($this->currentSlot, $this->programExercises);
+        unset($this->currentSlot, $this->programExercises, $this->progressSegments, $this->sectionTabs, $this->showsSectionTabs);
     }
 
     public function markExerciseSkipped(int $slotExerciseId): void
     {
+        abort_if($this->isFutureSession, 403);
+
         $exercise = $this->currentSlot->exercises->firstWhere('id', $slotExerciseId);
         abort_unless($exercise instanceof TrainingProgramSlotExercise, 404);
 
         app(TrainingSessionProgressService::class)->markExerciseSkipped($exercise);
 
-        unset($this->currentSlot, $this->programExercises);
+        unset($this->currentSlot, $this->programExercises, $this->progressSegments, $this->sectionTabs, $this->showsSectionTabs);
+    }
+
+    protected function shouldRefreshAuxiliarySections(TrainingProgramSlot $slot): bool
+    {
+        $sourceHasAuxiliarySections = $slot->trainingProgram->program->exercises
+            ->contains(fn ($exercise): bool => ($exercise->pivot->type ?? 'main') !== 'main');
+
+        if (! $sourceHasAuxiliarySections) {
+            return false;
+        }
+
+        $slotHasAuxiliarySections = $slot->exercises
+            ->contains(fn (TrainingProgramSlotExercise $exercise): bool => in_array($exercise->type ?? 'main', ['warm_up', 'warm_down'], true));
+
+        if ($slotHasAuxiliarySections) {
+            return false;
+        }
+
+        return (int) $slot->completed_exercise_count === 0
+            && (int) $slot->partial_exercise_count === 0
+            && (int) $slot->skipped_exercise_count === 0
+            && ! $slot->has_any_modification;
+    }
+
+    #[Computed]
+    public function isFutureSession(): bool
+    {
+        return AthleteDashboardDate::isFutureDate($this->date);
     }
 
     protected function buildExerciseViewData(TrainingProgramSlotExercise $slotExercise, int $index, ?string $groupLabel = null): array
@@ -450,6 +553,9 @@ class ProgramDetails extends Component
             'trainingProgram' => $this->trainingProgram,
             'currentSlot' => $this->currentSlot,
             'programExercises' => $this->programExercises,
+            'sectionTabs' => $this->sectionTabs,
+            'showsSectionTabs' => $this->showsSectionTabs,
+            'isFutureSession' => $this->isFutureSession,
         ])->layout('components.layouts.athlete', ['title' => $this->trainingProgram->program->name]);
     }
 }

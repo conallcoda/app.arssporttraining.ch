@@ -4,10 +4,12 @@ namespace App\Livewire\Training;
 
 use App\Data\Training\Calendar\CalendarModeSettingsData;
 use App\Data\Training\Calendar\CalendarSettingsData;
+use App\Data\Training\CategoryData;
 use App\Livewire\Training\Concerns\WithCalendarPlan;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramTypeEnum;
+use App\Models\Tag;
 use App\Models\Training\TrainingProgram;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
@@ -25,17 +27,16 @@ class CalendarIndex extends Component
 {
     use WithCalendarPlan;
 
-    #[Url]
-    public string $period = 'month';
-
-    #[Url]
-    public string $date = '';
-
     #[Url(except: '')]
     public string $start = '';
 
     #[Url(except: '')]
     public string $end = '';
+
+    #[Url(except: '')]
+    public string $preset = '';
+
+    public array $range = [];
 
     #[Url(except: 'overview', history: true)]
     public string $view = 'overview';
@@ -82,7 +83,7 @@ class CalendarIndex extends Component
             }
         }
 
-        $hasUrlOverride = request()->hasAny(['period', 'date', 'start', 'end']);
+        $hasUrlOverride = request()->hasAny(['start', 'end', 'preset']);
 
         if (! $hasUrlOverride) {
             $stored = $this->loadPersistedCalendarSettings();
@@ -93,16 +94,45 @@ class CalendarIndex extends Component
             }
         }
 
-        if ($this->date === '') {
-            $this->date = Carbon::now()->startOfMonth()->format('Y-m-d');
-        }
-
         $this->calendarSettings = new CalendarSettingsData(
-            period: $this->period,
-            date: $this->date,
             start: $this->start ?: null,
             end: $this->end ?: null,
+            preset: CalendarDateService::normalizePreset($this->preset),
         );
+
+        if (CalendarDateService::isConcretePreset($this->calendarSettings->preset)) {
+            [$rangeStart, $rangeEnd] = app(CalendarDateService::class)->presetRange($this->calendarSettings->preset);
+            $this->preset = $this->calendarSettings->preset;
+            $this->start = '';
+            $this->end = '';
+            $this->calendarSettings = new CalendarSettingsData(
+                start: $rangeStart->format('Y-m-d'),
+                end: $rangeEnd->format('Y-m-d'),
+                preset: $this->calendarSettings->preset,
+            );
+        } elseif ($this->calendarSettings->preset === CalendarDateService::PRESET_CUSTOM || $this->calendarSettings->start || $this->calendarSettings->end) {
+            $normalized = app(CalendarDateService::class)->normalizeRange(
+                $this->calendarSettings->start,
+                $this->calendarSettings->end,
+            );
+
+            $this->start = $normalized['start'];
+            $this->end = $normalized['end'];
+            $this->preset = CalendarDateService::PRESET_CUSTOM;
+            $this->calendarSettings = new CalendarSettingsData(start: $this->start, end: $this->end, preset: $this->preset);
+        } else {
+            $this->preset = CalendarDateService::PRESET_NEXT_3_MONTHS;
+            [$rangeStart, $rangeEnd] = app(CalendarDateService::class)->presetRange($this->preset);
+            $this->start = '';
+            $this->end = '';
+            $this->calendarSettings = new CalendarSettingsData(
+                start: $rangeStart->format('Y-m-d'),
+                end: $rangeEnd->format('Y-m-d'),
+                preset: $this->preset,
+            );
+        }
+
+        $this->syncRangeFromState();
     }
 
     public function updatedView(): void
@@ -147,30 +177,34 @@ class CalendarIndex extends Component
         );
     }
 
-    public function openCalendarRange(): void
+    public function updatedRange(mixed $value): void
     {
-        $this->dispatch('open-calendar-range', data: $this->calendarSettings->toArray());
+        if (! is_array($value)) {
+            return;
+        }
+
+        $this->applyCalendarRange($value, $value['preset'] ?? null);
+    }
+
+    public function updatedRangePreset(mixed $value): void
+    {
+        $this->applyCalendarRange($this->range, is_string($value) ? $value : null);
+    }
+
+    public function updatedRangeStart(): void
+    {
+        $this->applyCalendarRange($this->range, $this->range['preset'] ?? null);
+    }
+
+    public function updatedRangeEnd(): void
+    {
+        $this->applyCalendarRange($this->range, $this->range['preset'] ?? null);
     }
 
     #[On('calendar-range.submitted')]
     public function onCalendarRangeSubmitted(array $data): void
     {
-        $this->calendarSettings = CalendarSettingsData::from($data);
-
-        $this->period = $this->calendarSettings->period;
-        $this->date = $this->calendarSettings->date ?? $this->date;
-        $this->start = $this->calendarSettings->start ?? '';
-        $this->end = $this->calendarSettings->end ?? '';
-
-        $this->persistCalendarSettings();
-
-        unset($this->days, $this->weeks, $this->months, $this->title);
-
-        $this->dispatch('calendar-range-changed',
-            settings: $this->calendarSettings->toArray(),
-            weekStartsOn: $this->weekStartsOn,
-            weekEndsOn: $this->weekEndsOn,
-        );
+        $this->applyCalendarRange($data);
     }
 
     private function persistCalendarSettings(): void
@@ -180,11 +214,10 @@ class CalendarIndex extends Component
             return;
         }
 
-        $user->config->set("calendar.settings.{$this->view}", [
-            'period' => $this->period,
-            'date' => $this->date,
-            'start' => $this->start ?: null,
-            'end' => $this->end ?: null,
+        $user->config->set('calendar.settings', [
+            'preset' => $this->preset ?: null,
+            'start' => $this->preset === CalendarDateService::PRESET_CUSTOM ? ($this->start ?: null) : null,
+            'end' => $this->preset === CalendarDateService::PRESET_CUSTOM ? ($this->end ?: null) : null,
         ]);
         $user->save();
     }
@@ -196,7 +229,7 @@ class CalendarIndex extends Component
             return null;
         }
 
-        $stored = $user->config->get("calendar.settings.{$this->view}");
+        $stored = $user->config->get('calendar.settings');
 
         if (! $stored) {
             return null;
@@ -207,17 +240,39 @@ class CalendarIndex extends Component
 
     private function applyCalendarSettings(CalendarModeSettingsData $settings): void
     {
-        $this->period = $settings->period;
-        $this->date = $settings->date ?? Carbon::now()->startOfMonth()->format('Y-m-d');
+        $this->preset = CalendarDateService::normalizePreset(data_get($settings->toArray(), 'preset')) ?? '';
         $this->start = $settings->start ?? '';
         $this->end = $settings->end ?? '';
 
+        if (CalendarDateService::isConcretePreset($this->preset)) {
+            [$rangeStart, $rangeEnd] = app(CalendarDateService::class)->presetRange($this->preset);
+            $this->start = '';
+            $this->end = '';
+            $resolvedStart = $rangeStart->format('Y-m-d');
+            $resolvedEnd = $rangeEnd->format('Y-m-d');
+        } elseif ($this->preset === CalendarDateService::PRESET_CUSTOM || $this->start !== '' || $this->end !== '') {
+            $normalized = app(CalendarDateService::class)->normalizeRange($this->start, $this->end);
+            $this->start = $normalized['start'];
+            $this->end = $normalized['end'];
+            $this->preset = CalendarDateService::PRESET_CUSTOM;
+            $resolvedStart = $this->start;
+            $resolvedEnd = $this->end;
+        } else {
+            $this->preset = CalendarDateService::PRESET_NEXT_3_MONTHS;
+            [$rangeStart, $rangeEnd] = app(CalendarDateService::class)->presetRange($this->preset);
+            $this->start = '';
+            $this->end = '';
+            $resolvedStart = $rangeStart->format('Y-m-d');
+            $resolvedEnd = $rangeEnd->format('Y-m-d');
+        }
+
         $this->calendarSettings = new CalendarSettingsData(
-            period: $this->period,
-            date: $this->date,
-            start: $this->start ?: null,
-            end: $this->end ?: null,
+            start: $resolvedStart ?? ($this->start ?: null),
+            end: $resolvedEnd ?? ($this->end ?: null),
+            preset: $this->preset ?: null,
         );
+
+        $this->syncRangeFromState();
     }
 
     #[On('sidebar-selection-changed')]
@@ -272,7 +327,7 @@ class CalendarIndex extends Component
     public function onGroupFilterChanged(string $filter): void
     {
         $this->groupFilter = $filter;
-        unset($this->hasOverviewGroups);
+        $this->syncSelectionForGroupFilter();
     }
 
     #[On('coach-settings-saved')]
@@ -339,9 +394,15 @@ class CalendarIndex extends Component
     }
 
     #[Computed]
-    public function title(): string
+    public function exerciseCategoryLegend(): Collection
     {
-        return app(CalendarDateService::class)->formatTitle($this->calendarSettings, $this->weekStartsOn, $this->weekEndsOn);
+        return Tag::query()
+            ->forScope('exercise_category')
+            ->whereNull('parent_id')
+            ->whereNotNull('color')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Tag $tag) => CategoryData::fromTag($tag));
     }
 
     #[Computed]
@@ -349,7 +410,7 @@ class CalendarIndex extends Component
     {
         $query = UserGroup::query();
 
-        if ($this->groupFilter === 'mine') {
+        if ($this->groupFilter === 'mine' && auth()->check()) {
             $query->where('owner_id', auth()->id());
         }
 
@@ -359,13 +420,19 @@ class CalendarIndex extends Component
     #[Computed]
     public function showSidebar(): bool
     {
-        return auth()->user()->config->get('settings.calendar_sidebar.enabled', true);
+        return auth()->user()?->config->get('settings.calendar_sidebar.enabled', true) ?? true;
     }
 
     #[Computed]
     public function groupOptions(): Collection
     {
-        return UserGroup::query()
+        $query = UserGroup::query();
+
+        if ($this->groupFilter === 'mine' && auth()->check()) {
+            $query->where('owner_id', auth()->id());
+        }
+
+        return $query
             ->orderBy('name')
             ->get(['id', 'name'])
             ->pluck('name', 'id');
@@ -441,6 +508,11 @@ class CalendarIndex extends Component
         }
     }
 
+    public function updatedGroupFilter(): void
+    {
+        $this->syncSelectionForGroupFilter();
+    }
+
     #[Computed]
     public function groupedPrograms(): Collection
     {
@@ -498,6 +570,117 @@ class CalendarIndex extends Component
     protected function dateRange(): array
     {
         return app(CalendarDateService::class)->dateRange($this->calendarSettings, $this->weekStartsOn, $this->weekEndsOn);
+    }
+
+    protected function applyCalendarRange(array $data, ?string $preset = null): void
+    {
+        $normalizedPreset = CalendarDateService::normalizePreset($preset ?? ($data['preset'] ?? null));
+
+        if (CalendarDateService::isConcretePreset($normalizedPreset)) {
+            [$rangeStart, $rangeEnd] = app(CalendarDateService::class)->presetRange($normalizedPreset);
+
+            $normalized = [
+                'start' => $rangeStart->format('Y-m-d'),
+                'end' => $rangeEnd->format('Y-m-d'),
+            ];
+
+            $this->start = '';
+            $this->end = '';
+            $this->range = [...$normalized, 'preset' => $normalizedPreset];
+            $this->preset = $normalizedPreset;
+            $this->calendarSettings = new CalendarSettingsData(
+                start: $normalized['start'],
+                end: $normalized['end'],
+                preset: $this->preset,
+            );
+
+            $this->persistCalendarSettings();
+
+            unset($this->days, $this->weeks, $this->months, $this->title);
+
+            $this->dispatch('calendar-range-changed',
+                settings: $this->calendarSettings->toArray(),
+                weekStartsOn: $this->weekStartsOn,
+                weekEndsOn: $this->weekEndsOn,
+            );
+
+            return;
+        }
+
+        if (empty($data['start']) || empty($data['end'])) {
+            $this->range = [
+                'start' => $data['start'] ?? null,
+                'end' => $data['end'] ?? null,
+                'preset' => $data['preset'] ?? null,
+            ];
+
+            return;
+        }
+
+        $normalized = app(CalendarDateService::class)->normalizeRange(
+            $data['start'] ?? null,
+            $data['end'] ?? null,
+        );
+
+        $this->start = $normalized['start'];
+        $this->end = $normalized['end'];
+        $this->range = [...$normalized, 'preset' => CalendarDateService::PRESET_CUSTOM];
+        $this->preset = CalendarDateService::PRESET_CUSTOM;
+        $this->calendarSettings = new CalendarSettingsData(
+            start: $this->start,
+            end: $this->end,
+            preset: $this->preset,
+        );
+
+        $this->persistCalendarSettings();
+
+        unset($this->days, $this->weeks, $this->months, $this->title);
+
+        $this->dispatch('calendar-range-changed',
+            settings: $this->calendarSettings->toArray(),
+            weekStartsOn: $this->weekStartsOn,
+            weekEndsOn: $this->weekEndsOn,
+        );
+    }
+
+    protected function syncRangeFromState(): void
+    {
+        $this->range = [
+            'start' => $this->calendarSettings->start,
+            'end' => $this->calendarSettings->end,
+            'preset' => $this->preset ?: null,
+        ];
+    }
+
+    protected function syncSelectionForGroupFilter(): void
+    {
+        unset($this->groupOptions, $this->hasOverviewGroups);
+
+        if ($this->group === '') {
+            return;
+        }
+
+        if ($this->groupOptions->has((int) $this->group)) {
+            return;
+        }
+
+        $this->group = '';
+        $this->user = '';
+        $this->view = 'overview';
+        $this->planCategory = '';
+        $this->planBlock = 'ungrouped';
+        $this->planProgram = '';
+        $this->planProgramName = '';
+
+        unset(
+            $this->athleteOptions,
+            $this->selectionName,
+            $this->selectionGroupName,
+            $this->selectionType,
+            $this->programs,
+            $this->groupedPrograms,
+            $this->hasGroupAthletes,
+        );
     }
 
     #[On('overview-selection')]

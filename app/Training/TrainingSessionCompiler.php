@@ -21,6 +21,12 @@ use App\Models\Training\TrainingProgramSlot;
 
 class TrainingSessionCompiler
 {
+    private const SECTION_ORDER = [
+        'warm_up',
+        'main',
+        'warm_down',
+    ];
+
     private const SETTING_PRIORITY = [
         'reps',
         'weight',
@@ -48,12 +54,26 @@ class TrainingSessionCompiler
         $weightProgression = $this->resolveWeightProgressionData($oneRepMaxMetric, $programConfig->defaultTargetGoal());
 
         $compiledExercises = $program->exercises
-            ->filter(fn (Exercise $exercise) => ($exercise->pivot->type ?? 'main') === 'main')
+            ->sortBy(function (Exercise $exercise): string {
+                $type = $exercise->pivot->type ?? 'main';
+                $sectionRank = array_search($type, self::SECTION_ORDER, true);
+
+                return sprintf(
+                    '%02d-%08d-%08d',
+                    $sectionRank === false ? count(self::SECTION_ORDER) : $sectionRank,
+                    (int) ($exercise->pivot->sort ?? 0),
+                    (int) ($exercise->pivot->id ?? 0),
+                );
+            })
             ->values()
-            ->map(function (Exercise $exercise, int $index) use ($programConfig, $sessionContext, $weightProgression, $heartRateMetric, $slot) {
+            ->map(function (Exercise $exercise, int $index) use ($programConfig, $sessionContext, $weightProgression, $heartRateMetric, $slot, $scheduledDate) {
                 $programExerciseId = (int) $exercise->pivot->id;
                 $planOverrides = $programConfig->defaultExerciseOverrides($programExerciseId);
                 $userOverrides = $programConfig->userExerciseOverrides($slot->user_id, $programExerciseId);
+
+                if (! $this->exerciseAppliesOnDate($planOverrides->startsAtDate, $userOverrides->startsAtDate, $scheduledDate)) {
+                    return null;
+                }
 
                 if (EffectiveExerciseConfig::resolveDisabled($planOverrides, $userOverrides)) {
                     return null;
@@ -113,8 +133,9 @@ class TrainingSessionCompiler
 
                 return new CompiledTrainingExercise(
                     exerciseId: $exercise->id,
-                    sort: (int) ($exercise->pivot->sort ?? $index),
+                    sort: $index,
                     group: $exercise->pivot->group,
+                    type: $exercise->pivot->type ?? 'main',
                     sets: $compiledSets,
                 );
             })
@@ -190,6 +211,17 @@ class TrainingSessionCompiler
         );
     }
 
+    private function exerciseAppliesOnDate(?string $planStartsAtDate, ?string $userStartsAtDate, string $scheduledDate): bool
+    {
+        $startsAtDate = $userStartsAtDate ?? $planStartsAtDate;
+
+        if ($startsAtDate === null || $startsAtDate === '') {
+            return true;
+        }
+
+        return $scheduledDate >= $startsAtDate;
+    }
+
     private function resolveSessionValue(GridState $state, array $config, string $setting, int $weekIndex, int $setIndex): mixed
     {
         $resolved = $state->getResolvedCellValue($setting, $weekIndex, $setIndex);
@@ -261,6 +293,7 @@ class TrainingSessionCompiler
                 'exerciseId' => $exercise->exerciseId,
                 'sort' => $exercise->sort,
                 'group' => $exercise->group,
+                'type' => $exercise->type,
                 'sets' => array_map(function (CompiledTrainingSet $set): array {
                     return [
                         'setNumber' => $set->setNumber,

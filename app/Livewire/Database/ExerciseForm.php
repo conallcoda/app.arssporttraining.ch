@@ -6,6 +6,7 @@ use App\Data\Exercise\ExerciseData;
 use App\Data\Exercise\Settings\PreviewSetting;
 use App\Livewire\Concerns\InteractsWithPreview;
 use App\Models\Exercise\ExerciseTemplate;
+use App\Models\Tag;
 use Coda\Cms\Livewire\FormModal;
 use Coda\FormKit\Form;
 use Illuminate\View\View;
@@ -17,7 +18,9 @@ class ExerciseForm extends FormModal
 
     public array $preTemplateConfig = [];
 
-    private ?string $previousTemplateId = null;
+    private mixed $previousTemplateId = null;
+
+    private mixed $previousCategoryId = null;
 
     protected function getFormDataClass(): ?string
     {
@@ -73,30 +76,63 @@ class ExerciseForm extends FormModal
         }
 
         $this->openPreview($data);
+        $this->previousTemplateId = $this->data['template'] ?? null;
+        $this->previousCategoryId = $this->data['category'] ?? null;
         unset($this->fieldsets);
     }
 
     public function hydrate(): void
     {
         $this->previousTemplateId = $this->data['template'] ?? null;
+        $this->previousCategoryId = $this->data['category'] ?? null;
     }
 
     public function updated(string $property, mixed $value): void
     {
         $templateChanged = false;
+        $categoryChanged = false;
 
         if ($property === 'data.template') {
             $templateChanged = true;
+        } elseif ($property === 'data.category') {
+            $categoryChanged = true;
         } elseif ($property === 'data') {
             $newTemplateId = $this->data['template'] ?? null;
             $templateChanged = $newTemplateId !== $this->previousTemplateId;
+
+            $newCategoryId = $this->data['category'] ?? null;
+            $categoryChanged = $newCategoryId !== $this->previousCategoryId;
+        }
+
+        if ($categoryChanged) {
+            $this->applyCategoryDefaultTemplate($this->data['category'] ?? null);
         }
 
         if ($templateChanged) {
             $this->applyTemplate($this->data['template'] ?? null);
         }
 
+        $this->previousTemplateId = $this->data['template'] ?? null;
+        $this->previousCategoryId = $this->data['category'] ?? null;
+
         parent::updated($property, $value);
+    }
+
+    protected function applyCategoryDefaultTemplate(mixed $categoryId): void
+    {
+        if (! $this->isCreatingExercise() || ! $categoryId) {
+            return;
+        }
+
+        $category = Tag::query()->find($categoryId);
+        $defaultTemplateId = $category?->rootAncestorOrSelf?->default_exercise_template_id;
+
+        if (! $defaultTemplateId || $defaultTemplateId === ($this->data['template'] ?? null)) {
+            return;
+        }
+
+        $this->data['template'] = $defaultTemplateId;
+        $this->applyTemplate($defaultTemplateId);
     }
 
     protected function applyTemplate(mixed $templateId): void
@@ -126,6 +162,11 @@ class ExerciseForm extends FormModal
         $this->data['config']['settings'] = $settings;
 
         unset($this->fieldsets);
+    }
+
+    protected function isCreatingExercise(): bool
+    {
+        return empty($this->data['id']);
     }
 
     #[Computed]

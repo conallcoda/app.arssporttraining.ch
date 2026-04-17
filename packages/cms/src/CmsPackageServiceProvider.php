@@ -9,18 +9,19 @@ use Coda\Cms\Auth\Actions\UpdateUserProfileInformation;
 use Coda\Cms\Console\InstallCommand;
 use Coda\Cms\Http\Controllers\MediaController;
 use Coda\Cms\Http\Middleware\EnsureAdminAccess;
-use Coda\Cms\Models\Media;
-use Coda\Cms\Models\Observers\MediaObserver;
-use Coda\Cms\Support\PathGenerator\CollectionPathGenerator;
 use Coda\Cms\Http\Responses\TypeAwareLoginResponse;
 use Coda\Cms\Livewire\Auth\ChangePassword;
 use Coda\Cms\Livewire\CmsPage;
 use Coda\Cms\Livewire\ComponentPortal;
 use Coda\Cms\Livewire\Dashboard;
 use Coda\Cms\Livewire\FormModal;
+use Coda\Cms\Livewire\LoginUserSwitcher;
 use Coda\Cms\Livewire\MobilePreview;
 use Coda\Cms\Livewire\UserList;
 use Coda\Cms\Livewire\UserSwitcher;
+use Coda\Cms\Models\Media;
+use Coda\Cms\Models\Observers\MediaObserver;
+use Coda\Cms\Support\PathGenerator\CollectionPathGenerator;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -82,6 +83,8 @@ class CmsPackageServiceProvider extends ServiceProvider
         if (config('cms.user_switching')) {
             Livewire::component('cms.user-switcher', UserSwitcher::class);
         }
+
+        Livewire::component('cms.login-user-switcher', LoginUserSwitcher::class);
 
         Livewire::component('cms.mobile-preview', MobilePreview::class);
 

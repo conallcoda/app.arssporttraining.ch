@@ -192,6 +192,7 @@
                             color-expr="slot.color"
                             time-expr="slot.time"
                             name-expr="slot.name"
+                            status-color-expr="slot.statusColor"
                         />
                     </template>
                 </template>

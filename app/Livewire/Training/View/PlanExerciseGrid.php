@@ -44,6 +44,8 @@ class PlanExerciseGrid extends Component
 
     public array $weekSessions = [];
 
+    public array $weekSessionDates = [];
+
     public array $expandedWeeks = [];
 
     public array $lockedSessionsByWeek = [];
@@ -89,6 +91,7 @@ class PlanExerciseGrid extends Component
         ?int $planIatPercent = null,
         array $weekLabels = [],
         array $weekSessions = [],
+        array $weekSessionDates = [],
         array $expandedWeeks = [],
         array $lockedSessionsByWeek = [],
         bool $sessionLabels = false,
@@ -107,6 +110,7 @@ class PlanExerciseGrid extends Component
         $this->planIatPercent = $planIatPercent;
         $this->weekLabels = $weekLabels;
         $this->weekSessions = $weekSessions;
+        $this->weekSessionDates = $weekSessionDates;
         $this->expandedWeeks = $expandedWeeks;
         $this->lockedSessionsByWeek = $lockedSessionsByWeek;
         $this->sessionLabels = $sessionLabels;
@@ -137,6 +141,20 @@ class PlanExerciseGrid extends Component
         }
 
         return $config->defaultExerciseOverrides($this->programExerciseId);
+    }
+
+    protected function getEffectiveStartsAtDate(): ?string
+    {
+        $config = $this->getPlanConfig();
+        $planOverrides = $config->defaultExerciseOverrides($this->programExerciseId);
+
+        if ($this->userId === null) {
+            return $planOverrides->startsAtDate;
+        }
+
+        $userOverrides = $config->userExerciseOverrides($this->userId, $this->programExerciseId);
+
+        return $userOverrides->startsAtDate ?? $planOverrides->startsAtDate;
     }
 
     protected function getEffectiveConfig(): array
@@ -354,6 +372,8 @@ class PlanExerciseGrid extends Component
             $highlightOverrides,
             $this->planMaxHR,
             $this->planIatPercent,
+            $this->getEffectiveStartsAtDate(),
+            $this->weekSessionDates,
         );
     }
 
@@ -512,6 +532,8 @@ class PlanExerciseGrid extends Component
             null,
             $this->planMaxHR,
             $this->planIatPercent,
+            $this->getEffectiveStartsAtDate(),
+            $this->weekSessionDates,
         );
     }
 

@@ -17,7 +17,9 @@
       "Bash(pip3 install:*)",
       "Bash(mv coach-athlete-system:*)",
       "Bash(mv organisation-coach-athlete-system:*)",
-      "Bash(git log *)"
+      "Bash(git log *)",
+      "Bash(/Users/Shared/DBngin/mariadb/10.11.6_arm/bin/mysql -u root -h 127.0.0.1 -P 3306 athlete-training -e \"SHOW INDEX FROM exercises WHERE Key_name LIKE '%name%' OR Column_name='name';\")",
+      "Bash(/Users/Shared/DBngin/mariadb/10.11.6_arm/bin/mysql -u root -h 127.0.0.1 -P 3306 athlete-training -e \"SHOW INDEX FROM tags WHERE Key_name LIKE '%name%' OR Column_name='name';\")"
     ]
   }
 }

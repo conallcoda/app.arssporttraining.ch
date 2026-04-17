@@ -1,4 +1,5 @@
 @php
+    $showRecordingState = ! ($day['isFuture'] ?? false);
     $totalSessions = $day['programs']->count();
     $fullyRecordedSessions = $day['programs']->filter(
         fn ($program) => $program->totalExerciseCount > 0 && $program->recordedExerciseCount >= $program->totalExerciseCount
@@ -13,7 +14,7 @@
     }
 @endphp
 
-<x-athlete.section :row="$row ?? null" x-data="{ open: false }" class="py-0" content-class="py-3 sm:py-5">
+<x-athlete.section :row="$row ?? null" x-data="{ open: false }" class="py-0" content-class="py-3">
     <button
         type="button"
         x-on:click="open = !open"
@@ -22,12 +23,14 @@
     >
         <div class="flex min-w-0 items-center gap-2">
             <span class="truncate">{{ $day['formattedDate'] }}</span>
-            <span
-                class="status-badge inline-flex shrink-0 rounded-md px-2 py-1 text-[10px] font-medium sm:text-xs"
-                style="--status-bar-light: {{ $dayStatusColor['light'] }}; --status-bar-dark: {{ $dayStatusColor['dark'] }};"
-            >
-                {{ $dayStatusLabel }}
-            </span>
+            @if ($showRecordingState)
+                <span
+                    class="status-badge inline-flex shrink-0 rounded-md px-2 py-1 text-[10px] font-medium"
+                    style="--status-bar-light: {{ $dayStatusColor['light'] }}; --status-bar-dark: {{ $dayStatusColor['dark'] }};"
+                >
+                    {{ $dayStatusLabel }}
+                </span>
+            @endif
         </div>
         <flux:icon.chevron-up x-show="open" x-cloak class="size-5 shrink-0 text-zinc-500 dark:text-zinc-400" />
         <flux:icon.chevron-down x-show="!open" x-cloak class="size-5 shrink-0 text-zinc-500 dark:text-zinc-400" />
@@ -50,7 +53,9 @@
                     <div class="flex min-w-0 flex-1 items-center justify-between gap-3 px-3 py-2">
                         <div class="min-w-0 flex-1 space-y-2">
                             <x-athlete.category-badge :label="$program->categoryName" :color="$program->categoryColor" />
-                            <x-athlete.recorded-progress :segments="$program->progressSegments" class="max-w-40" />
+                            @if (! $program->isFuture)
+                                <x-athlete.recorded-progress :segments="$program->progressSegments" class="max-w-40" />
+                            @endif
                         </div>
                         <flux:icon.chevron-right class="size-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
                     </div>

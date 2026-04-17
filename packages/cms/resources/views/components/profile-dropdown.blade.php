@@ -9,11 +9,13 @@
 
             <flux:menu.separator />
 
-            <flux:modal.trigger name="coach-settings">
-                <flux:menu.item icon="settings">
-                    {{ __('Settings') }}
-                </flux:menu.item>
-            </flux:modal.trigger>
+            @if (in_array(auth()->user()?->type, [\App\Models\Users\UserTypeEnum::Coach, \App\Models\Users\UserTypeEnum::Admin], true))
+                <flux:modal.trigger name="coach-settings">
+                    <flux:menu.item icon="settings">
+                        {{ __('Settings') }}
+                    </flux:menu.item>
+                </flux:modal.trigger>
+            @endif
 
             <flux:modal.trigger name="change-password">
                 <flux:menu.item icon="lock">

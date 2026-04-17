@@ -1,26 +1,24 @@
 <div>
     <x-athlete.page-tabs active="calendar">
         <x-athlete.page-tabs.row>
-            <flux:tabs variant="segmented" class="w-full [&>[data-flux-tabs]]:grid [&>[data-flux-tabs]]:w-full [&>[data-flux-tabs]]:grid-cols-2">
-                <flux:tab
-                    name="day"
-                    icon="calendar-1"
-                    href="{{ route('athlete.dashboard.calendar', ['date' => $this->selectedDateValue]) }}"
-                    wire:navigate
-                    :selected="$calendarView === 'day'"
-                >
-                    Day
-                </flux:tab>
-                <flux:tab
-                    name="week"
-                    icon="calendar-range"
-                    href="{{ route('athlete.dashboard.calendar.week', ['date' => $this->selectedDateValue]) }}"
-                    wire:navigate
-                    :selected="$calendarView === 'week'"
-                >
-                    Week
-                </flux:tab>
-            </flux:tabs>
+            <x-athlete.segmented-tabs :tabs="[
+                [
+                    'name' => 'day',
+                    'label' => 'Day',
+                    'icon' => 'calendar-1',
+                    'href' => route('athlete.dashboard.calendar', ['date' => $this->selectedDateValue]),
+                    'navigate' => true,
+                    'selected' => $calendarView === 'day',
+                ],
+                [
+                    'name' => 'week',
+                    'label' => 'Week',
+                    'icon' => 'calendar-range',
+                    'href' => route('athlete.dashboard.calendar.week', ['date' => $this->selectedDateValue]),
+                    'navigate' => true,
+                    'selected' => $calendarView === 'week',
+                ],
+            ]" />
         </x-athlete.page-tabs.row>
 
         @if ($calendarView === 'day')
@@ -38,7 +36,7 @@
         @endif
     </x-athlete.page-tabs>
 
-    <div class="mx-auto max-w-2xl px-2 py-0 sm:px-4 sm:py-0">
+    <div class="w-full md:mx-auto md:max-w-[900px] px-0 py-0">
         @if ($calendarView === 'day')
             <livewire:athlete.day-schedule :date="$this->selectedDateValue" :show-readiness="false" />
         @elseif ($calendarView === 'week')

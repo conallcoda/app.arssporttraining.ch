@@ -3,6 +3,7 @@
 namespace App\Livewire\Database;
 
 use App\Data\Exercise\ExerciseData;
+use App\Form\Fields\Category as CategoryField;
 use App\Form\Fields\CoachFilter;
 use App\Livewire\Concerns\ClearsCoachFilterOnTabSwitch;
 use App\Models\Exercise\Exercise;
@@ -135,6 +136,22 @@ class ExerciseList extends AbstractModelList
                         ->label(__('Search'))
                         ->placeholder(__('Search exercises...'))
                 ),
+            TableFilter::callback('category', function (Builder $query, mixed $value): void {
+                if ($value === '' || $value === null) {
+                    return;
+                }
+
+                $descendantIds = Tag::findOrFail($value)
+                    ->descendantsAndSelf()
+                    ->pluck('id');
+
+                $query->whereIn('exercises.category_id', $descendantIds);
+            })
+                ->field(
+                    CategoryField::make('category', 'exercise_category')
+                        ->label(__('Category'))
+                        ->withOptions()
+                ),
             TableFilter::callback('tags', function (Builder $query, mixed $value): void {
                 $query->whereHas('internalTags', fn (Builder $q) => $q->whereIn('tags.id', (array) $value));
             })
@@ -142,6 +159,7 @@ class ExerciseList extends AbstractModelList
                     (new Pillbox('tags'))
                         ->label(__('Tags'))
                         ->placeholder(__('Filter by tags...'))
+                        ->searchable()
                         ->options(Tag::query()->forScope($tagScope)->pluck('name', 'id')->all())
                 ),
             TableFilter::callback('modifiers', function (Builder $query, mixed $value): void {
@@ -157,6 +175,7 @@ class ExerciseList extends AbstractModelList
                     (new Pillbox('modifiers'))
                         ->label(__('Modifiers'))
                         ->placeholder(__('Filter by modifiers...'))
+                        ->searchable()
                         ->options(Tag::query()->forScope('exercise_modifiers')->orderBy('name')->pluck('name', 'id')->all())
                 ),
         ];

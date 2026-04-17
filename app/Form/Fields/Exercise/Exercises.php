@@ -34,10 +34,43 @@ class Exercises extends Relationship
     {
         $this->optionLoader = fn () => Exercise::query()
             ->orderBy('name')
-            ->get()
-            ->mapWithKeys(fn ($exercise) => [$exercise->id => $exercise->name])
+            ->pluck('name', 'id')
             ->all();
 
         return $this;
+    }
+
+    public function withSearch(): static
+    {
+        return $this->searchable(function (string $query, mixed $currentValue, array $excludedIds): iterable {
+            $base = fn () => Exercise::query()->with(['category', 'equipment', 'modifiers']);
+
+            $results = $base()
+                ->when($excludedIds !== [], fn ($q) => $q->whereNotIn('exercises.id', $excludedIds))
+                ->when($query !== '', fn ($q) => $q->where(function ($w) use ($query) {
+                    $w->where('exercises.name', 'like', "%{$query}%")
+                        ->orWhereHas('category', fn ($c) => $c->where('tags.name', 'like', "%{$query}%"))
+                        ->orWhereHas('equipment', fn ($e) => $e->where('tags.name', 'like', "%{$query}%"))
+                        ->orWhereHas('modifiers', fn ($m) => $m->where('tags.name', 'like', "%{$query}%"));
+                }))
+                ->orderBy('name')
+                ->limit(30)
+                ->get();
+
+            if ($currentValue !== null && $currentValue !== '' && ! $results->contains('id', (int) $currentValue)) {
+                $selected = $base()->whereKey($currentValue)->first();
+
+                if ($selected !== null) {
+                    $results->prepend($selected);
+                }
+            }
+
+            return $results;
+        });
+    }
+
+    public function withOptionView(): static
+    {
+        return $this->optionView('training.exercise-option');
     }
 }
