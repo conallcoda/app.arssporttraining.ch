@@ -5,7 +5,7 @@
         x-on:close="resetPlayer()"
     >
         <div class="space-y-4">
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div class="space-y-3">
                 <flux:heading size="lg">{{ __('Video Preview') }}</flux:heading>
 
                 <flux:button.group>

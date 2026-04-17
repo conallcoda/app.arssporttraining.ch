@@ -40,7 +40,7 @@
                     <img src="{{ $imageUrl }}" alt="" class="w-full h-auto block" loading="lazy" />
                 @else
                     <div class="w-full aspect-square bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-400 dark:text-zinc-600">
-                        <flux:icon.image class="size-10" />
+                        <flux:icon.photo class="size-10" />
                     </div>
                 @endif
 

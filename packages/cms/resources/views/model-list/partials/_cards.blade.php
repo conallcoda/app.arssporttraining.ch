@@ -55,7 +55,7 @@
                                 <img src="{{ $imageUrl }}" alt="" class="w-full h-full {{ $fitClass }}" loading="lazy" />
                             @else
                                 <div class="w-full h-full flex items-center justify-center text-zinc-400 dark:text-zinc-600">
-                                    <flux:icon.image class="size-10" />
+                                    <flux:icon.photo class="size-10" />
                                 </div>
                             @endif
                         </div>

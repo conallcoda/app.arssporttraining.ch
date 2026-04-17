@@ -482,7 +482,8 @@
                                             wire:model.live="{{ $wireModel }}.{{ $index }}.{{ $field->valueAttribute }}"
                                             placeholder="{{ $field->getPlaceholder() }}" size="sm"
                                             variant="listbox" searchable clearable :filter="false"
-                                            data-field="{{ $field->name }}" data-index="{{ $index }}">
+                                            data-field="{{ $field->name }}" data-index="{{ $index }}"
+                                            data-force-bottom-options>
                                             <x-slot name="search">
                                                 <flux:select.search
                                                     wire:model.live.debounce.300ms="relationshipSearch.{{ $field->name }}.{{ $index }}"
@@ -663,7 +664,7 @@
     @elseif ($field instanceof Search)
         <flux:input wire:model.live.debounce.300ms="{{ $wireModel }}" placeholder="{{ $field->getPlaceholder() }}" size="{{ $field->size }}" clearable>
             <x-slot:icon>
-                <flux:icon.search variant="micro" />
+                <flux:icon.magnifying-glass variant="micro" />
             </x-slot:icon>
         </flux:input>
     @elseif ($field instanceof FileUpload)
