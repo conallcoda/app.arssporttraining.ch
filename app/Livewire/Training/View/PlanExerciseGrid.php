@@ -374,6 +374,7 @@ class PlanExerciseGrid extends Component
             $this->planIatPercent,
             $this->getEffectiveStartsAtDate(),
             $this->weekSessionDates,
+            $this->lockedSessionsByWeek,
         );
     }
 
@@ -534,6 +535,7 @@ class PlanExerciseGrid extends Component
             $this->planIatPercent,
             $this->getEffectiveStartsAtDate(),
             $this->weekSessionDates,
+            $this->lockedSessionsByWeek,
         );
     }
 
@@ -643,6 +645,9 @@ class PlanExerciseGrid extends Component
 
     protected function saveOverrides(ExerciseOverrides $overrides): void
     {
+        $this->freezeLockedWeeks($overrides, $this->previewGrid);
+        $this->applyFutureOnlyBoundary($overrides);
+
         $exercisePlan = $this->planType::findOrFail($this->exercisePlanId);
         $config = $exercisePlan->config;
 
@@ -656,6 +661,115 @@ class PlanExerciseGrid extends Component
         $exercisePlan->save();
 
         $this->dispatch('exercise-overrides-changed');
+    }
+
+    protected function freezeLockedWeeks(ExerciseOverrides $overrides, PreviewGrid $grid): void
+    {
+        $gridOverrides = $overrides->gridOverrides;
+
+        foreach (range(0, $grid->weekCount - 1) as $week) {
+            $weekLockedSessions = $this->lockedSessionsByWeek[$week] ?? [];
+
+            if (! in_array(true, $weekLockedSessions, true)) {
+                continue;
+            }
+
+            $sessionCount = max(count($weekLockedSessions), (int) ($this->weekSessions[$week] ?? $this->sessionsPerWeek));
+
+            foreach ($grid->rows as $row) {
+                foreach ($row->cells[$week] ?? [] as $set => $value) {
+                    if ($value === null || $value === '' || $value === '-' || $value === '—') {
+                        continue;
+                    }
+
+                    for ($session = 0; $session < $sessionCount; $session++) {
+                        $gridOverrides = $this->putCellOverride($gridOverrides, $week, $session, (int) $set, $row->field, $value);
+                    }
+                }
+            }
+
+            foreach ($grid->weekColumns as $column) {
+                $value = $column->cells[$week] ?? null;
+
+                if ($value === null || $value === '' || $value === '-' || $value === '—') {
+                    continue;
+                }
+
+                $gridOverrides = $this->putWeekOverride($gridOverrides, $week, $column->field, $value);
+            }
+        }
+
+        $overrides->gridOverrides = $gridOverrides;
+    }
+
+    protected function applyFutureOnlyBoundary(ExerciseOverrides $overrides): void
+    {
+        $boundaryDate = $this->firstUnlockedSessionDate();
+
+        if ($boundaryDate === null) {
+            return;
+        }
+
+        if ($overrides->startsAtDate === null || $overrides->startsAtDate < $boundaryDate) {
+            $overrides->startsAtDate = $boundaryDate;
+        }
+    }
+
+    protected function firstUnlockedSessionDate(): ?string
+    {
+        foreach ($this->weekSessionDates as $weekIndex => $sessionDates) {
+            $lockedSessions = $this->lockedSessionsByWeek[$weekIndex] ?? [];
+
+            foreach ($sessionDates as $sessionIndex => $sessionDate) {
+                if (($lockedSessions[$sessionIndex] ?? false) || ! is_string($sessionDate) || $sessionDate === '') {
+                    continue;
+                }
+
+                return $sessionDate;
+            }
+        }
+
+        return null;
+    }
+
+    protected function putCellOverride(array $gridOverrides, int $week, int $session, int $set, string $field, mixed $value): array
+    {
+        foreach ($gridOverrides['cells'] ?? [] as $index => $override) {
+            if (($override['week'] ?? null) === $week
+                && ($override['session'] ?? null) === $session
+                && ($override['set'] ?? null) === $set) {
+                $gridOverrides['cells'][$index]['data'][$field] = $value;
+
+                return $gridOverrides;
+            }
+        }
+
+        $gridOverrides['cells'][] = [
+            'week' => $week,
+            'session' => $session,
+            'set' => $set,
+            'data' => [$field => $value],
+        ];
+
+        return $gridOverrides;
+    }
+
+    protected function putWeekOverride(array $gridOverrides, int $week, string $field, mixed $value): array
+    {
+        foreach ($gridOverrides['weeks'] ?? [] as $index => $override) {
+            if (($override['week'] ?? null) === $week) {
+                $gridOverrides['weeks'][$index]['data'][$field] = $value;
+
+                return $gridOverrides;
+            }
+        }
+
+        $gridOverrides['weeks'][] = [
+            'week' => $week,
+            'data' => [$field => $value],
+        ];
+
+        return $gridOverrides;
     }
 
     public function render()

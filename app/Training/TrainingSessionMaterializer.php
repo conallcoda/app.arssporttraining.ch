@@ -23,7 +23,7 @@ class TrainingSessionMaterializer
     {
         $slot->refresh();
 
-        if (! $force && $slot->compiled_at !== null && $slot->datetime->lte(now())) {
+        if ($slot->compiled_at !== null && $slot->datetime->lte(now())) {
             return;
         }
 

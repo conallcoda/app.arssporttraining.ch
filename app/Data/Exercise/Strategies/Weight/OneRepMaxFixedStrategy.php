@@ -19,7 +19,7 @@ class OneRepMaxFixedStrategy implements DefinesEditability
 
     public function isEditable(string $field, int $week, int $set, GridState $state): bool
     {
-        return $field !== 'oneRepMax' && $field !== 'weight';
+        return $field !== 'oneRepMax';
     }
 
     /**

@@ -1,0 +1,75 @@
+<?php
+
+use App\Livewire\Training\View\PlanExerciseGrid;
+use App\Models\Exercise\Exercise;
+use App\Models\Exercise\ExerciseProgram;
+use App\Models\Exercise\ExerciseProgramExercise;
+use App\Data\Exercise\Preview\PreviewGrid;
+use Carbon\Carbon;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
+
+uses(RefreshDatabase::class);
+
+it('applies settings changes only from the first unlocked session onward', function () {
+    Carbon::setTestNow('2026-04-17 12:00:00');
+
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 2, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 6, 'applyPer' => 'session'],
+        ],
+    ]);
+
+    $program = ExerciseProgram::factory()->create();
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $updatedConfig = $exercise->config->toArray();
+    $updatedConfig['reps']['default'] = 8;
+
+    $component = Livewire::test(PlanExerciseGrid::class, [
+        'exercisePlanId' => $program->id,
+        'planType' => ExerciseProgram::class,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'weeks' => 2,
+        'sessionsPerWeek' => 1,
+        'weekSessionDates' => [
+            ['2026-04-10'],
+            ['2026-04-24'],
+        ],
+        'lockedSessionsByWeek' => [
+            [true],
+            [false],
+        ],
+    ]);
+
+    /** @var PreviewGrid $before */
+    $before = $component->instance()->previewGrid;
+
+    $component->call('onSettingsSaved', [
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'config' => $updatedConfig,
+    ]);
+
+    /** @var PreviewGrid $after */
+    $after = $component->instance()->previewGrid;
+
+    $overrides = $program->fresh()->config->defaultExerciseOverrides($pivot->id);
+
+    expect($overrides->startsAtDate)->toBe('2026-04-24')
+        ->and($overrides->reps?->default)->toBe(8)
+        ->and($before->rows[0]->cells[0][0] ?? null)->toBe(6)
+        ->and($after->rows[0]->cells[0][0] ?? null)->toBe(6)
+        ->and($after->rows[0]->cells[1][0] ?? null)->toBe(8);
+});

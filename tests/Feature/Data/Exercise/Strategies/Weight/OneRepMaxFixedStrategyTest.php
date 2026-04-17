@@ -167,3 +167,22 @@ it('uses total reps from bilateral notation for weight calculation', function ()
     expect($result)->not->toBeNull();
     expect(RepPercentageTable::getPercentage(4))->toBe(0.91);
 });
+
+it('allows manual editing of automatic weight cells while keeping 1RM read only', function () {
+    $setting = WeightSetting::from(['mode' => 'automatic', 'oneRepMaxModifier' => 100]);
+    $measuredData = new WeightProgressionSetting(measuredReps: 10, measuredWeight: 52, targetGoal: 7);
+
+    $state = new GridState;
+    $state->setSetsPerWeek([3, 3]);
+    $state->setGrid('reps', [
+        [10, 10, 8],
+        [8, 8, 6],
+    ]);
+
+    $strategy = new OneRepMaxFixedStrategy($setting, $measuredData);
+    $strategy->generate(2, $state);
+
+    expect($strategy->isEditable('weight', 0, 0, $state))->toBeTrue()
+        ->and($strategy->isEditable('reps', 0, 0, $state))->toBeTrue()
+        ->and($strategy->isEditable('oneRepMax', 1, 2, $state))->toBeFalse();
+});
