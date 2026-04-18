@@ -10,7 +10,7 @@ return [
     | Set to null to use the actual current date.
     |
     */
-    'dashboard_today_override' => '20.04.2026',
+    'dashboard_today_override' => null,
 
     /*
     |--------------------------------------------------------------------------
