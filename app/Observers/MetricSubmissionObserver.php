@@ -4,7 +4,7 @@ namespace App\Observers;
 
 use App\Data\Athlete\Metric\MetricEnum;
 use App\Models\Athlete\MetricSubmission;
-use App\Training\TrainingSessionRebuildService;
+use App\Training\TrainingSessionRebuildDispatcher;
 
 class MetricSubmissionObserver
 {
@@ -28,8 +28,8 @@ class MetricSubmissionObserver
             return;
         }
 
-        app(TrainingSessionRebuildService::class)
-            ->rebuildFutureSlotsForAthlete(
+        app(TrainingSessionRebuildDispatcher::class)
+            ->dispatchFutureSlotsForAthlete(
                 $submission->user_id,
                 $submission->recorded_at?->format('Y-m-d')
             );

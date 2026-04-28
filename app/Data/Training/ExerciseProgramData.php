@@ -9,7 +9,7 @@ use App\Form\Fields\Training\Program\ProgramName;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
 use App\Models\Exercise\ExerciseProgramTypeEnum;
-use App\Training\TrainingSessionRebuildService;
+use App\Training\TrainingSessionRebuildDispatcher;
 use Carbon\Carbon;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Form\Fields\Tags;
@@ -108,7 +108,7 @@ class ExerciseProgramData extends AbstractData implements HasForms
 
         $program->tags()->sync($this->internalTags);
 
-        app(TrainingSessionRebuildService::class)->rebuildFutureSlotsForExerciseProgram($program->id);
+        app(TrainingSessionRebuildDispatcher::class)->dispatchFutureSlotsForExerciseProgram($program->id);
     }
 
     protected function syncExercises(ExerciseProgram $program): void

@@ -15,7 +15,9 @@ use App\Data\Exercise\Strategies\Sets\DeloadSetsStrategy;
 use App\Data\Training\Config\EffectiveExerciseConfig;
 use App\Data\Training\Config\ExerciseOverrides;
 use App\Models\Exercise\Exercise;
+use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExercisePlan;
+use App\Training\TrainingSessionRebuildDispatcher;
 use Coda\Cms\Livewire\Concerns\InteractsWithParentView;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
@@ -449,6 +451,18 @@ class PlanExerciseGrid extends Component
 
                 $row->overrides[$week] = false;
             }
+
+            foreach ($row->sessionOverrides as $week => $sessionOverrides) {
+                foreach ($sessionOverrides as $session => $setOverrides) {
+                    if (! (($this->lockedSessionsByWeek[$week][$session] ?? false))) {
+                        continue;
+                    }
+
+                    foreach (array_keys($setOverrides) as $set) {
+                        $row->sessionOverrides[$week][$session][$set] = false;
+                    }
+                }
+            }
         }
 
         foreach ($grid->weekColumns as $column) {
@@ -695,7 +709,15 @@ class PlanExerciseGrid extends Component
         }
 
         $exercisePlan->config = $config;
-        $exercisePlan->save();
+        $shouldScopeRebuildToAthlete = $this->userId !== null && $this->planType === ExerciseProgram::class;
+
+        if ($shouldScopeRebuildToAthlete) {
+            $exercisePlan->saveQuietly();
+            app(TrainingSessionRebuildDispatcher::class)
+                ->dispatchFutureSlotsForAthleteExerciseProgram($this->userId, $exercisePlan->id);
+        } else {
+            $exercisePlan->save();
+        }
 
         $this->dispatch('exercise-overrides-changed');
     }

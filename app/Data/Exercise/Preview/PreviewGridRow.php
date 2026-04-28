@@ -12,9 +12,13 @@ class PreviewGridRow extends AbstractData
         public string $color,
         /** @var array<int, array<int, string|int|float>>|array<int, string|int|float> */
         public array $cells = [],
+        /** @var array<int, array<int, array<int, string|int|float>>> */
+        public array $sessionCells = [],
         public string $overrideColor = '',
         /** @var array<int, array<int, bool>>|array<int, bool> */
         public array $overrides = [],
+        /** @var array<int, array<int, array<int, bool>>> */
+        public array $sessionOverrides = [],
         public ?CellInputMeta $inputMeta = null,
         /** @var array<int, array<int, bool>>|array<int, bool> */
         public array $editableMap = [],
@@ -32,6 +36,24 @@ class PreviewGridRow extends AbstractData
         }
 
         return $this->editableMap[$week] ?? true;
+    }
+
+    public function getCellValue(int $week, int $set, ?int $session = null): string|int|float|null
+    {
+        if ($session !== null && array_key_exists($week, $this->sessionCells)) {
+            return $this->sessionCells[$week][$session][$set] ?? '-';
+        }
+
+        return $this->cells[$week][$set] ?? '-';
+    }
+
+    public function isCellOverriddenAt(int $week, int $set, ?int $session = null): bool
+    {
+        if ($session !== null && array_key_exists($week, $this->sessionOverrides)) {
+            return $this->sessionOverrides[$week][$session][$set] ?? false;
+        }
+
+        return $this->overrides[$week][$set] ?? false;
     }
 
     public function resolveCellColor(int $week, ?int $set = null, bool $overridden = false): string

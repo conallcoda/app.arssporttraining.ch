@@ -19,6 +19,14 @@ class TrainingSessionRebuildService
             ->each(fn (TrainingProgramSlot $slot) => $this->materializer->materialize($slot, force: true));
     }
 
+    public function rebuildFutureSlotsForAthleteExerciseProgram(int $userId, int $exerciseProgramId): void
+    {
+        $this->futureSlotsQuery()
+            ->where('user_id', $userId)
+            ->whereHas('trainingProgram', fn (Builder $query) => $query->where('exercise_program_id', $exerciseProgramId))
+            ->each(fn (TrainingProgramSlot $slot) => $this->materializer->materialize($slot, force: true));
+    }
+
     public function rebuildFutureSlotsForAthlete(int $userId, ?string $fromDate = null): void
     {
         $threshold = Carbon::parse($fromDate ?? now()->toDateString())->startOfDay();

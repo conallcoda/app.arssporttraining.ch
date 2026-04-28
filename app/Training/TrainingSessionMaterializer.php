@@ -21,15 +21,17 @@ class TrainingSessionMaterializer
 
     public function materialize(TrainingProgramSlot $slot, bool $force = false): void
     {
-        $slot->refresh();
+        DB::transaction(function () use ($slot, $force): void {
+            $slot = TrainingProgramSlot::query()
+                ->lockForUpdate()
+                ->findOrFail($slot->id);
 
-        if ($slot->compiled_at !== null && $slot->datetime->lte(now())) {
-            return;
-        }
+            if ($this->shouldSkipMaterialization($slot, $force)) {
+                return;
+            }
 
-        $compiled = $this->compiler->compile($slot);
+            $compiled = $this->compiler->compile($slot);
 
-        DB::transaction(function () use ($slot, $compiled): void {
             $slot->exercises()->delete();
 
             foreach ($compiled->exercises as $exercise) {
@@ -56,7 +58,20 @@ class TrainingSessionMaterializer
                 'pending_exercise_count' => count($compiled->exercises),
                 'has_any_modification' => false,
             ])->saveQuietly();
-        });
+        }, 5);
+    }
+
+    private function shouldSkipMaterialization(TrainingProgramSlot $slot, bool $force): bool
+    {
+        if ($slot->compiled_at === null) {
+            return false;
+        }
+
+        if ($slot->datetime->lte(now())) {
+            return true;
+        }
+
+        return ! $force;
     }
 
     private function createExercise(TrainingProgramSlot $slot, CompiledTrainingExercise $exercise): TrainingProgramSlotExercise

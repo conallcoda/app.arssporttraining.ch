@@ -3,13 +3,13 @@
 namespace App\Observers;
 
 use App\Models\Exercise\ExerciseProgram;
-use App\Training\TrainingSessionRebuildService;
+use App\Training\TrainingSessionRebuildDispatcher;
 
 class ExerciseProgramObserver
 {
     public function saved(ExerciseProgram $program): void
     {
-        app(TrainingSessionRebuildService::class)
-            ->rebuildFutureSlotsForExerciseProgram($program->id);
+        app(TrainingSessionRebuildDispatcher::class)
+            ->dispatchFutureSlotsForExerciseProgram($program->id);
     }
 }

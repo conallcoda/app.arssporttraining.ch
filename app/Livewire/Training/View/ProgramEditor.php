@@ -10,7 +10,7 @@ use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
 use App\Models\Exercise\ExerciseProgramTypeEnum;
 use App\Training\ExerciseGroupLabeler;
-use App\Training\TrainingSessionRebuildService;
+use App\Training\TrainingSessionRebuildDispatcher;
 use Coda\Cms\Livewire\Concerns\InteractsWithFormData;
 use Coda\FormKit\Form;
 use Flux\Flux;
@@ -457,7 +457,7 @@ class ProgramEditor extends Component
         $this->exerciseProgram->refresh();
         $this->loadExerciseData();
         unset($this->fieldsets, $this->exercises, $this->exerciseGroupLabels);
-        app(TrainingSessionRebuildService::class)->rebuildFutureSlotsForExerciseProgram($this->exerciseProgram->id);
+        app(TrainingSessionRebuildDispatcher::class)->dispatchFutureSlotsForExerciseProgram($this->exerciseProgram->id);
         Flux::modal($this->importConfirmModalName())->close();
 
         Flux::toast(
@@ -553,7 +553,7 @@ class ProgramEditor extends Component
         $this->exerciseProgram->refresh();
         unset($this->fieldsets, $this->exercises, $this->exerciseGroupLabels);
         $this->loadExerciseData();
-        app(TrainingSessionRebuildService::class)->rebuildFutureSlotsForExerciseProgram($this->exerciseProgram->id);
+        app(TrainingSessionRebuildDispatcher::class)->dispatchFutureSlotsForExerciseProgram($this->exerciseProgram->id);
     }
 
     protected function setDefaultOverridesForExercise(ExercisePlanConfig $config, int $exerciseId, int $programExerciseId, ?string $startsAtDate = null): void

@@ -181,8 +181,8 @@
                                             @php
                                                 $cellValue = ($row->lastSessionOnly && !$isLastSession)
                                                     ? '-'
-                                                    : ($row->cells[$week][$set] ?? '-');
-                                                $cellOverridden = $row->overrides[$week][$set] ?? false;
+                                                    : $row->getCellValue($week, $set, $session);
+                                                $cellOverridden = $row->isCellOverriddenAt($week, $set, $session);
                                             @endphp
                                             @if ($editable && ! $sessionLocked && $row->isCellEditable($week, $set) && $cellValue !== '-')
                                                 <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $row->resolveCellColor($week, $set, $cellOverridden) }}"
@@ -389,8 +389,8 @@
                                     </td>
                                     @for ($set = 0; $set < $grid->setCount; $set++)
                                         @php
-                                            $cellValue = $row->cells[$week][$set] ?? '-';
-                                            $cellOverridden = $row->overrides[$week][$set] ?? false;
+                                            $cellValue = $row->getCellValue($week, $set);
+                                            $cellOverridden = $row->isCellOverriddenAt($week, $set);
                                         @endphp
                                         @if ($editable && $row->isCellEditable($week, $set) && $cellValue !== '-')
                                             <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $row->resolveCellColor($week, $set, $cellOverridden) }}"
@@ -587,8 +587,8 @@
                                         @php
                                             $cellValue = ($row->lastSessionOnly && !$isLastSession)
                                                 ? '-'
-                                                : ($row->cells[$week][$set] ?? '-');
-                                            $cellOverridden = $row->overrides[$week][$set] ?? false;
+                                                : $row->getCellValue($week, $set, $session);
+                                            $cellOverridden = $row->isCellOverriddenAt($week, $set, $session);
                                         @endphp
                                         @if ($editable && ! $sessionLocked && $row->isCellEditable($week, $set) && $cellValue !== '-')
                                                 <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $row->resolveCellColor($week, $set, $cellOverridden) }}"
