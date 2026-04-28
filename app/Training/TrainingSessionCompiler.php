@@ -15,9 +15,11 @@ use App\Data\Training\Compiled\CompiledTrainingSession;
 use App\Data\Training\Compiled\CompiledTrainingSet;
 use App\Data\Training\Compiled\CompiledTrainingSetValue;
 use App\Data\Training\Config\EffectiveExerciseConfig;
+use App\Models\Training\TrainingProgramBlock;
 use App\Models\Athlete\MetricSubmission;
 use App\Models\Exercise\Exercise;
 use App\Models\Training\TrainingProgramSlot;
+use Carbon\Carbon;
 
 class TrainingSessionCompiler
 {
@@ -41,6 +43,10 @@ class TrainingSessionCompiler
         'note',
     ];
 
+    public function __construct(
+        private readonly CalendarBlockService $calendarBlockService,
+    ) {}
+
     public function compile(TrainingProgramSlot $slot): CompiledTrainingSession
     {
         $slot->loadMissing('trainingProgram.program.exercises');
@@ -49,9 +55,10 @@ class TrainingSessionCompiler
         $programConfig = $program->config;
         $scheduledDate = ($slot->scheduled_date ?? $slot->datetime)->format('Y-m-d');
         $sessionContext = $this->resolveSessionContext($slot);
-        $oneRepMaxMetric = $this->latestMetric($slot->user_id, MetricEnum::OneRepMax, $scheduledDate);
+        $metricContext = $this->resolveMetricContext($slot, $scheduledDate);
+        $oneRepMaxMetric = $this->latestMetric($slot->user_id, MetricEnum::OneRepMax, $metricContext['cutoffDate']);
         $heartRateMetric = $this->latestMetric($slot->user_id, MetricEnum::HeartRate, $scheduledDate);
-        $weightProgression = $this->resolveWeightProgressionData($oneRepMaxMetric, $programConfig->defaultTargetGoal());
+        $weightProgression = $this->resolveWeightProgressionData($oneRepMaxMetric, $metricContext['targetGoal']);
 
         $compiledExercises = $program->exercises
             ->sortBy(function (Exercise $exercise): string {
@@ -111,7 +118,7 @@ class TrainingSessionCompiler
                         $applyPer = $config['applyPer'] ?? 'session';
                         $value = $applyPer === 'week'
                             ? $this->resolveWeekValue($state, $config, $setting, $weekIndex)
-                            : $this->resolveSessionValue($state, $config, $setting, $weekIndex, $setIndex);
+                            : $this->resolveSessionValue($state, $config, $setting, $weekIndex, $setIndex, $sessionContext['sessionIndex']);
 
                         if ($this->isBlankValue($value)) {
                             continue;
@@ -153,24 +160,78 @@ class TrainingSessionCompiler
 
     private function resolveSessionContext(TrainingProgramSlot $slot): array
     {
-        $slotIds = TrainingProgramSlot::query()
+        $slots = TrainingProgramSlot::query()
             ->where('training_program_id', $slot->training_program_id)
             ->where('user_id', $slot->user_id)
+            ->whereNull('cancelled_at')
             ->orderBy('datetime')
             ->orderBy('id')
-            ->pluck('id')
-            ->values();
+            ->get(['id', 'datetime']);
 
-        $slotIndex = $slotIds->search($slot->id);
+        $slotIndex = $slots->search(fn (TrainingProgramSlot $scheduledSlot) => $scheduledSlot->id === $slot->id);
         $slotIndex = $slotIndex === false ? 0 : (int) $slotIndex;
 
+        $weeks = $slots
+            ->values()
+            ->groupBy(fn (TrainingProgramSlot $scheduledSlot) => $scheduledSlot->datetime->isoWeekYear().'-'.$scheduledSlot->datetime->isoWeek())
+            ->values();
+
+        $weekIndex = 0;
+        $sessionIndex = 0;
         $sessionsPerWeek = 1;
+
+        foreach ($weeks as $index => $weekSlots) {
+            $position = $weekSlots->search(fn (TrainingProgramSlot $scheduledSlot) => $scheduledSlot->id === $slot->id);
+
+            if ($position === false) {
+                continue;
+            }
+
+            $weekIndex = (int) $index;
+            $sessionIndex = (int) $position;
+            $sessionsPerWeek = max(1, $weekSlots->count());
+
+            break;
+        }
 
         return [
             'slotIndex' => $slotIndex,
-            'weekIndex' => intdiv($slotIndex, $sessionsPerWeek),
-            'sessionIndex' => $slotIndex % $sessionsPerWeek,
+            'weekIndex' => $weekIndex,
+            'sessionIndex' => $sessionIndex,
             'sessionsPerWeek' => $sessionsPerWeek,
+        ];
+    }
+
+    /**
+     * @return array{cutoffDate: string, targetGoal: int|float}
+     */
+    private function resolveMetricContext(TrainingProgramSlot $slot, string $scheduledDate): array
+    {
+        $program = $slot->trainingProgram->program;
+        $fallback = [
+            'cutoffDate' => $scheduledDate,
+            'targetGoal' => $program->config->defaultTargetGoal(),
+        ];
+
+        $categoryId = $program->exercise_category_id;
+        if (! $categoryId) {
+            return $fallback;
+        }
+
+        $block = $this->calendarBlockService->findOverlappingBlock(
+            groupId: (int) $slot->trainingProgram->group_id,
+            userId: (int) $slot->user_id,
+            categoryId: (int) $categoryId,
+            date: Carbon::parse($scheduledDate),
+        );
+
+        if (! $block instanceof TrainingProgramBlock) {
+            return $fallback;
+        }
+
+        return [
+            'cutoffDate' => $block->start?->format('Y-m-d') ?? $scheduledDate,
+            'targetGoal' => $block->config?->goal ?? $fallback['targetGoal'],
         ];
     }
 
@@ -222,9 +283,9 @@ class TrainingSessionCompiler
         return $scheduledDate >= $startsAtDate;
     }
 
-    private function resolveSessionValue(GridState $state, array $config, string $setting, int $weekIndex, int $setIndex): mixed
+    private function resolveSessionValue(GridState $state, array $config, string $setting, int $weekIndex, int $setIndex, int $sessionIndex): mixed
     {
-        $resolved = $state->getResolvedCellValue($setting, $weekIndex, $setIndex);
+        $resolved = $state->getResolvedCellValue($setting, $weekIndex, $setIndex, $sessionIndex);
 
         return $resolved ?? $this->defaultValue($config);
     }

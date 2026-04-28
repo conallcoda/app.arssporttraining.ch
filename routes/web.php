@@ -48,6 +48,8 @@ Route::prefix('admin')->middleware(['auth', 'cms.admin'])->group(function (): vo
     Route::get('/api/user-day-slots', [SlotDetailsController::class, 'userDaySlots'])->name('api.user-day-slots');
 });
 
-Route::get('/test/exercise-creator', ExerciseCreator::class)->name('test.exercise-creator');
-Route::get('/test/portal-demo', PortalDemo::class)->name('test.portal-demo');
-Route::get('/test/readiness', ReadinessForm::class)->name('test.readiness');
+Route::middleware('auth')->group(function (): void {
+    Route::get('/test/exercise-creator', ExerciseCreator::class)->name('test.exercise-creator');
+    Route::get('/test/portal-demo', PortalDemo::class)->name('test.portal-demo');
+    Route::get('/test/readiness', ReadinessForm::class)->name('test.readiness');
+});

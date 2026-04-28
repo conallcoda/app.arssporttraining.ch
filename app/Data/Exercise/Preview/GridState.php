@@ -111,10 +111,10 @@ class GridState
         $this->highlightOverrides = $highlightOverrides;
     }
 
-    public function getResolvedCellValue(string $setting, int $weekIndex, int $setIndex): mixed
+    public function getResolvedCellValue(string $setting, int $weekIndex, int $setIndex, ?int $sessionIndex = null): mixed
     {
         if ($this->overrides !== null) {
-            $overrideValue = $this->overrides->getCellOverrideValue($weekIndex, $setIndex, $setting);
+            $overrideValue = $this->overrides->getCellOverrideValue($weekIndex, $setIndex, $setting, $sessionIndex);
 
             if ($overrideValue !== null) {
                 return $overrideValue;
@@ -124,7 +124,7 @@ class GridState
         return $this->getCellValue($setting, $weekIndex, $setIndex);
     }
 
-    public function isCellOverridden(string $setting, int $weekIndex, int $setIndex): bool
+    public function isCellOverridden(string $setting, int $weekIndex, int $setIndex, ?int $sessionIndex = null): bool
     {
         $overrides = $this->highlightOverrides ?? $this->overrides;
 
@@ -132,7 +132,7 @@ class GridState
             return false;
         }
 
-        return $overrides->hasCellOverride($weekIndex, $setIndex, $setting);
+        return $overrides->hasCellOverride($weekIndex, $setIndex, $setting, $sessionIndex);
     }
 
     public function getResolvedWeekValue(string $setting, int $weekIndex, mixed $default): mixed

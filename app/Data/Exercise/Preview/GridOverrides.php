@@ -25,10 +25,30 @@ class GridOverrides extends AbstractData
         );
     }
 
-    public function hasCellOverride(int $week, int $set, string $field): bool
+    public function hasCellOverride(int $week, int $set, string $field, ?int $session = null): bool
     {
+        if ($session !== null) {
+            foreach ($this->cells as $override) {
+                if (
+                    $override->week === $week
+                    && $override->set === $set
+                    && $override->session === $session
+                    && isset($override->data[$field])
+                ) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         foreach ($this->cells as $override) {
-            if ($override->week === $week && $override->set === $set && isset($override->data[$field])) {
+            if (
+                $override->week === $week
+                && $override->set === $set
+                && $session === null
+                && isset($override->data[$field])
+            ) {
                 return true;
             }
         }
@@ -36,8 +56,23 @@ class GridOverrides extends AbstractData
         return false;
     }
 
-    public function getCellOverrideValue(int $week, int $set, string $field): mixed
+    public function getCellOverrideValue(int $week, int $set, string $field, ?int $session = null): mixed
     {
+        if ($session !== null) {
+            foreach ($this->cells as $override) {
+                if (
+                    $override->week === $week
+                    && $override->set === $set
+                    && $override->session === $session
+                    && isset($override->data[$field])
+                ) {
+                    return $override->data[$field];
+                }
+            }
+
+            return null;
+        }
+
         foreach ($this->cells as $override) {
             if ($override->week === $week && $override->set === $set && isset($override->data[$field])) {
                 return $override->data[$field];

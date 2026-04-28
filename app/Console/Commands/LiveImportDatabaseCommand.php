@@ -20,7 +20,7 @@ class LiveImportDatabaseCommand extends Command
 
         $export = $this->runProcess([
             'ssh', 'coda',
-            "cd {$this->remotePath} && /usr/local/php83/bin/php artisan db:export",
+            "cd {$this->remotePath} && /usr/local/php84/bin/php artisan db:export",
         ]);
 
         if (! $export->isSuccessful()) {

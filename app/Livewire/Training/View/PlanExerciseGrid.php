@@ -363,7 +363,7 @@ class PlanExerciseGrid extends Component
             $diffed['weeks'] ?? [],
         );
 
-        return ExercisePreviewBuilder::build(
+        $grid = ExercisePreviewBuilder::build(
             $effectiveConfig,
             $measuredData,
             $this->weeks,
@@ -376,6 +376,8 @@ class PlanExerciseGrid extends Component
             $this->weekSessionDates,
             $this->lockedSessionsByWeek,
         );
+
+        return $this->clearLockedWeekHighlights($grid);
     }
 
     /** @return array{cells: array, weeks: array} */
@@ -423,6 +425,41 @@ class PlanExerciseGrid extends Component
         }
 
         return ['cells' => $diffCells, 'weeks' => $diffWeeks];
+    }
+
+    protected function clearLockedWeekHighlights(PreviewGrid $grid): PreviewGrid
+    {
+        $lockedWeeks = collect($this->lockedSessionsByWeek)
+            ->map(fn (array $sessions): bool => in_array(true, $sessions, true))
+            ->all();
+
+        foreach ($grid->rows as $row) {
+            foreach ($row->overrides as $week => $weekOverrides) {
+                if (! ($lockedWeeks[$week] ?? false)) {
+                    continue;
+                }
+
+                if (is_array($weekOverrides)) {
+                    foreach (array_keys($weekOverrides) as $set) {
+                        $row->overrides[$week][$set] = false;
+                    }
+
+                    continue;
+                }
+
+                $row->overrides[$week] = false;
+            }
+        }
+
+        foreach ($grid->weekColumns as $column) {
+            foreach ($column->overrides as $week => $isOverridden) {
+                if ($lockedWeeks[$week] ?? false) {
+                    $column->overrides[$week] = false;
+                }
+            }
+        }
+
+        return $grid;
     }
 
     /** @return array<int, array{label: string, color: string}> */
@@ -674,15 +711,17 @@ class PlanExerciseGrid extends Component
                 continue;
             }
 
-            $sessionCount = max(count($weekLockedSessions), (int) ($this->weekSessions[$week] ?? $this->sessionsPerWeek));
-
             foreach ($grid->rows as $row) {
                 foreach ($row->cells[$week] ?? [] as $set => $value) {
                     if ($value === null || $value === '' || $value === '-' || $value === '—') {
                         continue;
                     }
 
-                    for ($session = 0; $session < $sessionCount; $session++) {
+                    foreach ($weekLockedSessions as $session => $isLocked) {
+                        if (! $isLocked) {
+                            continue;
+                        }
+
                         $gridOverrides = $this->putCellOverride($gridOverrides, $week, $session, (int) $set, $row->field, $value);
                     }
                 }
