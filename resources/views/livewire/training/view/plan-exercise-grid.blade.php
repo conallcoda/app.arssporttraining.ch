@@ -84,16 +84,11 @@
                 @else
                     <div x-on:grid-setting-click="$wire.openSettingsForm($event.detail.field)">
                         <x-training.exercise-grid
-                            :grid="$this->previewGrid"
+                            :grid="$this->displayGrid"
                             :name="$exerciseName"
                             :showHeader="false"
                             :settingClickable="true"
                             :collapseWeeks="false"
-                            :weekLabels="$weekLabels"
-                            :weekSessions="$weekSessions"
-                            :expandedWeeks="$this->effectiveExpandedWeeks"
-                            :lockedSessionsByWeek="$lockedSessionsByWeek"
-                            :sessionLabels="$sessionLabels"
                         />
                     </div>
                 @endif

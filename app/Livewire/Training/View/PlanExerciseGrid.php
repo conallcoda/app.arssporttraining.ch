@@ -8,6 +8,7 @@ use App\Data\Exercise\Preview\ExercisePreviewBuilder;
 use App\Data\Exercise\Preview\GridOverrides;
 use App\Data\Exercise\Preview\OverrideManager;
 use App\Data\Exercise\Preview\PreviewGrid;
+use App\Data\Exercise\Preview\PreviewGridWeek;
 use App\Data\Exercise\Preview\StrategyOrchestrator;
 use App\Data\Exercise\Settings\SetsSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
@@ -136,42 +137,17 @@ class PlanExerciseGrid extends Component
 
     protected function getCurrentOverrides(): ExerciseOverrides
     {
-        $config = $this->getPlanConfig();
-
-        if ($this->userId !== null) {
-            return $config->userExerciseOverrides($this->userId, $this->programExerciseId);
-        }
-
-        return $config->defaultExerciseOverrides($this->programExerciseId);
+        return $this->getPlanConfig()->exerciseOverrides($this->programExerciseId, $this->userId);
     }
 
     protected function getEffectiveStartsAtDate(): ?string
     {
-        $config = $this->getPlanConfig();
-        $planOverrides = $config->defaultExerciseOverrides($this->programExerciseId);
-
-        if ($this->userId === null) {
-            return $planOverrides->startsAtDate;
-        }
-
-        $userOverrides = $config->userExerciseOverrides($this->userId, $this->programExerciseId);
-
-        return $userOverrides->startsAtDate ?? $planOverrides->startsAtDate;
+        return $this->getPlanConfig()->effectiveStartsAtDate($this->programExerciseId, $this->userId);
     }
 
     protected function getEffectiveConfig(): array
     {
-        $base = $this->getExerciseConfig();
-        $config = $this->getPlanConfig();
-        $planOverrides = $config->defaultExerciseOverrides($this->programExerciseId);
-
-        if ($this->userId !== null) {
-            $userOverrides = $config->userExerciseOverrides($this->userId, $this->programExerciseId);
-
-            return EffectiveExerciseConfig::resolve($base, $planOverrides, $userOverrides);
-        }
-
-        return EffectiveExerciseConfig::resolve($base, $planOverrides);
+        return $this->resolveExerciseOverrides()->effectiveConfig;
     }
 
     protected function getBaseGridOverrides(): array
@@ -179,8 +155,7 @@ class PlanExerciseGrid extends Component
         $base = $this->getExerciseConfig();
 
         if ($this->userId !== null) {
-            $config = $this->getPlanConfig();
-            $planOverrides = $config->defaultExerciseOverrides($this->programExerciseId);
+            $planOverrides = $this->resolveExerciseOverrides()->defaultOverrides;
 
             return EffectiveExerciseConfig::mergeGridOverrides($base->overrides, $planOverrides->gridOverrides);
         }
@@ -240,16 +215,7 @@ class PlanExerciseGrid extends Component
     #[Computed]
     public function isDisabled(): bool
     {
-        $config = $this->getPlanConfig();
-        $planOverrides = $config->defaultExerciseOverrides($this->programExerciseId);
-
-        if ($this->userId !== null) {
-            $userOverrides = $config->userExerciseOverrides($this->userId, $this->programExerciseId);
-
-            return EffectiveExerciseConfig::resolveDisabled($planOverrides, $userOverrides);
-        }
-
-        return $planOverrides->disabled ?? false;
+        return $this->resolveExerciseOverrides()->disabled;
     }
 
     #[Computed]
@@ -348,6 +314,10 @@ class PlanExerciseGrid extends Component
             $effectiveConfig['overrides']['cells'] ?? [],
             $effectiveConfig['overrides']['weeks'] ?? [],
         );
+        $historicalOverrides = GridOverrides::fromArrays(
+            $this->getHistoricalGridOverrides()['cells'] ?? [],
+            $this->getHistoricalGridOverrides()['weeks'] ?? [],
+        );
 
         $config = $this->getPlanConfig();
         $planDefaults = $config->defaultExerciseOverrides($this->programExerciseId);
@@ -377,11 +347,101 @@ class PlanExerciseGrid extends Component
             $this->getEffectiveStartsAtDate(),
             $this->weekSessionDates,
             $this->lockedSessionsByWeek,
+            $historicalOverrides,
         );
 
         $grid = $this->applyExplicitWeekSessionCounts($grid);
 
         return $this->clearLockedWeekHighlights($grid);
+    }
+
+    #[Computed]
+    public function displayGrid(): PreviewGrid
+    {
+        $grid = $this->previewGrid;
+        $expandedWeekLookup = collect($this->effectiveExpandedWeeks)
+            ->mapWithKeys(fn (mixed $week) => [(int) $week => true])
+            ->all();
+        $showSessionColumn = ! empty($expandedWeekLookup);
+        $showCopyMenu = $grid->weekCount > 1;
+        $showWeekColumn = $grid->weekCount > 1;
+
+        $cumulativeSessionStart = 0;
+        $weeks = [];
+
+        for ($week = 0; $week < $grid->weekCount; $week++) {
+            $sessionCount = $this->weekSessions[$week] ?? $grid->sessionsPerWeek;
+            $rangeStart = $cumulativeSessionStart + 1;
+            $rangeEnd = $cumulativeSessionStart + $sessionCount;
+            $sessionNumbers = $sessionCount > 0 ? range($rangeStart, $rangeEnd) : [];
+            $lockedSessions = array_map(
+                static fn (mixed $locked): bool => (bool) $locked,
+                $this->lockedSessionsByWeek[$week] ?? []
+            );
+
+            $collapsedMetaLines = [];
+            if ($this->sessionLabels) {
+                $collapsedMetaLines = array_map(
+                    static fn (int $number): string => __('Session').' '.$number,
+                    $sessionNumbers
+                );
+            } elseif ($sessionCount > 1) {
+                $collapsedMetaLines[] = '('.$sessionCount.' '.__('sessions').')';
+            } elseif ($this->weekSessions !== []) {
+                $collapsedMetaLines[] = '('.$sessionCount.' '.__('session').')';
+            }
+
+            $copyTargets = array_values(array_filter(
+                range(0, $grid->weekCount - 1),
+                static fn (int $candidate): bool => $candidate !== $week
+            ));
+
+            $weeks[] = new PreviewGridWeek(
+                index: $week,
+                label: (string) ($this->weekLabels[$week] ?? 'TW'.($week + 1)),
+                sessionCount: $sessionCount,
+                sessionNumbers: $sessionNumbers,
+                sessionRangeLabel: $rangeStart === $rangeEnd ? (string) $rangeStart : $rangeStart.'-'.$rangeEnd,
+                expanded: (bool) ($expandedWeekLookup[$week] ?? false),
+                lockedSessions: $lockedSessions,
+                hasLockedSessions: in_array(true, $lockedSessions, true),
+                collapsedMetaLines: $collapsedMetaLines,
+                showCopyMenu: $showCopyMenu && ! in_array(true, $lockedSessions, true),
+                copyFromWeeks: $copyTargets,
+                copyToWeeks: $copyTargets,
+            );
+
+            $cumulativeSessionStart += $sessionCount;
+        }
+
+        $grid->weeks = $weeks;
+        $grid->showWeekColumn = $showWeekColumn;
+        $grid->showSessionColumn = $showSessionColumn;
+        $grid->showCopyMenu = $showCopyMenu;
+
+        return $grid;
+    }
+
+    /** @return array{cells: array, weeks: array} */
+    protected function getHistoricalGridOverrides(): array
+    {
+        $resolvedOverrides = $this->resolveExerciseOverrides();
+        $planOverrides = $resolvedOverrides->defaultOverrides;
+        $historicalOverrides = $planOverrides->historicalGridOverrides;
+
+        if ($resolvedOverrides->userOverrides !== null) {
+            $historicalOverrides = EffectiveExerciseConfig::mergeGridOverrides(
+                $historicalOverrides,
+                $resolvedOverrides->userOverrides->historicalGridOverrides,
+            );
+        }
+
+        return $historicalOverrides;
+    }
+
+    protected function resolveExerciseOverrides(): \App\Data\Training\Config\ResolvedExerciseOverrides
+    {
+        return $this->getPlanConfig()->resolveExercise($this->getExerciseConfig(), $this->programExerciseId, $this->userId);
     }
 
     #[Computed]
@@ -645,10 +705,7 @@ class PlanExerciseGrid extends Component
         $base = $this->getExerciseConfig();
 
         if ($this->userId !== null) {
-            $config = $this->getPlanConfig();
-            $planOverrides = $config->defaultExerciseOverrides($this->programExerciseId);
-
-            return EffectiveExerciseConfig::resolve($base, $planOverrides);
+            return EffectiveExerciseConfig::resolve($base, $this->resolveExerciseOverrides()->defaultOverrides);
         }
 
         return $base->toArray();
@@ -717,17 +774,12 @@ class PlanExerciseGrid extends Component
 
     protected function saveOverrides(ExerciseOverrides $overrides): void
     {
-        $this->freezeLockedWeeks($overrides, $this->previewGrid);
+        $this->snapshotLockedWeeks($overrides, $this->previewGrid);
         $this->applyFutureOnlyBoundary($overrides);
 
         $exercisePlan = $this->planType::findOrFail($this->exercisePlanId);
         $config = $exercisePlan->config;
-
-        if ($this->userId !== null) {
-            $config->setUserExerciseOverrides($this->userId, $this->programExerciseId, $overrides);
-        } else {
-            $config->setDefaultExerciseOverrides($this->programExerciseId, $overrides);
-        }
+        $config->setExerciseOverrides($this->programExerciseId, $overrides, $this->userId);
 
         $exercisePlan->config = $config;
         $shouldScopeRebuildToAthlete = $this->userId !== null && $this->planType === ExerciseProgram::class;
@@ -735,7 +787,7 @@ class PlanExerciseGrid extends Component
         if ($shouldScopeRebuildToAthlete) {
             $exercisePlan->saveQuietly();
             app(TrainingSessionRebuildDispatcher::class)
-                ->dispatchFutureSlotsForAthleteExerciseProgram($this->userId, $exercisePlan->id);
+                ->dispatchFutureSlotsForExerciseProgramChange($exercisePlan->id, $this->userId);
         } else {
             $exercisePlan->save();
         }
@@ -743,9 +795,9 @@ class PlanExerciseGrid extends Component
         $this->dispatch('exercise-overrides-changed');
     }
 
-    protected function freezeLockedWeeks(ExerciseOverrides $overrides, PreviewGrid $grid): void
+    protected function snapshotLockedWeeks(ExerciseOverrides $overrides, PreviewGrid $grid): void
     {
-        $gridOverrides = $overrides->gridOverrides;
+        $historicalGridOverrides = $overrides->historicalGridOverrides;
 
         foreach (range(0, $grid->weekCount - 1) as $week) {
             $weekLockedSessions = $this->lockedSessionsByWeek[$week] ?? [];
@@ -767,7 +819,7 @@ class PlanExerciseGrid extends Component
                             continue;
                         }
 
-                        $gridOverrides = $this->putCellOverride($gridOverrides, $week, $session, (int) $set, $row->field, $value);
+                        $historicalGridOverrides = $this->putCellOverride($historicalGridOverrides, $week, $session, (int) $set, $row->field, $value);
                     }
                 }
             }
@@ -779,11 +831,12 @@ class PlanExerciseGrid extends Component
                     continue;
                 }
 
-                $gridOverrides = $this->putWeekOverride($gridOverrides, $week, $column->field, $value);
+                $historicalGridOverrides = $this->putWeekOverride($historicalGridOverrides, $week, $column->field, $value);
             }
         }
 
-        $overrides->gridOverrides = $gridOverrides;
+        $overrides->historicalGridOverrides = $historicalGridOverrides;
+        $overrides->gridOverrides = $this->stripLockedHistoryFromCurrentOverrides($overrides->gridOverrides);
     }
 
     protected function applyFutureOnlyBoundary(ExerciseOverrides $overrides): void
@@ -829,6 +882,44 @@ class PlanExerciseGrid extends Component
         return max($this->sessionsPerWeek, 1);
     }
 
+    protected function isEntireWeekLocked(int $weekIndex): bool
+    {
+        $sessionCount = $this->sessionCountForWeek($weekIndex);
+
+        if ($sessionCount <= 0) {
+            return false;
+        }
+
+        for ($session = 0; $session < $sessionCount; $session++) {
+            if (! ($this->lockedSessionsByWeek[$weekIndex][$session] ?? false)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** @return array{cells: array, weeks: array} */
+    protected function stripLockedHistoryFromCurrentOverrides(array $gridOverrides): array
+    {
+        $gridOverrides['cells'] = collect($gridOverrides['cells'] ?? [])
+            ->reject(function (array $cell): bool {
+                $week = (int) ($cell['week'] ?? -1);
+                $session = array_key_exists('session', $cell) ? (int) $cell['session'] : null;
+
+                return $session !== null && ($this->lockedSessionsByWeek[$week][$session] ?? false);
+            })
+            ->values()
+            ->all();
+
+        $gridOverrides['weeks'] = collect($gridOverrides['weeks'] ?? [])
+            ->reject(fn (array $week): bool => $this->isEntireWeekLocked((int) ($week['week'] ?? -1)))
+            ->values()
+            ->all();
+
+        return $gridOverrides;
+    }
+
     protected function applyExplicitWeekSessionCounts(PreviewGrid $grid): PreviewGrid
     {
         foreach (range(0, $grid->weekCount - 1) as $week) {
@@ -863,6 +954,21 @@ class PlanExerciseGrid extends Component
                     if ($row->isCellOverriddenAt($week, (int) $set, $session) !== $baselineOverride) {
                         return true;
                     }
+                }
+            }
+        }
+
+        foreach ($grid->weekColumns as $column) {
+            $baselineValue = $column->getCellValue($week, 0, 0);
+            $baselineOverride = $column->isCellOverriddenAt($week, 0, 0);
+
+            for ($session = 1; $session < $sessionCount; $session++) {
+                if ($column->getCellValue($week, 0, $session) !== $baselineValue) {
+                    return true;
+                }
+
+                if ($column->isCellOverriddenAt($week, 0, $session) !== $baselineOverride) {
+                    return true;
                 }
             }
         }

@@ -44,6 +44,21 @@ class TrainingSessionCompiler
         'note',
     ];
 
+    /**
+     * @var array<string, array<int, array{slotIndex: int, weekIndex: int, sessionIndex: int, sessionsPerWeek: int}>>
+     */
+    private array $sessionContextCache = [];
+
+    /**
+     * @var array<string, array{cutoffDate: string, targetGoal: int|float}>
+     */
+    private array $metricContextCache = [];
+
+    /**
+     * @var array<string, OneRepMaxMetric|HeartRateMetric|null>
+     */
+    private array $latestMetricCache = [];
+
     public function __construct(
         private readonly CalendarBlockService $calendarBlockService,
     ) {}
@@ -76,19 +91,18 @@ class TrainingSessionCompiler
             ->values()
             ->map(function (Exercise $exercise, int $index) use ($programConfig, $sessionContext, $weightProgression, $heartRateMetric, $slot, $scheduledDate) {
                 $programExerciseId = (int) $exercise->pivot->id;
-                $planOverrides = $programConfig->defaultExerciseOverrides($programExerciseId);
-                $userOverrides = $programConfig->userExerciseOverrides($slot->user_id, $programExerciseId);
+                $resolvedOverrides = $programConfig->resolveExercise($exercise->config, $programExerciseId, $slot->user_id);
 
-                if (! $this->exerciseAppliesOnDate($planOverrides->startsAtDate, $userOverrides->startsAtDate, $scheduledDate)) {
+                if (! $this->exerciseAppliesOnDate($resolvedOverrides->effectiveStartsAtDate, $scheduledDate)) {
                     return null;
                 }
 
-                if (EffectiveExerciseConfig::resolveDisabled($planOverrides, $userOverrides)) {
+                if ($resolvedOverrides->disabled) {
                     return null;
                 }
 
-                $effectiveConfig = EffectiveExerciseConfig::resolve($exercise->config, $planOverrides, $userOverrides);
-                $overrideLayer = EffectiveExerciseConfig::resolveForLayer($exercise->config, $planOverrides, $userOverrides);
+                $effectiveConfig = $resolvedOverrides->effectiveConfig;
+                $overrideLayer = $resolvedOverrides->overrideLayer;
 
                 $weeks = max(
                     (int) data_get($effectiveConfig, 'preview.weeks', 1),
@@ -166,45 +180,50 @@ class TrainingSessionCompiler
 
     private function resolveSessionContext(TrainingProgramSlot $slot): array
     {
-        $slots = TrainingProgramSlot::query()
-            ->where('training_program_id', $slot->training_program_id)
-            ->where('user_id', $slot->user_id)
-            ->whereNull('cancelled_at')
-            ->orderBy('datetime')
-            ->orderBy('id')
-            ->get(['id', 'datetime']);
+        $cacheKey = $slot->training_program_id.':'.$slot->user_id;
 
-        $slotIndex = $slots->search(fn (TrainingProgramSlot $scheduledSlot) => $scheduledSlot->id === $slot->id);
-        $slotIndex = $slotIndex === false ? 0 : (int) $slotIndex;
+        if (! isset($this->sessionContextCache[$cacheKey])) {
+            $slots = TrainingProgramSlot::query()
+                ->where('training_program_id', $slot->training_program_id)
+                ->where('user_id', $slot->user_id)
+                ->whereNull('cancelled_at')
+                ->orderBy('datetime')
+                ->orderBy('id')
+                ->get(['id', 'datetime'])
+                ->values();
 
-        $weeks = $slots
-            ->values()
-            ->groupBy(fn (TrainingProgramSlot $scheduledSlot) => $scheduledSlot->datetime->isoWeekYear().'-'.$scheduledSlot->datetime->isoWeek())
-            ->values();
+            $contexts = [];
+            $slotIndexes = $slots
+                ->pluck('id')
+                ->flip()
+                ->map(fn ($index) => (int) $index)
+                ->all();
 
-        $weekIndex = 0;
-        $sessionIndex = 0;
-        $sessionsPerWeek = 1;
+            $weeks = $slots
+                ->groupBy(fn (TrainingProgramSlot $scheduledSlot) => $scheduledSlot->datetime->isoWeekYear().'-'.$scheduledSlot->datetime->isoWeek())
+                ->values();
 
-        foreach ($weeks as $index => $weekSlots) {
-            $position = $weekSlots->search(fn (TrainingProgramSlot $scheduledSlot) => $scheduledSlot->id === $slot->id);
+            foreach ($weeks as $weekIndex => $weekSlots) {
+                $sessionCount = max(1, $weekSlots->count());
 
-            if ($position === false) {
-                continue;
+                foreach ($weekSlots->values() as $sessionIndex => $scheduledSlot) {
+                    $contexts[(int) $scheduledSlot->id] = [
+                        'slotIndex' => $slotIndexes[(int) $scheduledSlot->id] ?? 0,
+                        'weekIndex' => (int) $weekIndex,
+                        'sessionIndex' => (int) $sessionIndex,
+                        'sessionsPerWeek' => $sessionCount,
+                    ];
+                }
             }
 
-            $weekIndex = (int) $index;
-            $sessionIndex = (int) $position;
-            $sessionsPerWeek = max(1, $weekSlots->count());
-
-            break;
+            $this->sessionContextCache[$cacheKey] = $contexts;
         }
 
-        return [
-            'slotIndex' => $slotIndex,
-            'weekIndex' => $weekIndex,
-            'sessionIndex' => $sessionIndex,
-            'sessionsPerWeek' => $sessionsPerWeek,
+        return $this->sessionContextCache[$cacheKey][$slot->id] ?? [
+            'slotIndex' => 0,
+            'weekIndex' => 0,
+            'sessionIndex' => 0,
+            'sessionsPerWeek' => 1,
         ];
     }
 
@@ -213,6 +232,12 @@ class TrainingSessionCompiler
      */
     private function resolveMetricContext(TrainingProgramSlot $slot, string $scheduledDate): array
     {
+        $cacheKey = $slot->training_program_id.':'.$slot->user_id.':'.$scheduledDate;
+
+        if (isset($this->metricContextCache[$cacheKey])) {
+            return $this->metricContextCache[$cacheKey];
+        }
+
         $program = $slot->trainingProgram->program;
         $fallback = [
             'cutoffDate' => $scheduledDate,
@@ -221,7 +246,7 @@ class TrainingSessionCompiler
 
         $categoryId = $program->exercise_category_id;
         if (! $categoryId) {
-            return $fallback;
+            return $this->metricContextCache[$cacheKey] = $fallback;
         }
 
         $block = $this->calendarBlockService->findOverlappingBlock(
@@ -232,10 +257,10 @@ class TrainingSessionCompiler
         );
 
         if (! $block instanceof TrainingProgramBlock) {
-            return $fallback;
+            return $this->metricContextCache[$cacheKey] = $fallback;
         }
 
-        return [
+        return $this->metricContextCache[$cacheKey] = [
             'cutoffDate' => $block->start?->format('Y-m-d') ?? $scheduledDate,
             'targetGoal' => $block->config?->goal ?? $fallback['targetGoal'],
         ];
@@ -243,6 +268,12 @@ class TrainingSessionCompiler
 
     private function latestMetric(int $userId, MetricEnum $metric, string $scheduledDate): OneRepMaxMetric|HeartRateMetric|null
     {
+        $cacheKey = $userId.':'.$metric->value.':'.$scheduledDate;
+
+        if (array_key_exists($cacheKey, $this->latestMetricCache)) {
+            return $this->latestMetricCache[$cacheKey];
+        }
+
         $submission = MetricSubmission::query()
             ->forAthlete($userId)
             ->forMetric($metric)
@@ -254,12 +285,12 @@ class TrainingSessionCompiler
             ->first();
 
         if (! $submission) {
-            return null;
+            return $this->latestMetricCache[$cacheKey] = null;
         }
 
         $values = $submission->values->pluck('value', 'field')->all();
 
-        return match ($metric) {
+        return $this->latestMetricCache[$cacheKey] = match ($metric) {
             MetricEnum::OneRepMax => OneRepMaxMetric::from($values),
             MetricEnum::HeartRate => HeartRateMetric::from($values),
         };
@@ -278,10 +309,8 @@ class TrainingSessionCompiler
         );
     }
 
-    private function exerciseAppliesOnDate(?string $planStartsAtDate, ?string $userStartsAtDate, string $scheduledDate): bool
+    private function exerciseAppliesOnDate(?string $startsAtDate, string $scheduledDate): bool
     {
-        $startsAtDate = $userStartsAtDate ?? $planStartsAtDate;
-
         if ($startsAtDate === null || $startsAtDate === '') {
             return true;
         }

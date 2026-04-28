@@ -41,6 +41,7 @@ class ExercisePreviewBuilder
         ?string $startsAtDate = null,
         array $weekSessionDates = [],
         array $lockedSessionsByWeek = [],
+        ?GridOverrides $historicalOverrides = null,
     ): PreviewGrid {
         $orchestrator = new StrategyOrchestrator($data, $measuredData, $weeks, $overrides, $maxHR, $iatPercent);
         $state = $orchestrator->execute();
@@ -73,7 +74,7 @@ class ExercisePreviewBuilder
             $applyPer = $config['applyPer'] ?? 'session';
 
             if ($applyPer === 'week') {
-                $weekColumns[] = self::buildWeekColumn($setting, $config, $weeks, $state, $applicableWeeks, $lockedWeekMap);
+                $weekColumns[] = self::buildWeekColumn($setting, $config, $weeks, $state, $applicableWeeks, $applicableSessions, $sessionCounts, $lockedWeekMap, $historicalOverrides);
 
                 continue;
             }
@@ -84,12 +85,12 @@ class ExercisePreviewBuilder
             $colorIndex++;
 
             if ($setting === 'weight') {
-                $weightRows = self::buildWeightRows($config, $color, $overrideColor, $weeks, $setsPerWeek, $state, $applicableWeeks, $applicableSessions, $sessionCounts, $lockedWeekMap);
+                $weightRows = self::buildWeightRows($config, $color, $overrideColor, $weeks, $setsPerWeek, $state, $applicableWeeks, $applicableSessions, $sessionCounts, $lockedWeekMap, $historicalOverrides);
                 foreach ($weightRows as $row) {
                     $rows[] = $row;
                 }
             } else {
-                $rows[] = self::buildRow($setting, $config, $color, $overrideColor, $weeks, $setsPerWeek, $state, $applicableWeeks, $applicableSessions, $sessionCounts, $lockedWeekMap);
+                $rows[] = self::buildRow($setting, $config, $color, $overrideColor, $weeks, $setsPerWeek, $state, $applicableWeeks, $applicableSessions, $sessionCounts, $lockedWeekMap, $historicalOverrides);
             }
         }
 
@@ -104,9 +105,9 @@ class ExercisePreviewBuilder
                 continue;
             }
 
-            $showsHistoricalOverride = $lockedWeekMap[$week] && $state->isWeekOverridden('sets', $week);
+            $showsHistoricalOverride = $lockedWeekMap[$week] && self::hasHistoricalWeekOverride($historicalOverrides, 'sets', $week);
             $setsCells[$week] = $showsHistoricalOverride
-                ? $state->getResolvedWeekValue('sets', $week, $setsPerWeek[$week] ?? '-')
+                ? self::getHistoricalWeekValue($historicalOverrides, 'sets', $week, $setsPerWeek[$week] ?? '-')
                 : '-';
             $setsOverrideMap[$week] = $showsHistoricalOverride;
         }
@@ -115,6 +116,7 @@ class ExercisePreviewBuilder
             field: 'sets',
             label: Str::plural($data['sets']['label'] ?? 'Set'),
             color: self::WEEK_COLUMN_COLOR,
+            clickField: 'sets',
             cells: $setsCells,
             overrideColor: self::WEEK_COLUMN_OVERRIDE_COLOR,
             overrides: $setsOverrideMap,
@@ -141,7 +143,7 @@ class ExercisePreviewBuilder
     }
 
     /** @param array<int, int> $setsPerWeek */
-    private static function buildRow(string $setting, array $config, string $color, string $overrideColor, int $weeks, array $setsPerWeek, GridState $state, array $applicableWeeks, array $applicableSessions, array $sessionCounts, array $lockedWeekMap): PreviewGridRow
+    private static function buildRow(string $setting, array $config, string $color, string $overrideColor, int $weeks, array $setsPerWeek, GridState $state, array $applicableWeeks, array $applicableSessions, array $sessionCounts, array $lockedWeekMap, ?GridOverrides $historicalOverrides = null): PreviewGridRow
     {
         $defaultGrid = $state->hasGrid($setting)
             ? $state->getGrid($setting)
@@ -156,9 +158,9 @@ class ExercisePreviewBuilder
             $setCount = $setsPerWeek[$week];
             for ($set = 0; $set < $setCount; $set++) {
                 if (! ($applicableWeeks[$week] ?? true)) {
-                    $showsHistoricalOverride = ($lockedWeekMap[$week] ?? false) && $state->isCellOverridden($setting, $week, $set);
+                    $showsHistoricalOverride = ($lockedWeekMap[$week] ?? false) && self::hasHistoricalCellOverride($historicalOverrides, $setting, $week, $set);
                     $cells[$week][$set] = $showsHistoricalOverride
-                        ? ($state->getResolvedCellValue($setting, $week, $set) ?? '-')
+                        ? (self::getHistoricalCellValue($historicalOverrides, $setting, $week, $set) ?? '-')
                         : '-';
                     $overrideMap[$week][$set] = $showsHistoricalOverride;
 
@@ -171,9 +173,9 @@ class ExercisePreviewBuilder
 
                 for ($session = 0; $session < ($sessionCounts[$week] ?? 1); $session++) {
                     if (! ($applicableSessions[$week][$session] ?? true)) {
-                        $sessionShowsHistoricalOverride = ($lockedWeekMap[$week] ?? false) && $state->isCellOverridden($setting, $week, $set, $session);
+                        $sessionShowsHistoricalOverride = ($lockedWeekMap[$week] ?? false) && self::hasHistoricalCellOverride($historicalOverrides, $setting, $week, $set, $session);
                         $sessionCells[$week][$session][$set] = $sessionShowsHistoricalOverride
-                            ? ($state->getResolvedCellValue($setting, $week, $set, $session) ?? '-')
+                            ? (self::getHistoricalCellValue($historicalOverrides, $setting, $week, $set, $session) ?? '-')
                             : '-';
                         $sessionOverrideMap[$week][$session][$set] = $sessionShowsHistoricalOverride;
 
@@ -195,6 +197,7 @@ class ExercisePreviewBuilder
             field: $setting,
             label: self::resolveLabel($setting, $config),
             color: $color,
+            clickField: Str::snake($setting),
             cells: $cells,
             sessionCells: $sessionCells,
             overrideColor: $overrideColor,
@@ -213,7 +216,7 @@ class ExercisePreviewBuilder
      * @param  array<int, int>  $setsPerWeek
      * @return PreviewGridRow[]
      */
-    private static function buildWeightRows(array $config, string $color, string $overrideColor, int $weeks, array $setsPerWeek, GridState $state, array $applicableWeeks, array $applicableSessions, array $sessionCounts, array $lockedWeekMap): array
+    private static function buildWeightRows(array $config, string $color, string $overrideColor, int $weeks, array $setsPerWeek, GridState $state, array $applicableWeeks, array $applicableSessions, array $sessionCounts, array $lockedWeekMap, ?GridOverrides $historicalOverrides = null): array
     {
         $rows = [];
         $inputMeta = self::resolveInputMeta('weight', $config);
@@ -228,9 +231,9 @@ class ExercisePreviewBuilder
                 $setCount = $setsPerWeek[$week];
                 for ($set = 0; $set < $setCount; $set++) {
                     if (! ($applicableWeeks[$week] ?? true)) {
-                        $showsHistoricalOverride = ($lockedWeekMap[$week] ?? false) && $state->isCellOverridden('weight', $week, $set);
+                        $showsHistoricalOverride = ($lockedWeekMap[$week] ?? false) && self::hasHistoricalCellOverride($historicalOverrides, 'weight', $week, $set);
                         $weightCells[$week][$set] = $showsHistoricalOverride
-                            ? ($state->getResolvedCellValue('weight', $week, $set) ?? '-')
+                            ? (self::getHistoricalCellValue($historicalOverrides, 'weight', $week, $set) ?? '-')
                             : '-';
                         $weightOverrides[$week][$set] = $showsHistoricalOverride;
 
@@ -243,9 +246,9 @@ class ExercisePreviewBuilder
 
                     for ($session = 0; $session < ($sessionCounts[$week] ?? 1); $session++) {
                         if (! ($applicableSessions[$week][$session] ?? true)) {
-                            $sessionShowsHistoricalOverride = ($lockedWeekMap[$week] ?? false) && $state->isCellOverridden('weight', $week, $set, $session);
+                            $sessionShowsHistoricalOverride = ($lockedWeekMap[$week] ?? false) && self::hasHistoricalCellOverride($historicalOverrides, 'weight', $week, $set, $session);
                             $weightSessionCells[$week][$session][$set] = $sessionShowsHistoricalOverride
-                                ? ($state->getResolvedCellValue('weight', $week, $set, $session) ?? '-')
+                                ? (self::getHistoricalCellValue($historicalOverrides, 'weight', $week, $set, $session) ?? '-')
                                 : '-';
                             $weightSessionOverrides[$week][$session][$set] = $sessionShowsHistoricalOverride;
 
@@ -265,6 +268,7 @@ class ExercisePreviewBuilder
                 field: 'weight',
                 label: self::resolveLabel('weight', $config),
                 color: $color,
+                clickField: 'weight',
                 cells: $weightCells,
                 sessionCells: $weightSessionCells,
                 overrideColor: $overrideColor,
@@ -287,6 +291,7 @@ class ExercisePreviewBuilder
                 field: 'oneRepMax',
                 label: '1RM (kg)',
                 color: ColorPalette::light('orange'),
+                clickField: 'weight',
                 cells: $oneRepMaxCells,
                 editableMap: self::buildEditableMap('oneRepMax', $weeks, $maxSets, $state, $applicableWeeks),
                 lastSessionOnly: true,
@@ -312,9 +317,9 @@ class ExercisePreviewBuilder
             $setCount = $setsPerWeek[$week];
             for ($set = 0; $set < $setCount; $set++) {
                 if (! ($applicableWeeks[$week] ?? true)) {
-                    $showsHistoricalOverride = ($lockedWeekMap[$week] ?? false) && $state->isCellOverridden('weight', $week, $set);
+                    $showsHistoricalOverride = ($lockedWeekMap[$week] ?? false) && self::hasHistoricalCellOverride($historicalOverrides, 'weight', $week, $set);
                     $cells[$week][$set] = $showsHistoricalOverride
-                        ? ($state->getResolvedCellValue('weight', $week, $set) ?? '-')
+                        ? (self::getHistoricalCellValue($historicalOverrides, 'weight', $week, $set) ?? '-')
                         : '-';
                     $overrideMap[$week][$set] = $showsHistoricalOverride;
 
@@ -329,9 +334,9 @@ class ExercisePreviewBuilder
 
                 for ($session = 0; $session < ($sessionCounts[$week] ?? 1); $session++) {
                     if (! ($applicableSessions[$week][$session] ?? true)) {
-                        $sessionShowsHistoricalOverride = ($lockedWeekMap[$week] ?? false) && $state->isCellOverridden('weight', $week, $set, $session);
+                        $sessionShowsHistoricalOverride = ($lockedWeekMap[$week] ?? false) && self::hasHistoricalCellOverride($historicalOverrides, 'weight', $week, $set, $session);
                         $sessionCells[$week][$session][$set] = $sessionShowsHistoricalOverride
-                            ? ($state->getResolvedCellValue('weight', $week, $set, $session) ?? '-')
+                            ? (self::getHistoricalCellValue($historicalOverrides, 'weight', $week, $set, $session) ?? '-')
                             : '-';
                         $sessionOverrideMap[$week][$session][$set] = $sessionShowsHistoricalOverride;
 
@@ -349,6 +354,7 @@ class ExercisePreviewBuilder
             field: 'weight',
             label: self::resolveLabel('weight', $config),
             color: $color,
+            clickField: 'weight',
             cells: $cells,
             sessionCells: $sessionCells,
             overrideColor: $overrideColor,
@@ -361,26 +367,41 @@ class ExercisePreviewBuilder
         return $rows;
     }
 
-    private static function buildWeekColumn(string $setting, array $config, int $weeks, GridState $state, array $applicableWeeks, array $lockedWeekMap): PreviewGridRow
+    private static function buildWeekColumn(string $setting, array $config, int $weeks, GridState $state, array $applicableWeeks, array $applicableSessions, array $sessionCounts, array $lockedWeekMap, ?GridOverrides $historicalOverrides = null): PreviewGridRow
     {
         $rawDefault = $config['default'] ?? null;
         $default = ($rawDefault === null || $rawDefault === '') ? '-' : $rawDefault;
         $cells = [];
         $overrideMap = [];
+        $sessionCells = [];
+        $sessionOverrideMap = [];
 
         for ($week = 0; $week < $weeks; $week++) {
             if (! ($applicableWeeks[$week] ?? true)) {
-                $showsHistoricalOverride = ($lockedWeekMap[$week] ?? false) && $state->isWeekOverridden($setting, $week);
+                $showsHistoricalOverride = ($lockedWeekMap[$week] ?? false) && self::hasHistoricalWeekOverride($historicalOverrides, $setting, $week);
                 $cells[$week] = $showsHistoricalOverride
-                    ? $state->getResolvedWeekValue($setting, $week, $default)
+                    ? self::getHistoricalWeekValue($historicalOverrides, $setting, $week, $default)
                     : '-';
                 $overrideMap[$week] = $showsHistoricalOverride;
-
-                continue;
+            } else {
+                $cells[$week] = $state->getResolvedWeekValue($setting, $week, $default);
+                $overrideMap[$week] = $state->isWeekOverridden($setting, $week);
             }
 
-            $cells[$week] = $state->getResolvedWeekValue($setting, $week, $default);
-            $overrideMap[$week] = $state->isWeekOverridden($setting, $week);
+            for ($session = 0; $session < ($sessionCounts[$week] ?? 1); $session++) {
+                if (! ($applicableSessions[$week][$session] ?? true)) {
+                    $sessionShowsHistoricalOverride = ($lockedWeekMap[$week] ?? false) && self::hasHistoricalWeekOverride($historicalOverrides, $setting, $week);
+                    $sessionCells[$week][$session][0] = $sessionShowsHistoricalOverride
+                        ? self::getHistoricalWeekValue($historicalOverrides, $setting, $week, $default)
+                        : '-';
+                    $sessionOverrideMap[$week][$session][0] = $sessionShowsHistoricalOverride;
+
+                    continue;
+                }
+
+                $sessionCells[$week][$session][0] = $state->getResolvedWeekValue($setting, $week, $default);
+                $sessionOverrideMap[$week][$session][0] = $state->isWeekOverridden($setting, $week);
+            }
         }
 
         $inputMeta = self::resolveInputMeta($setting, $config);
@@ -406,9 +427,12 @@ class ExercisePreviewBuilder
             field: $setting,
             label: self::resolveLabel($setting, $config),
             color: self::WEEK_COLUMN_COLOR,
+            clickField: Str::snake($setting),
             cells: $cells,
+            sessionCells: $sessionCells,
             overrideColor: self::WEEK_COLUMN_OVERRIDE_COLOR,
             overrides: $overrideMap,
+            sessionOverrides: $sessionOverrideMap,
             inputMeta: $inputMeta,
             editableMap: array_map(fn (bool $isApplicable) => $isApplicable, $applicableWeeks),
             cellColorMap: $cellColorMap,
@@ -509,6 +533,26 @@ class ExercisePreviewBuilder
         }
 
         return $lockedWeekMap;
+    }
+
+    private static function hasHistoricalCellOverride(?GridOverrides $historicalOverrides, string $setting, int $week, int $set, ?int $session = null): bool
+    {
+        return $historicalOverrides?->hasCellOverride($week, $set, $setting, $session) ?? false;
+    }
+
+    private static function getHistoricalCellValue(?GridOverrides $historicalOverrides, string $setting, int $week, int $set, ?int $session = null): mixed
+    {
+        return $historicalOverrides?->getCellOverrideValue($week, $set, $setting, $session);
+    }
+
+    private static function hasHistoricalWeekOverride(?GridOverrides $historicalOverrides, string $setting, int $week): bool
+    {
+        return $historicalOverrides?->hasWeekOverride($week, $setting) ?? false;
+    }
+
+    private static function getHistoricalWeekValue(?GridOverrides $historicalOverrides, string $setting, int $week, mixed $default): mixed
+    {
+        return $historicalOverrides?->getWeekOverrideValue($week, $setting) ?? $default;
     }
 
     /** @return array<int, int> */

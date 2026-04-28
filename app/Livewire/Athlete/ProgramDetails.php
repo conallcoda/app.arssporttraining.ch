@@ -2,6 +2,9 @@
 
 namespace App\Livewire\Athlete;
 
+use App\Data\Athlete\ProgramDetailsExerciseData;
+use App\Data\Athlete\ProgramDetailsNoteData;
+use App\Data\Athlete\ProgramDetailsSessionRowData;
 use App\Data\Exercise\ExerciseSetting;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
@@ -311,7 +314,7 @@ class ProgramDetails extends Component
         return AthleteDashboardDate::isFutureDate($this->date);
     }
 
-    protected function buildExerciseViewData(TrainingProgramSlotExercise $slotExercise, int $index, ?string $groupLabel = null): array
+    protected function buildExerciseViewData(TrainingProgramSlotExercise $slotExercise, int $index, ?string $groupLabel = null): ProgramDetailsExerciseData
     {
         $exercise = $slotExercise->exercise;
         $sets = $slotExercise->sets->sortBy('set_number')->values();
@@ -335,10 +338,10 @@ class ProgramDetails extends Component
                     ->values();
 
                 if ($notes->isNotEmpty()) {
-                    $sessionNotes[] = [
-                        'label' => 'Note',
-                        'value' => $notes->implode(' / '),
-                    ];
+                    $sessionNotes[] = new ProgramDetailsNoteData(
+                        label: 'Note',
+                        value: $notes->implode(' / '),
+                    );
                 }
 
                 continue;
@@ -368,35 +371,35 @@ class ProgramDetails extends Component
                 continue;
             }
 
-            $sessionRows[] = [
-                'label' => $this->resolveMaterializedSettingLabel($setting, $firstValueRow),
-                'values' => $values,
-                'labelClass' => $labelClass,
-                'valueClasses' => $valueClasses,
-            ];
+            $sessionRows[] = new ProgramDetailsSessionRowData(
+                label: $this->resolveMaterializedSettingLabel($setting, $firstValueRow),
+                labelClass: $labelClass,
+                values: $values,
+                valueClasses: $valueClasses,
+            );
 
             $colorIndex++;
         }
 
-        return [
-            'id' => $slotExercise->id,
-            'index' => $index + 1,
-            'groupLabel' => $groupLabel,
-            'name' => $exercise?->name ?? 'Exercise',
-            'equipmentBadges' => $exercise?->equipment?->pluck('name')->filter()->values()->all() ?? [],
-            'modifierBadges' => $exercise?->modifiers?->pluck('name')->filter()->values()->all() ?? [],
-            'instructions' => $exercise?->instructions,
-            'videoUrl' => $exercise?->video_url,
-            'photoUrls' => $exercise?->getMedia('photos')->map(fn ($media) => $media->getUrl())->values()->all() ?? [],
-            'setLabel' => $exercise?->config->sets->label ?? 'Set',
-            'setCount' => $sets->count(),
-            'sessionRows' => $sessionRows,
-            'weekDetails' => [],
-            'notes' => $sessionNotes,
-            'status' => $slotExercise->status,
-            'statusLabel' => $slotExercise->status->label(),
-            'statusColor' => $slotExercise->status->barColor(),
-        ];
+        return new ProgramDetailsExerciseData(
+            id: $slotExercise->id,
+            index: $index + 1,
+            groupLabel: $groupLabel,
+            name: $exercise?->name ?? 'Exercise',
+            equipmentBadges: $exercise?->equipment?->pluck('name')->filter()->values()->all() ?? [],
+            modifierBadges: $exercise?->modifiers?->pluck('name')->filter()->values()->all() ?? [],
+            instructions: $exercise?->instructions,
+            videoUrl: $exercise?->video_url,
+            photoUrls: $exercise?->getMedia('photos')->map(fn ($media) => $media->getUrl())->values()->all() ?? [],
+            setLabel: $exercise?->config->sets->label ?? 'Set',
+            setCount: $sets->count(),
+            sessionRows: $sessionRows,
+            weekDetails: [],
+            notes: $sessionNotes,
+            status: $slotExercise->status,
+            statusLabel: $slotExercise->status->label(),
+            statusColor: $slotExercise->status->barColor(),
+        );
     }
 
     protected function formatSessionValue(string $setting, mixed $value, ?TrainingProgramSlotSetValue $valueRow = null): ?string

@@ -23,6 +23,7 @@ use App\Training\CalendarBlockService;
 use App\Training\CalendarDateService;
 use App\Training\ProjectedOneRepMaxService;
 use App\Training\TrainingSessionEditGuard;
+use App\Training\TrainingSessionRebuildDispatcher;
 use Carbon\Carbon;
 use Flux\Flux;
 use Illuminate\Support\Collection;
@@ -1224,8 +1225,7 @@ class CalendarProgramsView extends Component
         $config = $exerciseProgram->config;
 
         if ($this->userId !== null) {
-            $planOverrides = $config->defaultExerciseOverrides($programExerciseId);
-            $userOverrides = $config->userExerciseOverrides($this->userId, $programExerciseId);
+            [$planOverrides, $userOverrides] = $config->effectiveExerciseOverrides($programExerciseId, $this->userId);
             $currentlyDisabled = EffectiveExerciseConfig::resolveDisabled($planOverrides, $userOverrides);
             $userOverrides->disabled = $currentlyDisabled ? false : true;
 
@@ -1234,31 +1234,30 @@ class CalendarProgramsView extends Component
                 $userOverrides->disabled = null;
             }
 
-            $config->setUserExerciseOverrides($this->userId, $programExerciseId, $userOverrides);
+            $config->setExerciseOverrides($programExerciseId, $userOverrides, $this->userId);
         } else {
-            $overrides = $config->defaultExerciseOverrides($programExerciseId);
+            $overrides = $config->exerciseOverrides($programExerciseId);
             $overrides->disabled = ! ($overrides->disabled ?? false) ?: null;
-            $config->setDefaultExerciseOverrides($programExerciseId, $overrides);
+            $config->setExerciseOverrides($programExerciseId, $overrides);
         }
 
         $exerciseProgram->config = $config;
-        $exerciseProgram->save();
+        $shouldScopeRebuildToAthlete = $this->userId !== null;
+
+        if ($shouldScopeRebuildToAthlete) {
+            $exerciseProgram->saveQuietly();
+            app(TrainingSessionRebuildDispatcher::class)
+                ->dispatchFutureSlotsForExerciseProgramChange($exerciseProgram->id, $this->userId);
+        } else {
+            $exerciseProgram->save();
+        }
 
         unset($this->programs, $this->groupedPrograms);
     }
 
     public function isExerciseDisabled(int $programExerciseId, ExerciseProgram $program): bool
     {
-        $config = $program->config;
-        $planOverrides = $config->defaultExerciseOverrides($programExerciseId);
-
-        if ($this->userId !== null) {
-            $userOverrides = $config->userExerciseOverrides($this->userId, $programExerciseId);
-
-            return EffectiveExerciseConfig::resolveDisabled($planOverrides, $userOverrides);
-        }
-
-        return $planOverrides->disabled ?? false;
+        return $program->config->effectiveDisabled($programExerciseId, $this->userId);
     }
 
     public function openAddContent(): void

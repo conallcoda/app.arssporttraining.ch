@@ -11,8 +11,10 @@ use App\Models\Training\TrainingProgramBlockTypeEnum;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
+use App\Training\TrainingSessionCompiler;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
@@ -164,4 +166,89 @@ it('uses the active block baseline metric when compiling automatic weights', fun
         ->exercises->first()->sets->first()->values->firstWhere('setting_key', 'weight');
 
     expect((float) $weightValue?->planned_decimal_value)->toBe(64.0);
+});
+
+it('reuses cached slot timelines and metric lookups across repeated compiles in one rebuild run', function () {
+    $athlete = User::factory()->athlete()->create();
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Conditioning']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps', 'rest'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 6, 'applyPer' => 'session'],
+            'rest' => ['default' => 60, 'applyPer' => 'week'],
+            'preview' => ['weeks' => 2, 'sessionsPerWeek' => 2],
+        ],
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+    ]);
+
+    $oneRepMax = MetricSubmission::query()->create([
+        'user_id' => $athlete->id,
+        'metric' => \App\Data\Athlete\Metric\MetricEnum::OneRepMax,
+        'recorded_by' => $coach->id,
+        'recorded_at' => '2026-04-20',
+        'owner_type' => null,
+        'owner_id' => null,
+    ]);
+    $oneRepMax->values()->createMany([
+        ['field' => 'measuredReps', 'value' => '5'],
+        ['field' => 'measuredWeight', 'value' => '88'],
+        ['field' => 'estimated1RM', 'value' => '100'],
+    ]);
+
+    $heartRate = MetricSubmission::query()->create([
+        'user_id' => $athlete->id,
+        'metric' => \App\Data\Athlete\Metric\MetricEnum::HeartRate,
+        'recorded_by' => $coach->id,
+        'recorded_at' => '2026-04-20',
+        'owner_type' => null,
+        'owner_id' => null,
+    ]);
+    $heartRate->values()->createMany([
+        ['field' => 'heartRate', 'value' => '190'],
+        ['field' => 'anaerobicThreshold', 'value' => '90'],
+    ]);
+
+    TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2026-04-28 09:00:00'),
+    ]);
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2026-04-30 09:00:00'),
+    ])->fresh();
+
+    $queries = [];
+    DB::listen(function ($query) use (&$queries): void {
+        $queries[] = $query->sql;
+    });
+
+    $compiler = app(TrainingSessionCompiler::class);
+    $compiler->compile($slot);
+    $compiler->compile($slot);
+
+    $slotTimelineQueries = collect($queries)
+        ->filter(fn (string $sql) => str_contains($sql, 'training_program_slots'))
+        ->count();
+    $metricQueries = collect($queries)
+        ->filter(fn (string $sql) => str_contains($sql, 'user_metric_submissions'))
+        ->count();
+
+    expect($slotTimelineQueries)->toBe(1)
+        ->and($metricQueries)->toBe(2);
 });

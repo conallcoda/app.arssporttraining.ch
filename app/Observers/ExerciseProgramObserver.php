@@ -10,6 +10,6 @@ class ExerciseProgramObserver
     public function saved(ExerciseProgram $program): void
     {
         app(TrainingSessionRebuildDispatcher::class)
-            ->dispatchFutureSlotsForExerciseProgram($program->id);
+            ->dispatchFutureSlotsForExerciseProgramChange($program->id);
     }
 }

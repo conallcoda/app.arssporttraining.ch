@@ -2,6 +2,7 @@
 
 namespace App\Data\Training\Config;
 
+use App\Data\Exercise\ExerciseConfig;
 use App\Data\Training\Config\Schedule\DefaultScheduleConfig;
 use App\Data\Training\Config\Target\TargetConfig;
 use Coda\Cms\Data\AbstractConfig;
@@ -143,6 +144,53 @@ class ExercisePlanConfig extends AbstractConfig
         return $overrides;
     }
 
+    public function exerciseOverrides(int $programExerciseId, ?int $userId = null): ExerciseOverrides
+    {
+        return $userId === null
+            ? $this->defaultExerciseOverrides($programExerciseId)
+            : $this->userExerciseOverrides($userId, $programExerciseId);
+    }
+
+    /** @return array{0: ExerciseOverrides, 1: ?ExerciseOverrides} */
+    public function effectiveExerciseOverrides(int $programExerciseId, ?int $userId = null): array
+    {
+        $defaultOverrides = $this->defaultExerciseOverrides($programExerciseId);
+
+        if ($userId === null) {
+            return [$defaultOverrides, null];
+        }
+
+        return [$defaultOverrides, $this->userExerciseOverrides($userId, $programExerciseId)];
+    }
+
+    public function effectiveStartsAtDate(int $programExerciseId, ?int $userId = null): ?string
+    {
+        [$defaultOverrides, $userOverrides] = $this->effectiveExerciseOverrides($programExerciseId, $userId);
+
+        return $userOverrides?->startsAtDate ?? $defaultOverrides->startsAtDate;
+    }
+
+    public function effectiveDisabled(int $programExerciseId, ?int $userId = null): bool
+    {
+        [$defaultOverrides, $userOverrides] = $this->effectiveExerciseOverrides($programExerciseId, $userId);
+
+        return EffectiveExerciseConfig::resolveDisabled($defaultOverrides, $userOverrides);
+    }
+
+    public function resolveExercise(ExerciseConfig $baseConfig, int $programExerciseId, ?int $userId = null): ResolvedExerciseOverrides
+    {
+        [$defaultOverrides, $userOverrides] = $this->effectiveExerciseOverrides($programExerciseId, $userId);
+
+        return new ResolvedExerciseOverrides(
+            defaultOverrides: $defaultOverrides,
+            userOverrides: $userOverrides,
+            effectiveConfig: EffectiveExerciseConfig::resolve($baseConfig, $defaultOverrides, $userOverrides),
+            overrideLayer: EffectiveExerciseConfig::resolveForLayer($baseConfig, $defaultOverrides, $userOverrides),
+            effectiveStartsAtDate: $userOverrides?->startsAtDate ?? $defaultOverrides->startsAtDate,
+            disabled: EffectiveExerciseConfig::resolveDisabled($defaultOverrides, $userOverrides),
+        );
+    }
+
     public function setUserExerciseOverrides(int $userId, int $programExerciseId, ExerciseOverrides $overrides): void
     {
         if (! isset($this->userExercises[$userId])) {
@@ -150,6 +198,112 @@ class ExercisePlanConfig extends AbstractConfig
         }
 
         $this->userExercises[$userId][$programExerciseId] = $overrides;
+    }
+
+    public function setExerciseOverrides(int $programExerciseId, ExerciseOverrides $overrides, ?int $userId = null): void
+    {
+        if ($userId === null) {
+            $this->setDefaultExerciseOverrides($programExerciseId, $overrides);
+
+            return;
+        }
+
+        $this->setUserExerciseOverrides($userId, $programExerciseId, $overrides);
+    }
+
+    public function removeUserExerciseOverrides(int $userId, int $programExerciseId): void
+    {
+        unset($this->userExercises[$userId][$programExerciseId]);
+
+        if (($this->userExercises[$userId] ?? []) === []) {
+            unset($this->userExercises[$userId]);
+        }
+    }
+
+    public function removeExerciseOverridesForAllUsers(int $programExerciseId): void
+    {
+        foreach (array_keys($this->userExercises) as $userId) {
+            $this->removeUserExerciseOverrides((int) $userId, $programExerciseId);
+        }
+    }
+
+    /** @return array<int, array<int, ExerciseOverrides>> */
+    public function allUserExerciseOverrides(): array
+    {
+        foreach (array_keys($this->userExercises) as $userId) {
+            foreach (array_keys($this->userExercises[$userId] ?? []) as $programExerciseId) {
+                $this->userExerciseOverrides((int) $userId, (int) $programExerciseId);
+            }
+        }
+
+        return $this->userExercises;
+    }
+
+    public function remapUserExerciseOverrides(array $pivotIdMap): void
+    {
+        $remapped = [];
+
+        foreach ($this->allUserExerciseOverrides() as $userId => $overridesByExercise) {
+            foreach ($overridesByExercise as $programExerciseId => $overrides) {
+                $newProgramExerciseId = $pivotIdMap[(int) $programExerciseId] ?? null;
+
+                if ($newProgramExerciseId === null) {
+                    continue;
+                }
+
+                $remapped[(int) $userId][(int) $newProgramExerciseId] = $overrides;
+            }
+        }
+
+        $this->userExercises = $remapped;
+    }
+
+    public function remapDefaultExerciseOverrides(array $pivotIdMap): void
+    {
+        $remapped = [];
+
+        foreach (array_keys($this->exercises) as $programExerciseId) {
+            $newProgramExerciseId = $pivotIdMap[(int) $programExerciseId] ?? null;
+
+            if ($newProgramExerciseId === null) {
+                continue;
+            }
+
+            $remapped[(int) $newProgramExerciseId] = $this->defaultExerciseOverrides((int) $programExerciseId);
+        }
+
+        $this->exercises = $remapped;
+    }
+
+    public function copyMappedExerciseOverridesFrom(self $sourceConfig, array $pivotIdMap, ?string $startsAtDate = null): void
+    {
+        foreach ($pivotIdMap as $sourcePivotId => $targetPivotId) {
+            if (isset($sourceConfig->exercises[(int) $sourcePivotId])) {
+                $this->setDefaultExerciseOverrides(
+                    (int) $targetPivotId,
+                    $this->copyOverrides(
+                        $sourceConfig->defaultExerciseOverrides((int) $sourcePivotId),
+                        $startsAtDate,
+                    ),
+                );
+            }
+        }
+
+        foreach ($sourceConfig->allUserExerciseOverrides() as $userId => $overridesByExercise) {
+            foreach ($overridesByExercise as $sourcePivotId => $overrides) {
+                $targetPivotId = $pivotIdMap[(int) $sourcePivotId] ?? null;
+
+                if ($targetPivotId === null) {
+                    continue;
+                }
+
+                $this->setUserExerciseOverrides(
+                    (int) $userId,
+                    (int) $targetPivotId,
+                    $this->copyOverrides($overrides, $startsAtDate),
+                );
+            }
+        }
     }
 
     public function hasDefaultOverrides(): bool
@@ -200,5 +354,12 @@ class ExercisePlanConfig extends AbstractConfig
             fn ($item) => $item instanceof Data ? $item->toArray() : $item,
             $items
         );
+    }
+
+    private function copyOverrides(ExerciseOverrides $overrides, ?string $startsAtDate = null): ExerciseOverrides
+    {
+        return tap(ExerciseOverrides::from($overrides->toArray()), function (ExerciseOverrides $copiedOverrides) use ($startsAtDate): void {
+            $copiedOverrides->startsAtDate = $startsAtDate ?? $copiedOverrides->startsAtDate;
+        });
     }
 }

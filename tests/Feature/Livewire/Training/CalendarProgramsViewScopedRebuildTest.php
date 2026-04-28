@@ -1,16 +1,25 @@
 <?php
 
-use App\Livewire\Training\View\PlanExerciseGrid;
+use App\Data\Training\Calendar\CalendarSettingsData;
+use App\Livewire\Training\CalendarProgramsView;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
+use App\Models\Training\TrainingProgram;
+use App\Models\Users\User;
+use App\Models\Users\UserGroup;
 use App\Training\TrainingSessionRebuildDispatcher;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
-it('rebuilds only the edited athlete for athlete-specific exercise grid changes', function () {
+it('rebuilds only the edited athlete for athlete-specific exercise disable changes', function () {
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $user = User::factory()->athlete()->create();
+    $group->members()->attach($user);
+
     $exercise = Exercise::factory()->create([
         'config' => [
             'settings' => ['reps'],
@@ -20,7 +29,6 @@ it('rebuilds only the edited athlete for athlete-specific exercise grid changes'
     ]);
 
     $program = ExerciseProgram::factory()->create();
-
     $pivot = ExerciseProgramExercise::create([
         'exercise_program_id' => $program->id,
         'exercise_id' => $exercise->id,
@@ -28,23 +36,30 @@ it('rebuilds only the edited athlete for athlete-specific exercise grid changes'
         'type' => 'main',
     ]);
 
+    TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
     $mock = Mockery::mock(TrainingSessionRebuildDispatcher::class);
     $mock->shouldReceive('dispatchFutureSlotsForExerciseProgramChange')
         ->once()
-        ->with($program->id, 20);
+        ->with($program->id, $user->id);
     $mock->shouldNotReceive('dispatchFutureSlotsForExerciseProgram');
     $mock->shouldNotReceive('dispatchFutureSlotsForAthleteExerciseProgram');
     app()->instance(TrainingSessionRebuildDispatcher::class, $mock);
 
-    Livewire::test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
-        'programExerciseId' => $pivot->id,
-        'exerciseId' => $exercise->id,
-        'userId' => 20,
-        'weeks' => 1,
-        'sessionsPerWeek' => 1,
-        'weekSessionDates' => [['2026-04-30']],
-        'lockedSessionsByWeek' => [[false]],
-    ])->call('updateCellOverride', 0, 0, 'reps', 14, 0, false);
+    $weekStartsOn = (int) config('training.week_starts_on', Carbon::MONDAY);
+
+    Livewire::test(CalendarProgramsView::class, [
+        'groupId' => $group->id,
+        'userId' => $user->id,
+        'calendarSettings' => new CalendarSettingsData(
+            start: '2026-03-02',
+            end: '2026-03-08',
+            preset: 'week',
+        ),
+        'weekStartsOn' => $weekStartsOn,
+        'weekEndsOn' => ($weekStartsOn + 6) % 7,
+    ])->call('toggleExerciseDisabled', $pivot->id, $program->id);
 });

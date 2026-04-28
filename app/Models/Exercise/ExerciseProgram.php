@@ -130,34 +130,12 @@ class ExerciseProgram extends Model implements Taggable
         }
 
         $cloneConfig = $clone->config;
-        $cloneConfig->exercises = $this->remapOverrideCollection($cloneConfig->exercises, $pivotIdMap);
-
-        $userExercises = [];
-        foreach ($cloneConfig->userExercises as $userId => $overrides) {
-            $userExercises[$userId] = $this->remapOverrideCollection($overrides, $pivotIdMap);
-        }
-        $cloneConfig->userExercises = $userExercises;
+        $cloneConfig->remapDefaultExerciseOverrides($pivotIdMap);
+        $cloneConfig->remapUserExerciseOverrides($pivotIdMap);
         $clone->config = $cloneConfig;
         $clone->save();
 
         return $clone;
-    }
-
-    private function remapOverrideCollection(array $overrides, array $pivotIdMap): array
-    {
-        $remapped = [];
-
-        foreach ($overrides as $programExerciseId => $data) {
-            $newProgramExerciseId = $pivotIdMap[(int) $programExerciseId] ?? null;
-
-            if ($newProgramExerciseId === null) {
-                continue;
-            }
-
-            $remapped[$newProgramExerciseId] = $data;
-        }
-
-        return $remapped;
     }
 
     protected static function booted(): void

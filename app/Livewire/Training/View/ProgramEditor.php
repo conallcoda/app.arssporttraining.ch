@@ -15,6 +15,7 @@ use Coda\Cms\Livewire\Concerns\InteractsWithFormData;
 use Coda\FormKit\Form;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -300,7 +301,9 @@ class ProgramEditor extends Component
         $config = $this->exerciseProgram->config;
         $config->weeks = $this->weeks;
         $this->exerciseProgram->config = $config;
-        $this->exerciseProgram->save();
+        $this->exerciseProgram->saveQuietly();
+        app(TrainingSessionRebuildDispatcher::class)
+            ->dispatchFutureSlotsForExerciseProgramChange($this->exerciseProgram->id);
     }
 
     public function removeRelationshipItem(string $fieldName, int $index): void
@@ -382,82 +385,60 @@ class ProgramEditor extends Component
             ->sortBy(fn (Exercise $exercise) => [$exercise->pivot->sort ?? 0, $exercise->pivot->id ?? 0])
             ->values();
 
-        $config = $this->exerciseProgram->config;
-        $currentRows = $this->exerciseProgram->exercises()
-            ->wherePivot('type', $this->activeSection)
-            ->get()
-            ->keyBy(fn (Exercise $exercise) => (int) $exercise->pivot->id);
+        $didChange = false;
 
-        foreach ($currentRows->keys() as $programExerciseId) {
-            $config->removeExerciseOverrides((int) $programExerciseId);
+        DB::transaction(function () use ($sourceProgram, $sourceRows, &$didChange): void {
+            $config = $this->exerciseProgram->config;
+            $currentRows = $this->exerciseProgram->exercises()
+                ->wherePivot('type', $this->activeSection)
+                ->get()
+                ->keyBy(fn (Exercise $exercise) => (int) $exercise->pivot->id);
 
-            foreach (array_keys($config->userExercises) as $userId) {
-                unset($config->userExercises[$userId][(int) $programExerciseId]);
+            foreach ($currentRows->keys() as $programExerciseId) {
+                $config->removeExerciseOverrides((int) $programExerciseId);
+                $config->removeExerciseOverridesForAllUsers((int) $programExerciseId);
             }
-        }
 
-        if ($currentRows->isNotEmpty()) {
-            ExerciseProgramExercise::query()
-                ->where('exercise_program_id', $this->exerciseProgram->id)
-                ->whereIn('id', $currentRows->keys()->all())
-                ->delete();
-        }
+            $pivotIdMap = [];
 
-        $pivotIdMap = [];
-
-        foreach ($sourceRows as $index => $exercise) {
-            $newPivot = ExerciseProgramExercise::create([
-                'exercise_program_id' => $this->exerciseProgram->id,
-                'exercise_id' => $exercise->id,
-                'sort' => $exercise->pivot->sort ?? $index,
-                'group' => $exercise->pivot->group,
-                'type' => $this->activeSection,
-            ]);
-
-            $pivotIdMap[(int) $exercise->pivot->id] = (int) $newPivot->id;
-        }
-
-        $sourceConfig = $sourceProgram->config;
-        $startsAtDate = $this->defaultStartsAtDate();
-
-        foreach ($pivotIdMap as $sourcePivotId => $targetPivotId) {
-            if (isset($sourceConfig->exercises[$sourcePivotId])) {
-                $overrides = ExerciseOverrides::from($sourceConfig->defaultExerciseOverrides($sourcePivotId)->toArray());
-                $overrides->startsAtDate = $startsAtDate ?? $overrides->startsAtDate;
-
-                $config->setDefaultExerciseOverrides(
-                    $targetPivotId,
-                    $overrides
-                );
-            }
-        }
-
-        foreach ($sourceConfig->userExercises as $userId => $overridesByExercise) {
-            foreach ($overridesByExercise as $sourcePivotId => $overrides) {
-                $targetPivotId = $pivotIdMap[(int) $sourcePivotId] ?? null;
-
-                if ($targetPivotId === null) {
-                    continue;
+            ExerciseProgramExercise::withoutEvents(function () use ($currentRows, $sourceRows, &$pivotIdMap, &$didChange): void {
+                if ($currentRows->isNotEmpty()) {
+                    ExerciseProgramExercise::query()
+                        ->where('exercise_program_id', $this->exerciseProgram->id)
+                        ->whereIn('id', $currentRows->keys()->all())
+                        ->delete();
+                    $didChange = true;
                 }
 
-                $config->setUserExerciseOverrides(
-                    (int) $userId,
-                    $targetPivotId,
-                    tap(ExerciseOverrides::from(
-                        ($overrides instanceof ExerciseOverrides ? $overrides : ExerciseOverrides::from($overrides))->toArray()
-                    ), function (ExerciseOverrides $copiedOverrides) use ($startsAtDate): void {
-                        $copiedOverrides->startsAtDate = $startsAtDate ?? $copiedOverrides->startsAtDate;
-                    })
-                );
-            }
+                foreach ($sourceRows as $index => $exercise) {
+                    $newPivot = ExerciseProgramExercise::create([
+                        'exercise_program_id' => $this->exerciseProgram->id,
+                        'exercise_id' => $exercise->id,
+                        'sort' => $exercise->pivot->sort ?? $index,
+                        'group' => $exercise->pivot->group,
+                        'type' => $this->activeSection,
+                    ]);
+
+                    $pivotIdMap[(int) $exercise->pivot->id] = (int) $newPivot->id;
+                    $didChange = true;
+                }
+            });
+
+            $sourceConfig = $sourceProgram->config;
+            $startsAtDate = $this->defaultStartsAtDate();
+            $config->copyMappedExerciseOverridesFrom($sourceConfig, $pivotIdMap, $startsAtDate);
+
+            $this->exerciseProgram->config = $config;
+            $this->exerciseProgram->saveQuietly();
+        });
+
+        if ($didChange) {
+            $this->dispatchSharedProgramRebuild();
         }
 
-        $this->exerciseProgram->config = $config;
-        $this->exerciseProgram->save();
         $this->exerciseProgram->refresh();
         $this->loadExerciseData();
         unset($this->fieldsets, $this->exercises, $this->exerciseGroupLabels);
-        app(TrainingSessionRebuildDispatcher::class)->dispatchFutureSlotsForExerciseProgram($this->exerciseProgram->id);
         Flux::modal($this->importConfirmModalName())->close();
 
         Flux::toast(
@@ -487,73 +468,106 @@ class ProgramEditor extends Component
 
         $programExerciseIdsToRemove = array_diff($currentIds, $newIds);
 
-        if ($programExerciseIdsToRemove !== []) {
-            ExerciseProgramExercise::query()
-                ->where('exercise_program_id', $this->exerciseProgram->id)
-                ->whereIn('id', $programExerciseIdsToRemove)
-                ->delete();
-        }
-
         $config = $this->exerciseProgram->config;
         $configChanged = false;
+        $didChange = false;
 
         foreach ($programExerciseIdsToRemove as $programExerciseId) {
             $config->removeExerciseOverrides((int) $programExerciseId);
             $configChanged = true;
         }
 
-        foreach ($newRows->values() as $index => $exerciseData) {
-            $exerciseId = isset($exerciseData['id']) ? (int) $exerciseData['id'] : null;
-            if ($exerciseId === null || $exerciseId === 0) {
-                continue;
+        DB::transaction(function () use (
+            $programExerciseIdsToRemove,
+            $newRows,
+            $currentRows,
+            &$config,
+            &$configChanged,
+            &$didChange,
+        ): void {
+            ExerciseProgramExercise::withoutEvents(function () use (
+                $programExerciseIdsToRemove,
+                $newRows,
+                $currentRows,
+                &$config,
+                &$configChanged,
+                &$didChange,
+            ): void {
+                if ($programExerciseIdsToRemove !== []) {
+                    ExerciseProgramExercise::query()
+                        ->where('exercise_program_id', $this->exerciseProgram->id)
+                        ->whereIn('id', $programExerciseIdsToRemove)
+                        ->delete();
+                    $didChange = true;
+                }
+
+                foreach ($newRows->values() as $index => $exerciseData) {
+                    $exerciseId = isset($exerciseData['id']) ? (int) $exerciseData['id'] : null;
+                    if ($exerciseId === null || $exerciseId === 0) {
+                        continue;
+                    }
+
+                    $programExerciseId = isset($exerciseData['program_exercise_id']) ? (int) $exerciseData['program_exercise_id'] : null;
+                    $sort = $exerciseData['sort'] ?? $index;
+                    $group = ! empty($exerciseData['group']) ? $exerciseData['group'] : null;
+
+                    if ($programExerciseId === null || ! $currentRows->has($programExerciseId)) {
+                        $newPivot = ExerciseProgramExercise::create([
+                            'exercise_program_id' => $this->exerciseProgram->id,
+                            'exercise_id' => $exerciseId,
+                            'sort' => $sort,
+                            'group' => $group,
+                            'type' => $this->activeSection,
+                        ]);
+
+                        $this->setDefaultOverridesForExercise($config, $exerciseId, $newPivot->id, $this->defaultStartsAtDate());
+                        $configChanged = true;
+                        $didChange = true;
+
+                        continue;
+                    }
+
+                    $currentExercise = $currentRows->get($programExerciseId);
+                    $exerciseChanged = (int) $currentExercise->id !== $exerciseId;
+                    $sortChanged = (int) ($currentExercise->pivot->sort ?? 0) !== (int) $sort;
+                    $groupChanged = ($currentExercise->pivot->group ?? null) !== $group;
+                    $typeChanged = ($currentExercise->pivot->type ?? 'main') !== $this->activeSection;
+
+                    if (! $exerciseChanged && ! $sortChanged && ! $groupChanged && ! $typeChanged) {
+                        continue;
+                    }
+
+                    ExerciseProgramExercise::query()
+                        ->where('id', $programExerciseId)
+                        ->update([
+                            'exercise_id' => $exerciseId,
+                            'sort' => $sort,
+                            'group' => $group,
+                            'type' => $this->activeSection,
+                        ]);
+
+                    $didChange = true;
+
+                    if ($exerciseChanged) {
+                        $this->setDefaultOverridesForExercise($config, $exerciseId, $programExerciseId, $this->defaultStartsAtDate());
+                        $configChanged = true;
+                    }
+                }
+            });
+
+            if ($configChanged) {
+                $this->exerciseProgram->config = $config;
+                $this->exerciseProgram->saveQuietly();
             }
+        });
 
-            $programExerciseId = isset($exerciseData['program_exercise_id']) ? (int) $exerciseData['program_exercise_id'] : null;
-            $sort = $exerciseData['sort'] ?? $index;
-            $group = ! empty($exerciseData['group']) ? $exerciseData['group'] : null;
-
-            if ($programExerciseId === null || ! $currentRows->has($programExerciseId)) {
-                $newPivot = ExerciseProgramExercise::create([
-                    'exercise_program_id' => $this->exerciseProgram->id,
-                    'exercise_id' => $exerciseId,
-                    'sort' => $sort,
-                    'group' => $group,
-                    'type' => $this->activeSection,
-                ]);
-
-                $this->setDefaultOverridesForExercise($config, $exerciseId, $newPivot->id, $this->defaultStartsAtDate());
-                $configChanged = true;
-
-                continue;
-            }
-
-            $currentExercise = $currentRows->get($programExerciseId);
-            $exerciseChanged = (int) $currentExercise->id !== $exerciseId;
-
-            ExerciseProgramExercise::query()
-                ->where('id', $programExerciseId)
-                ->update([
-                    'exercise_id' => $exerciseId,
-                    'sort' => $sort,
-                    'group' => $group,
-                    'type' => $this->activeSection,
-                ]);
-
-            if ($exerciseChanged) {
-                $this->setDefaultOverridesForExercise($config, $exerciseId, $programExerciseId, $this->defaultStartsAtDate());
-                $configChanged = true;
-            }
-        }
-
-        if ($configChanged) {
-            $this->exerciseProgram->config = $config;
-            $this->exerciseProgram->save();
+        if ($didChange) {
+            $this->dispatchSharedProgramRebuild();
         }
 
         $this->exerciseProgram->refresh();
         unset($this->fieldsets, $this->exercises, $this->exerciseGroupLabels);
         $this->loadExerciseData();
-        app(TrainingSessionRebuildDispatcher::class)->dispatchFutureSlotsForExerciseProgram($this->exerciseProgram->id);
     }
 
     protected function setDefaultOverridesForExercise(ExercisePlanConfig $config, int $exerciseId, int $programExerciseId, ?string $startsAtDate = null): void
@@ -589,6 +603,12 @@ class ProgramEditor extends Component
     public function onExerciseOverridesChanged(): void
     {
         $this->exerciseProgram->refresh();
+    }
+
+    protected function dispatchSharedProgramRebuild(): void
+    {
+        app(TrainingSessionRebuildDispatcher::class)
+            ->dispatchFutureSlotsForExerciseProgramChange($this->exerciseProgram->id);
     }
 
     public function sectionLabel(string $section): string

@@ -10,6 +10,8 @@ use App\Models\Training\TrainingProgramSlotSetStatusEnum;
 use App\Models\Training\TrainingProgramSlotStatusEnum;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
+use App\Training\TrainingSessionCompiler;
+use App\Training\TrainingSessionMaterializer;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -214,4 +216,105 @@ it('rebuilds future slot materialization when the exercise program changes', fun
 
     expect($slot->exercise_count)->toBe(2)
         ->and($slot->exercises()->count())->toBe(2);
+});
+
+it('skips rewriting unchanged future slot materialization during a forced rebuild', function () {
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Friday Strength']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $exercise = Exercise::factory()->create([
+        'name' => 'Front Squat',
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 2, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 5, 'applyPer' => 'session'],
+        ],
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+    ]);
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-04-10 09:00:00'),
+    ])->fresh();
+
+    $originalCompiledAt = $slot->compiled_at;
+    $originalExerciseIds = $slot->exercises()->orderBy('id')->pluck('id')->all();
+    $originalSetIds = $slot->exercises()
+        ->with('sets')
+        ->get()
+        ->flatMap(fn ($slotExercise) => $slotExercise->sets->pluck('id'))
+        ->sort()
+        ->values()
+        ->all();
+
+    app(TrainingSessionMaterializer::class)->materialize($slot, force: true);
+
+    $slot = $slot->fresh();
+
+    expect($slot->compiled_at?->equalTo($originalCompiledAt))->toBeTrue()
+        ->and($slot->exercises()->orderBy('id')->pluck('id')->all())->toBe($originalExerciseIds)
+        ->and($slot->exercises()
+            ->with('sets')
+            ->get()
+            ->flatMap(fn ($slotExercise) => $slotExercise->sets->pluck('id'))
+            ->sort()
+            ->values()
+            ->all())->toBe($originalSetIds);
+});
+
+it('preserves preloaded compilation relations across the locked materialization fetch', function () {
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Friday Strength']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $exercise = Exercise::factory()->create([
+        'name' => 'Front Squat',
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 5, 'applyPer' => 'session'],
+        ],
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+    ]);
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-04-10 09:00:00'),
+    ])->fresh(['trainingProgram.program.exercises']);
+
+    $compiler = Mockery::mock(TrainingSessionCompiler::class);
+    $compiler->shouldReceive('compile')
+        ->once()
+        ->withArgs(function (TrainingProgramSlot $compiledSlot): bool {
+            return $compiledSlot->relationLoaded('trainingProgram')
+                && $compiledSlot->trainingProgram->relationLoaded('program')
+                && $compiledSlot->trainingProgram->program->relationLoaded('exercises');
+        })
+        ->andThrow(new RuntimeException('stop after compile assertion'));
+
+    $materializer = new TrainingSessionMaterializer($compiler);
+
+    expect(fn () => $materializer->materialize($slot, force: true))
+        ->toThrow(RuntimeException::class, 'stop after compile assertion');
 });

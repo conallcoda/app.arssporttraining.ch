@@ -8,6 +8,17 @@ use App\Jobs\RebuildFutureSlotsForExerciseProgramJob;
 
 class TrainingSessionRebuildDispatcher
 {
+    public function dispatchFutureSlotsForExerciseProgramChange(int $exerciseProgramId, ?int $userId = null): void
+    {
+        if ($userId !== null) {
+            $this->dispatchFutureSlotsForAthleteExerciseProgram($userId, $exerciseProgramId);
+
+            return;
+        }
+
+        $this->dispatchFutureSlotsForExerciseProgram($exerciseProgramId);
+    }
+
     public function dispatchFutureSlotsForExerciseProgram(int $exerciseProgramId): void
     {
         dispatch_sync(new RebuildFutureSlotsForExerciseProgramJob($exerciseProgramId));

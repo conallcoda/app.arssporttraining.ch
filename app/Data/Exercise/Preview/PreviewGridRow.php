@@ -10,6 +10,7 @@ class PreviewGridRow extends AbstractData
         public string $field,
         public string $label,
         public string $color,
+        public ?string $clickField = null,
         /** @var array<int, array<int, string|int|float>>|array<int, string|int|float> */
         public array $cells = [],
         /** @var array<int, array<int, array<int, string|int|float>>> */
@@ -31,7 +32,9 @@ class PreviewGridRow extends AbstractData
         public array $sessionCellColorMap = [],
         /** @var array<int, array<int, array<int, string>>> */
         public array $sessionCellOverrideColorMap = [],
-    ) {}
+    ) {
+        $this->clickField ??= $field;
+    }
 
     public function isCellEditable(int $week, ?int $set = null): bool
     {
@@ -99,5 +102,47 @@ class PreviewGridRow extends AbstractData
             : ($this->cellColorMap[$week] ?? null);
 
         return $cellColor ?? $this->color;
+    }
+
+    /**
+     * @return array{value: string|int|float|null, overridden: bool, color: string, editable: bool}
+     */
+    public function presentCell(
+        int $week,
+        int $set,
+        ?int $session = null,
+        bool $editable = true,
+        bool $locked = false,
+        bool $visible = true,
+    ): array {
+        $value = $visible ? $this->getCellValue($week, $set, $session) : '-';
+        $overridden = $visible ? $this->isCellOverriddenAt($week, $set, $session) : false;
+
+        return [
+            'value' => $value,
+            'overridden' => $overridden,
+            'color' => $this->resolveCellColor($week, $set, $overridden, $session),
+            'editable' => $editable && ! $locked && $this->isCellEditable($week, $set) && $value !== '-',
+        ];
+    }
+
+    /**
+     * @return array{value: string|int|float|null, overridden: bool, color: string, editable: bool}
+     */
+    public function presentWeekCell(
+        int $week,
+        ?int $session = null,
+        bool $editable = true,
+        bool $locked = false,
+    ): array {
+        $value = $this->getCellValue($week, 0, $session);
+        $overridden = $this->isCellOverriddenAt($week, 0, $session);
+
+        return [
+            'value' => $value,
+            'overridden' => $overridden,
+            'color' => $this->resolveCellColor($week, null, $overridden, $session),
+            'editable' => $editable && ! $locked && $this->isCellEditable($week) && $value !== '-',
+        ];
     }
 }

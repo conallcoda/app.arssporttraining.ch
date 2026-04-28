@@ -4,6 +4,7 @@ namespace App\Training;
 
 use App\Models\Training\TrainingProgramSlot;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 
 class TrainingSessionRebuildService
@@ -14,17 +15,19 @@ class TrainingSessionRebuildService
 
     public function rebuildFutureSlotsForExerciseProgram(int $exerciseProgramId): void
     {
-        $this->futureSlotsQuery()
-            ->whereHas('trainingProgram', fn (Builder $query) => $query->where('exercise_program_id', $exerciseProgramId))
-            ->each(fn (TrainingProgramSlot $slot) => $this->materializer->materialize($slot, force: true));
+        $this->rebuildFutureSlots(
+            $this->futureSlotsQuery()
+                ->whereHas('trainingProgram', fn (Builder $query) => $query->where('exercise_program_id', $exerciseProgramId))
+        );
     }
 
     public function rebuildFutureSlotsForAthleteExerciseProgram(int $userId, int $exerciseProgramId): void
     {
-        $this->futureSlotsQuery()
-            ->where('user_id', $userId)
-            ->whereHas('trainingProgram', fn (Builder $query) => $query->where('exercise_program_id', $exerciseProgramId))
-            ->each(fn (TrainingProgramSlot $slot) => $this->materializer->materialize($slot, force: true));
+        $this->rebuildFutureSlots(
+            $this->futureSlotsQuery()
+                ->where('user_id', $userId)
+                ->whereHas('trainingProgram', fn (Builder $query) => $query->where('exercise_program_id', $exerciseProgramId))
+        );
     }
 
     public function rebuildFutureSlotsForAthlete(int $userId, ?string $fromDate = null): void
@@ -35,10 +38,11 @@ class TrainingSessionRebuildService
             $threshold = $now;
         }
 
-        $this->futureSlotsQuery()
-            ->where('user_id', $userId)
-            ->where('datetime', '>', $threshold)
-            ->each(fn (TrainingProgramSlot $slot) => $this->materializer->materialize($slot, force: true));
+        $this->rebuildFutureSlots(
+            $this->futureSlotsQuery()
+                ->where('user_id', $userId)
+                ->where('datetime', '>', $threshold)
+        );
     }
 
     private function futureSlotsQuery(): Builder
@@ -48,5 +52,19 @@ class TrainingSessionRebuildService
             ->where('datetime', '>', now())
             ->orderBy('datetime')
             ->orderBy('id');
+    }
+
+    private function rebuildFutureSlots(Builder $query): void
+    {
+        $query
+            ->with([
+                'trainingProgram.program.exercises' => fn ($relation) => $relation
+                    ->orderByPivot('type')
+                    ->orderByPivot('sort')
+                    ->orderByPivot('id'),
+            ])
+            ->chunk(100, function (Collection $slots): void {
+                $slots->each(fn (TrainingProgramSlot $slot) => $this->materializer->materialize($slot, force: true));
+            });
     }
 }

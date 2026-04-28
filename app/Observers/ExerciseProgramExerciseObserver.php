@@ -10,12 +10,12 @@ class ExerciseProgramExerciseObserver
     public function saved(ExerciseProgramExercise $pivot): void
     {
         app(TrainingSessionRebuildDispatcher::class)
-            ->dispatchFutureSlotsForExerciseProgram($pivot->exercise_program_id);
+            ->dispatchFutureSlotsForExerciseProgramChange($pivot->exercise_program_id);
     }
 
     public function deleted(ExerciseProgramExercise $pivot): void
     {
         app(TrainingSessionRebuildDispatcher::class)
-            ->dispatchFutureSlotsForExerciseProgram($pivot->exercise_program_id);
+            ->dispatchFutureSlotsForExerciseProgramChange($pivot->exercise_program_id);
     }
 }

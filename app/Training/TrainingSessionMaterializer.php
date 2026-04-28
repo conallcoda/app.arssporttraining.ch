@@ -22,20 +22,26 @@ class TrainingSessionMaterializer
     public function materialize(TrainingProgramSlot $slot, bool $force = false): void
     {
         DB::transaction(function () use ($slot, $force): void {
-            $slot = TrainingProgramSlot::query()
+            $lockedSlot = TrainingProgramSlot::query()
                 ->lockForUpdate()
                 ->findOrFail($slot->id);
 
-            if ($this->shouldSkipMaterialization($slot, $force)) {
+            $this->preserveCompilationRelations($slot, $lockedSlot);
+
+            if ($this->shouldSkipMaterialization($lockedSlot, $force)) {
                 return;
             }
 
-            $compiled = $this->compiler->compile($slot);
+            $compiled = $this->compiler->compile($lockedSlot);
 
-            $slot->exercises()->delete();
+            if ($this->isNoOpRebuild($lockedSlot, $compiled)) {
+                return;
+            }
+
+            $lockedSlot->exercises()->delete();
 
             foreach ($compiled->exercises as $exercise) {
-                $exerciseModel = $this->createExercise($slot, $exercise);
+                $exerciseModel = $this->createExercise($lockedSlot, $exercise);
 
                 foreach ($exercise->sets as $set) {
                     $setModel = $this->createSet($exerciseModel, $set);
@@ -46,11 +52,11 @@ class TrainingSessionMaterializer
                 }
             }
 
-            $slot->forceFill([
+            $lockedSlot->forceFill([
                 'scheduled_date' => $compiled->scheduledDate,
                 'compiled_at' => now(),
                 'compiled_version' => $compiled->compiledVersion,
-                'status' => $slot->status ?? TrainingProgramSlotStatusEnum::Pending,
+                'status' => $lockedSlot->status ?? TrainingProgramSlotStatusEnum::Pending,
                 'exercise_count' => count($compiled->exercises),
                 'completed_exercise_count' => 0,
                 'partial_exercise_count' => 0,
@@ -59,6 +65,13 @@ class TrainingSessionMaterializer
                 'has_any_modification' => false,
             ])->saveQuietly();
         }, 5);
+    }
+
+    private function preserveCompilationRelations(TrainingProgramSlot $originalSlot, TrainingProgramSlot $lockedSlot): void
+    {
+        if ($originalSlot->relationLoaded('trainingProgram')) {
+            $lockedSlot->setRelation('trainingProgram', $originalSlot->getRelation('trainingProgram'));
+        }
     }
 
     private function shouldSkipMaterialization(TrainingProgramSlot $slot, bool $force): bool
@@ -72,6 +85,18 @@ class TrainingSessionMaterializer
         }
 
         return ! $force;
+    }
+
+    private function isNoOpRebuild(TrainingProgramSlot $slot, \App\Data\Training\Compiled\CompiledTrainingSession $compiled): bool
+    {
+        if ($slot->compiled_at === null) {
+            return false;
+        }
+
+        $scheduledDate = $slot->scheduled_date?->format('Y-m-d');
+
+        return $slot->compiled_version === $compiled->compiledVersion
+            && $scheduledDate === $compiled->scheduledDate;
     }
 
     private function createExercise(TrainingProgramSlot $slot, CompiledTrainingExercise $exercise): TrainingProgramSlotExercise
