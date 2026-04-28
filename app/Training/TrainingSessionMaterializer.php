@@ -108,6 +108,7 @@ class TrainingSessionMaterializer
         $row = [
             'setting_key' => $value->settingKey,
             'planned_value_type' => $value->plannedValueType,
+            'planned_json_value' => $value->plannedCanonicalValue,
             'actual_value_type' => null,
             'unit' => $value->unit,
             'is_modified' => false,

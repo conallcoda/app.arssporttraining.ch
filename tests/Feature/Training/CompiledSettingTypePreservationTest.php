@@ -61,12 +61,34 @@ it('preserves string-shaped planned values during materialization', function () 
 
     expect($values['reps']->planned_value_type)->toBe('string')
         ->and($values['reps']->planned_string_value)->toBe('12_12')
+        ->and($values['reps']->planned_json_value)->toBe([
+            'kind' => 'reps',
+            'format' => 'split',
+            'display' => '12_12',
+            'total' => 24,
+            'parts' => [12, 12],
+            'is_bilateral' => true,
+        ])
         ->and($values['duration']->planned_value_type)->toBe('int')
         ->and($values['duration']->planned_int_value)->toBe(60)
         ->and($values['heartRate']->planned_value_type)->toBe('string')
         ->and($values['heartRate']->planned_string_value)->toBe('98-126')
+        ->and($values['heartRate']->planned_json_value)->toBe([
+            'kind' => 'heart_rate',
+            'format' => 'range',
+            'display' => '98-126',
+            'min' => 98,
+            'max' => 126,
+        ])
         ->and($values['heartRateZone']->planned_value_type)->toBe('string')
         ->and($values['heartRateZone']->planned_string_value)->toBe('0-4')
+        ->and($values['heartRateZone']->planned_json_value)->toBe([
+            'kind' => 'heart_rate_zone',
+            'format' => 'range',
+            'display' => '0-4',
+            'min' => 0,
+            'max' => 4,
+        ])
         ->and($values['pace']->planned_value_type)->toBe('string')
         ->and($values['pace']->planned_string_value)->toBe('5:00')
         ->and($values['tempo']->planned_value_type)->toBe('string')

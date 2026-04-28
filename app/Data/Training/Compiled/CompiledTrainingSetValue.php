@@ -8,6 +8,7 @@ final readonly class CompiledTrainingSetValue
         public string $settingKey,
         public string $plannedValueType,
         public mixed $plannedValue,
+        public ?array $plannedCanonicalValue = null,
         public ?string $unit = null,
     ) {}
 }

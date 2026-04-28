@@ -89,11 +89,78 @@ it('materializes planned exercises, sets, and values when a slot is created', fu
         ->and($firstSet->values)->toHaveCount(5)
         ->and($firstSet->values->pluck('setting_key')->sort()->values()->all())->toBe(['note', 'reps', 'rest', 'tempo', 'weight']);
 
-    expect($firstSet->values->firstWhere('setting_key', 'reps')?->planned_int_value)->toBe(6)
+    expect($firstSet->values->firstWhere('setting_key', 'reps')?->planned_value_type)->toBe('string')
+        ->and($firstSet->values->firstWhere('setting_key', 'reps')?->planned_string_value)->toBe('6')
+        ->and($firstSet->values->firstWhere('setting_key', 'reps')?->plannedCanonicalValue())->toBe([
+            'kind' => 'reps',
+            'format' => 'scalar',
+            'display' => '6',
+            'total' => 6,
+            'parts' => [6],
+            'is_bilateral' => false,
+        ])
         ->and((float) $firstSet->values->firstWhere('setting_key', 'weight')?->planned_decimal_value)->toBe(82.5)
         ->and($firstSet->values->firstWhere('setting_key', 'tempo')?->planned_string_value)->toBe('3010')
         ->and($firstSet->values->firstWhere('setting_key', 'rest')?->planned_int_value)->toBe(120)
         ->and($firstSet->values->firstWhere('setting_key', 'note')?->planned_string_value)->toBe('Explode up');
+});
+
+it('stores canonical split-rep metadata alongside the display value', function () {
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Unilateral Strength']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $exercise = Exercise::factory()->create([
+        'name' => 'Split Squat',
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => [
+                'default' => 1,
+                'label' => 'Set',
+                'deload' => 'none',
+            ],
+            'reps' => [
+                'mode' => 'manual',
+                'default' => '12_12',
+                'applyPer' => 'session',
+            ],
+        ],
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+    ]);
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-04-17 09:00:00'),
+    ])->fresh();
+
+    $repsValue = $slot->exercises()
+        ->with('sets.values')
+        ->firstOrFail()
+        ->sets
+        ->firstOrFail()
+        ->values
+        ->firstWhere('setting_key', 'reps');
+
+    expect($repsValue?->planned_value_type)->toBe('string')
+        ->and($repsValue?->planned_string_value)->toBe('12_12')
+        ->and($repsValue?->plannedCanonicalValue())->toBe([
+            'kind' => 'reps',
+            'format' => 'split',
+            'display' => '12_12',
+            'total' => 24,
+            'parts' => [12, 12],
+            'is_bilateral' => true,
+        ]);
 });
 
 it('rebuilds future slot materialization when the exercise program changes', function () {

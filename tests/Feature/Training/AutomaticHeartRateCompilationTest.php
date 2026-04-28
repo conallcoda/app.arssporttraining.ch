@@ -69,5 +69,12 @@ it('materializes automatic heart rate ranges as strings on athlete sessions', fu
 
     expect($sets[0]->values->firstWhere('setting_key', 'heartRate')?->planned_value_type)->toBe('string')
         ->and($sets[0]->values->firstWhere('setting_key', 'heartRate')?->planned_string_value)->toBe('106-134')
+        ->and($sets[0]->values->firstWhere('setting_key', 'heartRate')?->planned_json_value)->toBe([
+            'kind' => 'heart_rate',
+            'format' => 'range',
+            'display' => '106-134',
+            'min' => 106,
+            'max' => 134,
+        ])
         ->and($sets[4]->values->firstWhere('setting_key', 'heartRate')?->planned_string_value)->toBe('193-203');
 });

@@ -42,4 +42,9 @@ class TrainingProgramSlotSetValue extends Model
     {
         return $this->belongsTo(TrainingProgramSlotSet::class, 'training_program_slot_set_id');
     }
+
+    public function plannedCanonicalValue(): ?array
+    {
+        return is_array($this->planned_json_value) ? $this->planned_json_value : null;
+    }
 }

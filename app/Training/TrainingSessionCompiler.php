@@ -126,11 +126,14 @@ class TrainingSessionCompiler
                         }
 
                         $value = $this->normalizeCompiledValue($setting, $value, $config);
+                        $valueType = $this->resolveValueType($setting, $value);
+                        $canonicalValue = $this->resolveCanonicalValue($setting, $value);
 
                         $values[] = new CompiledTrainingSetValue(
                             settingKey: $setting,
-                            plannedValueType: $this->resolveValueType($setting, $value),
+                            plannedValueType: $valueType,
                             plannedValue: $value,
+                            plannedCanonicalValue: $canonicalValue,
                             unit: $this->resolveUnit($setting, $config),
                         );
                     }
@@ -385,6 +388,75 @@ class TrainingSessionCompiler
         return 'string';
     }
 
+    private function resolveCanonicalValue(string $setting, mixed $value): ?array
+    {
+        return match ($setting) {
+            'reps' => $this->resolveRepsCanonicalValue($value),
+            'heartRate' => $this->resolveBoundedRangeCanonicalValue($value, 'heart_rate'),
+            'heartRateZone' => $this->resolveBoundedRangeCanonicalValue($value, 'heart_rate_zone'),
+            default => null,
+        };
+    }
+
+    private function resolveRepsCanonicalValue(mixed $value): ?array
+    {
+        if (is_int($value) || (is_string($value) && preg_match('/^\d+$/', $value))) {
+            $total = (int) $value;
+
+            return [
+                'kind' => 'reps',
+                'format' => 'scalar',
+                'display' => (string) $value,
+                'total' => $total,
+                'parts' => [$total],
+                'is_bilateral' => false,
+            ];
+        }
+
+        if (! is_string($value) || ! preg_match('/^\d+(?:_\d+)+$/', $value)) {
+            return null;
+        }
+
+        $parts = array_map('intval', explode('_', $value));
+
+        return [
+            'kind' => 'reps',
+            'format' => 'split',
+            'display' => $value,
+            'total' => array_sum($parts),
+            'parts' => $parts,
+            'is_bilateral' => count($parts) === 2,
+        ];
+    }
+
+    private function resolveBoundedRangeCanonicalValue(mixed $value, string $kind): ?array
+    {
+        if (is_int($value) || (is_string($value) && preg_match('/^\d+$/', $value))) {
+            $numeric = (int) $value;
+
+            return [
+                'kind' => $kind,
+                'format' => 'scalar',
+                'display' => (string) $value,
+                'value' => $numeric,
+                'min' => $numeric,
+                'max' => $numeric,
+            ];
+        }
+
+        if (! is_string($value) || ! preg_match('/^(?<min>\d+)-(?<max>\d+)$/', $value, $matches)) {
+            return null;
+        }
+
+        return [
+            'kind' => $kind,
+            'format' => 'range',
+            'display' => $value,
+            'min' => (int) $matches['min'],
+            'max' => (int) $matches['max'],
+        ];
+    }
+
     /**
      * @param  CompiledTrainingExercise[]  $exercises
      * @return array<int, array<string, mixed>>
@@ -401,13 +473,14 @@ class TrainingSessionCompiler
                     return [
                         'setNumber' => $set->setNumber,
                         'values' => array_map(fn (CompiledTrainingSetValue $value) => [
-                            'settingKey' => $value->settingKey,
-                            'plannedValueType' => $value->plannedValueType,
-                            'plannedValue' => $value->plannedValue,
-                            'unit' => $value->unit,
-                        ], $set->values),
-                    ];
-                }, $exercise->sets),
+                        'settingKey' => $value->settingKey,
+                        'plannedValueType' => $value->plannedValueType,
+                        'plannedValue' => $value->plannedValue,
+                        'plannedCanonicalValue' => $value->plannedCanonicalValue,
+                        'unit' => $value->unit,
+                    ], $set->values),
+                ];
+            }, $exercise->sets),
             ];
         }, $exercises);
     }
