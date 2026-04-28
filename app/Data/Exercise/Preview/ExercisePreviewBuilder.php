@@ -136,6 +136,7 @@ class ExercisePreviewBuilder
             weekColumns: $weekColumns,
             summary: $summary,
             sessionsPerWeek: $sessionsPerWeek,
+            weekSessionCounts: $sessionCounts,
         );
     }
 

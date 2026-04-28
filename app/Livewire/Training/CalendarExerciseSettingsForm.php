@@ -97,13 +97,29 @@ class CalendarExerciseSettingsForm extends FormModal
             $config['overrides']['weeks'] ?? [],
         );
 
-        return ExercisePreviewBuilder::build(
+        $grid = ExercisePreviewBuilder::build(
             $config,
             $this->getMeasuredData(),
             $this->gridWeeks,
             $overrides,
             $this->sessionsPerWeek,
         );
+
+        return $this->applyExplicitWeekSessionCounts($grid);
+    }
+
+    #[Computed]
+    public function effectiveExpandedWeeks(): array
+    {
+        $expanded = [];
+
+        foreach (range(0, $this->previewGrid->weekCount - 1) as $week) {
+            if ($this->weekHasSessionDivergence($this->previewGrid, $week)) {
+                $expanded[] = $week;
+            }
+        }
+
+        return $expanded;
     }
 
     public function getListeners(): array
@@ -170,6 +186,7 @@ class CalendarExerciseSettingsForm extends FormModal
             $value,
             $session,
             $applyToAll,
+            weekSessionCount: $this->sessionCountForWeek($weekIndex),
         );
 
         unset($this->previewGrid);
@@ -237,5 +254,57 @@ class CalendarExerciseSettingsForm extends FormModal
     public function render(): View
     {
         return view('livewire.training.calendar-exercise-settings-form');
+    }
+
+    protected function sessionCountForWeek(int $weekIndex): int
+    {
+        $explicitSessions = (int) ($this->weekSessions[$weekIndex] ?? 0);
+
+        if ($explicitSessions > 0) {
+            return max($explicitSessions, 1);
+        }
+
+        return max($this->sessionsPerWeek, 1);
+    }
+
+    protected function applyExplicitWeekSessionCounts(PreviewGrid $grid): PreviewGrid
+    {
+        foreach (range(0, $grid->weekCount - 1) as $week) {
+            $grid->weekSessionCounts[$week] = $this->sessionCountForWeek($week);
+        }
+
+        return $grid;
+    }
+
+    protected function weekHasSessionDivergence(PreviewGrid $grid, int $week): bool
+    {
+        $sessionCount = $grid->weekSessionCounts[$week] ?? $this->sessionCountForWeek($week);
+
+        if ($sessionCount <= 1) {
+            return false;
+        }
+
+        foreach ($grid->rows as $row) {
+            if ($row->lastSessionOnly) {
+                continue;
+            }
+
+            foreach (array_keys($row->cells[$week] ?? []) as $set) {
+                $baselineValue = $row->getCellValue($week, (int) $set, 0);
+                $baselineOverride = $row->isCellOverriddenAt($week, (int) $set, 0);
+
+                for ($session = 1; $session < $sessionCount; $session++) {
+                    if ($row->getCellValue($week, (int) $set, $session) !== $baselineValue) {
+                        return true;
+                    }
+
+                    if ($row->isCellOverriddenAt($week, (int) $set, $session) !== $baselineOverride) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 }

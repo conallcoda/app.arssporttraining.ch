@@ -11,6 +11,7 @@ use App\Models\Training\TrainingProgramSlotStatusEnum;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 use Livewire\Livewire;
 
 it('links scheduled programs to the athlete program details page', function () {
@@ -131,6 +132,8 @@ it('returns 404 when the selected program is not scheduled for the athlete on th
 });
 
 it('lets athletes mark an exercise done or skipped from the materialized session', function () {
+    CarbonImmutable::setTestNow('2030-04-03 12:00:00');
+
     $athlete = User::factory()->athlete()->create();
     $group = UserGroup::create(['name' => 'Test Group']);
     $program = ExerciseProgram::factory()->create(['name' => 'Friday Strength']);
@@ -194,4 +197,6 @@ it('lets athletes mark an exercise done or skipped from the materialized session
         ->and($slot->completed_exercise_count)->toBe(1)
         ->and($slot->skipped_exercise_count)->toBe(1)
         ->and($slot->pending_exercise_count)->toBe(0);
+
+    CarbonImmutable::setTestNow();
 });

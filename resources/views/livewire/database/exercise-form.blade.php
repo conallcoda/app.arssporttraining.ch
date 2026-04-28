@@ -62,6 +62,7 @@
                                 :showMenu="false"
                                 :editable="true"
                                 :settingClickable="true"
+                                :expandedWeeks="$this->effectiveExpandedWeeks"
                             />
                         </div>
                     @endif

@@ -1,7 +1,10 @@
 <?php
 
 use App\Data\Exercise\Preview\StrategyOrchestrator;
+use App\Data\Exercise\Settings\RepsSetting;
+use App\Data\Exercise\Strategies\AutomaticStrategyFactory;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
+use App\Training\Derivation\AutomaticRepsResolver;
 
 it('populates sets per week from sets config', function () {
     $data = [
@@ -49,6 +52,42 @@ it('populates automatic reps grid', function () {
     $reps = $state->getGrid('reps');
     expect($reps)->toHaveCount(3);
     expect($reps[0])->toHaveCount(4);
+});
+
+it('uses the shared automatic strategy factory seam for automatic reps', function () {
+    $data = [
+        'sets' => ['deload' => 'none', 'default' => 2, 'label' => 'Set'],
+        'settings' => ['reps'],
+        'reps' => [
+            'mode' => 'automatic',
+            'default' => 10,
+            'stepDownInterval' => 2,
+            'decrement' => 2,
+            'minimum' => 1,
+            'applyPer' => 'session',
+        ],
+    ];
+
+    $factory = new AutomaticStrategyFactory(
+        repsResolver: new class extends AutomaticRepsResolver
+        {
+            public function buildGrid(RepsSetting $setting, int $weeks, array $setsPerWeek): array
+            {
+                return [
+                    [99, 98],
+                    [97, 96],
+                ];
+            }
+        },
+    );
+
+    $orchestrator = new StrategyOrchestrator($data, weeks: 2, automaticStrategies: $factory);
+    $state = $orchestrator->execute();
+
+    expect($state->getGrid('reps'))->toBe([
+        [99, 98],
+        [97, 96],
+    ]);
 });
 
 it('populates manual reps grid with default value', function () {

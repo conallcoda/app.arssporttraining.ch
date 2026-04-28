@@ -82,6 +82,20 @@ trait InteractsWithPreview
         return ExercisePreviewBuilder::build($this->data['config'], $measuredData, $weeks, $overrides, $sessionsPerWeek);
     }
 
+    #[Computed]
+    public function effectiveExpandedWeeks(): array
+    {
+        $expanded = [];
+
+        foreach (range(0, $this->previewGrid->weekCount - 1) as $week) {
+            if ($this->weekHasSessionDivergence($this->previewGrid, $week)) {
+                $expanded[] = $week;
+            }
+        }
+
+        return $expanded;
+    }
+
     public function updateCellOverride(int $weekIndex, int $setIndex, string $field, mixed $value, int $session, bool $applyToAll = false): void
     {
         $this->data['config']['overrides'] = OverrideManager::updateCellOverride(
@@ -95,6 +109,7 @@ trait InteractsWithPreview
             $value,
             $session,
             $applyToAll,
+            weekSessionCount: $this->previewGrid->weekSessionCounts[$weekIndex] ?? null,
         );
 
         unset($this->previewGrid);
@@ -201,5 +216,37 @@ trait InteractsWithPreview
     public function updatedDataConfigPreview(): void
     {
         unset($this->previewGrid);
+    }
+
+    protected function weekHasSessionDivergence(PreviewGrid $grid, int $week): bool
+    {
+        $sessionCount = $grid->weekSessionCounts[$week] ?? $grid->sessionsPerWeek;
+
+        if ($sessionCount <= 1) {
+            return false;
+        }
+
+        foreach ($grid->rows as $row) {
+            if ($row->lastSessionOnly) {
+                continue;
+            }
+
+            foreach (array_keys($row->cells[$week] ?? []) as $set) {
+                $baselineValue = $row->getCellValue($week, (int) $set, 0);
+                $baselineOverride = $row->isCellOverriddenAt($week, (int) $set, 0);
+
+                for ($session = 1; $session < $sessionCount; $session++) {
+                    if ($row->getCellValue($week, (int) $set, $session) !== $baselineValue) {
+                        return true;
+                    }
+
+                    if ($row->isCellOverriddenAt($week, (int) $set, $session) !== $baselineOverride) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 }

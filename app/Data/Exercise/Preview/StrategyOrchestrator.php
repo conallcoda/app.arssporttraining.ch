@@ -2,18 +2,13 @@
 
 namespace App\Data\Exercise\Preview;
 
-use App\Data\Exercise\Settings\HeartRateSetting;
-use App\Data\Exercise\Settings\RepsSetting;
 use App\Data\Exercise\Settings\SetsSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
-use App\Data\Exercise\Settings\WeightSetting;
+use App\Data\Exercise\Strategies\AutomaticStrategyFactory;
 use App\Data\Exercise\Strategies\Contracts\DefinesCellColors;
 use App\Data\Exercise\Strategies\Contracts\DefinesEditability;
 use App\Data\Exercise\Strategies\HeartRate\HeartRateZoneCellColors;
-use App\Data\Exercise\Strategies\HeartRate\NorwegianIntensityStrategy;
-use App\Data\Exercise\Strategies\Reps\PairedRepStrategy;
 use App\Data\Exercise\Strategies\Sets\DeloadSetsStrategy;
-use App\Data\Exercise\Strategies\Weight\OneRepMaxFixedStrategy;
 
 class StrategyOrchestrator
 {
@@ -24,6 +19,7 @@ class StrategyOrchestrator
         private ?GridOverrides $overrides = null,
         private ?int $maxHR = null,
         private ?int $iatPercent = null,
+        private ?AutomaticStrategyFactory $automaticStrategies = null,
     ) {}
 
     public function execute(): GridState
@@ -82,8 +78,12 @@ class StrategyOrchestrator
         }
 
         if ($mode === 'automatic') {
-            $repsSetting = RepsSetting::from($config);
-            $strategy = new PairedRepStrategy($repsSetting);
+            $strategy = $this->automaticStrategies()->makeRepsStrategy($config);
+
+            if ($strategy === null) {
+                return;
+            }
+
             $strategy->generate($this->weeks, $state);
             $this->registerEditability($strategy, $state);
 
@@ -115,8 +115,12 @@ class StrategyOrchestrator
             return;
         }
 
-        $weightSetting = WeightSetting::from($config);
-        $strategy = new OneRepMaxFixedStrategy($weightSetting, $this->measuredData);
+        $strategy = $this->automaticStrategies()->makeWeightStrategy($config, $this->measuredData);
+
+        if ($strategy === null) {
+            return;
+        }
+
         $strategy->generate($this->weeks, $state);
         $this->registerEditability($strategy, $state);
     }
@@ -168,14 +172,19 @@ class StrategyOrchestrator
             $state->setGrid('heartRateZone', $this->fillGrid($state, $defaultZone));
         }
 
-        $heartRateSetting = HeartRateSetting::from($config);
-        $strategy = new NorwegianIntensityStrategy(
-            $heartRateSetting,
-            maxHR: $this->maxHR ?? 193,
-            iatPercent: $this->iatPercent ?? 90,
-        );
+        $strategy = $this->automaticStrategies()->makeHeartRateStrategy($config, $this->maxHR, $this->iatPercent);
+
+        if ($strategy === null) {
+            return;
+        }
+
         $strategy->generate($this->weeks, $state);
         $this->registerEditability($strategy, $state);
+    }
+
+    private function automaticStrategies(): AutomaticStrategyFactory
+    {
+        return $this->automaticStrategies ??= new AutomaticStrategyFactory;
     }
 
     private function registerEditability(object $strategy, GridState $state): void

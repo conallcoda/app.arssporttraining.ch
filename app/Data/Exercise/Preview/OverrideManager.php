@@ -22,11 +22,13 @@ class OverrideManager
         int $session,
         bool $applyToAll = false,
         mixed $effectiveDefault = null,
+        ?int $weekSessionCount = null,
     ): array {
         $defaultValue = $effectiveDefault ?? self::getDefaultCellValue($config, $defaultWeeks, $field, $weekIndex, $setIndex);
         $valuesMatch = self::cellValuesMatch($value, $defaultValue);
 
-        $sessionsPerWeek = (int) ($config['preview']['sessionsPerWeek'] ?? $defaultSessionsPerWeek);
+        $configuredSessionsPerWeek = (int) ($config['preview']['sessionsPerWeek'] ?? 1);
+        $sessionsPerWeek = $weekSessionCount ?? max($defaultSessionsPerWeek, $configuredSessionsPerWeek, 1);
         $sessions = $applyToAll ? range(0, $sessionsPerWeek - 1) : [$session];
 
         foreach ($sessions as $s) {
@@ -35,6 +37,10 @@ class OverrideManager
             } else {
                 $overrides = self::setCellOverride($overrides, $weekIndex, $s, $setIndex, $field, $value);
             }
+        }
+
+        if ($weekSessionCount !== null) {
+            $overrides = self::removeCellOverridesAtOrAboveSession($overrides, $weekIndex, $setIndex, $field, $weekSessionCount);
         }
 
         return $overrides;
@@ -87,22 +93,28 @@ class OverrideManager
             if ($row->lastSessionOnly) {
                 continue;
             }
+            $sourceWeekSessionCount = $grid->weekSessionCounts[$sourceWeek] ?? $grid->sessionsPerWeek;
+            $targetWeekSessionCount = $grid->weekSessionCounts[$targetWeek] ?? $grid->sessionsPerWeek;
+            $sessionCount = max(min($sourceWeekSessionCount, $targetWeekSessionCount), 1);
+
             for ($set = 0; $set < $grid->setCount; $set++) {
-                $value = $row->cells[$sourceWeek][$set] ?? null;
-                if ($value === null || $value === '-') {
-                    continue;
-                }
+                for ($session = 0; $session < $sessionCount; $session++) {
+                    $value = $row->getCellValue($sourceWeek, $set, $session);
+                    if ($value === null || $value === '-') {
+                        continue;
+                    }
 
-                $defaultValue = $defaultRows[$row->field]->cells[$targetWeek][$set] ?? null;
-                $matches = self::cellValuesMatch($value, $defaultValue);
+                    $defaultValue = $defaultRows[$row->field]->getCellValue($targetWeek, $set, $session);
+                    $matches = self::cellValuesMatch($value, $defaultValue);
 
-                for ($session = 0; $session < $grid->sessionsPerWeek; $session++) {
                     if ($matches) {
                         $overrides = self::removeCellOverride($overrides, $targetWeek, $session, $set, $row->field);
                     } else {
                         $overrides = self::setCellOverride($overrides, $targetWeek, $session, $set, $row->field, $value);
                     }
                 }
+
+                $overrides = self::removeCellOverridesAtOrAboveSession($overrides, $targetWeek, $set, $row->field, $sessionCount);
             }
         }
 
@@ -191,6 +203,40 @@ class OverrideManager
 
                 return $overrides;
             }
+        }
+
+        return $overrides;
+    }
+
+    /**
+     * @param  array{cells: array, weeks: array}  $overrides
+     * @return array{cells: array, weeks: array}
+     */
+    private static function removeCellOverridesAtOrAboveSession(array $overrides, int $week, int $set, string $field, int $minimumSession): array
+    {
+        foreach (array_keys($overrides['cells'] ?? []) as $index) {
+            $override = $overrides['cells'][$index] ?? null;
+
+            if (! is_array($override)) {
+                continue;
+            }
+
+            if (($override['week'] ?? null) !== $week
+                || ($override['set'] ?? null) !== $set
+                || ! isset($override['data'][$field])
+                || (int) ($override['session'] ?? -1) < $minimumSession) {
+                continue;
+            }
+
+            unset($overrides['cells'][$index]['data'][$field]);
+
+            if (empty($overrides['cells'][$index]['data'])) {
+                unset($overrides['cells'][$index]);
+            }
+        }
+
+        if (isset($overrides['cells'])) {
+            $overrides['cells'] = array_values($overrides['cells']);
         }
 
         return $overrides;

@@ -44,6 +44,7 @@
                                 :settingClickable="true"
                                 :weekLabels="$weekLabels"
                                 :weekSessions="$weekSessions"
+                                :expandedWeeks="$this->effectiveExpandedWeeks"
                                 :collapseWeeks="false"
                             />
                         @else

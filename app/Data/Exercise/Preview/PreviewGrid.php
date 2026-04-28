@@ -17,5 +17,7 @@ class PreviewGrid extends AbstractData
         /** @var array{starting1RM: float, target1RM: float, modifier: int, targetGoal: int}|null */
         public ?array $summary = null,
         public int $sessionsPerWeek = 1,
+        /** @var array<int, int> */
+        public array $weekSessionCounts = [],
     ) {}
 }

@@ -4,6 +4,8 @@ namespace App\Data\Exercise\Preview;
 
 use App\Data\Exercise\Strategies\Contracts\DefinesCellColors;
 use App\Data\Exercise\Strategies\Contracts\DefinesEditability;
+use App\Training\Derivation\AutomaticStrategyResolution;
+use App\Training\Derivation\ResolvedGridField;
 
 class GridState
 {
@@ -88,6 +90,44 @@ class GridState
     public function setSessionGrid(string $setting, array $grid): void
     {
         $this->sessionGrids[$setting] = $grid;
+    }
+
+    public function applyAutomaticStrategyResolution(AutomaticStrategyResolution $resolution): void
+    {
+        foreach ($resolution->fields as $setting => $field) {
+            $this->applyResolvedGridField($setting, $field);
+        }
+    }
+
+    public function applyResolvedGridField(string $setting, ResolvedGridField $field): void
+    {
+        if ($field->grid !== null) {
+            $this->setGrid($setting, $field->grid);
+        }
+
+        if ($field->sessionGrid !== []) {
+            $this->setSessionGrid($setting, $field->sessionGrid);
+        }
+
+        if ($field->cellColorGrid !== []) {
+            $this->setCellColorGrid($setting, $field->cellColorGrid);
+        }
+
+        if ($field->cellOverrideColorGrid !== []) {
+            $this->setCellOverrideColorGrid($setting, $field->cellOverrideColorGrid);
+        }
+
+        if ($field->sessionCellColorGrid !== []) {
+            $this->setSessionCellColorGrid($setting, $field->sessionCellColorGrid);
+        }
+
+        if ($field->sessionCellOverrideColorGrid !== []) {
+            $this->setSessionCellOverrideColorGrid($setting, $field->sessionCellOverrideColorGrid);
+        }
+
+        foreach ($field->metadata as $key => $value) {
+            $this->setMetadata($setting, $key, $value);
+        }
     }
 
     public function getCellValue(string $setting, int $weekIndex, int $setIndex): mixed

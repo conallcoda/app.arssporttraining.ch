@@ -90,3 +90,29 @@ it('does not apply the category default template when editing an exercise', func
         ->assertSet('data.template', null)
         ->assertSet('data.config.settings', ['reps']);
 });
+
+it('auto-expands a generic preview week when sessions diverge', function () {
+    Livewire::test(ExerciseForm::class)
+        ->call('open', data: [
+            'id' => null,
+            'name' => 'Tempo Split Squat',
+            'config' => [
+                ...((new ExerciseConfig)->toArray()),
+                'settings' => ['reps'],
+                'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+                'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+                'preview' => [
+                    'weeks' => 1,
+                    'sessionsPerWeek' => 2,
+                    'measuredReps' => 1,
+                    'measuredWeight' => 50,
+                    'targetGoal' => 10,
+                ],
+                'overrides' => ['cells' => [], 'weeks' => []],
+            ],
+            'template' => null,
+            'category' => null,
+        ])
+        ->call('updateCellOverride', 0, 0, 'reps', 14, 1, false)
+        ->assertSet('effectiveExpandedWeeks', [0]);
+});

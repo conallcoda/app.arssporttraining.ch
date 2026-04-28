@@ -78,6 +78,23 @@ it('applies cell override to all sessions when applyToAll is true', function () 
     expect($overrides['cells'][2]['session'])->toBe(2);
 });
 
+it('removes stale session overrides beyond the current week session count', function () {
+    $config = buildCellTestConfig(8);
+    $config['preview']['sessionsPerWeek'] = 3;
+
+    $overrides = ['cells' => [
+        ['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['reps' => 10]],
+        ['week' => 0, 'session' => 1, 'set' => 0, 'data' => ['reps' => 11]],
+        ['week' => 0, 'session' => 2, 'set' => 0, 'data' => ['reps' => 12]],
+    ], 'weeks' => []];
+
+    $overrides = OverrideManager::updateCellOverride($overrides, $config, 5, 3, 0, 0, 'reps', 15, 0, true, null, 1);
+
+    expect($overrides['cells'])->toHaveCount(1);
+    expect($overrides['cells'][0]['session'])->toBe(0);
+    expect($overrides['cells'][0]['data']['reps'])->toBe(15);
+});
+
 it('computes default cell value via strategy orchestrator', function () {
     $config = buildCellTestConfig(8);
 

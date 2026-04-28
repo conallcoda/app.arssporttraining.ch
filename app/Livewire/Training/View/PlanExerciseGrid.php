@@ -379,7 +379,25 @@ class PlanExerciseGrid extends Component
             $this->lockedSessionsByWeek,
         );
 
+        $grid = $this->applyExplicitWeekSessionCounts($grid);
+
         return $this->clearLockedWeekHighlights($grid);
+    }
+
+    #[Computed]
+    public function effectiveExpandedWeeks(): array
+    {
+        $expanded = collect($this->expandedWeeks)
+            ->map(fn (mixed $week): int => (int) $week)
+            ->all();
+
+        foreach (range(0, $this->previewGrid->weekCount - 1) as $week) {
+            if ($this->weekHasSessionDivergence($this->previewGrid, $week)) {
+                $expanded[] = $week;
+            }
+        }
+
+        return array_values(array_unique($expanded));
     }
 
     /** @return array{cells: array, weeks: array} */
@@ -509,6 +527,7 @@ class PlanExerciseGrid extends Component
             $session,
             $applyToAll,
             $effectiveDefault,
+            $this->sessionCountForWeek($weekIndex),
         );
 
         $this->saveOverrides($overrides);
@@ -575,7 +594,7 @@ class PlanExerciseGrid extends Component
         $baseOverrides = $this->getBaseGridOverrides();
         $measuredData = $this->getPlanMeasuredData();
 
-        return ExercisePreviewBuilder::build(
+        $grid = ExercisePreviewBuilder::build(
             $effectiveConfig,
             $measuredData,
             $this->weeks,
@@ -588,6 +607,8 @@ class PlanExerciseGrid extends Component
             $this->weekSessionDates,
             $this->lockedSessionsByWeek,
         );
+
+        return $this->applyExplicitWeekSessionCounts($grid);
     }
 
     public function resetOverrides(): void
@@ -793,6 +814,60 @@ class PlanExerciseGrid extends Component
         }
 
         return null;
+    }
+
+    protected function sessionCountForWeek(int $weekIndex): int
+    {
+        $explicitSessions = (int) ($this->weekSessions[$weekIndex] ?? 0);
+        $datedSessions = count($this->weekSessionDates[$weekIndex] ?? []);
+        $lockedSessions = count($this->lockedSessionsByWeek[$weekIndex] ?? []);
+
+        if ($explicitSessions > 0 || $datedSessions > 0 || $lockedSessions > 0) {
+            return max($explicitSessions, $datedSessions, $lockedSessions, 1);
+        }
+
+        return max($this->sessionsPerWeek, 1);
+    }
+
+    protected function applyExplicitWeekSessionCounts(PreviewGrid $grid): PreviewGrid
+    {
+        foreach (range(0, $grid->weekCount - 1) as $week) {
+            $grid->weekSessionCounts[$week] = $this->sessionCountForWeek($week);
+        }
+
+        return $grid;
+    }
+
+    protected function weekHasSessionDivergence(PreviewGrid $grid, int $week): bool
+    {
+        $sessionCount = $grid->weekSessionCounts[$week] ?? $this->sessionCountForWeek($week);
+
+        if ($sessionCount <= 1) {
+            return false;
+        }
+
+        foreach ($grid->rows as $row) {
+            if ($row->lastSessionOnly) {
+                continue;
+            }
+
+            foreach (array_keys($row->cells[$week] ?? []) as $set) {
+                $baselineValue = $row->getCellValue($week, (int) $set, 0);
+                $baselineOverride = $row->isCellOverriddenAt($week, (int) $set, 0);
+
+                for ($session = 1; $session < $sessionCount; $session++) {
+                    if ($row->getCellValue($week, (int) $set, $session) !== $baselineValue) {
+                        return true;
+                    }
+
+                    if ($row->isCellOverriddenAt($week, (int) $set, $session) !== $baselineOverride) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     protected function putCellOverride(array $gridOverrides, int $week, int $session, int $set, string $field, mixed $value): array

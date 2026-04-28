@@ -91,7 +91,7 @@
                             :collapseWeeks="false"
                             :weekLabels="$weekLabels"
                             :weekSessions="$weekSessions"
-                            :expandedWeeks="$expandedWeeks"
+                            :expandedWeeks="$this->effectiveExpandedWeeks"
                             :lockedSessionsByWeek="$lockedSessionsByWeek"
                             :sessionLabels="$sessionLabels"
                         />

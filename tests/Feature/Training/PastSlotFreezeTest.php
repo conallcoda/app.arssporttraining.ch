@@ -48,14 +48,13 @@ it('does not rematerialize an already-compiled past slot even when forced', func
     ])->fresh();
 
     $originalCompiledAt = $slot->compiled_at;
-    $originalReps = $slot->exercises()
+    $originalRepsValue = $slot->exercises()
         ->with('sets.values')
         ->firstOrFail()
         ->sets
         ->firstOrFail()
         ->values
-        ->firstWhere('setting_key', 'reps')
-        ?->planned_int_value;
+        ->firstWhere('setting_key', 'reps');
 
     $config = $program->config;
     $config->setDefaultExerciseOverrides(
@@ -70,16 +69,17 @@ it('does not rematerialize an already-compiled past slot even when forced', func
     app(TrainingSessionMaterializer::class)->materialize($slot->fresh(), force: true);
 
     $slot = $slot->fresh();
-    $reps = $slot->exercises()
+    $repsValue = $slot->exercises()
         ->with('sets.values')
         ->firstOrFail()
         ->sets
         ->firstOrFail()
         ->values
-        ->firstWhere('setting_key', 'reps')
-        ?->planned_int_value;
+        ->firstWhere('setting_key', 'reps');
 
-    expect($originalReps)->toBe(5)
-        ->and($reps)->toBe(5)
+    expect($originalRepsValue?->planned_value_type)->toBe('string')
+        ->and($originalRepsValue?->planned_string_value)->toBe('5')
+        ->and($repsValue?->planned_value_type)->toBe('string')
+        ->and($repsValue?->planned_string_value)->toBe('5')
         ->and($slot->compiled_at?->equalTo($originalCompiledAt))->toBeTrue();
 });
