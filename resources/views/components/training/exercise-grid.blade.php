@@ -185,7 +185,7 @@
                                                 $cellOverridden = $row->isCellOverriddenAt($week, $set, $session);
                                             @endphp
                                             @if ($editable && ! $sessionLocked && $row->isCellEditable($week, $set) && $cellValue !== '-')
-                                                <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $row->resolveCellColor($week, $set, $cellOverridden) }}"
+                                                <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $row->resolveCellColor($week, $set, $cellOverridden, $session) }}"
                                                     x-data="editable_cell"
                                                     data-msg-invalid-number="{{ __('Please enter a valid number') }}"
                                                     data-msg-invalid-value="{{ __('Please enter a valid value') }}"
@@ -202,7 +202,7 @@
                                                     <x-training.exercise-grid-input :meta="$row->inputMeta" :value="$cellValue" size="sm" />
                                                 </td>
                                             @else
-                                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $row->resolveCellColor($week, $set, false) }} {{ $sessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
+                                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $row->resolveCellColor($week, $set, false, $session) }} {{ $sessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
                                                     {{ $cellValue }}
                                                 </td>
                                             @endif
@@ -591,7 +591,7 @@
                                             $cellOverridden = $row->isCellOverriddenAt($week, $set, $session);
                                         @endphp
                                         @if ($editable && ! $sessionLocked && $row->isCellEditable($week, $set) && $cellValue !== '-')
-                                                <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $row->resolveCellColor($week, $set, $cellOverridden) }}"
+                                                <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $row->resolveCellColor($week, $set, $cellOverridden, $session) }}"
                                                 x-data="editable_cell"
                                             data-msg-invalid-number="{{ __('Please enter a valid number') }}"
                                             data-msg-invalid-value="{{ __('Please enter a valid value') }}"
@@ -608,7 +608,7 @@
                                                 <x-training.exercise-grid-input :meta="$row->inputMeta" :value="$cellValue" size="sm" />
                                             </td>
                                         @else
-                                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $row->resolveCellColor($week, $set, false) }} {{ $sessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
+                                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $row->resolveCellColor($week, $set, false, $session) }} {{ $sessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
                                                 {{ $cellValue }}
                                             </td>
                                         @endif

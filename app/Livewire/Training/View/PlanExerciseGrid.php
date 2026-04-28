@@ -734,13 +734,15 @@ class PlanExerciseGrid extends Component
             }
 
             foreach ($grid->rows as $row) {
-                foreach ($row->cells[$week] ?? [] as $set => $value) {
-                    if ($value === null || $value === '' || $value === '-' || $value === '—') {
+                foreach ($weekLockedSessions as $session => $isLocked) {
+                    if (! $isLocked) {
                         continue;
                     }
 
-                    foreach ($weekLockedSessions as $session => $isLocked) {
-                        if (! $isLocked) {
+                    foreach ($row->cells[$week] ?? [] as $set => $_value) {
+                        $value = $row->getCellValue($week, (int) $set, $session);
+
+                        if ($value === null || $value === '' || $value === '-' || $value === '—') {
                             continue;
                         }
 

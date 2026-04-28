@@ -6,6 +6,7 @@ use App\Data\Athlete\Metric\MetricEnum;
 use App\Data\Athlete\Metric\Metrics\HeartRateMetric;
 use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
 use App\Data\Exercise\ExerciseSetting;
+use App\Data\Exercise\Preview\CellInputMeta;
 use App\Data\Exercise\Preview\GridOverrides;
 use App\Data\Exercise\Preview\GridState;
 use App\Data\Exercise\Preview\StrategyOrchestrator;
@@ -123,6 +124,8 @@ class TrainingSessionCompiler
                         if ($this->isBlankValue($value)) {
                             continue;
                         }
+
+                        $value = $this->normalizeCompiledValue($setting, $value, $config);
 
                         $values[] = new CompiledTrainingSetValue(
                             settingKey: $setting,
@@ -332,15 +335,54 @@ class TrainingSessionCompiler
         return $settingClass ? $settingClass::resolveUnitLabel($config) : null;
     }
 
+    private function normalizeCompiledValue(string $setting, mixed $value, array $config): mixed
+    {
+        if ($setting !== 'duration') {
+            return $value;
+        }
+
+        $unit = $config['unit'] ?? 'seconds';
+
+        if ($unit === 'mm:ss' && is_string($value) && str_contains($value, ':')) {
+            [$minutes, $seconds] = array_pad(explode(':', $value, 2), 2, '0');
+
+            return ((int) $minutes * 60) + (int) $seconds;
+        }
+
+        return $value;
+    }
+
     private function resolveValueType(string $setting, mixed $value): string
     {
-        return match ($setting) {
-            'tempo', 'pace', 'note' => 'string',
-            'reps', 'rest', 'watts', 'heartRate', 'heartRateZone' => 'int',
-            'weight', 'distance' => 'decimal',
-            'duration' => is_numeric($value) ? 'int' : 'string',
-            default => is_array($value) ? 'json' : (is_string($value) ? 'string' : (is_float($value) ? 'decimal' : 'int')),
-        };
+        if (is_array($value)) {
+            return 'json';
+        }
+
+        $enum = ExerciseSetting::tryFrom($setting);
+        $settingClass = $enum?->settingClass();
+        $inputMeta = $settingClass ? $settingClass::inputMeta() : new CellInputMeta;
+
+        if (($inputMeta->inputType ?? 'text') === 'text') {
+            if ($setting === 'duration' && is_numeric($value)) {
+                return 'int';
+            }
+
+            return 'string';
+        }
+
+        if (is_float($value)) {
+            return 'decimal';
+        }
+
+        if (is_string($value) && str_contains($value, '.')) {
+            return is_numeric($value) ? 'decimal' : 'string';
+        }
+
+        if (is_numeric($value)) {
+            return 'int';
+        }
+
+        return 'string';
     }
 
     /**

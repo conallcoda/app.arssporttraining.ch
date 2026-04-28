@@ -13,6 +13,9 @@ class GridState
     /** @var array<string, array<int, array<int, mixed>>> */
     private array $grids = [];
 
+    /** @var array<string, array<int, array<int, array<int, mixed>>>> */
+    private array $sessionGrids = [];
+
     /** @var array<string, array<string, mixed>> */
     private array $metadata = [];
 
@@ -31,6 +34,12 @@ class GridState
 
     /** @var array<string, array<int, array<int, string>>> */
     private array $cellOverrideColorGrids = [];
+
+    /** @var array<string, array<int, array<int, array<int, string>>>> */
+    private array $sessionCellColorGrids = [];
+
+    /** @var array<string, array<int, array<int, array<int, string>>>> */
+    private array $sessionCellOverrideColorGrids = [];
 
     /** @param array<int, int> $setsPerWeek */
     public function setSetsPerWeek(array $setsPerWeek): void
@@ -73,6 +82,12 @@ class GridState
     public function hasGrid(string $setting): bool
     {
         return isset($this->grids[$setting]);
+    }
+
+    /** @param array<int, array<int, array<int, mixed>>> $grid */
+    public function setSessionGrid(string $setting, array $grid): void
+    {
+        $this->sessionGrids[$setting] = $grid;
     }
 
     public function getCellValue(string $setting, int $weekIndex, int $setIndex): mixed
@@ -118,6 +133,14 @@ class GridState
 
             if ($overrideValue !== null) {
                 return $overrideValue;
+            }
+        }
+
+        if ($sessionIndex !== null) {
+            $sessionValue = $this->sessionGrids[$setting][$weekIndex][$sessionIndex][$setIndex] ?? null;
+
+            if ($sessionValue !== null) {
+                return $sessionValue;
             }
         }
 
@@ -192,6 +215,18 @@ class GridState
         $this->cellOverrideColorGrids[$field] = $colorGrid;
     }
 
+    /** @param array<int, array<int, array<int, string>>> $colorGrid */
+    public function setSessionCellColorGrid(string $field, array $colorGrid): void
+    {
+        $this->sessionCellColorGrids[$field] = $colorGrid;
+    }
+
+    /** @param array<int, array<int, array<int, string>>> $colorGrid */
+    public function setSessionCellOverrideColorGrid(string $field, array $colorGrid): void
+    {
+        $this->sessionCellOverrideColorGrids[$field] = $colorGrid;
+    }
+
     public function getCellColor(string $field, int $week, int $set): ?string
     {
         return $this->cellColorGrids[$field][$week][$set] ?? null;
@@ -200,6 +235,16 @@ class GridState
     public function getCellOverrideColor(string $field, int $week, int $set): ?string
     {
         return $this->cellOverrideColorGrids[$field][$week][$set] ?? null;
+    }
+
+    public function getSessionCellColor(string $field, int $week, int $session, int $set): ?string
+    {
+        return $this->sessionCellColorGrids[$field][$week][$session][$set] ?? null;
+    }
+
+    public function getSessionCellOverrideColor(string $field, int $week, int $session, int $set): ?string
+    {
+        return $this->sessionCellOverrideColorGrids[$field][$week][$session][$set] ?? null;
     }
 
     public function getCellColorByValue(string $field, mixed $value): ?string

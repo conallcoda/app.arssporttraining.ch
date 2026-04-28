@@ -33,8 +33,11 @@ class NorwegianIntensityStrategy implements DefinesEditability
         $zoneCellColors = new HeartRateZoneCellColors;
         $setsPerWeek = $state->getSetsPerWeek();
         $heartRateGrid = [];
+        $heartRateSessionGrid = [];
         $colorGrid = [];
         $overrideColorGrid = [];
+        $sessionColorGrid = [];
+        $sessionOverrideColorGrid = [];
 
         for ($week = 0; $week < $weeks; $week++) {
             $setCount = $setsPerWeek[$week];
@@ -60,8 +63,38 @@ class NorwegianIntensityStrategy implements DefinesEditability
         }
 
         $state->setGrid('heartRate', $heartRateGrid);
+        foreach (($state->getOverrides()?->cells ?? []) as $override) {
+            if (! isset($override->data['heartRateZone'])) {
+                continue;
+            }
+
+            $week = $override->week;
+            $session = $override->session;
+            $set = $override->set;
+            $zone = $state->getResolvedCellValue('heartRateZone', $week, $set, $session) ?? '2';
+
+            $heartRateSessionGrid[$week][$session][$set] = $tableClass::getRangeForZoneSpec(
+                (string) $zone,
+                $this->maxHR,
+                $this->iatPercent,
+            );
+
+            $zoneOverridden = $state->isCellOverridden('heartRateZone', $week, $set, $session);
+            $color = $zoneOverridden
+                ? $zoneCellColors->cellOverrideColor('heartRateZone', $zone)
+                : $zoneCellColors->cellColor('heartRateZone', $zone);
+
+            if ($color !== null) {
+                $sessionColorGrid[$week][$session][$set] = $color;
+                $sessionOverrideColorGrid[$week][$session][$set] = $color;
+            }
+        }
+
+        $state->setSessionGrid('heartRate', $heartRateSessionGrid);
         $state->setCellColorGrid('heartRate', $colorGrid);
         $state->setCellOverrideColorGrid('heartRate', $overrideColorGrid);
+        $state->setSessionCellColorGrid('heartRate', $sessionColorGrid);
+        $state->setSessionCellOverrideColorGrid('heartRate', $sessionOverrideColorGrid);
 
         return $heartRateGrid;
     }

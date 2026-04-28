@@ -27,6 +27,10 @@ class PreviewGridRow extends AbstractData
         public array $cellColorMap = [],
         /** @var array<int, array<int, string>>|array<int, string> */
         public array $cellOverrideColorMap = [],
+        /** @var array<int, array<int, array<int, string>>> */
+        public array $sessionCellColorMap = [],
+        /** @var array<int, array<int, array<int, string>>> */
+        public array $sessionCellOverrideColorMap = [],
     ) {}
 
     public function isCellEditable(int $week, ?int $set = null): bool
@@ -56,9 +60,19 @@ class PreviewGridRow extends AbstractData
         return $this->overrides[$week][$set] ?? false;
     }
 
-    public function resolveCellColor(int $week, ?int $set = null, bool $overridden = false): string
+    public function resolveCellColor(int $week, ?int $set = null, bool $overridden = false, ?int $session = null): string
     {
         if ($overridden) {
+            if ($session !== null) {
+                $sessionOverrideColor = $set !== null
+                    ? ($this->sessionCellOverrideColorMap[$week][$session][$set] ?? null)
+                    : null;
+
+                if ($sessionOverrideColor !== null) {
+                    return $sessionOverrideColor;
+                }
+            }
+
             $overrideColor = $set !== null
                 ? ($this->cellOverrideColorMap[$week][$set] ?? null)
                 : ($this->cellOverrideColorMap[$week] ?? null);
@@ -68,6 +82,16 @@ class PreviewGridRow extends AbstractData
             }
 
             return $this->overrideColor;
+        }
+
+        if ($session !== null) {
+            $sessionCellColor = $set !== null
+                ? ($this->sessionCellColorMap[$week][$session][$set] ?? null)
+                : null;
+
+            if ($sessionCellColor !== null) {
+                return $sessionCellColor;
+            }
         }
 
         $cellColor = $set !== null

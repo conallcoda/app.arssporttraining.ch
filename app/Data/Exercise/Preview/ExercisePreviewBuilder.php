@@ -4,6 +4,7 @@ namespace App\Data\Exercise\Preview;
 
 use App\Data\Exercise\ExerciseSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
+use App\Data\Exercise\Strategies\HeartRate\HeartRateZoneCellColors;
 use Coda\Cms\Support\ColorPalette;
 use Illuminate\Support\Str;
 
@@ -187,7 +188,7 @@ class ExercisePreviewBuilder
 
         $inputMeta = self::resolveInputMeta($setting, $config);
         $editableMap = self::buildEditableMap($setting, $weeks, $state->maxSets(), $state, $applicableWeeks);
-        [$cellColorMap, $cellOverrideColorMap] = self::buildCellColorMaps($setting, $cells, $state);
+        [$cellColorMap, $cellOverrideColorMap, $sessionCellColorMap, $sessionCellOverrideColorMap] = self::buildCellColorMaps($setting, $cells, $sessionCells, $state);
 
         return new PreviewGridRow(
             field: $setting,
@@ -202,6 +203,8 @@ class ExercisePreviewBuilder
             editableMap: $editableMap,
             cellColorMap: $cellColorMap,
             cellOverrideColorMap: $cellOverrideColorMap,
+            sessionCellColorMap: $sessionCellColorMap,
+            sessionCellOverrideColorMap: $sessionCellOverrideColorMap,
         );
     }
 
@@ -542,12 +545,19 @@ class ExercisePreviewBuilder
     }
 
     /**
-     * @return array{array<int, array<int, string>>, array<int, array<int, string>>}
+     * @return array{
+     *     array<int, array<int, string>>,
+     *     array<int, array<int, string>>,
+     *     array<int, array<int, array<int, string>>>,
+     *     array<int, array<int, array<int, string>>>
+     * }
      */
-    private static function buildCellColorMaps(string $setting, array $cells, GridState $state): array
+    private static function buildCellColorMaps(string $setting, array $cells, array $sessionCells, GridState $state): array
     {
         $colorMap = [];
         $overrideColorMap = [];
+        $sessionColorMap = [];
+        $sessionOverrideColorMap = [];
 
         foreach ($cells as $week => $weekCells) {
             foreach ($weekCells as $set => $value) {
@@ -567,7 +577,68 @@ class ExercisePreviewBuilder
             }
         }
 
-        return [$colorMap, $overrideColorMap];
+        foreach ($sessionCells as $week => $sessions) {
+            foreach ($sessions as $session => $weekCells) {
+                foreach ($weekCells as $set => $value) {
+                    $sessionDerivedColor = self::resolveSessionDerivedColor($setting, $state, $week, $session, $set);
+                    $sessionDerivedOverrideColor = self::resolveSessionDerivedOverrideColor($setting, $state, $week, $session, $set);
+
+                    $color = $state->getSessionCellColor($setting, $week, $session, $set)
+                        ?? $sessionDerivedColor
+                        ?? $state->getCellColor($setting, $week, $set)
+                        ?? $state->getCellColorByValue($setting, $value);
+
+                    if ($color !== null) {
+                        $sessionColorMap[$week][$session][$set] = $color;
+                    }
+
+                    $overrideColor = $state->getSessionCellOverrideColor($setting, $week, $session, $set)
+                        ?? $sessionDerivedOverrideColor
+                        ?? $state->getCellOverrideColor($setting, $week, $set)
+                        ?? $state->getCellOverrideColorByValue($setting, $value);
+
+                    if ($overrideColor !== null) {
+                        $sessionOverrideColorMap[$week][$session][$set] = $overrideColor;
+                    }
+                }
+            }
+        }
+
+        return [$colorMap, $overrideColorMap, $sessionColorMap, $sessionOverrideColorMap];
+    }
+
+    private static function resolveSessionDerivedColor(string $setting, GridState $state, int $week, int $session, int $set): ?string
+    {
+        if ($setting !== 'heartRate') {
+            return null;
+        }
+
+        $zone = $state->getResolvedCellValue('heartRateZone', $week, $set, $session);
+
+        if ($zone === null) {
+            return null;
+        }
+
+        return (new HeartRateZoneCellColors)->cellColor('heartRateZone', $zone);
+    }
+
+    private static function resolveSessionDerivedOverrideColor(string $setting, GridState $state, int $week, int $session, int $set): ?string
+    {
+        if ($setting !== 'heartRate') {
+            return null;
+        }
+
+        $zone = $state->getResolvedCellValue('heartRateZone', $week, $set, $session);
+
+        if ($zone === null) {
+            return null;
+        }
+
+        $zoneColors = new HeartRateZoneCellColors;
+
+        return $state->isCellOverridden('heartRateZone', $week, $set, $session)
+            ? $zoneColors->cellOverrideColor('heartRateZone', $zone)
+            : $zoneColors->cellColor('heartRateZone', $zone);
     }
 
     /**

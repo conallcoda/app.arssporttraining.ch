@@ -357,8 +357,11 @@ class ProgramDetails extends Component
                 }
 
                 $rawValue = $this->extractPlannedValue($valueRow);
-                $values[] = $this->formatSessionValue($setting, $rawValue);
-                $valueClasses[] = $this->opaqueCellClass($setting, $rawValue, $rowColorName);
+                $zoneValue = $setting === 'heartRate'
+                    ? $this->extractPlannedValue($set->values->firstWhere('setting_key', 'heartRateZone'))
+                    : null;
+                $values[] = $this->formatSessionValue($setting, $rawValue, $valueRow);
+                $valueClasses[] = $this->opaqueCellClass($setting, $rawValue, $rowColorName, $zoneValue);
             }
 
             if (collect($values)->every(fn (?string $value) => $value === null)) {
@@ -396,13 +399,14 @@ class ProgramDetails extends Component
         ];
     }
 
-    protected function formatSessionValue(string $setting, mixed $value): ?string
+    protected function formatSessionValue(string $setting, mixed $value, ?TrainingProgramSlotSetValue $valueRow = null): ?string
     {
         if ($this->isBlankValue($value)) {
             return null;
         }
 
         return match ($setting) {
+            'duration' => $this->formatDurationValue($value, $valueRow?->unit),
             'heartRateZone' => 'Zone '.trim((string) $value),
             default => $this->normalizeScalar($value),
         };
@@ -428,10 +432,16 @@ class ProgramDetails extends Component
             : 'bg-zinc-300 dark:bg-zinc-900';
     }
 
-    protected function opaqueCellClass(string $setting, mixed $value, ?string $rowColor): string
+    protected function opaqueCellClass(string $setting, mixed $value, ?string $rowColor, mixed $zoneValue = null): string
     {
-        if ($setting === 'heartRateZone') {
-            $zone = trim((string) $value);
+        $isDerivedHeartRateRange = $setting === 'heartRate'
+            && is_string($value)
+            && str_contains($value, '-')
+            && $zoneValue !== null
+            && $zoneValue !== '';
+
+        if ($setting === 'heartRateZone' || $isDerivedHeartRateRange) {
+            $zone = trim((string) ($setting === 'heartRateZone' ? $value : $zoneValue));
 
             return self::OPAQUE_ZONE_COLORS[$zone] ?? $this->opaqueRowLabelClass($rowColor);
         }
@@ -454,6 +464,19 @@ class ProgramDetails extends Component
         }
 
         return trim((string) $value);
+    }
+
+    protected function formatDurationValue(mixed $value, ?string $unit): string
+    {
+        if ($unit === 'mm:ss' && is_numeric($value)) {
+            $totalSeconds = (int) $value;
+            $minutes = intdiv($totalSeconds, 60);
+            $seconds = $totalSeconds % 60;
+
+            return sprintf('%d:%02d', $minutes, $seconds);
+        }
+
+        return $this->normalizeScalar($value);
     }
 
     protected function extractPlannedValue(?TrainingProgramSlotSetValue $valueRow): mixed
