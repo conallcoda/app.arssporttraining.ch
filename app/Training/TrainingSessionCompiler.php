@@ -93,10 +93,6 @@ class TrainingSessionCompiler
                 $programExerciseId = (int) $exercise->pivot->id;
                 $resolvedOverrides = $programConfig->resolveExercise($exercise->config, $programExerciseId, $slot->user_id);
 
-                if (! $this->exerciseAppliesOnDate($resolvedOverrides->effectiveStartsAtDate, $scheduledDate)) {
-                    return null;
-                }
-
                 if ($resolvedOverrides->disabled) {
                     return null;
                 }
@@ -307,15 +303,6 @@ class TrainingSessionCompiler
             measuredWeight: $metric->measuredWeight,
             targetGoal: (int) $targetGoal,
         );
-    }
-
-    private function exerciseAppliesOnDate(?string $startsAtDate, string $scheduledDate): bool
-    {
-        if ($startsAtDate === null || $startsAtDate === '') {
-            return true;
-        }
-
-        return $scheduledDate >= $startsAtDate;
     }
 
     private function resolveSessionValue(GridState $state, array $config, string $setting, int $weekIndex, int $setIndex, int $sessionIndex): mixed

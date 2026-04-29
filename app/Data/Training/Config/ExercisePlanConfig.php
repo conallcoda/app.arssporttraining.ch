@@ -306,6 +306,33 @@ class ExercisePlanConfig extends AbstractConfig
         }
     }
 
+    public function clearStartsAtDates(): bool
+    {
+        $changed = false;
+
+        foreach (array_keys($this->exercises) as $programExerciseId) {
+            $overrides = $this->defaultExerciseOverrides((int) $programExerciseId);
+
+            if ($overrides->startsAtDate !== null) {
+                $overrides->startsAtDate = null;
+                $changed = true;
+            }
+        }
+
+        foreach ($this->allUserExerciseOverrides() as $userId => $overridesByExercise) {
+            foreach (array_keys($overridesByExercise) as $programExerciseId) {
+                $overrides = $this->userExerciseOverrides((int) $userId, (int) $programExerciseId);
+
+                if ($overrides->startsAtDate !== null) {
+                    $overrides->startsAtDate = null;
+                    $changed = true;
+                }
+            }
+        }
+
+        return $changed;
+    }
+
     public function hasDefaultOverrides(): bool
     {
         return ! empty($this->exercises);

@@ -10,7 +10,7 @@ return [
     | Set to null to use the actual current date.
     |
     */
-    'dashboard_today_override' => null,
+    'dashboard_today_override' => '30.04.2026',
 
     /*
     |--------------------------------------------------------------------------
@@ -21,5 +21,6 @@ return [
     | readiness has been filled in. Set to false to always show training.
     |
     */
-    'require_readiness_for_training_visibility' => false,
+    'require_readiness_for_training_visibility' => true,
+
 ];

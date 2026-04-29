@@ -1,4 +1,4 @@
-# Training Planning Refactor Handoff
+ # Training Planning Refactor Handoff
 
 Date: 2026-04-28
 
@@ -107,13 +107,23 @@ Goal:
 - Blade / Livewire views should render prepared view data
 - business logic should live in shared resolvers/domain services
 
+### Phase 8
+
+Consolidate canonical resolved read models.
+
+Goal:
+
+- remove duplicate read-time seams that still derive the same truth in multiple places
+- make session-count, override-resolution, and prepared view data flow from one canonical source
+- leave later automatic-strategy/value-contract work with cleaner inputs and fewer UI-specific mutations
+
 ## Current Status
 
-Current phase: **Phase 2**
+Current phase: **Phase 8**
 
-Phase 1 is substantially complete for the main mixed-week/session-truth issues that triggered this refactor.
+Phases 1 through 7 have landed enough implementation that the next highest-value work is consolidation rather than more broad surface-area expansion.
 
-Phase 2 has started and has an initial shared automatic-strategy seam in place, but it is not finished.
+Phase 2 is still not fully complete conceptually, because preview and compilation still need a stronger shared resolved automatic-output contract, but the codebase has also advanced into Phase 7/8 style rendering and read-model cleanup work.
 
 ## Completed Work
 
@@ -408,6 +418,16 @@ Important direction:
 
 - views should consume prepared resolved view data
 - rendering should not be the place where prescription logic is re-derived
+
+## Phase 8
+
+Consolidate canonical read models and remove duplicate read-time seams.
+
+Important direction:
+
+- session counts should be computed once and carried through the preview/view model path
+- resolved override data should be read through one aggregate seam instead of piecemeal helper calls
+- Livewire components should orchestrate prepared data, not own formatting/color/label policy that can live in dedicated builders
 
 ## Files Most Important To Understand Next
 

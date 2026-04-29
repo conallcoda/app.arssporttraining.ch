@@ -5,9 +5,9 @@ namespace Database\Seeders;
 use App\Models\Athlete\MetricSubmission;
 use App\Models\Athlete\MetricValue;
 use App\Models\Exercise\Exercise;
-use App\Models\Exercise\ExerciseExternal;
-use App\Models\Exercise\ExercisePlan;
-use App\Models\Exercise\ExerciseProgram;
+    use App\Models\Exercise\ExerciseExternal;
+    use App\Models\Exercise\ExercisePlan;
+    use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramTypeEnum;
 use App\Models\Exercise\ExerciseTemplate;
 use App\Models\Tag;
@@ -51,6 +51,7 @@ class DatabaseImportSeeder extends Seeder
                 $this->seedTrainingProgramBlocks();
                 $this->seedTrainingProgramSlots();
                 $this->seedMetricSubmissions();
+                $this->normalizeLegacyStartsAtDates();
             });
 
             DB::statement('SET FOREIGN_KEY_CHECKS=1');
@@ -572,6 +573,46 @@ class DatabaseImportSeeder extends Seeder
             });
 
         $this->command->info("Materialized {$count} training program slots.");
+    }
+
+    private function normalizeLegacyStartsAtDates(): void
+    {
+        $normalizedPrograms = 0;
+        $normalizedPlans = 0;
+
+        ExerciseProgram::query()
+            ->orderBy('id')
+            ->chunkById(100, function ($programs) use (&$normalizedPrograms): void {
+                foreach ($programs as $program) {
+                    $config = $program->config;
+
+                    if (! $config->clearStartsAtDates()) {
+                        continue;
+                    }
+
+                    $program->config = $config;
+                    $program->saveQuietly();
+                    $normalizedPrograms++;
+                }
+            });
+
+        ExercisePlan::query()
+            ->orderBy('id')
+            ->chunkById(100, function ($plans) use (&$normalizedPlans): void {
+                foreach ($plans as $plan) {
+                    $config = $plan->config;
+
+                    if (! $config->clearStartsAtDates()) {
+                        continue;
+                    }
+
+                    $plan->config = $config;
+                    $plan->saveQuietly();
+                    $normalizedPlans++;
+                }
+            });
+
+        $this->command->info("Normalized legacy starts-at dates for {$normalizedPrograms} exercise programs and {$normalizedPlans} exercise plans.");
     }
 
     private function resolveImportPath(): string

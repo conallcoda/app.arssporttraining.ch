@@ -28,15 +28,16 @@ class GridOverrides extends AbstractData
     public function hasCellOverride(int $week, int $set, string $field, ?int $session = null): bool
     {
         if ($session !== null) {
-            foreach ($this->cells as $override) {
-                if (
-                    $override->week === $week
-                    && $override->set === $set
-                    && $override->session === $session
-                    && isset($override->data[$field])
-                ) {
-                    return true;
-                }
+            $override = $this->findExactCellOverride($week, $session, $set);
+
+            if ($override !== null) {
+                return isset($override->data[$field]);
+            }
+
+            if ($session > 0) {
+                $legacySessionZeroOverride = $this->findExactCellOverride($week, 0, $set);
+
+                return isset($legacySessionZeroOverride?->data[$field]);
             }
 
             return false;
@@ -59,15 +60,16 @@ class GridOverrides extends AbstractData
     public function getCellOverrideValue(int $week, int $set, string $field, ?int $session = null): mixed
     {
         if ($session !== null) {
-            foreach ($this->cells as $override) {
-                if (
-                    $override->week === $week
-                    && $override->set === $set
-                    && $override->session === $session
-                    && isset($override->data[$field])
-                ) {
-                    return $override->data[$field];
-                }
+            $override = $this->findExactCellOverride($week, $session, $set);
+
+            if ($override !== null) {
+                return $override->data[$field] ?? null;
+            }
+
+            if ($session > 0) {
+                $legacySessionZeroOverride = $this->findExactCellOverride($week, 0, $set);
+
+                return $legacySessionZeroOverride?->data[$field] ?? null;
             }
 
             return null;
@@ -109,6 +111,17 @@ class GridOverrides extends AbstractData
         foreach ($this->cells as $index => $override) {
             if ($override->week === $week && $override->session === $session && $override->set === $set) {
                 return $index;
+            }
+        }
+
+        return null;
+    }
+
+    private function findExactCellOverride(int $week, int $session, int $set): ?CellOverride
+    {
+        foreach ($this->cells as $override) {
+            if ($override->week === $week && $override->session === $session && $override->set === $set) {
+                return $override;
             }
         }
 

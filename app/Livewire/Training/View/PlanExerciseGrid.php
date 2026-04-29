@@ -13,6 +13,7 @@ use App\Data\Exercise\Preview\StrategyOrchestrator;
 use App\Data\Exercise\Settings\SetsSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Exercise\Strategies\Sets\DeloadSetsStrategy;
+use App\Data\Training\Config\ResolvedExerciseOverrides;
 use App\Data\Training\Config\EffectiveExerciseConfig;
 use App\Data\Training\Config\ExerciseOverrides;
 use App\Models\Exercise\Exercise;
@@ -142,12 +143,12 @@ class PlanExerciseGrid extends Component
 
     protected function getEffectiveStartsAtDate(): ?string
     {
-        return $this->getPlanConfig()->effectiveStartsAtDate($this->programExerciseId, $this->userId);
+        return null;
     }
 
     protected function getEffectiveConfig(): array
     {
-        return $this->resolveExerciseOverrides()->effectiveConfig;
+        return $this->resolvedExerciseOverrides->effectiveConfig;
     }
 
     protected function getBaseGridOverrides(): array
@@ -155,7 +156,7 @@ class PlanExerciseGrid extends Component
         $base = $this->getExerciseConfig();
 
         if ($this->userId !== null) {
-            $planOverrides = $this->resolveExerciseOverrides()->defaultOverrides;
+            $planOverrides = $this->resolvedExerciseOverrides->defaultOverrides;
 
             return EffectiveExerciseConfig::mergeGridOverrides($base->overrides, $planOverrides->gridOverrides);
         }
@@ -215,7 +216,7 @@ class PlanExerciseGrid extends Component
     #[Computed]
     public function isDisabled(): bool
     {
-        return $this->resolveExerciseOverrides()->disabled;
+        return $this->resolvedExerciseOverrides->disabled;
     }
 
     #[Computed]
@@ -244,7 +245,7 @@ class PlanExerciseGrid extends Component
         }
 
         $this->saveOverrides($overrides);
-        unset($this->isDisabled, $this->isDisabledByDefault, $this->configFingerprint, $this->previewGrid);
+        unset($this->isDisabled, $this->isDisabledByDefault, $this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides);
     }
 
     #[Computed]
@@ -348,9 +349,8 @@ class PlanExerciseGrid extends Component
             $this->weekSessionDates,
             $this->lockedSessionsByWeek,
             $historicalOverrides,
+            $this->resolvedWeekSessionCounts(),
         );
-
-        $grid = $this->applyExplicitWeekSessionCounts($grid);
 
         return $this->clearLockedWeekHighlights($grid);
     }
@@ -370,7 +370,7 @@ class PlanExerciseGrid extends Component
         $weeks = [];
 
         for ($week = 0; $week < $grid->weekCount; $week++) {
-            $sessionCount = $this->weekSessions[$week] ?? $grid->sessionsPerWeek;
+            $sessionCount = (int) ($grid->weekSessionCounts[$week] ?? 1);
             $rangeStart = $cumulativeSessionStart + 1;
             $rangeEnd = $cumulativeSessionStart + $sessionCount;
             $sessionNumbers = $sessionCount > 0 ? range($rangeStart, $rangeEnd) : [];
@@ -387,7 +387,7 @@ class PlanExerciseGrid extends Component
                 );
             } elseif ($sessionCount > 1) {
                 $collapsedMetaLines[] = '('.$sessionCount.' '.__('sessions').')';
-            } elseif ($this->weekSessions !== []) {
+            } elseif ($grid->weekSessionCounts !== []) {
                 $collapsedMetaLines[] = '('.$sessionCount.' '.__('session').')';
             }
 
@@ -425,7 +425,7 @@ class PlanExerciseGrid extends Component
     /** @return array{cells: array, weeks: array} */
     protected function getHistoricalGridOverrides(): array
     {
-        $resolvedOverrides = $this->resolveExerciseOverrides();
+        $resolvedOverrides = $this->resolvedExerciseOverrides;
         $planOverrides = $resolvedOverrides->defaultOverrides;
         $historicalOverrides = $planOverrides->historicalGridOverrides;
 
@@ -439,9 +439,15 @@ class PlanExerciseGrid extends Component
         return $historicalOverrides;
     }
 
-    protected function resolveExerciseOverrides(): \App\Data\Training\Config\ResolvedExerciseOverrides
+    #[Computed]
+    public function resolvedExerciseOverrides(): ResolvedExerciseOverrides
     {
         return $this->getPlanConfig()->resolveExercise($this->getExerciseConfig(), $this->programExerciseId, $this->userId);
+    }
+
+    protected function resolveExerciseOverrides(): ResolvedExerciseOverrides
+    {
+        return $this->resolvedExerciseOverrides;
     }
 
     #[Computed]
@@ -452,7 +458,7 @@ class PlanExerciseGrid extends Component
             ->all();
 
         foreach (range(0, $this->previewGrid->weekCount - 1) as $week) {
-            if ($this->weekHasSessionDivergence($this->previewGrid, $week)) {
+            if ($this->weekContainsHistoricalSession($week) || $this->weekHasSessionDivergence($this->previewGrid, $week)) {
                 $expanded[] = $week;
             }
         }
@@ -591,7 +597,7 @@ class PlanExerciseGrid extends Component
         );
 
         $this->saveOverrides($overrides);
-        unset($this->configFingerprint, $this->previewGrid);
+        unset($this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides);
     }
 
     public function updateWeekOverride(int $weekIndex, string $field, mixed $value): void
@@ -609,7 +615,7 @@ class PlanExerciseGrid extends Component
         );
 
         $this->saveOverrides($overrides);
-        unset($this->configFingerprint, $this->previewGrid);
+        unset($this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides);
     }
 
     public function copyWeek(int $sourceWeek, int $targetWeek): void
@@ -627,7 +633,7 @@ class PlanExerciseGrid extends Component
         );
 
         $this->saveOverrides($overrides);
-        unset($this->configFingerprint, $this->previewGrid);
+        unset($this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides);
     }
 
     public function copyWeekToAll(int $sourceWeek): void
@@ -645,7 +651,7 @@ class PlanExerciseGrid extends Component
 
         $overrides->gridOverrides = $gridOverrides;
         $this->saveOverrides($overrides);
-        unset($this->configFingerprint, $this->previewGrid);
+        unset($this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides);
     }
 
     protected function buildDefaultsGrid(): PreviewGrid
@@ -666,9 +672,11 @@ class PlanExerciseGrid extends Component
             $this->getEffectiveStartsAtDate(),
             $this->weekSessionDates,
             $this->lockedSessionsByWeek,
+            null,
+            $this->resolvedWeekSessionCounts(),
         );
 
-        return $this->applyExplicitWeekSessionCounts($grid);
+        return $grid;
     }
 
     public function resetOverrides(): void
@@ -677,13 +685,13 @@ class PlanExerciseGrid extends Component
         $overrides->gridOverrides = OverrideManager::reset();
 
         $this->saveOverrides($overrides);
-        unset($this->configFingerprint, $this->previewGrid);
+        unset($this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides);
     }
 
     #[On('plan-overrides-reset')]
     public function onPlanOverridesReset(): void
     {
-        unset($this->configFingerprint, $this->previewGrid);
+        unset($this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides);
     }
 
     public function openSettingsForm(?string $focusField = null): void
@@ -705,7 +713,7 @@ class PlanExerciseGrid extends Component
         $base = $this->getExerciseConfig();
 
         if ($this->userId !== null) {
-            return EffectiveExerciseConfig::resolve($base, $this->resolveExerciseOverrides()->defaultOverrides);
+            return EffectiveExerciseConfig::resolve($base, $this->resolvedExerciseOverrides->defaultOverrides);
         }
 
         return $base->toArray();
@@ -769,13 +777,12 @@ class PlanExerciseGrid extends Component
         }
 
         $this->saveOverrides($overrides);
-        unset($this->configFingerprint, $this->previewGrid, $this->settingBadges);
+        unset($this->configFingerprint, $this->previewGrid, $this->settingBadges, $this->resolvedExerciseOverrides);
     }
 
     protected function saveOverrides(ExerciseOverrides $overrides): void
     {
         $this->snapshotLockedWeeks($overrides, $this->previewGrid);
-        $this->applyFutureOnlyBoundary($overrides);
 
         $exercisePlan = $this->planType::findOrFail($this->exercisePlanId);
         $config = $exercisePlan->config;
@@ -839,36 +846,6 @@ class PlanExerciseGrid extends Component
         $overrides->gridOverrides = $this->stripLockedHistoryFromCurrentOverrides($overrides->gridOverrides);
     }
 
-    protected function applyFutureOnlyBoundary(ExerciseOverrides $overrides): void
-    {
-        $boundaryDate = $this->firstUnlockedSessionDate();
-
-        if ($boundaryDate === null) {
-            return;
-        }
-
-        if ($overrides->startsAtDate === null || $overrides->startsAtDate < $boundaryDate) {
-            $overrides->startsAtDate = $boundaryDate;
-        }
-    }
-
-    protected function firstUnlockedSessionDate(): ?string
-    {
-        foreach ($this->weekSessionDates as $weekIndex => $sessionDates) {
-            $lockedSessions = $this->lockedSessionsByWeek[$weekIndex] ?? [];
-
-            foreach ($sessionDates as $sessionIndex => $sessionDate) {
-                if (($lockedSessions[$sessionIndex] ?? false) || ! is_string($sessionDate) || $sessionDate === '') {
-                    continue;
-                }
-
-                return $sessionDate;
-            }
-        }
-
-        return null;
-    }
-
     protected function sessionCountForWeek(int $weekIndex): int
     {
         $explicitSessions = (int) ($this->weekSessions[$weekIndex] ?? 0);
@@ -920,13 +897,15 @@ class PlanExerciseGrid extends Component
         return $gridOverrides;
     }
 
-    protected function applyExplicitWeekSessionCounts(PreviewGrid $grid): PreviewGrid
+    protected function resolvedWeekSessionCounts(): array
     {
-        foreach (range(0, $grid->weekCount - 1) as $week) {
-            $grid->weekSessionCounts[$week] = $this->sessionCountForWeek($week);
+        $counts = [];
+
+        foreach (range(0, $this->weeks - 1) as $week) {
+            $counts[$week] = $this->sessionCountForWeek($week);
         }
 
-        return $grid;
+        return $counts;
     }
 
     protected function weekHasSessionDivergence(PreviewGrid $grid, int $week): bool
@@ -974,6 +953,12 @@ class PlanExerciseGrid extends Component
         }
 
         return false;
+    }
+
+    protected function weekContainsHistoricalSession(int $weekIndex): bool
+    {
+        return collect($this->lockedSessionsByWeek[$weekIndex] ?? [])
+            ->contains(static fn (mixed $locked): bool => (bool) $locked);
     }
 
     protected function putCellOverride(array $gridOverrides, int $week, int $session, int $set, string $field, mixed $value): array

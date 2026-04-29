@@ -80,3 +80,23 @@ it('copies mapped default and athlete-specific overrides from another config', f
         ->and($target->userExerciseOverrides(10, 200)->startsAtDate)->toBe('2026-02-01')
         ->and($target->userExerciseOverrides(10, 200)->gridOverrides['cells'][0]['data']['reps'] ?? null)->toBe(10);
 });
+
+it('clears starts-at dates from default and athlete-specific overrides', function () {
+    $config = ExercisePlanConfig::from([
+        'schedule' => ['weeks' => []],
+        'target' => ['measuredReps' => 1, 'measuredWeight' => 50, 'targetGoal' => 10],
+    ]);
+
+    $config->setDefaultExerciseOverrides(100, ExerciseOverrides::from([
+        'startsAtDate' => '2026-01-01',
+    ]));
+    $config->setUserExerciseOverrides(10, 100, ExerciseOverrides::from([
+        'startsAtDate' => '2026-01-02',
+    ]));
+
+    $changed = $config->clearStartsAtDates();
+
+    expect($changed)->toBeTrue()
+        ->and($config->defaultExerciseOverrides(100)->startsAtDate)->toBeNull()
+        ->and($config->userExerciseOverrides(10, 100)->startsAtDate)->toBeNull();
+});

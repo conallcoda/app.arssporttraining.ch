@@ -18,7 +18,7 @@ class NorwegianIntensityStrategy implements DefinesEditability
 
     public function isEditable(string $field, int $week, int $set, GridState $state): bool
     {
-        return $field !== 'heartRate';
+        return true;
     }
 
     /** @return array<int, array<int, string>>|null */

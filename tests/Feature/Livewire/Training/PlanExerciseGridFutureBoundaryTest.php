@@ -11,7 +11,7 @@ use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
-it('applies settings changes only from the first unlocked session onward', function () {
+it('preserves locked session history while applying settings changes to future sessions without a persisted boundary', function () {
     Carbon::setTestNow('2026-04-17 12:00:00');
 
     $exercise = Exercise::factory()->create([
@@ -67,7 +67,7 @@ it('applies settings changes only from the first unlocked session onward', funct
 
     $overrides = $program->fresh()->config->defaultExerciseOverrides($pivot->id);
 
-    expect($overrides->startsAtDate)->toBe('2026-04-24')
+    expect($overrides->startsAtDate)->toBeNull()
         ->and($overrides->reps?->default)->toBe(8)
         ->and($before->rows[0]->cells[0][0] ?? null)->toBe(6)
         ->and($after->rows[0]->cells[0][0] ?? null)->toBe(6)

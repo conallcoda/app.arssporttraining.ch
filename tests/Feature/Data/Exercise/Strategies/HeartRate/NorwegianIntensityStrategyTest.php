@@ -90,7 +90,7 @@ it('handles zone range values', function () {
     expect($result[0][1])->toBe(BikingZoneTable::getRangeForZoneSpec('0-4', 190, 90));
 });
 
-it('marks heartRate cells as non-editable', function () {
+it('keeps heart rate cells editable in automatic mode so manual overrides can win', function () {
     $setting = HeartRateSetting::from(['mode' => 'automatic_biking']);
     $state = new GridState;
     $state->setSetsPerWeek([2]);
@@ -100,7 +100,7 @@ it('marks heartRate cells as non-editable', function () {
     $strategy->generate(1, $state);
     $state->addEditabilityStrategy($strategy);
 
-    expect($state->isCellEditable('heartRate', 0, 0))->toBeFalse();
+    expect($state->isCellEditable('heartRate', 0, 0))->toBeTrue();
     expect($state->isCellEditable('heartRateZone', 0, 0))->toBeTrue();
     expect($state->isCellEditable('reps', 0, 0))->toBeTrue();
 });

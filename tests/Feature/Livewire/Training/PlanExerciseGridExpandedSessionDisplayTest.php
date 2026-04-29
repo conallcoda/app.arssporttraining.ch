@@ -55,6 +55,45 @@ it('shows session-specific values for expanded mixed past and future weeks', fun
         ->and($row->isCellOverriddenAt(0, 0, 1))->toBeTrue();
 });
 
+it('always expands a week that contains a historical session', function () {
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+        ],
+    ]);
+
+    $program = ExerciseProgram::factory()->create();
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::test(PlanExerciseGrid::class, [
+        'exercisePlanId' => $program->id,
+        'planType' => ExerciseProgram::class,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'weeks' => 1,
+        'sessionsPerWeek' => 2,
+        'weekSessionDates' => [
+            ['2026-04-27', '2026-04-30'],
+        ],
+        'lockedSessionsByWeek' => [
+            [true, false],
+        ],
+        'expandedWeeks' => [],
+    ]);
+
+    expect($component->instance()->effectiveExpandedWeeks)->toBe([0])
+        ->and($component->instance()->displayGrid->weeks[0]->expanded)->toBeTrue();
+});
+
 it('auto-expands a future week when sessions diverge', function () {
     $exercise = Exercise::factory()->create([
         'config' => [
@@ -94,6 +133,54 @@ it('auto-expands a future week when sessions diverge', function () {
     $component->call('updateCellOverride', 0, 0, 'reps', 14, 1, false);
 
     expect($component->instance()->effectiveExpandedWeeks)->toBe([0]);
+});
+
+it('does not auto-expand a future week for legacy session 0 overrides when later sessions have no explicit overrides', function () {
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+        ],
+    ]);
+
+    $program = ExerciseProgram::factory()->create();
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::test(PlanExerciseGrid::class, [
+        'exercisePlanId' => $program->id,
+        'planType' => ExerciseProgram::class,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'weeks' => 1,
+        'sessionsPerWeek' => 2,
+        'weekSessions' => [2],
+        'weekSessionDates' => [
+            ['2026-05-01', '2026-05-02'],
+        ],
+        'lockedSessionsByWeek' => [
+            [false, false],
+        ],
+        'expandedWeeks' => [],
+    ]);
+
+    $component->call('updateCellOverride', 0, 0, 'reps', 14, 0, false);
+
+    $grid = $component->instance()->previewGrid;
+    $row = collect($grid->rows)->firstWhere('field', 'reps');
+
+    expect($row)->not->toBeNull()
+        ->and($row->getCellValue(0, 0, 0))->toBe(14)
+        ->and($row->getCellValue(0, 0, 1))->toBe(14)
+        ->and($row->isCellOverriddenAt(0, 0, 1))->toBeTrue()
+        ->and($component->instance()->effectiveExpandedWeeks)->toBe([]);
 });
 
 it('shows session-specific week-column values for expanded mixed past and future weeks', function () {

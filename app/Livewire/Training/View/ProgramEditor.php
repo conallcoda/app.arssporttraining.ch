@@ -358,6 +358,38 @@ class ProgramEditor extends Component
         }
     }
 
+    public function reorderRelationshipItem(string $fieldName, int $sourceIndex, int $targetIndex): void
+    {
+        if (! isset($this->data[$fieldName])) {
+            return;
+        }
+
+        $items = $this->data[$fieldName];
+
+        if ($sourceIndex < 0 || $sourceIndex >= count($items) || $targetIndex < 0 || $targetIndex >= count($items)) {
+            return;
+        }
+
+        $moved = array_splice($items, $sourceIndex, 1);
+        array_splice($items, $targetIndex, 0, $moved);
+
+        $field = collect($this->getAllFields())->firstWhere('name', $fieldName);
+        if ($field?->sortable) {
+            foreach ($items as $i => $item) {
+                $items[$i]['sort'] = $i;
+            }
+        }
+
+        $this->data[$fieldName] = $items;
+
+        if ($fieldName !== 'section_exercises') {
+            return;
+        }
+
+        $this->data[$this->sectionFieldName($this->activeSection)] = $items;
+        $this->saveSectionExercises();
+    }
+
     public function importSectionExercises(): void
     {
         if ($this->importProgramId === null) {
@@ -425,8 +457,7 @@ class ProgramEditor extends Component
             });
 
             $sourceConfig = $sourceProgram->config;
-            $startsAtDate = $this->defaultStartsAtDate();
-            $config->copyMappedExerciseOverridesFrom($sourceConfig, $pivotIdMap, $startsAtDate);
+            $config->copyMappedExerciseOverridesFrom($sourceConfig, $pivotIdMap);
 
             $this->exerciseProgram->config = $config;
             $this->exerciseProgram->saveQuietly();
@@ -520,7 +551,7 @@ class ProgramEditor extends Component
                             'type' => $this->activeSection,
                         ]);
 
-                        $this->setDefaultOverridesForExercise($config, $exerciseId, $newPivot->id, $this->defaultStartsAtDate());
+                        $this->setDefaultOverridesForExercise($config, $exerciseId, $newPivot->id);
                         $configChanged = true;
                         $didChange = true;
 
@@ -549,7 +580,7 @@ class ProgramEditor extends Component
                     $didChange = true;
 
                     if ($exerciseChanged) {
-                        $this->setDefaultOverridesForExercise($config, $exerciseId, $programExerciseId, $this->defaultStartsAtDate());
+                        $this->setDefaultOverridesForExercise($config, $exerciseId, $programExerciseId);
                         $configChanged = true;
                     }
                 }
@@ -570,27 +601,12 @@ class ProgramEditor extends Component
         $this->loadExerciseData();
     }
 
-    protected function setDefaultOverridesForExercise(ExercisePlanConfig $config, int $exerciseId, int $programExerciseId, ?string $startsAtDate = null): void
+    protected function setDefaultOverridesForExercise(ExercisePlanConfig $config, int $exerciseId, int $programExerciseId): void
     {
         $config->setDefaultExerciseOverrides(
             $programExerciseId,
-            new ExerciseOverrides(startsAtDate: $startsAtDate),
+            new ExerciseOverrides,
         );
-    }
-
-    protected function defaultStartsAtDate(): ?string
-    {
-        foreach ($this->weekSessionDates as $weekIndex => $sessionDates) {
-            $lockedSessions = $this->lockedSessionsByWeek[$weekIndex] ?? [];
-
-            foreach ($sessionDates as $sessionIndex => $sessionDate) {
-                if (! ($lockedSessions[$sessionIndex] ?? false)) {
-                    return $sessionDate;
-                }
-            }
-        }
-
-        return null;
     }
 
     #[Computed]

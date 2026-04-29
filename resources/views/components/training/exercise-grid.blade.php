@@ -165,7 +165,7 @@
                                             </td>
                                         @endif
                                         @if ($isFirstRow)
-                                            <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 text-center text-xs font-medium {{ $sessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}"
+                                            <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 text-center text-xs font-medium text-zinc-400 dark:text-zinc-500"
                                                 rowspan="{{ count($grid->rows) }}">
                                                 {{ $gridWeek?->sessionNumbers[$session] ?? ($session + 1) }}
                                             </td>
@@ -521,7 +521,7 @@
                                         </td>
                                     @endif
                                     @if ($isFirstRow)
-                                        <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 text-center text-xs font-medium {{ $sessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}"
+                                        <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 text-center text-xs font-medium text-zinc-400 dark:text-zinc-500"
                                             rowspan="{{ count($grid->rows) }}">
                                             {{ $gridWeek?->sessionNumbers[$session] ?? ($session + 1) }}
                                         </td>
