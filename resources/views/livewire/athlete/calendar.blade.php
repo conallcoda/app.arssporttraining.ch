@@ -38,7 +38,7 @@
 
     <div class="w-full md:mx-auto md:max-w-[900px] px-0 py-0">
         @if ($calendarView === 'day')
-            <livewire:athlete.day-schedule :date="$this->selectedDateValue" :show-readiness="false" />
+            <livewire:athlete.day-schedule :date="$this->selectedDateValue" :show-readiness="true" />
         @elseif ($calendarView === 'week')
             <livewire:athlete.day-schedule :date="$this->selectedDateValue" view-mode="week" :show-readiness="false" />
         @endif

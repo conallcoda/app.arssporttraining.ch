@@ -3,6 +3,7 @@
 namespace App\Livewire\Athlete;
 
 use App\Support\AthleteDashboardDate;
+use App\Support\Readiness\ReadinessMetricService;
 use Illuminate\View\View;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
@@ -10,7 +11,7 @@ use Livewire\Component;
 
 class Record extends Component
 {
-    public ?int $readinessScore = null;
+    public ?float $readinessScore = null;
 
     public ?string $readinessLabel = null;
 
@@ -25,11 +26,20 @@ class Record extends Component
     {
         $this->dashboardDate = AthleteDashboardDate::todayDateString();
         $this->trainView = in_array($this->trainView, ['today', 'unrecorded'], true) ? $this->trainView : 'today';
+
+        $presentation = app(ReadinessMetricService::class)->presentationForDate((int) auth()->id(), $this->dashboardDate);
+        $this->readinessScore = $presentation['score'];
+        $this->readinessLabel = $presentation['label'];
+        $this->readinessColor = $presentation['color'];
     }
 
     #[On('readiness-updated')]
-    public function onReadinessUpdated(int $score, ?string $label = null, ?string $color = null): void
+    public function onReadinessUpdated(float $score, ?string $label = null, ?string $color = null, ?string $date = null): void
     {
+        if ($date !== null && $date !== $this->dashboardDate) {
+            return;
+        }
+
         $this->readinessScore = $score;
         $this->readinessLabel = $label;
         $this->readinessColor = $color;

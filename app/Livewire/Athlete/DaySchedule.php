@@ -5,6 +5,7 @@ namespace App\Livewire\Athlete;
 use App\Data\Athlete\ScheduledProgramData;
 use App\Models\Training\TrainingProgramSlot;
 use App\Support\AthleteDashboardDate;
+use App\Support\Readiness\ReadinessMetricService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\App;
 use Illuminate\View\View;
@@ -21,26 +22,39 @@ class DaySchedule extends Component
 
     public string $scheduleFilter = 'today';
 
-    public ?int $readinessScore = null;
+    public ?float $readinessScore = null;
 
     public ?string $readinessLabel = null;
 
     public ?string $readinessColor = null;
 
-    public function mount(string $date, string $viewMode = 'day', bool $showReadiness = true, ?int $readinessScore = null, ?string $readinessLabel = null, ?string $readinessColor = null, string $scheduleFilter = 'today'): void
+    public function mount(string $date, string $viewMode = 'day', bool $showReadiness = true, ?float $readinessScore = null, ?string $readinessLabel = null, ?string $readinessColor = null, string $scheduleFilter = 'today'): void
     {
         $this->date = $date;
         $this->viewMode = $viewMode;
-        $this->showReadiness = $showReadiness;
+        $this->showReadiness = $showReadiness
+            && $this->viewMode === 'day'
+            && AthleteDashboardDate::canSubmitReadinessForDate($this->date);
         $this->readinessScore = $readinessScore;
         $this->readinessLabel = $readinessLabel;
         $this->readinessColor = $readinessColor;
         $this->scheduleFilter = in_array($scheduleFilter, ['today', 'unrecorded'], true) ? $scheduleFilter : 'today';
+
+        if ($this->showReadiness && $this->readinessScore === null) {
+            $presentation = app(ReadinessMetricService::class)->presentationForDate((int) auth()->id(), $this->date);
+            $this->readinessScore = $presentation['score'];
+            $this->readinessLabel = $presentation['label'];
+            $this->readinessColor = $presentation['color'];
+        }
     }
 
     #[On('readiness-updated')]
-    public function onReadinessUpdated(int $score, ?string $label = null, ?string $color = null): void
+    public function onReadinessUpdated(float $score, ?string $label = null, ?string $color = null, ?string $date = null): void
     {
+        if ($date !== null && $date !== $this->date) {
+            return;
+        }
+
         $this->readinessScore = $score;
         $this->readinessLabel = $label;
         $this->readinessColor = $color;

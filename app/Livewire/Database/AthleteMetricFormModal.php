@@ -4,6 +4,9 @@ namespace App\Livewire\Database;
 
 use App\Data\Athlete\Metric\MetricEnum;
 use App\Data\Athlete\Metric\MetricSubmissionData;
+use App\Data\Athlete\Metric\ReadinessMetricData;
+use App\Support\Readiness\ReadinessMetricService;
+use App\Support\Readiness\ReadinessSurvey;
 use Coda\Cms\Livewire\FormModal;
 use Coda\FormKit\Form;
 use Illuminate\View\View;
@@ -18,6 +21,8 @@ class AthleteMetricFormModal extends FormModal
     public bool $groupMode = false;
 
     public array $availableAthletes = [];
+
+    public int $extremeOffset = ReadinessMetricData::DEFAULT_EXTREME_OFFSET;
 
     public function mount(
         string $name,
@@ -46,6 +51,10 @@ class AthleteMetricFormModal extends FormModal
     public function updateMetric(string $metric): void
     {
         $this->metric = $metric;
+
+        if ($this->isReadinessMetric) {
+            $this->initializeReadinessData();
+        }
     }
 
     #[Computed]
@@ -83,6 +92,10 @@ class AthleteMetricFormModal extends FormModal
         $this->setMetricContext();
 
         parent::open($data, $title, $focusField, $focusIndex);
+
+        if ($this->isReadinessMetric) {
+            $this->initializeReadinessData();
+        }
     }
 
     public function updatedDataUserId($value): void
@@ -90,8 +103,54 @@ class AthleteMetricFormModal extends FormModal
         if ($value !== null) {
             $this->athleteId = (int) $value;
             $this->setMetricContext();
+            if ($this->isReadinessMetric) {
+                $this->hydrateReadinessBaseline();
+            }
             unset($this->formConfig, $this->fieldsets);
         }
+    }
+
+    public function updatedDataRecordedAt(): void
+    {
+        if ($this->isReadinessMetric) {
+            $this->hydrateReadinessBaseline();
+        }
+    }
+
+    #[Computed]
+    public function isReadinessMetric(): bool
+    {
+        return $this->metric === MetricEnum::Readiness->value;
+    }
+
+    #[Computed]
+    public function readinessViewData(): array
+    {
+        return ReadinessSurvey::buildViewData($this->data['data'] ?? [], $this->extremeOffset);
+    }
+
+    protected function initializeReadinessData(array $incomingData = []): void
+    {
+        $existingData = $incomingData['data'] ?? $this->data['data'] ?? [];
+        $this->data['data'] = array_merge(ReadinessSurvey::defaultState(), $existingData);
+        $this->hydrateReadinessBaseline();
+    }
+
+    protected function hydrateReadinessBaseline(): void
+    {
+        $userId = (int) ($this->data['user_id'] ?? $this->athleteId);
+        $recordedAt = $this->data['recorded_at'] ?? now()->format('Y-m-d');
+
+        if ($userId <= 0 || ! blank($this->data['id'] ?? null)) {
+            return;
+        }
+
+        $fallback = $this->data['data']['restingHeartRateBaseline'] ?? ReadinessSurvey::defaultState()['restingHeartRateBaseline'];
+        $this->data['data']['restingHeartRateBaseline'] = app(ReadinessMetricService::class)->resolveBaseline(
+            $userId,
+            $recordedAt,
+            $fallback,
+        );
     }
 
     public function submit(): void

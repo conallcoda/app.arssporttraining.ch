@@ -6,6 +6,8 @@ use Coda\Cms\Data\AbstractData;
 
 class ReadinessMetricData extends AbstractData
 {
+    public const DEFAULT_EXTREME_OFFSET = -5;
+
     private const SLEEP_WEIGHT_QUALITY = 0.40;
 
     private const SLEEP_WEIGHT_DURATION = 0.40;
@@ -109,7 +111,16 @@ class ReadinessMetricData extends AbstractData
         };
     }
 
-    public function sleepScore(): ?float
+    public static function adjustScore(int|float|null $score, int $extremeOffset = self::DEFAULT_EXTREME_OFFSET): int|float|null
+    {
+        if ($score === null) {
+            return null;
+        }
+
+        return $score <= 1 ? $extremeOffset : $score;
+    }
+
+    public function sleepScore(int $extremeOffset = self::DEFAULT_EXTREME_OFFSET): ?float
     {
         $durationScore = self::sleepDurationScore($this->sleepMinutes);
         $altitudeScore = self::altitudeScore($this->altitudeMeters);
@@ -118,21 +129,21 @@ class ReadinessMetricData extends AbstractData
             return null;
         }
 
-        return ($this->sleepQuality * self::SLEEP_WEIGHT_QUALITY)
-            + ($durationScore * self::SLEEP_WEIGHT_DURATION)
-            + ($altitudeScore * self::SLEEP_WEIGHT_ALTITUDE);
+        return (self::adjustScore($this->sleepQuality, $extremeOffset) * self::SLEEP_WEIGHT_QUALITY)
+            + (self::adjustScore($durationScore, $extremeOffset) * self::SLEEP_WEIGHT_DURATION)
+            + (self::adjustScore($altitudeScore, $extremeOffset) * self::SLEEP_WEIGHT_ALTITUDE);
     }
 
-    public function readinessScore(): ?float
+    public function readinessComponentsSum(int $extremeOffset = self::DEFAULT_EXTREME_OFFSET): ?float
     {
         $components = [
-            $this->sleepScore(),
-            $this->condition,
-            $this->mood,
-            $this->motivation,
-            $this->soreness,
-            $this->energy,
-            self::rhrScore($this->restingHeartRate, $this->restingHeartRateBaseline),
+            $this->sleepScore($extremeOffset),
+            self::adjustScore($this->condition, $extremeOffset),
+            self::adjustScore($this->mood, $extremeOffset),
+            self::adjustScore($this->motivation, $extremeOffset),
+            self::adjustScore($this->soreness, $extremeOffset),
+            self::adjustScore($this->energy, $extremeOffset),
+            self::adjustScore(self::rhrScore($this->restingHeartRate, $this->restingHeartRateBaseline), $extremeOffset),
         ];
 
         foreach ($components as $component) {
@@ -141,12 +152,23 @@ class ReadinessMetricData extends AbstractData
             }
         }
 
-        return array_sum($components) / count($components);
+        return array_sum($components);
     }
 
-    public function trafficLight(): ?string
+    public function readinessScore(int $extremeOffset = self::DEFAULT_EXTREME_OFFSET): ?float
     {
-        $score = $this->readinessScore();
+        $sum = $this->readinessComponentsSum($extremeOffset);
+
+        if ($sum === null) {
+            return null;
+        }
+
+        return $sum / 7;
+    }
+
+    public function trafficLight(int $extremeOffset = self::DEFAULT_EXTREME_OFFSET): ?string
+    {
+        $score = $this->readinessScore($extremeOffset);
 
         if ($score === null) {
             return null;
@@ -158,6 +180,37 @@ class ReadinessMetricData extends AbstractData
             $score >= self::RECOVERY_THRESHOLD => 'recovery',
             default => 'rest',
         };
+    }
+
+    public static function trafficLightLabel(?string $trafficLight): ?string
+    {
+        return match ($trafficLight) {
+            'ready' => 'Ready',
+            'train_smart' => 'Train Smart',
+            'recovery' => 'Recovery',
+            'rest' => 'Rest',
+            default => null,
+        };
+    }
+
+    public static function trafficLightColor(?string $trafficLight): ?string
+    {
+        return match ($trafficLight) {
+            'ready' => 'green',
+            'train_smart' => 'amber',
+            'recovery' => 'orange',
+            'rest' => 'red',
+            default => null,
+        };
+    }
+
+    public function rhrDelta(): ?int
+    {
+        if ($this->restingHeartRate === null || $this->restingHeartRateBaseline === null) {
+            return null;
+        }
+
+        return $this->restingHeartRate - $this->restingHeartRateBaseline;
     }
 
     public static function formatSleepDuration(?int $minutes): string

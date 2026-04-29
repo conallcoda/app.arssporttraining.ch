@@ -23,4 +23,16 @@ return [
     */
     'require_readiness_for_training_visibility' => true,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Allow Readiness For Past Days
+    |--------------------------------------------------------------------------
+    |
+    | When true, readiness behaves like the current setup and is only shown
+    | for the dashboard "today" date. When false, readiness can also be
+    | shown and submitted for past days, but never for future dates.
+    |
+    */
+    'allow_readiness_past' => true,
+
 ];

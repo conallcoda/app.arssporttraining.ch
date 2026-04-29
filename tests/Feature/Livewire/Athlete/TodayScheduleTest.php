@@ -2,7 +2,10 @@
 
 use App\Livewire\Athlete\AthleteLayout;
 use App\Livewire\Athlete\DaySchedule;
+use App\Livewire\Athlete\ReadinessCheck;
 use App\Livewire\Athlete\Record;
+use App\Models\Athlete\MetricSubmission;
+use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
@@ -21,6 +24,15 @@ function createSlotForAthlete($athlete, $group, array $overrides = []): Training
     $trainingProgram = TrainingProgram::factory()->create(
         array_merge(['group_id' => $group->id], isset($overrides['exercise_program_id']) ? ['exercise_program_id' => $overrides['exercise_program_id']] : [])
     );
+
+    $exerciseProgram = $trainingProgram->program;
+
+    if ($exerciseProgram !== null && $exerciseProgram->exercises()->count() === 0) {
+        $exerciseProgram->exercises()->attach(Exercise::factory()->create()->id, [
+            'sort' => 0,
+            'type' => 'main',
+        ]);
+    }
 
     return TrainingProgramSlot::factory()->create([
         'training_program_id' => $overrides['training_program_id'] ?? $trainingProgram->id,
@@ -56,7 +68,8 @@ it('shows training when readiness score is provided', function () {
     Livewire::actingAs($athlete)
         ->test(DaySchedule::class, ['date' => $this->today, 'readinessScore' => 4])
         ->assertSee('Readiness')
-        ->assertSee('Training');
+        ->assertSee('Pending')
+        ->assertDontSee('Please fill in the readiness survey');
 });
 
 it('hides readiness when showReadiness is false', function () {
@@ -66,7 +79,7 @@ it('hides readiness when showReadiness is false', function () {
     Livewire::actingAs($athlete)
         ->test(DaySchedule::class, ['date' => $this->today, 'showReadiness' => false])
         ->assertDontSee('Readiness')
-        ->assertSee('Training');
+        ->assertSee('Pending');
 });
 
 it('groups programs into am section', function () {
@@ -79,8 +92,7 @@ it('groups programs into am section', function () {
 
     Livewire::actingAs($athlete)
         ->test(DaySchedule::class, ['date' => $this->today, 'readinessScore' => 4])
-        ->assertSee('Morning Strength')
-        ->assertSee('AM');
+        ->assertSee('9 AM');
 });
 
 it('groups programs into pm section', function () {
@@ -93,8 +105,7 @@ it('groups programs into pm section', function () {
 
     Livewire::actingAs($athlete)
         ->test(DaySchedule::class, ['date' => $this->today, 'readinessScore' => 4])
-        ->assertSee('Afternoon Cardio')
-        ->assertSee('PM');
+        ->assertSee('2 PM');
 });
 
 it('shows correct readiness labels', function (int $score, string $label) {
@@ -170,7 +181,7 @@ it('works with a future date for tomorrow view', function () {
 
     Livewire::actingAs($athlete)
         ->test(DaySchedule::class, ['date' => $tomorrow, 'showReadiness' => false])
-        ->assertSee('Tomorrow Program')
+        ->assertSee('9 AM')
         ->assertDontSee('Readiness');
 });
 
@@ -212,4 +223,70 @@ it('day schedule updates readiness on readiness-updated event', function () {
         ->assertSet('readinessScore', null)
         ->dispatch('readiness-updated', score: 3)
         ->assertSet('readinessScore', 3);
+});
+
+it('loads persisted readiness for the selected date', function () {
+    $athlete = User::factory()->athlete()->create();
+    createSlotForAthlete($athlete, $this->group);
+
+    $submission = MetricSubmission::create([
+        'user_id' => $athlete->id,
+        'metric' => \App\Data\Athlete\Metric\MetricEnum::Readiness,
+        'recorded_by' => $athlete->id,
+        'recorded_at' => $this->today,
+        'owner_type' => User::class,
+        'owner_id' => $athlete->id,
+    ]);
+
+    $submission->values()->createMany([
+        ['field' => 'sleepMinutes', 'value' => '450'],
+        ['field' => 'sleepQuality', 'value' => '4'],
+        ['field' => 'altitudeMeters', 'value' => '1800'],
+        ['field' => 'condition', 'value' => '4'],
+        ['field' => 'mood', 'value' => '4'],
+        ['field' => 'motivation', 'value' => '4'],
+        ['field' => 'soreness', 'value' => '4'],
+        ['field' => 'energy', 'value' => '4'],
+        ['field' => 'restingHeartRate', 'value' => '48'],
+        ['field' => 'restingHeartRateBaseline', 'value' => '46'],
+        ['field' => 'readinessScore', 'value' => '4.0571428571429'],
+        ['field' => 'trafficLight', 'value' => 'ready'],
+        ['field' => 'trafficLightLabel', 'value' => 'Ready'],
+        ['field' => 'trafficLightColor', 'value' => 'green'],
+    ]);
+
+    Livewire::actingAs($athlete)
+        ->test(DaySchedule::class, ['date' => $this->today])
+        ->assertSet('readinessScore', 4.142857142857143)
+        ->assertSet('readinessLabel', 'Ready')
+        ->assertSet('readinessColor', 'green');
+});
+
+it('submits the full readiness survey and persists it as a metric', function () {
+    $athlete = User::factory()->athlete()->create();
+
+    Livewire::actingAs($athlete)
+        ->test(ReadinessCheck::class)
+        ->set('form.sleepMinutes', 450)
+        ->set('form.sleepQuality', 4)
+        ->set('form.altitudeMeters', 1800)
+        ->set('form.condition', 4)
+        ->set('form.mood', 4)
+        ->set('form.motivation', 5)
+        ->set('form.soreness', 4)
+        ->set('form.energy', 4)
+        ->set('form.restingHeartRate', 48)
+        ->set('form.restingHeartRateBaseline', 46)
+        ->call('submitReadiness')
+        ->assertDispatched('readiness-updated');
+
+    $submission = MetricSubmission::query()
+        ->where('user_id', $athlete->id)
+        ->where('metric', \App\Data\Athlete\Metric\MetricEnum::Readiness)
+        ->with('values')
+        ->first();
+
+    expect($submission)->not->toBeNull()
+        ->and($submission->values->pluck('value', 'field')->get('trafficLight'))->toBe('ready')
+        ->and((float) $submission->values->pluck('value', 'field')->get('readinessScore'))->toBeGreaterThan(0);
 });

@@ -30,4 +30,23 @@ class AthleteDashboardDate
 
         return $resolvedDate->gt(static::today()->startOfDay());
     }
+
+    public static function canSubmitReadinessForDate(CarbonImmutable|string $date): bool
+    {
+        $resolvedDate = $date instanceof CarbonImmutable
+            ? $date->startOfDay()
+            : CarbonImmutable::parse($date)->startOfDay();
+
+        $today = static::today()->startOfDay();
+
+        if ($resolvedDate->gt($today)) {
+            return false;
+        }
+
+        $allowReadinessPast = (bool) config('athlete.allow_readiness_past', true);
+
+        return $allowReadinessPast
+            ? $resolvedDate->equalTo($today)
+            : $resolvedDate->lte($today);
+    }
 }

@@ -17,7 +17,7 @@
                             <flux:heading size="lg">Readiness</flux:heading>
                         </div>
 
-                        <x-athlete.readiness-gauge :score="$readinessScore" :label="$readinessLabel" :color="$readinessColor" :editable="true" />
+                        <x-athlete.readiness-gauge :score="$readinessScore" :label="$readinessLabel" :color="$readinessColor" :date="$date" :editable="true" />
                     </div>
                 </x-athlete.section>
             @endif

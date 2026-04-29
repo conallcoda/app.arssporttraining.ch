@@ -52,6 +52,20 @@ class MetricSubmissionData extends AbstractData implements HasForms
 
     public function persist(): MetricSubmission
     {
+        if (
+            $this->id === null
+            && $this->metric === MetricEnum::Readiness
+            && $this->user_id !== null
+            && $this->recorded_at !== null
+        ) {
+            $this->id = MetricSubmission::query()
+                ->forAthlete($this->user_id)
+                ->forMetric(MetricEnum::Readiness)
+                ->manual()
+                ->whereDate('recorded_at', $this->recorded_at)
+                ->value('id');
+        }
+
         $submission = MetricSubmission::updateOrCreate(
             ['id' => $this->id],
             [

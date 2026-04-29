@@ -2,6 +2,7 @@
 
 use App\Data\Athlete\Metric\MetricEnum;
 use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
+use App\Data\Athlete\Metric\Metrics\ReadinessMetric;
 use App\Data\Athlete\Metric\MetricSubmissionData;
 use App\Models\Athlete\MetricSubmission;
 use App\Models\Users\User;
@@ -180,4 +181,34 @@ it('provides user metric submissions via relationship', function () {
     ))->persist();
 
     expect($athlete->metricSubmissions)->toHaveCount(2);
+});
+
+it('creates a readiness submission with derived readiness values', function () {
+    $athlete = User::factory()->athlete()->create();
+
+    $submission = (new MetricSubmissionData(
+        user_id: $athlete->id,
+        metric: MetricEnum::Readiness,
+        recorded_at: '2026-04-29',
+        data: new ReadinessMetric(
+            sleepMinutes: 450,
+            sleepQuality: 4,
+            altitudeMeters: 1800,
+            condition: 4,
+            mood: 4,
+            motivation: 5,
+            soreness: 4,
+            energy: 4,
+            restingHeartRate: 48,
+            restingHeartRateBaseline: 46,
+            hrv: 75,
+        ),
+    ))->persist();
+
+    $values = $submission->values()->pluck('value', 'field')->all();
+
+    expect($values)->toHaveKey('readinessScore')
+        ->and($values)->toHaveKey('trafficLight')
+        ->and((float) $values['readinessScore'])->toBeGreaterThan(0)
+        ->and($values['trafficLight'])->toBe('ready');
 });

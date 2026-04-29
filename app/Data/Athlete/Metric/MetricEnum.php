@@ -6,12 +6,14 @@ enum MetricEnum: string
 {
     case OneRepMax = 'oneRepMax';
     case HeartRate = 'heartRate';
+    case Readiness = 'readiness';
 
     public function label(): string
     {
         return match ($this) {
             self::OneRepMax => '1RM',
             self::HeartRate => 'Heart Rate',
+            self::Readiness => 'Readiness',
         };
     }
 
@@ -20,6 +22,7 @@ enum MetricEnum: string
         return match ($this) {
             self::OneRepMax => '1RM',
             self::HeartRate => 'HR',
+            self::Readiness => 'Readiness',
         };
     }
 
@@ -29,6 +32,7 @@ enum MetricEnum: string
         return match ($this) {
             self::OneRepMax => Metrics\OneRepMaxMetric::class,
             self::HeartRate => Metrics\HeartRateMetric::class,
+            self::Readiness => Metrics\ReadinessMetric::class,
         };
     }
 

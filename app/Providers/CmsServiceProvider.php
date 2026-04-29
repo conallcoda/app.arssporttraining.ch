@@ -14,6 +14,7 @@ use App\Cms\Modules\ExerciseModule;
 use App\Cms\Modules\ExerciseProgramModule;
 use App\Cms\Modules\ExerciseTemplateModule;
 use App\Cms\Modules\ModifiersModule;
+use App\Cms\Modules\SettingsModule;
 use Coda\Cms\Navigation\SidebarGroup;
 use Coda\Cms\Navigation\SidebarItem;
 use Coda\Cms\Navigation\Tab;
@@ -38,6 +39,7 @@ class CmsServiceProvider extends ServiceProvider
         $registry->register(new ExerciseProgramModule);
         $registry->register(new CategoryListModule);
         $registry->register(new CalendarModule);
+        $registry->register(new SettingsModule);
 
         $registry->setNavigation([
             SidebarGroup::make('database', 'Database')->icon('database')->items([
@@ -59,6 +61,9 @@ class CmsServiceProvider extends ServiceProvider
             ]),
             SidebarGroup::make('calendar', 'Calendar')->icon('calendar')->items([
                 SidebarItem::make('Calendar', 'calendar-index')->icon('calendar'),
+            ]),
+            SidebarGroup::make('settings', 'Settings')->icon('settings')->items([
+                SidebarItem::make('Settings', 'settings-index')->icon('settings'),
             ]),
         ]);
     }

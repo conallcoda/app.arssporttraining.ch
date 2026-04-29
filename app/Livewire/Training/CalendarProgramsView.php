@@ -5,6 +5,7 @@ namespace App\Livewire\Training;
 use App\Data\Athlete\Metric\MetricEnum;
 use App\Data\Athlete\Metric\Metrics\HeartRateMetric;
 use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
+use App\Data\Athlete\Metric\Metrics\ReadinessMetric;
 use App\Data\Athlete\Metric\MetricSubmissionData;
 use App\Data\Training\Calendar\CalendarSettingsData;
 use App\Data\Training\Config\EffectiveExerciseConfig;
@@ -537,6 +538,9 @@ class CalendarProgramsView extends Component
             $label = match ($submission->metric) {
                 MetricEnum::OneRepMax => isset($fieldValues['estimated1RM']) ? (int) round((float) $fieldValues['estimated1RM']) : null,
                 MetricEnum::HeartRate => $fieldValues['heartRate'] ?? null,
+                MetricEnum::Readiness => isset($fieldValues['readinessScore'])
+                    ? number_format((float) $fieldValues['readinessScore'], 1)
+                    : (($score = $metricInstance->data()->readinessScore()) !== null ? number_format($score, 1) : null),
             };
 
             $map[$cellKey] = [
@@ -688,6 +692,9 @@ class CalendarProgramsView extends Component
                                 $label .= ' - '.$hrMetric->anaerobicThreshold.'% IAT';
                             }
                         }
+                    } elseif ($metricCase === MetricEnum::Readiness) {
+                        $readinessMetric = ReadinessMetric::from($fieldValues);
+                        $label = $readinessMetric->summary();
                     }
                 }
 

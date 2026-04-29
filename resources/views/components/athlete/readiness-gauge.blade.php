@@ -2,13 +2,18 @@
     'score' => null,
     'label' => null,
     'color' => null,
+    'date' => null,
     'size' => 56,
     'showLabel' => true,
     'editable' => false,
 ])
 
 @php
-    $percent = $score !== null ? $score / 4 : 0;
+    $scoreValue = $score !== null ? (float) $score : null;
+    $formattedScore = $scoreValue !== null
+        ? rtrim(rtrim(number_format($scoreValue, 1), '0'), '.')
+        : null;
+    $percent = $scoreValue !== null ? max(min($scoreValue / 5, 1), 0) : 0;
     $colorMap = [
         'green' => '#22c55e',
         'amber' => '#f59e0b',
@@ -21,7 +26,7 @@
     $r = $half - ($strokeWidth / 2) - 2;
     $circumference = 2 * M_PI * $r;
     $offset = $circumference * (1 - $percent);
-    $scoreFontSize = round($size * 0.28);
+    $scoreFontSize = round($size * 0.22);
     $naFontSize = round($size * 0.25);
 @endphp
 
@@ -41,7 +46,7 @@
             />
         @endif
         @if ($score !== null)
-            <text x="{{ $half }}" y="{{ $half }}" text-anchor="middle" dominant-baseline="central" class="fill-zinc-900 dark:fill-white" font-size="{{ $scoreFontSize }}" font-weight="600">{{ $score }}/4</text>
+            <text x="{{ $half }}" y="{{ $half }}" text-anchor="middle" dominant-baseline="central" class="fill-zinc-900 dark:fill-white" font-size="{{ $scoreFontSize }}" font-weight="600">{{ $formattedScore }}/5</text>
         @else
             <text x="{{ $half }}" y="{{ $half }}" text-anchor="middle" dominant-baseline="central" class="fill-zinc-400" font-size="{{ $naFontSize }}" font-weight="500">N/A</text>
         @endif
@@ -50,7 +55,7 @@
         <span class="text-xs font-medium" style="color: {{ $fillColor }}">{{ $label }}</span>
     @endif
     @if ($editable)
-        <flux:button variant="primary" size="xs" wire:click="$dispatch('open-readiness-modal')">
+        <flux:button variant="primary" size="xs" wire:click="$dispatch('open-readiness-modal', { date: '{{ $date }}' })">
             {{ $score === null ? 'Check In' : 'Change' }}
         </flux:button>
     @endif

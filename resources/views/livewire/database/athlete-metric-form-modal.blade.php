@@ -1,5 +1,5 @@
 <div>
-    <flux:modal :name="$name" :flyout="$flyout" :class="$maxWidth"
+    <flux:modal :name="$name" :flyout="$flyout" :class="$this->isReadinessMetric ? 'max-w-6xl' : $maxWidth"
         x-on:close="Livewire.dispatch('{{ $name }}.closed')"
         x-on:focus-field.window="
             const content = $el.querySelector('.space-y-6');
@@ -28,17 +28,32 @@
                         </flux:field>
                     @endif
 
-                    @foreach ($this->fieldsets as $item)
-                        @if ($item instanceof \Coda\FormKit\FormFieldsetGroup)
-                            <x-form-kit::form.fieldset-tabs :group="$item" />
-                        @else
-                            <x-form-kit::form.fieldset
-                                :fieldset="$item"
-                                :prefix="$item->prefix ?? 'data'"
-                                :showLegend="count($this->fieldsets) > 1"
-                            />
-                        @endif
-                    @endforeach
+                    @if ($this->isReadinessMetric)
+                        <div class="space-y-4">
+                            <flux:field>
+                                <flux:label>{{ __('Date') }}</flux:label>
+                                <flux:input type="date" wire:model.live="data.recorded_at" />
+                            </flux:field>
+
+                            @include('livewire.readiness.partials.survey-fields', [
+                                'bindingPrefix' => 'data.data.',
+                                'state' => $data['data'] ?? [],
+                                'viewData' => $this->readinessViewData,
+                            ])
+                        </div>
+                    @else
+                        @foreach ($this->fieldsets as $item)
+                            @if ($item instanceof \Coda\FormKit\FormFieldsetGroup)
+                                <x-form-kit::form.fieldset-tabs :group="$item" />
+                            @else
+                                <x-form-kit::form.fieldset
+                                    :fieldset="$item"
+                                    :prefix="$item->prefix ?? 'data'"
+                                    :showLegend="count($this->fieldsets) > 1"
+                                />
+                            @endif
+                        @endforeach
+                    @endif
                     <div class="flex items-center gap-2 pt-4">
                         <flux:button type="submit" variant="primary" class="flex-1">{{ $submitLabel }}</flux:button>
                         <flux:modal.close>
