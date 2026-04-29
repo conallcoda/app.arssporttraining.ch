@@ -1,12 +1,16 @@
 <?php
 
 use App\Data\Athlete\Metric\MetricEnum;
+use App\Data\Training\Calendar\CalendarSettingsData;
 use App\Livewire\Training\CalendarIndex;
+use App\Livewire\Training\CalendarProgramsView;
 use App\Models\Athlete\MetricSubmission;
 use App\Models\Athlete\MetricValue;
 use App\Models\Training\TrainingProgramBlock;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
+use App\Training\CalendarDateService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -313,6 +317,59 @@ it('returns metrics for all group members in group mode', function () {
     expect($bobHr['label'])->toBe('175 HR - 85% IAT');
 });
 
+it('excludes soft deleted submissions from metric summary dates', function () {
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $user = User::factory()->athlete()->create();
+    $coach = User::factory()->coach()->create();
+    $group->members()->attach($user);
+
+    createSubmissionWithValues([
+        'user_id' => $user->id,
+        'metric' => MetricEnum::HeartRate,
+        'recorded_by' => $coach->id,
+        'recorded_at' => '2026-04-28',
+    ], [
+        'heartRate' => '190',
+        'anaerobicThreshold' => '90',
+    ])->delete();
+
+    createSubmissionWithValues([
+        'user_id' => $user->id,
+        'metric' => MetricEnum::Readiness,
+        'recorded_by' => $coach->id,
+        'recorded_at' => '2026-04-30',
+    ], [
+        'restingHeartRate' => '48',
+        'restingHeartRateBaseline' => '50',
+        'hrv' => '65',
+        'sleepQuality' => '4',
+        'sleepDuration' => '4',
+        'altitudeAdjustment' => '0',
+        'condition' => '5',
+        'mood' => '5',
+        'motivation' => '5',
+        'soreness' => '5',
+        'energy' => '5',
+    ]);
+
+    $component = Livewire::test(CalendarProgramsView::class, [
+        'groupId' => $group->id,
+        'userId' => $user->id,
+        'calendarSettings' => new CalendarSettingsData(
+            start: '2026-04-28',
+            end: '2026-05-02',
+            preset: CalendarDateService::PRESET_CUSTOM,
+        ),
+        'weekStartsOn' => Carbon::MONDAY,
+        'weekEndsOn' => Carbon::SUNDAY,
+    ]);
+
+    $dates = $component->instance()->metricSummaryDates;
+
+    expect($dates)->toHaveKey('2026-04-30');
+    expect($dates)->not->toHaveKey('2026-04-28');
+});
+
 // --- openPlan1rmEdit ---
 
 it('dispatches metric form with existing 1RM submission data', function () {
@@ -417,6 +474,52 @@ it('dispatches metric form with existing heart rate submission data', function (
             return $params['data']['id'] === $submission->id
                 && $params['data']['metric'] === MetricEnum::HeartRate->value
                 && str_contains($params['title'], 'Heart Rate');
+        });
+});
+
+it('dispatches metric form when opening the current metric badge', function () {
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $user = User::factory()->athlete()->create();
+    $coach = User::factory()->coach()->create();
+    $group->members()->attach($user);
+
+    $block = TrainingProgramBlock::create([
+        'group_id' => $group->id,
+        'type' => 'focus',
+        'start' => '2026-03-10',
+        'end' => '2026-03-31',
+        'note' => '',
+        'active' => true,
+    ]);
+
+    $submission = createSubmissionWithValues([
+        'user_id' => $user->id,
+        'metric' => MetricEnum::OneRepMax,
+        'recorded_by' => $coach->id,
+        'recorded_at' => '2026-03-05',
+    ], [
+        'measuredReps' => '3',
+        'measuredWeight' => '80',
+    ]);
+
+    [$rangeStart, $rangeEnd] = app(CalendarDateService::class)->presetRange(CalendarDateService::PRESET_NEXT_3_MONTHS);
+
+    Livewire::test(CalendarProgramsView::class, [
+        'groupId' => $group->id,
+        'userId' => $user->id,
+        'calendarSettings' => new CalendarSettingsData(
+            start: $rangeStart->format('Y-m-d'),
+            end: $rangeEnd->format('Y-m-d'),
+            preset: CalendarDateService::PRESET_NEXT_3_MONTHS,
+        ),
+        'weekStartsOn' => Carbon::MONDAY,
+        'weekEndsOn' => Carbon::SUNDAY,
+    ])
+        ->call('openCurrentMetric', MetricEnum::OneRepMax->value)
+        ->assertDispatched('open-calendar-metric-form', function ($event, $params) use ($submission) {
+            return $params['data']['id'] === $submission->id
+                && $params['data']['metric'] === MetricEnum::OneRepMax->value
+                && str_contains($params['title'], '1RM');
         });
 });
 

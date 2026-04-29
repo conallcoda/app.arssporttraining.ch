@@ -125,7 +125,13 @@
                                 {{ $metricCase->label() }}
                                 @if (isset($this->currentMetricValues[$metricCase->value]))
                                     <div class="mt-1">
-                                        <flux:badge size="sm" color="zinc" class="text-xs" title="{{ __('Current value. Recorded') }} {{ $this->currentMetricValues[$metricCase->value]['recorded_at'] }}">
+                                        <flux:badge
+                                            size="sm"
+                                            color="zinc"
+                                            class="text-xs cursor-pointer"
+                                            title="{{ __('Current value. Recorded') }} {{ $this->currentMetricValues[$metricCase->value]['recorded_at'] }}"
+                                            wire:click="openCurrentMetric('{{ $metricCase->value }}')"
+                                        >
                                             {{ $this->currentMetricValues[$metricCase->value]['summary'] }}
                                         </flux:badge>
                                     </div>
@@ -168,7 +174,8 @@
                                             ? $wire.openMetricCell('{{ $metricCase->value }}', day.date)
                                             : $wire.openGroupMetricCell('{{ $metricCase->value }}', day.date))">
                                     <div x-show="metricData[day.date]"
-                                        class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm bg-zinc-500/80 dark:bg-zinc-500/60"
+                                        class="w-full aspect-square flex items-center justify-center text-[10px] font-medium text-white rounded-sm"
+                                        :class="metricData[day.date]?.colorClass ?? 'bg-zinc-500/80 dark:bg-zinc-500/60'"
                                         x-text="metricData[day.date]?.label ?? metricData[day.date]?.count ?? ''">
                                     </div>
                                     <div x-show="!metricData[day.date]"
@@ -190,7 +197,8 @@
                             <template x-for="entry in entries" :key="entry.submission_id">
                                 <button type="button"
                                     @click="editEntry(entry.user_id, entry.submission_id)"
-                                    class="flex flex-col px-2 py-1.5 rounded-lg bg-zinc-500/80 dark:bg-zinc-500/60 text-left cursor-pointer hover:opacity-80 transition-opacity">
+                                    class="flex flex-col px-2 py-1.5 rounded-lg text-left cursor-pointer hover:opacity-80 transition-opacity"
+                                    :class="entry.colorClass ?? 'bg-zinc-500/80 dark:bg-zinc-500/60'">
                                     <span class="text-[10px] text-white opacity-80" x-text="entry.summary"></span>
                                     <span class="text-[10px] text-white opacity-80 truncate" x-text="entry.athlete"></span>
                                 </button>

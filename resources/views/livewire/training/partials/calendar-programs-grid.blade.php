@@ -110,16 +110,15 @@
                                 {{ $metricCase->label() }}
                                 @if (isset($this->currentMetricValues[$metricCase->value]))
                                     <div class="mt-1">
-                                        <flux:dropdown>
-                                            <button type="button" class="cursor-pointer">
-                                                <flux:badge size="sm" color="zinc" class="text-xs pointer-events-none">
-                                                    {{ $this->currentMetricValues[$metricCase->value]['summary'] }}
-                                                </flux:badge>
-                                            </button>
-                                            <flux:popover class="max-w-xs">
-                                                <p class="text-sm">Current value. Recorded {{ $this->currentMetricValues[$metricCase->value]['recorded_at'] }}</p>
-                                            </flux:popover>
-                                        </flux:dropdown>
+                                        <flux:badge
+                                            size="sm"
+                                            color="zinc"
+                                            class="text-xs cursor-pointer"
+                                            title="{{ __('Current value. Recorded') }} {{ $this->currentMetricValues[$metricCase->value]['recorded_at'] }}"
+                                            wire:click="openCurrentMetric('{{ $metricCase->value }}')"
+                                        >
+                                            {{ $this->currentMetricValues[$metricCase->value]['summary'] }}
+                                        </flux:badge>
                                     </div>
                                 @endif
                             </td>

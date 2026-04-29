@@ -23,6 +23,12 @@ class AthleteMetricList extends AbstractModelList
     public function mount(int $athleteId = 0): void
     {
         $this->athleteId = $athleteId ?: (int) request()->route('athleteId');
+
+        $selectedTab = request()->query('selectedTab', request()->query('am_selectedTab'));
+        if (is_string($selectedTab) && $selectedTab !== '') {
+            $this->selectedTab = $selectedTab;
+        }
+
         parent::mount();
     }
 
@@ -112,6 +118,11 @@ class AthleteMetricList extends AbstractModelList
     protected function metricLabel(): string
     {
         return $this->selectedMetric()->label();
+    }
+
+    protected function getFormModalMaxWidth(): string
+    {
+        return 'max-w-[83.333%] overflow-x-hidden';
     }
 
     public function startEdit(int $id): void

@@ -5,8 +5,11 @@ namespace App\Livewire\Database;
 use App\Data\Athlete\Metric\MetricEnum;
 use App\Data\Athlete\Metric\MetricSubmissionData;
 use App\Data\Athlete\Metric\ReadinessMetricData;
+use App\Data\Exercise\Strategies\HeartRate\HeartRateZoneCellColors;
 use App\Support\Readiness\ReadinessMetricService;
 use App\Support\Readiness\ReadinessSurvey;
+use App\Training\Reference\BikingZoneTable;
+use App\Training\Reference\JoggingZoneTable;
 use Coda\Cms\Livewire\FormModal;
 use Coda\FormKit\Form;
 use Illuminate\View\View;
@@ -14,6 +17,8 @@ use Livewire\Attributes\Computed;
 
 class AthleteMetricFormModal extends FormModal
 {
+    protected const MODAL_MAX_WIDTH = 'max-w-[83.333%] overflow-x-hidden';
+
     public string $metric = 'oneRepMax';
 
     public int $athleteId = 0;
@@ -24,6 +29,8 @@ class AthleteMetricFormModal extends FormModal
 
     public int $extremeOffset = ReadinessMetricData::DEFAULT_EXTREME_OFFSET;
 
+    public string $readinessModalTab = 'data';
+
     public function mount(
         string $name,
         string $title,
@@ -31,7 +38,7 @@ class AthleteMetricFormModal extends FormModal
         string $submitLabel = 'Save',
         string $cancelLabel = 'Cancel',
         bool $flyout = true,
-        string $maxWidth = 'max-w-sm',
+        string $maxWidth = self::MODAL_MAX_WIDTH,
         bool $showDelete = false,
         array $excludeFields = [],
     ): void {
@@ -90,6 +97,7 @@ class AthleteMetricFormModal extends FormModal
         }
 
         $this->setMetricContext();
+        $this->readinessModalTab = $this->isReadinessMetric && ! empty($data['id']) ? 'breakdown' : 'data';
 
         parent::open($data, $title, $focusField, $focusIndex);
 
@@ -124,9 +132,39 @@ class AthleteMetricFormModal extends FormModal
     }
 
     #[Computed]
+    public function isHeartRateMetric(): bool
+    {
+        return $this->metric === MetricEnum::HeartRate->value;
+    }
+
+    #[Computed]
     public function readinessViewData(): array
     {
         return ReadinessSurvey::buildViewData($this->data['data'] ?? [], $this->extremeOffset);
+    }
+
+    #[Computed]
+    public function heartRatePreviewSections(): array
+    {
+        $maxHeartRate = isset($this->data['data']['heartRate']) ? (int) $this->data['data']['heartRate'] : null;
+        $anaerobicThreshold = isset($this->data['data']['anaerobicThreshold']) ? (int) $this->data['data']['anaerobicThreshold'] : null;
+
+        return [
+            $this->buildHeartRatePreviewSection(
+                title: 'Bike',
+                tableClass: BikingZoneTable::class,
+                maxHeartRate: $maxHeartRate,
+                anaerobicThreshold: $anaerobicThreshold,
+                zoneTwoUpperPercent: $anaerobicThreshold,
+            ),
+            $this->buildHeartRatePreviewSection(
+                title: 'Jogging',
+                tableClass: JoggingZoneTable::class,
+                maxHeartRate: $maxHeartRate,
+                anaerobicThreshold: $anaerobicThreshold,
+                zoneTwoUpperPercent: $anaerobicThreshold !== null ? $anaerobicThreshold + 5 : null,
+            ),
+        ];
     }
 
     protected function initializeReadinessData(array $incomingData = []): void
@@ -184,5 +222,61 @@ class AthleteMetricFormModal extends FormModal
     public function render(): View
     {
         return view('livewire.database.athlete-metric-form-modal');
+    }
+
+    #[Computed]
+    public function showReadinessBreakdownTab(): bool
+    {
+        return $this->isReadinessMetric && ! empty($this->data['id']);
+    }
+
+    /** @return array{title: string, maxHeartRate: ?int, anaerobicThreshold: ?int, rows: array<int, array{name: string, bpm: string, percent: string, classes: string}>} */
+    protected function buildHeartRatePreviewSection(
+        string $title,
+        string $tableClass,
+        ?int $maxHeartRate,
+        ?int $anaerobicThreshold,
+        ?int $zoneTwoUpperPercent,
+    ): array {
+        $percentTable = $tableClass::getTable();
+        $rows = [];
+
+        foreach ($this->heartRateZoneRows() as $zone => $meta) {
+            [$lowerPercent, $upperPercent] = $percentTable[$zone];
+            $range = ($maxHeartRate !== null && $anaerobicThreshold !== null)
+                ? $tableClass::getRange($zone, $maxHeartRate, $anaerobicThreshold)
+                : null;
+
+            $rows[] = [
+                'name' => $meta['name'],
+                'bpm' => $range ? "{$range['lower']} - {$range['upper']} bpm" : '—',
+                'percent' => match ($zone) {
+                    2 => $zoneTwoUpperPercent !== null ? "{$lowerPercent}% - {$zoneTwoUpperPercent}%" : '—',
+                    default => $upperPercent !== null ? "{$lowerPercent}% - {$upperPercent}%" : '—',
+                },
+                'classes' => $meta['classes'],
+            ];
+        }
+
+        return [
+            'title' => $title,
+            'maxHeartRate' => $maxHeartRate,
+            'anaerobicThreshold' => $anaerobicThreshold,
+            'rows' => $rows,
+        ];
+    }
+
+    /** @return array<int, array{name: string, classes: string}> */
+    protected function heartRateZoneRows(): array
+    {
+        $zoneColors = new HeartRateZoneCellColors;
+
+        return [
+            0 => ['name' => 'Reg', 'classes' => $zoneColors->cellColor('heartRateZone', '0') ?? ''],
+            1 => ['name' => 'Zone 1', 'classes' => $zoneColors->cellColor('heartRateZone', '1') ?? ''],
+            2 => ['name' => 'Zone 2', 'classes' => $zoneColors->cellColor('heartRateZone', '2') ?? ''],
+            3 => ['name' => 'Zone 3', 'classes' => $zoneColors->cellColor('heartRateZone', '3') ?? ''],
+            4 => ['name' => 'Zone MAX', 'classes' => $zoneColors->cellColor('heartRateZone', '4') ?? ''],
+        ];
     }
 }

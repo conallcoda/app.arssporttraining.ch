@@ -54,7 +54,13 @@ class ReadinessMetric extends AbstractMetric
     /** @return array{label: string} */
     public function badge(string $prefix): array
     {
-        return ['label' => "{$prefix}: {$this->summary()}"];
+        $score = $this->data()->readinessScore();
+
+        if ($score === null) {
+            return ['label' => "{$prefix}: Incomplete"];
+        }
+
+        return ['label' => "{$prefix}: ".number_format($score, 2).' / 5'];
     }
 
     /** @return array<string, string> */

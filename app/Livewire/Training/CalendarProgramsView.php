@@ -6,6 +6,7 @@ use App\Data\Athlete\Metric\MetricEnum;
 use App\Data\Athlete\Metric\Metrics\HeartRateMetric;
 use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
 use App\Data\Athlete\Metric\Metrics\ReadinessMetric;
+use App\Data\Athlete\Metric\ReadinessMetricData;
 use App\Data\Athlete\Metric\MetricSubmissionData;
 use App\Data\Training\Calendar\CalendarSettingsData;
 use App\Data\Training\Config\EffectiveExerciseConfig;
@@ -28,11 +29,11 @@ use App\Training\TrainingSessionRebuildDispatcher;
 use Carbon\Carbon;
 use Flux\Flux;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Component;
+use Coda\Cms\Support\ColorPalette;
 
 class CalendarProgramsView extends Component
 {
@@ -483,10 +484,14 @@ class CalendarProgramsView extends Component
         [$start, $end] = $this->dateRange();
 
         if ($this->userId !== null) {
-            $dates = DB::select(
-                'SELECT DISTINCT DATE(recorded_at) as d FROM user_metric_submissions WHERE user_id = ? AND recorded_at BETWEEN ? AND ?',
-                [$this->userId, $start->format('Y-m-d'), $end->format('Y-m-d')]
-            );
+            $dates = MetricSubmission::query()
+                ->forAthlete($this->userId)
+                ->whereBetween('recorded_at', [$start->format('Y-m-d'), $end->format('Y-m-d')])
+                ->distinct()
+                ->orderBy('recorded_at')
+                ->pluck('recorded_at')
+                ->map(fn ($date) => $date->format('Y-m-d'))
+                ->all();
         } else {
             $memberIds = UserGroup::find($this->groupId)?->members->pluck('id')->all() ?? [];
 
@@ -494,14 +499,17 @@ class CalendarProgramsView extends Component
                 return [];
             }
 
-            $placeholders = implode(',', array_fill(0, count($memberIds), '?'));
-            $dates = DB::select(
-                "SELECT DISTINCT DATE(recorded_at) as d FROM user_metric_submissions WHERE user_id IN ({$placeholders}) AND recorded_at BETWEEN ? AND ?",
-                [...$memberIds, $start->format('Y-m-d'), $end->format('Y-m-d')]
-            );
+            $dates = MetricSubmission::query()
+                ->whereIn('user_id', $memberIds)
+                ->whereBetween('recorded_at', [$start->format('Y-m-d'), $end->format('Y-m-d')])
+                ->distinct()
+                ->orderBy('recorded_at')
+                ->pluck('recorded_at')
+                ->map(fn ($date) => $date->format('Y-m-d'))
+                ->all();
         }
 
-        return array_flip(array_map(fn ($r) => $r->d, $dates));
+        return array_flip($dates);
     }
 
     #[Computed]
@@ -547,6 +555,7 @@ class CalendarProgramsView extends Component
                 'id' => $submission->id,
                 'label' => $label,
                 'summary' => $metricInstance->summary(),
+                'colorClass' => $this->metricColorClass($submission->metric, $fieldValues, $metricInstance),
                 'isProjected' => $isProjected,
                 'data' => MetricSubmissionData::fromModel($submission)->toArray(),
             ];
@@ -604,6 +613,7 @@ class CalendarProgramsView extends Component
                 'athlete' => $submission->user->name,
                 'user_id' => $submission->user_id,
                 'submission_id' => $submission->id,
+                'colorClass' => $this->metricColorClass($submission->metric, $fieldValues, $metricInstance),
                 'isProjected' => $isProjected,
                 'data' => MetricSubmissionData::fromModel($submission)->toArray(),
             ];
@@ -622,20 +632,13 @@ class CalendarProgramsView extends Component
         $result = [];
 
         foreach (MetricEnum::cases() as $metricCase) {
-            $submission = MetricSubmission::query()
-                ->forAthlete($this->userId)
-                ->forMetric($metricCase)
-                ->manual()
-                ->where('recorded_at', '<=', now()->format('Y-m-d'))
-                ->orderByDesc('recorded_at')
-                ->with('values')
-                ->first();
+            $submission = $this->latestCurrentMetricSubmission($this->userId, $metricCase);
 
             if ($submission) {
                 $fieldValues = $submission->values->pluck('value', 'field')->all();
                 $metricInstance = $metricCase->metricClass()::from($fieldValues);
                 $result[$metricCase->value] = [
-                    'summary' => $metricInstance->summary(),
+                    'summary' => $this->currentMetricDisplayLabel($metricCase, $fieldValues, $metricInstance),
                     'recorded_at' => $submission->recorded_at->format('d.m.Y'),
                     'data' => MetricSubmissionData::from($submission)->toArray(),
                 ];
@@ -657,7 +660,6 @@ class CalendarProgramsView extends Component
             return [];
         }
 
-        $cutoffDate = now()->format('Y-m-d');
         $result = [];
 
         foreach (MetricEnum::cases() as $metricCase) {
@@ -665,37 +667,13 @@ class CalendarProgramsView extends Component
             $withValue = 0;
 
             foreach ($group->members as $member) {
-                $submission = MetricSubmission::query()
-                    ->forAthlete($member->id)
-                    ->forMetric($metricCase)
-                    ->manual()
-                    ->where('recorded_at', '<=', $cutoffDate)
-                    ->orderByDesc('recorded_at')
-                    ->with('values')
-                    ->first();
+                $submission = $this->latestCurrentMetricSubmission($member->id, $metricCase);
 
                 $label = null;
                 if ($submission) {
                     $fieldValues = $submission->values->pluck('value', 'field')->all();
-
-                    if ($metricCase === MetricEnum::OneRepMax) {
-                        $metric = OneRepMaxMetric::from($fieldValues);
-                        if ($metric->measuredWeight !== null) {
-                            $weight = rtrim(rtrim(number_format($metric->measuredWeight, 1), '0'), '.');
-                            $label = "{$weight}kg";
-                        }
-                    } elseif ($metricCase === MetricEnum::HeartRate) {
-                        $hrMetric = HeartRateMetric::from($fieldValues);
-                        if ($hrMetric->heartRate !== null) {
-                            $label = $hrMetric->heartRate.' HR';
-                            if ($hrMetric->anaerobicThreshold !== null) {
-                                $label .= ' - '.$hrMetric->anaerobicThreshold.'% IAT';
-                            }
-                        }
-                    } elseif ($metricCase === MetricEnum::Readiness) {
-                        $readinessMetric = ReadinessMetric::from($fieldValues);
-                        $label = $readinessMetric->summary();
-                    }
+                    $metricInstance = $metricCase->metricClass()::from($fieldValues);
+                    $label = $this->currentMetricDisplayLabel($metricCase, $fieldValues, $metricInstance);
                 }
 
                 if ($label !== null) {
@@ -731,6 +709,83 @@ class CalendarProgramsView extends Component
         }
 
         return $filtered;
+    }
+
+    protected function latestCurrentMetricSubmission(int $userId, MetricEnum $metricCase): ?MetricSubmission
+    {
+        $query = MetricSubmission::query()
+            ->forAthlete($userId)
+            ->forMetric($metricCase)
+            ->manual()
+            ->orderByDesc('recorded_at')
+            ->with('values');
+
+        if ($metricCase !== MetricEnum::Readiness) {
+            $query->where('recorded_at', '<=', now()->format('Y-m-d'));
+        }
+
+        return $query->first();
+    }
+
+    protected function currentMetricDisplayLabel(MetricEnum $metricCase, array $fieldValues, mixed $metricInstance): ?string
+    {
+        return match ($metricCase) {
+            MetricEnum::OneRepMax => $this->oneRepMaxCurrentLabel($fieldValues),
+            MetricEnum::HeartRate => $this->heartRateCurrentLabel($fieldValues),
+            MetricEnum::Readiness => $this->readinessCurrentLabel($fieldValues, $metricInstance),
+        };
+    }
+
+    protected function oneRepMaxCurrentLabel(array $fieldValues): ?string
+    {
+        $metric = OneRepMaxMetric::from($fieldValues);
+
+        if ($metric->measuredWeight === null) {
+            return null;
+        }
+
+        $weight = rtrim(rtrim(number_format($metric->measuredWeight, 1), '0'), '.');
+
+        return "{$weight}kg";
+    }
+
+    protected function heartRateCurrentLabel(array $fieldValues): ?string
+    {
+        $hrMetric = HeartRateMetric::from($fieldValues);
+
+        if ($hrMetric->heartRate === null) {
+            return null;
+        }
+
+        $label = $hrMetric->heartRate.' HR';
+
+        if ($hrMetric->anaerobicThreshold !== null) {
+            $label .= ' - '.$hrMetric->anaerobicThreshold.'% IAT';
+        }
+
+        return $label;
+    }
+
+    protected function readinessCurrentLabel(array $fieldValues, mixed $metricInstance): ?string
+    {
+        $score = isset($fieldValues['readinessScore'])
+            ? (float) $fieldValues['readinessScore']
+            : ($metricInstance instanceof ReadinessMetric ? $metricInstance->data()->readinessScore() : null);
+
+        return $score !== null ? number_format($score, 1) : null;
+    }
+
+    protected function metricColorClass(MetricEnum $metric, array $fieldValues, mixed $metricInstance): ?string
+    {
+        if ($metric !== MetricEnum::Readiness) {
+            return null;
+        }
+
+        $trafficLightColor = $fieldValues['trafficLightColor'] ?? ReadinessMetricData::trafficLightColor(
+            $metricInstance instanceof ReadinessMetric ? $metricInstance->data()->trafficLight() : null
+        );
+
+        return is_string($trafficLightColor) ? ColorPalette::solidClasses($trafficLightColor) : null;
     }
 
     public function openCurrentMetric(string $metricValue): void

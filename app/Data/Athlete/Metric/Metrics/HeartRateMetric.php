@@ -20,8 +20,8 @@ class HeartRateMetric extends AbstractMetric
     public static function fields(): array
     {
         return [
-            HeartRate::make('heartRate'),
-            AnaerobicThreshold::make('anaerobicThreshold'),
+            HeartRate::make('heartRate')->live(),
+            AnaerobicThreshold::make('anaerobicThreshold')->live(),
         ];
     }
 

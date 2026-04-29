@@ -44,6 +44,7 @@ class ReadinessSurvey
         return [
             'metric' => $metric,
             'data' => $data,
+            'readinessScoreDivisor' => 7,
             'sleepDurationScore' => $sleepDurationScore,
             'sleepDurationFormatted' => match ($metric->sleepMinutes) {
                 360 => '<6:00',
@@ -74,6 +75,8 @@ class ReadinessSurvey
             'altitudeWeighted' => $altitudeScore === null ? null : ReadinessMetricData::adjustScore($altitudeScore, $extremeOffset) * 0.20,
             'sleepScore' => $data->sleepScore($extremeOffset),
             'readinessComponentsSum' => $data->readinessComponentsSum($extremeOffset),
+            'readinessScoreRaw' => $score,
+            'readinessScoreRounded' => $score !== null ? round($score, 1) : null,
             'readinessScore' => $score,
             'trafficLight' => $trafficLight,
             'trafficLightLabel' => ReadinessMetricData::trafficLightLabel($trafficLight),

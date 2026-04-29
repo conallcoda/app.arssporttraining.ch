@@ -73,8 +73,10 @@ class AthleteData extends AbstractData implements HasForms
                     $fieldValues = $submission->values->pluck('value', 'field')->all();
                     $metric = $metricClass::from($fieldValues);
                     $badge = $metric->badge($submission->metric->shortLabel());
-                    $badge['url'] = route('athlete-metric-index', ['athleteId' => $user->id])
-                        .'?am_selectedTab='.$submission->metric->value;
+                    $badge['url'] = route('athlete-metric-index', [
+                        'athleteId' => $user->id,
+                        'selectedTab' => $submission->metric->value,
+                    ]);
 
                     return $badge;
                 })->all()

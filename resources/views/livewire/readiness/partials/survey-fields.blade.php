@@ -135,12 +135,6 @@
             @enderror
         </flux:field>
 
-        @if (($showRhrSummary ?? true) === true)
-            <flux:text class="text-sm">
-                RHR delta: {{ $viewData['rhrDelta'] ?? '—' }} bpm · score {{ $viewData['rhrScore'] ?? '—' }}/5
-            </flux:text>
-        @endif
-
         <flux:field>
             <flux:label>Heart Rate Variability (HRV)</flux:label>
             <flux:input.group>

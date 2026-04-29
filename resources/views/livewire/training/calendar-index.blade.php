@@ -325,9 +325,8 @@
         :title="__('Add Metric')"
         :formDataClass="App\Data\Athlete\Metric\MetricSubmissionData::class"
         :flyout="true"
-        maxWidth="max-w-sm"
+        maxWidth="max-w-[83.333%] overflow-x-hidden"
         :showDelete="true"
-        :excludeFields="['recorded_at']"
     />
 
     <x-cms::confirm-modal
