@@ -28,11 +28,21 @@ return [
     | Allow Readiness For Past Days
     |--------------------------------------------------------------------------
     |
-    | When true, readiness behaves like the current setup and is only shown
-    | for the dashboard "today" date. When false, readiness can also be
-    | shown and submitted for past days, but never for future dates.
+    | When true, readiness can be shown and submitted for past days. Today's
+    | readiness is always allowed regardless of this setting.
     |
     */
     'allow_readiness_past' => true,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Allow Readiness For Future Days
+    |--------------------------------------------------------------------------
+    |
+    | When true, readiness can be shown and submitted for future days. Today's
+    | readiness is always allowed regardless of this setting.
+    |
+    */
+    'allow_readiness_future' => true,
 
 ];

@@ -2,7 +2,7 @@
 
 namespace App\Data\Athlete;
 
-use Carbon\Carbon;
+use App\Support\AthleteDashboardDate;
 use Coda\Cms\Data\AbstractData;
 
 class ReadinessData extends AbstractData
@@ -17,7 +17,7 @@ class ReadinessData extends AbstractData
     {
         return new self(
             userId: $userId,
-            date: Carbon::today()->format('Y-m-d'),
+            date: AthleteDashboardDate::todayDateString(),
         );
     }
 }

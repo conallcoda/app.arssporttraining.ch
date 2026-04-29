@@ -4,6 +4,8 @@
     $showHrvDescription = $showHrvDescription ?? true;
     $emojiTickClass = 'flex w-14 sm:w-16 flex-col items-center gap-1 text-center';
     $emojiLabelClass = 'text-[10px] leading-tight sm:text-xs';
+    $restingHeartRateField = $bindingPrefix . 'restingHeartRate';
+    $hrvField = $bindingPrefix . 'hrv';
 @endphp
 
 <div class="space-y-10">
@@ -117,13 +119,20 @@
 
         <flux:field>
             <flux:label>Resting heart rate (bpm)</flux:label>
-            <flux:input
-                type="number"
-                wire:model.live.debounce.250ms="{{ $bindingPrefix }}restingHeartRate"
-                min="30"
-                max="200"
-                class="w-full"
-            />
+            <flux:input.group>
+                <flux:input
+                    type="number"
+                    wire:model.live.debounce.250ms="{{ $bindingPrefix }}restingHeartRate"
+                    min="30"
+                    max="200"
+                    required
+                    class="w-full"
+                />
+                <flux:input.group.suffix>bpm</flux:input.group.suffix>
+            </flux:input.group>
+            @error($restingHeartRateField)
+                <flux:text class="text-sm text-red-500">{{ $message }}</flux:text>
+            @enderror
         </flux:field>
 
         @if (($showRhrSummary ?? true) === true)
@@ -134,12 +143,19 @@
 
         <flux:field>
             <flux:label>Heart Rate Variability (HRV)</flux:label>
-            <flux:input
-                type="number"
-                wire:model.live.debounce.250ms="{{ $bindingPrefix }}hrv"
-                min="0"
-                class="w-full"
-            />
+            <flux:input.group>
+                <flux:input
+                    type="number"
+                    wire:model.live.debounce.250ms="{{ $bindingPrefix }}hrv"
+                    min="0"
+                    required
+                    class="w-full"
+                />
+                <flux:input.group.suffix>ms</flux:input.group.suffix>
+            </flux:input.group>
+            @error($hrvField)
+                <flux:text class="text-sm text-red-500">{{ $message }}</flux:text>
+            @enderror
         </flux:field>
     </section>
 </div>

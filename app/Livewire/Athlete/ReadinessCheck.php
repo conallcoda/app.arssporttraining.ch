@@ -51,8 +51,21 @@ class ReadinessCheck extends Component
         return ReadinessSurvey::buildViewData($this->form);
     }
 
+    protected function validateReadinessForm(): void
+    {
+        $this->validate([
+            'form.restingHeartRate' => ['required', 'integer', 'min:30', 'max:200'],
+            'form.hrv' => ['required', 'integer', 'min:0'],
+        ], [], [
+            'form.restingHeartRate' => 'resting heart rate',
+            'form.hrv' => 'heart rate variability',
+        ]);
+    }
+
     public function submitReadiness(): void
     {
+        $this->validateReadinessForm();
+
         $submission = (new MetricSubmissionData(
             id: $this->submissionId,
             user_id: (int) auth()->id(),

@@ -43,21 +43,26 @@
                     wire:key="{{ $day['date'] }}-{{ $program->slotId }}"
                     href="{{ route('athlete.programs.show', ['date' => $day['date'], 'trainingProgram' => $program->trainingProgramId, 'from' => request()->fullUrl()]) }}"
                     wire:navigate
-                    class="flex items-stretch justify-between gap-0 overflow-hidden rounded-lg bg-zinc-50 transition hover:bg-zinc-100 dark:bg-zinc-800 dark:hover:bg-zinc-700/80"
+                    class="flex items-start justify-between gap-0 overflow-hidden rounded-lg bg-zinc-50 transition hover:bg-zinc-100 dark:bg-zinc-800 dark:hover:bg-zinc-700/80"
                 >
-                    <div class="flex w-12 shrink-0 items-center justify-center self-stretch text-white {{ $program->period === 'pm' ? 'bg-blue-500 dark:bg-blue-600' : 'bg-amber-400 dark:bg-amber-500' }}">
-                        <div class="text-sm font-medium uppercase tracking-wide">
-                            {{ \Carbon\CarbonImmutable::createFromFormat('H:i', $program->time)->format('g A') }}
+                    <div class="flex w-14 shrink-0 items-start justify-center px-2 pt-3">
+                        <div class="rounded px-2 py-0.5 text-sm font-semibold uppercase tracking-wide text-white {{ $program->period === 'pm' ? 'bg-blue-500 dark:bg-blue-600' : 'bg-amber-400 dark:bg-amber-500' }}">
+                            {{ strtoupper($program->period) }}
                         </div>
                     </div>
-                    <div class="flex min-w-0 flex-1 items-center justify-between gap-3 px-3 py-2">
+                    <div class="flex min-w-0 flex-1 items-start justify-between gap-3 px-3 py-2">
                         <div class="min-w-0 flex-1 space-y-2">
-                            <x-athlete.category-badge :label="$program->categoryName" :color="$program->categoryColor" />
+                            <div class="space-y-1">
+                                <div class="text-xs font-medium text-zinc-700 dark:text-zinc-200">
+                                    {{ $program->time }}
+                                </div>
+                                <x-athlete.category-badge :label="$program->categoryName" :color="$program->categoryColor" />
+                            </div>
                             @if (! $program->isFuture)
                                 <x-athlete.recorded-progress :segments="$program->progressSegments" class="max-w-40" />
                             @endif
                         </div>
-                        <flux:icon.chevron-right class="size-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
+                        <flux:icon.chevron-right class="mt-1 size-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
                     </div>
                 </a>
             @endforeach

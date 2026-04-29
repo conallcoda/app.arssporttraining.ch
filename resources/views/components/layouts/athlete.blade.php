@@ -34,9 +34,11 @@
 </head>
 
 <body class="athlete-shell min-h-screen bg-zinc-100 antialiased dark:bg-zinc-800" data-athlete-shell>
-    <flux:header class="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700">
+    <flux:header class="!px-0 sm:!px-6 lg:!px-8 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700">
         <flux:navbar class="w-full">
-            <flux:brand href="/dashboard" :logo="asset(config('cms.logo', 'images/logo.webp'))" alt="{{ config('cms.name') ?? config('app.name', 'Athlete') }}" />
+            <div class="pl-4 sm:pl-0">
+                <flux:brand href="/dashboard" :logo="asset(config('cms.logo', 'images/logo.webp'))" alt="{{ config('cms.name') ?? config('app.name', 'Athlete') }}" />
+            </div>
 
             <flux:spacer />
 

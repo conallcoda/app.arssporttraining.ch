@@ -38,15 +38,17 @@ class AthleteDashboardDate
             : CarbonImmutable::parse($date)->startOfDay();
 
         $today = static::today()->startOfDay();
+        $allowReadinessPast = (bool) config('athlete.allow_readiness_past', true);
+        $allowReadinessFuture = (bool) config('athlete.allow_readiness_future', true);
 
-        if ($resolvedDate->gt($today)) {
-            return false;
+        if ($resolvedDate->equalTo($today)) {
+            return true;
         }
 
-        $allowReadinessPast = (bool) config('athlete.allow_readiness_past', true);
+        if ($resolvedDate->lt($today)) {
+            return $allowReadinessPast;
+        }
 
-        return $allowReadinessPast
-            ? $resolvedDate->equalTo($today)
-            : $resolvedDate->lte($today);
+        return $allowReadinessFuture;
     }
 }

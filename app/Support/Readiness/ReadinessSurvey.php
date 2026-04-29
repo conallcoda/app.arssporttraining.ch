@@ -11,13 +11,13 @@ class ReadinessSurvey
     public static function defaultState(): array
     {
         return [
-            'sleepMinutes' => 450,
+            'sleepMinutes' => 480,
             'sleepQuality' => 3,
-            'altitudeMeters' => 2000,
+            'altitudeMeters' => 1500,
             'condition' => 3,
             'mood' => 3,
             'motivation' => 3,
-            'soreness' => 5,
+            'soreness' => 3,
             'energy' => 3,
             'restingHeartRate' => 60,
             'restingHeartRateBaseline' => 60,

@@ -4,7 +4,6 @@ use App\Http\Controllers\Training\SlotDetailsController;
 use App\Livewire\Admin\Docs;
 use App\Livewire\Athlete\Calendar;
 use App\Livewire\Athlete\ProgramDetails;
-use App\Livewire\Athlete\Record;
 use App\Livewire\Test\ExerciseCreator;
 use App\Livewire\Test\PortalDemo;
 use App\Livewire\Test\ReadinessForm;
@@ -15,7 +14,7 @@ use Illuminate\Support\Facades\Route;
 Route::redirect('/', '/login');
 
 Route::middleware('auth')->group(function (): void {
-    Route::get('/dashboard', Record::class)
+    Route::redirect('/dashboard', '/dashboard/calendar/day')
         ->name('athlete.dashboard');
 
     Route::get('/dashboard/calendar', function (Request $request) {
@@ -31,6 +30,10 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/dashboard/calendar/week/{date?}', Calendar::class)
         ->name('athlete.dashboard.calendar.week')
         ->defaults('calendarView', 'week');
+
+    Route::get('/dashboard/calendar/unrecorded', Calendar::class)
+        ->name('athlete.dashboard.calendar.unrecorded')
+        ->defaults('calendarView', 'unrecorded');
 
     Route::get('/programs/{date}/{trainingProgram}', ProgramDetails::class)
         ->name('athlete.programs.show');
