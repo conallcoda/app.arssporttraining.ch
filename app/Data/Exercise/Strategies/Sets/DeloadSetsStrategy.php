@@ -3,23 +3,49 @@
 namespace App\Data\Exercise\Strategies\Sets;
 
 use App\Data\Exercise\Preview\GridState;
+use App\Data\Exercise\Preview\SessionGroupBuilder;
+use App\Data\Exercise\Preview\SessionGroupingMode;
 use App\Data\Exercise\Settings\SetsSetting;
 use App\Data\Exercise\Strategies\Contracts\DefinesEditability;
 
 class DeloadSetsStrategy implements DefinesEditability
 {
-    public function __construct(private SetsSetting $setting) {}
+    public function __construct(
+        private SetsSetting $setting,
+        private string $groupingMode = SessionGroupingMode::Week->value,
+        private int $groupSize = 4,
+        /** @var array<int, int> */
+        private array $sessionCounts = [],
+    ) {}
 
     /** @return array<int, int> */
     public function generate(int $weeks, GridState $state): array
     {
         $setsPerWeek = [];
+        $sessionSetGrid = [];
+
+        $strategyMap = SessionGroupBuilder::buildStrategyMap(
+            weekCount: $weeks,
+            sessionCounts: $this->sessionCounts,
+            groupingMode: $this->groupingMode,
+            groupSize: $this->groupSize,
+        );
+
+        foreach ($strategyMap['orderedSessions'] as $session) {
+            $week = $session['week'];
+            $sessionIndex = $session['session'];
+            $sets = $this->getSetsForGroup($session['group']);
+
+            $sessionSetGrid[$week][$sessionIndex][0] = $sets;
+            $setsPerWeek[$week] = max($setsPerWeek[$week] ?? 0, $sets);
+        }
 
         for ($week = 0; $week < $weeks; $week++) {
-            $setsPerWeek[$week] = $this->getSetsForWeek($week);
+            $setsPerWeek[$week] ??= $this->getSetsForGroup($week);
         }
 
         $state->setSetsPerWeek($setsPerWeek);
+        $state->setSessionGrid('sets', $sessionSetGrid);
 
         return $setsPerWeek;
     }
@@ -31,19 +57,24 @@ class DeloadSetsStrategy implements DefinesEditability
 
     public function getSetsForWeek(int $weekIndex): int
     {
+        return $this->getSetsForGroup($weekIndex);
+    }
+
+    public function getSetsForGroup(int $groupIndex): int
+    {
         if ($this->setting->deload === 'none') {
             return $this->setting->default;
         }
 
-        $weekNumber = $weekIndex + 1;
+        $groupNumber = $groupIndex + 1;
 
-        $isDeloadWeek = match ($this->setting->deload) {
-            'odd' => $weekNumber % 2 === 1,
-            'even' => $weekNumber % 2 === 0,
+        $isDeloadGroup = match ($this->setting->deload) {
+            'odd' => $groupNumber % 2 === 1,
+            'even' => $groupNumber % 2 === 0,
             default => false,
         };
 
-        if ($isDeloadWeek) {
+        if ($isDeloadGroup) {
             return max(0, $this->setting->default - ($this->setting->deloadBy ?? 1));
         }
 

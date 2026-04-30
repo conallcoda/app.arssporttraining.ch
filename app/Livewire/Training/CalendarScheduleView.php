@@ -201,6 +201,7 @@ class CalendarScheduleView extends Component
                 ->where('training_program_id', $trainingProgramId)
                 ->where('user_id', $this->userId)
                 ->where('datetime', $datetime)
+                ->whereNull('completed_at')
                 ->delete();
         } else {
             $group = UserGroup::with('members')->find($this->groupId);
@@ -209,6 +210,7 @@ class CalendarScheduleView extends Component
                     ->where('training_program_id', $trainingProgramId)
                     ->whereIn('user_id', $group->members->pluck('id'))
                     ->where('datetime', $datetime)
+                    ->whereNull('completed_at')
                     ->delete();
             }
         }
@@ -311,6 +313,7 @@ class CalendarScheduleView extends Component
                 ->where('training_program_id', $trainingProgramId)
                 ->where('user_id', $this->userId)
                 ->where('datetime', $datetime)
+                ->whereNull('completed_at')
                 ->delete();
         } else {
             $group = UserGroup::with('members')->find($this->groupId);
@@ -319,6 +322,7 @@ class CalendarScheduleView extends Component
                     ->where('training_program_id', $trainingProgramId)
                     ->whereIn('user_id', $group->members->pluck('id'))
                     ->where('datetime', $datetime)
+                    ->whereNull('completed_at')
                     ->delete();
             }
         }

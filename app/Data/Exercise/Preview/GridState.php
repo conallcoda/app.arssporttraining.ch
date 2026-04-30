@@ -200,18 +200,34 @@ class GridState
 
     public function getResolvedWeekValue(string $setting, int $weekIndex, mixed $default): mixed
     {
+        return $this->getResolvedSessionValue($setting, $weekIndex, 0, $default);
+    }
+
+    public function isWeekOverridden(string $setting, int $weekIndex): bool
+    {
+        return $this->isSessionOverridden($setting, $weekIndex, 0);
+    }
+
+    public function getResolvedSessionValue(string $setting, int $weekIndex, int $sessionIndex, mixed $default): mixed
+    {
         if ($this->overrides !== null) {
-            $overrideValue = $this->overrides->getWeekOverrideValue($weekIndex, $setting);
+            $overrideValue = $this->overrides->getSessionOverrideValue($weekIndex, $sessionIndex, $setting);
 
             if ($overrideValue !== null) {
                 return $overrideValue;
             }
         }
 
+        $sessionValue = $this->sessionGrids[$setting][$weekIndex][$sessionIndex][0] ?? null;
+
+        if ($sessionValue !== null) {
+            return $sessionValue;
+        }
+
         return $default;
     }
 
-    public function isWeekOverridden(string $setting, int $weekIndex): bool
+    public function isSessionOverridden(string $setting, int $weekIndex, int $sessionIndex): bool
     {
         $overrides = $this->highlightOverrides ?? $this->overrides;
 
@@ -219,7 +235,7 @@ class GridState
             return false;
         }
 
-        return $overrides->hasWeekOverride($weekIndex, $setting);
+        return $overrides->hasSessionOverride($weekIndex, $sessionIndex, $setting);
     }
 
     public function addEditabilityStrategy(DefinesEditability $strategy): void

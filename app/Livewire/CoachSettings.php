@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Data\Coach\Settings\AbstractCoachSetting;
 use App\Data\Coach\Settings\CalendarSidebarSetting;
+use App\Data\Coach\Settings\SessionGroupingSetting;
 use Coda\Cms\Livewire\Concerns\InteractsWithFormData;
 use Coda\FormKit\Form;
 use Flux\Flux;
@@ -21,6 +22,7 @@ class CoachSettings extends Component
     /** @var list<class-string<AbstractCoachSetting>> */
     protected const SETTINGS = [
         CalendarSidebarSetting::class,
+        SessionGroupingSetting::class,
     ];
 
     public function mount(): void

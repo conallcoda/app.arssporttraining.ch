@@ -4,6 +4,7 @@ use App\Livewire\Training\View\PlanExerciseGrid;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
+use App\Models\Users\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -135,7 +136,7 @@ it('auto-expands a future week when sessions diverge', function () {
     expect($component->instance()->effectiveExpandedWeeks)->toBe([0]);
 });
 
-it('does not auto-expand a future week for legacy session 0 overrides when later sessions have no explicit overrides', function () {
+it('auto-expands a future week when only session 0 has an explicit override', function () {
     $exercise = Exercise::factory()->create([
         'config' => [
             'settings' => ['reps'],
@@ -178,9 +179,9 @@ it('does not auto-expand a future week for legacy session 0 overrides when later
 
     expect($row)->not->toBeNull()
         ->and($row->getCellValue(0, 0, 0))->toBe(14)
-        ->and($row->getCellValue(0, 0, 1))->toBe(14)
-        ->and($row->isCellOverriddenAt(0, 0, 1))->toBeTrue()
-        ->and($component->instance()->effectiveExpandedWeeks)->toBe([]);
+        ->and($row->getCellValue(0, 0, 1))->toBe(12)
+        ->and($row->isCellOverriddenAt(0, 0, 1))->toBeFalse()
+        ->and($component->instance()->effectiveExpandedWeeks)->toBe([0]);
 });
 
 it('shows session-specific week-column values for expanded mixed past and future weeks', function () {
@@ -217,7 +218,7 @@ it('shows session-specific week-column values for expanded mixed past and future
         ],
     ]);
 
-    $component->call('updateWeekOverride', 0, 'rest', 90);
+    $component->call('updateSessionOverride', 0, 1, 'rest', 90);
 
     $grid = $component->instance()->previewGrid;
     $column = collect($grid->weekColumns)->firstWhere('field', 'rest');
@@ -225,7 +226,7 @@ it('shows session-specific week-column values for expanded mixed past and future
     expect($column)->not->toBeNull()
         ->and($column->getCellValue(0, 0, 0))->toBe(60)
         ->and($column->getCellValue(0, 0, 1))->toBe(90)
-        ->and($column->isCellOverriddenAt(0, 0, 0))->toBeTrue()
+        ->and($column->isCellOverriddenAt(0, 0, 0))->toBeFalse()
         ->and($column->isCellOverriddenAt(0, 0, 1))->toBeTrue();
 });
 
@@ -264,7 +265,106 @@ it('auto-expands a mixed week when only a week-wide field differs between past a
         'expandedWeeks' => [],
     ]);
 
-    $component->call('updateWeekOverride', 0, 'rest', 90);
+    $component->call('updateSessionOverride', 0, 1, 'rest', 90);
 
     expect($component->instance()->effectiveExpandedWeeks)->toBe([0]);
+});
+
+it('can group displayed sessions into fixed-size buckets across week boundaries', function () {
+    $coach = User::factory()->coach()->create();
+    $coach->config->set('settings.session_grouping', [
+        'mode' => 'groups',
+        'groupSize' => 3,
+    ]);
+    $coach->save();
+
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+            'preview' => [
+                'weeks' => 2,
+                'sessionsPerWeek' => 2,
+            ],
+        ],
+    ]);
+
+    $program = ExerciseProgram::factory()->create();
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
+        'exercisePlanId' => $program->id,
+        'planType' => ExerciseProgram::class,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'weeks' => 2,
+        'sessionsPerWeek' => 2,
+    ]);
+
+    $displayGrid = $component->instance()->displayGrid;
+
+    expect($displayGrid->groupColumnLabel)->toBe('Group')
+        ->and($displayGrid->groups)->toHaveCount(2)
+        ->and($displayGrid->groups[0]->label)->toBe('G1')
+        ->and(array_map(fn ($session) => [$session->weekIndex, $session->sessionIndex], $displayGrid->groups[0]->sessions))
+            ->toBe([[0, 0], [0, 1], [1, 0]])
+        ->and(array_map(fn ($session) => [$session->weekIndex, $session->sessionIndex], $displayGrid->groups[1]->sessions))
+            ->toBe([[1, 1]]);
+});
+
+it('uses coach grouping defaults for existing plan grids when preview grouping is not persisted', function () {
+    $coach = User::factory()->coach()->create();
+    $coach->config->set('settings.session_grouping', [
+        'mode' => 'groups',
+        'groupSize' => 2,
+    ]);
+    $coach->save();
+
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+            'preview' => ['weeks' => 3, 'sessionsPerWeek' => 2],
+        ],
+    ]);
+
+    $program = ExerciseProgram::factory()->create();
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
+        'exercisePlanId' => $program->id,
+        'planType' => ExerciseProgram::class,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'weeks' => 3,
+        'sessionsPerWeek' => 2,
+        'weekSessions' => [2, 1, 2],
+    ]);
+
+    $displayGrid = $component->instance()->displayGrid;
+
+    expect($displayGrid->groupColumnLabel)->toBe('Group')
+        ->and($displayGrid->groups)->toHaveCount(3)
+        ->and(array_map(fn ($session) => [$session->weekIndex, $session->sessionIndex], $displayGrid->groups[0]->sessions))
+            ->toBe([[0, 0], [0, 1]])
+        ->and(array_map(fn ($session) => [$session->weekIndex, $session->sessionIndex], $displayGrid->groups[1]->sessions))
+            ->toBe([[1, 0], [2, 0]])
+        ->and(array_map(fn ($session) => [$session->weekIndex, $session->sessionIndex], $displayGrid->groups[2]->sessions))
+            ->toBe([[2, 1]]);
 });

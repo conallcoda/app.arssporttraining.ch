@@ -13,13 +13,13 @@ it('removes athlete-specific overrides for a program exercise without mutating o
     ]);
 
     $config->setUserExerciseOverrides(10, 100, ExerciseOverrides::from([
-        'gridOverrides' => ['cells' => [['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['reps' => 8]]], 'weeks' => []],
+        'gridOverrides' => ['sessions' => [], 'cells' => [['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['reps' => 8]]]],
     ]));
     $config->setUserExerciseOverrides(11, 100, ExerciseOverrides::from([
-        'gridOverrides' => ['cells' => [['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['reps' => 10]]], 'weeks' => []],
+        'gridOverrides' => ['sessions' => [], 'cells' => [['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['reps' => 10]]]],
     ]));
     $config->setUserExerciseOverrides(11, 101, ExerciseOverrides::from([
-        'gridOverrides' => ['cells' => [['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['reps' => 12]]], 'weeks' => []],
+        'gridOverrides' => ['sessions' => [], 'cells' => [['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['reps' => 12]]]],
     ]));
 
     $config->removeExerciseOverridesForAllUsers(100);
@@ -37,10 +37,10 @@ it('remaps athlete-specific overrides when pivot ids change', function () {
     ]);
 
     $config->setUserExerciseOverrides(10, 100, ExerciseOverrides::from([
-        'gridOverrides' => ['cells' => [['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['reps' => 8]]], 'weeks' => []],
+        'gridOverrides' => ['sessions' => [], 'cells' => [['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['reps' => 8]]]],
     ]));
     $config->setUserExerciseOverrides(11, 101, ExerciseOverrides::from([
-        'gridOverrides' => ['cells' => [['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['reps' => 10]]], 'weeks' => []],
+        'gridOverrides' => ['sessions' => [], 'cells' => [['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['reps' => 10]]]],
     ]));
 
     $config->remapUserExerciseOverrides([
@@ -66,11 +66,11 @@ it('copies mapped default and athlete-specific overrides from another config', f
 
     $source->setDefaultExerciseOverrides(100, ExerciseOverrides::from([
         'startsAtDate' => '2026-01-01',
-        'gridOverrides' => ['cells' => [['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['reps' => 8]]], 'weeks' => []],
+        'gridOverrides' => ['sessions' => [], 'cells' => [['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['reps' => 8]]]],
     ]));
     $source->setUserExerciseOverrides(10, 100, ExerciseOverrides::from([
         'startsAtDate' => '2026-01-02',
-        'gridOverrides' => ['cells' => [['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['reps' => 10]]], 'weeks' => []],
+        'gridOverrides' => ['sessions' => [], 'cells' => [['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['reps' => 10]]]],
     ]));
 
     $target->copyMappedExerciseOverridesFrom($source, [100 => 200], '2026-02-01');

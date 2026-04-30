@@ -131,7 +131,7 @@
         @if ($showWeeksInput)
             <x-cms::section :title="__('Settings')" class="w-64 shrink-0">
                 <flux:field>
-                    <flux:label>{{ __('Weeks') }}</flux:label>
+                    <flux:label>{{ __('Planning Horizon (Weeks)') }}</flux:label>
                     <flux:input wire:model.live="weeks" type="number" min="1" max="52" step="1" />
                 </flux:field>
             </x-cms::section>

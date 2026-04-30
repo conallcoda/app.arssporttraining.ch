@@ -50,7 +50,7 @@ it('materializes automatic heart rate ranges as strings on athlete sessions', fu
                 ['week' => 0, 'session' => 0, 'set' => 3, 'data' => ['heartRateZone' => '3']],
                 ['week' => 0, 'session' => 0, 'set' => 4, 'data' => ['heartRateZone' => '4']],
             ],
-            'weeks' => [],
+            'sessions' => [],
         ],
     ]));
     $program->config = $config;

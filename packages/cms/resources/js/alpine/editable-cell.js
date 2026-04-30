@@ -67,8 +67,8 @@ document.addEventListener('alpine:init', () => {
                 parsedValue = this.editValue.trim();
             }
 
-            if (this.cellEditType === 'week') {
-                this.$wire.updateWeekOverride(this.cellWeek, this.cellField, parsedValue);
+            if (this.cellEditType === 'session') {
+                this.$wire.updateSessionOverride(this.cellWeek, this.cellSession, this.cellField, parsedValue);
             } else {
                 this.$wire.updateCellOverride(this.cellWeek, this.cellSet, this.cellField, parsedValue, this.cellSession, this.cellApplyToAll);
             }

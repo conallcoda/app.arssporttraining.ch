@@ -8,7 +8,8 @@ use App\Data\Exercise\Preview\ExercisePreviewBuilder;
 use App\Data\Exercise\Preview\GridOverrides;
 use App\Data\Exercise\Preview\OverrideManager;
 use App\Data\Exercise\Preview\PreviewGrid;
-use App\Data\Exercise\Preview\PreviewGridWeek;
+use App\Data\Exercise\Preview\SessionGroupBuilder;
+use App\Data\Exercise\Preview\SessionGroupingMode;
 use App\Data\Exercise\Preview\StrategyOrchestrator;
 use App\Data\Exercise\Settings\SetsSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
@@ -21,6 +22,7 @@ use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExercisePlan;
 use App\Training\TrainingSessionRebuildDispatcher;
 use Coda\Cms\Livewire\Concerns\InteractsWithParentView;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Reactive;
@@ -148,7 +150,7 @@ class PlanExerciseGrid extends Component
 
     protected function getEffectiveConfig(): array
     {
-        return $this->resolvedExerciseOverrides->effectiveConfig;
+        return $this->withResolvedPreviewGrouping($this->resolvedExerciseOverrides->effectiveConfig);
     }
 
     protected function getBaseGridOverrides(): array
@@ -180,34 +182,49 @@ class PlanExerciseGrid extends Component
         $measuredData = $this->getPlanMeasuredData();
 
         $weeks = $this->weeks;
-        $overrides = GridOverrides::fromArrays(
-            $baseOverrides['cells'] ?? [],
-            $baseOverrides['weeks'] ?? [],
+        $overrides = GridOverrides::fromConfig($baseOverrides);
+        $orchestrator = new StrategyOrchestrator(
+            $effectiveConfig,
+            $measuredData,
+            $weeks,
+            $overrides,
+            $this->planMaxHR,
+            $this->planIatPercent,
+            sessionCounts: $this->resolvedWeekSessionCounts(),
         );
-        $orchestrator = new StrategyOrchestrator($effectiveConfig, $measuredData, $weeks, $overrides, $this->planMaxHR, $this->planIatPercent);
         $state = $orchestrator->execute();
 
         return $state->getResolvedCellValue($field, $weekIndex, $setIndex);
     }
 
-    protected function getEffectiveWeekDefault(string $field, int $weekIndex): mixed
+    protected function getEffectiveSessionDefault(string $field, int $weekIndex, int $sessionIndex): mixed
     {
         $effectiveConfig = $this->getEffectiveConfig();
         $baseOverrides = $this->getBaseGridOverrides();
-        $overrides = GridOverrides::fromArrays(
-            $baseOverrides['cells'] ?? [],
-            $baseOverrides['weeks'] ?? [],
-        );
+        $overrides = GridOverrides::fromConfig($baseOverrides);
 
-        $weekValue = $overrides->getWeekOverrideValue($weekIndex, $field);
-        if ($weekValue !== null) {
-            return $weekValue;
+        $sessionValue = $overrides->getSessionOverrideValue($weekIndex, $sessionIndex, $field);
+        if ($sessionValue !== null) {
+            return $sessionValue;
         }
 
         if ($field === 'sets') {
-            $strategy = new DeloadSetsStrategy(SetsSetting::from($effectiveConfig['sets'] ?? []));
+            $preview = $effectiveConfig['preview'] ?? [];
+            $strategy = new DeloadSetsStrategy(
+                SetsSetting::from($effectiveConfig['sets'] ?? []),
+                groupingMode: (string) ($preview['groupingMode'] ?? SessionGroupingMode::Week->value),
+                groupSize: max(1, (int) ($preview['groupSize'] ?? 4)),
+                sessionCounts: $this->resolvedWeekSessionCounts(),
+            );
 
-            return $strategy->getSetsForWeek($weekIndex);
+            $groupMap = SessionGroupBuilder::buildStrategyMap(
+                $this->weeks,
+                $this->resolvedWeekSessionCounts(),
+                (string) ($preview['groupingMode'] ?? SessionGroupingMode::Week->value),
+                max(1, (int) ($preview['groupSize'] ?? 4)),
+            );
+
+            return $strategy->getSetsForGroup($groupMap['groupIndexByWeekSession'][$weekIndex][$sessionIndex] ?? $weekIndex);
         }
 
         return $effectiveConfig[$field]['default'] ?? null;
@@ -311,30 +328,21 @@ class PlanExerciseGrid extends Component
         $effectiveConfig = $this->getEffectiveConfig();
         $measuredData = $this->getPlanMeasuredData();
 
-        $overrides = GridOverrides::fromArrays(
-            $effectiveConfig['overrides']['cells'] ?? [],
-            $effectiveConfig['overrides']['weeks'] ?? [],
-        );
-        $historicalOverrides = GridOverrides::fromArrays(
-            $this->getHistoricalGridOverrides()['cells'] ?? [],
-            $this->getHistoricalGridOverrides()['weeks'] ?? [],
-        );
+        $overrides = GridOverrides::fromConfig($effectiveConfig['overrides'] ?? []);
+        $historicalOverrides = GridOverrides::fromConfig($this->getHistoricalGridOverrides());
 
         $config = $this->getPlanConfig();
         $planDefaults = $config->defaultExerciseOverrides($this->programExerciseId);
-        $originalPlanOverrides = $planDefaults->baselineGridOverrides ?? ['cells' => [], 'weeks' => []];
+        $originalPlanOverrides = $planDefaults->baselineGridOverrides ?? ['sessions' => [], 'cells' => []];
         $originalEffective = EffectiveExerciseConfig::mergeGridOverrides(
             $this->getExerciseConfig()->overrides,
             $originalPlanOverrides,
         );
         $diffed = $this->diffGridOverrides(
-            $effectiveConfig['overrides'] ?? ['cells' => [], 'weeks' => []],
+            $effectiveConfig['overrides'] ?? ['sessions' => [], 'cells' => []],
             $originalEffective,
         );
-        $highlightOverrides = GridOverrides::fromArrays(
-            $diffed['cells'] ?? [],
-            $diffed['weeks'] ?? [],
-        );
+        $highlightOverrides = GridOverrides::fromConfig($diffed);
 
         $grid = ExercisePreviewBuilder::build(
             $effectiveConfig,
@@ -350,6 +358,9 @@ class PlanExerciseGrid extends Component
             $this->lockedSessionsByWeek,
             $historicalOverrides,
             $this->resolvedWeekSessionCounts(),
+            $this->getExerciseConfig()->toArray(),
+            $this->resolvedExerciseOverrides->defaultOverrides,
+            $this->resolvedExerciseOverrides->userOverrides,
         );
 
         return $this->clearLockedWeekHighlights($grid);
@@ -360,64 +371,28 @@ class PlanExerciseGrid extends Component
     {
         $grid = $this->previewGrid;
         $expandedWeekLookup = collect($this->effectiveExpandedWeeks)
-            ->mapWithKeys(fn (mixed $week) => [(int) $week => true])
+            ->map(fn (mixed $week): int => (int) $week)
             ->all();
         $showSessionColumn = ! empty($expandedWeekLookup);
-        $showCopyMenu = $grid->weekCount > 1;
-        $showWeekColumn = $grid->weekCount > 1;
+        $effectiveConfig = $this->getEffectiveConfig();
+        $grouping = SessionGroupBuilder::build(
+            weekCount: $grid->weekCount,
+            sessionCounts: $grid->weekSessionCounts,
+            groupingMode: (string) ($effectiveConfig['preview']['groupingMode'] ?? SessionGroupingMode::Week->value),
+            groupSize: (int) ($effectiveConfig['preview']['groupSize'] ?? 4),
+            labels: $this->weekLabels,
+            expandedIndexes: $expandedWeekLookup,
+            lockedSessionsByWeek: $this->lockedSessionsByWeek,
+            sessionLabels: $this->sessionLabels,
+        );
 
-        $cumulativeSessionStart = 0;
-        $weeks = [];
-
-        for ($week = 0; $week < $grid->weekCount; $week++) {
-            $sessionCount = (int) ($grid->weekSessionCounts[$week] ?? 1);
-            $rangeStart = $cumulativeSessionStart + 1;
-            $rangeEnd = $cumulativeSessionStart + $sessionCount;
-            $sessionNumbers = $sessionCount > 0 ? range($rangeStart, $rangeEnd) : [];
-            $lockedSessions = array_map(
-                static fn (mixed $locked): bool => (bool) $locked,
-                $this->lockedSessionsByWeek[$week] ?? []
-            );
-
-            $collapsedMetaLines = [];
-            if ($this->sessionLabels) {
-                $collapsedMetaLines = array_map(
-                    static fn (int $number): string => __('Session').' '.$number,
-                    $sessionNumbers
-                );
-            } elseif ($sessionCount > 1) {
-                $collapsedMetaLines[] = '('.$sessionCount.' '.__('sessions').')';
-            } elseif ($grid->weekSessionCounts !== []) {
-                $collapsedMetaLines[] = '('.$sessionCount.' '.__('session').')';
-            }
-
-            $copyTargets = array_values(array_filter(
-                range(0, $grid->weekCount - 1),
-                static fn (int $candidate): bool => $candidate !== $week
-            ));
-
-            $weeks[] = new PreviewGridWeek(
-                index: $week,
-                label: (string) ($this->weekLabels[$week] ?? 'TW'.($week + 1)),
-                sessionCount: $sessionCount,
-                sessionNumbers: $sessionNumbers,
-                sessionRangeLabel: $rangeStart === $rangeEnd ? (string) $rangeStart : $rangeStart.'-'.$rangeEnd,
-                expanded: (bool) ($expandedWeekLookup[$week] ?? false),
-                lockedSessions: $lockedSessions,
-                hasLockedSessions: in_array(true, $lockedSessions, true),
-                collapsedMetaLines: $collapsedMetaLines,
-                showCopyMenu: $showCopyMenu && ! in_array(true, $lockedSessions, true),
-                copyFromWeeks: $copyTargets,
-                copyToWeeks: $copyTargets,
-            );
-
-            $cumulativeSessionStart += $sessionCount;
-        }
-
-        $grid->weeks = $weeks;
-        $grid->showWeekColumn = $showWeekColumn;
+        $grid->groups = $grouping['groups'];
+        $grid->groupColumnLabel = $grouping['columnLabel'];
+        $grid->showGroupColumn = count($grouping['groups']) > 1;
+        $grid->weeks = $grouping['groups'];
+        $grid->showWeekColumn = $grid->showGroupColumn;
         $grid->showSessionColumn = $showSessionColumn;
-        $grid->showCopyMenu = $showCopyMenu;
+        $grid->showCopyMenu = false;
 
         return $grid;
     }
@@ -466,11 +441,41 @@ class PlanExerciseGrid extends Component
         return array_values(array_unique($expanded));
     }
 
-    /** @return array{cells: array, weeks: array} */
+    protected function withResolvedPreviewGrouping(array $config): array
+    {
+        $preview = $config['preview'] ?? [];
+        $grouping = $this->resolveDefaultPreviewGrouping();
+        $preview['groupingMode'] = $grouping['mode'];
+        $preview['groupSize'] = $grouping['groupSize'];
+
+        $config['preview'] = $preview;
+
+        return $config;
+    }
+
+    /**
+     * @return array{mode: string, groupSize: int}
+     */
+    protected function resolveDefaultPreviewGrouping(): array
+    {
+        $user = Auth::user();
+
+        return [
+            'mode' => (string) ($user?->config->get('settings.session_grouping.mode', SessionGroupingMode::Week->value) ?? SessionGroupingMode::Week->value),
+            'groupSize' => max(1, (int) ($user?->config->get('settings.session_grouping.groupSize', 4) ?? 4)),
+        ];
+    }
+
+    /** @return array{sessions: array, cells: array} */
     protected function diffGridOverrides(array $current, ?array $baseline): array
     {
         if ($baseline === null) {
             return $current;
+        }
+
+        $baselineSessionKeys = [];
+        foreach ($baseline['sessions'] ?? [] as $session) {
+            $baselineSessionKeys[$session['week'].'-'.$session['session']] = $session['data'] ?? [];
         }
 
         $baselineCellKeys = [];
@@ -479,9 +484,17 @@ class PlanExerciseGrid extends Component
             $baselineCellKeys[$key] = $cell['data'] ?? [];
         }
 
-        $baselineWeekKeys = [];
-        foreach ($baseline['weeks'] ?? [] as $week) {
-            $baselineWeekKeys[(string) $week['week']] = $week['data'] ?? [];
+        $diffSessions = [];
+        foreach ($current['sessions'] ?? [] as $session) {
+            $key = $session['week'].'-'.$session['session'];
+            if (! isset($baselineSessionKeys[$key])) {
+                $diffSessions[] = $session;
+            } else {
+                $newData = array_diff_assoc($session['data'] ?? [], $baselineSessionKeys[$key]);
+                if (! empty($newData)) {
+                    $diffSessions[] = array_merge($session, ['data' => $newData]);
+                }
+            }
         }
 
         $diffCells = [];
@@ -497,20 +510,7 @@ class PlanExerciseGrid extends Component
             }
         }
 
-        $diffWeeks = [];
-        foreach ($current['weeks'] ?? [] as $week) {
-            $key = (string) $week['week'];
-            if (! isset($baselineWeekKeys[$key])) {
-                $diffWeeks[] = $week;
-            } else {
-                $newData = array_diff_assoc($week['data'] ?? [], $baselineWeekKeys[$key]);
-                if (! empty($newData)) {
-                    $diffWeeks[] = array_merge($week, ['data' => $newData]);
-                }
-            }
-        }
-
-        return ['cells' => $diffCells, 'weeks' => $diffWeeks];
+        return ['sessions' => $diffSessions, 'cells' => $diffCells];
     }
 
     protected function clearLockedWeekHighlights(PreviewGrid $grid): PreviewGrid
@@ -550,9 +550,15 @@ class PlanExerciseGrid extends Component
         }
 
         foreach ($grid->weekColumns as $column) {
-            foreach ($column->overrides as $week => $isOverridden) {
-                if ($lockedWeeks[$week] ?? false) {
-                    $column->overrides[$week] = false;
+            foreach ($column->sessionOverrides as $week => $sessionOverrides) {
+                foreach ($sessionOverrides as $session => $setOverrides) {
+                    if (! (($this->lockedSessionsByWeek[$week][$session] ?? false))) {
+                        continue;
+                    }
+
+                    foreach (array_keys($setOverrides) as $set) {
+                        $column->sessionOverrides[$week][$session][$set] = false;
+                    }
                 }
             }
         }
@@ -600,56 +606,21 @@ class PlanExerciseGrid extends Component
         unset($this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides);
     }
 
-    public function updateWeekOverride(int $weekIndex, string $field, mixed $value): void
+    public function updateSessionOverride(int $weekIndex, int $session, string $field, mixed $value): void
     {
         $overrides = $this->getCurrentOverrides();
-        $effectiveDefault = $this->getEffectiveWeekDefault($field, $weekIndex);
+        $effectiveDefault = $this->getEffectiveSessionDefault($field, $weekIndex, $session);
 
-        $overrides->gridOverrides = OverrideManager::updateWeekOverride(
+        $overrides->gridOverrides = OverrideManager::updateSessionOverride(
             $overrides->gridOverrides,
             $this->getEffectiveConfig(),
             $weekIndex,
+            $session,
             $field,
             $value,
             $effectiveDefault,
         );
 
-        $this->saveOverrides($overrides);
-        unset($this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides);
-    }
-
-    public function copyWeek(int $sourceWeek, int $targetWeek): void
-    {
-        $grid = $this->previewGrid;
-        $defaultsGrid = $this->buildDefaultsGrid();
-        $overrides = $this->getCurrentOverrides();
-
-        $overrides->gridOverrides = OverrideManager::copyWeekOverrides(
-            $overrides->gridOverrides ?? OverrideManager::reset(),
-            $grid,
-            $defaultsGrid,
-            $sourceWeek,
-            $targetWeek,
-        );
-
-        $this->saveOverrides($overrides);
-        unset($this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides);
-    }
-
-    public function copyWeekToAll(int $sourceWeek): void
-    {
-        $grid = $this->previewGrid;
-        $defaultsGrid = $this->buildDefaultsGrid();
-        $overrides = $this->getCurrentOverrides();
-        $gridOverrides = $overrides->gridOverrides ?? OverrideManager::reset();
-
-        for ($week = 0; $week < $this->weeks; $week++) {
-            if ($week !== $sourceWeek) {
-                $gridOverrides = OverrideManager::copyWeekOverrides($gridOverrides, $grid, $defaultsGrid, $sourceWeek, $week);
-            }
-        }
-
-        $overrides->gridOverrides = $gridOverrides;
         $this->saveOverrides($overrides);
         unset($this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides);
     }
@@ -664,7 +635,7 @@ class PlanExerciseGrid extends Component
             $effectiveConfig,
             $measuredData,
             $this->weeks,
-            GridOverrides::fromArrays($baseOverrides['cells'] ?? [], $baseOverrides['weeks'] ?? []),
+            GridOverrides::fromConfig($baseOverrides),
             $this->sessionsPerWeek,
             null,
             $this->planMaxHR,
@@ -674,6 +645,9 @@ class PlanExerciseGrid extends Component
             $this->lockedSessionsByWeek,
             null,
             $this->resolvedWeekSessionCounts(),
+            $this->getExerciseConfig()->toArray(),
+            $this->resolvedExerciseOverrides->defaultOverrides,
+            $this->resolvedExerciseOverrides->userOverrides,
         );
 
         return $grid;
@@ -832,13 +806,19 @@ class PlanExerciseGrid extends Component
             }
 
             foreach ($grid->weekColumns as $column) {
-                $value = $column->cells[$week] ?? null;
+                foreach ($weekLockedSessions as $session => $isLocked) {
+                    if (! $isLocked) {
+                        continue;
+                    }
 
-                if ($value === null || $value === '' || $value === '-' || $value === '—') {
-                    continue;
+                    $value = $column->getCellValue($week, 0, (int) $session);
+
+                    if ($value === null || $value === '' || $value === '-' || $value === '—') {
+                        continue;
+                    }
+
+                    $historicalGridOverrides = $this->putSessionOverride($historicalGridOverrides, $week, (int) $session, $column->field, $value);
                 }
-
-                $historicalGridOverrides = $this->putWeekOverride($historicalGridOverrides, $week, $column->field, $value);
             }
         }
 
@@ -889,8 +869,8 @@ class PlanExerciseGrid extends Component
             ->values()
             ->all();
 
-        $gridOverrides['weeks'] = collect($gridOverrides['weeks'] ?? [])
-            ->reject(fn (array $week): bool => $this->isEntireWeekLocked((int) ($week['week'] ?? -1)))
+        $gridOverrides['sessions'] = collect($gridOverrides['sessions'] ?? [])
+            ->reject(fn (array $session): bool => ($this->lockedSessionsByWeek[(int) ($session['week'] ?? -1)][(int) ($session['session'] ?? -1)] ?? false))
             ->values()
             ->all();
 
@@ -983,18 +963,19 @@ class PlanExerciseGrid extends Component
         return $gridOverrides;
     }
 
-    protected function putWeekOverride(array $gridOverrides, int $week, string $field, mixed $value): array
+    protected function putSessionOverride(array $gridOverrides, int $week, int $session, string $field, mixed $value): array
     {
-        foreach ($gridOverrides['weeks'] ?? [] as $index => $override) {
-            if (($override['week'] ?? null) === $week) {
-                $gridOverrides['weeks'][$index]['data'][$field] = $value;
+        foreach ($gridOverrides['sessions'] ?? [] as $index => $override) {
+            if (($override['week'] ?? null) === $week && ($override['session'] ?? null) === $session) {
+                $gridOverrides['sessions'][$index]['data'][$field] = $value;
 
                 return $gridOverrides;
             }
         }
 
-        $gridOverrides['weeks'][] = [
+        $gridOverrides['sessions'][] = [
             'week' => $week,
+            'session' => $session,
             'data' => [$field => $value],
         ];
 

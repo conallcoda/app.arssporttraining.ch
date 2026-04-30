@@ -2,6 +2,7 @@
 
 namespace App\Data\Exercise\Preview;
 
+use App\Data\Training\Planned\ResolvedPlannedProvenance;
 use Coda\Cms\Data\AbstractData;
 
 class PreviewGridRow extends AbstractData
@@ -32,6 +33,10 @@ class PreviewGridRow extends AbstractData
         public array $sessionCellColorMap = [],
         /** @var array<int, array<int, array<int, string>>> */
         public array $sessionCellOverrideColorMap = [],
+        /** @var array<int, array<int, ResolvedPlannedProvenance|null>>|array<int, ResolvedPlannedProvenance|null> */
+        public array $provenanceMap = [],
+        /** @var array<int, array<int, array<int, ResolvedPlannedProvenance|null>>> */
+        public array $sessionProvenanceMap = [],
     ) {
         $this->clickField ??= $field;
     }
@@ -61,6 +66,15 @@ class PreviewGridRow extends AbstractData
         }
 
         return $this->overrides[$week][$set] ?? false;
+    }
+
+    public function getCellProvenance(int $week, int $set, ?int $session = null): ?ResolvedPlannedProvenance
+    {
+        if ($session !== null && array_key_exists($week, $this->sessionProvenanceMap)) {
+            return $this->sessionProvenanceMap[$week][$session][$set] ?? null;
+        }
+
+        return $this->provenanceMap[$week][$set] ?? null;
     }
 
     public function resolveCellColor(int $week, ?int $set = null, bool $overridden = false, ?int $session = null): string
@@ -105,7 +119,7 @@ class PreviewGridRow extends AbstractData
     }
 
     /**
-     * @return array{value: string|int|float|null, overridden: bool, color: string, editable: bool}
+     * @return array{value: string|int|float|null, overridden: bool, color: string, editable: bool, provenance: ?ResolvedPlannedProvenance}
      */
     public function presentCell(
         int $week,
@@ -117,17 +131,19 @@ class PreviewGridRow extends AbstractData
     ): array {
         $value = $visible ? $this->getCellValue($week, $set, $session) : '-';
         $overridden = $visible ? $this->isCellOverriddenAt($week, $set, $session) : false;
+        $provenance = $visible ? $this->getCellProvenance($week, $set, $session) : null;
 
         return [
             'value' => $value,
             'overridden' => $overridden,
             'color' => $this->resolveCellColor($week, $set, $overridden, $session),
             'editable' => $editable && ! $locked && $this->isCellEditable($week, $set) && $value !== '-',
+            'provenance' => $provenance,
         ];
     }
 
     /**
-     * @return array{value: string|int|float|null, overridden: bool, color: string, editable: bool}
+     * @return array{value: string|int|float|null, overridden: bool, color: string, editable: bool, provenance: ?ResolvedPlannedProvenance}
      */
     public function presentWeekCell(
         int $week,
@@ -137,12 +153,14 @@ class PreviewGridRow extends AbstractData
     ): array {
         $value = $this->getCellValue($week, 0, $session);
         $overridden = $this->isCellOverriddenAt($week, 0, $session);
+        $provenance = $this->getCellProvenance($week, 0, $session);
 
         return [
             'value' => $value,
             'overridden' => $overridden,
             'color' => $this->resolveCellColor($week, null, $overridden, $session),
             'editable' => $editable && ! $locked && $this->isCellEditable($week) && $value !== '-',
+            'provenance' => $provenance,
         ];
     }
 }

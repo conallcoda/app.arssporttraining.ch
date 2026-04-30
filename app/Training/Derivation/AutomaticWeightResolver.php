@@ -3,6 +3,8 @@
 namespace App\Training\Derivation;
 
 use App\Data\Exercise\BilateralReps;
+use App\Data\Exercise\Preview\SessionGroupBuilder;
+use App\Data\Exercise\Preview\SessionGroupingMode;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Exercise\Settings\WeightSetting;
 use App\Training\Reference\OneRepMaxConversion;
@@ -16,8 +18,22 @@ class AutomaticWeightResolver
         int $weeks,
         array $setsPerWeek,
         callable $resolvedRepsForCell,
+        array $sessionCounts = [],
+        string $groupingMode = SessionGroupingMode::Week->value,
+        int $groupSize = 4,
+        ?callable $resolvedSetsForSession = null,
     ): ?AutomaticStrategyResolution {
-        $resolution = $this->buildResolution($setting, $measuredData, $weeks, $setsPerWeek, $resolvedRepsForCell);
+        $resolution = $this->buildResolution(
+            $setting,
+            $measuredData,
+            $weeks,
+            $setsPerWeek,
+            $resolvedRepsForCell,
+            $sessionCounts,
+            $groupingMode,
+            $groupSize,
+            $resolvedSetsForSession,
+        );
 
         if ($resolution === null) {
             return null;
@@ -26,10 +42,12 @@ class AutomaticWeightResolver
         return new AutomaticStrategyResolution([
             'weight' => new ResolvedGridField(
                 grid: $resolution->weights,
+                sessionGrid: $resolution->weightSessionGrid,
                 metadata: ['summary' => $resolution->summary],
             ),
             'oneRepMax' => new ResolvedGridField(
                 grid: $resolution->oneRepMax,
+                sessionGrid: $resolution->oneRepMaxSessionGrid,
             ),
         ]);
     }
@@ -40,31 +58,64 @@ class AutomaticWeightResolver
         int $weeks,
         array $setsPerWeek,
         callable $resolvedRepsForCell,
+        array $sessionCounts = [],
+        string $groupingMode = SessionGroupingMode::Week->value,
+        int $groupSize = 4,
+        ?callable $resolvedSetsForSession = null,
     ): ?AutomaticWeightResolution {
         if (! $measuredData->isComplete()) {
             return null;
         }
 
+        $strategyMap = SessionGroupBuilder::buildStrategyMap($weeks, $sessionCounts, $groupingMode, $groupSize);
         $target1RM = $this->calculateTargetOneRepMax($setting, $measuredData);
-        $weekTargets = $this->calculateWeekTargets($setting, $measuredData, $target1RM, $weeks, $setsPerWeek, $resolvedRepsForCell);
+        $groupTargets = $this->calculateGroupTargets(
+            $target1RM,
+            $strategyMap['orderedSessions'],
+            $setsPerWeek,
+            $resolvedRepsForCell,
+            $resolvedSetsForSession,
+        );
 
         $weights = [];
         $oneRepMax = [];
-        $lastWeekIndex = $weeks - 1;
+        $weightSessionGrid = [];
+        $oneRepMaxSessionGrid = [];
+        $lastSession = $strategyMap['orderedSessions'] === []
+            ? null
+            : $strategyMap['orderedSessions'][array_key_last($strategyMap['orderedSessions'])];
 
         for ($week = 0; $week < $weeks; $week++) {
             $setCount = $setsPerWeek[$week];
-            $setWeights = $this->calculateSetWeights($weekTargets[$week], $setCount);
-            $lastSetIndex = $setCount - 1;
+            $baselineGroup = $strategyMap['groupIndexByWeekSession'][$week][0] ?? $week;
+            $setWeights = $this->calculateSetWeights($groupTargets[$baselineGroup] ?? 0, $setCount);
 
             $weights[$week] = [];
             $oneRepMax[$week] = [];
 
             for ($set = 0; $set < $setCount; $set++) {
                 $weights[$week][$set] = self::roundWeight($setWeights[$set]);
+                $oneRepMax[$week][$set] = '-';
+            }
+        }
 
-                $isLastSetOfLastWeek = $week === $lastWeekIndex && $set === $lastSetIndex;
-                $oneRepMax[$week][$set] = $isLastSetOfLastWeek
+        foreach ($strategyMap['orderedSessions'] as $session) {
+            $week = $session['week'];
+            $sessionIndex = $session['session'];
+            $setCount = $resolvedSetsForSession !== null
+                ? max(0, (int) $resolvedSetsForSession($week, $sessionIndex, (int) ($setsPerWeek[$week] ?? 0)))
+                : (int) ($setsPerWeek[$week] ?? 0);
+            $setWeights = $this->calculateSetWeights($groupTargets[$session['group']] ?? 0, $setCount);
+            $lastSetIndex = $setCount - 1;
+
+            for ($set = 0; $set < $setCount; $set++) {
+                $weightSessionGrid[$week][$sessionIndex][$set] = self::roundWeight($setWeights[$set]);
+                $oneRepMaxSessionGrid[$week][$sessionIndex][$set] = (
+                    $lastSession !== null
+                    && $week === $lastSession['week']
+                    && $sessionIndex === $lastSession['session']
+                    && $set === $lastSetIndex
+                )
                     ? round($target1RM, 1)
                     : '-';
             }
@@ -74,6 +125,8 @@ class AutomaticWeightResolver
             weights: $weights,
             oneRepMax: $oneRepMax,
             summary: $this->buildSummary($setting, $measuredData, $target1RM),
+            weightSessionGrid: $weightSessionGrid,
+            oneRepMaxSessionGrid: $oneRepMaxSessionGrid,
         );
     }
 
@@ -105,29 +158,40 @@ class AutomaticWeightResolver
     }
 
     /** @return array<int, float> */
-    private function calculateWeekTargets(
-        WeightSetting $setting,
-        WeightProgressionSetting $measuredData,
+    private function calculateGroupTargets(
         float $target1RM,
-        int $weeks,
+        array $orderedSessions,
         array $setsPerWeek,
         callable $resolvedRepsForCell,
+        ?callable $resolvedSetsForSession = null,
     ): array {
         $targets = [];
-        $lastWeekIndex = $weeks - 1;
-        $lastSetIndex = $setsPerWeek[$lastWeekIndex] - 1;
+        $lastSession = $orderedSessions === []
+            ? null
+            : $orderedSessions[array_key_last($orderedSessions)];
 
-        $lastSetReps = $resolvedRepsForCell($lastWeekIndex, $lastSetIndex);
+        if ($lastSession === null) {
+            return $targets;
+        }
+
+        $lastWeekIndex = $lastSession['week'];
+        $lastSessionIndex = $lastSession['session'];
+        $lastGroupIndex = $lastSession['group'];
+        $lastSetIndex = $resolvedSetsForSession !== null
+            ? max(0, (int) $resolvedSetsForSession($lastWeekIndex, $lastSessionIndex, (int) ($setsPerWeek[$lastWeekIndex] ?? 0)) - 1)
+            : ((int) ($setsPerWeek[$lastWeekIndex] ?? 1) - 1);
+
+        $lastSetReps = $resolvedRepsForCell($lastWeekIndex, $lastSetIndex, $lastSessionIndex);
         $totalReps = BilateralReps::parse($lastSetReps ?? 1)->total();
         $repPercentage = RepPercentageTable::getPercentage($totalReps);
         $anchorWeight = $target1RM * $repPercentage;
 
-        $targets[$lastWeekIndex] = $anchorWeight;
+        $targets[$lastGroupIndex] = $anchorWeight;
         $currentWeight = $anchorWeight;
 
-        for ($week = $lastWeekIndex - 1; $week >= 0; $week--) {
+        for ($group = $lastGroupIndex - 1; $group >= 0; $group--) {
             $currentWeight = self::decrementWeight($currentWeight);
-            $targets[$week] = $currentWeight;
+            $targets[$group] = $currentWeight;
         }
 
         ksort($targets);

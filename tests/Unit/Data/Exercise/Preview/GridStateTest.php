@@ -82,6 +82,19 @@ it('stores and retrieves metadata', function () {
     expect($state->getMetadata('weight', 'summary'))->toBe($summary);
 });
 
+it('resolves session values from session grids when no override exists', function () {
+    $state = new GridState;
+    $state->setSessionGrid('sets', [
+        0 => [
+            0 => [0 => 3],
+            1 => [0 => 4],
+        ],
+    ]);
+
+    expect($state->getResolvedSessionValue('sets', 0, 0, 5))->toBe(3);
+    expect($state->getResolvedSessionValue('sets', 0, 1, 5))->toBe(4);
+});
+
 it('returns null for missing metadata', function () {
     $state = new GridState;
 

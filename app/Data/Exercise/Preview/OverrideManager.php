@@ -3,12 +3,13 @@
 namespace App\Data\Exercise\Preview;
 
 use App\Data\Exercise\Settings\WeightProgressionSetting;
+use App\Support\Training\GridOverrideNormalizer;
 
 class OverrideManager
 {
     /**
-     * @param  array{cells: array, weeks: array}  $overrides
-     * @return array{cells: array, weeks: array}
+     * @param  array{sessions?: array, cells?: array, weeks?: array}  $overrides
+     * @return array{sessions: array, cells: array}
      */
     public static function updateCellOverride(
         array $overrides,
@@ -24,123 +25,104 @@ class OverrideManager
         mixed $effectiveDefault = null,
         ?int $weekSessionCount = null,
     ): array {
+        $overrides = GridOverrideNormalizer::normalize($overrides, $config, $weekSessionCount === null ? null : [$weekIndex => $weekSessionCount]);
         $defaultValue = $effectiveDefault ?? self::getDefaultCellValue($config, $defaultWeeks, $field, $weekIndex, $setIndex);
-        $valuesMatch = self::cellValuesMatch($value, $defaultValue);
+        $valuesMatch = self::valuesMatch($value, $defaultValue, $field);
 
-        $configuredSessionsPerWeek = (int) ($config['preview']['sessionsPerWeek'] ?? 1);
-        $sessionsPerWeek = $weekSessionCount ?? max($defaultSessionsPerWeek, $configuredSessionsPerWeek, 1);
-        $sessions = $applyToAll ? range(0, $sessionsPerWeek - 1) : [$session];
-
-        foreach ($sessions as $s) {
-            if ($valuesMatch) {
-                $overrides = self::removeCellOverride($overrides, $weekIndex, $s, $setIndex, $field);
-            } else {
-                $overrides = self::setCellOverride($overrides, $weekIndex, $s, $setIndex, $field, $value);
-            }
+        if ($valuesMatch) {
+            return self::removeCellOverride($overrides, $weekIndex, $session, $setIndex, $field);
         }
 
-        if ($weekSessionCount !== null) {
-            $overrides = self::removeCellOverridesAtOrAboveSession($overrides, $weekIndex, $setIndex, $field, $weekSessionCount);
-        }
-
-        return $overrides;
+        return self::setCellOverride($overrides, $weekIndex, $session, $setIndex, $field, $value);
     }
 
     /**
-     * @param  array{cells: array, weeks: array}  $overrides
-     * @return array{cells: array, weeks: array}
+     * @param  array{sessions?: array, cells?: array, weeks?: array}  $overrides
+     * @return array{sessions: array, cells: array}
      */
-    public static function updateWeekOverride(
+    public static function updateSessionOverride(
         array $overrides,
         array $config,
         int $weekIndex,
+        int $session,
         string $field,
         mixed $value,
         mixed $effectiveDefault = null,
     ): array {
+        $overrides = GridOverrideNormalizer::normalize($overrides, $config);
         $fieldConfig = $config[$field] ?? [];
         $defaultValue = $effectiveDefault ?? ($fieldConfig['default'] ?? null);
-        $valuesMatch = self::weekValuesMatch($value, $defaultValue, $field);
+        $valuesMatch = self::valuesMatch($value, $defaultValue, $field);
 
         if ($valuesMatch) {
-            return self::removeWeekOverride($overrides, $weekIndex, $field);
+            return self::removeSessionOverride($overrides, $weekIndex, $session, $field);
         }
 
-        return self::setWeekOverride($overrides, $weekIndex, $field, $value);
+        return self::setSessionOverride($overrides, $weekIndex, $session, $field, $value);
     }
 
     /**
-     * @param  array{cells: array, weeks: array}  $overrides
-     * @return array{cells: array, weeks: array}
+     * @param  array{sessions?: array, cells?: array, weeks?: array}  $overrides
+     * @return array{sessions: array, cells: array}
      */
-    public static function copyWeekOverrides(
+    public static function copySessionOverrides(
         array $overrides,
         PreviewGrid $grid,
         PreviewGrid $defaultsGrid,
         int $sourceWeek,
+        int $sourceSession,
         int $targetWeek,
+        int $targetSession,
     ): array {
+        $overrides = GridOverrideNormalizer::normalize($overrides);
         $defaultRows = [];
+
         foreach ($defaultsGrid->rows as $row) {
             $defaultRows[$row->field] = $row;
-        }
-        $defaultWeekCols = [];
-        foreach ($defaultsGrid->weekColumns as $col) {
-            $defaultWeekCols[$col->field] = $col;
         }
 
         foreach ($grid->rows as $row) {
             if ($row->lastSessionOnly) {
                 continue;
             }
-            $sourceWeekSessionCount = $grid->weekSessionCounts[$sourceWeek] ?? $grid->sessionsPerWeek;
-            $targetWeekSessionCount = $grid->weekSessionCounts[$targetWeek] ?? $grid->sessionsPerWeek;
-            $sessionCount = max(min($sourceWeekSessionCount, $targetWeekSessionCount), 1);
 
             for ($set = 0; $set < $grid->setCount; $set++) {
-                for ($session = 0; $session < $sessionCount; $session++) {
-                    $value = $row->getCellValue($sourceWeek, $set, $session);
-                    if ($value === null || $value === '-') {
-                        continue;
-                    }
+                $value = $row->getCellValue($sourceWeek, $set, $sourceSession);
 
-                    $defaultValue = $defaultRows[$row->field]->getCellValue($targetWeek, $set, $session);
-                    $matches = self::cellValuesMatch($value, $defaultValue);
+                if ($value === null || $value === '-') {
+                    $overrides = self::removeCellOverride($overrides, $targetWeek, $targetSession, $set, $row->field);
 
-                    if ($matches) {
-                        $overrides = self::removeCellOverride($overrides, $targetWeek, $session, $set, $row->field);
-                    } else {
-                        $overrides = self::setCellOverride($overrides, $targetWeek, $session, $set, $row->field, $value);
-                    }
+                    continue;
                 }
 
-                $overrides = self::removeCellOverridesAtOrAboveSession($overrides, $targetWeek, $set, $row->field, $sessionCount);
+                $defaultValue = $defaultRows[$row->field]->getCellValue($targetWeek, $set, $targetSession);
+
+                if (self::valuesMatch($value, $defaultValue, $row->field)) {
+                    $overrides = self::removeCellOverride($overrides, $targetWeek, $targetSession, $set, $row->field);
+                } else {
+                    $overrides = self::setCellOverride($overrides, $targetWeek, $targetSession, $set, $row->field, $value);
+                }
             }
         }
 
-        foreach ($grid->weekColumns as $weekCol) {
-            $value = $weekCol->cells[$sourceWeek] ?? null;
-            if ($value === null || $value === '-') {
-                continue;
-            }
+        foreach ($grid->weekColumns as $column) {
+            $value = $column->getCellValue($sourceWeek, 0, $sourceSession);
+            $defaultValue = $column->getCellValue($targetWeek, 0, $targetSession);
 
-            $defaultValue = $defaultWeekCols[$weekCol->field]->cells[$targetWeek] ?? null;
-            $matches = self::weekValuesMatch($value, $defaultValue, $weekCol->field);
-
-            if ($matches) {
-                $overrides = self::removeWeekOverride($overrides, $targetWeek, $weekCol->field);
+            if ($value === null || $value === '-' || self::valuesMatch($value, $defaultValue, $column->field)) {
+                $overrides = self::removeSessionOverride($overrides, $targetWeek, $targetSession, $column->field);
             } else {
-                $overrides = self::setWeekOverride($overrides, $targetWeek, $weekCol->field, $value);
+                $overrides = self::setSessionOverride($overrides, $targetWeek, $targetSession, $column->field, $value);
             }
         }
 
         return $overrides;
     }
 
-    /** @return array{cells: array, weeks: array} */
+    /** @return array{sessions: array, cells: array} */
     public static function reset(): array
     {
-        return ['cells' => [], 'weeks' => []];
+        return ['sessions' => [], 'cells' => []];
     }
 
     public static function getDefaultCellValue(array $config, int $defaultWeeks, string $field, int $weekIndex, int $setIndex): mixed
@@ -159,72 +141,29 @@ class OverrideManager
         return $state->getCellValue($field, $weekIndex, $setIndex);
     }
 
-    /**
-     * @param  array{cells: array, weeks: array}  $overrides
-     * @return array{cells: array, weeks: array}
-     */
+    /** @return array{sessions: array, cells: array} */
     private static function setCellOverride(array $overrides, int $week, int $session, int $set, string $field, mixed $value): array
     {
-        $cells = $overrides['cells'] ?? [];
-
-        foreach ($cells as $index => $override) {
-            if ($override['week'] === $week && $override['session'] === $session && $override['set'] === $set) {
-                $overrides['cells'][$index]['data'][$field] = $value;
-
-                return $overrides;
-            }
-        }
-
-        $overrides['cells'][] = [
-            'week' => $week,
-            'session' => $session,
-            'set' => $set,
-            'data' => [$field => $value],
-        ];
+        $overrides['cells'] = GridOverrideNormalizer::putCellValue(
+            $overrides['cells'] ?? [],
+            $week,
+            $session,
+            $set,
+            $field,
+            $value,
+        );
 
         return $overrides;
     }
 
-    /**
-     * @param  array{cells: array, weeks: array}  $overrides
-     * @return array{cells: array, weeks: array}
-     */
+    /** @return array{sessions: array, cells: array} */
     private static function removeCellOverride(array $overrides, int $week, int $session, int $set, string $field): array
     {
-        $cells = $overrides['cells'] ?? [];
-
-        foreach ($cells as $index => $override) {
-            if ($override['week'] === $week && $override['session'] === $session && $override['set'] === $set && isset($override['data'][$field])) {
-                unset($overrides['cells'][$index]['data'][$field]);
-
-                if (empty($overrides['cells'][$index]['data'])) {
-                    array_splice($overrides['cells'], $index, 1);
-                }
-
-                return $overrides;
-            }
-        }
-
-        return $overrides;
-    }
-
-    /**
-     * @param  array{cells: array, weeks: array}  $overrides
-     * @return array{cells: array, weeks: array}
-     */
-    private static function removeCellOverridesAtOrAboveSession(array $overrides, int $week, int $set, string $field, int $minimumSession): array
-    {
-        foreach (array_keys($overrides['cells'] ?? []) as $index) {
-            $override = $overrides['cells'][$index] ?? null;
-
-            if (! is_array($override)) {
-                continue;
-            }
-
+        foreach ($overrides['cells'] ?? [] as $index => $override) {
             if (($override['week'] ?? null) !== $week
+                || ($override['session'] ?? null) !== $session
                 || ($override['set'] ?? null) !== $set
-                || ! isset($override['data'][$field])
-                || (int) ($override['session'] ?? -1) < $minimumSession) {
+                || ! isset($override['data'][$field])) {
                 continue;
             }
 
@@ -233,82 +172,60 @@ class OverrideManager
             if (empty($overrides['cells'][$index]['data'])) {
                 unset($overrides['cells'][$index]);
             }
-        }
 
-        if (isset($overrides['cells'])) {
             $overrides['cells'] = array_values($overrides['cells']);
+
+            return $overrides;
         }
 
         return $overrides;
     }
 
-    /**
-     * @param  array{cells: array, weeks: array}  $overrides
-     * @return array{cells: array, weeks: array}
-     */
-    private static function setWeekOverride(array $overrides, int $week, string $field, mixed $value): array
+    /** @return array{sessions: array, cells: array} */
+    private static function setSessionOverride(array $overrides, int $week, int $session, string $field, mixed $value): array
     {
-        $weeks = $overrides['weeks'] ?? [];
-
-        foreach ($weeks as $index => $override) {
-            if ($override['week'] === $week) {
-                $overrides['weeks'][$index]['data'][$field] = $value;
-
-                return $overrides;
-            }
-        }
-
-        $overrides['weeks'][] = [
-            'week' => $week,
-            'data' => [$field => $value],
-        ];
+        $overrides['sessions'] = GridOverrideNormalizer::putSessionValue(
+            $overrides['sessions'] ?? [],
+            $week,
+            $session,
+            $field,
+            $value,
+        );
 
         return $overrides;
     }
 
-    /**
-     * @param  array{cells: array, weeks: array}  $overrides
-     * @return array{cells: array, weeks: array}
-     */
-    private static function removeWeekOverride(array $overrides, int $week, string $field): array
+    /** @return array{sessions: array, cells: array} */
+    private static function removeSessionOverride(array $overrides, int $week, int $session, string $field): array
     {
-        $weeks = $overrides['weeks'] ?? [];
-
-        foreach ($weeks as $index => $override) {
-            if ($override['week'] === $week && isset($override['data'][$field])) {
-                unset($overrides['weeks'][$index]['data'][$field]);
-
-                if (empty($overrides['weeks'][$index]['data'])) {
-                    array_splice($overrides['weeks'], $index, 1);
-                }
-
-                return $overrides;
+        foreach ($overrides['sessions'] ?? [] as $index => $override) {
+            if (($override['week'] ?? null) !== $week
+                || ($override['session'] ?? null) !== $session
+                || ! isset($override['data'][$field])) {
+                continue;
             }
+
+            unset($overrides['sessions'][$index]['data'][$field]);
+
+            if (empty($overrides['sessions'][$index]['data'])) {
+                unset($overrides['sessions'][$index]);
+            }
+
+            $overrides['sessions'] = array_values($overrides['sessions']);
+
+            return $overrides;
         }
 
         return $overrides;
     }
 
-    private static function cellValuesMatch(mixed $value, mixed $originalValue): bool
+    private static function valuesMatch(mixed $value, mixed $originalValue, string $field): bool
     {
         if ($originalValue === null) {
             return false;
         }
 
-        if (is_string($value) || is_string($originalValue)) {
-            return (string) $value === (string) $originalValue;
-        }
-
-        return abs((float) $value - (float) $originalValue) < 0.001;
-    }
-
-    private static function weekValuesMatch(mixed $value, mixed $originalValue, string $field): bool
-    {
-        if ($originalValue === null) {
-            return false;
-        }
-
-        if (in_array($field, ['tempo', 'pace'])) {
+        if (in_array($field, ['tempo', 'pace'], true) || is_string($value) || is_string($originalValue)) {
             return (string) $value === (string) $originalValue;
         }
 

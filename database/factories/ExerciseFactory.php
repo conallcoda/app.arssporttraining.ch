@@ -16,7 +16,7 @@ class ExerciseFactory extends Factory
     {
         return [
             'name' => fake()->unique()->words(3, true),
-            'config' => ['settings' => [], 'overrides' => ['cells' => [], 'weeks' => []]],
+            'config' => ['settings' => [], 'overrides' => ['sessions' => [], 'cells' => []]],
         ];
     }
 }

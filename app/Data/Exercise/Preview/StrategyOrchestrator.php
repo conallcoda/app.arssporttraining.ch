@@ -20,6 +20,8 @@ class StrategyOrchestrator
         private ?int $maxHR = null,
         private ?int $iatPercent = null,
         private ?AutomaticStrategyFactory $automaticStrategies = null,
+        /** @var array<int, int> */
+        private array $sessionCounts = [],
     ) {}
 
     public function execute(): GridState
@@ -42,19 +44,34 @@ class StrategyOrchestrator
     private function executeSetsPhase(GridState $state): void
     {
         $setsSetting = SetsSetting::from($this->data['sets'] ?? []);
-        $strategy = new DeloadSetsStrategy($setsSetting);
+        $preview = $this->data['preview'] ?? [];
+        $strategy = new DeloadSetsStrategy(
+            $setsSetting,
+            groupingMode: (string) ($preview['groupingMode'] ?? SessionGroupingMode::Week->value),
+            groupSize: max(1, (int) ($preview['groupSize'] ?? 4)),
+            sessionCounts: $this->resolveSessionCounts(),
+        );
         $strategy->generate($this->weeks, $state);
         $this->registerEditability($strategy, $state);
 
         if ($this->overrides !== null) {
             $setsPerWeek = $state->getSetsPerWeek();
 
-            for ($week = 0; $week < $this->weeks; $week++) {
-                $overrideValue = $this->overrides->getWeekOverrideValue($week, 'sets');
-
-                if ($overrideValue !== null) {
-                    $setsPerWeek[$week] = max(0, (int) $overrideValue);
+            foreach ($this->overrides->sessions as $override) {
+                if (! isset($override->data['sets'])) {
+                    continue;
                 }
+
+                $week = $override->week;
+
+                if ($week < 0 || $week >= $this->weeks) {
+                    continue;
+                }
+
+                $setsPerWeek[$week] = max(
+                    (int) ($setsPerWeek[$week] ?? 0),
+                    max(0, (int) $override->data['sets']),
+                );
             }
 
             $state->setSetsPerWeek($setsPerWeek);
@@ -84,7 +101,13 @@ class StrategyOrchestrator
                 return;
             }
 
-            $strategy->generate($this->weeks, $state);
+            $strategy->generate(
+                $this->weeks,
+                $state,
+                $this->resolveSessionCounts(),
+                (string) ($this->data['preview']['groupingMode'] ?? SessionGroupingMode::Week->value),
+                max(1, (int) ($this->data['preview']['groupSize'] ?? 4)),
+            );
             $this->registerEditability($strategy, $state);
 
             return;
@@ -121,7 +144,13 @@ class StrategyOrchestrator
             return;
         }
 
-        $strategy->generate($this->weeks, $state);
+        $strategy->generate(
+            $this->weeks,
+            $state,
+            $this->resolveSessionCounts(),
+            (string) ($this->data['preview']['groupingMode'] ?? SessionGroupingMode::Week->value),
+            max(1, (int) ($this->data['preview']['groupSize'] ?? 4)),
+        );
         $this->registerEditability($strategy, $state);
     }
 
@@ -209,5 +238,17 @@ class StrategyOrchestrator
         }
 
         return $grid;
+    }
+
+    /** @return array<int, int> */
+    private function resolveSessionCounts(): array
+    {
+        if ($this->sessionCounts !== []) {
+            return $this->sessionCounts;
+        }
+
+        $sessionsPerWeek = max(1, (int) ($this->data['preview']['sessionsPerWeek'] ?? 1));
+
+        return array_fill(0, $this->weeks, $sessionsPerWeek);
     }
 }

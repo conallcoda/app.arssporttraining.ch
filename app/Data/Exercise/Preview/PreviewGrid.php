@@ -19,7 +19,11 @@ class PreviewGrid extends AbstractData
         public int $sessionsPerWeek = 1,
         /** @var array<int, int> */
         public array $weekSessionCounts = [],
-        /** @var PreviewGridWeek[] */
+        /** @var PreviewGridGroup[] */
+        public array $groups = [],
+        public string $groupColumnLabel = 'Week',
+        public bool $showGroupColumn = true,
+        /** @var PreviewGridGroup[] */
         public array $weeks = [],
         public bool $showWeekColumn = true,
         public bool $showSessionColumn = false,

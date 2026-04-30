@@ -3,6 +3,7 @@
 namespace App\Data\Exercise\Strategies\Weight;
 
 use App\Data\Exercise\Preview\GridState;
+use App\Data\Exercise\Preview\SessionGroupingMode;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Exercise\Settings\WeightSetting;
 use App\Data\Exercise\Strategies\Contracts\DefinesEditability;
@@ -24,7 +25,13 @@ class OneRepMaxFixedStrategy implements DefinesEditability
     /**
      * @return array{weights: array<int, array<int, float>>, oneRepMax: array<int, array<int, string|float>>}|null
      */
-    public function generate(int $weeks, GridState $state): ?array
+    public function generate(
+        int $weeks,
+        GridState $state,
+        array $sessionCounts = [],
+        string $groupingMode = SessionGroupingMode::Week->value,
+        int $groupSize = 4,
+    ): ?array
     {
         $resolver = $this->resolver ?? new AutomaticWeightResolver;
         $resolution = $resolver->resolve(
@@ -32,7 +39,11 @@ class OneRepMaxFixedStrategy implements DefinesEditability
             $this->measuredData,
             $weeks,
             $state->getSetsPerWeek(),
-            fn (int $weekIndex, int $setIndex): mixed => $state->getResolvedCellValue('reps', $weekIndex, $setIndex),
+            fn (int $weekIndex, int $setIndex, ?int $sessionIndex = null): mixed => $state->getResolvedCellValue('reps', $weekIndex, $setIndex, $sessionIndex),
+            $sessionCounts,
+            $groupingMode,
+            $groupSize,
+            fn (int $week, int $session, int $default): int => (int) $state->getResolvedSessionValue('sets', $week, $session, $default),
         );
 
         if ($resolution === null) {

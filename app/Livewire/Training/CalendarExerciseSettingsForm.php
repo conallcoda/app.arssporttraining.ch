@@ -7,6 +7,8 @@ use App\Data\Exercise\Preview\ExercisePreviewBuilder;
 use App\Data\Exercise\Preview\GridOverrides;
 use App\Data\Exercise\Preview\OverrideManager;
 use App\Data\Exercise\Preview\PreviewGrid;
+use App\Data\Exercise\Preview\SessionGroupBuilder;
+use App\Data\Exercise\Preview\SessionGroupingMode;
 use App\Data\Exercise\Settings\SetsSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Exercise\Strategies\Sets\DeloadSetsStrategy;
@@ -15,6 +17,7 @@ use Coda\Cms\Livewire\FormModal;
 use Coda\FormKit\Form;
 use Coda\FormKit\FormFieldsetGroup;
 use Flux\Flux;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
@@ -91,11 +94,8 @@ class CalendarExerciseSettingsForm extends FormModal
     #[Computed]
     public function previewGrid(): PreviewGrid
     {
-        $config = $this->data['config'] ?? [];
-        $overrides = GridOverrides::fromArrays(
-            $config['overrides']['cells'] ?? [],
-            $config['overrides']['weeks'] ?? [],
-        );
+        $config = $this->withResolvedPreviewGrouping($this->data['config'] ?? []);
+        $overrides = GridOverrides::fromConfig($config['overrides'] ?? []);
 
         $grid = ExercisePreviewBuilder::build(
             $config,
@@ -103,6 +103,7 @@ class CalendarExerciseSettingsForm extends FormModal
             $this->gridWeeks,
             $overrides,
             $this->sessionsPerWeek,
+            explicitWeekSessionCounts: $this->resolvedWeekSessionCounts(),
         );
 
         return $this->applyExplicitWeekSessionCounts($grid);
@@ -185,26 +186,41 @@ class CalendarExerciseSettingsForm extends FormModal
             $field,
             $value,
             $session,
-            $applyToAll,
+            false,
             weekSessionCount: $this->sessionCountForWeek($weekIndex),
         );
 
         unset($this->previewGrid);
     }
 
-    public function updateWeekOverride(int $weekIndex, string $field, mixed $value): void
+    public function updateSessionOverride(int $weekIndex, int $session, string $field, mixed $value): void
     {
         $effectiveDefault = null;
 
         if ($field === 'sets') {
-            $strategy = new DeloadSetsStrategy(SetsSetting::from($this->data['config']['sets'] ?? []));
-            $effectiveDefault = $strategy->getSetsForWeek($weekIndex);
+            $config = $this->withResolvedPreviewGrouping($this->data['config'] ?? []);
+            $preview = $config['preview'] ?? [];
+            $sessionCounts = $this->resolvedWeekSessionCounts();
+            $strategy = new DeloadSetsStrategy(
+                SetsSetting::from($config['sets'] ?? []),
+                groupingMode: (string) ($preview['groupingMode'] ?? SessionGroupingMode::Week->value),
+                groupSize: max(1, (int) ($preview['groupSize'] ?? 4)),
+                sessionCounts: $sessionCounts,
+            );
+            $groupMap = SessionGroupBuilder::buildStrategyMap(
+                $this->gridWeeks,
+                $sessionCounts,
+                (string) ($preview['groupingMode'] ?? SessionGroupingMode::Week->value),
+                max(1, (int) ($preview['groupSize'] ?? 4)),
+            );
+            $effectiveDefault = $strategy->getSetsForGroup($groupMap['groupIndexByWeekSession'][$weekIndex][$session] ?? $weekIndex);
         }
 
-        $this->data['config']['overrides'] = OverrideManager::updateWeekOverride(
+        $this->data['config']['overrides'] = OverrideManager::updateSessionOverride(
             $this->data['config']['overrides'] ?? OverrideManager::reset(),
             $this->data['config'],
             $weekIndex,
+            $session,
             $field,
             $value,
             $effectiveDefault,
@@ -306,5 +322,42 @@ class CalendarExerciseSettingsForm extends FormModal
         }
 
         return false;
+    }
+
+    /** @return array<int, int> */
+    protected function resolvedWeekSessionCounts(): array
+    {
+        $counts = [];
+
+        for ($week = 0; $week < $this->gridWeeks; $week++) {
+            $counts[$week] = $this->sessionCountForWeek($week);
+        }
+
+        return $counts;
+    }
+
+    protected function withResolvedPreviewGrouping(array $config): array
+    {
+        $preview = $config['preview'] ?? [];
+        $grouping = $this->resolveDefaultPreviewGrouping();
+        $preview['groupingMode'] = $grouping['mode'];
+        $preview['groupSize'] = $grouping['groupSize'];
+
+        $config['preview'] = $preview;
+
+        return $config;
+    }
+
+    /**
+     * @return array{mode: string, groupSize: int}
+     */
+    protected function resolveDefaultPreviewGrouping(): array
+    {
+        $user = Auth::user();
+
+        return [
+            'mode' => (string) ($user?->config->get('settings.session_grouping.mode', SessionGroupingMode::Week->value) ?? SessionGroupingMode::Week->value),
+            'groupSize' => max(1, (int) ($user?->config->get('settings.session_grouping.groupSize', 4) ?? 4)),
+        ];
     }
 }

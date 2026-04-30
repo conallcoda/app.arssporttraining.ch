@@ -6,9 +6,11 @@ use App\Data\Exercise\Preview\ExercisePreviewBuilder;
 use App\Data\Exercise\Preview\GridOverrides;
 use App\Data\Exercise\Preview\OverrideManager;
 use App\Data\Exercise\Preview\PreviewGrid;
+use App\Data\Exercise\Preview\SessionGroupingMode;
 use App\Data\Exercise\Settings\SetsSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Exercise\Strategies\Sets\DeloadSetsStrategy;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
 
 trait InteractsWithPreview
@@ -54,32 +56,54 @@ trait InteractsWithPreview
         ]);
     }
 
+    /**
+     * @return array{mode: string, groupSize: int}
+     */
+    protected function resolveDefaultPreviewGrouping(): array
+    {
+        $user = Auth::user();
+
+        return [
+            'mode' => (string) ($user?->config->get('settings.session_grouping.mode', SessionGroupingMode::Week->value) ?? SessionGroupingMode::Week->value),
+            'groupSize' => max(1, (int) ($user?->config->get('settings.session_grouping.groupSize', 4) ?? 4)),
+        ];
+    }
+
     protected function openPreview(array $data): void
     {
         if (empty($data)) {
             $this->applyPreviewDefaults();
+
+            return;
+        }
+
+        if (! empty($data['id'] ?? null)) {
+            return;
         }
     }
 
     #[Computed]
     public function previewGrid(): PreviewGrid
     {
-        $preview = $this->data['config']['preview'] ?? [];
+        $config = $this->data['config'] ?? [];
+        $preview = $config['preview'] ?? [];
         $measuredData = new WeightProgressionSetting(
             measuredReps: $preview['measuredReps'] ?? null,
             measuredWeight: $preview['measuredWeight'] ?? null,
             targetGoal: $preview['targetGoal'] ?? null,
         );
 
-        $overrides = GridOverrides::fromArrays(
-            $this->data['config']['overrides']['cells'] ?? [],
-            $this->data['config']['overrides']['weeks'] ?? [],
-        );
+        $overrides = GridOverrides::fromConfig($config['overrides'] ?? []);
 
         $weeks = (int) ($preview['weeks'] ?? $this->defaultWeeks);
         $sessionsPerWeek = (int) ($preview['sessionsPerWeek'] ?? $this->defaultSessionsPerWeek);
+        $grouping = $this->resolveDefaultPreviewGrouping();
+        $config['preview'] = array_merge($preview, [
+            'groupingMode' => $grouping['mode'],
+            'groupSize' => $grouping['groupSize'],
+        ]);
 
-        return ExercisePreviewBuilder::build($this->data['config'], $measuredData, $weeks, $overrides, $sessionsPerWeek);
+        return ExercisePreviewBuilder::build($config, $measuredData, $weeks, $overrides, $sessionsPerWeek);
     }
 
     #[Computed]
@@ -108,26 +132,40 @@ trait InteractsWithPreview
             $field,
             $value,
             $session,
-            $applyToAll,
+            false,
             weekSessionCount: $this->previewGrid->weekSessionCounts[$weekIndex] ?? null,
         );
 
         unset($this->previewGrid);
     }
 
-    public function updateWeekOverride(int $weekIndex, string $field, mixed $value): void
+    public function updateSessionOverride(int $weekIndex, int $session, string $field, mixed $value): void
     {
         $effectiveDefault = null;
 
         if ($field === 'sets') {
-            $strategy = new DeloadSetsStrategy(SetsSetting::from($this->data['config']['sets'] ?? []));
-            $effectiveDefault = $strategy->getSetsForWeek($weekIndex);
+            $grouping = $this->resolveDefaultPreviewGrouping();
+            $sessionCounts = $this->previewGrid->weekSessionCounts;
+            $strategy = new DeloadSetsStrategy(
+                SetsSetting::from($this->data['config']['sets'] ?? []),
+                groupingMode: $grouping['mode'],
+                groupSize: $grouping['groupSize'],
+                sessionCounts: $sessionCounts,
+            );
+            $groupMap = \App\Data\Exercise\Preview\SessionGroupBuilder::buildStrategyMap(
+                $this->previewGrid->weekCount,
+                $sessionCounts,
+                $grouping['mode'],
+                $grouping['groupSize'],
+            );
+            $effectiveDefault = $strategy->getSetsForGroup($groupMap['groupIndexByWeekSession'][$weekIndex][$session] ?? $weekIndex);
         }
 
-        $this->data['config']['overrides'] = OverrideManager::updateWeekOverride(
+        $this->data['config']['overrides'] = OverrideManager::updateSessionOverride(
             $this->data['config']['overrides'] ?? OverrideManager::reset(),
             $this->data['config'],
             $weekIndex,
+            $session,
             $field,
             $value,
             $effectiveDefault,
@@ -136,42 +174,10 @@ trait InteractsWithPreview
         unset($this->previewGrid);
     }
 
-    public function copyWeek(int $sourceWeek, int $targetWeek): void
-    {
-        $grid = $this->previewGrid;
-        $defaultsGrid = $this->buildDefaultsGrid();
-
-        $this->data['config']['overrides'] = OverrideManager::copyWeekOverrides(
-            $this->data['config']['overrides'] ?? OverrideManager::reset(),
-            $grid,
-            $defaultsGrid,
-            $sourceWeek,
-            $targetWeek,
-        );
-
-        unset($this->previewGrid);
-    }
-
-    public function copyWeekToAll(int $sourceWeek): void
-    {
-        $grid = $this->previewGrid;
-        $defaultsGrid = $this->buildDefaultsGrid();
-        $overrides = $this->data['config']['overrides'] ?? OverrideManager::reset();
-        $weeks = (int) ($this->data['config']['preview']['weeks'] ?? $this->defaultWeeks);
-
-        for ($week = 0; $week < $weeks; $week++) {
-            if ($week !== $sourceWeek) {
-                $overrides = OverrideManager::copyWeekOverrides($overrides, $grid, $defaultsGrid, $sourceWeek, $week);
-            }
-        }
-
-        $this->data['config']['overrides'] = $overrides;
-        unset($this->previewGrid);
-    }
-
     protected function buildDefaultsGrid(): PreviewGrid
     {
-        $preview = $this->data['config']['preview'] ?? [];
+        $config = $this->data['config'] ?? [];
+        $preview = $config['preview'] ?? [];
         $measuredData = new WeightProgressionSetting(
             measuredReps: $preview['measuredReps'] ?? null,
             measuredWeight: $preview['measuredWeight'] ?? null,
@@ -182,10 +188,10 @@ trait InteractsWithPreview
         $sessionsPerWeek = (int) ($preview['sessionsPerWeek'] ?? $this->defaultSessionsPerWeek);
 
         return ExercisePreviewBuilder::build(
-            $this->data['config'],
+            $config,
             $measuredData,
             $weeks,
-            GridOverrides::fromArrays([], []),
+            GridOverrides::fromConfig(OverrideManager::reset()),
             $sessionsPerWeek,
         );
     }

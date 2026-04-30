@@ -5,6 +5,7 @@ use App\Livewire\Database\ExerciseForm;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseTemplate;
 use App\Models\Tag;
+use App\Models\Users\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -108,11 +109,35 @@ it('auto-expands a generic preview week when sessions diverge', function () {
                     'measuredWeight' => 50,
                     'targetGoal' => 10,
                 ],
-                'overrides' => ['cells' => [], 'weeks' => []],
+                'overrides' => ['sessions' => [], 'cells' => []],
             ],
             'template' => null,
             'category' => null,
         ])
         ->call('updateCellOverride', 0, 0, 'reps', 14, 1, false)
         ->assertSet('effectiveExpandedWeeks', [0]);
+});
+
+it('applies coach session-grouping defaults to new exercise previews', function () {
+    $coach = User::factory()->coach()->create();
+    $coach->config->set('settings.session_grouping', [
+        'mode' => 'groups',
+        'groupSize' => 3,
+    ]);
+    $coach->save();
+
+    $this->actingAs($coach);
+
+    $component = Livewire::test(ExerciseForm::class)
+        ->call('open', data: [
+            'id' => null,
+            'name' => '',
+            'config' => (new ExerciseConfig)->toArray(),
+            'template' => null,
+            'category' => null,
+        ]);
+
+    expect($component->get('data')['config']['preview']['groupingMode'] ?? null)->toBeNull()
+        ->and($component->get('data')['config']['preview']['groupSize'] ?? null)->toBeNull()
+        ->and($component->instance()->previewGrid->groupColumnLabel)->toBe('Group');
 });

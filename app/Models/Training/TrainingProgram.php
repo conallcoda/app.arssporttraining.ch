@@ -3,7 +3,6 @@
 namespace App\Models\Training;
 
 use App\Models\Exercise\Exercise;
-use App\Models\Exercise\ExercisePlan;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
 use App\Models\Users\UserGroup;
@@ -50,27 +49,6 @@ class TrainingProgram extends Model
     public function slots(): HasMany
     {
         return $this->hasMany(TrainingProgramSlot::class);
-    }
-
-    public static function importFromPlan(ExercisePlan $plan, int $groupId): void
-    {
-        $maxSort = static::where('group_id', $groupId)->max('sort') ?? -1;
-
-        foreach ($plan->programs() as $program) {
-            $clone = $program->duplicate();
-            $maxSort++;
-
-            $trainingProgram = static::create([
-                'group_id' => $groupId,
-                'exercise_program_id' => $clone->id,
-                'sort' => $maxSort,
-            ]);
-
-            $clone->update([
-                'parent_type' => static::class,
-                'parent_id' => $trainingProgram->id,
-            ]);
-        }
     }
 
     public static function importProgram(ExerciseProgram $program, int $groupId): self

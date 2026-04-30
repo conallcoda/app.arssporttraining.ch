@@ -7,19 +7,19 @@ use App\Data\Athlete\Metric\Metrics\HeartRateMetric;
 use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
 use App\Data\Exercise\ExerciseSetting;
 use App\Data\Exercise\Preview\CellInputMeta;
-use App\Data\Exercise\Preview\GridOverrides;
-use App\Data\Exercise\Preview\GridState;
-use App\Data\Exercise\Preview\StrategyOrchestrator;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Training\Compiled\CompiledTrainingExercise;
 use App\Data\Training\Compiled\CompiledTrainingSession;
 use App\Data\Training\Compiled\CompiledTrainingSet;
 use App\Data\Training\Compiled\CompiledTrainingSetValue;
-use App\Data\Training\Config\EffectiveExerciseConfig;
+use App\Data\Training\Planned\ResolvedPlannedExercise;
+use App\Data\Training\Planned\ResolvedPlannedSet;
+use App\Data\Training\Planned\ResolvedPlannedValue;
 use App\Models\Training\TrainingProgramBlock;
 use App\Models\Athlete\MetricSubmission;
 use App\Models\Exercise\Exercise;
 use App\Models\Training\TrainingProgramSlot;
+use App\Training\Planning\ResolvedPlannedSessionBuilder;
 use Carbon\Carbon;
 
 class TrainingSessionCompiler
@@ -28,20 +28,6 @@ class TrainingSessionCompiler
         'warm_up',
         'main',
         'warm_down',
-    ];
-
-    private const SETTING_PRIORITY = [
-        'reps',
-        'weight',
-        'distance',
-        'duration',
-        'pace',
-        'watts',
-        'heartRate',
-        'heartRateZone',
-        'tempo',
-        'rest',
-        'note',
     ];
 
     /**
@@ -61,6 +47,7 @@ class TrainingSessionCompiler
 
     public function __construct(
         private readonly CalendarBlockService $calendarBlockService,
+        private readonly ResolvedPlannedSessionBuilder $plannedSessionBuilder,
     ) {}
 
     public function compile(TrainingProgramSlot $slot): CompiledTrainingSession
@@ -76,7 +63,7 @@ class TrainingSessionCompiler
         $heartRateMetric = $this->latestMetric($slot->user_id, MetricEnum::HeartRate, $scheduledDate);
         $weightProgression = $this->resolveWeightProgressionData($oneRepMaxMetric, $metricContext['targetGoal']);
 
-        $compiledExercises = $program->exercises
+        $plannedExercises = $program->exercises
             ->sortBy(function (Exercise $exercise): string {
                 $type = $exercise->pivot->type ?? 'main';
                 $sectionRank = array_search($type, self::SECTION_ORDER, true);
@@ -89,7 +76,7 @@ class TrainingSessionCompiler
                 );
             })
             ->values()
-            ->map(function (Exercise $exercise, int $index) use ($programConfig, $sessionContext, $weightProgression, $heartRateMetric, $slot, $scheduledDate) {
+            ->map(function (Exercise $exercise, int $index) use ($programConfig, $sessionContext, $weightProgression, $heartRateMetric, $slot) {
                 $programExerciseId = (int) $exercise->pivot->id;
                 $resolvedOverrides = $programConfig->resolveExercise($exercise->config, $programExerciseId, $slot->user_id);
 
@@ -104,67 +91,36 @@ class TrainingSessionCompiler
                     (int) data_get($effectiveConfig, 'preview.weeks', 1),
                     $sessionContext['weekIndex'] + 1
                 );
+                $sessionCounts = array_fill(0, $weeks, (int) ($sessionContext['sessionsPerWeek'] ?? 1));
+                $sessionCounts[$sessionContext['weekIndex']] = (int) ($sessionContext['sessionsPerWeek'] ?? 1);
 
-                $state = (new StrategyOrchestrator(
-                    data: $effectiveConfig,
-                    measuredData: $weightProgression,
-                    weeks: $weeks,
-                    overrides: GridOverrides::fromArrays(
-                        $overrideLayer['cells'] ?? [],
-                        $overrideLayer['weeks'] ?? [],
-                    ),
-                    maxHR: $heartRateMetric?->heartRate,
-                    iatPercent: $heartRateMetric?->anaerobicThreshold,
-                ))->execute();
-
-                $weekIndex = $sessionContext['weekIndex'];
-                $setCount = (int) ($state->getSetsPerWeek()[$weekIndex] ?? data_get($effectiveConfig, 'sets.default', 0));
-
-                $compiledSets = [];
-                for ($setIndex = 0; $setIndex < $setCount; $setIndex++) {
-                    $values = [];
-
-                    foreach ($this->orderedSettings($effectiveConfig['settings'] ?? []) as $setting) {
-                        $config = $effectiveConfig[$setting] ?? [];
-                        $applyPer = $config['applyPer'] ?? 'session';
-                        $value = $applyPer === 'week'
-                            ? $this->resolveWeekValue($state, $config, $setting, $weekIndex)
-                            : $this->resolveSessionValue($state, $config, $setting, $weekIndex, $setIndex, $sessionContext['sessionIndex']);
-
-                        if ($this->isBlankValue($value)) {
-                            continue;
-                        }
-
-                        $value = $this->normalizeCompiledValue($setting, $value, $config);
-                        $valueType = $this->resolveValueType($setting, $value);
-                        $canonicalValue = $this->resolveCanonicalValue($setting, $value);
-
-                        $values[] = new CompiledTrainingSetValue(
-                            settingKey: $setting,
-                            plannedValueType: $valueType,
-                            plannedValue: $value,
-                            plannedCanonicalValue: $canonicalValue,
-                            unit: $this->resolveUnit($setting, $config),
-                        );
-                    }
-
-                    $compiledSets[] = new CompiledTrainingSet(
-                        setNumber: $setIndex + 1,
-                        values: $values,
-                    );
-                }
-
-                return new CompiledTrainingExercise(
+                return $this->plannedSessionBuilder->buildExercise(
                     exerciseId: $exercise->id,
                     sort: $index,
                     group: $exercise->pivot->group,
                     type: $exercise->pivot->type ?? 'main',
-                    sets: $compiledSets,
+                    effectiveConfig: $effectiveConfig,
+                    overrideLayer: $overrideLayer,
+                    weekIndex: $sessionContext['weekIndex'],
+                    sessionIndex: $sessionContext['sessionIndex'],
+                    weeks: $weeks,
+                    sessionCounts: $sessionCounts,
+                    measuredData: $weightProgression,
+                    maxHR: $heartRateMetric?->heartRate,
+                    iatPercent: $heartRateMetric?->anaerobicThreshold,
+                    baseConfig: $exercise->config->toArray(),
+                    defaultOverrides: $resolvedOverrides->defaultOverrides,
+                    userOverrides: $resolvedOverrides->userOverrides,
                 );
             })
             ->filter()
             ->values()
             ->all();
+
+        $compiledExercises = array_map(
+            fn (ResolvedPlannedExercise $exercise): CompiledTrainingExercise => $this->compileExercise($exercise),
+            $plannedExercises,
+        );
 
         return new CompiledTrainingSession(
             slotId: $slot->id,
@@ -305,53 +261,42 @@ class TrainingSessionCompiler
         );
     }
 
-    private function resolveSessionValue(GridState $state, array $config, string $setting, int $weekIndex, int $setIndex, int $sessionIndex): mixed
+    private function compileExercise(ResolvedPlannedExercise $exercise): CompiledTrainingExercise
     {
-        $resolved = $state->getResolvedCellValue($setting, $weekIndex, $setIndex, $sessionIndex);
-
-        return $resolved ?? $this->defaultValue($config);
+        return new CompiledTrainingExercise(
+            exerciseId: (int) $exercise->exerciseId,
+            sort: $exercise->sort,
+            group: $exercise->group,
+            type: $exercise->type,
+            sets: array_map(
+                fn (ResolvedPlannedSet $set): CompiledTrainingSet => $this->compileSet($set),
+                $exercise->sets,
+            ),
+        );
     }
 
-    private function resolveWeekValue(GridState $state, array $config, string $setting, int $weekIndex): mixed
+    private function compileSet(ResolvedPlannedSet $set): CompiledTrainingSet
     {
-        return $state->getResolvedWeekValue($setting, $weekIndex, $this->defaultValue($config));
+        return new CompiledTrainingSet(
+            setNumber: $set->setNumber,
+            values: array_map(
+                fn (ResolvedPlannedValue $value): CompiledTrainingSetValue => $this->compileValue($value),
+                $set->values,
+            ),
+        );
     }
 
-    private function defaultValue(array $config): mixed
+    private function compileValue(ResolvedPlannedValue $value): CompiledTrainingSetValue
     {
-        $default = $config['default'] ?? null;
+        $normalizedValue = $this->normalizeCompiledValue($value->settingKey, $value->value, ['unit' => $value->unit]);
 
-        return $this->isBlankValue($default) ? null : $default;
-    }
-
-    private function isBlankValue(mixed $value): bool
-    {
-        return $value === null || $value === '' || $value === '-' || $value === '—';
-    }
-
-    /**
-     * @param  string[]  $settings
-     * @return string[]
-     */
-    private function orderedSettings(array $settings): array
-    {
-        usort($settings, function (string $a, string $b): int {
-            $priorityA = array_search($a, self::SETTING_PRIORITY, true);
-            $priorityB = array_search($b, self::SETTING_PRIORITY, true);
-
-            return ($priorityA === false ? PHP_INT_MAX : $priorityA)
-                <=> ($priorityB === false ? PHP_INT_MAX : $priorityB);
-        });
-
-        return array_values($settings);
-    }
-
-    private function resolveUnit(string $setting, array $config): ?string
-    {
-        $enum = ExerciseSetting::tryFrom($setting);
-        $settingClass = $enum?->settingClass();
-
-        return $settingClass ? $settingClass::resolveUnitLabel($config) : null;
+        return new CompiledTrainingSetValue(
+            settingKey: $value->settingKey,
+            plannedValueType: $this->resolveValueType($value->settingKey, $normalizedValue),
+            plannedValue: $normalizedValue,
+            plannedCanonicalValue: $this->resolveCanonicalValue($value->settingKey, $normalizedValue),
+            unit: $value->unit,
+        );
     }
 
     private function normalizeCompiledValue(string $setting, mixed $value, array $config): mixed

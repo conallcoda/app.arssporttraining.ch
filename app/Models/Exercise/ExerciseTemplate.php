@@ -21,7 +21,7 @@ class ExerciseTemplate extends Model
     ];
 
     protected $attributes = [
-        'config' => '{"settings":[],"overrides":{"cells":[],"weeks":[]}}',
+        'config' => '{"settings":[],"overrides":{"sessions":[],"cells":[]}}',
     ];
 
     protected function casts(): array

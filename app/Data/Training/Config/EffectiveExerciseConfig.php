@@ -58,20 +58,33 @@ class EffectiveExerciseConfig
         }
 
         $config['overrides'] = self::mergeGridOverrides(
-            $config['overrides'] ?? ['cells' => [], 'weeks' => []],
+            $config['overrides'] ?? ['sessions' => [], 'cells' => []],
             $overrides->gridOverrides,
         );
 
         return $config;
     }
 
-    /** @return array{cells: array, weeks: array} */
+    /** @return array{sessions: array, cells: array} */
     public static function mergeGridOverrides(array ...$layers): array
     {
+        $mergedSessions = [];
         $mergedCells = [];
-        $mergedWeeks = [];
 
         foreach ($layers as $layer) {
+            foreach ($layer['sessions'] ?? [] as $session) {
+                $key = $session['week'].'-'.$session['session'];
+
+                if (! isset($mergedSessions[$key])) {
+                    $mergedSessions[$key] = $session;
+                } else {
+                    $mergedSessions[$key]['data'] = array_merge(
+                        $mergedSessions[$key]['data'] ?? [],
+                        $session['data'] ?? [],
+                    );
+                }
+            }
+
             foreach ($layer['cells'] ?? [] as $cell) {
                 $key = $cell['week'].'-'.$cell['session'].'-'.$cell['set'];
 
@@ -85,23 +98,11 @@ class EffectiveExerciseConfig
                 }
             }
 
-            foreach ($layer['weeks'] ?? [] as $week) {
-                $key = (string) $week['week'];
-
-                if (! isset($mergedWeeks[$key])) {
-                    $mergedWeeks[$key] = $week;
-                } else {
-                    $mergedWeeks[$key]['data'] = array_merge(
-                        $mergedWeeks[$key]['data'] ?? [],
-                        $week['data'] ?? [],
-                    );
-                }
-            }
         }
 
         return [
+            'sessions' => array_values($mergedSessions),
             'cells' => array_values($mergedCells),
-            'weeks' => array_values($mergedWeeks),
         ];
     }
 }

@@ -30,6 +30,29 @@ it('populates sets per week with deload on odd weeks', function () {
     expect($state->getSetsPerWeek())->toBe([3, 4, 3, 4, 3]);
 });
 
+it('applies deload grouping across session buckets', function () {
+    $data = [
+        'preview' => [
+            'groupingMode' => 'groups',
+            'groupSize' => 2,
+            'sessionsPerWeek' => 2,
+        ],
+        'sets' => ['deload' => 'odd', 'deloadBy' => 1, 'default' => 4, 'label' => 'Set'],
+        'settings' => [],
+    ];
+
+    $orchestrator = new StrategyOrchestrator($data, weeks: 3);
+    $state = $orchestrator->execute();
+
+    expect($state->getSetsPerWeek())->toBe([3, 4, 3])
+        ->and($state->getResolvedSessionValue('sets', 0, 0, 4))->toBe(3)
+        ->and($state->getResolvedSessionValue('sets', 0, 1, 4))->toBe(3)
+        ->and($state->getResolvedSessionValue('sets', 1, 0, 4))->toBe(4)
+        ->and($state->getResolvedSessionValue('sets', 1, 1, 4))->toBe(4)
+        ->and($state->getResolvedSessionValue('sets', 2, 0, 4))->toBe(3)
+        ->and($state->getResolvedSessionValue('sets', 2, 1, 4))->toBe(3);
+});
+
 it('populates automatic reps grid', function () {
     $data = [
         'sets' => ['deload' => 'none', 'default' => 4, 'label' => 'Set'],
@@ -54,6 +77,36 @@ it('populates automatic reps grid', function () {
     expect($reps[0])->toHaveCount(4);
 });
 
+it('progresses automatic reps by session group instead of calendar week', function () {
+    $data = [
+        'preview' => [
+            'groupingMode' => 'groups',
+            'groupSize' => 2,
+            'sessionsPerWeek' => 2,
+        ],
+        'sets' => ['deload' => 'none', 'default' => 2, 'label' => 'Set'],
+        'settings' => ['reps'],
+        'reps' => [
+            'mode' => 'automatic',
+            'default' => 10,
+            'stepDownInterval' => 1,
+            'decrement' => 2,
+            'minimum' => 1,
+            'applyPer' => 'session',
+        ],
+    ];
+
+    $orchestrator = new StrategyOrchestrator($data, weeks: 3);
+    $state = $orchestrator->execute();
+
+    expect($state->getResolvedCellValue('reps', 0, 0, 0))->toBe(10)
+        ->and($state->getResolvedCellValue('reps', 0, 0, 1))->toBe(10)
+        ->and($state->getResolvedCellValue('reps', 1, 0, 0))->toBe(8)
+        ->and($state->getResolvedCellValue('reps', 1, 0, 1))->toBe(8)
+        ->and($state->getResolvedCellValue('reps', 2, 0, 0))->toBe(6)
+        ->and($state->getResolvedCellValue('reps', 2, 0, 1))->toBe(6);
+});
+
 it('uses the shared automatic strategy factory seam for automatic reps', function () {
     $data = [
         'sets' => ['deload' => 'none', 'default' => 2, 'label' => 'Set'],
@@ -71,7 +124,7 @@ it('uses the shared automatic strategy factory seam for automatic reps', functio
     $factory = new AutomaticStrategyFactory(
         repsResolver: new class extends AutomaticRepsResolver
         {
-            public function buildGrid(RepsSetting $setting, int $weeks, array $setsPerWeek): array
+            public function buildGrid(RepsSetting $setting, int $weeks, array $setsPerWeek, array $groupIndexByWeekSession = []): array
             {
                 return [
                     [99, 98],
@@ -153,6 +206,41 @@ it('populates weight grid when reps and weight are both configured', function ()
     expect($state->hasGrid('weight'))->toBeTrue();
     expect($state->hasGrid('oneRepMax'))->toBeTrue();
     expect($state->getMetadata('weight', 'summary'))->not->toBeNull();
+});
+
+it('progresses automatic weight by session group and finishes on the last session', function () {
+    $data = [
+        'preview' => [
+            'groupingMode' => 'groups',
+            'groupSize' => 2,
+            'sessionsPerWeek' => 2,
+        ],
+        'sets' => ['deload' => 'none', 'default' => 2, 'label' => 'Set'],
+        'settings' => ['reps', 'weight'],
+        'reps' => [
+            'mode' => 'automatic',
+            'default' => 10,
+            'stepDownInterval' => 1,
+            'decrement' => 2,
+            'minimum' => 1,
+            'applyPer' => 'session',
+        ],
+        'weight' => [
+            'mode' => 'automatic',
+            'oneRepMaxModifier' => 100,
+            'applyPer' => 'session',
+        ],
+    ];
+
+    $measuredData = new WeightProgressionSetting(measuredReps: 10, measuredWeight: 52, targetGoal: 7);
+
+    $orchestrator = new StrategyOrchestrator($data, $measuredData, weeks: 3);
+    $state = $orchestrator->execute();
+
+    expect($state->getResolvedCellValue('weight', 0, 0, 0))->toBeLessThan($state->getResolvedCellValue('weight', 1, 0, 0))
+        ->and($state->getResolvedCellValue('weight', 1, 0, 0))->toBeLessThan($state->getResolvedCellValue('weight', 2, 0, 0))
+        ->and($state->getResolvedCellValue('oneRepMax', 2, 1, 1))->not->toBe('-')
+        ->and($state->getResolvedCellValue('oneRepMax', 2, 1, 0))->toBe('-');
 });
 
 it('skips weight phase when measured data is null', function () {

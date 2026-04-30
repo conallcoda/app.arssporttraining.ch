@@ -2,12 +2,14 @@
 
 namespace Database\Seeders;
 
+use App\Data\Exercise\ExerciseConfig;
+use App\Data\Training\Config\ExercisePlanConfig;
 use App\Models\Athlete\MetricSubmission;
 use App\Models\Athlete\MetricValue;
 use App\Models\Exercise\Exercise;
-    use App\Models\Exercise\ExerciseExternal;
-    use App\Models\Exercise\ExercisePlan;
-    use App\Models\Exercise\ExerciseProgram;
+use App\Models\Exercise\ExerciseExternal;
+use App\Models\Exercise\ExercisePlan;
+use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramTypeEnum;
 use App\Models\Exercise\ExerciseTemplate;
 use App\Models\Tag;
@@ -52,6 +54,7 @@ class DatabaseImportSeeder extends Seeder
                 $this->seedTrainingProgramSlots();
                 $this->seedMetricSubmissions();
                 $this->normalizeLegacyStartsAtDates();
+                $this->normalizeLegacyGridOverrides();
             });
 
             DB::statement('SET FOREIGN_KEY_CHECKS=1');
@@ -613,6 +616,47 @@ class DatabaseImportSeeder extends Seeder
             });
 
         $this->command->info("Normalized legacy starts-at dates for {$normalizedPrograms} exercise programs and {$normalizedPlans} exercise plans.");
+    }
+
+    private function normalizeLegacyGridOverrides(): void
+    {
+        $normalizedExercises = $this->normalizeConfigBag(Exercise::class);
+        $normalizedTemplates = $this->normalizeConfigBag(ExerciseTemplate::class);
+        $normalizedPrograms = $this->normalizeConfigBag(ExerciseProgram::class);
+        $normalizedPlans = $this->normalizeConfigBag(ExercisePlan::class);
+
+        $this->command->info("Normalized legacy grid overrides for {$normalizedExercises} exercises, {$normalizedTemplates} templates, {$normalizedPrograms} programs, and {$normalizedPlans} plans.");
+    }
+
+    /** @param class-string<Model> $modelClass */
+    private function normalizeConfigBag(string $modelClass): int
+    {
+        $normalizedCount = 0;
+
+        $modelClass::query()
+            ->orderBy('id')
+            ->chunkById(100, function ($models) use (&$normalizedCount): void {
+                foreach ($models as $model) {
+                    $original = $model->getRawOriginal('config');
+                    $config = $model->config;
+
+                    if (! $config instanceof ExerciseConfig && ! $config instanceof ExercisePlanConfig) {
+                        continue;
+                    }
+
+                    $normalized = json_encode($config->toArray());
+
+                    if ($original === $normalized) {
+                        continue;
+                    }
+
+                    $model->config = $config;
+                    $model->saveQuietly();
+                    $normalizedCount++;
+                }
+            });
+
+        return $normalizedCount;
     }
 
     private function resolveImportPath(): string

@@ -45,7 +45,7 @@ class Exercise extends Model implements HasCollectionPaths, HasMedia, Taggable
     ];
 
     protected $attributes = [
-        'config' => '{"settings":[],"overrides":{"cells":[],"weeks":[]}}',
+        'config' => '{"settings":[],"overrides":{"sessions":[],"cells":[]}}',
     ];
 
     public function getCollectionBasePath(string $collectionName, ?Media $media = null): ?string

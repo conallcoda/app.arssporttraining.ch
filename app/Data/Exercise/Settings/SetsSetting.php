@@ -4,6 +4,7 @@ namespace App\Data\Exercise\Settings;
 
 use App\Form\Fields\Sets;
 use Coda\FormKit\Fields;
+use Illuminate\Support\Facades\Auth;
 
 class SetsSetting extends AbstractSetting
 {
@@ -14,14 +15,17 @@ class SetsSetting extends AbstractSetting
         public int $default = 4,
     ) {}
 
-    public static function fields(): array
+    public static function fields(array $data = []): array
     {
+        $groupingMode = (string) (Auth::user()?->config->get('settings.session_grouping.mode', 'week') ?? 'week');
+        $cycleLabel = $groupingMode === 'groups' ? 'Groups' : 'Weeks';
+
         return [
             Fields\RadioSegmented::make('deload')
                 ->label('Deload')
                 ->options([
-                    'odd' => 'Odd Weeks',
-                    'even' => 'Even Weeks',
+                    'odd' => 'Odd '.$cycleLabel,
+                    'even' => 'Even '.$cycleLabel,
                     'none' => 'No Deload',
                 ])
                 ->default('none')

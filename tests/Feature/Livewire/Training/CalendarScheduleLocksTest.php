@@ -39,7 +39,7 @@ it('does not delete a recorded slot from the schedule view', function () {
     Livewire::test(CalendarScheduleView::class, [
         'groupId' => $group->id,
         'userId' => $athlete->id,
-        'calendarSettings' => new CalendarSettingsData(period: 'month', date: '2030-04-01', start: null, end: null),
+        'calendarSettings' => new CalendarSettingsData(start: '2030-04-01', end: '2030-04-30', preset: null),
         'weekStartsOn' => Carbon::MONDAY,
     ])
         ->call('onWeekSlotDeleted', [

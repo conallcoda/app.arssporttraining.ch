@@ -11,8 +11,8 @@ class ExerciseConfig extends AbstractData
     public function __construct(
         /** @var array<string> */
         public array $settings = [],
-        /** @var array{cells: array<int, array{week: int, session: int, set: int, data: array<string, mixed>}>, weeks: array<int, array{week: int, data: array<string, mixed>}>} */
-        public array $overrides = ['cells' => [], 'weeks' => []],
+        /** @var array{sessions: array<int, array{week: int, session: int, data: array<string, mixed>}>, cells: array<int, array{week: int, session: int, set: int, data: array<string, mixed>}>} */
+        public array $overrides = ['sessions' => [], 'cells' => []],
         public Settings\SetsSetting $sets = new Settings\SetsSetting,
         public ?Settings\DistanceSetting $distance = null,
         public ?Settings\DurationSetting $duration = null,
@@ -27,6 +27,10 @@ class ExerciseConfig extends AbstractData
         public ?Settings\WeightSetting $weight = null,
         public Settings\PreviewSetting $preview = new Settings\PreviewSetting,
     ) {
+        $this->overrides = \App\Support\Training\GridOverrideNormalizer::normalize($this->overrides, [
+            'preview' => $this->preview->toArray(),
+        ]);
+
         $settingMap = ExerciseSetting::settingMap();
 
         foreach ($this->settings as $key) {
@@ -38,7 +42,10 @@ class ExerciseConfig extends AbstractData
 
     public static function addFormFieldsets(Form $form): void
     {
-        $form->fieldset('Sets', Settings\SetsSetting::fields(), 'data.config.sets');
+        $form->fieldset(
+            'Sets',
+            fn (array $data) => ['fields' => Settings\SetsSetting::fields($data), 'prefix' => 'data.config.sets'],
+        );
 
         $settingNames = ['sets'];
 

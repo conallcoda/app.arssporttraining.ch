@@ -16,17 +16,17 @@ it('resolves session-specific cell overrides without leaking them to other sessi
         ->and($overrides->hasCellOverride(0, 0, 'reps', 1))->toBeTrue();
 });
 
-it('applies legacy session 0 overrides to later sessions when they have no explicit override row', function () {
+it('does not apply session 0 overrides to later sessions without an explicit row', function () {
     $overrides = GridOverrides::fromArrays([
         ['week' => 2, 'session' => 0, 'set' => 1, 'data' => ['weight' => 15]],
     ], []);
 
     expect($overrides->getCellOverrideValue(2, 1, 'weight', 0))->toBe(15)
-        ->and($overrides->getCellOverrideValue(2, 1, 'weight', 1))->toBe(15)
-        ->and($overrides->hasCellOverride(2, 1, 'weight', 1))->toBeTrue();
+        ->and($overrides->getCellOverrideValue(2, 1, 'weight', 1))->toBeNull()
+        ->and($overrides->hasCellOverride(2, 1, 'weight', 1))->toBeFalse();
 });
 
-it('does not apply legacy session 0 overrides when the later session has its own override row', function () {
+it('keeps later session rows isolated even when session 0 has a different override', function () {
     $overrides = GridOverrides::fromArrays([
         ['week' => 2, 'session' => 0, 'set' => 1, 'data' => ['weight' => 15]],
         ['week' => 2, 'session' => 1, 'set' => 1, 'data' => ['reps' => 8]],

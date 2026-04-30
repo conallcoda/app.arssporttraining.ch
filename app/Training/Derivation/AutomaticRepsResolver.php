@@ -3,35 +3,81 @@
 namespace App\Training\Derivation;
 
 use App\Data\Exercise\BilateralReps;
+use App\Data\Exercise\Preview\SessionGroupBuilder;
+use App\Data\Exercise\Preview\SessionGroupingMode;
 use App\Data\Exercise\Settings\RepsSetting;
 
 class AutomaticRepsResolver
 {
-    public function resolve(RepsSetting $setting, int $weeks, array $setsPerWeek): AutomaticStrategyResolution
+    public function resolve(
+        RepsSetting $setting,
+        int $weeks,
+        array $setsPerWeek,
+        array $sessionCounts = [],
+        string $groupingMode = SessionGroupingMode::Week->value,
+        int $groupSize = 4,
+        ?callable $resolvedSetsForSession = null,
+    ): AutomaticStrategyResolution
     {
+        $strategyMap = SessionGroupBuilder::buildStrategyMap($weeks, $sessionCounts, $groupingMode, $groupSize);
+
         return new AutomaticStrategyResolution([
             'reps' => new ResolvedGridField(
-                grid: $this->buildGrid($setting, $weeks, $setsPerWeek),
+                grid: $this->buildGrid($setting, $weeks, $setsPerWeek, $strategyMap['groupIndexByWeekSession']),
+                sessionGrid: $this->buildSessionGrid(
+                    $setting,
+                    $weeks,
+                    $setsPerWeek,
+                    $strategyMap['orderedSessions'],
+                    $resolvedSetsForSession,
+                ),
             ),
         ]);
     }
 
     /** @return array<int, array<int, string|int>> */
-    public function buildGrid(RepsSetting $setting, int $weeks, array $setsPerWeek): array
+    public function buildGrid(RepsSetting $setting, int $weeks, array $setsPerWeek, array $groupIndexByWeekSession = []): array
     {
         $grid = [];
 
         for ($week = 0; $week < $weeks; $week++) {
             $grid[$week] = [];
             $totalSets = $setsPerWeek[$week];
+            $progressionIndex = $groupIndexByWeekSession[$week][0] ?? $week;
 
             for ($set = 0; $set < $totalSets; $set++) {
-                $reps = $this->resolveReps($setting, $week, $set, $totalSets);
+                $reps = $this->resolveReps($setting, $progressionIndex, $set, $totalSets);
                 $grid[$week][$set] = $reps->isBilateral() ? (string) $reps : $reps->total();
             }
         }
 
         return $grid;
+    }
+
+    /** @return array<int, array<int, array<int, string|int>>> */
+    public function buildSessionGrid(
+        RepsSetting $setting,
+        int $weeks,
+        array $setsPerWeek,
+        array $orderedSessions = [],
+        ?callable $resolvedSetsForSession = null,
+    ): array {
+        $sessionGrid = [];
+
+        foreach ($orderedSessions as $session) {
+            $week = $session['week'];
+            $sessionIndex = $session['session'];
+            $totalSets = $resolvedSetsForSession !== null
+                ? max(0, (int) $resolvedSetsForSession($week, $sessionIndex, (int) ($setsPerWeek[$week] ?? 0)))
+                : (int) ($setsPerWeek[$week] ?? 0);
+
+            for ($set = 0; $set < $totalSets; $set++) {
+                $reps = $this->resolveReps($setting, $session['group'], $set, $totalSets);
+                $sessionGrid[$week][$sessionIndex][$set] = $reps->isBilateral() ? (string) $reps : $reps->total();
+            }
+        }
+
+        return $sessionGrid;
     }
 
     public function resolveReps(RepsSetting $setting, int $weekIndex, int $setIndex, int $totalSets): BilateralReps

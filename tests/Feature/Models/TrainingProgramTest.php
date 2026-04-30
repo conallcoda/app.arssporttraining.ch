@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Exercise\Exercise;
-use App\Models\Exercise\ExercisePlan;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
 use App\Models\Tag;
@@ -55,41 +54,6 @@ it('imports an exercise by wrapping it in a program with category', function () 
     expect($tp->program->exercises->first()->id)->toBe($exercise->id);
 });
 
-it('imports from a plan and copies all programs', function () {
-    $group = UserGroup::create(['name' => 'Team Alpha']);
-
-    $program1 = ExerciseProgram::factory()->create(['name' => 'Program A']);
-    $program2 = ExerciseProgram::factory()->create(['name' => 'Program B']);
-
-    $plan = ExercisePlan::create([
-        'name' => 'Test Plan',
-        'config' => [
-            'schedule' => [
-                'startDate' => '',
-                'weeks' => [
-                    [
-                        'id' => 'w1',
-                        'sort' => 0,
-                        'slots' => [
-                            ['day' => 0, 'slot' => 0, 'programs' => [$program1->id]],
-                            ['day' => 1, 'slot' => 0, 'programs' => [$program2->id]],
-                        ],
-                    ],
-                ],
-            ],
-            'target' => [],
-            'exercises' => [],
-        ],
-    ]);
-
-    TrainingProgram::importFromPlan($plan, $group->id);
-
-    $entries = TrainingProgram::where('group_id', $group->id)->orderBy('sort')->get();
-
-    expect($entries)->toHaveCount(2);
-    expect($entries[0]->exercise_program_id)->not->toBe($program1->id);
-    expect($entries[1]->exercise_program_id)->not->toBe($program2->id);
-});
 
 it('auto-increments sort order when adding multiple programs', function () {
     $group = UserGroup::create(['name' => 'Team Alpha']);

@@ -7,7 +7,6 @@ use Coda\Cms\Models\Concerns\HasOwner;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;
 use Coda\Cms\Models\Concerns\SyncsSortableRelations;
 use Illuminate\Database\Eloquent\Casts\Attribute;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -37,41 +36,6 @@ class ExercisePlan extends Model
                 $value instanceof ExercisePlanConfig ? $value->toArray() : $value
             ),
         );
-    }
-
-    public function programIds(): array
-    {
-        $ids = [];
-
-        foreach ($this->config->defaultScheduleWeeks() as $week) {
-            $slots = $week['slots'] ?? [];
-            if (isset($week['linkedTo']) && $week['linkedTo'] !== null) {
-                continue;
-            }
-            foreach ($slots as $slot) {
-                foreach ($slot['programs'] ?? [] as $programId) {
-                    if (! in_array($programId, $ids)) {
-                        $ids[] = $programId;
-                    }
-                }
-            }
-        }
-
-        return $ids;
-    }
-
-    public function programs(): Collection
-    {
-        $ids = $this->programIds();
-
-        if (empty($ids)) {
-            return new Collection;
-        }
-
-        return ExerciseProgram::whereIn('id', $ids)
-            ->with(['exercises' => fn ($q) => $q->orderByPivot('sort'), 'exerciseCategory'])
-            ->orderBy('name')
-            ->get();
     }
 
     public function ownedPrograms(): MorphMany

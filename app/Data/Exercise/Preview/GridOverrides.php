@@ -7,21 +7,45 @@ use Coda\Cms\Data\AbstractData;
 class GridOverrides extends AbstractData
 {
     public function __construct(
+        /** @var SessionOverride[] */
+        public array $sessions = [],
         /** @var CellOverride[] */
         public array $cells = [],
-        /** @var WeekOverride[] */
-        public array $weeks = [],
     ) {}
 
     /**
+     * @param  array<int, array{week: int, session: int, data: array<string, mixed>}>  $sessions
      * @param  array<int, array{week: int, session: int, set: int, data: array<string, mixed>}>  $cells
-     * @param  array<int, array{week: int, data: array<string, mixed>}>  $weeks
      */
-    public static function fromArrays(array $cells = [], array $weeks = []): self
+    public static function fromArrays(array $first = [], array $second = []): self
     {
+        $sessions = $first;
+        $cells = $second;
+
+        if ($first !== [] && isset($first[0]['set'])) {
+            $normalized = \App\Support\Training\GridOverrideNormalizer::normalize([
+                'cells' => $first,
+                'weeks' => $second,
+            ]);
+
+            $sessions = $normalized['sessions'] ?? [];
+            $cells = $normalized['cells'] ?? [];
+        }
+
         return new self(
+            sessions: array_map(fn (array $s) => SessionOverride::from($s), $sessions),
             cells: array_map(fn (array $c) => CellOverride::from($c), $cells),
-            weeks: array_map(fn (array $w) => WeekOverride::from($w), $weeks),
+        );
+    }
+
+    /** @param array{sessions?: array, cells?: array, weeks?: array} $overrides */
+    public static function fromConfig(array $overrides): self
+    {
+        $normalized = \App\Support\Training\GridOverrideNormalizer::normalize($overrides);
+
+        return self::fromArrays(
+            $normalized['sessions'] ?? [],
+            $normalized['cells'] ?? [],
         );
     }
 
@@ -32,12 +56,6 @@ class GridOverrides extends AbstractData
 
             if ($override !== null) {
                 return isset($override->data[$field]);
-            }
-
-            if ($session > 0) {
-                $legacySessionZeroOverride = $this->findExactCellOverride($week, 0, $set);
-
-                return isset($legacySessionZeroOverride?->data[$field]);
             }
 
             return false;
@@ -66,12 +84,6 @@ class GridOverrides extends AbstractData
                 return $override->data[$field] ?? null;
             }
 
-            if ($session > 0) {
-                $legacySessionZeroOverride = $this->findExactCellOverride($week, 0, $set);
-
-                return $legacySessionZeroOverride?->data[$field] ?? null;
-            }
-
             return null;
         }
 
@@ -84,9 +96,31 @@ class GridOverrides extends AbstractData
         return null;
     }
 
+    public function hasSessionOverride(int $week, int $session, string $field): bool
+    {
+        foreach ($this->sessions as $override) {
+            if ($override->week === $week && $override->session === $session && isset($override->data[$field])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function getSessionOverrideValue(int $week, int $session, string $field): mixed
+    {
+        foreach ($this->sessions as $override) {
+            if ($override->week === $week && $override->session === $session && isset($override->data[$field])) {
+                return $override->data[$field];
+            }
+        }
+
+        return null;
+    }
+
     public function hasWeekOverride(int $week, string $field): bool
     {
-        foreach ($this->weeks as $override) {
+        foreach ($this->sessions as $override) {
             if ($override->week === $week && isset($override->data[$field])) {
                 return true;
             }
@@ -97,7 +131,7 @@ class GridOverrides extends AbstractData
 
     public function getWeekOverrideValue(int $week, string $field): mixed
     {
-        foreach ($this->weeks as $override) {
+        foreach ($this->sessions as $override) {
             if ($override->week === $week && isset($override->data[$field])) {
                 return $override->data[$field];
             }
@@ -128,10 +162,10 @@ class GridOverrides extends AbstractData
         return null;
     }
 
-    public function findWeekOverrideIndex(int $week): ?int
+    public function findSessionOverrideIndex(int $week, int $session): ?int
     {
-        foreach ($this->weeks as $index => $override) {
-            if ($override->week === $week) {
+        foreach ($this->sessions as $index => $override) {
+            if ($override->week === $week && $override->session === $session) {
                 return $index;
             }
         }
@@ -141,6 +175,6 @@ class GridOverrides extends AbstractData
 
     public function isEmpty(): bool
     {
-        return $this->cells === [] && $this->weeks === [];
+        return $this->cells === [] && $this->sessions === [];
     }
 }
