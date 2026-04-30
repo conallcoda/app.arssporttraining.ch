@@ -83,3 +83,34 @@ it('deletes a training program', function () {
 
     expect(TrainingProgram::find($tp->id))->toBeNull();
 });
+
+it('stores flattened override values in the exercise program config payload', function () {
+    $program = ExerciseProgram::factory()->create();
+    $exercise = Exercise::factory()->create();
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $config = $program->config;
+    $overrides = $config->defaultExerciseOverrides($pivot->id);
+    $overrides->gridOverrides = [
+        'sessions' => [],
+        'cells' => [
+            ['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['reps' => 14]],
+        ],
+    ];
+    $config->setDefaultExerciseOverrides($pivot->id, $overrides);
+    $program->config = $config;
+    $program->saveQuietly();
+
+    $rawConfig = json_decode((string) $program->fresh()->getRawOriginal('config'), true);
+
+    expect($rawConfig['overrideValues'][0]['programExerciseId'] ?? null)->toBe($pivot->id)
+        ->and($rawConfig['overrideValues'][0]['settingKey'] ?? null)->toBe('reps')
+        ->and($rawConfig['exercises'][$pivot->id]['gridOverrides'] ?? null)->toBeNull()
+        ->and($program->fresh()->config->defaultExerciseOverrides($pivot->id)->gridOverrides['cells'][0]['data']['reps'] ?? null)->toBe(14);
+});

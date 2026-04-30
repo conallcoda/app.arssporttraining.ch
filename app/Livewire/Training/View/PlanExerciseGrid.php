@@ -10,10 +10,7 @@ use App\Data\Exercise\Preview\OverrideManager;
 use App\Data\Exercise\Preview\PreviewGrid;
 use App\Data\Exercise\Preview\SessionGroupBuilder;
 use App\Data\Exercise\Preview\SessionGroupingMode;
-use App\Data\Exercise\Preview\StrategyOrchestrator;
-use App\Data\Exercise\Settings\SetsSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
-use App\Data\Exercise\Strategies\Sets\DeloadSetsStrategy;
 use App\Data\Training\Config\ResolvedExerciseOverrides;
 use App\Data\Training\Config\EffectiveExerciseConfig;
 use App\Data\Training\Config\ExerciseOverrides;
@@ -175,59 +172,18 @@ class PlanExerciseGrid extends Component
         );
     }
 
-    protected function getEffectiveCellDefault(string $field, int $weekIndex, int $setIndex): mixed
+    protected function getEffectiveCellDefault(string $field, int $weekIndex, int $setIndex, int $sessionIndex): mixed
     {
-        $effectiveConfig = $this->getEffectiveConfig();
-        $baseOverrides = $this->getBaseGridOverrides();
-        $measuredData = $this->getPlanMeasuredData();
+        $row = collect($this->buildDefaultsGrid()->rows)->firstWhere('field', $field);
 
-        $weeks = $this->weeks;
-        $overrides = GridOverrides::fromConfig($baseOverrides);
-        $orchestrator = new StrategyOrchestrator(
-            $effectiveConfig,
-            $measuredData,
-            $weeks,
-            $overrides,
-            $this->planMaxHR,
-            $this->planIatPercent,
-            sessionCounts: $this->resolvedWeekSessionCounts(),
-        );
-        $state = $orchestrator->execute();
-
-        return $state->getResolvedCellValue($field, $weekIndex, $setIndex);
+        return $row?->getCellValue($weekIndex, $setIndex, $sessionIndex);
     }
 
     protected function getEffectiveSessionDefault(string $field, int $weekIndex, int $sessionIndex): mixed
     {
-        $effectiveConfig = $this->getEffectiveConfig();
-        $baseOverrides = $this->getBaseGridOverrides();
-        $overrides = GridOverrides::fromConfig($baseOverrides);
+        $column = collect($this->buildDefaultsGrid()->weekColumns)->firstWhere('field', $field);
 
-        $sessionValue = $overrides->getSessionOverrideValue($weekIndex, $sessionIndex, $field);
-        if ($sessionValue !== null) {
-            return $sessionValue;
-        }
-
-        if ($field === 'sets') {
-            $preview = $effectiveConfig['preview'] ?? [];
-            $strategy = new DeloadSetsStrategy(
-                SetsSetting::from($effectiveConfig['sets'] ?? []),
-                groupingMode: (string) ($preview['groupingMode'] ?? SessionGroupingMode::Week->value),
-                groupSize: max(1, (int) ($preview['groupSize'] ?? 4)),
-                sessionCounts: $this->resolvedWeekSessionCounts(),
-            );
-
-            $groupMap = SessionGroupBuilder::buildStrategyMap(
-                $this->weeks,
-                $this->resolvedWeekSessionCounts(),
-                (string) ($preview['groupingMode'] ?? SessionGroupingMode::Week->value),
-                max(1, (int) ($preview['groupSize'] ?? 4)),
-            );
-
-            return $strategy->getSetsForGroup($groupMap['groupIndexByWeekSession'][$weekIndex][$sessionIndex] ?? $weekIndex);
-        }
-
-        return $effectiveConfig[$field]['default'] ?? null;
+        return $column?->getCellValue($weekIndex, 0, $sessionIndex);
     }
 
     #[Computed]
@@ -585,22 +541,30 @@ class PlanExerciseGrid extends Component
     public function updateCellOverride(int $weekIndex, int $setIndex, string $field, mixed $value, int $session, bool $applyToAll = false): void
     {
         $overrides = $this->getCurrentOverrides();
-        $effectiveDefault = $this->getEffectiveCellDefault($field, $weekIndex, $setIndex);
+        $targets = $applyToAll
+            ? $this->fanoutTargetsForSession($weekIndex, $session)
+            : [['week' => $weekIndex, 'session' => $session]];
 
-        $overrides->gridOverrides = OverrideManager::updateCellOverride(
-            $overrides->gridOverrides,
-            $this->getEffectiveConfig(),
-            $this->weeks,
-            $this->sessionsPerWeek,
-            $weekIndex,
-            $setIndex,
-            $field,
-            $value,
-            $session,
-            $applyToAll,
-            $effectiveDefault,
-            $this->sessionCountForWeek($weekIndex),
-        );
+        foreach ($targets as $target) {
+            if ($this->isSessionLocked($target['week'], $target['session'])) {
+                continue;
+            }
+
+            $overrides->gridOverrides = OverrideManager::updateCellOverride(
+                $overrides->gridOverrides,
+                $this->getEffectiveConfig(),
+                $this->weeks,
+                $this->sessionsPerWeek,
+                $target['week'],
+                $setIndex,
+                $field,
+                $value,
+                $target['session'],
+                false,
+                $this->getEffectiveCellDefault($field, $target['week'], $setIndex, $target['session']),
+                $this->sessionCountForWeek($target['week']),
+            );
+        }
 
         $this->saveOverrides($overrides);
         unset($this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides);
@@ -651,6 +615,38 @@ class PlanExerciseGrid extends Component
         );
 
         return $grid;
+    }
+
+    /** @return array<int, array{week:int, session:int}> */
+    protected function fanoutTargetsForSession(int $weekIndex, int $sessionIndex): array
+    {
+        $effectiveConfig = $this->getEffectiveConfig();
+        $preview = $effectiveConfig['preview'] ?? [];
+        $strategyMap = SessionGroupBuilder::buildStrategyMap(
+            $this->weeks,
+            $this->resolvedWeekSessionCounts(),
+            (string) ($preview['groupingMode'] ?? SessionGroupingMode::Week->value),
+            max(1, (int) ($preview['groupSize'] ?? 4)),
+        );
+        $groupIndex = $strategyMap['groupIndexByWeekSession'][$weekIndex][$sessionIndex] ?? null;
+
+        if ($groupIndex === null) {
+            return [['week' => $weekIndex, 'session' => $sessionIndex]];
+        }
+
+        return collect($strategyMap['orderedSessions'])
+            ->filter(fn (array $session): bool => (int) ($session['group'] ?? -1) === $groupIndex)
+            ->map(fn (array $session): array => [
+                'week' => (int) $session['week'],
+                'session' => (int) $session['session'],
+            ])
+            ->values()
+            ->all();
+    }
+
+    protected function isSessionLocked(int $weekIndex, int $sessionIndex): bool
+    {
+        return (bool) ($this->lockedSessionsByWeek[$weekIndex][$sessionIndex] ?? false);
     }
 
     public function resetOverrides(): void

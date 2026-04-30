@@ -33,7 +33,7 @@ class ExercisePlan extends Model
                 ? ExercisePlanConfig::from(json_decode($value, true))
                 : ExercisePlanConfig::initialize(),
             set: fn (ExercisePlanConfig|array $value) => json_encode(
-                $value instanceof ExercisePlanConfig ? $value->toArray() : $value
+                $value instanceof ExercisePlanConfig ? $value->toPersistedArray() : $value
             ),
         );
     }

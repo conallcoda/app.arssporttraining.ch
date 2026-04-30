@@ -100,3 +100,39 @@ it('clears starts-at dates from default and athlete-specific overrides', functio
         ->and($config->defaultExerciseOverrides(100)->startsAtDate)->toBeNull()
         ->and($config->userExerciseOverrides(10, 100)->startsAtDate)->toBeNull();
 });
+
+it('persists override bags as flattened override values while hydrating them back into runtime overrides', function () {
+    $config = ExercisePlanConfig::from([
+        'target' => ['measuredReps' => 1, 'measuredWeight' => 50, 'targetGoal' => 10],
+    ]);
+
+    $config->setDefaultExerciseOverrides(100, ExerciseOverrides::from([
+        'rest' => ['default' => 90, 'applyPer' => 'week'],
+        'gridOverrides' => [
+            'sessions' => [
+                ['week' => 0, 'session' => 0, 'data' => ['rest' => 75]],
+            ],
+            'cells' => [
+                ['week' => 1, 'session' => 0, 'set' => 0, 'data' => ['reps' => 8]],
+            ],
+        ],
+        'historicalGridOverrides' => [
+            'sessions' => [],
+            'cells' => [
+                ['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['reps' => 10]],
+            ],
+        ],
+    ]));
+
+    $persisted = $config->toPersistedArray();
+
+    expect($persisted['exercises'][100]['gridOverrides'] ?? null)->toBeNull()
+        ->and($persisted['overrideValues'])->toHaveCount(3);
+
+    $rehydrated = ExercisePlanConfig::from($persisted);
+
+    expect($rehydrated->defaultExerciseOverrides(100)->rest?->default)->toBe(90)
+        ->and($rehydrated->defaultExerciseOverrides(100)->gridOverrides['sessions'][0]['data']['rest'] ?? null)->toBe(75)
+        ->and($rehydrated->defaultExerciseOverrides(100)->gridOverrides['cells'][0]['data']['reps'] ?? null)->toBe(8)
+        ->and($rehydrated->defaultExerciseOverrides(100)->historicalGridOverrides['cells'][0]['data']['reps'] ?? null)->toBe(10);
+});

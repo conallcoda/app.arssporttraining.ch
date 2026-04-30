@@ -9,9 +9,7 @@ use App\Data\Exercise\Preview\OverrideManager;
 use App\Data\Exercise\Preview\PreviewGrid;
 use App\Data\Exercise\Preview\SessionGroupBuilder;
 use App\Data\Exercise\Preview\SessionGroupingMode;
-use App\Data\Exercise\Settings\SetsSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
-use App\Data\Exercise\Strategies\Sets\DeloadSetsStrategy;
 use App\Models\Exercise\ExerciseProgram;
 use Coda\Cms\Livewire\FormModal;
 use Coda\FormKit\Form;
@@ -123,6 +121,22 @@ class CalendarExerciseSettingsForm extends FormModal
         return $expanded;
     }
 
+    protected function buildDefaultsGrid(): PreviewGrid
+    {
+        $config = $this->withResolvedPreviewGrouping($this->data['config'] ?? []);
+
+        $grid = ExercisePreviewBuilder::build(
+            $config,
+            $this->getMeasuredData(),
+            $this->gridWeeks,
+            GridOverrides::fromConfig(OverrideManager::reset()),
+            $this->sessionsPerWeek,
+            explicitWeekSessionCounts: $this->resolvedWeekSessionCounts(),
+        );
+
+        return $this->applyExplicitWeekSessionCounts($grid);
+    }
+
     public function getListeners(): array
     {
         return [];
@@ -176,45 +190,39 @@ class CalendarExerciseSettingsForm extends FormModal
 
     public function updateCellOverride(int $weekIndex, int $setIndex, string $field, mixed $value, int $session = 0, bool $applyToAll = false): void
     {
-        $this->data['config']['overrides'] = OverrideManager::updateCellOverride(
-            $this->data['config']['overrides'] ?? OverrideManager::reset(),
-            $this->data['config'],
-            $this->gridWeeks,
-            $this->sessionsPerWeek,
-            $weekIndex,
-            $setIndex,
-            $field,
-            $value,
-            $session,
-            false,
-            weekSessionCount: $this->sessionCountForWeek($weekIndex),
-        );
+        $overrides = $this->data['config']['overrides'] ?? OverrideManager::reset();
+        $targets = $applyToAll
+            ? $this->fanoutTargetsForSession($weekIndex, $session)
+            : [['week' => $weekIndex, 'session' => $session]];
+
+        foreach ($targets as $target) {
+            $defaultRow = collect($this->buildDefaultsGrid()->rows)->firstWhere('field', $field);
+
+            $overrides = OverrideManager::updateCellOverride(
+                $overrides,
+                $this->data['config'],
+                $this->gridWeeks,
+                $this->sessionsPerWeek,
+                $target['week'],
+                $setIndex,
+                $field,
+                $value,
+                $target['session'],
+                false,
+                $defaultRow?->getCellValue($target['week'], $setIndex, $target['session']),
+                $this->sessionCountForWeek($target['week']),
+            );
+        }
+
+        $this->data['config']['overrides'] = $overrides;
 
         unset($this->previewGrid);
     }
 
     public function updateSessionOverride(int $weekIndex, int $session, string $field, mixed $value): void
     {
-        $effectiveDefault = null;
-
-        if ($field === 'sets') {
-            $config = $this->withResolvedPreviewGrouping($this->data['config'] ?? []);
-            $preview = $config['preview'] ?? [];
-            $sessionCounts = $this->resolvedWeekSessionCounts();
-            $strategy = new DeloadSetsStrategy(
-                SetsSetting::from($config['sets'] ?? []),
-                groupingMode: (string) ($preview['groupingMode'] ?? SessionGroupingMode::Week->value),
-                groupSize: max(1, (int) ($preview['groupSize'] ?? 4)),
-                sessionCounts: $sessionCounts,
-            );
-            $groupMap = SessionGroupBuilder::buildStrategyMap(
-                $this->gridWeeks,
-                $sessionCounts,
-                (string) ($preview['groupingMode'] ?? SessionGroupingMode::Week->value),
-                max(1, (int) ($preview['groupSize'] ?? 4)),
-            );
-            $effectiveDefault = $strategy->getSetsForGroup($groupMap['groupIndexByWeekSession'][$weekIndex][$session] ?? $weekIndex);
-        }
+        $effectiveDefault = collect($this->buildDefaultsGrid()->weekColumns)
+            ->firstWhere('field', $field)?->getCellValue($weekIndex, 0, $session);
 
         $this->data['config']['overrides'] = OverrideManager::updateSessionOverride(
             $this->data['config']['overrides'] ?? OverrideManager::reset(),
@@ -227,6 +235,33 @@ class CalendarExerciseSettingsForm extends FormModal
         );
 
         unset($this->previewGrid);
+    }
+
+    /** @return array<int, array{week:int, session:int}> */
+    protected function fanoutTargetsForSession(int $weekIndex, int $sessionIndex): array
+    {
+        $config = $this->withResolvedPreviewGrouping($this->data['config'] ?? []);
+        $preview = $config['preview'] ?? [];
+        $strategyMap = SessionGroupBuilder::buildStrategyMap(
+            $this->gridWeeks,
+            $this->resolvedWeekSessionCounts(),
+            (string) ($preview['groupingMode'] ?? SessionGroupingMode::Week->value),
+            max(1, (int) ($preview['groupSize'] ?? 4)),
+        );
+        $groupIndex = $strategyMap['groupIndexByWeekSession'][$weekIndex][$sessionIndex] ?? null;
+
+        if ($groupIndex === null) {
+            return [['week' => $weekIndex, 'session' => $sessionIndex]];
+        }
+
+        return collect($strategyMap['orderedSessions'])
+            ->filter(fn (array $session): bool => (int) ($session['group'] ?? -1) === $groupIndex)
+            ->map(fn (array $session): array => [
+                'week' => (int) $session['week'],
+                'session' => (int) $session['session'],
+            ])
+            ->values()
+            ->all();
     }
 
     public function resetOverrides(): void

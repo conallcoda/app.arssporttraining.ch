@@ -6,10 +6,9 @@ use App\Data\Exercise\Preview\ExercisePreviewBuilder;
 use App\Data\Exercise\Preview\GridOverrides;
 use App\Data\Exercise\Preview\OverrideManager;
 use App\Data\Exercise\Preview\PreviewGrid;
+use App\Data\Exercise\Preview\SessionGroupBuilder;
 use App\Data\Exercise\Preview\SessionGroupingMode;
-use App\Data\Exercise\Settings\SetsSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
-use App\Data\Exercise\Strategies\Sets\DeloadSetsStrategy;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
 
@@ -122,44 +121,39 @@ trait InteractsWithPreview
 
     public function updateCellOverride(int $weekIndex, int $setIndex, string $field, mixed $value, int $session, bool $applyToAll = false): void
     {
-        $this->data['config']['overrides'] = OverrideManager::updateCellOverride(
-            $this->data['config']['overrides'] ?? OverrideManager::reset(),
-            $this->data['config'],
-            $this->defaultWeeks,
-            $this->defaultSessionsPerWeek,
-            $weekIndex,
-            $setIndex,
-            $field,
-            $value,
-            $session,
-            false,
-            weekSessionCount: $this->previewGrid->weekSessionCounts[$weekIndex] ?? null,
-        );
+        $overrides = $this->data['config']['overrides'] ?? OverrideManager::reset();
+        $targets = $applyToAll
+            ? $this->previewFanoutTargets($weekIndex, $session)
+            : [['week' => $weekIndex, 'session' => $session]];
+
+        foreach ($targets as $target) {
+            $defaultRow = collect($this->buildDefaultsGrid()->rows)->firstWhere('field', $field);
+
+            $overrides = OverrideManager::updateCellOverride(
+                $overrides,
+                $this->data['config'],
+                $this->defaultWeeks,
+                $this->defaultSessionsPerWeek,
+                $target['week'],
+                $setIndex,
+                $field,
+                $value,
+                $target['session'],
+                false,
+                $defaultRow?->getCellValue($target['week'], $setIndex, $target['session']),
+                $this->previewGrid->weekSessionCounts[$target['week']] ?? null,
+            );
+        }
+
+        $this->data['config']['overrides'] = $overrides;
 
         unset($this->previewGrid);
     }
 
     public function updateSessionOverride(int $weekIndex, int $session, string $field, mixed $value): void
     {
-        $effectiveDefault = null;
-
-        if ($field === 'sets') {
-            $grouping = $this->resolveDefaultPreviewGrouping();
-            $sessionCounts = $this->previewGrid->weekSessionCounts;
-            $strategy = new DeloadSetsStrategy(
-                SetsSetting::from($this->data['config']['sets'] ?? []),
-                groupingMode: $grouping['mode'],
-                groupSize: $grouping['groupSize'],
-                sessionCounts: $sessionCounts,
-            );
-            $groupMap = \App\Data\Exercise\Preview\SessionGroupBuilder::buildStrategyMap(
-                $this->previewGrid->weekCount,
-                $sessionCounts,
-                $grouping['mode'],
-                $grouping['groupSize'],
-            );
-            $effectiveDefault = $strategy->getSetsForGroup($groupMap['groupIndexByWeekSession'][$weekIndex][$session] ?? $weekIndex);
-        }
+        $effectiveDefault = collect($this->buildDefaultsGrid()->weekColumns)
+            ->firstWhere('field', $field)?->getCellValue($weekIndex, 0, $session);
 
         $this->data['config']['overrides'] = OverrideManager::updateSessionOverride(
             $this->data['config']['overrides'] ?? OverrideManager::reset(),
@@ -254,5 +248,31 @@ trait InteractsWithPreview
         }
 
         return false;
+    }
+
+    /** @return array<int, array{week:int, session:int}> */
+    protected function previewFanoutTargets(int $weekIndex, int $sessionIndex): array
+    {
+        $grouping = $this->resolveDefaultPreviewGrouping();
+        $strategyMap = SessionGroupBuilder::buildStrategyMap(
+            $this->previewGrid->weekCount,
+            $this->previewGrid->weekSessionCounts,
+            $grouping['mode'],
+            $grouping['groupSize'],
+        );
+        $groupIndex = $strategyMap['groupIndexByWeekSession'][$weekIndex][$sessionIndex] ?? null;
+
+        if ($groupIndex === null) {
+            return [['week' => $weekIndex, 'session' => $sessionIndex]];
+        }
+
+        return collect($strategyMap['orderedSessions'])
+            ->filter(fn (array $session): bool => (int) ($session['group'] ?? -1) === $groupIndex)
+            ->map(fn (array $session): array => [
+                'week' => (int) $session['week'],
+                'session' => (int) $session['session'],
+            ])
+            ->values()
+            ->all();
     }
 }
