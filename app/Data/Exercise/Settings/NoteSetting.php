@@ -4,6 +4,7 @@ namespace App\Data\Exercise\Settings;
 
 use App\Data\Exercise\Preview\CellInputMeta;
 use App\Form\Fields\Exercise\ApplyPerField;
+use Coda\FormKit\Field;
 use Coda\FormKit\Fields;
 
 class NoteSetting extends AbstractSetting
@@ -33,5 +34,17 @@ class NoteSetting extends AbstractSetting
                 ->default(''),
             ApplyPerField::make(),
         ];
+    }
+
+    public static function athleteField(string $name, array $config = []): Field
+    {
+        return Fields\Textarea::make($name)
+            ->label(static::athleteLabel($config))
+            ->rules(static::athleteRules($config));
+    }
+
+    public static function athleteRules(array $config = []): array
+    {
+        return ['nullable', 'string'];
     }
 }

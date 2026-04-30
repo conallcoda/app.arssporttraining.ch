@@ -82,4 +82,35 @@ class RepsSetting extends AbstractSetting
                 ->show('mode == "manual"'),
         ];
     }
+
+    public static function athleteCanonicalValue(mixed $value, array $config = []): ?array
+    {
+        if (is_int($value) || (is_string($value) && preg_match('/^\d+$/', $value))) {
+            $total = (int) $value;
+
+            return [
+                'kind' => 'reps',
+                'format' => 'scalar',
+                'display' => (string) $value,
+                'total' => $total,
+                'parts' => [$total],
+                'is_bilateral' => false,
+            ];
+        }
+
+        if (! is_string($value) || ! preg_match('/^\d+(?:_\d+)+$/', $value)) {
+            return null;
+        }
+
+        $parts = array_map('intval', explode('_', $value));
+
+        return [
+            'kind' => 'reps',
+            'format' => 'split',
+            'display' => $value,
+            'total' => array_sum($parts),
+            'parts' => $parts,
+            'is_bilateral' => count($parts) === 2,
+        ];
+    }
 }

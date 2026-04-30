@@ -130,23 +130,34 @@
                                 </flux:text>
                             @endif
 
-                            @if ($exercise->videoUrl || !empty($exercise->photoUrls))
-                                <div class="flex items-center gap-3">
-                                    @if ($exercise->videoUrl)
-                                        <button type="button"
-                                            x-on:click="$dispatch('open-youtube-player', { url: @js($exercise->videoUrl) })"
-                                            class="inline-flex size-9 items-center justify-center rounded-md bg-zinc-200 text-zinc-700 transition hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600"
-                                            aria-label="Watch video">
-                                            <flux:icon.play-circle class="size-5" />
-                                        </button>
-                                    @endif
+                            @if ($exercise->videoUrl || !empty($exercise->photoUrls) || ($athleteEditsEnabled && ! $isFutureSession))
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="flex items-center gap-3">
+                                        @if ($exercise->videoUrl)
+                                            <button type="button"
+                                                x-on:click="$dispatch('open-youtube-player', { url: @js($exercise->videoUrl) })"
+                                                class="inline-flex size-9 items-center justify-center rounded-md bg-zinc-200 text-zinc-700 transition hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600"
+                                                aria-label="Watch video">
+                                                <flux:icon.play-circle class="size-5" />
+                                            </button>
+                                        @endif
 
-                                    @if (!empty($exercise->photoUrls))
+                                        @if (!empty($exercise->photoUrls))
+                                            <button type="button"
+                                                x-on:click="$dispatch('open-exercise-gallery', { images: @js($exercise->photoUrls), index: 0 })"
+                                                class="inline-flex size-9 items-center justify-center rounded-md bg-zinc-200 text-zinc-700 transition hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600"
+                                                aria-label="View gallery">
+                                                <flux:icon.camera class="size-5" />
+                                            </button>
+                                        @endif
+                                    </div>
+
+                                    @if ($athleteEditsEnabled && ! $isFutureSession)
                                         <button type="button"
-                                            x-on:click="$dispatch('open-exercise-gallery', { images: @js($exercise->photoUrls), index: 0 })"
-                                            class="inline-flex size-9 items-center justify-center rounded-md bg-zinc-200 text-zinc-700 transition hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600"
-                                            aria-label="View gallery">
-                                            <flux:icon.camera class="size-5" />
+                                            wire:click="openExerciseEditor({{ $exercise->id }})"
+                                            class="inline-flex size-9 items-center justify-center rounded-md bg-zinc-900 text-white transition hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+                                            aria-label="Edit exercise values">
+                                            <flux:icon.pencil class="size-4" />
                                         </button>
                                     @endif
                                 </div>
@@ -213,4 +224,62 @@
             @endforelse
         </div>
     </div>
+
+    <flux:modal name="athlete-exercise-editor" class="max-w-2xl" x-on:close="$wire.cancelExerciseEditor()">
+        <div class="space-y-5">
+            <div class="flex items-start justify-between gap-4">
+                <div class="min-w-0">
+                    <flux:heading size="lg">
+                        {{ $this->editingExercise?->exercise?->name ? 'Edit '.$this->editingExercise->exercise->name : 'Edit Exercise' }}
+                    </flux:heading>
+                    <flux:text class="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+                        Update the set values, then save them explicitly.
+                    </flux:text>
+                </div>
+
+                <flux:modal.close>
+                    <button type="button" wire:click="cancelExerciseEditor"
+                        class="inline-flex size-9 items-center justify-center rounded-md text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white"
+                        aria-label="Close edit modal">
+                        <flux:icon.x class="size-5" />
+                    </button>
+                </flux:modal.close>
+            </div>
+
+            @if ($this->editingExercise)
+                <form wire:submit="saveExerciseEdits" class="space-y-5">
+                    @if (count($this->editSetTabs) > 1)
+                        <x-athlete.segmented-tabs :tabs="$this->editSetTabs" model="activeEditSet" />
+                    @endif
+
+                    @foreach ($this->editSetPanels as $panel)
+                        <div wire:key="edit-set-panel-{{ $panel['id'] }}"
+                            @class([
+                                'space-y-4' => true,
+                                'hidden' => count($this->editSetTabs) > 1 && $activeEditSet !== $panel['tab'],
+                            ])>
+                            <div class="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                                {{ $panel['label'] }}
+                            </div>
+
+                            @foreach ($panel['fields'] as $field)
+                                <x-form-kit::form.field :field="$field" :prefix="'editValues.'.$panel['id']" />
+                            @endforeach
+                        </div>
+                    @endforeach
+
+                    <div class="flex items-center gap-2 pt-2">
+                        <flux:button type="submit" variant="primary" class="flex-1">
+                            Save values
+                        </flux:button>
+                        <flux:modal.close>
+                            <flux:button type="button" variant="ghost" wire:click="cancelExerciseEditor">
+                                Cancel
+                            </flux:button>
+                        </flux:modal.close>
+                    </div>
+                </form>
+            @endif
+        </div>
+    </flux:modal>
 </div>

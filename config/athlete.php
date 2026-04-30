@@ -45,4 +45,15 @@ return [
     */
     'allow_readiness_future' => true,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Allow Athlete Exercise Value Editing
+    |--------------------------------------------------------------------------
+    |
+    | When enabled, athletes can edit exercise set values from the athlete
+    | dashboard before and after marking an exercise done.
+    |
+    */
+    'allow_athlete_edits' => true,
+
 ];

@@ -6,6 +6,7 @@ use App\Data\Athlete\ProgramDetailsExerciseData;
 use App\Data\Athlete\ProgramDetailsNoteData;
 use App\Data\Athlete\ProgramDetailsSessionRowData;
 use App\Data\Exercise\ExerciseSetting;
+use App\Data\Exercise\Settings\AbstractSetting;
 use App\Models\Training\TrainingProgramSlotExercise;
 use App\Models\Training\TrainingProgramSlotSetValue;
 use Coda\Cms\Support\ColorPalette;
@@ -38,6 +39,7 @@ class ProgramDetailsExerciseViewBuilder
     public function build(TrainingProgramSlotExercise $slotExercise, int $index, ?string $groupLabel = null): ProgramDetailsExerciseData
     {
         $exercise = $slotExercise->exercise;
+        $exerciseConfig = $exercise?->config;
         $sets = $slotExercise->sets->sortBy('set_number')->values();
         $settingKeys = $this->orderedSettings(
             $sets->flatMap(fn ($set) => $set->values->pluck('setting_key'))
@@ -53,7 +55,7 @@ class ProgramDetailsExerciseViewBuilder
         foreach ($settingKeys as $setting) {
             if ($setting === 'note') {
                 $notes = $sets
-                    ->map(fn ($set) => $this->extractPlannedValue($set->values->firstWhere('setting_key', 'note')))
+                    ->map(fn ($set) => $this->extractResolvedValue($set->values->firstWhere('setting_key', 'note')))
                     ->filter(fn ($value) => ! $this->isBlankValue($value))
                     ->unique()
                     ->values();
@@ -72,6 +74,7 @@ class ProgramDetailsExerciseViewBuilder
             $labelClass = $this->opaqueRowLabelClass($rowColorName);
             $values = [];
             $valueClasses = [];
+            $modifiedValues = [];
             $firstValueRow = null;
 
             foreach ($sets as $set) {
@@ -80,12 +83,20 @@ class ProgramDetailsExerciseViewBuilder
                     $firstValueRow = $valueRow;
                 }
 
-                $rawValue = $this->extractPlannedValue($valueRow);
+                $rawValue = $this->extractResolvedValue($valueRow);
                 $zoneValue = $setting === 'heartRate'
-                    ? $this->extractPlannedValue($set->values->firstWhere('setting_key', 'heartRateZone'))
+                    ? $this->extractResolvedValue($set->values->firstWhere('setting_key', 'heartRateZone'))
                     : null;
-                $values[] = $this->formatSessionValue($setting, $rawValue, $valueRow);
-                $valueClasses[] = $this->opaqueCellClass($setting, $rawValue, $rowColorName, $zoneValue);
+                $settingConfig = $this->resolveSettingConfig($exerciseConfig, $setting);
+                $values[] = $this->formatSessionValue($setting, $rawValue, $valueRow, $settingConfig);
+                $modifiedValues[] = (bool) ($valueRow?->is_modified ?? false);
+                $valueClasses[] = $this->opaqueCellClass(
+                    $setting,
+                    $rawValue,
+                    $rowColorName,
+                    $zoneValue,
+                    $modifiedValues[array_key_last($modifiedValues)] ?? false
+                );
             }
 
             if (collect($values)->every(fn (?string $value) => $value === null)) {
@@ -93,10 +104,11 @@ class ProgramDetailsExerciseViewBuilder
             }
 
             $sessionRows[] = new ProgramDetailsSessionRowData(
-                label: $this->resolveMaterializedSettingLabel($setting, $firstValueRow),
+                label: $this->resolveMaterializedSettingLabel($setting, $firstValueRow, $exerciseConfig),
                 labelClass: $labelClass,
                 values: $values,
                 valueClasses: $valueClasses,
+                modifiedValues: $modifiedValues,
             );
 
             $colorIndex++;
@@ -123,10 +135,16 @@ class ProgramDetailsExerciseViewBuilder
         );
     }
 
-    protected function formatSessionValue(string $setting, mixed $value, ?TrainingProgramSlotSetValue $valueRow = null): ?string
+    protected function formatSessionValue(string $setting, mixed $value, ?TrainingProgramSlotSetValue $valueRow = null, array $settingConfig = []): ?string
     {
         if ($this->isBlankValue($value)) {
             return null;
+        }
+
+        $settingClass = ExerciseSetting::tryFrom($setting)?->settingClass();
+
+        if (is_string($settingClass) && is_subclass_of($settingClass, AbstractSetting::class)) {
+            return $settingClass::formatAthleteValue($value, $valueRow?->unit, $settingConfig);
         }
 
         return match ($setting) {
@@ -136,10 +154,17 @@ class ProgramDetailsExerciseViewBuilder
         };
     }
 
-    protected function resolveMaterializedSettingLabel(string $setting, ?TrainingProgramSlotSetValue $valueRow): string
+    protected function resolveMaterializedSettingLabel(string $setting, ?TrainingProgramSlotSetValue $valueRow, mixed $exerciseConfig = null): string
     {
         $enum = ExerciseSetting::tryFrom($setting);
         $label = $enum?->shortLabel() ?? ucfirst($setting);
+        $settingClass = $enum?->settingClass();
+        $config = $this->resolveSettingConfig($exerciseConfig, $setting);
+
+        if (is_string($settingClass) && is_subclass_of($settingClass, AbstractSetting::class)) {
+            $label = $settingClass::athleteLabel($config);
+        }
+
         $unit = $valueRow?->unit;
 
         if ($unit && ($enum?->showsUnitInLabel() ?? true)) {
@@ -156,7 +181,7 @@ class ProgramDetailsExerciseViewBuilder
             : 'bg-zinc-300 dark:bg-zinc-900';
     }
 
-    protected function opaqueCellClass(string $setting, mixed $value, ?string $rowColor, mixed $zoneValue = null): string
+    protected function opaqueCellClass(string $setting, mixed $value, ?string $rowColor, mixed $zoneValue = null, bool $isModified = false): string
     {
         $isDerivedHeartRateRange = $setting === 'heartRate'
             && is_string($value)
@@ -164,13 +189,19 @@ class ProgramDetailsExerciseViewBuilder
             && $zoneValue !== null
             && $zoneValue !== '';
 
+        $baseClass = $this->opaqueRowLabelClass($rowColor);
+
         if ($setting === 'heartRateZone' || $isDerivedHeartRateRange) {
             $zone = trim((string) ($setting === 'heartRateZone' ? $value : $zoneValue));
 
-            return self::OPAQUE_ZONE_COLORS[$zone] ?? $this->opaqueRowLabelClass($rowColor);
+            $baseClass = self::OPAQUE_ZONE_COLORS[$zone] ?? $baseClass;
         }
 
-        return $this->opaqueRowLabelClass($rowColor);
+        if (! $isModified) {
+            return $baseClass;
+        }
+
+        return trim($baseClass.' font-semibold ring-2 ring-inset ring-amber-500 dark:ring-amber-400');
     }
 
     protected function normalizeScalar(mixed $value): string
@@ -217,6 +248,24 @@ class ProgramDetailsExerciseViewBuilder
         };
     }
 
+    protected function extractResolvedValue(?TrainingProgramSlotSetValue $valueRow): mixed
+    {
+        if (! $valueRow) {
+            return null;
+        }
+
+        if ($valueRow->actual_value_type !== null) {
+            return match ($valueRow->actual_value_type) {
+                'int' => $valueRow->actual_int_value,
+                'decimal' => $valueRow->actual_decimal_value !== null ? (float) $valueRow->actual_decimal_value : null,
+                'json' => $valueRow->actual_json_value,
+                default => $valueRow->actual_string_value,
+            };
+        }
+
+        return $this->extractPlannedValue($valueRow);
+    }
+
     protected function orderedSettings(array $settings): Collection
     {
         return collect($settings)
@@ -232,5 +281,14 @@ class ProgramDetailsExerciseViewBuilder
     protected function isBlankValue(mixed $value): bool
     {
         return $value === null || trim((string) $value) === '' || $value === '-';
+    }
+
+    protected function resolveSettingConfig(mixed $exerciseConfig, string $setting): array
+    {
+        $settingData = is_object($exerciseConfig) ? $exerciseConfig->{$setting} ?? null : null;
+
+        return is_object($settingData) && method_exists($settingData, 'toArray')
+            ? $settingData->toArray()
+            : [];
     }
 }

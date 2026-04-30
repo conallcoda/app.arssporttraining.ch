@@ -3,15 +3,20 @@
 namespace App\Livewire\Athlete;
 
 use App\Data\Athlete\ProgramDetailsExerciseData;
+use App\Data\Exercise\ExerciseSetting;
+use App\Data\Exercise\Settings\AbstractSetting;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Training\TrainingProgramSlotExercise;
 use App\Support\AthleteDashboardDate;
 use App\Support\Athlete\ProgramDetailsExerciseViewBuilder;
+use App\Training\AthleteExerciseValueService;
 use App\Training\ExerciseGroupLabeler;
 use App\Training\TrainingSessionMaterializer;
 use App\Training\TrainingSessionProgressService;
 use Carbon\CarbonImmutable;
+use Coda\FormKit\Field;
+use Flux\Flux;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
@@ -31,6 +36,20 @@ class ProgramDetails extends Component
         'warm_down' => 'Warm Down',
     ];
 
+    private const SETTING_PRIORITY = [
+        'reps',
+        'weight',
+        'distance',
+        'duration',
+        'pace',
+        'watts',
+        'heartRate',
+        'heartRateZone',
+        'tempo',
+        'rest',
+        'note',
+    ];
+
     public string $date;
 
     public int $trainingProgramId;
@@ -38,6 +57,12 @@ class ProgramDetails extends Component
     public ?string $from = null;
 
     public string $activeSection = 'main';
+
+    public ?int $editingExerciseId = null;
+
+    public string $activeEditSet = '';
+
+    public array $editValues = [];
 
     public function mount(string $date, TrainingProgram $trainingProgram): void
     {
@@ -235,6 +260,125 @@ class ProgramDetails extends Component
             : 'Back to Dashboard';
     }
 
+    #[Computed]
+    public function athleteEditsEnabled(): bool
+    {
+        return (bool) config('athlete.allow_athlete_edits', false);
+    }
+
+    #[Computed]
+    public function editingExercise(): ?TrainingProgramSlotExercise
+    {
+        if ($this->editingExerciseId === null) {
+            return null;
+        }
+
+        $exercise = $this->currentSlot->exercises->firstWhere('id', $this->editingExerciseId);
+
+        return $exercise instanceof TrainingProgramSlotExercise ? $exercise : null;
+    }
+
+    #[Computed]
+    public function editSetTabs(): array
+    {
+        return collect($this->editingExercise?->sets ?? [])
+            ->sortBy('set_number')
+            ->values()
+            ->map(fn ($set): array => [
+                'name' => 'set-'.$set->id,
+                'label' => $this->editSetLabel($set->set_number),
+            ])
+            ->all();
+    }
+
+    #[Computed]
+    public function editSetPanels(): array
+    {
+        $exercise = $this->editingExercise;
+
+        if (! $exercise instanceof TrainingProgramSlotExercise) {
+            return [];
+        }
+
+        return $exercise->sets
+            ->sortBy('set_number')
+            ->values()
+            ->map(function ($set) use ($exercise): array {
+                $fields = collect($set->values)
+                    ->sortBy(fn ($value) => $this->settingPriority($value->setting_key))
+                    ->map(function ($value) use ($exercise): ?Field {
+                        $settingClass = ExerciseSetting::tryFrom($value->setting_key)?->settingClass();
+
+                        if (! is_string($settingClass) || ! is_subclass_of($settingClass, AbstractSetting::class)) {
+                            return null;
+                        }
+
+                        return $settingClass::athleteField(
+                            $value->setting_key,
+                            $this->resolveSettingConfig($exercise, $value->setting_key)
+                        );
+                    })
+                    ->filter()
+                    ->values()
+                    ->all();
+
+                return [
+                    'id' => $set->id,
+                    'tab' => 'set-'.$set->id,
+                    'label' => $this->editSetLabel($set->set_number),
+                    'fields' => $fields,
+                ];
+            })
+            ->all();
+    }
+
+    public function openExerciseEditor(int $slotExerciseId): void
+    {
+        abort_if(! $this->athleteEditsEnabled, 404);
+        abort_if($this->isFutureSession, 403);
+
+        $exercise = $this->currentSlot->exercises->firstWhere('id', $slotExerciseId);
+        abort_unless($exercise instanceof TrainingProgramSlotExercise, 404);
+
+        $this->editingExerciseId = $exercise->id;
+        $this->editValues = $this->buildEditValues($exercise);
+        $this->activeEditSet = 'set-'.($exercise->sets->sortBy('set_number')->first()?->id ?? '');
+
+        unset($this->editingExercise, $this->editSetTabs, $this->editSetPanels);
+
+        Flux::modal('athlete-exercise-editor')->show();
+    }
+
+    public function saveExerciseEdits(): void
+    {
+        abort_if(! $this->athleteEditsEnabled, 404);
+        abort_if($this->isFutureSession, 403);
+
+        $exercise = $this->editingExercise;
+        abort_unless($exercise instanceof TrainingProgramSlotExercise, 404);
+
+        $this->validate(
+            $this->buildEditValidationRules(),
+            ['required' => 'This field is required.'],
+            $this->buildEditValidationAttributes()
+        );
+
+        $this->editValues = $this->castEmptyStringsToNull($this->editValues);
+
+        app(AthleteExerciseValueService::class)->saveExerciseValues($exercise, $this->editValues);
+
+        Flux::modal('athlete-exercise-editor')->close();
+
+        $this->resetEditorState();
+        $this->refreshSessionState();
+    }
+
+    public function cancelExerciseEditor(): void
+    {
+        $this->resetEditorState();
+        Flux::modal('athlete-exercise-editor')->close();
+    }
+
     public function markExerciseCompleted(int $slotExerciseId): void
     {
         abort_if($this->isFutureSession, 403);
@@ -244,7 +388,7 @@ class ProgramDetails extends Component
 
         app(TrainingSessionProgressService::class)->markExerciseCompleted($exercise);
 
-        unset($this->currentSlot, $this->programExercises, $this->progressSegments, $this->sectionTabs, $this->showsSectionTabs);
+        $this->refreshSessionState();
     }
 
     public function markExerciseSkipped(int $slotExerciseId): void
@@ -256,7 +400,7 @@ class ProgramDetails extends Component
 
         app(TrainingSessionProgressService::class)->markExerciseSkipped($exercise);
 
-        unset($this->currentSlot, $this->programExercises, $this->progressSegments, $this->sectionTabs, $this->showsSectionTabs);
+        $this->refreshSessionState();
     }
 
     protected function shouldRefreshAuxiliarySections(TrainingProgramSlot $slot): bool
@@ -347,6 +491,154 @@ class ProgramDetails extends Component
         return sprintf('background-color: %s; color: %s;', $rawColor, $textColor);
     }
 
+    protected function buildEditValues(TrainingProgramSlotExercise $exercise): array
+    {
+        return $exercise->sets
+            ->sortBy('set_number')
+            ->mapWithKeys(function ($set) use ($exercise): array {
+                $values = $set->values
+                    ->mapWithKeys(function ($value) use ($exercise): array {
+                        $settingClass = ExerciseSetting::tryFrom($value->setting_key)?->settingClass();
+                        $config = $this->resolveSettingConfig($exercise, $value->setting_key);
+                        $resolvedValue = $this->extractResolvedValue($value);
+
+                        return [$value->setting_key => $this->resolveEditInputValue(
+                            $settingClass,
+                            $resolvedValue,
+                            $value->unit,
+                            $config
+                        )];
+                    })
+                    ->all();
+
+                return [$set->id => $values];
+            })
+            ->all();
+    }
+
+    /**
+     * @return array<string, string|array<int, string>>
+     */
+    protected function buildEditValidationRules(): array
+    {
+        $rules = [];
+
+        foreach ($this->editSetPanels as $panel) {
+            $rules = array_merge(
+                $rules,
+                Field::buildValidationRules(
+                    $panel['fields'],
+                    'editValues.'.$panel['id'].'.',
+                    $this->editValues[$panel['id']] ?? []
+                )
+            );
+        }
+
+        return $rules;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function buildEditValidationAttributes(): array
+    {
+        $attributes = [];
+
+        foreach ($this->editSetPanels as $panel) {
+            $attributes = array_merge(
+                $attributes,
+                Field::buildValidationAttributes($panel['fields'], 'editValues.'.$panel['id'].'.')
+            );
+        }
+
+        return $attributes;
+    }
+
+    protected function editSetLabel(int $setNumber): string
+    {
+        $baseLabel = $this->editingExercise?->exercise?->config?->sets->label ?? 'Set';
+
+        return trim($baseLabel).' '.$setNumber;
+    }
+
+    protected function resolveSettingConfig(TrainingProgramSlotExercise $exercise, string $settingKey): array
+    {
+        $config = $exercise->exercise?->config?->{$settingKey} ?? null;
+
+        return is_object($config) && method_exists($config, 'toArray')
+            ? $config->toArray()
+            : [];
+    }
+
+    protected function extractResolvedValue($value): mixed
+    {
+        if ($value->actual_value_type !== null) {
+            return match ($value->actual_value_type) {
+                'int' => $value->actual_int_value,
+                'decimal' => $value->actual_decimal_value !== null ? (float) $value->actual_decimal_value : null,
+                'json' => $value->actual_json_value,
+                default => $value->actual_string_value,
+            };
+        }
+
+        return match ($value->planned_value_type) {
+            'int' => $value->planned_int_value,
+            'decimal' => $value->planned_decimal_value !== null ? (float) $value->planned_decimal_value : null,
+            'json' => $value->planned_json_value,
+            default => $value->planned_string_value,
+        };
+    }
+
+    protected function settingPriority(string $settingKey): int
+    {
+        $index = array_search($settingKey, self::SETTING_PRIORITY, true);
+
+        return $index === false ? PHP_INT_MAX : $index;
+    }
+
+    protected function resolveEditInputValue(?string $settingClass, mixed $value, ?string $unit, array $config): mixed
+    {
+        if (! is_string($settingClass) || ! is_subclass_of($settingClass, AbstractSetting::class)) {
+            return $value;
+        }
+
+        if (($config['unit'] ?? null) === 'mm:ss') {
+            return $settingClass::formatAthleteValue($value, $unit, $config);
+        }
+
+        return $value;
+    }
+
+    protected function resetEditorState(): void
+    {
+        $this->editingExerciseId = null;
+        $this->activeEditSet = '';
+        $this->editValues = [];
+
+        unset($this->editingExercise, $this->editSetTabs, $this->editSetPanels);
+    }
+
+    protected function refreshSessionState(): void
+    {
+        unset($this->currentSlot, $this->programExercises, $this->progressSegments, $this->sectionTabs, $this->showsSectionTabs, $this->editingExercise, $this->editSetTabs, $this->editSetPanels);
+    }
+
+    protected function castEmptyStringsToNull(array $data): array
+    {
+        foreach ($data as $key => $value) {
+            if (is_array($value)) {
+                $data[$key] = $this->castEmptyStringsToNull($value);
+                continue;
+            }
+
+            if ($value === '') {
+                $data[$key] = null;
+            }
+        }
+
+        return $data;
+    }
+
     public function render(): View
     {
         return view('livewire.athlete.program-details', [
@@ -356,6 +648,7 @@ class ProgramDetails extends Component
             'sectionTabs' => $this->sectionTabs,
             'showsSectionTabs' => $this->showsSectionTabs,
             'isFutureSession' => $this->isFutureSession,
+            'athleteEditsEnabled' => $this->athleteEditsEnabled,
         ])->layout('components.layouts.athlete', ['title' => $this->trainingProgram->program->name]);
     }
 }
