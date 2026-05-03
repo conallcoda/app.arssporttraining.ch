@@ -6,6 +6,7 @@ use App\Data\Training\Calendar\CalendarSettingsData;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\UserGroup;
+use App\Support\Training\WeekSlotModalPayloadBuilder;
 use App\Training\CalendarDateService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -220,25 +221,28 @@ class CalendarScheduleView extends Component
 
     public function openWeekSlot(string $date, string $period): void
     {
-        $startTime = $period === 'pm' ? '14:00' : '09:00';
+        $builder = app(WeekSlotModalPayloadBuilder::class);
+        $payload = $builder->forCreate(
+            $date,
+            $builder->defaultStartTime($period),
+            $this->groupId,
+            $this->userId,
+        );
 
-        $this->dispatch('open-week-slot', data: [
-            'date' => $date,
-            'start_time' => $startTime,
-            'groupId' => $this->groupId,
-            'userId' => $this->userId,
-        ]);
+        $this->dispatch('open-week-slot', data: $payload);
     }
 
     public function editWeekSlot(int $trainingProgramId, string $date, string $startTime): void
     {
-        $this->dispatch('open-week-slot', data: [
-            'date' => $date,
-            'start_time' => $startTime,
-            'training_program_id' => $trainingProgramId,
-            'groupId' => $this->groupId,
-            'userId' => $this->userId,
-        ]);
+        $payload = app(WeekSlotModalPayloadBuilder::class)->forEdit(
+            $trainingProgramId,
+            $date,
+            $startTime,
+            $this->groupId,
+            $this->userId,
+        );
+
+        $this->dispatch('open-week-slot', data: $payload);
     }
 
     #[On('week-slot.submitted')]

@@ -23,6 +23,7 @@ use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\UserGroup;
 use App\Support\Training\BlockModalPayloadBuilder;
 use App\Support\Training\MetricModalPayloadBuilder;
+use App\Support\Training\WeekSlotModalPayloadBuilder;
 use App\Training\CalendarBlockService;
 use App\Training\CalendarDateService;
 use App\Training\ProjectedOneRepMaxService;
@@ -952,26 +953,27 @@ class CalendarProgramsView extends Component
 
     public function openProgramSlot(int $trainingProgramId, string $date): void
     {
-        $this->dispatch('open-week-slot', data: [
-            'date' => $date,
-            'start_time' => '09:00',
-            'training_program_id' => $trainingProgramId,
-            'groupId' => $this->groupId,
-            'userId' => null,
-            'prefill' => true,
-            'preselectedUserId' => $this->userId,
-        ]);
+        $payload = app(WeekSlotModalPayloadBuilder::class)->forProgramPrefill(
+            $trainingProgramId,
+            $date,
+            $this->groupId,
+            $this->userId,
+        );
+
+        $this->dispatch('open-week-slot', data: $payload);
     }
 
     public function editWeekSlot(int $trainingProgramId, string $date, string $startTime): void
     {
-        $this->dispatch('open-week-slot', data: [
-            'date' => $date,
-            'start_time' => $startTime,
-            'training_program_id' => $trainingProgramId,
-            'groupId' => $this->groupId,
-            'userId' => $this->userId,
-        ]);
+        $payload = app(WeekSlotModalPayloadBuilder::class)->forEdit(
+            $trainingProgramId,
+            $date,
+            $startTime,
+            $this->groupId,
+            $this->userId,
+        );
+
+        $this->dispatch('open-week-slot', data: $payload);
     }
 
     public function openAddBlock(): void
