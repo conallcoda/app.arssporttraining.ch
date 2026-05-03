@@ -68,7 +68,8 @@ it('shows training when readiness score is provided', function () {
     Livewire::actingAs($athlete)
         ->test(DaySchedule::class, ['date' => $this->today, 'readinessScore' => 4])
         ->assertSee('Readiness')
-        ->assertSee('Pending')
+        ->assertSee('09:00')
+        ->assertDontSee('Nothing scheduled')
         ->assertDontSee('Please fill in the readiness survey');
 });
 
@@ -79,7 +80,8 @@ it('hides readiness when showReadiness is false', function () {
     Livewire::actingAs($athlete)
         ->test(DaySchedule::class, ['date' => $this->today, 'showReadiness' => false])
         ->assertDontSee('Readiness')
-        ->assertSee('Pending');
+        ->assertSee('09:00')
+        ->assertDontSee('Nothing scheduled');
 });
 
 it('groups programs into am section', function () {
@@ -92,7 +94,8 @@ it('groups programs into am section', function () {
 
     Livewire::actingAs($athlete)
         ->test(DaySchedule::class, ['date' => $this->today, 'readinessScore' => 4])
-        ->assertSee('9 AM');
+        ->assertSee('AM')
+        ->assertSee('09:00');
 });
 
 it('groups programs into pm section', function () {
@@ -105,7 +108,8 @@ it('groups programs into pm section', function () {
 
     Livewire::actingAs($athlete)
         ->test(DaySchedule::class, ['date' => $this->today, 'readinessScore' => 4])
-        ->assertSee('2 PM');
+        ->assertSee('PM')
+        ->assertSee('14:00');
 });
 
 it('shows correct readiness labels', function (int $score, string $label) {
@@ -181,7 +185,8 @@ it('works with a future date for tomorrow view', function () {
 
     Livewire::actingAs($athlete)
         ->test(DaySchedule::class, ['date' => $tomorrow, 'showReadiness' => false])
-        ->assertSee('9 AM')
+        ->assertSee('AM')
+        ->assertSee('09:00')
         ->assertDontSee('Readiness');
 });
 

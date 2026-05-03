@@ -106,7 +106,8 @@ it('builds automatic weight grids and summary from the shared resolver', functio
 
     expect($resolution)->not->toBeNull()
         ->and($resolution->weights[0][0])->toBeFloat()
-        ->and($resolution->oneRepMax[4][2])->toBeFloat()
+        ->and($resolution->oneRepMax[4][2])->toBe('-')
+        ->and($resolution->oneRepMaxSessionGrid[4][0][2])->toBeFloat()
         ->and($resolution->summary['starting1RM'])->toBeFloat()
         ->and($resolution->summary['target1RM'])->toBeFloat();
 });
@@ -134,5 +135,6 @@ it('builds automatic weight strategy resolution from the shared resolver', funct
     expect($resolution)->not->toBeNull()
         ->and($resolution?->field('weight')?->grid[0][0])->toBeFloat()
         ->and($resolution?->field('weight')?->metadata['summary']['targetGoal'])->toBe(7)
-        ->and($resolution?->field('oneRepMax')?->grid[2][2])->toBeFloat();
+        ->and($resolution?->field('oneRepMax')?->grid[2][2])->toBe('-')
+        ->and($resolution?->field('oneRepMax')?->sessionGrid[2][0][2])->toBeFloat();
 });

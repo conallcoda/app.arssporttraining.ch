@@ -55,7 +55,7 @@ it('adjusts anchor weight based on last set reps', function () {
 
     $repPercentage1Rep = RepPercentageTable::getPercentage(1);
     expect($repPercentage1Rep)->toBe(1.0);
-    expect($lastSetWeight)->toBeLessThan($result['oneRepMax'][$lastWeekIndex][$lastSetIndex]);
+    expect($lastSetWeight)->toBeLessThan($state->getResolvedCellValue('oneRepMax', $lastWeekIndex, $lastSetIndex, 0));
 });
 
 it('uses rep percentage of 1.0 when reps grid has no data for last set', function () {
@@ -121,7 +121,8 @@ it('places 1RM value only in the last set of the last week', function () {
     expect($result['oneRepMax'][1][2])->toBe('-');
     expect($result['oneRepMax'][2][0])->toBe('-');
     expect($result['oneRepMax'][2][1])->toBe('-');
-    expect($result['oneRepMax'][2][2])->toBeFloat();
+    expect($result['oneRepMax'][2][2])->toBe('-');
+    expect($state->getResolvedCellValue('oneRepMax', 2, 2, 0))->toBeFloat();
 });
 
 it('produces weights that increase week over week for the last set', function () {
