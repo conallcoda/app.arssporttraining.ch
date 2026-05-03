@@ -2,11 +2,11 @@
 
 namespace App\Models\Exercise;
 
-use App\Data\Training\Config\ExercisePlanConfig;
+use App\Casts\ExercisePlanConfigCast;
+use App\Models\Concerns\HasPlanConfigOverrides;
 use Coda\Cms\Models\Concerns\HasOwner;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;
 use Coda\Cms\Models\Concerns\SyncsSortableRelations;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class ExercisePlan extends Model
 {
     use HasOwner;
+    use HasPlanConfigOverrides;
     use HasQueryBuilder;
     use SoftDeletes;
     use SyncsSortableRelations;
@@ -26,16 +27,11 @@ class ExercisePlan extends Model
         'owner_id',
     ];
 
-    protected function config(): Attribute
+    protected function casts(): array
     {
-        return Attribute::make(
-            get: fn (?string $value) => $value
-                ? ExercisePlanConfig::from(json_decode($value, true))
-                : ExercisePlanConfig::initialize(),
-            set: fn (ExercisePlanConfig|array $value) => json_encode(
-                $value instanceof ExercisePlanConfig ? $value->toPersistedArray() : $value
-            ),
-        );
+        return [
+            'config' => ExercisePlanConfigCast::class,
+        ];
     }
 
     public function ownedPrograms(): MorphMany

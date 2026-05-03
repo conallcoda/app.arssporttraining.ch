@@ -4,6 +4,7 @@ use App\Livewire\Training\View\PlanExerciseGrid;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
+use App\Models\Users\User;
 use App\Training\TrainingSessionRebuildDispatcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -28,10 +29,12 @@ it('rebuilds only the edited athlete for athlete-specific exercise grid changes'
         'type' => 'main',
     ]);
 
+    $athlete = User::factory()->create();
+
     $mock = Mockery::mock(TrainingSessionRebuildDispatcher::class);
     $mock->shouldReceive('dispatchFutureSlotsForExerciseProgramChange')
         ->once()
-        ->with($program->id, 20);
+        ->with($program->id, $athlete->id);
     $mock->shouldNotReceive('dispatchFutureSlotsForExerciseProgram');
     $mock->shouldNotReceive('dispatchFutureSlotsForAthleteExerciseProgram');
     app()->instance(TrainingSessionRebuildDispatcher::class, $mock);
@@ -41,7 +44,7 @@ it('rebuilds only the edited athlete for athlete-specific exercise grid changes'
         'planType' => ExerciseProgram::class,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
-        'userId' => 20,
+        'userId' => $athlete->id,
         'weeks' => 1,
         'sessionsPerWeek' => 1,
         'weekSessionDates' => [['2026-04-30']],

@@ -161,7 +161,7 @@ class ExportDatabaseCommand extends Command
                 'warm_up_program_id' => $program->warm_up_program_id,
                 'warm_down_program_id' => $program->warm_down_program_id,
                 'sort' => $program->sort,
-                'config' => json_decode($program->getRawOriginal('config'), true),
+                'config' => $this->configWithOverrides($program),
                 'exercises' => $program->exercises->map(fn (Exercise $exercise) => [
                     'id' => $exercise->pivot->id,
                     'exercise_id' => $exercise->id,
@@ -185,13 +185,32 @@ class ExportDatabaseCommand extends Command
             ->map(fn (ExercisePlan $plan) => [
                 'id' => $plan->id,
                 'name' => $plan->name,
-                'config' => json_decode($plan->getRawOriginal('config'), true),
+                'config' => $this->configWithOverrides($plan),
                 'deleted_at' => $plan->deleted_at?->toIso8601String(),
             ])
             ->all();
 
         $this->writeFile('exercise_plans.php', $plans);
         $this->info('Exported '.count($plans).' exercise plans.');
+    }
+
+    /** @return array<string, mixed>|null */
+    private function configWithOverrides(ExerciseProgram|ExercisePlan $owner): ?array
+    {
+        $raw = $owner->getRawOriginal('config');
+        $config = $raw === null ? null : json_decode($raw, true);
+
+        if (! is_array($config)) {
+            return $config;
+        }
+
+        $rows = $owner->config->flatOverrideRows();
+
+        if ($rows !== []) {
+            $config['overrideValues'] = $rows;
+        }
+
+        return $config;
     }
 
     private function exportUserGroups(): void

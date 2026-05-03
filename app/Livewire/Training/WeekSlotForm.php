@@ -38,6 +38,7 @@ class WeekSlotForm extends FormModal
         bool $flyout = true,
         string $maxWidth = 'max-w-sm',
         bool $showDelete = false,
+        array $contextData = [],
         array $excludeFields = [],
     ): void {
         parent::mount(
@@ -49,6 +50,7 @@ class WeekSlotForm extends FormModal
             flyout: $flyout,
             maxWidth: $maxWidth,
             showDelete: $showDelete,
+            contextData: $contextData,
             excludeFields: $excludeFields,
         );
     }

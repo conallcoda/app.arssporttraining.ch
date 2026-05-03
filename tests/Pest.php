@@ -17,7 +17,7 @@ pest()->extend(Tests\TestCase::class)
 
 pest()->extend(Tests\TestCase::class)
     ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
-    ->in(__DIR__.'/../packages/cms/tests/Feature');
+    ->in('/Users/conalloreilly/Development/coda-packages/cms/tests/Feature');
 
 /*
 |--------------------------------------------------------------------------

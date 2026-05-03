@@ -58,7 +58,7 @@ class ExerciseProgramData extends AbstractData implements HasForms
 
     public static function fromModel(ExerciseProgram $program): static
     {
-        $program->load([
+        $program->loadMissing([
             'exercises' => fn ($q) => $q->wherePivot('type', 'main')->orderByPivot('sort'),
             'exerciseCategory',
             'internalTags',

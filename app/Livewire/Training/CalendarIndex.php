@@ -15,7 +15,6 @@ use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use App\Training\CalendarDateService;
 use Carbon\Carbon;
-use Coda\Cms\Livewire\CmsPage;
 use Flux\Flux;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
@@ -797,8 +796,6 @@ class CalendarIndex extends Component
             $this->syncPlanProgramName();
         }
 
-        return view('livewire.training.calendar-index')
-            ->layout(CmsPage::layout())
-            ->title(CmsPage::buildTitle(__('Calendar')));
+        return view('livewire.training.calendar-index');
     }
 }

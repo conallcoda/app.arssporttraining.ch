@@ -18,6 +18,7 @@ class CalendarModule extends Module
         return [
             PageDefinition::make('calendar-index')
                 ->route('/calendar')
+                ->heading('Calendar')
                 ->component(CalendarIndex::class),
         ];
     }

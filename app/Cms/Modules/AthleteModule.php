@@ -26,6 +26,7 @@ class AthleteModule extends Module
                 ->content(['database.athlete-list']),
             PageDefinition::make('athlete-metric-index')
                 ->route('/athletes/{athleteId}/metrics')
+                ->heading('Metrics')
                 ->component(AthleteMetricIndex::class),
         ];
     }

@@ -178,11 +178,7 @@ class DatabaseImportSeeder extends Seeder
                 'deleted_at' => $program['deleted_at'] ?? null,
             ];
 
-            if ($program['config'] !== null) {
-                $attributes['config'] = $program['config'];
-            }
-
-            ExerciseProgram::create($attributes);
+            $programModel = ExerciseProgram::create($attributes);
 
             $exercises = $program['exercises'] ?? [];
             if (! empty($exercises)) {
@@ -198,6 +194,11 @@ class DatabaseImportSeeder extends Seeder
                         'updated_at' => now(),
                     ]);
                 }
+            }
+
+            if ($program['config'] !== null) {
+                $programModel->config = $program['config'];
+                $programModel->saveQuietly();
             }
         }
 

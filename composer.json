@@ -45,8 +45,8 @@
     "autoload-dev": {
         "psr-4": {
             "Tests\\": "tests/",
-            "Coda\\Cms\\Tests\\": "packages/cms/tests/",
-            "Coda\\FormKit\\Tests\\": "packages/form-kit/tests/"
+            "Coda\\Cms\\Tests\\": "/Users/conalloreilly/Development/coda-packages/cms/tests/",
+            "Coda\\FormKit\\Tests\\": "/Users/conalloreilly/Development/coda-packages/form-kit/tests/"
         }
     },
     "scripts": {
@@ -109,11 +109,17 @@
     "repositories": {
         "form-kit": {
             "type": "path",
-            "url": "packages/form-kit"
+            "url": "/Users/conalloreilly/Development/coda-packages/form-kit",
+            "options": {
+                "symlink": true
+            }
         },
         "cms": {
             "type": "path",
-            "url": "packages/cms"
+            "url": "/Users/conalloreilly/Development/coda-packages/cms",
+            "options": {
+                "symlink": true
+            }
         },
         "flux-pro": {
             "type": "composer",

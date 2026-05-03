@@ -18,6 +18,7 @@ class SettingsModule extends Module
         return [
             PageDefinition::make('settings-index')
                 ->route('/settings')
+                ->heading('Settings')
                 ->component(Settings::class),
         ];
     }

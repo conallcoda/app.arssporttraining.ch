@@ -2,6 +2,7 @@
 
 namespace App\QueryBuilders;
 
+use App\Support\Sorts\CoachSort;
 use Coda\Cms\QueryBuilder\DefaultQueryBuilder;
 use Coda\Cms\QueryBuilder\QueryExpressionFilter;
 use Spatie\QueryBuilder\AllowedFilter;
@@ -17,7 +18,7 @@ class ExerciseQueryBuilder extends DefaultQueryBuilder
             'name',
             'type',
             'updatedAt',
-            'coach => owner.surname.concat("forename")',
+            CoachSort::make('coach', 'exercises'),
             'category => category.name',
         ]);
     }

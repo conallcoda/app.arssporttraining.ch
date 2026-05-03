@@ -1,4 +1,4 @@
-import '../../packages/cms/resources/js/alpine';
+import '../../../../coda-packages/cms/resources/js/alpine';
 
 import './athlete-mobile-shell';
 import './alpine/schedule-grid';

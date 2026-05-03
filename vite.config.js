@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import {
     defineConfig
 } from 'vite';
@@ -5,6 +6,11 @@ import laravel from 'laravel-vite-plugin';
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
+    resolve: {
+        alias: {
+            treeselectjs: resolve(__dirname, 'node_modules/treeselectjs'),
+        },
+    },
     plugins: [
         laravel({
             input: [
@@ -17,5 +23,10 @@ export default defineConfig({
     ],
     server: {
         cors: true,
+        fs: {
+            allow: [
+                '/Users/conalloreilly/Development/coda-packages',
+            ],
+        },
     },
 });

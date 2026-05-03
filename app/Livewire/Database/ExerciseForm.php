@@ -36,6 +36,7 @@ class ExerciseForm extends FormModal
         bool $flyout = true,
         string $maxWidth = 'max-w-[83.333%] overflow-x-hidden',
         bool $showDelete = false,
+        array $contextData = [],
         array $excludeFields = [],
         int $defaultWeeks = 1,
         int $defaultSessionsPerWeek = 1,
@@ -53,6 +54,7 @@ class ExerciseForm extends FormModal
             flyout: $flyout,
             maxWidth: $maxWidth,
             showDelete: $showDelete,
+            contextData: $contextData,
             excludeFields: $excludeFields,
         );
 

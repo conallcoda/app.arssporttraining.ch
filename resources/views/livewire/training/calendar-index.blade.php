@@ -1,46 +1,39 @@
-<x-slot:navbar>
-    <x-cms::top-nav>
-        <flux:navbar.item current>{{ __('Calendar') }}</flux:navbar.item>
-    </x-cms::top-nav>
-</x-slot:navbar>
+<div class="flex gap-6">
+    @if ($this->showSidebar)
+        <div class="hidden lg:block">
+            <livewire:user-group-sidebar mode="single-athlete" :initial-group="$group !== '' ? (int) $group : null" :initial-user="$user !== '' ? (int) $user : null" :show-group-filter="true" :initial-group-filter="$groupFilter" />
+        </div>
+    @endif
 
-<flux:main>
-    <div class="flex gap-6">
-        @if ($this->showSidebar)
-            <div class="hidden lg:block">
-                <livewire:user-group-sidebar mode="single-athlete" :initial-group="$group !== '' ? (int) $group : null" :initial-user="$user !== '' ? (int) $user : null" :show-group-filter="true" :initial-group-filter="$groupFilter" />
+    <div class="flex-1 min-w-0">
+        <div class="{{ $this->showSidebar ? 'lg:hidden' : '' }} flex flex-col sm:flex-row items-stretch sm:items-end gap-4 pb-6">
+            <div class="w-full sm:w-auto sm:shrink-0">
+                <flux:label class="mb-2">{{ __('Groups') }}</flux:label>
+                <flux:radio.group wire:model.live="groupFilter" variant="segmented" class="w-full sm:w-auto">
+                    <flux:radio value="mine" :label="__('My Groups')" />
+                    <flux:radio value="all" :label="__('All Groups')" />
+                </flux:radio.group>
             </div>
-        @endif
-
-        <div class="flex-1 min-w-0">
-            <div class="{{ $this->showSidebar ? 'lg:hidden' : '' }} flex flex-col sm:flex-row items-stretch sm:items-end gap-4 pb-6">
-                <div class="w-full sm:w-auto sm:shrink-0">
-                    <flux:label class="mb-2">{{ __('Groups') }}</flux:label>
-                    <flux:radio.group wire:model.live="groupFilter" variant="segmented" class="w-full sm:w-auto">
-                        <flux:radio value="mine" :label="__('My Groups')" />
-                        <flux:radio value="all" :label="__('All Groups')" />
-                    </flux:radio.group>
-                </div>
+            <flux:field class="w-full sm:min-w-[200px] sm:w-auto">
+                <flux:label>{{ __('Group') }}</flux:label>
+                <flux:select variant="listbox" searchable wire:model.live="group" placeholder="{{ __('Select group...') }}">
+                    @foreach ($this->groupOptions as $id => $name)
+                        <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+            </flux:field>
+            @if ($group !== '')
                 <flux:field class="w-full sm:min-w-[200px] sm:w-auto">
-                    <flux:label>{{ __('Group') }}</flux:label>
-                    <flux:select variant="listbox" searchable wire:model.live="group" placeholder="{{ __('Select group...') }}">
-                        @foreach ($this->groupOptions as $id => $name)
+                    <flux:label>{{ __('Athlete') }}</flux:label>
+                    <flux:select variant="listbox" searchable clearable wire:model.live="user" placeholder="{{ __('All athletes') }}">
+                        @foreach ($this->athleteOptions as $id => $name)
                             <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
                         @endforeach
                     </flux:select>
                 </flux:field>
-                @if ($group !== '')
-                    <flux:field class="w-full sm:min-w-[200px] sm:w-auto">
-                        <flux:label>{{ __('Athlete') }}</flux:label>
-                        <flux:select variant="listbox" searchable clearable wire:model.live="user" placeholder="{{ __('All athletes') }}">
-                            @foreach ($this->athleteOptions as $id => $name)
-                                <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
-                            @endforeach
-                        </flux:select>
-                    </flux:field>
-                @endif
-            </div>
-            <div>
+            @endif
+        </div>
+        <div>
                 @if ($this->hasSelection() && !$this->hasGroupAthletes)
                     {{-- No athletes --}}
                     <div class="flex items-center gap-3">
@@ -259,10 +252,8 @@
                         @endif
                     </div>
                 @endif
-            </div>
         </div>
     </div>
-
     <flux:modal name="add-content" variant="flyout" class="max-w-md">
         <div class="flex flex-col gap-4 p-2">
             <flux:heading size="lg">{{ __('Add Program') }}</flux:heading>
@@ -336,4 +327,4 @@
         :confirmLabel="__('Delete')"
         action="deletePlanMetricSubmission"
     />
-</flux:main>
+</div>

@@ -37,7 +37,9 @@
     <flux:header class="!px-0 sm:!px-6 lg:!px-8 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700">
         <flux:navbar class="w-full">
             <div class="pl-4 sm:pl-0">
-                <flux:brand href="/dashboard" :logo="asset(config('cms.logo', 'images/logo.webp'))" alt="{{ config('cms.name') ?? config('app.name', 'Athlete') }}" />
+                <a href="/dashboard" class="inline-flex items-center">
+                    <x-cms::brand-logo class="w-8" />
+                </a>
             </div>
 
             <flux:spacer />

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "4986ee3b43daab30bd3bc535e834f331",
+    "content-hash": "3343292e6198c52a60c8c5bf7a40a36b",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -273,11 +273,11 @@
         },
         {
             "name": "coda/cms",
-            "version": "dev-performance25mar",
+            "version": "dev-main",
             "dist": {
                 "type": "path",
-                "url": "packages/cms",
-                "reference": "7d67658a64175a3e32f332acb832d7758f6588c7"
+                "url": "/Users/conalloreilly/Development/coda-packages/cms",
+                "reference": "a47126d08bb62fb2968fb8e0d7a6cda1506c4307"
             },
             "require": {
                 "coda/form-kit": "*",
@@ -286,6 +286,7 @@
                 "livewire/livewire": "^3.0 || ^4.0",
                 "php": "^8.2",
                 "spatie/laravel-data": "^4.0",
+                "spatie/laravel-medialibrary": "^11.0",
                 "spatie/laravel-query-builder": "^6.0",
                 "spatie/laravel-schemaless-attributes": "^2.0",
                 "spatie/laravel-sluggable": "^3.0",
@@ -314,16 +315,17 @@
             },
             "description": "Generic CMS framework for Laravel Livewire applications",
             "transport-options": {
-                "relative": true
+                "symlink": true,
+                "relative": false
             }
         },
         {
             "name": "coda/form-kit",
-            "version": "dev-performance25mar",
+            "version": "dev-main",
             "dist": {
                 "type": "path",
-                "url": "packages/form-kit",
-                "reference": "dd401a3722e737bae4a183eed7b63563f3898168"
+                "url": "/Users/conalloreilly/Development/coda-packages/form-kit",
+                "reference": "a3b533674db6da2b0f8573b29e1ab560504ba58b"
             },
             "require": {
                 "php": "^8.2",
@@ -353,7 +355,8 @@
             },
             "description": "Framework-agnostic form field definitions with FluxUI rendering",
             "transport-options": {
-                "relative": true
+                "symlink": true,
+                "relative": false
             }
         },
         {

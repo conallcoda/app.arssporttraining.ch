@@ -3,7 +3,6 @@
 namespace App\Livewire\Database;
 
 use App\Models\Users\User;
-use Coda\Cms\Livewire\CmsPage;
 use Livewire\Component;
 
 class AthleteMetricIndex extends Component
@@ -17,8 +16,6 @@ class AthleteMetricIndex extends Component
 
     public function render()
     {
-        return view('livewire.database.athlete-metric-index')
-            ->layout(CmsPage::layout())
-            ->title(CmsPage::buildTitle(__('Metrics')));
+        return view('livewire.database.athlete-metric-index');
     }
 }

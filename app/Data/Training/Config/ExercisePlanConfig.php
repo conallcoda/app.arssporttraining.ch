@@ -348,7 +348,7 @@ class ExercisePlanConfig extends AbstractConfig
         $this->hydrateOverrideValues();
 
         $data = $this->toArray();
-        $data['overrideValues'] = $this->flattenOverrideValues();
+        unset($data['overrideValues']);
         $data['exercises'] = $this->stripPersistedOverrideMaps($data['exercises'] ?? []);
         $data['userExercises'] = array_map(
             fn (array $overridesByUser): array => $this->stripPersistedOverrideMaps($overridesByUser),
@@ -356,6 +356,14 @@ class ExercisePlanConfig extends AbstractConfig
         );
 
         return $data;
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    public function flatOverrideRows(): array
+    {
+        $this->hydrateOverrideValues();
+
+        return $this->flattenOverrideValues();
     }
 
     private function copyOverrides(ExerciseOverrides $overrides, ?string $startsAtDate = null): ExerciseOverrides

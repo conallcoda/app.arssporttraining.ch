@@ -2,7 +2,8 @@
 
 namespace App\Models\Exercise;
 
-use App\Data\Training\Config\ExercisePlanConfig;
+use App\Casts\ExercisePlanConfigCast;
+use App\Models\Concerns\HasPlanConfigOverrides;
 use App\Models\Tag;
 use App\Observers\ExerciseProgramObserver;
 use Coda\Cms\Models\Concerns\HasOwner;
@@ -10,7 +11,6 @@ use Coda\Cms\Models\Concerns\HasQueryBuilder;
 use Coda\Cms\Models\Concerns\HasTags;
 use Coda\Cms\Models\Contracts\Taggable;
 use Database\Factories\ExerciseProgramFactory;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -25,6 +25,7 @@ class ExerciseProgram extends Model implements Taggable
     use HasFactory;
 
     use HasOwner;
+    use HasPlanConfigOverrides;
     use HasQueryBuilder;
     use HasTags;
     use SoftDeletes;
@@ -47,22 +48,11 @@ class ExerciseProgram extends Model implements Taggable
         'owner_id',
     ];
 
-    protected function config(): Attribute
-    {
-        return Attribute::make(
-            get: fn (?string $value) => $value
-                ? ExercisePlanConfig::from(json_decode($value, true))
-                : ExercisePlanConfig::initialize(),
-            set: fn (ExercisePlanConfig|array $value) => json_encode(
-                $value instanceof ExercisePlanConfig ? $value->toPersistedArray() : $value
-            ),
-        );
-    }
-
     protected function casts(): array
     {
         return [
             'type' => ExerciseProgramTypeEnum::class,
+            'config' => ExercisePlanConfigCast::class,
         ];
     }
 

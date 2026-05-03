@@ -40,9 +40,21 @@ class AthleteMetricFormModal extends FormModal
         bool $flyout = true,
         string $maxWidth = self::MODAL_MAX_WIDTH,
         bool $showDelete = false,
+        array $contextData = [],
         array $excludeFields = [],
     ): void {
-        parent::mount($name, $title, $formDataClass, $submitLabel, $cancelLabel, $flyout, $maxWidth, $showDelete, $excludeFields);
+        parent::mount(
+            name: $name,
+            title: $title,
+            formDataClass: $formDataClass,
+            submitLabel: $submitLabel,
+            cancelLabel: $cancelLabel,
+            flyout: $flyout,
+            maxWidth: $maxWidth,
+            showDelete: $showDelete,
+            contextData: $contextData,
+            excludeFields: $excludeFields,
+        );
 
         $this->athleteId = (int) request()->route('athleteId');
         $this->metric = request()->query('selectedTab', MetricEnum::OneRepMax->value);

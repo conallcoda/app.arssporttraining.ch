@@ -54,7 +54,6 @@ it('imports an exercise by wrapping it in a program with category', function () 
     expect($tp->program->exercises->first()->id)->toBe($exercise->id);
 });
 
-
 it('auto-increments sort order when adding multiple programs', function () {
     $group = UserGroup::create(['name' => 'Team Alpha']);
 
@@ -84,7 +83,7 @@ it('deletes a training program', function () {
     expect(TrainingProgram::find($tp->id))->toBeNull();
 });
 
-it('stores flattened override values in the exercise program config payload', function () {
+it('stores override rows in the dedicated overrides table and not in the config json', function () {
     $program = ExerciseProgram::factory()->create();
     $exercise = Exercise::factory()->create();
 
@@ -109,8 +108,18 @@ it('stores flattened override values in the exercise program config payload', fu
 
     $rawConfig = json_decode((string) $program->fresh()->getRawOriginal('config'), true);
 
-    expect($rawConfig['overrideValues'][0]['programExerciseId'] ?? null)->toBe($pivot->id)
-        ->and($rawConfig['overrideValues'][0]['settingKey'] ?? null)->toBe('reps')
-        ->and($rawConfig['exercises'][$pivot->id]['gridOverrides'] ?? null)->toBeNull()
-        ->and($program->fresh()->config->defaultExerciseOverrides($pivot->id)->gridOverrides['cells'][0]['data']['reps'] ?? null)->toBe(14);
+    expect($rawConfig['overrideValues'] ?? null)->toBeNull()
+        ->and($rawConfig['exercises'][$pivot->id]['gridOverrides'] ?? null)->toBeNull();
+
+    $row = $program->planConfigOverrides()->first();
+
+    expect($row)->not->toBeNull()
+        ->and($row->program_exercise_id)->toBe($pivot->id)
+        ->and($row->setting_key)->toBe('reps')
+        ->and($row->target)->toBe('cell')
+        ->and($row->scope)->toBe('current')
+        ->and($row->getDecodedValue())->toBe(14);
+
+    expect($program->fresh()->config->defaultExerciseOverrides($pivot->id)->gridOverrides['cells'][0]['data']['reps'] ?? null)
+        ->toBe(14);
 });

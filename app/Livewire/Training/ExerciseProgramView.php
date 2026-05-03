@@ -3,16 +3,22 @@
 namespace App\Livewire\Training;
 
 use App\Models\Exercise\ExerciseProgram;
-use Coda\Cms\Livewire\CmsPage;
+use Livewire\Attributes\Computed;
 use Livewire\Component;
 
 class ExerciseProgramView extends Component
 {
-    public ExerciseProgram $exerciseProgram;
+    public int $exerciseProgramId;
 
     public function mount(ExerciseProgram $exerciseProgram): void
     {
-        $this->exerciseProgram = $exerciseProgram;
+        $this->exerciseProgramId = $exerciseProgram->id;
+    }
+
+    #[Computed]
+    public function exerciseProgram(): ExerciseProgram
+    {
+        return ExerciseProgram::query()->findOrFail($this->exerciseProgramId);
     }
 
     public function updateName(string $name): void
@@ -23,8 +29,8 @@ class ExerciseProgramView extends Component
 
     public function render()
     {
-        return view('livewire.training.exercise-program-view')
-            ->layout(CmsPage::layout())
-            ->title(CmsPage::buildTitle(__('Program')));
+        return view('livewire.training.exercise-program-view', [
+            'exerciseProgram' => $this->exerciseProgram,
+        ]);
     }
 }

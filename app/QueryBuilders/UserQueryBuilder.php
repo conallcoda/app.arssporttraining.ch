@@ -2,6 +2,7 @@
 
 namespace App\QueryBuilders;
 
+use App\Support\Sorts\CoachSort;
 use Coda\Cms\QueryBuilder\DefaultQueryBuilder;
 use Coda\Cms\QueryBuilder\QueryExpressionFilter;
 use Spatie\QueryBuilder\AllowedFilter;
@@ -16,7 +17,7 @@ class UserQueryBuilder extends DefaultQueryBuilder
             'id',
             'personName => surname.concat("forename")',
             'updatedAt',
-            'coach => owner.surname.concat("forename")',
+            CoachSort::make('coach', 'users'),
         ]);
     }
 

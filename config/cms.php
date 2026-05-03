@@ -38,4 +38,13 @@ return [
     'user_switching' => (bool) env('USER_SWITCHING_ENABLED', false),
 
     'mobile_preview' => (bool) env('MOBILE_PREVIEW_ENABLED', false),
+
+    'profile_menu' => [
+        'settings' => [
+            'label' => 'Settings',
+            'icon' => 'settings',
+            'modal' => 'coach-settings',
+            'user_types' => ['coach', 'admin'],
+        ],
+    ],
 ];
