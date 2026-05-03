@@ -13,6 +13,7 @@ use App\Models\Tag;
 use App\Models\Training\TrainingProgram;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
+use App\Support\Training\BlockModalPayloadBuilder;
 use App\Training\CalendarDateService;
 use Carbon\Carbon;
 use Flux\Flux;
@@ -705,21 +706,14 @@ class CalendarIndex extends Component
 
     public function openAddBlock(): void
     {
-        $categoryOptions = $this->groupedPrograms
-            ->filter(fn (array $group, int $categoryId) => $categoryId > 0 && $group['category'] !== null)
-            ->mapWithKeys(fn (array $group, int $categoryId) => [
-                $categoryId => [
-                    'name' => $group['category']->name,
-                    'slug' => $group['category']->slug,
-                ],
-            ])
-            ->all();
+        $builder = app(BlockModalPayloadBuilder::class);
+        $payload = $builder->forAdd(
+            (int) $this->group,
+            $this->user !== '' ? (int) $this->user : null,
+            $builder->categoryOptions($this->groupedPrograms),
+        );
 
-        $this->dispatch('open-block', data: [
-            'groupId' => (int) $this->group,
-            'userId' => $this->user !== '' ? (int) $this->user : null,
-            'categoryOptions' => $categoryOptions,
-        ]);
+        $this->dispatch('open-block', data: $payload);
     }
 
     #[On('trigger-add-content')]

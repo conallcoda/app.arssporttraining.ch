@@ -8,6 +8,7 @@ use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramBlock;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\UserGroup;
+use App\Support\Training\BlockModalPayloadBuilder;
 use App\Support\Training\MetricModalPayloadBuilder;
 use App\Training\CalendarBlockService;
 use App\Training\ProjectedOneRepMaxService;
@@ -389,21 +390,25 @@ trait WithCalendarPlan
             $groupBlock = $block->parent_id ? $block->parent : $block;
             $override = $block->parent_id ? $block : $groupBlock->athleteOverride((int) $this->user);
 
-            $this->dispatch('open-block', data: [
-                'blockId' => $override?->id,
-                'parentId' => $groupBlock->id,
-                'groupId' => $this->group !== '' ? (int) $this->group : null,
-                'userId' => (int) $this->user,
-            ]);
+            $payload = app(BlockModalPayloadBuilder::class)->forEdit(
+                $override?->id,
+                $this->group !== '' ? (int) $this->group : 0,
+                (int) $this->user,
+                $groupBlock->id,
+            );
+
+            $this->dispatch('open-block', data: $payload);
 
             return;
         }
 
-        $this->dispatch('open-block', data: [
-            'blockId' => $block->id,
-            'groupId' => $this->group !== '' ? (int) $this->group : null,
-            'userId' => $isCategoryBlock ? null : ($this->user !== '' ? (int) $this->user : null),
-        ]);
+        $payload = app(BlockModalPayloadBuilder::class)->forEdit(
+            $block->id,
+            $this->group !== '' ? (int) $this->group : 0,
+            $isCategoryBlock ? null : ($this->user !== '' ? (int) $this->user : null),
+        );
+
+        $this->dispatch('open-block', data: $payload);
     }
 
     #[Renderless]

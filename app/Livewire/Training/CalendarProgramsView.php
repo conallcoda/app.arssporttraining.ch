@@ -21,6 +21,7 @@ use App\Models\Training\TrainingProgramBlock;
 use App\Models\Training\TrainingProgramBlockTypeEnum;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\UserGroup;
+use App\Support\Training\BlockModalPayloadBuilder;
 use App\Support\Training\MetricModalPayloadBuilder;
 use App\Training\CalendarBlockService;
 use App\Training\CalendarDateService;
@@ -975,30 +976,21 @@ class CalendarProgramsView extends Component
 
     public function openAddBlock(): void
     {
-        $categoryOptions = $this->groupedPrograms
-            ->filter(fn (array $group, int $categoryId) => $categoryId > 0 && $group['category'] !== null)
-            ->mapWithKeys(fn (array $group, int $categoryId) => [
-                $categoryId => [
-                    'name' => $group['category']->name,
-                    'slug' => $group['category']->slug,
-                ],
-            ])
-            ->all();
+        $builder = app(BlockModalPayloadBuilder::class);
+        $payload = $builder->forAdd(
+            $this->groupId,
+            $this->userId,
+            $builder->categoryOptions($this->groupedPrograms),
+        );
 
-        $this->dispatch('open-block', data: [
-            'groupId' => $this->groupId,
-            'userId' => $this->userId,
-            'categoryOptions' => $categoryOptions,
-        ]);
+        $this->dispatch('open-block', data: $payload);
     }
 
     public function openBlock(string $date): void
     {
-        $this->dispatch('open-block', data: [
-            'date' => $date,
-            'groupId' => $this->groupId,
-            'userId' => $this->userId,
-        ]);
+        $payload = app(BlockModalPayloadBuilder::class)->forDate($date, $this->groupId, $this->userId);
+
+        $this->dispatch('open-block', data: $payload);
     }
 
     public function editBlock(int $blockId): void
@@ -1015,21 +1007,25 @@ class CalendarProgramsView extends Component
             $groupBlock = $block->parent_id ? $block->parent : $block;
             $override = $block->parent_id ? $block : $groupBlock->athleteOverride($this->userId);
 
-            $this->dispatch('open-block', data: [
-                'blockId' => $override?->id,
-                'parentId' => $groupBlock->id,
-                'groupId' => $this->groupId,
-                'userId' => $this->userId,
-            ]);
+            $payload = app(BlockModalPayloadBuilder::class)->forEdit(
+                $override?->id,
+                $this->groupId,
+                $this->userId,
+                $groupBlock->id,
+            );
+
+            $this->dispatch('open-block', data: $payload);
 
             return;
         }
 
-        $this->dispatch('open-block', data: [
-            'blockId' => $blockId,
-            'groupId' => $this->groupId,
-            'userId' => $isCategoryBlock ? null : $this->userId,
-        ]);
+        $payload = app(BlockModalPayloadBuilder::class)->forEdit(
+            $blockId,
+            $this->groupId,
+            $isCategoryBlock ? null : $this->userId,
+        );
+
+        $this->dispatch('open-block', data: $payload);
     }
 
     public function editBlockForProjectedMetric(int $submissionId): void
@@ -1046,39 +1042,43 @@ class CalendarProgramsView extends Component
     {
         $tag = Tag::find($categoryId);
 
-        $this->dispatch('open-block', data: [
-            'date' => $date,
-            'groupId' => $this->groupId,
-            'userId' => $this->userId,
-            'categoryId' => $categoryId,
-            'categorySlug' => $tag?->slug,
-            'categoryName' => $tag?->name,
-        ]);
+        $payload = app(BlockModalPayloadBuilder::class)->forCategoryDate(
+            $date,
+            $this->groupId,
+            $this->userId,
+            $categoryId,
+            $tag,
+        );
+
+        $this->dispatch('open-block', data: $payload);
     }
 
     public function openBlockRange(string $startDate, string $endDate): void
     {
-        $this->dispatch('open-block', data: [
-            'date' => $startDate,
-            'endDate' => $endDate,
-            'groupId' => $this->groupId,
-            'userId' => $this->userId,
-        ]);
+        $payload = app(BlockModalPayloadBuilder::class)->forDateRange(
+            $startDate,
+            $endDate,
+            $this->groupId,
+            $this->userId,
+        );
+
+        $this->dispatch('open-block', data: $payload);
     }
 
     public function openCategoryBlockRange(string $startDate, string $endDate, int $categoryId): void
     {
         $tag = Tag::find($categoryId);
 
-        $this->dispatch('open-block', data: [
-            'date' => $startDate,
-            'endDate' => $endDate,
-            'groupId' => $this->groupId,
-            'userId' => $this->userId,
-            'categoryId' => $categoryId,
-            'categorySlug' => $tag?->slug,
-            'categoryName' => $tag?->name,
-        ]);
+        $payload = app(BlockModalPayloadBuilder::class)->forCategoryDateRange(
+            $startDate,
+            $endDate,
+            $this->groupId,
+            $this->userId,
+            $categoryId,
+            $tag,
+        );
+
+        $this->dispatch('open-block', data: $payload);
     }
 
     #[On('block.submitted')]
