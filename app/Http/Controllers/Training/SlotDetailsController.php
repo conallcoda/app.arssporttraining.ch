@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Training;
 use App\Models\Training\TrainingProgramSlot;
 use App\Support\Training\SlotSessionNumberResolver;
 use App\Support\Training\SlotStatusPresenter;
+use App\Support\Training\SlotWeekPagePresenter;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -53,6 +54,11 @@ class SlotDetailsController
     protected function sessionNumberResolver(): SlotSessionNumberResolver
     {
         return app(SlotSessionNumberResolver::class);
+    }
+
+    protected function weekPagePresenter(): SlotWeekPagePresenter
+    {
+        return app(SlotWeekPagePresenter::class);
     }
 
     public function __invoke(Request $request): JsonResponse
@@ -142,37 +148,7 @@ class SlotDetailsController
             ->selectRaw("training_programs.id as training_program_id, training_programs.exercise_program_id, DATE(training_program_slots.datetime) as slot_date, TIME(training_program_slots.datetime) as slot_time, exercise_programs.name as program_name, tags.color as category_color, training_program_slots.status as slot_status, TRIM(CONCAT(users.forename, ' ', users.surname)) as user_name")
             ->get();
 
-        $rawByDate = [];
-        foreach ($slots as $slot) {
-            $date = $slot->slot_date;
-            $time = substr($slot->slot_time, 0, 5);
-            $key = $slot->exercise_program_id.'-'.$time;
-
-            $rawByDate[$date][$key]['trainingProgramId'] = $slot->training_program_id;
-            $rawByDate[$date][$key]['name'] = $slot->program_name;
-            $rawByDate[$date][$key]['color'] = $slot->category_color;
-            $rawByDate[$date][$key]['time'] = $time;
-            $rawByDate[$date][$key]['userNames'][] = $slot->user_name;
-            $rawByDate[$date][$key]['_statuses'][] = $slot->slot_status;
-        }
-
-        $result = [];
-        foreach ($rawByDate as $date => $entries) {
-            $dayEntries = array_values(array_map(function (array $entry): array {
-                $statuses = $entry['_statuses'] ?? [];
-                unset($entry['_statuses']);
-                $entry['statusColor'] = $this->statusPresenter()->aggregateColor($statuses);
-
-                return $entry;
-            }, $entries));
-            $am = array_values(array_filter($dayEntries, fn ($e) => $e['time'] < '12:00'));
-            $pm = array_values(array_filter($dayEntries, fn ($e) => $e['time'] >= '12:00'));
-            usort($am, fn ($a, $b) => $a['time'] <=> $b['time'] ?: $a['name'] <=> $b['name']);
-            usort($pm, fn ($a, $b) => $a['time'] <=> $b['time'] ?: $a['name'] <=> $b['name']);
-            $result[$date] = ['am' => $am, 'pm' => $pm];
-        }
-
-        return $result;
+        return $this->weekPagePresenter()->presentGrouped($slots);
     }
 
     private function programSlots(int $userId, Carbon $start, Carbon $end): array
@@ -190,28 +166,7 @@ class SlotDetailsController
             ->selectRaw('training_programs.id as training_program_id, DATE(training_program_slots.datetime) as slot_date, TIME(training_program_slots.datetime) as slot_time, exercise_programs.name as program_name, tags.color as category_color, training_program_slots.status as slot_status')
             ->get();
 
-        $result = [];
-        foreach ($slots as $slot) {
-            $date = $slot->slot_date;
-            $time = substr($slot->slot_time, 0, 5);
-
-            $entry = [
-                'trainingProgramId' => $slot->training_program_id,
-                'name' => $slot->program_name,
-                'color' => $slot->category_color,
-                'time' => $time,
-                'userNames' => [],
-                'statusColor' => $this->statusPresenter()->color($slot->slot_status),
-            ];
-
-            if ($time < '12:00') {
-                $result[$date]['am'][] = $entry;
-            } else {
-                $result[$date]['pm'][] = $entry;
-            }
-        }
-
-        return $result;
+        return $this->weekPagePresenter()->presentUser($slots);
     }
 
     public function gridCells(Request $request): JsonResponse
