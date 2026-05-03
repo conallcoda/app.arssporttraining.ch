@@ -399,9 +399,13 @@ class SlotDetailsController
     /**
      * @return array{light: string, dark: string}
      */
-    private function slotStatusColor(?string $status): array
+    private function slotStatusColor(TrainingProgramSlotStatusEnum|string|null $status): array
     {
-        $enum = TrainingProgramSlotStatusEnum::tryFrom($status ?? TrainingProgramSlotStatusEnum::Pending->value)
+        $value = $status instanceof TrainingProgramSlotStatusEnum
+            ? $status->value
+            : $status;
+
+        $enum = TrainingProgramSlotStatusEnum::tryFrom($value ?? TrainingProgramSlotStatusEnum::Pending->value)
             ?? TrainingProgramSlotStatusEnum::Pending;
 
         return $enum->barColor();
@@ -421,7 +425,10 @@ class SlotDetailsController
         ];
 
         foreach ($statuses as $status) {
-            $value = $status ?? TrainingProgramSlotStatusEnum::Pending->value;
+            $value = $status instanceof TrainingProgramSlotStatusEnum
+                ? $status->value
+                : ($status ?? TrainingProgramSlotStatusEnum::Pending->value);
+
             match ($value) {
                 TrainingProgramSlotStatusEnum::Completed->value => $counts['completed']++,
                 TrainingProgramSlotStatusEnum::PartiallyCompleted->value => $counts['partial']++,
