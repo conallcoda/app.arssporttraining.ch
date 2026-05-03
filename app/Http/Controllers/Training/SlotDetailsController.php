@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Training;
 
 use App\Models\Training\TrainingProgramSlot;
-use App\Models\Training\TrainingProgramSlotStatusEnum;
+use App\Support\Training\SlotStatusPresenter;
 use App\Training\CalendarBlockService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -45,6 +45,11 @@ class SlotDetailsController
         return response()->json($result);
     }
 
+    protected function statusPresenter(): SlotStatusPresenter
+    {
+        return app(SlotStatusPresenter::class);
+    }
+
     public function __invoke(Request $request): JsonResponse
     {
         $request->validate([
@@ -73,7 +78,7 @@ class SlotDetailsController
                 'time' => $row->datetime->format('H:i'),
                 'name' => trim("{$row->forename} {$row->surname}"),
                 'userId' => $row->user_id,
-                'statusColor' => $this->slotStatusColor($row->status),
+                'statusColor' => $this->statusPresenter()->color($row->status),
             ]);
         } else {
             $grouped = [];
@@ -87,7 +92,7 @@ class SlotDetailsController
             foreach ($grouped as $entry) {
                 $statuses = $entry['_statuses'] ?? [];
                 unset($entry['_statuses']);
-                $entry['statusColor'] = $this->aggregateStatusColor($statuses);
+                $entry['statusColor'] = $this->statusPresenter()->aggregateColor($statuses);
                 $result[] = $entry;
             }
         }
@@ -151,7 +156,7 @@ class SlotDetailsController
             $dayEntries = array_values(array_map(function (array $entry): array {
                 $statuses = $entry['_statuses'] ?? [];
                 unset($entry['_statuses']);
-                $entry['statusColor'] = $this->aggregateStatusColor($statuses);
+                $entry['statusColor'] = $this->statusPresenter()->aggregateColor($statuses);
 
                 return $entry;
             }, $entries));
@@ -191,7 +196,7 @@ class SlotDetailsController
                 'color' => $slot->category_color,
                 'time' => $time,
                 'userNames' => [],
-                'statusColor' => $this->slotStatusColor($slot->slot_status),
+                'statusColor' => $this->statusPresenter()->color($slot->slot_status),
             ];
 
             if ($time < '12:00') {
@@ -262,7 +267,7 @@ class SlotDetailsController
                 $cell = [
                     'count' => (int) $row->user_count,
                     'time' => substr($row->first_time, 0, 5),
-                    'status' => $this->resolveAggregateStatus($statusCounts),
+                    'status' => $this->statusPresenter()->aggregateStatus($statusCounts),
                 ];
             } else {
                 $cell = [
@@ -271,7 +276,7 @@ class SlotDetailsController
                     'partialCount' => $statusCounts['partial'],
                     'skippedCount' => $statusCounts['skipped'],
                     'pendingCount' => $statusCounts['pending'],
-                    'status' => $this->resolveAggregateStatus($statusCounts),
+                    'status' => $this->statusPresenter()->aggregateStatus($statusCounts),
                 ];
             }
 
@@ -283,32 +288,6 @@ class SlotDetailsController
         }
 
         return response()->json($cells);
-    }
-
-    /**
-     * @param  array{completed:int, partial:int, skipped:int, pending:int}  $counts
-     */
-    private function resolveAggregateStatus(array $counts): string
-    {
-        $total = array_sum($counts);
-
-        if ($total === 0 || $counts['pending'] === $total) {
-            return 'pending';
-        }
-
-        if ($counts['skipped'] === $total) {
-            return 'skipped';
-        }
-
-        if ($counts['partial'] > 0) {
-            return 'partially_completed';
-        }
-
-        if ($counts['pending'] === 0 && ($counts['completed'] + $counts['skipped']) === $total && $counts['completed'] > 0) {
-            return 'completed';
-        }
-
-        return 'partially_completed';
     }
 
     private function computeSessionNumbers(array $rows, int $groupId, ?int $userId, Carbon $start, Carbon $end): array
@@ -390,53 +369,9 @@ class SlotDetailsController
             'time' => Carbon::parse($row->datetime)->format('H:i'),
             'name' => $row->program_name,
             'color' => $row->category_color,
-            'statusColor' => $this->slotStatusColor($row->status),
+            'statusColor' => $this->statusPresenter()->color($row->status),
         ], $slots);
 
         return response()->json($result);
-    }
-
-    /**
-     * @return array{light: string, dark: string}
-     */
-    private function slotStatusColor(TrainingProgramSlotStatusEnum|string|null $status): array
-    {
-        $value = $status instanceof TrainingProgramSlotStatusEnum
-            ? $status->value
-            : $status;
-
-        $enum = TrainingProgramSlotStatusEnum::tryFrom($value ?? TrainingProgramSlotStatusEnum::Pending->value)
-            ?? TrainingProgramSlotStatusEnum::Pending;
-
-        return $enum->barColor();
-    }
-
-    /**
-     * @param  array<int, string|null>  $statuses
-     * @return array{light: string, dark: string}
-     */
-    private function aggregateStatusColor(array $statuses): array
-    {
-        $counts = [
-            'completed' => 0,
-            'partial' => 0,
-            'skipped' => 0,
-            'pending' => 0,
-        ];
-
-        foreach ($statuses as $status) {
-            $value = $status instanceof TrainingProgramSlotStatusEnum
-                ? $status->value
-                : ($status ?? TrainingProgramSlotStatusEnum::Pending->value);
-
-            match ($value) {
-                TrainingProgramSlotStatusEnum::Completed->value => $counts['completed']++,
-                TrainingProgramSlotStatusEnum::PartiallyCompleted->value => $counts['partial']++,
-                TrainingProgramSlotStatusEnum::Skipped->value => $counts['skipped']++,
-                default => $counts['pending']++,
-            };
-        }
-
-        return $this->slotStatusColor($this->resolveAggregateStatus($counts));
     }
 }
