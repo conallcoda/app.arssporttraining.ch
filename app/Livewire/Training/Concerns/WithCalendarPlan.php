@@ -3,12 +3,12 @@
 namespace App\Livewire\Training\Concerns;
 
 use App\Data\Athlete\Metric\MetricEnum;
-use App\Data\Athlete\Metric\MetricSubmissionData;
 use App\Models\Athlete\MetricSubmission;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramBlock;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\UserGroup;
+use App\Support\Training\MetricModalPayloadBuilder;
 use App\Training\CalendarBlockService;
 use App\Training\ProjectedOneRepMaxService;
 use Carbon\Carbon;
@@ -516,17 +516,11 @@ trait WithCalendarPlan
         $submission = $this->findLatestSubmission($userId, $metricEnum, $cutoffDate);
 
         if ($submission) {
-            $eventData = array_merge(
-                MetricSubmissionData::fromModel($submission)->toArray(),
-                ['metric' => $metric],
-            );
-            $this->dispatch('open-calendar-metric-form', data: $eventData, title: __('Edit Metric').' ('.$metricEnum->label().')');
+            $payload = app(MetricModalPayloadBuilder::class)->fromSubmission($submission, $metric);
+            $this->dispatch('open-calendar-metric-form', data: $payload['data'], title: $payload['title']);
         } else {
-            $this->dispatch('open-calendar-metric-form', data: [
-                'metric' => $metric,
-                'recorded_at' => $cutoffDate,
-                'user_id' => $userId,
-            ], title: __('Add Metric').' ('.$metricEnum->label().')');
+            $payload = app(MetricModalPayloadBuilder::class)->forCreation($metric, $cutoffDate, $userId);
+            $this->dispatch('open-calendar-metric-form', data: $payload['data'], title: $payload['title']);
         }
     }
 
@@ -567,13 +561,8 @@ trait WithCalendarPlan
             ->values()
             ->all();
 
-        $this->dispatch('open-calendar-metric-form', data: [
-            'metric' => $metric,
-            'recorded_at' => $cutoffDate,
-            'user_id' => null,
-            '_group_mode' => true,
-            '_available_athletes' => $availableAthletes,
-        ], title: __('Add Metric').' ('.$metricEnum->label().')');
+        $payload = app(MetricModalPayloadBuilder::class)->forGroupCreation($metric, $cutoffDate, $availableAthletes);
+        $this->dispatch('open-calendar-metric-form', data: $payload['data'], title: $payload['title']);
     }
 
     #[Computed]

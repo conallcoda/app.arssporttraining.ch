@@ -21,6 +21,7 @@ use App\Models\Training\TrainingProgramBlock;
 use App\Models\Training\TrainingProgramBlockTypeEnum;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\UserGroup;
+use App\Support\Training\MetricModalPayloadBuilder;
 use App\Training\CalendarBlockService;
 use App\Training\CalendarDateService;
 use App\Training\ProjectedOneRepMaxService;
@@ -796,10 +797,9 @@ class CalendarProgramsView extends Component
             return;
         }
 
-        $eventData = array_merge($current['data'], ['metric' => $metricValue]);
-        $metricLabel = MetricEnum::from($metricValue)->label();
+        $payload = app(MetricModalPayloadBuilder::class)->fromExistingData($current['data'], $metricValue);
 
-        $this->dispatch('open-calendar-metric-form', data: $eventData, title: __('Edit Metric')." ({$metricLabel})");
+        $this->dispatch('open-calendar-metric-form', data: $payload['data'], title: $payload['title']);
     }
 
     public function openGroupCurrentMetricEdit(int $userId, string $metricValue): void
@@ -818,17 +818,11 @@ class CalendarProgramsView extends Component
         $submission = $query->first();
 
         if ($submission) {
-            $eventData = array_merge(
-                MetricSubmissionData::fromModel($submission)->toArray(),
-                ['metric' => $metricValue],
-            );
-            $this->dispatch('open-calendar-metric-form', data: $eventData, title: __('Edit Metric').' ('.$metricEnum->label().')');
+            $payload = app(MetricModalPayloadBuilder::class)->fromSubmission($submission, $metricValue);
+            $this->dispatch('open-calendar-metric-form', data: $payload['data'], title: $payload['title']);
         } else {
-            $this->dispatch('open-calendar-metric-form', data: [
-                'metric' => $metricValue,
-                'recorded_at' => $cutoffDate,
-                'user_id' => $userId,
-            ], title: __('Add Metric').' ('.$metricEnum->label().')');
+            $payload = app(MetricModalPayloadBuilder::class)->forCreation($metricValue, $cutoffDate, $userId);
+            $this->dispatch('open-calendar-metric-form', data: $payload['data'], title: $payload['title']);
         }
     }
 
@@ -842,19 +836,12 @@ class CalendarProgramsView extends Component
         $existingData = $this->metricCellData[$key] ?? null;
 
         if ($existingData) {
-            $eventData = array_merge($existingData['data'], ['metric' => $metricValue]);
+            $payload = app(MetricModalPayloadBuilder::class)->fromExistingData($existingData['data'], $metricValue);
         } else {
-            $eventData = [
-                'metric' => $metricValue,
-                'recorded_at' => $date,
-                'user_id' => $this->userId,
-            ];
+            $payload = app(MetricModalPayloadBuilder::class)->forCreation($metricValue, $date, $this->userId);
         }
 
-        $metricLabel = MetricEnum::from($metricValue)->label();
-        $title = $existingData ? __('Edit Metric') : __('Add Metric');
-
-        $this->dispatch('open-calendar-metric-form', data: $eventData, title: "{$title} ({$metricLabel})");
+        $this->dispatch('open-calendar-metric-form', data: $payload['data'], title: $payload['title']);
     }
 
     public function openGroupMetricCell(string $metricValue, string $date, ?int $userId = null, ?int $submissionId = null): void
@@ -875,9 +862,8 @@ class CalendarProgramsView extends Component
             }
 
             if ($entry) {
-                $eventData = array_merge($entry['data'], ['metric' => $metricValue]);
-                $metricLabel = MetricEnum::from($metricValue)->label();
-                $this->dispatch('open-calendar-metric-form', data: $eventData, title: __('Edit Metric')." ({$metricLabel})");
+                $payload = app(MetricModalPayloadBuilder::class)->fromExistingData($entry['data'], $metricValue);
+                $this->dispatch('open-calendar-metric-form', data: $payload['data'], title: $payload['title']);
             }
 
             return;
@@ -899,16 +885,8 @@ class CalendarProgramsView extends Component
             ->values()
             ->all();
 
-        $eventData = [
-            'metric' => $metricValue,
-            'recorded_at' => $date,
-            'user_id' => null,
-            '_group_mode' => true,
-            '_available_athletes' => $availableAthletes,
-        ];
-
-        $metricLabel = MetricEnum::from($metricValue)->label();
-        $this->dispatch('open-calendar-metric-form', data: $eventData, title: __('Add Metric')." ({$metricLabel})");
+        $payload = app(MetricModalPayloadBuilder::class)->forGroupCreation($metricValue, $date, $availableAthletes);
+        $this->dispatch('open-calendar-metric-form', data: $payload['data'], title: $payload['title']);
     }
 
     #[On('calendar-metric-form.delete-requested')]
