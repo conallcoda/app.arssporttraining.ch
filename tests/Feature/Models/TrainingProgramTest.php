@@ -5,6 +5,7 @@ use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
 use App\Models\Tag;
 use App\Models\Training\TrainingProgram;
+use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -39,6 +40,60 @@ it('imports a program by duplicating it', function () {
     expect($tp->exercise_program_id)->not->toBe($program->id);
     expect($tp->program->name)->toBe('Strength A');
     expect($tp->program->exercises)->toHaveCount(1);
+});
+
+it('materializes effective grouping defaults into the scheduled program copy on import', function () {
+    $coach = User::factory()->coach()->create();
+    $coach->config->set('settings.session_grouping', [
+        'mode' => 'week',
+        'groupSize' => 1,
+        'copyValuesAutomatically' => true,
+    ]);
+    $coach->save();
+
+    $group = UserGroup::create(['name' => 'Team Alpha']);
+    $program = ExerciseProgram::factory()->create([
+        'name' => 'Strength A',
+        'owner_id' => $coach->id,
+    ]);
+
+    $exercise = Exercise::create(['name' => 'Bench Press']);
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+    ]);
+
+    $config = $program->config;
+    $overrides = $config->defaultExerciseOverrides($pivot->id);
+    $overrides->sessionGrouping = \App\Data\Exercise\Preview\SessionGroupingConfig::from([
+        'mode' => 'groups',
+        'groupSize' => 2,
+        'copyValuesAutomatically' => false,
+    ]);
+    $config->setDefaultExerciseOverrides($pivot->id, $overrides);
+    $program->config = $config;
+    $program->save();
+
+    $tp = TrainingProgram::importProgram($program, $group->id);
+    $clonedProgram = $tp->program->fresh();
+
+    expect($clonedProgram->config->resolvedSessionGrouping()?->toArray())
+        ->toBe([
+            'mode' => 'week',
+            'groupSize' => 1,
+            'copyValuesAutomatically' => true,
+        ]);
+
+    $clonedPivot = $clonedProgram->exercises()->first()?->pivot?->id;
+
+    expect($clonedPivot)->not->toBeNull()
+        ->and($clonedProgram->config->defaultExerciseOverrides((int) $clonedPivot)->sessionGrouping?->toArray())
+            ->toBe([
+                'mode' => 'groups',
+                'groupSize' => 2,
+                'copyValuesAutomatically' => false,
+            ]);
 });
 
 it('imports an exercise by wrapping it in a program with category', function () {

@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Component;
+use Spatie\LaravelData\Optional;
 
 class ProgramEditor extends Component
 {
@@ -341,6 +342,28 @@ class ProgramEditor extends Component
             return $stored;
         }
 
+        return $this->coachDefaultSessionGrouping();
+    }
+
+    protected function saveSessionGrouping(): void
+    {
+        $sessionGrouping = SessionGroupingConfig::from($this->data['session_grouping'] ?? []);
+        $this->data['session_grouping'] = $sessionGrouping->toArray();
+        $coachDefault = $this->coachDefaultSessionGrouping();
+
+        $config = $this->exerciseProgram->config;
+        $config->sessionGrouping = $sessionGrouping->toArray() === $coachDefault->toArray()
+            ? Optional::create()
+            : $sessionGrouping;
+        $this->exerciseProgram->config = $config;
+        $this->exerciseProgram->saveQuietly();
+
+        app(TrainingSessionRebuildDispatcher::class)
+            ->dispatchFutureSlotsForExerciseProgramChange($this->exerciseProgram->id);
+    }
+
+    protected function coachDefaultSessionGrouping(): SessionGroupingConfig
+    {
         $user = Auth::user();
 
         return SessionGroupingConfig::from([
@@ -353,20 +376,6 @@ class ProgramEditor extends Component
             ),
             'copyValuesAutomatically' => (bool) ($user?->config->get('settings.session_grouping.copyValuesAutomatically', SessionGroupingMode::defaultCopyValuesAutomatically()) ?? SessionGroupingMode::defaultCopyValuesAutomatically()),
         ]);
-    }
-
-    protected function saveSessionGrouping(): void
-    {
-        $sessionGrouping = SessionGroupingConfig::from($this->data['session_grouping'] ?? []);
-        $this->data['session_grouping'] = $sessionGrouping->toArray();
-
-        $config = $this->exerciseProgram->config;
-        $config->sessionGrouping = $sessionGrouping;
-        $this->exerciseProgram->config = $config;
-        $this->exerciseProgram->saveQuietly();
-
-        app(TrainingSessionRebuildDispatcher::class)
-            ->dispatchFutureSlotsForExerciseProgramChange($this->exerciseProgram->id);
     }
 
     public function removeRelationshipItem(string $fieldName, int $index): void

@@ -3,6 +3,7 @@
 namespace App\Livewire\Training\View;
 
 use App\Data\Exercise\Preview\SessionGroupingConfig;
+use App\Data\Exercise\Preview\SessionGroupingMode;
 use Coda\Cms\Livewire\FormModal;
 use Coda\FormKit\Form;
 use Flux\Flux;
@@ -86,6 +87,16 @@ class PlanExerciseGroupingForm extends FormModal
         unset($this->fieldsets);
         $this->data = array_replace_recursive($this->buildDefaultsFromFieldsets(), $this->data);
         unset($this->fieldsets);
+    }
+
+    public function updated(string $property, mixed $value): void
+    {
+        if ($property !== 'data.session_grouping.mode') {
+            return;
+        }
+
+        $mode = (string) ($this->data['session_grouping']['mode'] ?? null);
+        $this->data['session_grouping']['groupSize'] = SessionGroupingMode::defaultGroupSize($mode);
     }
 
     public function submit(): void
