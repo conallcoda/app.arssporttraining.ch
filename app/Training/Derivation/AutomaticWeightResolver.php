@@ -19,10 +19,13 @@ class AutomaticWeightResolver
         array $setsPerWeek,
         callable $resolvedRepsForCell,
         array $sessionCounts = [],
-        string $groupingMode = SessionGroupingMode::Week->value,
-        int $groupSize = 4,
+        ?string $groupingMode = null,
+        ?int $groupSize = null,
         ?callable $resolvedSetsForSession = null,
     ): ?AutomaticStrategyResolution {
+        $groupingMode = SessionGroupingMode::tryFrom((string) $groupingMode)?->value ?? SessionGroupingMode::defaultMode();
+        $groupSize = max(1, (int) ($groupSize ?? SessionGroupingMode::defaultGroupSize()));
+
         $resolution = $this->buildResolution(
             $setting,
             $measuredData,
@@ -59,13 +62,16 @@ class AutomaticWeightResolver
         array $setsPerWeek,
         callable $resolvedRepsForCell,
         array $sessionCounts = [],
-        string $groupingMode = SessionGroupingMode::Week->value,
-        int $groupSize = 4,
+        ?string $groupingMode = null,
+        ?int $groupSize = null,
         ?callable $resolvedSetsForSession = null,
     ): ?AutomaticWeightResolution {
         if (! $measuredData->isComplete()) {
             return null;
         }
+
+        $groupingMode = SessionGroupingMode::tryFrom((string) $groupingMode)?->value ?? SessionGroupingMode::defaultMode();
+        $groupSize = max(1, (int) ($groupSize ?? SessionGroupingMode::defaultGroupSize()));
 
         $strategyMap = SessionGroupBuilder::buildStrategyMap($weeks, $sessionCounts, $groupingMode, $groupSize);
         $target1RM = $this->calculateTargetOneRepMax($setting, $measuredData);

@@ -227,29 +227,18 @@
 
     <flux:modal name="athlete-exercise-editor" class="max-w-2xl" x-on:close="$wire.cancelExerciseEditor()">
         <div class="space-y-5">
-            <div class="flex items-start justify-between gap-4">
-                <div class="min-w-0">
-                    <flux:heading size="lg">
-                        {{ $this->editingExercise?->exercise?->name ? 'Edit '.$this->editingExercise->exercise->name : 'Edit Exercise' }}
-                    </flux:heading>
-                    <flux:text class="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
-                        Update the set values, then save them explicitly.
-                    </flux:text>
-                </div>
-
-                <flux:modal.close>
-                    <button type="button" wire:click="cancelExerciseEditor"
-                        class="inline-flex size-9 items-center justify-center rounded-md text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white"
-                        aria-label="Close edit modal">
-                        <flux:icon.x class="size-5" />
-                    </button>
-                </flux:modal.close>
+            <div class="min-w-0">
+                <flux:heading size="lg">Edit</flux:heading>
             </div>
 
             @if ($this->editingExercise)
                 <form wire:submit="saveExerciseEdits" class="space-y-5">
                     @if (count($this->editSetTabs) > 1)
-                        <x-athlete.segmented-tabs :tabs="$this->editSetTabs" model="activeEditSet" />
+                        <flux:select wire:model.live="activeEditSet" variant="listbox" class="w-full">
+                            @foreach ($this->editSetTabs as $tab)
+                                <flux:select.option :value="$tab['name']">{{ $tab['label'] }}</flux:select.option>
+                            @endforeach
+                        </flux:select>
                     @endif
 
                     @foreach ($this->editSetPanels as $panel)

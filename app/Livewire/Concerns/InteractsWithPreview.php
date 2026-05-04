@@ -63,8 +63,8 @@ trait InteractsWithPreview
         $user = Auth::user();
 
         return [
-            'mode' => (string) ($user?->config->get('settings.session_grouping.mode', SessionGroupingMode::Week->value) ?? SessionGroupingMode::Week->value),
-            'groupSize' => max(1, (int) ($user?->config->get('settings.session_grouping.groupSize', 4) ?? 4)),
+            'mode' => (string) ($user?->config->get('settings.session_grouping.mode', SessionGroupingMode::defaultMode()) ?? SessionGroupingMode::defaultMode()),
+            'groupSize' => max(1, (int) ($user?->config->get('settings.session_grouping.groupSize', SessionGroupingMode::defaultGroupSize()) ?? SessionGroupingMode::defaultGroupSize())),
         ];
     }
 
@@ -94,13 +94,14 @@ trait InteractsWithPreview
 
         $overrides = GridOverrides::fromConfig($config['overrides'] ?? []);
 
-        $weeks = (int) ($preview['weeks'] ?? $this->defaultWeeks);
-        $sessionsPerWeek = (int) ($preview['sessionsPerWeek'] ?? $this->defaultSessionsPerWeek);
         $grouping = $this->resolveDefaultPreviewGrouping();
-        $config['preview'] = array_merge($preview, [
-            'groupingMode' => $grouping['mode'],
-            'groupSize' => $grouping['groupSize'],
+        $resolvedPreview = array_merge($preview, [
+            'groupingMode' => $preview['groupingMode'] ?? $grouping['mode'],
+            'groupSize' => $preview['groupSize'] ?? $grouping['groupSize'],
         ]);
+        $config['preview'] = $resolvedPreview;
+        $weeks = (int) ($resolvedPreview['weeks'] ?? $this->defaultWeeks);
+        $sessionsPerWeek = SessionGroupingMode::resolvePreviewSessionCount($resolvedPreview, $this->defaultSessionsPerWeek);
 
         return ExercisePreviewBuilder::build($config, $measuredData, $weeks, $overrides, $sessionsPerWeek);
     }
@@ -178,8 +179,14 @@ trait InteractsWithPreview
             targetGoal: $preview['targetGoal'] ?? null,
         );
 
-        $weeks = (int) ($preview['weeks'] ?? $this->defaultWeeks);
-        $sessionsPerWeek = (int) ($preview['sessionsPerWeek'] ?? $this->defaultSessionsPerWeek);
+        $grouping = $this->resolveDefaultPreviewGrouping();
+        $resolvedPreview = array_merge($preview, [
+            'groupingMode' => $preview['groupingMode'] ?? $grouping['mode'],
+            'groupSize' => $preview['groupSize'] ?? $grouping['groupSize'],
+        ]);
+        $config['preview'] = $resolvedPreview;
+        $weeks = (int) ($resolvedPreview['weeks'] ?? $this->defaultWeeks);
+        $sessionsPerWeek = SessionGroupingMode::resolvePreviewSessionCount($resolvedPreview, $this->defaultSessionsPerWeek);
 
         return ExercisePreviewBuilder::build(
             $config,

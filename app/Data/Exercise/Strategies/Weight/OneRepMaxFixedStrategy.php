@@ -29,10 +29,13 @@ class OneRepMaxFixedStrategy implements DefinesEditability
         int $weeks,
         GridState $state,
         array $sessionCounts = [],
-        string $groupingMode = SessionGroupingMode::Week->value,
-        int $groupSize = 4,
+        ?string $groupingMode = null,
+        ?int $groupSize = null,
     ): ?array
     {
+        $groupingMode = SessionGroupingMode::tryFrom((string) $groupingMode)?->value ?? SessionGroupingMode::defaultMode();
+        $groupSize = max(1, (int) ($groupSize ?? SessionGroupingMode::defaultGroupSize()));
+
         $resolver = $this->resolver ?? new AutomaticWeightResolver;
         $resolution = $resolver->resolve(
             $this->setting,

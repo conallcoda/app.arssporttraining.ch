@@ -11,6 +11,7 @@ use App\Models\Training\TrainingProgramSlotSetStatusEnum;
 use App\Models\Training\TrainingProgramSlotStatusEnum;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
+use App\Support\Athlete\ProgramDetailsExerciseViewBuilder;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Livewire\Livewire;
@@ -127,6 +128,50 @@ it('shows all exercises in the selected program', function () {
         ->assertSee('45')
         ->assertSee('Stay tall through the lift.')
         ->assertSee('/dashboard/calendar/week/2026-03-30', false);
+});
+
+it('defaults to the warm up tab when the session includes warm up exercises', function () {
+    config()->set('athlete.dashboard_today_override', '03.04.2026');
+
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Friday Strength']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $warmUpExercise = Exercise::factory()->create(['name' => 'Jog Prep']);
+    $mainExercise = Exercise::factory()->create(['name' => 'Front Squat']);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $warmUpExercise->id,
+        'sort' => 0,
+        'type' => 'warm_up',
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $mainExercise->id,
+        'sort' => 1,
+        'type' => 'main',
+    ]);
+
+    TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2026-04-03 09:00:00'),
+    ]);
+
+    Livewire::actingAs($athlete)
+        ->test(ProgramDetails::class, [
+            'date' => '2026-04-03',
+            'trainingProgram' => $trainingProgram,
+        ])
+        ->assertSet('activeSection', 'warm_up')
+        ->assertSee('Jog Prep')
+        ->assertDontSee('Front Squat');
 });
 
 it('returns 404 when the selected program is not scheduled for the athlete on that date', function () {
@@ -372,4 +417,62 @@ it('does not mark values modified when an athlete explicitly saves the planned v
         ->and($value->is_modified)->toBeFalse();
 
     CarbonImmutable::setTestNow();
+});
+
+it('uses the same base and override cell colors as the admin grid in athlete program details', function () {
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Friday Strength']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $exercise = Exercise::factory()->create([
+        'name' => 'Intervals',
+        'config' => [
+            'settings' => ['reps', 'heartRateZone'],
+            'sets' => ['default' => 1, 'label' => 'Interval', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 6, 'applyPer' => 'session'],
+            'heartRateZone' => ['default' => 1, 'applyPer' => 'session'],
+        ],
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-04-03 09:00:00'),
+    ])->fresh('exercises.sets.values');
+
+    $slotExercise = $slot->exercises->first();
+    $set = $slotExercise->sets->first();
+
+    $set->values->firstWhere('setting_key', 'reps')->update([
+        'actual_value_type' => 'string',
+        'actual_string_value' => '8',
+        'is_modified' => true,
+    ]);
+
+    $set->values->firstWhere('setting_key', 'heartRateZone')->update([
+        'actual_value_type' => 'string',
+        'actual_string_value' => '2',
+        'is_modified' => false,
+    ]);
+
+    $slotExercise = $slotExercise->fresh('exercise', 'sets.values');
+    $viewData = app(ProgramDetailsExerciseViewBuilder::class)->build($slotExercise, 0);
+
+    expect($viewData->sessionRows[0]->labelClass)->toBe('bg-blue-100 dark:bg-blue-900/20')
+        ->and($viewData->sessionRows[0]->valueClasses[0])->toBe('bg-blue-200 dark:bg-blue-700/40')
+        ->and($viewData->sessionRows[1]->labelClass)->toBe('bg-green-100 dark:bg-green-900/20')
+        ->and($viewData->sessionRows[1]->valueClasses[0])->toBe('bg-yellow-100 dark:bg-yellow-800/40')
+        ->and($viewData->sessionRows[0]->valueClasses[0])->not->toContain('ring-amber')
+        ->and($viewData->sessionRows[1]->valueClasses[0])->not->toContain('ring-amber');
 });

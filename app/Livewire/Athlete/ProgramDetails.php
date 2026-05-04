@@ -69,7 +69,6 @@ class ProgramDetails extends Component
         $this->date = CarbonImmutable::parse($date)->format('Y-m-d');
         $this->trainingProgramId = $trainingProgram->id;
         $this->from = $this->sanitizeReturnUrl(request()->query('from'));
-        $this->activeSection = 'main';
 
         abort_unless(
             TrainingProgramSlot::query()
@@ -79,6 +78,8 @@ class ProgramDetails extends Component
                 ->exists(),
             404
         );
+
+        $this->activeSection = $this->resolveInitialSection($trainingProgram);
     }
 
     #[Computed]
@@ -211,6 +212,17 @@ class ProgramDetails extends Component
         return collect($this->sectionTabs)
             ->pluck('key')
             ->contains(fn (string $key): bool => $key !== 'main');
+    }
+
+    private function resolveInitialSection(TrainingProgram $trainingProgram): string
+    {
+        foreach (self::SECTION_ORDER as $section) {
+            if ($trainingProgram->program->exercises()->wherePivot('type', $section)->exists()) {
+                return $section;
+            }
+        }
+
+        return 'main';
     }
 
     /**

@@ -95,6 +95,7 @@ class DatabaseImportSeeder extends Seeder
         foreach ($templates as $template) {
             ExerciseTemplate::create([
                 'id' => $template['id'],
+                'owner_id' => $template['owner_id'] ?? null,
                 'name' => $template['name'],
                 'config' => $template['config'],
                 'deleted_at' => $template['deleted_at'] ?? null,
@@ -111,8 +112,10 @@ class DatabaseImportSeeder extends Seeder
         foreach ($exercises as $exercise) {
             Exercise::create([
                 'id' => $exercise['id'],
+                'owner_id' => $exercise['owner_id'] ?? null,
                 'name' => $exercise['name'],
                 'category_id' => $exercise['category_id'],
+                'external_id' => $exercise['external_id'] ?? null,
                 'template_id' => $exercise['template_id'],
                 'video_url' => $exercise['video_url'],
                 'instructions' => $exercise['instructions'],
@@ -140,6 +143,7 @@ class DatabaseImportSeeder extends Seeder
         foreach ($externals as $external) {
             ExerciseExternal::create([
                 'id' => $external['id'],
+                'owner_id' => $external['owner_id'] ?? null,
                 'source' => $external['source'],
                 'name' => $external['name'],
                 'video_url' => $external['video_url'],
@@ -167,6 +171,7 @@ class DatabaseImportSeeder extends Seeder
         foreach ($programs as $program) {
             $attributes = [
                 'id' => $program['id'],
+                'owner_id' => $program['owner_id'] ?? null,
                 'parent_type' => $program['parent_type'],
                 'parent_id' => $program['parent_id'],
                 'name' => $program['name'],
@@ -212,6 +217,7 @@ class DatabaseImportSeeder extends Seeder
         foreach ($plans as $plan) {
             ExercisePlan::create([
                 'id' => $plan['id'],
+                'owner_id' => $plan['owner_id'] ?? null,
                 'name' => $plan['name'],
                 'config' => $plan['config'],
                 'deleted_at' => $plan['deleted_at'] ?? null,
@@ -432,6 +438,7 @@ class DatabaseImportSeeder extends Seeder
         foreach ($groups as $group) {
             UserGroup::create([
                 'id' => $group['id'],
+                'owner_id' => $group['owner_id'] ?? null,
                 'name' => $group['name'],
                 'config' => $group['config'],
                 'deleted_at' => $group['deleted_at'] ?? null,
@@ -448,6 +455,7 @@ class DatabaseImportSeeder extends Seeder
         foreach ($users as $user) {
             User::create([
                 'id' => $user['id'],
+                'owner_id' => $user['owner_id'] ?? null,
                 'type' => $user['type'],
                 'forename' => $user['forename'],
                 'surname' => $user['surname'],
@@ -481,6 +489,7 @@ class DatabaseImportSeeder extends Seeder
         foreach ($trainingPrograms as $tp) {
             TrainingProgram::create([
                 'id' => $tp['id'],
+                'owner_id' => $tp['owner_id'] ?? null,
                 'group_id' => $tp['group_id'],
                 'exercise_program_id' => $tp['exercise_program_id'],
                 'sort' => $tp['sort'],
@@ -498,6 +507,7 @@ class DatabaseImportSeeder extends Seeder
             TrainingProgramBlock::create([
                 'id' => $block['id'],
                 'parent_id' => $block['parent_id'],
+                'owner_id' => $block['owner_id'] ?? null,
                 'group_id' => $block['group_id'],
                 'user_id' => $block['user_id'],
                 'category_id' => $block['category_id'],
@@ -524,6 +534,7 @@ class DatabaseImportSeeder extends Seeder
                 'id' => $slot['id'],
                 'training_program_id' => $slot['training_program_id'],
                 'user_id' => $slot['user_id'],
+                'owner_id' => $slot['owner_id'] ?? null,
                 'datetime' => $slot['datetime'],
             ]);
         }

@@ -25,6 +25,15 @@ it('loads persisted coach settings on mount', function () {
         ->assertSet('data.'.SessionGroupingSetting::fieldsetKey().'.groupSize', 3);
 });
 
+it('defaults coach session grouping settings to groups of two when unset', function () {
+    $coach = User::factory()->coach()->create();
+
+    Livewire::actingAs($coach)
+        ->test(CoachSettings::class)
+        ->assertSet('data.'.SessionGroupingSetting::fieldsetKey().'.mode', SessionGroupingMode::Groups->value)
+        ->assertSet('data.'.SessionGroupingSetting::fieldsetKey().'.groupSize', 2);
+});
+
 it('persists updated settings and dispatches a saved event', function () {
     $coach = User::factory()->coach()->create();
 
@@ -44,5 +53,21 @@ it('persists updated settings and dispatches a saved event', function () {
         ->toMatchArray([
             'mode' => SessionGroupingMode::Groups->value,
             'groupSize' => 6,
+        ]);
+});
+
+it('normalizes none grouping to a group size of one when saving coach settings', function () {
+    $coach = User::factory()->coach()->create();
+
+    Livewire::actingAs($coach)
+        ->test(CoachSettings::class)
+        ->set('data.'.SessionGroupingSetting::fieldsetKey().'.mode', SessionGroupingMode::None->value)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($coach->fresh()->config->get('settings.'.SessionGroupingSetting::fieldsetKey()))
+        ->toMatchArray([
+            'mode' => SessionGroupingMode::None->value,
+            'groupSize' => 1,
         ]);
 });

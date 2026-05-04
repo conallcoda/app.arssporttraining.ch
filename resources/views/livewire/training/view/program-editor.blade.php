@@ -1,4 +1,12 @@
 <div class="space-y-6">
+    @php
+        $plannedGroupsLabel = match (data_get($data, 'session_grouping.mode')) {
+            'none' => __('Planned Sessions'),
+            'week' => __('Planned Weeks'),
+            default => __('Planned Groups'),
+        };
+    @endphp
+
     <div class="flex flex-col md:flex-row gap-6">
         <x-cms::section :title="__('Exercises')" class="{{ $this->showAthleteContext ? 'md:w-3/4' : 'flex-1' }}">
             @if ($showNameInput)
@@ -128,12 +136,24 @@
             </x-cms::section>
         @endif
 
-        @if ($showWeeksInput)
-            <x-cms::section :title="__('Settings')" class="w-64 shrink-0">
-                <flux:field>
-                    <flux:label>{{ __('Planning Horizon (Weeks)') }}</flux:label>
-                    <flux:input wire:model.live="weeks" type="number" min="1" max="52" step="1" />
-                </flux:field>
+        @if ($showWeeksInput || $this->sessionGroupingFieldset)
+            <x-cms::section :title="__('Settings')" class="w-80 shrink-0">
+                <div class="space-y-4">
+                    @if ($this->sessionGroupingFieldset)
+                        <x-form-kit::form.fieldset
+                            :fieldset="$this->sessionGroupingFieldset"
+                            :prefix="$this->sessionGroupingFieldset->prefix ?? 'data'"
+                            :showLegend="false"
+                        />
+                    @endif
+
+                    @if ($showWeeksInput)
+                        <flux:field>
+                            <flux:label>{{ $plannedGroupsLabel }}</flux:label>
+                            <flux:input wire:model.live="weeks" type="number" min="1" max="52" step="1" />
+                        </flux:field>
+                    @endif
+                </div>
             </x-cms::section>
         @endif
     </div>

@@ -2,7 +2,9 @@
 
 namespace App\Data\Exercise\Settings;
 
+use App\Data\Exercise\Preview\SessionGroupingMode;
 use Coda\FormKit\Fields;
+use Illuminate\Support\Facades\Auth;
 
 class PreviewSetting extends AbstractSetting
 {
@@ -20,22 +22,30 @@ class PreviewSetting extends AbstractSetting
 
     public static function fields(array $data = []): array
     {
+        $groupingMode = SessionGroupingMode::normalizeMode(
+            (string) (Auth::user()?->config->get('settings.session_grouping.mode', SessionGroupingMode::defaultMode()) ?? SessionGroupingMode::defaultMode())
+        );
+        $usesWeekBuckets = $groupingMode === SessionGroupingMode::Week->value;
+
         $fields = [
             Fields\Number::make('weeks')
-                ->label('Weeks')
+                ->label('Planned Groups')
                 ->min(1)
                 ->max(12)
                 ->step(1)
                 ->default(1)
-                ->suffix('week(s)'),
-            Fields\Number::make('sessionsPerWeek')
+                ->suffix(SessionGroupingMode::plannedGroupsSuffix($groupingMode)),
+        ];
+
+        if ($usesWeekBuckets) {
+            $fields[] = Fields\Number::make('sessionsPerWeek')
                 ->label('Sessions Per Week')
                 ->min(1)
                 ->max(7)
                 ->step(1)
                 ->default(1)
-                ->suffix('session(s)'),
-        ];
+                ->suffix('session(s)');
+        }
 
         $hasAutomaticWeight = in_array('weight', $data['config']['settings'] ?? [])
             && ($data['config']['weight']['mode'] ?? 'manual') === 'automatic';

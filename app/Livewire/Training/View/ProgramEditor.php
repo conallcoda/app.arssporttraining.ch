@@ -4,6 +4,8 @@ namespace App\Livewire\Training\View;
 
 use App\Data\Training\Config\ExerciseOverrides;
 use App\Data\Training\Config\ExercisePlanConfig;
+use App\Data\Exercise\Preview\SessionGroupingConfig;
+use App\Data\Exercise\Preview\SessionGroupingMode;
 use App\Form\Fields\Exercise\Exercises;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
@@ -15,6 +17,7 @@ use Coda\Cms\Livewire\Concerns\InteractsWithFormData;
 use Coda\FormKit\Form;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
@@ -161,6 +164,8 @@ class ProgramEditor extends Component
             $this->data[$this->sectionFieldName($type)] = $this->serializeSectionExercises($type);
         }
 
+        $this->data['session_grouping'] = $this->resolvedSessionGrouping()->toArray();
+
         $this->syncSectionFormData();
     }
 
@@ -203,6 +208,19 @@ class ProgramEditor extends Component
     public function fields(): array
     {
         return $this->formConfig->getFields();
+    }
+
+    #[Computed]
+    public function sessionGroupingFormConfig(): Form
+    {
+        return Form::make()
+            ->fieldset('Session Grouping', SessionGroupingConfig::fields(), prefix: 'data.session_grouping');
+    }
+
+    #[Computed]
+    public function sessionGroupingFieldset(): mixed
+    {
+        return $this->sessionGroupingFormConfig->resolveFieldsets($this->data)[0] ?? null;
     }
 
     #[Computed]
@@ -270,6 +288,10 @@ class ProgramEditor extends Component
     {
         $this->traitUpdated($property, $value);
 
+        if (str_starts_with($property, 'data.session_grouping.')) {
+            $this->saveSessionGrouping();
+        }
+
         if (str_starts_with($property, 'data.section_exercises.') || $property === 'data.section_exercises') {
             $this->data[$this->sectionFieldName($this->activeSection)] = $this->data['section_exercises'] ?? [];
 
@@ -302,6 +324,36 @@ class ProgramEditor extends Component
         $config->weeks = $this->weeks;
         $this->exerciseProgram->config = $config;
         $this->exerciseProgram->saveQuietly();
+        app(TrainingSessionRebuildDispatcher::class)
+            ->dispatchFutureSlotsForExerciseProgramChange($this->exerciseProgram->id);
+    }
+
+    protected function resolvedSessionGrouping(): SessionGroupingConfig
+    {
+        $stored = $this->exerciseProgram->config->resolvedSessionGrouping();
+
+        if ($stored !== null) {
+            return $stored;
+        }
+
+        $user = Auth::user();
+
+        return SessionGroupingConfig::from([
+            'mode' => (string) ($user?->config->get('settings.session_grouping.mode', SessionGroupingMode::defaultMode()) ?? SessionGroupingMode::defaultMode()),
+            'groupSize' => (int) ($user?->config->get('settings.session_grouping.groupSize', SessionGroupingMode::defaultGroupSize()) ?? SessionGroupingMode::defaultGroupSize()),
+        ]);
+    }
+
+    protected function saveSessionGrouping(): void
+    {
+        $sessionGrouping = SessionGroupingConfig::from($this->data['session_grouping'] ?? []);
+        $this->data['session_grouping'] = $sessionGrouping->toArray();
+
+        $config = $this->exerciseProgram->config;
+        $config->sessionGrouping = $sessionGrouping;
+        $this->exerciseProgram->config = $config;
+        $this->exerciseProgram->saveQuietly();
+
         app(TrainingSessionRebuildDispatcher::class)
             ->dispatchFutureSlotsForExerciseProgramChange($this->exerciseProgram->id);
     }

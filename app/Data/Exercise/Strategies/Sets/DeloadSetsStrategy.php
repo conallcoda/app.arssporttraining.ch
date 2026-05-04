@@ -12,11 +12,14 @@ class DeloadSetsStrategy implements DefinesEditability
 {
     public function __construct(
         private SetsSetting $setting,
-        private string $groupingMode = SessionGroupingMode::Week->value,
-        private int $groupSize = 4,
+        private ?string $groupingMode = null,
+        private ?int $groupSize = null,
         /** @var array<int, int> */
         private array $sessionCounts = [],
-    ) {}
+    ) {
+        $this->groupingMode = SessionGroupingMode::tryFrom((string) $this->groupingMode)?->value ?? SessionGroupingMode::defaultMode();
+        $this->groupSize = max(1, (int) ($this->groupSize ?? SessionGroupingMode::defaultGroupSize()));
+    }
 
     /** @return array<int, int> */
     public function generate(int $weeks, GridState $state): array

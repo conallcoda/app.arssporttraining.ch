@@ -7,6 +7,7 @@ use App\Data\Athlete\ProgramDetailsNoteData;
 use App\Data\Athlete\ProgramDetailsSessionRowData;
 use App\Data\Exercise\ExerciseSetting;
 use App\Data\Exercise\Settings\AbstractSetting;
+use App\Data\Exercise\Strategies\HeartRate\HeartRateZoneCellColors;
 use App\Models\Training\TrainingProgramSlotExercise;
 use App\Models\Training\TrainingProgramSlotSetValue;
 use Coda\Cms\Support\ColorPalette;
@@ -26,14 +27,6 @@ class ProgramDetailsExerciseViewBuilder
         'tempo',
         'rest',
         'note',
-    ];
-
-    private const OPAQUE_ZONE_COLORS = [
-        '0' => 'bg-zinc-200 dark:bg-zinc-800',
-        '1' => 'bg-green-200 dark:bg-green-900',
-        '2' => 'bg-yellow-200 dark:bg-yellow-900',
-        '3' => 'bg-red-200 dark:bg-red-900',
-        '4' => 'bg-zinc-900 text-white dark:bg-black dark:text-white',
     ];
 
     public function build(TrainingProgramSlotExercise $slotExercise, int $index, ?string $groupLabel = null): ProgramDetailsExerciseData
@@ -71,7 +64,7 @@ class ProgramDetailsExerciseViewBuilder
             }
 
             $rowColorName = ColorPalette::ROW_COLORS[$colorIndex] ?? null;
-            $labelClass = $this->opaqueRowLabelClass($rowColorName);
+            $labelClass = $this->rowLabelClass($rowColorName);
             $values = [];
             $valueClasses = [];
             $modifiedValues = [];
@@ -90,7 +83,7 @@ class ProgramDetailsExerciseViewBuilder
                 $settingConfig = $this->resolveSettingConfig($exerciseConfig, $setting);
                 $values[] = $this->formatSessionValue($setting, $rawValue, $valueRow, $settingConfig);
                 $modifiedValues[] = (bool) ($valueRow?->is_modified ?? false);
-                $valueClasses[] = $this->opaqueCellClass(
+                $valueClasses[] = $this->cellClass(
                     $setting,
                     $rawValue,
                     $rowColorName,
@@ -174,14 +167,14 @@ class ProgramDetailsExerciseViewBuilder
         return $label;
     }
 
-    protected function opaqueRowLabelClass(?string $color): string
+    protected function rowLabelClass(?string $color): string
     {
         return $color
-            ? ColorPalette::lightOpaque($color)
-            : 'bg-zinc-300 dark:bg-zinc-900';
+            ? ColorPalette::light($color)
+            : 'bg-zinc-50 dark:bg-zinc-800/20';
     }
 
-    protected function opaqueCellClass(string $setting, mixed $value, ?string $rowColor, mixed $zoneValue = null, bool $isModified = false): string
+    protected function cellClass(string $setting, mixed $value, ?string $rowColor, mixed $zoneValue = null, bool $isModified = false): string
     {
         $isDerivedHeartRateRange = $setting === 'heartRate'
             && is_string($value)
@@ -189,19 +182,20 @@ class ProgramDetailsExerciseViewBuilder
             && $zoneValue !== null
             && $zoneValue !== '';
 
-        $baseClass = $this->opaqueRowLabelClass($rowColor);
+        $baseClass = $isModified
+            ? ($rowColor ? ColorPalette::lightStrong($rowColor) : 'bg-zinc-200 dark:bg-zinc-600/50')
+            : $this->rowLabelClass($rowColor);
 
         if ($setting === 'heartRateZone' || $isDerivedHeartRateRange) {
             $zone = trim((string) ($setting === 'heartRateZone' ? $value : $zoneValue));
+            $zoneColors = new HeartRateZoneCellColors;
 
-            $baseClass = self::OPAQUE_ZONE_COLORS[$zone] ?? $baseClass;
+            return $isModified
+                ? ($zoneColors->cellOverrideColor('heartRateZone', $zone) ?? $baseClass)
+                : ($zoneColors->cellColor('heartRateZone', $zone) ?? $baseClass);
         }
 
-        if (! $isModified) {
-            return $baseClass;
-        }
-
-        return trim($baseClass.' font-semibold ring-2 ring-inset ring-amber-500 dark:ring-amber-400');
+        return $baseClass;
     }
 
     protected function normalizeScalar(mixed $value): string

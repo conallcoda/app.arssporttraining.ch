@@ -21,10 +21,13 @@ class PairedRepStrategy
         int $weeks,
         GridState $state,
         array $sessionCounts = [],
-        string $groupingMode = SessionGroupingMode::Week->value,
-        int $groupSize = 4,
+        ?string $groupingMode = null,
+        ?int $groupSize = null,
     ): array
     {
+        $groupingMode = SessionGroupingMode::tryFrom((string) $groupingMode)?->value ?? SessionGroupingMode::defaultMode();
+        $groupSize = max(1, (int) ($groupSize ?? SessionGroupingMode::defaultGroupSize()));
+
         $resolution = ($this->resolver ?? new AutomaticRepsResolver)->resolve(
             $this->setting,
             $weeks,

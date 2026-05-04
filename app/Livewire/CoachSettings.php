@@ -70,7 +70,7 @@ class CoachSettings extends Component
 
         foreach (static::SETTINGS as $settingClass) {
             $key = $settingClass::fieldsetKey();
-            $user->config->set("settings.{$key}", $this->data[$key] ?? []);
+            $user->config->set("settings.{$key}", $settingClass::from($this->data[$key] ?? [])->toArray());
         }
 
         $user->save();

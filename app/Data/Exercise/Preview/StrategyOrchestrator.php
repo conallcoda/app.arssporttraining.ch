@@ -47,8 +47,8 @@ class StrategyOrchestrator
         $preview = $this->data['preview'] ?? [];
         $strategy = new DeloadSetsStrategy(
             $setsSetting,
-            groupingMode: (string) ($preview['groupingMode'] ?? SessionGroupingMode::Week->value),
-            groupSize: max(1, (int) ($preview['groupSize'] ?? 4)),
+            groupingMode: (string) ($preview['groupingMode'] ?? SessionGroupingMode::defaultMode()),
+            groupSize: max(1, (int) ($preview['groupSize'] ?? SessionGroupingMode::defaultGroupSize())),
             sessionCounts: $this->resolveSessionCounts(),
         );
         $strategy->generate($this->weeks, $state);
@@ -105,8 +105,8 @@ class StrategyOrchestrator
                 $this->weeks,
                 $state,
                 $this->resolveSessionCounts(),
-                (string) ($this->data['preview']['groupingMode'] ?? SessionGroupingMode::Week->value),
-                max(1, (int) ($this->data['preview']['groupSize'] ?? 4)),
+                (string) ($this->data['preview']['groupingMode'] ?? SessionGroupingMode::defaultMode()),
+                max(1, (int) ($this->data['preview']['groupSize'] ?? SessionGroupingMode::defaultGroupSize())),
             );
             $this->registerEditability($strategy, $state);
 
@@ -148,8 +148,8 @@ class StrategyOrchestrator
             $this->weeks,
             $state,
             $this->resolveSessionCounts(),
-            (string) ($this->data['preview']['groupingMode'] ?? SessionGroupingMode::Week->value),
-            max(1, (int) ($this->data['preview']['groupSize'] ?? 4)),
+            (string) ($this->data['preview']['groupingMode'] ?? SessionGroupingMode::defaultMode()),
+            max(1, (int) ($this->data['preview']['groupSize'] ?? SessionGroupingMode::defaultGroupSize())),
         );
         $this->registerEditability($strategy, $state);
     }
@@ -247,7 +247,7 @@ class StrategyOrchestrator
             return $this->sessionCounts;
         }
 
-        $sessionsPerWeek = max(1, (int) ($this->data['preview']['sessionsPerWeek'] ?? 1));
+        $sessionsPerWeek = SessionGroupingMode::resolvePreviewSessionCount($this->data['preview'] ?? [], 1);
 
         return array_fill(0, $this->weeks, $sessionsPerWeek);
     }

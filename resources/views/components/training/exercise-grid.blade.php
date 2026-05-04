@@ -126,8 +126,160 @@
                     @foreach ($preparedGroups as $group)
                         @php
                             $groupSessionCount = $group->sessionCount ?? 0;
+                            $groupExpanded = in_array($group->index, $expandedWeeks ?? [], true) || (bool) ($group->expanded ?? false);
+                            $collapsedSession = ($group->sessions ?? [])[0] ?? null;
+                            $groupHasEditableSessions = collect($group->sessions ?? [])->contains(
+                                fn ($session): bool => ! (bool) ($session->locked ?? false)
+                            );
+                            $collapsedGroupLocked = ! $groupHasEditableSessions;
+                            $applyToAllByDefault = $groupSessionCount > 1;
                         @endphp
-                        @if (count($grid->rows) === 0)
+                        @if (! $groupExpanded && $collapsedSession)
+                            @php
+                                $week = $collapsedSession->weekIndex;
+                                $session = $collapsedSession->sessionIndex;
+                            @endphp
+                            @if (count($grid->rows) === 0)
+                                <tr wire:key="collapsed-weekonly-g{{ $group->index }}-w{{ $week }}-s{{ $session }}">
+                                    @if ($showGroupColumn)
+                                        <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle text-center">
+                                            <div class="whitespace-nowrap">{!! $group->label !!}</div>
+                                        </td>
+                                    @endif
+                                    <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 text-center text-xs font-medium text-zinc-400 dark:text-zinc-500">
+                                        <div>{{ $group->sessionRangeLabel }}</div>
+                                        @foreach ($group->collapsedMetaLines as $line)
+                                            <div>{{ $line }}</div>
+                                        @endforeach
+                                    </td>
+                                    @foreach ($grid->weekColumns as $weekCol)
+                                        @php
+                                            $weekCell = $weekCol->presentWeekCell($week, $session, editable: $editable, locked: $collapsedGroupLocked);
+                                        @endphp
+                                        @if ($weekCell['editable'])
+                                            <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $weekCell['color'] }}"
+                                                x-data="editable_cell"
+                                                data-msg-invalid-number="{{ __('Please enter a valid number') }}"
+                                                data-msg-invalid-value="{{ __('Please enter a valid value') }}"
+                                                data-edit-type="session"
+                                                data-field="{{ $weekCol->field }}"
+                                                data-week="{{ $week }}"
+                                                data-session="{{ $session }}"
+                                                data-apply-to-all="{{ $applyToAllByDefault ? 'true' : 'false' }}"
+                                                data-provenance-kind="{{ $weekCell['provenance']?->kind ?? '' }}"
+                                                data-provenance-layer="{{ $weekCell['provenance']?->layer ?? '' }}"
+                                                @if ($weekCol->inputMeta && $weekCol->inputMeta->mask)
+                                                    data-mask="{{ $weekCol->inputMeta->mask }}"
+                                                @endif
+                                                @click="startEditing()">
+                                                <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $weekCell['value'] }}</span>
+                                                <x-training.exercise-grid-input :meta="$weekCol->inputMeta" :value="$weekCell['value']" size="xs" type="text" />
+                                            </td>
+                                        @else
+                                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $weekCell['color'] }} {{ $collapsedGroupLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
+                                                {{ $weekCell['value'] }}
+                                            </td>
+                                        @endif
+                                    @endforeach
+                                </tr>
+                            @else
+                                @foreach ($grid->rows as $rowIdx => $row)
+                                    @php
+                                        $isFirstRow = $rowIdx === 0;
+                                    @endphp
+                                    <tr wire:key="collapsed-g{{ $group->index }}-w{{ $week }}-s{{ $session }}-r{{ $rowIdx }}">
+                                        @if ($showGroupColumn && $isFirstRow)
+                                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle text-center"
+                                                rowspan="{{ count($grid->rows) }}">
+                                                <div class="whitespace-nowrap">{!! $group->label !!}</div>
+                                            </td>
+                                        @endif
+                                        @if ($isFirstRow)
+                                            <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 text-center text-xs font-medium text-zinc-400 dark:text-zinc-500"
+                                                rowspan="{{ count($grid->rows) }}">
+                                                <div>{{ $group->sessionRangeLabel }}</div>
+                                                @foreach ($group->collapsedMetaLines as $line)
+                                                    <div>{{ $line }}</div>
+                                                @endforeach
+                                            </td>
+                                        @endif
+                                        <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-medium whitespace-nowrap {{ $row->color }}">
+                                            {{ $row->label }}
+                                        </td>
+                                        @for ($set = 0; $set < $grid->setCount; $set++)
+                                            @php
+                                                $cell = $row->presentCell(
+                                                    $week,
+                                                    $set,
+                                                    $session,
+                                                    editable: $editable,
+                                                    locked: $collapsedGroupLocked,
+                                                    visible: true,
+                                                );
+                                            @endphp
+                                            @if ($cell['editable'])
+                                                <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $cell['color'] }}"
+                                                    x-data="editable_cell"
+                                                    data-msg-invalid-number="{{ __('Please enter a valid number') }}"
+                                                    data-msg-invalid-value="{{ __('Please enter a valid value') }}"
+                                                    data-edit-type="cell"
+                                                    data-field="{{ $row->field }}"
+                                                    data-week="{{ $week }}"
+                                                    data-set="{{ $set }}"
+                                                    data-session="{{ $session }}"
+                                                    data-apply-to-all="{{ $applyToAllByDefault ? 'true' : 'false' }}"
+                                                    data-provenance-kind="{{ $cell['provenance']?->kind ?? '' }}"
+                                                    data-provenance-layer="{{ $cell['provenance']?->layer ?? '' }}"
+                                                    @if ($row->inputMeta && $row->inputMeta->mask)
+                                                        data-mask="{{ $row->inputMeta->mask }}"
+                                                    @endif
+                                                    @click="startEditing()">
+                                                    <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $cell['value'] }}</span>
+                                                    <x-training.exercise-grid-input :meta="$row->inputMeta" :value="$cell['value']" size="sm" />
+                                                </td>
+                                            @else
+                                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $cell['color'] }} {{ $collapsedGroupLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
+                                                    {{ $cell['value'] }}
+                                                </td>
+                                            @endif
+                                        @endfor
+                                        @if ($isFirstRow)
+                                            @foreach ($grid->weekColumns as $weekCol)
+                                                @php
+                                                    $weekCell = $weekCol->presentWeekCell($week, $session, editable: $editable, locked: $collapsedGroupLocked);
+                                                @endphp
+                                                @if ($weekCell['editable'])
+                                                    <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $weekCell['color'] }}"
+                                                        rowspan="{{ count($grid->rows) }}"
+                                                        x-data="editable_cell"
+                                                        data-msg-invalid-number="{{ __('Please enter a valid number') }}"
+                                                        data-msg-invalid-value="{{ __('Please enter a valid value') }}"
+                                                        data-edit-type="session"
+                                                        data-field="{{ $weekCol->field }}"
+                                                        data-week="{{ $week }}"
+                                                        data-session="{{ $session }}"
+                                                        data-apply-to-all="{{ $applyToAllByDefault ? 'true' : 'false' }}"
+                                                        data-provenance-kind="{{ $weekCell['provenance']?->kind ?? '' }}"
+                                                        data-provenance-layer="{{ $weekCell['provenance']?->layer ?? '' }}"
+                                                        @if ($weekCol->inputMeta && $weekCol->inputMeta->mask)
+                                                            data-mask="{{ $weekCol->inputMeta->mask }}"
+                                                        @endif
+                                                        @click="startEditing()">
+                                                        <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $weekCell['value'] }}</span>
+                                                        <x-training.exercise-grid-input :meta="$weekCol->inputMeta" :value="$weekCell['value']" size="xs" type="text" />
+                                                    </td>
+                                                @else
+                                                    <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $weekCell['color'] }} {{ $collapsedGroupLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}"
+                                                        rowspan="{{ count($grid->rows) }}">
+                                                        {{ $weekCell['value'] }}
+                                                    </td>
+                                                @endif
+                                            @endforeach
+                                        @endif
+                                    </tr>
+                                @endforeach
+                            @endif
+                        @elseif (count($grid->rows) === 0)
                             @foreach (($group->sessions ?? []) as $sessionEntry)
                                 @php
                                     $week = $sessionEntry->weekIndex;
@@ -157,6 +309,7 @@
                                                 data-field="{{ $weekCol->field }}"
                                                 data-week="{{ $week }}"
                                                 data-session="{{ $session }}"
+                                                data-apply-to-all="{{ $applyToAllByDefault ? 'true' : 'false' }}"
                                                 data-provenance-kind="{{ $weekCell['provenance']?->kind ?? '' }}"
                                                 data-provenance-layer="{{ $weekCell['provenance']?->layer ?? '' }}"
                                                 @if ($weekCol->inputMeta && $weekCol->inputMeta->mask)
@@ -226,6 +379,7 @@
                                                     data-week="{{ $week }}"
                                                     data-set="{{ $set }}"
                                                     data-session="{{ $session }}"
+                                                    data-apply-to-all="{{ $applyToAllByDefault ? 'true' : 'false' }}"
                                                     data-provenance-kind="{{ $cell['provenance']?->kind ?? '' }}"
                                                     data-provenance-layer="{{ $cell['provenance']?->layer ?? '' }}"
                                                     @if ($row->inputMeta && $row->inputMeta->mask)
@@ -256,6 +410,7 @@
                                                         data-field="{{ $weekCol->field }}"
                                                         data-week="{{ $week }}"
                                                         data-session="{{ $session }}"
+                                                        data-apply-to-all="{{ $applyToAllByDefault ? 'true' : 'false' }}"
                                                         data-provenance-kind="{{ $weekCell['provenance']?->kind ?? '' }}"
                                                         data-provenance-layer="{{ $weekCell['provenance']?->layer ?? '' }}"
                                                         @if ($weekCol->inputMeta && $weekCol->inputMeta->mask)

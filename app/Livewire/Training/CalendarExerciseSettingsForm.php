@@ -114,9 +114,28 @@ class CalendarExerciseSettingsForm extends FormModal
     {
         $expanded = [];
 
-        foreach (range(0, $this->previewGrid->weekCount - 1) as $week) {
-            if ($this->weekHasSessionDivergence($this->previewGrid, $week)) {
-                $expanded[] = $week;
+        $preview = $this->withResolvedPreviewGrouping($this->data['config'] ?? [])['preview'] ?? [];
+        $groupingMode = (string) ($preview['groupingMode'] ?? SessionGroupingMode::defaultMode());
+        $groupSize = max(1, (int) ($preview['groupSize'] ?? SessionGroupingMode::defaultGroupSize()));
+
+        if ($groupingMode === SessionGroupingMode::Groups->value) {
+            $groups = SessionGroupBuilder::build(
+                weekCount: $this->previewGrid->weekCount,
+                sessionCounts: $this->previewGrid->weekSessionCounts,
+                groupingMode: $groupingMode,
+                groupSize: $groupSize,
+            )['groups'];
+
+            foreach ($groups as $group) {
+                if ($this->groupHasSessionDivergence($this->previewGrid, $group)) {
+                    $expanded[] = $group->index;
+                }
+            }
+        } else {
+            foreach (range(0, $this->previewGrid->weekCount - 1) as $week) {
+                if ($this->weekHasSessionDivergence($this->previewGrid, $week)) {
+                    $expanded[] = $week;
+                }
             }
         }
 
@@ -247,8 +266,8 @@ class CalendarExerciseSettingsForm extends FormModal
         $strategyMap = SessionGroupBuilder::buildStrategyMap(
             $this->gridWeeks,
             $this->resolvedWeekSessionCounts(),
-            (string) ($preview['groupingMode'] ?? SessionGroupingMode::Week->value),
-            max(1, (int) ($preview['groupSize'] ?? 4)),
+            (string) ($preview['groupingMode'] ?? SessionGroupingMode::defaultMode()),
+            max(1, (int) ($preview['groupSize'] ?? SessionGroupingMode::defaultGroupSize())),
         );
         $groupIndex = $strategyMap['groupIndexByWeekSession'][$weekIndex][$sessionIndex] ?? null;
 
@@ -361,6 +380,58 @@ class CalendarExerciseSettingsForm extends FormModal
         return false;
     }
 
+    protected function groupHasSessionDivergence(PreviewGrid $grid, $group): bool
+    {
+        $sessions = $group->sessions ?? [];
+
+        if (count($sessions) <= 1) {
+            return false;
+        }
+
+        if (collect($grid->rows)->contains(fn ($row): bool => (bool) $row->lastSessionOnly)) {
+            return true;
+        }
+
+        $baseline = $sessions[0] ?? null;
+        if ($baseline === null) {
+            return false;
+        }
+
+        foreach ($grid->rows as $row) {
+            foreach (range(0, $grid->setCount - 1) as $set) {
+                $baselineValue = $row->getCellValue($baseline->weekIndex, $set, $baseline->sessionIndex);
+                $baselineOverride = $row->isCellOverriddenAt($baseline->weekIndex, $set, $baseline->sessionIndex);
+
+                foreach (array_slice($sessions, 1) as $session) {
+                    if ($row->getCellValue($session->weekIndex, $set, $session->sessionIndex) !== $baselineValue) {
+                        return true;
+                    }
+
+                    if ($row->isCellOverriddenAt($session->weekIndex, $set, $session->sessionIndex) !== $baselineOverride) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        foreach ($grid->weekColumns as $column) {
+            $baselineValue = $column->getCellValue($baseline->weekIndex, 0, $baseline->sessionIndex);
+            $baselineOverride = $column->isCellOverriddenAt($baseline->weekIndex, 0, $baseline->sessionIndex);
+
+            foreach (array_slice($sessions, 1) as $session) {
+                if ($column->getCellValue($session->weekIndex, 0, $session->sessionIndex) !== $baselineValue) {
+                    return true;
+                }
+
+                if ($column->isCellOverriddenAt($session->weekIndex, 0, $session->sessionIndex) !== $baselineOverride) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     /** @return array<int, int> */
     protected function resolvedWeekSessionCounts(): array
     {
@@ -377,8 +448,8 @@ class CalendarExerciseSettingsForm extends FormModal
     {
         $preview = $config['preview'] ?? [];
         $grouping = $this->resolveDefaultPreviewGrouping();
-        $preview['groupingMode'] = $grouping['mode'];
-        $preview['groupSize'] = $grouping['groupSize'];
+        $preview['groupingMode'] ??= $grouping['mode'];
+        $preview['groupSize'] ??= $grouping['groupSize'];
 
         $config['preview'] = $preview;
 
@@ -393,8 +464,8 @@ class CalendarExerciseSettingsForm extends FormModal
         $user = Auth::user();
 
         return [
-            'mode' => (string) ($user?->config->get('settings.session_grouping.mode', SessionGroupingMode::Week->value) ?? SessionGroupingMode::Week->value),
-            'groupSize' => max(1, (int) ($user?->config->get('settings.session_grouping.groupSize', 4) ?? 4)),
+            'mode' => (string) ($user?->config->get('settings.session_grouping.mode', SessionGroupingMode::defaultMode()) ?? SessionGroupingMode::defaultMode()),
+            'groupSize' => max(1, (int) ($user?->config->get('settings.session_grouping.groupSize', SessionGroupingMode::defaultGroupSize()) ?? SessionGroupingMode::defaultGroupSize())),
         ];
     }
 }

@@ -25,6 +25,7 @@ export default defineConfig({
         cors: true,
         fs: {
             allow: [
+                __dirname,
                 '/Users/conalloreilly/Development/coda-packages',
             ],
         },

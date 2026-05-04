@@ -3,6 +3,7 @@
 namespace App\Data\Exercise\Settings;
 
 use App\Form\Fields\Sets;
+use App\Data\Exercise\Preview\SessionGroupingMode;
 use Coda\FormKit\Fields;
 use Illuminate\Support\Facades\Auth;
 
@@ -17,8 +18,10 @@ class SetsSetting extends AbstractSetting
 
     public static function fields(array $data = []): array
     {
-        $groupingMode = (string) (Auth::user()?->config->get('settings.session_grouping.mode', 'week') ?? 'week');
-        $cycleLabel = $groupingMode === 'groups' ? 'Groups' : 'Weeks';
+        $groupingMode = SessionGroupingMode::normalizeMode(
+            (string) (Auth::user()?->config->get('settings.session_grouping.mode', SessionGroupingMode::defaultMode()) ?? SessionGroupingMode::defaultMode())
+        );
+        $cycleLabel = SessionGroupingMode::cycleLabel($groupingMode);
 
         return [
             Fields\RadioSegmented::make('deload')

@@ -16,9 +16,13 @@ class SessionGroupBuilder
     public static function buildStrategyMap(
         int $weekCount,
         array $sessionCounts,
-        string $groupingMode = SessionGroupingMode::Week->value,
+        ?string $groupingMode = null,
         ?int $groupSize = null,
     ): array {
+        $groupingMode = SessionGroupingMode::normalizeMode($groupingMode);
+        $effectiveGroupSize = SessionGroupingMode::normalizeGroupSize($groupSize, $groupingMode);
+        $usesFixedGroups = in_array($groupingMode, [SessionGroupingMode::Groups->value, SessionGroupingMode::None->value], true);
+
         $orderedSessions = [];
         $groupIndexByWeekSession = [];
         $sessionNumberByWeekSession = [];
@@ -32,8 +36,8 @@ class SessionGroupBuilder
                     'week' => $week,
                     'session' => $session,
                     'sessionNumber' => $sessionNumber,
-                    'group' => $groupingMode === SessionGroupingMode::Groups->value
-                        ? intdiv($sessionNumber - 1, max(1, (int) ($groupSize ?? 4)))
+                    'group' => $usesFixedGroups
+                        ? intdiv($sessionNumber - 1, $effectiveGroupSize)
                         : $week,
                 ];
 
@@ -65,20 +69,27 @@ class SessionGroupBuilder
     public static function build(
         int $weekCount,
         array $sessionCounts,
-        string $groupingMode = SessionGroupingMode::Week->value,
+        ?string $groupingMode = null,
         ?int $groupSize = null,
         array $labels = [],
         array $expandedIndexes = [],
         array $lockedSessionsByWeek = [],
         bool $sessionLabels = false,
     ): array {
+        $groupingMode = SessionGroupingMode::normalizeMode($groupingMode);
+        $effectiveGroupSize = SessionGroupingMode::normalizeGroupSize($groupSize, $groupingMode);
+
         $expandedLookup = collect($expandedIndexes)
             ->mapWithKeys(fn (mixed $index) => [(int) $index => true])
             ->all();
 
-        if ($groupingMode === SessionGroupingMode::Groups->value) {
+        if (in_array($groupingMode, [SessionGroupingMode::Groups->value, SessionGroupingMode::None->value], true)) {
+            $expandedLookup = collect($expandedIndexes)
+                ->mapWithKeys(fn (mixed $index) => [(int) $index => true])
+                ->all();
+
             return [
-                'groups' => self::buildFixedGroups($weekCount, $sessionCounts, max(1, (int) ($groupSize ?? 4)), $lockedSessionsByWeek, $sessionLabels),
+                'groups' => self::buildFixedGroups($weekCount, $sessionCounts, $effectiveGroupSize, $lockedSessionsByWeek, $sessionLabels, $expandedLookup),
                 'columnLabel' => 'Group',
             ];
         }
@@ -135,6 +146,7 @@ class SessionGroupBuilder
     /**
      * @param  array<int, int>  $sessionCounts
      * @param  array<int, array<int, bool>>  $lockedSessionsByWeek
+     * @param  array<int, bool>  $expandedLookup
      * @return PreviewGridGroup[]
      */
     private static function buildFixedGroups(
@@ -143,6 +155,7 @@ class SessionGroupBuilder
         int $groupSize,
         array $lockedSessionsByWeek,
         bool $sessionLabels,
+        array $expandedLookup = [],
     ): array {
         $flattened = collect(self::buildStrategyMap(
             weekCount: $weekCount,
@@ -165,7 +178,7 @@ class SessionGroupBuilder
                 index: (int) $index,
                 label: 'G'.((int) $index + 1),
                 sessions: $chunk->values()->all(),
-                expanded: true,
+                expanded: (bool) ($expandedLookup[(int) $index] ?? false),
                 sessionLabels: $sessionLabels,
             ))
             ->all();
@@ -196,10 +209,6 @@ class SessionGroupBuilder
                 static fn (int $number): string => __('Session').' '.$number,
                 $sessionNumbers,
             );
-        } elseif (count($sessions) > 1) {
-            $collapsedMetaLines[] = '('.count($sessions).' '.__('sessions').')';
-        } else {
-            $collapsedMetaLines[] = '(1 '.__('session').')';
         }
 
         return new PreviewGridGroup(

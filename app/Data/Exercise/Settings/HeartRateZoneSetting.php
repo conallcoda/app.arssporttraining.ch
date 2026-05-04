@@ -21,9 +21,10 @@ class HeartRateZoneSetting extends AbstractSetting
     public static function inputMeta(array $config = []): CellInputMeta
     {
         return new CellInputMeta(
-            inputType: 'text',
-            maxlength: 3,
-            pattern: '[0-4](-[0-4])?',
+            inputType: 'number',
+            min: 0,
+            max: 4,
+            inputStep: '1',
         );
     }
 

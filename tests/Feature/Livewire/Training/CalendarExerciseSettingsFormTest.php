@@ -139,6 +139,49 @@ it('uses coach grouping defaults for scheduled previews when grouping is not per
             ->toBe([[1, 0], [2, 0]]);
 });
 
+it('defaults scheduled previews to groups of two when coach grouping is unset', function () {
+    $coach = User::factory()->coach()->create();
+
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+            'preview' => ['weeks' => 3, 'sessionsPerWeek' => 2],
+            'overrides' => ['sessions' => [], 'cells' => []],
+        ],
+    ]);
+
+    $program = ExerciseProgram::factory()->create();
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::actingAs($coach)->test(CalendarExerciseSettingsForm::class);
+
+    $component->call('openForExercise', [
+        'exerciseId' => $exercise->id,
+        'exerciseProgramId' => $program->id,
+        'weeks' => 3,
+        'sessionsPerWeek' => 2,
+        'weekLabels' => [],
+        'weekSessions' => [2, 1, 2],
+        'scheduled' => true,
+        'config' => $exercise->config->toArray(),
+    ]);
+
+    $grid = $component->instance()->previewGrid;
+
+    expect($grid->groupColumnLabel)->toBe('Group')
+        ->and($grid->groups)->toHaveCount(3)
+        ->and(array_map(fn ($session) => [$session->weekIndex, $session->sessionIndex], $grid->groups[1]->sessions))
+            ->toBe([[1, 0], [2, 0]]);
+});
+
 it('uses grouped deload defaults when saving scheduled set overrides', function () {
     $coach = User::factory()->coach()->create();
     $coach->config->set('settings.session_grouping', [
@@ -182,4 +225,48 @@ it('uses grouped deload defaults when saving scheduled set overrides', function 
 
     expect($component->get('data')['config']['overrides']['sessions'] ?? [])
         ->toBe([]);
+});
+
+it('keeps grouped scheduled previews collapsed when sessions are identical', function () {
+    $coach = User::factory()->coach()->create();
+    $coach->config->set('settings.session_grouping', [
+        'mode' => 'groups',
+        'groupSize' => 2,
+    ]);
+    $coach->save();
+
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+            'preview' => ['weeks' => 3, 'sessionsPerWeek' => 2],
+            'overrides' => ['sessions' => [], 'cells' => []],
+        ],
+    ]);
+
+    $program = ExerciseProgram::factory()->create();
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::actingAs($coach)->test(CalendarExerciseSettingsForm::class);
+
+    $component->call('openForExercise', [
+        'exerciseId' => $exercise->id,
+        'exerciseProgramId' => $program->id,
+        'weeks' => 3,
+        'sessionsPerWeek' => 2,
+        'weekLabels' => [],
+        'weekSessions' => [2, 2, 2],
+        'scheduled' => true,
+        'config' => $exercise->config->toArray(),
+    ]);
+
+    expect($component->instance()->effectiveExpandedWeeks)->toBe([])
+        ->and($component->instance()->previewGrid->groups[0]->expanded)->toBeFalse();
 });

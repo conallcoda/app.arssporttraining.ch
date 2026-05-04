@@ -139,5 +139,7 @@ it('applies coach session-grouping defaults to new exercise previews', function 
 
     expect($component->get('data')['config']['preview']['groupingMode'] ?? null)->toBeNull()
         ->and($component->get('data')['config']['preview']['groupSize'] ?? null)->toBeNull()
-        ->and($component->instance()->previewGrid->groupColumnLabel)->toBe('Group');
+        ->and($component->instance()->previewGrid->groupColumnLabel)->toBe('Group')
+        ->and($component->instance()->previewGrid->sessionsPerWeek)->toBe(3)
+        ->and($component->instance()->previewGrid->weekSessionCounts)->toBe([3]);
 });

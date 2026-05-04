@@ -3,6 +3,7 @@
 namespace App\Data\Training\Config;
 
 use App\Data\Exercise\ExerciseConfig;
+use App\Data\Exercise\Preview\SessionGroupingConfig;
 use App\Data\Training\Config\Target\TargetConfig;
 use App\Support\Training\GridOverrideNormalizer;
 use Coda\Cms\Data\AbstractConfig;
@@ -15,6 +16,7 @@ class ExercisePlanConfig extends AbstractConfig
     public function __construct(
         public array|Optional $schedule,
         public TargetConfig|Optional $target,
+        public SessionGroupingConfig|Optional $sessionGrouping,
         /** @var array<int, ExerciseOverrides> */
         public array $exercises = [],
         /** @var array<int, array<int, ExerciseOverrides>> */
@@ -158,15 +160,49 @@ class ExercisePlanConfig extends AbstractConfig
     public function resolveExercise(ExerciseConfig $baseConfig, int $programExerciseId, ?int $userId = null): ResolvedExerciseOverrides
     {
         [$defaultOverrides, $userOverrides] = $this->effectiveExerciseOverrides($programExerciseId, $userId);
+        $effectiveConfig = $this->applySessionGroupingToPreview(
+            EffectiveExerciseConfig::resolve($baseConfig, $defaultOverrides, $userOverrides)
+        );
 
         return new ResolvedExerciseOverrides(
             defaultOverrides: $defaultOverrides,
             userOverrides: $userOverrides,
-            effectiveConfig: EffectiveExerciseConfig::resolve($baseConfig, $defaultOverrides, $userOverrides),
+            effectiveConfig: $effectiveConfig,
             overrideLayer: EffectiveExerciseConfig::resolveForLayer($baseConfig, $defaultOverrides, $userOverrides),
             effectiveStartsAtDate: $userOverrides?->startsAtDate ?? $defaultOverrides->startsAtDate,
             disabled: EffectiveExerciseConfig::resolveDisabled($defaultOverrides, $userOverrides),
         );
+    }
+
+    public function resolvedSessionGrouping(): ?SessionGroupingConfig
+    {
+        if ($this->sessionGrouping instanceof Optional) {
+            return null;
+        }
+
+        if ($this->sessionGrouping instanceof SessionGroupingConfig) {
+            return $this->sessionGrouping;
+        }
+
+        $this->sessionGrouping = SessionGroupingConfig::from($this->sessionGrouping);
+
+        return $this->sessionGrouping;
+    }
+
+    public function applySessionGroupingToPreview(array $config): array
+    {
+        $sessionGrouping = $this->resolvedSessionGrouping();
+
+        if ($sessionGrouping === null) {
+            return $config;
+        }
+
+        $preview = $config['preview'] ?? [];
+        $preview['groupingMode'] ??= $sessionGrouping->mode;
+        $preview['groupSize'] ??= $sessionGrouping->groupSize;
+        $config['preview'] = $preview;
+
+        return $config;
     }
 
     public function setUserExerciseOverrides(int $userId, int $programExerciseId, ExerciseOverrides $overrides): void

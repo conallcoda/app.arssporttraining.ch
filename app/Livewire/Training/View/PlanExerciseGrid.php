@@ -8,6 +8,7 @@ use App\Data\Exercise\Preview\ExercisePreviewBuilder;
 use App\Data\Exercise\Preview\GridOverrides;
 use App\Data\Exercise\Preview\OverrideManager;
 use App\Data\Exercise\Preview\PreviewGrid;
+use App\Data\Exercise\Preview\SessionGroupingConfig;
 use App\Data\Exercise\Preview\SessionGroupBuilder;
 use App\Data\Exercise\Preview\SessionGroupingMode;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
@@ -305,7 +306,7 @@ class PlanExerciseGrid extends Component
             $measuredData,
             $this->weeks,
             $overrides,
-            $this->sessionsPerWeek,
+            $this->effectivePreviewSessionsPerWeek($effectiveConfig),
             $highlightOverrides,
             $this->planMaxHR,
             $this->planIatPercent,
@@ -334,8 +335,8 @@ class PlanExerciseGrid extends Component
         $grouping = SessionGroupBuilder::build(
             weekCount: $grid->weekCount,
             sessionCounts: $grid->weekSessionCounts,
-            groupingMode: (string) ($effectiveConfig['preview']['groupingMode'] ?? SessionGroupingMode::Week->value),
-            groupSize: (int) ($effectiveConfig['preview']['groupSize'] ?? 4),
+            groupingMode: (string) ($effectiveConfig['preview']['groupingMode'] ?? SessionGroupingMode::defaultMode()),
+            groupSize: (int) ($effectiveConfig['preview']['groupSize'] ?? SessionGroupingMode::defaultGroupSize()),
             labels: $this->weekLabels,
             expandedIndexes: $expandedWeekLookup,
             lockedSessionsByWeek: $this->lockedSessionsByWeek,
@@ -344,7 +345,11 @@ class PlanExerciseGrid extends Component
 
         $grid->groups = $grouping['groups'];
         $grid->groupColumnLabel = $grouping['columnLabel'];
-        $grid->showGroupColumn = count($grouping['groups']) > 1;
+        $grid->showGroupColumn = SessionGroupingMode::shouldShowGroupColumn(
+            $effectiveConfig['preview']['groupingMode'] ?? null,
+            $effectiveConfig['preview']['groupSize'] ?? null,
+            count($grouping['groups']),
+        );
         $grid->weeks = $grouping['groups'];
         $grid->showWeekColumn = $grid->showGroupColumn;
         $grid->showSessionColumn = $showSessionColumn;
@@ -388,9 +393,30 @@ class PlanExerciseGrid extends Component
             ->map(fn (mixed $week): int => (int) $week)
             ->all();
 
-        foreach (range(0, $this->previewGrid->weekCount - 1) as $week) {
-            if ($this->weekContainsHistoricalSession($week) || $this->weekHasSessionDivergence($this->previewGrid, $week)) {
-                $expanded[] = $week;
+        $preview = $this->getEffectiveConfig()['preview'] ?? [];
+        $groupingMode = (string) ($preview['groupingMode'] ?? SessionGroupingMode::defaultMode());
+        $groupSize = max(1, (int) ($preview['groupSize'] ?? SessionGroupingMode::defaultGroupSize()));
+
+        if ($groupingMode === SessionGroupingMode::Groups->value) {
+            $groups = SessionGroupBuilder::build(
+                weekCount: $this->previewGrid->weekCount,
+                sessionCounts: $this->previewGrid->weekSessionCounts,
+                groupingMode: $groupingMode,
+                groupSize: $groupSize,
+                lockedSessionsByWeek: $this->lockedSessionsByWeek,
+                sessionLabels: $this->sessionLabels,
+            )['groups'];
+
+            foreach ($groups as $group) {
+                if ($this->groupHasSessionDivergence($this->previewGrid, $group)) {
+                    $expanded[] = $group->index;
+                }
+            }
+        } else {
+            foreach (range(0, $this->previewGrid->weekCount - 1) as $week) {
+                if ($this->weekHasSessionDivergence($this->previewGrid, $week)) {
+                    $expanded[] = $week;
+                }
             }
         }
 
@@ -401,8 +427,8 @@ class PlanExerciseGrid extends Component
     {
         $preview = $config['preview'] ?? [];
         $grouping = $this->resolveDefaultPreviewGrouping();
-        $preview['groupingMode'] = $grouping['mode'];
-        $preview['groupSize'] = $grouping['groupSize'];
+        $preview['groupingMode'] ??= $grouping['mode'];
+        $preview['groupSize'] ??= $grouping['groupSize'];
 
         $config['preview'] = $preview;
 
@@ -414,12 +440,18 @@ class PlanExerciseGrid extends Component
      */
     protected function resolveDefaultPreviewGrouping(): array
     {
+        $stored = $this->getPlanConfig()->resolvedSessionGrouping();
+
+        if ($stored instanceof SessionGroupingConfig) {
+            return $stored->toArray();
+        }
+
         $user = Auth::user();
 
-        return [
-            'mode' => (string) ($user?->config->get('settings.session_grouping.mode', SessionGroupingMode::Week->value) ?? SessionGroupingMode::Week->value),
-            'groupSize' => max(1, (int) ($user?->config->get('settings.session_grouping.groupSize', 4) ?? 4)),
-        ];
+        return SessionGroupingConfig::from([
+            'mode' => (string) ($user?->config->get('settings.session_grouping.mode', SessionGroupingMode::defaultMode()) ?? SessionGroupingMode::defaultMode()),
+            'groupSize' => (int) ($user?->config->get('settings.session_grouping.groupSize', SessionGroupingMode::defaultGroupSize()) ?? SessionGroupingMode::defaultGroupSize()),
+        ])->toArray();
     }
 
     /** @return array{sessions: array, cells: array} */
@@ -600,7 +632,7 @@ class PlanExerciseGrid extends Component
             $measuredData,
             $this->weeks,
             GridOverrides::fromConfig($baseOverrides),
-            $this->sessionsPerWeek,
+            $this->effectivePreviewSessionsPerWeek($effectiveConfig),
             null,
             $this->planMaxHR,
             $this->planIatPercent,
@@ -625,8 +657,8 @@ class PlanExerciseGrid extends Component
         $strategyMap = SessionGroupBuilder::buildStrategyMap(
             $this->weeks,
             $this->resolvedWeekSessionCounts(),
-            (string) ($preview['groupingMode'] ?? SessionGroupingMode::Week->value),
-            max(1, (int) ($preview['groupSize'] ?? 4)),
+            (string) ($preview['groupingMode'] ?? SessionGroupingMode::defaultMode()),
+            max(1, (int) ($preview['groupSize'] ?? SessionGroupingMode::defaultGroupSize())),
         );
         $groupIndex = $strategyMap['groupIndexByWeekSession'][$weekIndex][$sessionIndex] ?? null;
 
@@ -832,7 +864,12 @@ class PlanExerciseGrid extends Component
             return max($explicitSessions, $datedSessions, $lockedSessions, 1);
         }
 
-        return max($this->sessionsPerWeek, 1);
+        return $this->effectivePreviewSessionsPerWeek($this->getEffectiveConfig());
+    }
+
+    protected function effectivePreviewSessionsPerWeek(array $config): int
+    {
+        return SessionGroupingMode::resolvePreviewSessionCount($config['preview'] ?? [], $this->sessionsPerWeek);
     }
 
     protected function isEntireWeekLocked(int $weekIndex): bool
@@ -931,10 +968,56 @@ class PlanExerciseGrid extends Component
         return false;
     }
 
-    protected function weekContainsHistoricalSession(int $weekIndex): bool
+    protected function groupHasSessionDivergence(PreviewGrid $grid, $group): bool
     {
-        return collect($this->lockedSessionsByWeek[$weekIndex] ?? [])
-            ->contains(static fn (mixed $locked): bool => (bool) $locked);
+        $sessions = $group->sessions ?? [];
+
+        if (count($sessions) <= 1) {
+            return false;
+        }
+
+        if (collect($grid->rows)->contains(fn ($row): bool => (bool) $row->lastSessionOnly)) {
+            return true;
+        }
+
+        $baseline = $sessions[0] ?? null;
+        if ($baseline === null) {
+            return false;
+        }
+
+        foreach ($grid->rows as $row) {
+            foreach (range(0, $grid->setCount - 1) as $set) {
+                $baselineValue = $row->getCellValue($baseline->weekIndex, $set, $baseline->sessionIndex);
+                $baselineOverride = $row->isCellOverriddenAt($baseline->weekIndex, $set, $baseline->sessionIndex);
+
+                foreach (array_slice($sessions, 1) as $session) {
+                    if ($row->getCellValue($session->weekIndex, $set, $session->sessionIndex) !== $baselineValue) {
+                        return true;
+                    }
+
+                    if ($row->isCellOverriddenAt($session->weekIndex, $set, $session->sessionIndex) !== $baselineOverride) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        foreach ($grid->weekColumns as $column) {
+            $baselineValue = $column->getCellValue($baseline->weekIndex, 0, $baseline->sessionIndex);
+            $baselineOverride = $column->isCellOverriddenAt($baseline->weekIndex, 0, $baseline->sessionIndex);
+
+            foreach (array_slice($sessions, 1) as $session) {
+                if ($column->getCellValue($session->weekIndex, 0, $session->sessionIndex) !== $baselineValue) {
+                    return true;
+                }
+
+                if ($column->isCellOverriddenAt($session->weekIndex, 0, $session->sessionIndex) !== $baselineOverride) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     protected function putCellOverride(array $gridOverrides, int $week, int $session, int $set, string $field, mixed $value): array
