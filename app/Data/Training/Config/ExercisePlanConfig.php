@@ -200,6 +200,7 @@ class ExercisePlanConfig extends AbstractConfig
         $preview = $config['preview'] ?? [];
         $preview['groupingMode'] ??= $sessionGrouping->mode;
         $preview['groupSize'] ??= $sessionGrouping->groupSize;
+        $preview['copyValuesAutomatically'] ??= $sessionGrouping->copyValuesAutomatically;
         $config['preview'] = $preview;
 
         return $config;

@@ -15,6 +15,7 @@ use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Training\Config\ResolvedExerciseOverrides;
 use App\Data\Training\Config\EffectiveExerciseConfig;
 use App\Data\Training\Config\ExerciseOverrides;
+use App\Livewire\Concerns\InteractsWithDisplayGridCopying;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExercisePlan;
@@ -29,6 +30,7 @@ use Livewire\Component;
 class PlanExerciseGrid extends Component
 {
     use InteractsWithParentView;
+    use InteractsWithDisplayGridCopying;
 
     public int $exercisePlanId;
 
@@ -253,6 +255,33 @@ class PlanExerciseGrid extends Component
         return ! $this->hasMeasuredData;
     }
 
+    /** @return array{label: string, color: string|null, overridden: bool} */
+    #[Computed]
+    public function groupingBadge(): array
+    {
+        $override = $this->getCurrentOverrides()->sessionGrouping;
+
+        if ($override === null) {
+            return [
+                'label' => 'Default Grouping',
+                'color' => null,
+                'overridden' => false,
+            ];
+        }
+
+        $grouping = $override instanceof SessionGroupingConfig ? $override : SessionGroupingConfig::from($override);
+
+        return [
+            'label' => match ($grouping->mode) {
+                SessionGroupingMode::None->value => 'Ungrouped',
+                SessionGroupingMode::Week->value => 'Grouped By Weeks ('.$grouping->groupSize.')',
+                default => 'Grouped By Sessions ('.$grouping->groupSize.')',
+            },
+            'color' => 'green',
+            'overridden' => true,
+        ];
+    }
+
     /** @return list<array{label: string, modalField: string, overridden: bool}> */
     #[Computed]
     public function settingBadges(): array
@@ -330,7 +359,6 @@ class PlanExerciseGrid extends Component
         $expandedWeekLookup = collect($this->effectiveExpandedWeeks)
             ->map(fn (mixed $week): int => (int) $week)
             ->all();
-        $showSessionColumn = ! empty($expandedWeekLookup);
         $effectiveConfig = $this->getEffectiveConfig();
         $grouping = SessionGroupBuilder::build(
             weekCount: $grid->weekCount,
@@ -352,8 +380,9 @@ class PlanExerciseGrid extends Component
         );
         $grid->weeks = $grouping['groups'];
         $grid->showWeekColumn = $grid->showGroupColumn;
-        $grid->showSessionColumn = $showSessionColumn;
-        $grid->showCopyMenu = false;
+        $grid->showSessionColumn = true;
+        $grid->showCopyMenu = true;
+        $grid->autoCopyValuesAutomatically = SessionGroupingMode::shouldAutoCopyValues($effectiveConfig['preview'] ?? []);
 
         return $grid;
     }
@@ -389,38 +418,28 @@ class PlanExerciseGrid extends Component
     #[Computed]
     public function effectiveExpandedWeeks(): array
     {
-        $expanded = collect($this->expandedWeeks)
-            ->map(fn (mixed $week): int => (int) $week)
-            ->all();
-
         $preview = $this->getEffectiveConfig()['preview'] ?? [];
         $groupingMode = (string) ($preview['groupingMode'] ?? SessionGroupingMode::defaultMode());
-        $groupSize = max(1, (int) ($preview['groupSize'] ?? SessionGroupingMode::defaultGroupSize()));
+        $groupSize = SessionGroupingMode::normalizeGroupSize(
+            (int) ($preview['groupSize'] ?? SessionGroupingMode::defaultGroupSize()),
+            $groupingMode,
+        );
 
         if ($groupingMode === SessionGroupingMode::Groups->value) {
-            $groups = SessionGroupBuilder::build(
-                weekCount: $this->previewGrid->weekCount,
-                sessionCounts: $this->previewGrid->weekSessionCounts,
-                groupingMode: $groupingMode,
-                groupSize: $groupSize,
-                lockedSessionsByWeek: $this->lockedSessionsByWeek,
-                sessionLabels: $this->sessionLabels,
-            )['groups'];
-
-            foreach ($groups as $group) {
-                if ($this->groupHasSessionDivergence($this->previewGrid, $group)) {
-                    $expanded[] = $group->index;
-                }
-            }
-        } else {
-            foreach (range(0, $this->previewGrid->weekCount - 1) as $week) {
-                if ($this->weekHasSessionDivergence($this->previewGrid, $week)) {
-                    $expanded[] = $week;
-                }
-            }
+            return array_map(
+                static fn ($group): int => (int) $group->index,
+                SessionGroupBuilder::build(
+                    weekCount: $this->previewGrid->weekCount,
+                    sessionCounts: $this->previewGrid->weekSessionCounts,
+                    groupingMode: $groupingMode,
+                    groupSize: $groupSize,
+                    lockedSessionsByWeek: $this->lockedSessionsByWeek,
+                    sessionLabels: $this->sessionLabels,
+                )['groups'],
+            );
         }
 
-        return array_values(array_unique($expanded));
+        return range(0, max($this->previewGrid->weekCount - 1, 0));
     }
 
     protected function withResolvedPreviewGrouping(array $config): array
@@ -429,6 +448,7 @@ class PlanExerciseGrid extends Component
         $grouping = $this->resolveDefaultPreviewGrouping();
         $preview['groupingMode'] ??= $grouping['mode'];
         $preview['groupSize'] ??= $grouping['groupSize'];
+        $preview['copyValuesAutomatically'] ??= $grouping['copyValuesAutomatically'];
 
         $config['preview'] = $preview;
 
@@ -436,7 +456,7 @@ class PlanExerciseGrid extends Component
     }
 
     /**
-     * @return array{mode: string, groupSize: int}
+     * @return array{mode: string, groupSize: int, copyValuesAutomatically: bool}
      */
     protected function resolveDefaultPreviewGrouping(): array
     {
@@ -449,8 +469,14 @@ class PlanExerciseGrid extends Component
         $user = Auth::user();
 
         return SessionGroupingConfig::from([
-            'mode' => (string) ($user?->config->get('settings.session_grouping.mode', SessionGroupingMode::defaultMode()) ?? SessionGroupingMode::defaultMode()),
-            'groupSize' => (int) ($user?->config->get('settings.session_grouping.groupSize', SessionGroupingMode::defaultGroupSize()) ?? SessionGroupingMode::defaultGroupSize()),
+            'mode' => $mode = (string) ($user?->config->get('settings.session_grouping.mode', SessionGroupingMode::defaultMode()) ?? SessionGroupingMode::defaultMode()),
+            'groupSize' => SessionGroupingMode::normalizeGroupSize(
+                is_numeric($user?->config->get('settings.session_grouping.groupSize'))
+                    ? (int) $user?->config->get('settings.session_grouping.groupSize')
+                    : null,
+                $mode,
+            ),
+            'copyValuesAutomatically' => (bool) ($user?->config->get('settings.session_grouping.copyValuesAutomatically', SessionGroupingMode::defaultCopyValuesAutomatically()) ?? SessionGroupingMode::defaultCopyValuesAutomatically()),
         ])->toArray();
     }
 
@@ -658,7 +684,10 @@ class PlanExerciseGrid extends Component
             $this->weeks,
             $this->resolvedWeekSessionCounts(),
             (string) ($preview['groupingMode'] ?? SessionGroupingMode::defaultMode()),
-            max(1, (int) ($preview['groupSize'] ?? SessionGroupingMode::defaultGroupSize())),
+            SessionGroupingMode::normalizeGroupSize(
+                (int) ($preview['groupSize'] ?? SessionGroupingMode::defaultGroupSize()),
+                (string) ($preview['groupingMode'] ?? SessionGroupingMode::defaultMode()),
+            ),
         );
         $groupIndex = $strategyMap['groupIndexByWeekSession'][$weekIndex][$sessionIndex] ?? null;
 
@@ -710,6 +739,20 @@ class PlanExerciseGrid extends Component
         ]);
     }
 
+    public function openGroupingForm(): void
+    {
+        $effectiveGrouping = $this->effectiveSessionGrouping()->toArray();
+
+        $this->dispatch('open-plan-exercise-grouping', data: [
+            'session_grouping' => $effectiveGrouping,
+            'has_override' => $this->getCurrentOverrides()->sessionGrouping !== null,
+            'programExerciseId' => $this->programExerciseId,
+            'exerciseId' => $this->exerciseId,
+            'userId' => $this->userId,
+            'exerciseName' => $this->exerciseName,
+        ]);
+    }
+
     protected function getParentConfig(): array
     {
         $base = $this->getExerciseConfig();
@@ -719,6 +762,28 @@ class PlanExerciseGrid extends Component
         }
 
         return $base->toArray();
+    }
+
+    protected function effectiveSessionGrouping(): SessionGroupingConfig
+    {
+        $preview = $this->getEffectiveConfig()['preview'] ?? [];
+
+        return SessionGroupingConfig::from([
+            'mode' => $preview['groupingMode'] ?? null,
+            'groupSize' => $preview['groupSize'] ?? null,
+            'copyValuesAutomatically' => $preview['copyValuesAutomatically'] ?? null,
+        ]);
+    }
+
+    protected function parentSessionGrouping(): SessionGroupingConfig
+    {
+        $preview = $this->withResolvedPreviewGrouping($this->getParentConfig())['preview'] ?? [];
+
+        return SessionGroupingConfig::from([
+            'mode' => $preview['groupingMode'] ?? null,
+            'groupSize' => $preview['groupSize'] ?? null,
+            'copyValuesAutomatically' => $preview['copyValuesAutomatically'] ?? null,
+        ]);
     }
 
     /** @param array<string, mixed> $data */
@@ -780,6 +845,57 @@ class PlanExerciseGrid extends Component
 
         $this->saveOverrides($overrides);
         unset($this->configFingerprint, $this->previewGrid, $this->settingBadges, $this->resolvedExerciseOverrides);
+    }
+
+    /** @param array<string, mixed> $data */
+    #[On('plan-exercise-grouping.saved')]
+    public function onGroupingSaved(array $data): void
+    {
+        if (($data['programExerciseId'] ?? null) !== $this->programExerciseId) {
+            return;
+        }
+
+        if (($data['exerciseId'] ?? null) !== $this->exerciseId) {
+            return;
+        }
+
+        if (($data['userId'] ?? null) !== $this->userId) {
+            return;
+        }
+
+        $grouping = SessionGroupingConfig::from($data['session_grouping'] ?? []);
+        $parentGrouping = $this->parentSessionGrouping();
+        $overrides = $this->getCurrentOverrides();
+
+        $overrides->sessionGrouping = $grouping->toArray() === $parentGrouping->toArray()
+            ? null
+            : $grouping;
+
+        $this->saveOverrides($overrides);
+        unset($this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions, $this->groupingBadge);
+    }
+
+    /** @param array<string, mixed> $data */
+    #[On('plan-exercise-grouping.reset')]
+    public function onGroupingReset(array $data): void
+    {
+        if (($data['programExerciseId'] ?? null) !== $this->programExerciseId) {
+            return;
+        }
+
+        if (($data['exerciseId'] ?? null) !== $this->exerciseId) {
+            return;
+        }
+
+        if (($data['userId'] ?? null) !== $this->userId) {
+            return;
+        }
+
+        $overrides = $this->getCurrentOverrides();
+        $overrides->sessionGrouping = null;
+
+        $this->saveOverrides($overrides);
+        unset($this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions, $this->groupingBadge);
     }
 
     protected function saveOverrides(ExerciseOverrides $overrides): void
@@ -1064,5 +1180,38 @@ class PlanExerciseGrid extends Component
     public function render()
     {
         return view('livewire.training.view.plan-exercise-grid');
+    }
+
+    protected function displayGridForCopy(): PreviewGrid
+    {
+        return $this->displayGrid;
+    }
+
+    protected function previewGridForCopy(): PreviewGrid
+    {
+        return $this->previewGrid;
+    }
+
+    protected function defaultsGridForCopy(): PreviewGrid
+    {
+        return $this->buildDefaultsGrid();
+    }
+
+    protected function expandedIndexesForCopy(): array
+    {
+        return $this->effectiveExpandedWeeks;
+    }
+
+    protected function currentGridOverridesForCopy(): array
+    {
+        return $this->getCurrentOverrides()->gridOverrides;
+    }
+
+    protected function persistGridOverridesFromCopy(array $gridOverrides): void
+    {
+        $overrides = $this->getCurrentOverrides();
+        $overrides->gridOverrides = $gridOverrides;
+        $this->saveOverrides($overrides);
+        unset($this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Support\Import\ImportedEmailNormalizer;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Symfony\Component\VarExporter\VarExporter;
@@ -300,7 +301,7 @@ class ConvertImportDataCommand extends Command
                 'type' => $user['type'],
                 'forename' => $user['forename'],
                 'surname' => $user['surname'],
-                'email' => $user['email'],
+                'email' => ImportedEmailNormalizer::normalize($user['email'] ?? null),
                 'phone' => $user['phone'],
                 'password' => $user['password'],
                 'config' => $user['config'],

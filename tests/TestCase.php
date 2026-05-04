@@ -2,11 +2,15 @@
 
 namespace Tests;
 
+use App\Training\TrainingSessionRebuildDispatcher;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use RuntimeException;
+use Tests\Support\Fakes\FakeTrainingSessionRebuildDispatcher;
 
 abstract class TestCase extends BaseTestCase
 {
+    protected bool $fakeTrainingSessionRebuildDispatcher = true;
+
     public function createApplication()
     {
         $app = parent::createApplication();
@@ -14,6 +18,15 @@ abstract class TestCase extends BaseTestCase
         $this->guardAgainstUnsafeDatabaseConfiguration($app);
 
         return $app;
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        if ($this->fakeTrainingSessionRebuildDispatcher) {
+            $this->useFakeTrainingSessionRebuildDispatcher();
+        }
     }
 
     protected function guardAgainstUnsafeDatabaseConfiguration($app): void
@@ -50,5 +63,20 @@ abstract class TestCase extends BaseTestCase
         $normalizedName = strtolower($databaseName);
 
         return str_contains($normalizedName, 'test');
+    }
+
+    protected function useFakeTrainingSessionRebuildDispatcher(): FakeTrainingSessionRebuildDispatcher
+    {
+        $fake = new FakeTrainingSessionRebuildDispatcher();
+
+        $this->app->instance(TrainingSessionRebuildDispatcher::class, $fake);
+
+        return $fake;
+    }
+
+    protected function useRealTrainingSessionRebuildDispatcher(): void
+    {
+        $this->app->forgetInstance(TrainingSessionRebuildDispatcher::class);
+        $this->app->offsetUnset(TrainingSessionRebuildDispatcher::class);
     }
 }

@@ -18,7 +18,7 @@ class DeloadSetsStrategy implements DefinesEditability
         private array $sessionCounts = [],
     ) {
         $this->groupingMode = SessionGroupingMode::tryFrom((string) $this->groupingMode)?->value ?? SessionGroupingMode::defaultMode();
-        $this->groupSize = max(1, (int) ($this->groupSize ?? SessionGroupingMode::defaultGroupSize()));
+        $this->groupSize = SessionGroupingMode::normalizeGroupSize($this->groupSize, $this->groupingMode);
     }
 
     /** @return array<int, int> */

@@ -227,7 +227,7 @@ it('uses grouped deload defaults when saving scheduled set overrides', function 
         ->toBe([]);
 });
 
-it('keeps grouped scheduled previews collapsed when sessions are identical', function () {
+it('shows all scheduled preview sessions even when they are identical', function () {
     $coach = User::factory()->coach()->create();
     $coach->config->set('settings.session_grouping', [
         'mode' => 'groups',
@@ -267,6 +267,175 @@ it('keeps grouped scheduled previews collapsed when sessions are identical', fun
         'config' => $exercise->config->toArray(),
     ]);
 
-    expect($component->instance()->effectiveExpandedWeeks)->toBe([])
-        ->and($component->instance()->previewGrid->groups[0]->expanded)->toBeFalse();
+    expect($component->instance()->effectiveExpandedWeeks)->toBe([0, 1, 2]);
+});
+
+it('copies session buckets in scheduled previews when grouping is none', function () {
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+            'preview' => ['weeks' => 2, 'sessionsPerWeek' => 1, 'groupingMode' => 'none', 'groupSize' => 1],
+            'overrides' => ['sessions' => [], 'cells' => []],
+        ],
+    ]);
+
+    $program = ExerciseProgram::factory()->create();
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::test(CalendarExerciseSettingsForm::class);
+
+    $component->call('openForExercise', [
+        'exerciseId' => $exercise->id,
+        'exerciseProgramId' => $program->id,
+        'weeks' => 2,
+        'sessionsPerWeek' => 1,
+        'weekLabels' => [],
+        'weekSessions' => [1, 1],
+        'scheduled' => true,
+        'config' => $exercise->config->toArray(),
+    ]);
+
+    $component->call('updateCellOverride', 0, 0, 'reps', 15, 0, false)
+        ->call('copyDisplayBucket', 'session:0:0', 'session:1:0');
+
+    $cells = $component->get('data')['config']['overrides']['cells'] ?? [];
+
+    expect(collect($cells)->where('week', 1)->where('session', 0)->first()['data']['reps'] ?? null)->toBe(15);
+});
+
+it('copies visible sessions in scheduled previews when grouping is week', function () {
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+            'preview' => ['weeks' => 2, 'sessionsPerWeek' => 2, 'groupingMode' => 'week', 'groupSize' => 2],
+            'overrides' => ['sessions' => [], 'cells' => []],
+        ],
+    ]);
+
+    $program = ExerciseProgram::factory()->create();
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::test(CalendarExerciseSettingsForm::class);
+
+    $component->call('openForExercise', [
+        'exerciseId' => $exercise->id,
+        'exerciseProgramId' => $program->id,
+        'weeks' => 2,
+        'sessionsPerWeek' => 2,
+        'weekLabels' => [],
+        'weekSessions' => [2, 2],
+        'scheduled' => true,
+        'config' => $exercise->config->toArray(),
+    ]);
+
+    $component->call('updateCellOverride', 0, 0, 'reps', 18, 0, true)
+        ->call('copyDisplayBucket', 'session:0:0', 'session:1:0');
+
+    $cells = $component->get('data')['config']['overrides']['cells'] ?? [];
+
+    expect(collect($cells)->where('week', 1)->where('session', 0)->first()['data']['reps'] ?? null)->toBe(18)
+        ->and(collect($cells)->where('week', 1)->where('session', 1)->first()['data']['reps'] ?? null)->toBeNull();
+});
+
+it('copies visible sessions in scheduled previews when grouping is groups', function () {
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+            'preview' => ['weeks' => 4, 'sessionsPerWeek' => 1, 'groupingMode' => 'groups', 'groupSize' => 2],
+            'overrides' => ['sessions' => [], 'cells' => []],
+        ],
+    ]);
+
+    $program = ExerciseProgram::factory()->create();
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::test(CalendarExerciseSettingsForm::class);
+
+    $component->call('openForExercise', [
+        'exerciseId' => $exercise->id,
+        'exerciseProgramId' => $program->id,
+        'weeks' => 4,
+        'sessionsPerWeek' => 1,
+        'weekLabels' => [],
+        'weekSessions' => [1, 1, 1, 1],
+        'scheduled' => true,
+        'config' => $exercise->config->toArray(),
+    ]);
+
+    $component->call('updateCellOverride', 0, 0, 'reps', 17, 0, true)
+        ->call('copyDisplayBucket', 'session:0:0', 'session:2:0');
+
+    $cells = $component->get('data')['config']['overrides']['cells'] ?? [];
+
+    expect(collect($cells)->where('week', 2)->where('session', 0)->first()['data']['reps'] ?? null)->toBe(17)
+        ->and(collect($cells)->where('week', 3)->where('session', 0)->first()['data']['reps'] ?? null)->toBeNull();
+});
+
+it('resets only the selected visible scheduled session overrides', function () {
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+            'preview' => ['weeks' => 4, 'sessionsPerWeek' => 1, 'groupingMode' => 'groups', 'groupSize' => 2],
+            'overrides' => ['sessions' => [], 'cells' => []],
+        ],
+    ]);
+
+    $program = ExerciseProgram::factory()->create();
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::test(CalendarExerciseSettingsForm::class);
+
+    $component->call('openForExercise', [
+        'exerciseId' => $exercise->id,
+        'exerciseProgramId' => $program->id,
+        'weeks' => 4,
+        'sessionsPerWeek' => 1,
+        'weekLabels' => [],
+        'weekSessions' => [1, 1, 1, 1],
+        'scheduled' => true,
+        'config' => $exercise->config->toArray(),
+    ]);
+
+    $component->call('updateCellOverride', 0, 0, 'reps', 17, 0, true)
+        ->call('updateCellOverride', 2, 0, 'reps', 21, 0, true)
+        ->call('resetDisplayBucket', 'session:0:0');
+
+    $cells = $component->get('data')['config']['overrides']['cells'] ?? [];
+
+    expect(collect($cells)->where('week', 0)->first())->toBeNull()
+        ->and(collect($cells)->where('week', 1)->where('session', 0)->first()['data']['reps'] ?? null)->toBe(17)
+        ->and(collect($cells)->where('week', 2)->where('session', 0)->first()['data']['reps'] ?? null)->toBe(21)
+        ->and(collect($cells)->where('week', 3)->where('session', 0)->first()['data']['reps'] ?? null)->toBe(21);
 });

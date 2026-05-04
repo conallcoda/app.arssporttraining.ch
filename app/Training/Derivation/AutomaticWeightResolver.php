@@ -24,7 +24,7 @@ class AutomaticWeightResolver
         ?callable $resolvedSetsForSession = null,
     ): ?AutomaticStrategyResolution {
         $groupingMode = SessionGroupingMode::tryFrom((string) $groupingMode)?->value ?? SessionGroupingMode::defaultMode();
-        $groupSize = max(1, (int) ($groupSize ?? SessionGroupingMode::defaultGroupSize()));
+        $groupSize = SessionGroupingMode::normalizeGroupSize($groupSize, $groupingMode);
 
         $resolution = $this->buildResolution(
             $setting,
@@ -71,7 +71,7 @@ class AutomaticWeightResolver
         }
 
         $groupingMode = SessionGroupingMode::tryFrom((string) $groupingMode)?->value ?? SessionGroupingMode::defaultMode();
-        $groupSize = max(1, (int) ($groupSize ?? SessionGroupingMode::defaultGroupSize()));
+        $groupSize = SessionGroupingMode::normalizeGroupSize($groupSize, $groupingMode);
 
         $strategyMap = SessionGroupBuilder::buildStrategyMap($weeks, $sessionCounts, $groupingMode, $groupSize);
         $target1RM = $this->calculateTargetOneRepMax($setting, $measuredData);

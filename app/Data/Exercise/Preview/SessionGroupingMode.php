@@ -15,9 +15,18 @@ enum SessionGroupingMode: string
         return self::tryFrom($mode)?->value ?? self::Groups->value;
     }
 
-    public static function defaultGroupSize(): int
+    public static function defaultGroupSize(?string $mode = null): int
     {
-        return max(1, (int) config('training.session_grouping.default_group_size', 2));
+        return match (self::normalizeMode($mode)) {
+            self::Week->value => min(8, max(1, (int) config('training.session_grouping.default_week_size', 1))),
+            self::Groups->value => min(8, max(2, (int) config('training.session_grouping.default_group_size', 2))),
+            default => 1,
+        };
+    }
+
+    public static function defaultCopyValuesAutomatically(): bool
+    {
+        return (bool) config('training.session_grouping.default_copy_values_automatically', true);
     }
 
     public static function normalizeMode(?string $mode): string
@@ -33,7 +42,24 @@ enum SessionGroupingMode: string
             return 1;
         }
 
-        return max(1, (int) ($groupSize ?? self::defaultGroupSize()));
+        $value = (int) ($groupSize ?? self::defaultGroupSize($normalizedMode));
+
+        return match ($normalizedMode) {
+            self::Week->value => min(8, max(1, $value)),
+            self::Groups->value => min(8, max(2, $value)),
+            default => 1,
+        };
+    }
+
+    public static function normalizeCopyValuesAutomatically(?bool $copyValuesAutomatically, ?string $mode = null): bool
+    {
+        $normalizedMode = self::normalizeMode($mode);
+
+        if ($normalizedMode === self::None->value) {
+            return false;
+        }
+
+        return $copyValuesAutomatically ?? self::defaultCopyValuesAutomatically();
     }
 
     public static function resolvePreviewSessionCount(array $preview, int $defaultSessionsPerWeek = 1): int
@@ -45,7 +71,7 @@ enum SessionGroupingMode: string
         }
 
         if ($mode === self::Groups->value) {
-            return max(1, (int) ($preview['groupSize'] ?? self::defaultGroupSize()));
+            return max(2, (int) ($preview['groupSize'] ?? self::defaultGroupSize($mode)));
         }
 
         return max(1, (int) ($preview['sessionsPerWeek'] ?? $defaultSessionsPerWeek));
@@ -78,18 +104,50 @@ enum SessionGroupingMode: string
         };
     }
 
+    public static function sizeFieldLabel(?string $mode): string
+    {
+        return match (self::normalizeMode($mode)) {
+            self::Week->value => 'Week Size',
+            self::Groups->value => 'Group Size',
+            default => 'Size',
+        };
+    }
+
+    public static function sizeFieldSuffix(?string $mode): string
+    {
+        return match (self::normalizeMode($mode)) {
+            self::Week->value => 'week(s)',
+            self::Groups->value => 'session(s)',
+            default => 'session(s)',
+        };
+    }
+
+    public static function sizeFieldMin(?string $mode): int
+    {
+        return match (self::normalizeMode($mode)) {
+            self::Week->value => 1,
+            self::Groups->value => 2,
+            default => 1,
+        };
+    }
+
+    public static function sizeFieldMax(?string $mode): int
+    {
+        return 8;
+    }
+
     public static function shouldShowGroupColumn(?string $mode, ?int $groupSize, int $groupCount): bool
     {
-        if ($groupCount <= 1) {
-            return false;
-        }
-
         $normalizedMode = self::normalizeMode($mode);
 
-        if ($normalizedMode === self::None->value) {
-            return false;
-        }
+        return $normalizedMode !== self::None->value;
+    }
 
-        return ! ($normalizedMode === self::Groups->value && self::normalizeGroupSize($groupSize, $normalizedMode) === 1);
+    public static function shouldAutoCopyValues(array $preview): bool
+    {
+        return self::normalizeCopyValuesAutomatically(
+            isset($preview['copyValuesAutomatically']) ? (bool) $preview['copyValuesAutomatically'] : null,
+            (string) ($preview['groupingMode'] ?? self::defaultMode()),
+        );
     }
 }

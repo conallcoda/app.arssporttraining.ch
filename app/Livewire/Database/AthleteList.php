@@ -6,8 +6,10 @@ use App\Data\Athlete\AthleteData;
 use App\Form\Fields\CoachFilter;
 use App\Livewire\Concerns\ClearsCoachFilterOnTabSwitch;
 use App\Models\Tag;
+use App\Models\Users\AccountSetupStatus;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
+use App\Notifications\AthleteAccountSetupNotification;
 use Coda\Cms\Display\DisplayFields\Ago;
 use Coda\Cms\Display\DisplayFields\Badge;
 use Coda\Cms\Display\DisplayFields\Id;
@@ -18,6 +20,7 @@ use Coda\Cms\Livewire\AbstractModelList;
 use Coda\Cms\Support\OwnershipTabs;
 use Coda\FormKit\Action;
 use Coda\FormKit\Fields\Pillbox;
+use Coda\FormKit\Fields\Select;
 use Coda\FormKit\Fields\Text as TextField;
 use Coda\FormKit\Forms\ChangePasswordForm;
 use Flux\Flux;
@@ -50,16 +53,18 @@ class AthleteList extends AbstractModelList
 
     protected function getBaseQuery(): Builder
     {
+        $currentDateExpression = $this->currentDateExpression();
+
         return User::query()->where('type', UserTypeEnum::Athlete)->with([
             'internalTags',
             'owner',
-            'metricSubmissions' => function ($query): void {
+            'metricSubmissions' => function ($query) use ($currentDateExpression): void {
                 $query->whereRaw('user_metric_submissions.id = (
                     SELECT ms2.id FROM user_metric_submissions ms2
                     WHERE ms2.user_id = user_metric_submissions.user_id
                     AND ms2.metric = user_metric_submissions.metric
                     AND ms2.deleted_at IS NULL
-                    AND ms2.recorded_at <= CURDATE()
+                    AND ms2.recorded_at <= '.$currentDateExpression.'
                     ORDER BY ms2.recorded_at DESC, ms2.created_at DESC
                     LIMIT 1
                 )')->with('values');
@@ -75,6 +80,10 @@ class AthleteList extends AbstractModelList
                 ->row()
                 ->icon('activity')
                 ->handler('openMetrics'),
+            Action::make('sendSetupAccountEmail', __('Send Setup Email'))
+                ->rowMenu()
+                ->icon('at-symbol')
+                ->handler('sendSetupAccountEmail'),
             Action::make('changePassword', __('Change Password'))
                 ->rowMenu()
                 ->icon('lock')
@@ -90,6 +99,30 @@ class AthleteList extends AbstractModelList
     public function openMetrics(int $id): void
     {
         $this->redirect(route('athlete-metric-index', ['athleteId' => $id]));
+    }
+
+    public function sendSetupAccountEmail(int $id): void
+    {
+        $user = User::query()
+            ->where('type', UserTypeEnum::Athlete)
+            ->findOrFail($id);
+
+        if (! $user->hasSetupEmail()) {
+            Flux::toast(text: "Add an email address for {$user->name} before sending a setup email.", variant: 'danger');
+
+            return;
+        }
+
+        if ($user->accountSetupStatus() === AccountSetupStatus::Active) {
+            Flux::toast(text: "{$user->name} is already active. Use the normal password reset flow instead.", variant: 'danger');
+
+            return;
+        }
+
+        $token = $user->issueAccountSetupToken();
+        $user->notify(new AthleteAccountSetupNotification($token));
+
+        Flux::toast(text: "Setup email sent to {$user->email}", variant: 'success');
     }
 
     public function handleChangePasswordSubmitted(array $data): void
@@ -116,6 +149,9 @@ class AthleteList extends AbstractModelList
                 Badge::make('metrics')
                     ->label(__('Metrics'))
                     ->source(fn (AthleteData $data) => $data->getMetricBadges()),
+                Badge::make('setupStatus')
+                    ->label(__('Setup Status'))
+                    ->source(fn (AthleteData $data) => $data->getSetupStatusBadge()),
                 Badge::make('coach')
                     ->label(__('Coach'))
                     ->source(fn (AthleteData $data) => [
@@ -152,6 +188,15 @@ class AthleteList extends AbstractModelList
                         ->label(__('Search'))
                         ->placeholder(__('Search athletes...'))
                 ),
+            TableFilter::callback('setup_status', function (Builder $query, mixed $value): void {
+                $query->forAccountSetupStatus((string) $value);
+            })
+                ->field(
+                    Select::make('setup_status')
+                        ->label(__('Setup Status'))
+                        ->placeholder(__('All setup statuses'))
+                        ->options(AccountSetupStatus::options())
+                ),
             TableFilter::callback('tags', function (Builder $query, mixed $value): void {
                 $query->whereHas('internalTags', fn (Builder $q) => $q->whereIn('tags.id', (array) $value));
             })
@@ -171,5 +216,12 @@ class AthleteList extends AbstractModelList
         }
 
         return $filters;
+    }
+
+    private function currentDateExpression(): string
+    {
+        return User::query()->getConnection()->getDriverName() === 'sqlite'
+            ? "DATE('now')"
+            : 'CURDATE()';
     }
 }

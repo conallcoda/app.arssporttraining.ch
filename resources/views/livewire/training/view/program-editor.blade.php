@@ -5,10 +5,12 @@
             'week' => __('Planned Weeks'),
             default => __('Planned Groups'),
         };
+        $showSettingsSection = $showWeeksInput || $this->sessionGroupingFieldset;
+        $stackSidebar = $gridLayout === 'stacked' && ($this->showAthleteContext || $showSettingsSection);
     @endphp
 
     <div class="flex flex-col md:flex-row gap-6">
-        <x-cms::section :title="__('Exercises')" class="{{ $this->showAthleteContext ? 'md:w-3/4' : 'flex-1' }}">
+        <x-cms::section :title="__('Exercises')" class="{{ $stackSidebar ? 'md:flex-1' : ($this->showAthleteContext ? 'md:w-3/4' : 'flex-1') }}">
             @if ($showNameInput)
                 <flux:input wire:model="$parent.planProgramName" wire:blur="$parent.savePlanProgramName" :label="__('Name')" size="sm" />
             @endif
@@ -51,110 +53,220 @@
             @endforeach
         </x-cms::section>
 
-        @if ($this->showAthleteContext)
-            <x-cms::section :title="$userId === null ? __('Group') : __('Athlete')" class="md:w-1/4 shrink-0">
-                <div class="space-y-4">
-                    @if ($hasAutoWeightExercises && $planHasBlock && $planBlockGoalLabel)
-                        <div>
-                            <flux:label class="mb-1.5">{{ __('Block Goal') }}</flux:label>
+        @if ($stackSidebar)
+            <div class="md:w-80 lg:w-96 shrink-0 space-y-6">
+                @if ($this->showAthleteContext)
+                    <x-cms::section :title="$userId === null ? __('Group') : __('Athlete')">
+                        <div class="space-y-4">
+                            @if ($hasAutoWeightExercises && $planHasBlock && $planBlockGoalLabel)
+                                <div>
+                                    <flux:label class="mb-1.5">{{ __('Block Goal') }}</flux:label>
+                                    <div>
+                                        <flux:badge color="zinc" class="text-lg px-3 py-1.5 cursor-pointer" wire:click="$parent.openPlanBlockEdit">
+                                            {{ $planBlockGoalLabel }}
+                                        </flux:badge>
+                                    </div>
+                                </div>
+                            @endif
+
+                            @if ($hasAutoWeightExercises && $planHasBlock)
+                                <div>
+                                    @if ($userId === null)
+                                        <flux:label class="mb-1.5">{{ __('1RM') }}</flux:label>
+                                        <div class="flex flex-wrap gap-1.5">
+                                            @foreach ($planGroupMemberMetrics['oneRepMax'] ?? [] as $member)
+                                                <flux:badge
+                                                    color="{{ $member['label'] ? 'zinc' : 'red' }}"
+                                                    class="px-2 py-1 cursor-pointer text-xs"
+                                                    wire:click="$parent.openPlanMetricEdit({{ $member['user_id'] }}, 'oneRepMax')"
+                                                >
+                                                    {{ $member['name'] }}: {{ $member['label'] ?? '—' }}
+                                                </flux:badge>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <flux:label class="mb-1.5">{{ __('1RM') }}</flux:label>
+                                        @if ($plan1rmLabel)
+                                            <div>
+                                                <flux:badge color="zinc" class="text-lg px-3 py-1.5 cursor-pointer" wire:click="$parent.openPlan1rmEdit">
+                                                    {{ $plan1rmLabel }}
+                                                </flux:badge>
+                                            </div>
+                                        @else
+                                            <div>
+                                                <flux:badge color="red" class="text-lg px-3 py-1.5 cursor-pointer" wire:click="$parent.openPlan1rmEdit">
+                                                    {{ __('Not set') }}
+                                                </flux:badge>
+                                            </div>
+                                        @endif
+                                    @endif
+                                </div>
+                            @endif
+
+                            @if ($hasHeartRateExercises)
+                                <div>
+                                    @if ($userId === null)
+                                        <flux:label class="mb-1.5">{{ __('Heart Rate') }}</flux:label>
+                                        <div class="flex flex-wrap gap-1.5">
+                                            @foreach ($planGroupMemberMetrics['heartRate'] ?? [] as $member)
+                                                <flux:badge
+                                                    color="{{ $member['label'] ? 'zinc' : 'red' }}"
+                                                    class="px-2 py-1 cursor-pointer text-xs"
+                                                    wire:click="$parent.openPlanMetricEdit({{ $member['user_id'] }}, 'heartRate')"
+                                                >
+                                                    {{ $member['name'] }}: {{ $member['label'] ?? '—' }}
+                                                </flux:badge>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <flux:label class="mb-1.5">{{ __('Heart Rate') }}</flux:label>
+                                        @if ($planHeartRateLabel)
+                                            <div>
+                                                <flux:badge color="zinc" class="text-lg px-3 py-1.5 cursor-pointer" wire:click="$parent.openPlanHeartRateEdit">
+                                                    {{ $planHeartRateLabel }}
+                                                </flux:badge>
+                                            </div>
+                                        @else
+                                            <div>
+                                                <flux:badge color="red" class="text-lg px-3 py-1.5 cursor-pointer" wire:click="$parent.openPlanHeartRateEdit">
+                                                    {{ __('Not set') }}
+                                                </flux:badge>
+                                            </div>
+                                        @endif
+                                    @endif
+                                </div>
+                            @endif
+                        </div>
+                    </x-cms::section>
+                @endif
+
+                @if ($showSettingsSection)
+                    <x-cms::section :title="__('Settings')">
+                        <div class="space-y-4">
+                            @if ($this->sessionGroupingFieldset)
+                                <x-form-kit::form.fieldset
+                                    :fieldset="$this->sessionGroupingFieldset"
+                                    :prefix="$this->sessionGroupingFieldset->prefix ?? 'data'"
+                                    :showLegend="false"
+                                />
+                            @endif
+
+                            @if ($showWeeksInput)
+                                <flux:field>
+                                    <flux:label>{{ $plannedGroupsLabel }}</flux:label>
+                                    <flux:input wire:model.live="weeks" type="number" min="1" max="52" step="1" />
+                                </flux:field>
+                            @endif
+                        </div>
+                    </x-cms::section>
+                @endif
+            </div>
+        @else
+            @if ($this->showAthleteContext)
+                <x-cms::section :title="$userId === null ? __('Group') : __('Athlete')" class="md:w-1/4 shrink-0">
+                    <div class="space-y-4">
+                        @if ($hasAutoWeightExercises && $planHasBlock && $planBlockGoalLabel)
                             <div>
-                                <flux:badge color="zinc" class="text-lg px-3 py-1.5 cursor-pointer" wire:click="$parent.openPlanBlockEdit">
-                                    {{ $planBlockGoalLabel }}
-                                </flux:badge>
+                                <flux:label class="mb-1.5">{{ __('Block Goal') }}</flux:label>
+                                <div>
+                                    <flux:badge color="zinc" class="text-lg px-3 py-1.5 cursor-pointer" wire:click="$parent.openPlanBlockEdit">
+                                        {{ $planBlockGoalLabel }}
+                                    </flux:badge>
+                                </div>
                             </div>
-                        </div>
-                    @endif
+                        @endif
 
-                    @if ($hasAutoWeightExercises && $planHasBlock)
-                        <div>
-                            @if ($userId === null)
-                                <flux:label class="mb-1.5">{{ __('1RM') }}</flux:label>
-                                <div class="flex flex-wrap gap-1.5">
-                                    @foreach ($planGroupMemberMetrics['oneRepMax'] ?? [] as $member)
-                                        <flux:badge
-                                            color="{{ $member['label'] ? 'zinc' : 'red' }}"
-                                            class="px-2 py-1 cursor-pointer text-xs"
-                                            wire:click="$parent.openPlanMetricEdit({{ $member['user_id'] }}, 'oneRepMax')"
-                                        >
-                                            {{ $member['name'] }}: {{ $member['label'] ?? '—' }}
-                                        </flux:badge>
-                                    @endforeach
-                                </div>
-                            @else
-                                <flux:label class="mb-1.5">{{ __('1RM') }}</flux:label>
-                                @if ($plan1rmLabel)
-                                    <div>
-                                        <flux:badge color="zinc" class="text-lg px-3 py-1.5 cursor-pointer" wire:click="$parent.openPlan1rmEdit">
-                                            {{ $plan1rmLabel }}
-                                        </flux:badge>
+                        @if ($hasAutoWeightExercises && $planHasBlock)
+                            <div>
+                                @if ($userId === null)
+                                    <flux:label class="mb-1.5">{{ __('1RM') }}</flux:label>
+                                    <div class="flex flex-wrap gap-1.5">
+                                        @foreach ($planGroupMemberMetrics['oneRepMax'] ?? [] as $member)
+                                            <flux:badge
+                                                color="{{ $member['label'] ? 'zinc' : 'red' }}"
+                                                class="px-2 py-1 cursor-pointer text-xs"
+                                                wire:click="$parent.openPlanMetricEdit({{ $member['user_id'] }}, 'oneRepMax')"
+                                            >
+                                                {{ $member['name'] }}: {{ $member['label'] ?? '—' }}
+                                            </flux:badge>
+                                        @endforeach
                                     </div>
                                 @else
-                                    <div>
-                                        <flux:badge color="red" class="text-lg px-3 py-1.5 cursor-pointer" wire:click="$parent.openPlan1rmEdit">
-                                            {{ __('Not set') }}
-                                        </flux:badge>
-                                    </div>
+                                    <flux:label class="mb-1.5">{{ __('1RM') }}</flux:label>
+                                    @if ($plan1rmLabel)
+                                        <div>
+                                            <flux:badge color="zinc" class="text-lg px-3 py-1.5 cursor-pointer" wire:click="$parent.openPlan1rmEdit">
+                                                {{ $plan1rmLabel }}
+                                            </flux:badge>
+                                        </div>
+                                    @else
+                                        <div>
+                                            <flux:badge color="red" class="text-lg px-3 py-1.5 cursor-pointer" wire:click="$parent.openPlan1rmEdit">
+                                                {{ __('Not set') }}
+                                            </flux:badge>
+                                        </div>
+                                    @endif
                                 @endif
-                            @endif
-                        </div>
-                    @endif
+                            </div>
+                        @endif
 
-                    @if ($hasHeartRateExercises)
-                        <div>
-                            @if ($userId === null)
-                                <flux:label class="mb-1.5">{{ __('Heart Rate') }}</flux:label>
-                                <div class="flex flex-wrap gap-1.5">
-                                    @foreach ($planGroupMemberMetrics['heartRate'] ?? [] as $member)
-                                        <flux:badge
-                                            color="{{ $member['label'] ? 'zinc' : 'red' }}"
-                                            class="px-2 py-1 cursor-pointer text-xs"
-                                            wire:click="$parent.openPlanMetricEdit({{ $member['user_id'] }}, 'heartRate')"
-                                        >
-                                            {{ $member['name'] }}: {{ $member['label'] ?? '—' }}
-                                        </flux:badge>
-                                    @endforeach
-                                </div>
-                            @else
-                                <flux:label class="mb-1.5">{{ __('Heart Rate') }}</flux:label>
-                                @if ($planHeartRateLabel)
-                                    <div>
-                                        <flux:badge color="zinc" class="text-lg px-3 py-1.5 cursor-pointer" wire:click="$parent.openPlanHeartRateEdit">
-                                            {{ $planHeartRateLabel }}
-                                        </flux:badge>
+                        @if ($hasHeartRateExercises)
+                            <div>
+                                @if ($userId === null)
+                                    <flux:label class="mb-1.5">{{ __('Heart Rate') }}</flux:label>
+                                    <div class="flex flex-wrap gap-1.5">
+                                        @foreach ($planGroupMemberMetrics['heartRate'] ?? [] as $member)
+                                            <flux:badge
+                                                color="{{ $member['label'] ? 'zinc' : 'red' }}"
+                                                class="px-2 py-1 cursor-pointer text-xs"
+                                                wire:click="$parent.openPlanMetricEdit({{ $member['user_id'] }}, 'heartRate')"
+                                            >
+                                                {{ $member['name'] }}: {{ $member['label'] ?? '—' }}
+                                            </flux:badge>
+                                        @endforeach
                                     </div>
                                 @else
-                                    <div>
-                                        <flux:badge color="red" class="text-lg px-3 py-1.5 cursor-pointer" wire:click="$parent.openPlanHeartRateEdit">
-                                            {{ __('Not set') }}
-                                        </flux:badge>
-                                    </div>
+                                    <flux:label class="mb-1.5">{{ __('Heart Rate') }}</flux:label>
+                                    @if ($planHeartRateLabel)
+                                        <div>
+                                            <flux:badge color="zinc" class="text-lg px-3 py-1.5 cursor-pointer" wire:click="$parent.openPlanHeartRateEdit">
+                                                {{ $planHeartRateLabel }}
+                                            </flux:badge>
+                                        </div>
+                                    @else
+                                        <div>
+                                            <flux:badge color="red" class="text-lg px-3 py-1.5 cursor-pointer" wire:click="$parent.openPlanHeartRateEdit">
+                                                {{ __('Not set') }}
+                                            </flux:badge>
+                                        </div>
+                                    @endif
                                 @endif
-                            @endif
-                        </div>
-                    @endif
-                </div>
-            </x-cms::section>
-        @endif
+                            </div>
+                        @endif
+                    </div>
+                </x-cms::section>
+            @endif
 
-        @if ($showWeeksInput || $this->sessionGroupingFieldset)
-            <x-cms::section :title="__('Settings')" class="w-80 shrink-0">
-                <div class="space-y-4">
-                    @if ($this->sessionGroupingFieldset)
-                        <x-form-kit::form.fieldset
-                            :fieldset="$this->sessionGroupingFieldset"
-                            :prefix="$this->sessionGroupingFieldset->prefix ?? 'data'"
-                            :showLegend="false"
-                        />
-                    @endif
+            @if ($showSettingsSection)
+                <x-cms::section :title="__('Settings')" class="w-80 shrink-0">
+                    <div class="space-y-4">
+                        @if ($this->sessionGroupingFieldset)
+                            <x-form-kit::form.fieldset
+                                :fieldset="$this->sessionGroupingFieldset"
+                                :prefix="$this->sessionGroupingFieldset->prefix ?? 'data'"
+                                :showLegend="false"
+                            />
+                        @endif
 
-                    @if ($showWeeksInput)
-                        <flux:field>
-                            <flux:label>{{ $plannedGroupsLabel }}</flux:label>
-                            <flux:input wire:model.live="weeks" type="number" min="1" max="52" step="1" />
-                        </flux:field>
-                    @endif
-                </div>
-            </x-cms::section>
+                        @if ($showWeeksInput)
+                            <flux:field>
+                                <flux:label>{{ $plannedGroupsLabel }}</flux:label>
+                                <flux:input wire:model.live="weeks" type="number" min="1" max="52" step="1" />
+                            </flux:field>
+                        @endif
+                    </div>
+                </x-cms::section>
+            @endif
         @endif
     </div>
 
@@ -189,6 +301,7 @@
         </div>
 
         <livewire:training.view.plan-exercise-settings-form />
+        <livewire:training.view.plan-exercise-grouping-form />
     @else
         <flux:text class="text-zinc-500">{{ __('No exercises in this section. Add exercises above to see the training grids.') }}</flux:text>
     @endif

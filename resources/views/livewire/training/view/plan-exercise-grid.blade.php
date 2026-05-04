@@ -35,6 +35,11 @@
 
                         @if (! empty($this->settingBadges))
                             <div class="flex flex-wrap gap-1 {{ empty($exerciseBadges) ? 'mt-3' : '' }}">
+                                @if ($this->groupingBadge['overridden'])
+                                    <flux:badge size="sm" color="{{ $this->groupingBadge['color'] }}" class="cursor-pointer" wire:click="openGroupingForm">{{ __($this->groupingBadge['label']) }}</flux:badge>
+                                @else
+                                    <flux:badge size="sm" class="cursor-pointer" wire:click="openGroupingForm">{{ __($this->groupingBadge['label']) }}</flux:badge>
+                                @endif
                                 @foreach ($this->settingBadges as $badge)
                                     @if ($badge['overridden'])
                                         <flux:badge size="sm" color="green" class="cursor-pointer" wire:click="openSettingsForm('{{ $badge['modalField'] }}')">{{ $badge['label'] }}*</flux:badge>
@@ -42,6 +47,14 @@
                                         <flux:badge size="sm" class="cursor-pointer" wire:click="openSettingsForm('{{ $badge['modalField'] }}')">{{ $badge['label'] }}</flux:badge>
                                     @endif
                                 @endforeach
+                            </div>
+                        @else
+                            <div class="flex flex-wrap gap-1 {{ empty($exerciseBadges) ? 'mt-3' : '' }}">
+                                @if ($this->groupingBadge['overridden'])
+                                    <flux:badge size="sm" color="{{ $this->groupingBadge['color'] }}" class="cursor-pointer" wire:click="openGroupingForm">{{ __($this->groupingBadge['label']) }}</flux:badge>
+                                @else
+                                    <flux:badge size="sm" class="cursor-pointer" wire:click="openGroupingForm">{{ __($this->groupingBadge['label']) }}</flux:badge>
+                                @endif
                             </div>
                         @endif
 
@@ -70,8 +83,8 @@
                     <flux:dropdown>
                         <flux:button variant="ghost" size="sm" icon="ellipsis" class="!p-1" />
                         <flux:menu>
-                            <flux:menu.item icon="pencil" wire:click="openSettingsForm">{{ __('Edit Settings') }}</flux:menu.item>
-                            <flux:menu.item icon="rotate-ccw" wire:click="resetOverrides">{{ __('Reset Overrides') }}</flux:menu.item>
+                            <flux:menu.item icon="pencil" wire:click="openSettingsForm">{{ __('Edit') }}</flux:menu.item>
+                            <flux:menu.item icon="rotate-ccw" wire:click="resetOverrides">{{ __('Reset') }}</flux:menu.item>
                             <flux:menu.item icon="eye-off" wire:click="toggleDisabled">{{ __('Disable') }}</flux:menu.item>
                         </flux:menu>
                     </flux:dropdown>
@@ -89,6 +102,7 @@
                             :showHeader="false"
                             :settingClickable="true"
                             :collapseWeeks="false"
+                            :copyMenuOptions="$this->copyMenuOptions"
                         />
                     </div>
                 @endif

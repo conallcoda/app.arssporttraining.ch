@@ -36,9 +36,11 @@ class SessionGroupBuilder
                     'week' => $week,
                     'session' => $session,
                     'sessionNumber' => $sessionNumber,
-                    'group' => $usesFixedGroups
-                        ? intdiv($sessionNumber - 1, $effectiveGroupSize)
-                        : $week,
+                    'group' => match (true) {
+                        $usesFixedGroups => intdiv($sessionNumber - 1, $effectiveGroupSize),
+                        $groupingMode === SessionGroupingMode::Week->value => intdiv($week, $effectiveGroupSize),
+                        default => $week,
+                    },
                 ];
 
                 $groupIndexByWeekSession[$week][$session] = $orderedSessions[array_key_last($orderedSessions)]['group'];
@@ -95,7 +97,7 @@ class SessionGroupBuilder
         }
 
         return [
-            'groups' => self::buildWeekGroups($weekCount, $sessionCounts, $labels, $expandedLookup, $lockedSessionsByWeek, $sessionLabels),
+            'groups' => self::buildWeekGroups($weekCount, $sessionCounts, $effectiveGroupSize, $labels, $expandedLookup, $lockedSessionsByWeek, $sessionLabels),
             'columnLabel' => 'Week',
         ];
     }
@@ -110,6 +112,7 @@ class SessionGroupBuilder
     private static function buildWeekGroups(
         int $weekCount,
         array $sessionCounts,
+        int $weekSize,
         array $labels,
         array $expandedLookup,
         array $lockedSessionsByWeek,
@@ -118,24 +121,29 @@ class SessionGroupBuilder
         $groups = [];
         $sessionNumber = 1;
 
-        for ($week = 0; $week < $weekCount; $week++) {
-            $count = max(1, (int) ($sessionCounts[$week] ?? 1));
+        for ($groupIndex = 0, $week = 0; $week < $weekCount; $groupIndex++, $week += $weekSize) {
+            $startWeek = $week;
+            $endWeek = min($weekCount - 1, $week + $weekSize - 1);
             $sessions = [];
 
-            for ($session = 0; $session < $count; $session++) {
-                $sessions[] = new PreviewGridGroupSession(
-                    weekIndex: $week,
-                    sessionIndex: $session,
-                    sessionNumber: $sessionNumber++,
-                    locked: (bool) ($lockedSessionsByWeek[$week][$session] ?? false),
-                );
+            for ($weekIndex = $startWeek; $weekIndex <= $endWeek; $weekIndex++) {
+                $count = max(1, (int) ($sessionCounts[$weekIndex] ?? 1));
+
+                for ($session = 0; $session < $count; $session++) {
+                    $sessions[] = new PreviewGridGroupSession(
+                        weekIndex: $weekIndex,
+                        sessionIndex: $session,
+                        sessionNumber: $sessionNumber++,
+                        locked: (bool) ($lockedSessionsByWeek[$weekIndex][$session] ?? false),
+                    );
+                }
             }
 
             $groups[] = self::makeGroup(
-                index: $week,
-                label: (string) ($labels[$week] ?? 'TW'.($week + 1)),
+                index: $groupIndex,
+                label: self::weekGroupLabel($startWeek, $endWeek, $labels),
                 sessions: $sessions,
-                expanded: (bool) ($expandedLookup[$week] ?? false),
+                expanded: (bool) ($expandedLookup[$groupIndex] ?? false),
                 sessionLabels: $sessionLabels,
             );
         }
@@ -203,14 +211,6 @@ class SessionGroupBuilder
         $rangeEnd = $sessionNumbers === [] ? $rangeStart : $sessionNumbers[array_key_last($sessionNumbers)];
         $hasLockedSessions = collect($sessions)->contains(fn (PreviewGridGroupSession $session): bool => $session->locked);
 
-        $collapsedMetaLines = [];
-        if ($sessionLabels) {
-            $collapsedMetaLines = array_map(
-                static fn (int $number): string => __('Session').' '.$number,
-                $sessionNumbers,
-            );
-        }
-
         return new PreviewGridGroup(
             index: $index,
             label: $label,
@@ -219,8 +219,17 @@ class SessionGroupBuilder
             sessionRangeLabel: $rangeStart === $rangeEnd ? (string) $rangeStart : $rangeStart.'-'.$rangeEnd,
             expanded: $expanded,
             hasLockedSessions: $hasLockedSessions,
-            collapsedMetaLines: $collapsedMetaLines,
+            collapsedMetaLines: [],
             showCopyMenu: false,
         );
+    }
+
+    private static function weekGroupLabel(int $startWeek, int $endWeek, array $labels): string
+    {
+        if ($startWeek === $endWeek) {
+            return (string) ($labels[$startWeek] ?? 'W'.($startWeek + 1));
+        }
+
+        return 'W'.($startWeek + 1).'-W'.($endWeek + 1);
     }
 }

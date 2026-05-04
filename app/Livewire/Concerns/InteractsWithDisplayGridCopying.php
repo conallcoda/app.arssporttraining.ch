@@ -1,0 +1,172 @@
+<?php
+
+namespace App\Livewire\Concerns;
+
+use App\Data\Exercise\Preview\OverrideManager;
+use App\Data\Exercise\Preview\PreviewGrid;
+use Livewire\Attributes\Computed;
+
+trait InteractsWithDisplayGridCopying
+{
+    #[Computed]
+    public function copyBuckets(): array
+    {
+        $buckets = [];
+        $displayGrid = $this->displayGridForCopy();
+        $groupKind = strtolower((string) ($displayGrid->groupColumnLabel ?? 'group'));
+
+        foreach ($displayGrid->groups as $group) {
+            $groupLabel = trim(strip_tags((string) ($group->label ?? '')));
+            $groupExpanded = in_array($group->index, $this->expandedIndexesForCopy(), true) || (bool) ($group->expanded ?? false);
+            $groupSessions = collect($group->sessions ?? [])
+                ->map(fn ($session): array => [
+                    'week' => (int) $session->weekIndex,
+                    'session' => (int) $session->sessionIndex,
+                    'locked' => (bool) ($session->locked ?? false),
+                    'number' => (int) $session->sessionNumber,
+                ])
+                ->values()
+                ->all();
+
+            if ($groupExpanded || ! ($displayGrid->showGroupColumn ?? false)) {
+                foreach ($groupSessions as $session) {
+                    $key = 'session:'.$session['week'].':'.$session['session'];
+                    $buckets[$key] = [
+                        'key' => $key,
+                        'type' => 'session',
+                        'label' => 'Session '.$session['number'],
+                        'sessions' => [$session],
+                    ];
+                }
+
+                continue;
+            }
+
+            $key = 'group:'.$group->index;
+            $buckets[$key] = [
+                'key' => $key,
+                'type' => $groupKind,
+                'label' => ucfirst($groupKind).' '.$groupLabel,
+                'sessions' => $groupSessions,
+            ];
+        }
+
+        return $buckets;
+    }
+
+    #[Computed]
+    public function copyMenuOptions(): array
+    {
+        $buckets = $this->copyBuckets;
+        $options = [];
+
+        foreach ($buckets as $currentKey => $currentBucket) {
+            $options[$currentKey] = [
+                'from' => [],
+                'to' => [],
+            ];
+
+            foreach ($buckets as $otherKey => $otherBucket) {
+                if ($currentKey === $otherKey) {
+                    continue;
+                }
+
+                $options[$currentKey]['from'][] = [
+                    'source' => $otherKey,
+                    'target' => $currentKey,
+                    'label' => $otherBucket['label'],
+                ];
+
+                $options[$currentKey]['to'][] = [
+                    'source' => $currentKey,
+                    'target' => $otherKey,
+                    'label' => $otherBucket['label'],
+                ];
+            }
+        }
+
+        return $options;
+    }
+
+    public function copyDisplayBucket(string $sourceKey, string $targetKey): void
+    {
+        $buckets = $this->copyBuckets;
+        $sourceBucket = $buckets[$sourceKey] ?? null;
+        $targetBucket = $buckets[$targetKey] ?? null;
+
+        if ($sourceBucket === null || $targetBucket === null || $sourceKey === $targetKey) {
+            return;
+        }
+
+        $sourceSession = $sourceBucket['sessions'][0] ?? null;
+
+        if ($sourceSession === null) {
+            return;
+        }
+
+        $gridOverrides = $this->currentGridOverridesForCopy();
+        $previewGrid = $this->previewGridForCopy();
+        $defaultsGrid = $this->defaultsGridForCopy();
+
+        foreach ($targetBucket['sessions'] as $targetSession) {
+            if (($targetSession['locked'] ?? false) === true) {
+                continue;
+            }
+
+            $gridOverrides = OverrideManager::copySessionOverrides(
+                $gridOverrides,
+                $previewGrid,
+                $defaultsGrid,
+                (int) $sourceSession['week'],
+                (int) $sourceSession['session'],
+                (int) $targetSession['week'],
+                (int) $targetSession['session'],
+            );
+        }
+
+        $this->persistGridOverridesFromCopy($gridOverrides);
+    }
+
+    public function resetDisplayBucket(string $bucketKey): void
+    {
+        $bucket = $this->copyBuckets[$bucketKey] ?? null;
+
+        if ($bucket === null) {
+            return;
+        }
+
+        $gridOverrides = $this->currentGridOverridesForCopy();
+
+        foreach ($bucket['sessions'] as $session) {
+            $week = (int) $session['week'];
+            $sessionIndex = (int) $session['session'];
+
+            $gridOverrides['sessions'] = collect($gridOverrides['sessions'] ?? [])
+                ->reject(fn (array $override): bool => (int) ($override['week'] ?? -1) === $week && (int) ($override['session'] ?? -1) === $sessionIndex)
+                ->values()
+                ->all();
+
+            $gridOverrides['cells'] = collect($gridOverrides['cells'] ?? [])
+                ->reject(fn (array $override): bool => (int) ($override['week'] ?? -1) === $week && (int) ($override['session'] ?? -1) === $sessionIndex)
+                ->values()
+                ->all();
+        }
+
+        $this->persistGridOverridesFromCopy($gridOverrides);
+    }
+
+    abstract protected function displayGridForCopy(): PreviewGrid;
+
+    abstract protected function previewGridForCopy(): PreviewGrid;
+
+    abstract protected function defaultsGridForCopy(): PreviewGrid;
+
+    /** @return int[] */
+    abstract protected function expandedIndexesForCopy(): array;
+
+    /** @return array{sessions: array, cells: array} */
+    abstract protected function currentGridOverridesForCopy(): array;
+
+    /** @param array{sessions: array, cells: array} $gridOverrides */
+    abstract protected function persistGridOverridesFromCopy(array $gridOverrides): void;
+}

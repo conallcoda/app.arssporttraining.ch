@@ -20,7 +20,7 @@ class AutomaticRepsResolver
     ): AutomaticStrategyResolution
     {
         $groupingMode = SessionGroupingMode::tryFrom((string) $groupingMode)?->value ?? SessionGroupingMode::defaultMode();
-        $groupSize = max(1, (int) ($groupSize ?? SessionGroupingMode::defaultGroupSize()));
+        $groupSize = SessionGroupingMode::normalizeGroupSize($groupSize, $groupingMode);
 
         $strategyMap = SessionGroupBuilder::buildStrategyMap($weeks, $sessionCounts, $groupingMode, $groupSize);
 

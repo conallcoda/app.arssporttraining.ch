@@ -51,6 +51,14 @@ class EffectiveExerciseConfig
             $config['settings'] = $overrides->settings;
         }
 
+        if ($overrides->sessionGrouping !== null) {
+            $preview = $config['preview'] ?? [];
+            $preview['groupingMode'] = $overrides->sessionGrouping->mode;
+            $preview['groupSize'] = $overrides->sessionGrouping->groupSize;
+            $preview['copyValuesAutomatically'] = $overrides->sessionGrouping->copyValuesAutomatically;
+            $config['preview'] = $preview;
+        }
+
         foreach (self::SETTING_KEYS as $key) {
             if ($overrides->{$key} !== null) {
                 $config[$key] = $overrides->{$key}->toArray();

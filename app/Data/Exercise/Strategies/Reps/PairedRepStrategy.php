@@ -26,7 +26,7 @@ class PairedRepStrategy
     ): array
     {
         $groupingMode = SessionGroupingMode::tryFrom((string) $groupingMode)?->value ?? SessionGroupingMode::defaultMode();
-        $groupSize = max(1, (int) ($groupSize ?? SessionGroupingMode::defaultGroupSize()));
+        $groupSize = SessionGroupingMode::normalizeGroupSize($groupSize, $groupingMode);
 
         $resolution = ($this->resolver ?? new AutomaticRepsResolver)->resolve(
             $this->setting,

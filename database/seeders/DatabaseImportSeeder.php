@@ -18,6 +18,7 @@ use App\Models\Training\TrainingProgramBlock;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
+use App\Support\Import\ImportedEmailNormalizer;
 use App\Training\TrainingSessionMaterializer;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
@@ -459,7 +460,7 @@ class DatabaseImportSeeder extends Seeder
                 'type' => $user['type'],
                 'forename' => $user['forename'],
                 'surname' => $user['surname'],
-                'email' => $user['email'],
+                'email' => ImportedEmailNormalizer::normalize($user['email'] ?? null),
                 'phone' => $user['phone'],
                 'password' => $user['password'],
                 'gender' => $user['gender'] ?? null,

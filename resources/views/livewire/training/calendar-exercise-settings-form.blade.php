@@ -36,8 +36,12 @@
                     <div class="min-w-0" wire:key="grid-{{ $this->contextExerciseId }}-{{ $this->contextExerciseProgramId }}-{{ md5(json_encode($data['config'] ?? [])) }}"
                         x-on:grid-setting-click="focusModalField($el.closest('[data-flux-modal]'), $event.detail.field)">
                         @if ($scheduled)
+                            @php
+                                $grid = $this->previewGrid;
+                                $grid->showCopyMenu = true;
+                            @endphp
                             <x-training.exercise-grid
-                                :grid="$this->previewGrid"
+                                :grid="$grid"
                                 :name="$activeTitle ?? $title"
                                 :showHeader="false"
                                 :showMenu="false"
@@ -46,6 +50,7 @@
                                 :weekSessions="$weekSessions"
                                 :expandedWeeks="$this->effectiveExpandedWeeks"
                                 :collapseWeeks="false"
+                                :copyMenuOptions="$this->copyMenuOptions"
                             />
                         @else
                             <div class="flex items-center justify-center rounded-lg border border-zinc-200 p-8 dark:border-zinc-700">

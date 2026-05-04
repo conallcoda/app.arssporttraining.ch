@@ -2,6 +2,7 @@
 
 namespace App\Data\Training\Config;
 
+use App\Data\Exercise\Preview\SessionGroupingConfig;
 use App\Data\Exercise\Settings\DistanceSetting;
 use App\Data\Exercise\Settings\DurationSetting;
 use App\Data\Exercise\Settings\HeartRateSetting;
@@ -33,6 +34,7 @@ class ExerciseOverrides extends AbstractData
         public ?HeartRateZoneSetting $heartRateZone = null,
         public ?PaceSetting $pace = null,
         public ?WattsSetting $watts = null,
+        public SessionGroupingConfig|null $sessionGrouping = null,
         /** @var array{sessions: array, cells: array} */
         public array $gridOverrides = ['sessions' => [], 'cells' => []],
         /** @var array{sessions: array, cells: array} */

@@ -10,6 +10,7 @@ use App\Data\Exercise\Preview\PreviewGrid;
 use App\Data\Exercise\Preview\SessionGroupBuilder;
 use App\Data\Exercise\Preview\SessionGroupingMode;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
+use App\Livewire\Concerns\InteractsWithDisplayGridCopying;
 use App\Models\Exercise\ExerciseProgram;
 use Coda\Cms\Livewire\FormModal;
 use Coda\FormKit\Form;
@@ -22,6 +23,8 @@ use Livewire\Attributes\On;
 
 class CalendarExerciseSettingsForm extends FormModal
 {
+    use InteractsWithDisplayGridCopying;
+
     public ?int $contextExerciseId = null;
 
     public ?int $contextExerciseProgramId = null;
@@ -106,40 +109,34 @@ class CalendarExerciseSettingsForm extends FormModal
             explicitWeekSessionCounts: $this->resolvedWeekSessionCounts(),
         );
 
+        $grid->autoCopyValuesAutomatically = SessionGroupingMode::shouldAutoCopyValues($config['preview'] ?? []);
+
         return $this->applyExplicitWeekSessionCounts($grid);
     }
 
     #[Computed]
     public function effectiveExpandedWeeks(): array
     {
-        $expanded = [];
-
         $preview = $this->withResolvedPreviewGrouping($this->data['config'] ?? [])['preview'] ?? [];
         $groupingMode = (string) ($preview['groupingMode'] ?? SessionGroupingMode::defaultMode());
-        $groupSize = max(1, (int) ($preview['groupSize'] ?? SessionGroupingMode::defaultGroupSize()));
+        $groupSize = SessionGroupingMode::normalizeGroupSize(
+            (int) ($preview['groupSize'] ?? SessionGroupingMode::defaultGroupSize()),
+            $groupingMode,
+        );
 
         if ($groupingMode === SessionGroupingMode::Groups->value) {
-            $groups = SessionGroupBuilder::build(
-                weekCount: $this->previewGrid->weekCount,
-                sessionCounts: $this->previewGrid->weekSessionCounts,
-                groupingMode: $groupingMode,
-                groupSize: $groupSize,
-            )['groups'];
-
-            foreach ($groups as $group) {
-                if ($this->groupHasSessionDivergence($this->previewGrid, $group)) {
-                    $expanded[] = $group->index;
-                }
-            }
+            return array_map(
+                static fn ($group): int => (int) $group->index,
+                SessionGroupBuilder::build(
+                    weekCount: $this->previewGrid->weekCount,
+                    sessionCounts: $this->previewGrid->weekSessionCounts,
+                    groupingMode: $groupingMode,
+                    groupSize: $groupSize,
+                )['groups'],
+            );
         } else {
-            foreach (range(0, $this->previewGrid->weekCount - 1) as $week) {
-                if ($this->weekHasSessionDivergence($this->previewGrid, $week)) {
-                    $expanded[] = $week;
-                }
-            }
+            return range(0, max($this->previewGrid->weekCount - 1, 0));
         }
-
-        return $expanded;
     }
 
     protected function buildDefaultsGrid(): PreviewGrid
@@ -267,7 +264,10 @@ class CalendarExerciseSettingsForm extends FormModal
             $this->gridWeeks,
             $this->resolvedWeekSessionCounts(),
             (string) ($preview['groupingMode'] ?? SessionGroupingMode::defaultMode()),
-            max(1, (int) ($preview['groupSize'] ?? SessionGroupingMode::defaultGroupSize())),
+            SessionGroupingMode::normalizeGroupSize(
+                (int) ($preview['groupSize'] ?? SessionGroupingMode::defaultGroupSize()),
+                (string) ($preview['groupingMode'] ?? SessionGroupingMode::defaultMode()),
+            ),
         );
         $groupIndex = $strategyMap['groupIndexByWeekSession'][$weekIndex][$sessionIndex] ?? null;
 
@@ -450,6 +450,7 @@ class CalendarExerciseSettingsForm extends FormModal
         $grouping = $this->resolveDefaultPreviewGrouping();
         $preview['groupingMode'] ??= $grouping['mode'];
         $preview['groupSize'] ??= $grouping['groupSize'];
+        $preview['copyValuesAutomatically'] ??= $grouping['copyValuesAutomatically'];
 
         $config['preview'] = $preview;
 
@@ -457,15 +458,56 @@ class CalendarExerciseSettingsForm extends FormModal
     }
 
     /**
-     * @return array{mode: string, groupSize: int}
+     * @return array{mode: string, groupSize: int, copyValuesAutomatically: bool}
      */
     protected function resolveDefaultPreviewGrouping(): array
     {
         $user = Auth::user();
+        $mode = (string) ($user?->config->get('settings.session_grouping.mode', SessionGroupingMode::defaultMode()) ?? SessionGroupingMode::defaultMode());
 
         return [
-            'mode' => (string) ($user?->config->get('settings.session_grouping.mode', SessionGroupingMode::defaultMode()) ?? SessionGroupingMode::defaultMode()),
-            'groupSize' => max(1, (int) ($user?->config->get('settings.session_grouping.groupSize', SessionGroupingMode::defaultGroupSize()) ?? SessionGroupingMode::defaultGroupSize())),
+            'mode' => $mode,
+            'groupSize' => SessionGroupingMode::normalizeGroupSize(
+                is_numeric($user?->config->get('settings.session_grouping.groupSize'))
+                    ? (int) $user?->config->get('settings.session_grouping.groupSize')
+                    : null,
+                $mode,
+            ),
+            'copyValuesAutomatically' => (bool) ($user?->config->get('settings.session_grouping.copyValuesAutomatically', SessionGroupingMode::defaultCopyValuesAutomatically()) ?? SessionGroupingMode::defaultCopyValuesAutomatically()),
         ];
+    }
+
+    protected function displayGridForCopy(): PreviewGrid
+    {
+        $grid = $this->previewGrid;
+        $grid->showCopyMenu = true;
+
+        return $grid;
+    }
+
+    protected function previewGridForCopy(): PreviewGrid
+    {
+        return $this->previewGrid;
+    }
+
+    protected function defaultsGridForCopy(): PreviewGrid
+    {
+        return $this->buildDefaultsGrid();
+    }
+
+    protected function expandedIndexesForCopy(): array
+    {
+        return $this->effectiveExpandedWeeks;
+    }
+
+    protected function currentGridOverridesForCopy(): array
+    {
+        return $this->data['config']['overrides'] ?? OverrideManager::reset();
+    }
+
+    protected function persistGridOverridesFromCopy(array $gridOverrides): void
+    {
+        $this->data['config']['overrides'] = $gridOverrides;
+        unset($this->previewGrid, $this->copyBuckets, $this->copyMenuOptions);
     }
 }

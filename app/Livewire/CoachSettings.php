@@ -46,7 +46,7 @@ class CoachSettings extends Component
 
         foreach (static::SETTINGS as $settingClass) {
             $key = $settingClass::fieldsetKey();
-            $form->fieldset($settingClass::getName(), $settingClass::fields(), prefix: "data.{$key}");
+            $form->fieldset($settingClass::getName(), $settingClass::fields($this->data[$key] ?? []), prefix: "data.{$key}");
         }
 
         return $form;
@@ -56,6 +56,18 @@ class CoachSettings extends Component
     public function fieldsets(): array
     {
         return $this->formConfig->resolveFieldsets($this->data);
+    }
+
+    public function updated(string $property, mixed $value): void
+    {
+        if ($property !== 'data.'.SessionGroupingSetting::fieldsetKey().'.mode') {
+            return;
+        }
+
+        $key = SessionGroupingSetting::fieldsetKey();
+        $mode = (string) ($this->data[$key]['mode'] ?? null);
+        $this->data[$key]['groupSize'] = \App\Data\Exercise\Preview\SessionGroupingMode::defaultGroupSize($mode);
+        $this->data[$key] = SessionGroupingSetting::from($this->data[$key] ?? [])->toArray();
     }
 
     public function save(): void

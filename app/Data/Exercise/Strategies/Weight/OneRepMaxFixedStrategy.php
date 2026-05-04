@@ -34,7 +34,7 @@ class OneRepMaxFixedStrategy implements DefinesEditability
     ): ?array
     {
         $groupingMode = SessionGroupingMode::tryFrom((string) $groupingMode)?->value ?? SessionGroupingMode::defaultMode();
-        $groupSize = max(1, (int) ($groupSize ?? SessionGroupingMode::defaultGroupSize()));
+        $groupSize = SessionGroupingMode::normalizeGroupSize($groupSize, $groupingMode);
 
         $resolver = $this->resolver ?? new AutomaticWeightResolver;
         $resolution = $resolver->resolve(

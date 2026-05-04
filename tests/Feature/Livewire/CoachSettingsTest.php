@@ -15,6 +15,7 @@ it('loads persisted coach settings on mount', function () {
     $coach->config->set('settings.'.SessionGroupingSetting::fieldsetKey(), [
         'mode' => SessionGroupingMode::Groups->value,
         'groupSize' => 3,
+        'copyValuesAutomatically' => false,
     ]);
     $coach->save();
 
@@ -22,7 +23,8 @@ it('loads persisted coach settings on mount', function () {
         ->test(CoachSettings::class)
         ->assertSet('data.'.CalendarSidebarSetting::fieldsetKey().'.enabled', false)
         ->assertSet('data.'.SessionGroupingSetting::fieldsetKey().'.mode', SessionGroupingMode::Groups->value)
-        ->assertSet('data.'.SessionGroupingSetting::fieldsetKey().'.groupSize', 3);
+        ->assertSet('data.'.SessionGroupingSetting::fieldsetKey().'.groupSize', 3)
+        ->assertSet('data.'.SessionGroupingSetting::fieldsetKey().'.copyValuesAutomatically', false);
 });
 
 it('defaults coach session grouping settings to groups of two when unset', function () {
@@ -31,7 +33,8 @@ it('defaults coach session grouping settings to groups of two when unset', funct
     Livewire::actingAs($coach)
         ->test(CoachSettings::class)
         ->assertSet('data.'.SessionGroupingSetting::fieldsetKey().'.mode', SessionGroupingMode::Groups->value)
-        ->assertSet('data.'.SessionGroupingSetting::fieldsetKey().'.groupSize', 2);
+        ->assertSet('data.'.SessionGroupingSetting::fieldsetKey().'.groupSize', 2)
+        ->assertSet('data.'.SessionGroupingSetting::fieldsetKey().'.copyValuesAutomatically', true);
 });
 
 it('persists updated settings and dispatches a saved event', function () {
@@ -42,6 +45,7 @@ it('persists updated settings and dispatches a saved event', function () {
         ->set('data.'.CalendarSidebarSetting::fieldsetKey().'.enabled', false)
         ->set('data.'.SessionGroupingSetting::fieldsetKey().'.mode', SessionGroupingMode::Groups->value)
         ->set('data.'.SessionGroupingSetting::fieldsetKey().'.groupSize', 6)
+        ->set('data.'.SessionGroupingSetting::fieldsetKey().'.copyValuesAutomatically', false)
         ->call('save')
         ->assertHasNoErrors()
         ->assertDispatched('coach-settings-saved');
@@ -53,6 +57,7 @@ it('persists updated settings and dispatches a saved event', function () {
         ->toMatchArray([
             'mode' => SessionGroupingMode::Groups->value,
             'groupSize' => 6,
+            'copyValuesAutomatically' => false,
         ]);
 });
 
@@ -69,5 +74,42 @@ it('normalizes none grouping to a group size of one when saving coach settings',
         ->toMatchArray([
             'mode' => SessionGroupingMode::None->value,
             'groupSize' => 1,
+            'copyValuesAutomatically' => false,
+        ]);
+});
+
+it('normalizes grouped coach settings to a minimum size of two when saving', function () {
+    $coach = User::factory()->coach()->create();
+
+    Livewire::actingAs($coach)
+        ->test(CoachSettings::class)
+        ->set('data.'.SessionGroupingSetting::fieldsetKey().'.mode', SessionGroupingMode::Groups->value)
+        ->set('data.'.SessionGroupingSetting::fieldsetKey().'.groupSize', 1)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($coach->fresh()->config->get('settings.'.SessionGroupingSetting::fieldsetKey()))
+        ->toMatchArray([
+            'mode' => SessionGroupingMode::Groups->value,
+            'groupSize' => 2,
+            'copyValuesAutomatically' => true,
+        ]);
+});
+
+it('defaults week coach settings to a size of one when switching modes', function () {
+    $coach = User::factory()->coach()->create();
+
+    Livewire::actingAs($coach)
+        ->test(CoachSettings::class)
+        ->set('data.'.SessionGroupingSetting::fieldsetKey().'.mode', SessionGroupingMode::Week->value)
+        ->assertSet('data.'.SessionGroupingSetting::fieldsetKey().'.groupSize', 1)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($coach->fresh()->config->get('settings.'.SessionGroupingSetting::fieldsetKey()))
+        ->toMatchArray([
+            'mode' => SessionGroupingMode::Week->value,
+            'groupSize' => 1,
+            'copyValuesAutomatically' => true,
         ]);
 });

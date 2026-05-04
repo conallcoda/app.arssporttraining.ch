@@ -38,6 +38,9 @@ class AthleteData extends AbstractData implements HasForms
         public ?Carbon $updatedAt = null,
         public string $personName = '',
         public array $metrics = [],
+        public string $setupStatus = '',
+        public string $setupStatusLabel = '',
+        public string $setupStatusColor = 'zinc',
     ) {}
 
     public function name(): string
@@ -53,6 +56,8 @@ class AthleteData extends AbstractData implements HasForms
 
     public static function fromModel(User $user): self
     {
+        $setupStatus = $user->accountSetupStatus();
+
         return new self(
             id: $user->id,
             forename: $user->forename ?? '',
@@ -81,11 +86,16 @@ class AthleteData extends AbstractData implements HasForms
                     return $badge;
                 })->all()
                 : [],
+            setupStatus: $setupStatus->value,
+            setupStatusLabel: $setupStatus->label(),
+            setupStatusColor: $setupStatus->color(),
         );
     }
 
     public function persist(): void
     {
+        $existingUser = $this->id ? User::find($this->id) : null;
+
         $user = User::updateOrCreate(
             ['id' => $this->id],
             [
@@ -103,7 +113,20 @@ class AthleteData extends AbstractData implements HasForms
 
         $this->id = $user->id;
 
+        if ($existingUser !== null) {
+            $user->invalidatePendingAccountSetupIfEmailChanged($existingUser->email, $this->email);
+        }
+
         $user->tags()->sync($this->internalTags);
+    }
+
+    /** @return list<array{label: string, color: string}> */
+    public function getSetupStatusBadge(): array
+    {
+        return [[
+            'label' => $this->setupStatusLabel,
+            'color' => $this->setupStatusColor,
+        ]];
     }
 
     public static function getForm(): Form

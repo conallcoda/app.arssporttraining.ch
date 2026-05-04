@@ -3,6 +3,7 @@
 namespace App\Form\Fields\Athlete;
 
 use Coda\FormKit\Fields\Text;
+use Illuminate\Validation\Rule;
 
 class Email extends Text
 {
@@ -14,6 +15,10 @@ class Email extends Text
         $this->placeholder = 'Email';
         $this->required = false;
         $this->default = '';
-        $this->validationRules = 'nullable|email';
+        $this->validationRules = fn (array $data) => [
+            'nullable',
+            'email',
+            Rule::unique('users', 'email')->ignore($data['id'] ?? null),
+        ];
     }
 }

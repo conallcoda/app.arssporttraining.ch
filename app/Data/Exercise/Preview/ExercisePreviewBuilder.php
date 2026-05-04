@@ -77,7 +77,10 @@ class ExercisePreviewBuilder
         $applicableSessions = self::buildApplicableSessionMap($weeks, $sessionsPerWeek, $startsAtDate, $weekSessionDates, $explicitWeekSessionCounts, $lockedSessionsByWeek);
         $lockedWeekMap = self::buildLockedWeekMap($weeks, $lockedSessionsByWeek);
         $groupingMode = (string) ($data['preview']['groupingMode'] ?? SessionGroupingMode::defaultMode());
-        $groupSize = max(1, (int) ($data['preview']['groupSize'] ?? SessionGroupingMode::defaultGroupSize()));
+        $groupSize = SessionGroupingMode::normalizeGroupSize(
+            (int) ($data['preview']['groupSize'] ?? SessionGroupingMode::defaultGroupSize()),
+            $groupingMode,
+        );
         $plannedSessionValues = self::buildPlannedSessionValueMaps(
             data: $data,
             overrideLayer: $overrides?->toArray() ?? ['sessions' => [], 'cells' => []],

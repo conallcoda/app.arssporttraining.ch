@@ -17,6 +17,10 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
+beforeEach(function () {
+    $this->useRealTrainingSessionRebuildDispatcher();
+});
+
 it('materializes planned exercises, sets, and values when a slot is created', function () {
     $athlete = User::factory()->athlete()->create();
     $group = UserGroup::create(['name' => 'Test Group']);

@@ -14,6 +14,8 @@ use Livewire\Attributes\Computed;
 
 trait InteractsWithPreview
 {
+    use InteractsWithDisplayGridCopying;
+
     public int $defaultWeeks = 1;
 
     public int $defaultSessionsPerWeek = 1;
@@ -56,15 +58,22 @@ trait InteractsWithPreview
     }
 
     /**
-     * @return array{mode: string, groupSize: int}
+     * @return array{mode: string, groupSize: int, copyValuesAutomatically: bool}
      */
     protected function resolveDefaultPreviewGrouping(): array
     {
         $user = Auth::user();
+        $mode = (string) ($user?->config->get('settings.session_grouping.mode', SessionGroupingMode::defaultMode()) ?? SessionGroupingMode::defaultMode());
 
         return [
-            'mode' => (string) ($user?->config->get('settings.session_grouping.mode', SessionGroupingMode::defaultMode()) ?? SessionGroupingMode::defaultMode()),
-            'groupSize' => max(1, (int) ($user?->config->get('settings.session_grouping.groupSize', SessionGroupingMode::defaultGroupSize()) ?? SessionGroupingMode::defaultGroupSize())),
+            'mode' => $mode,
+            'groupSize' => SessionGroupingMode::normalizeGroupSize(
+                is_numeric($user?->config->get('settings.session_grouping.groupSize'))
+                    ? (int) $user?->config->get('settings.session_grouping.groupSize')
+                    : null,
+                $mode,
+            ),
+            'copyValuesAutomatically' => (bool) ($user?->config->get('settings.session_grouping.copyValuesAutomatically', SessionGroupingMode::defaultCopyValuesAutomatically()) ?? SessionGroupingMode::defaultCopyValuesAutomatically()),
         ];
     }
 
@@ -98,26 +107,22 @@ trait InteractsWithPreview
         $resolvedPreview = array_merge($preview, [
             'groupingMode' => $preview['groupingMode'] ?? $grouping['mode'],
             'groupSize' => $preview['groupSize'] ?? $grouping['groupSize'],
+            'copyValuesAutomatically' => $preview['copyValuesAutomatically'] ?? $grouping['copyValuesAutomatically'],
         ]);
         $config['preview'] = $resolvedPreview;
         $weeks = (int) ($resolvedPreview['weeks'] ?? $this->defaultWeeks);
         $sessionsPerWeek = SessionGroupingMode::resolvePreviewSessionCount($resolvedPreview, $this->defaultSessionsPerWeek);
 
-        return ExercisePreviewBuilder::build($config, $measuredData, $weeks, $overrides, $sessionsPerWeek);
+        $grid = ExercisePreviewBuilder::build($config, $measuredData, $weeks, $overrides, $sessionsPerWeek);
+        $grid->autoCopyValuesAutomatically = SessionGroupingMode::shouldAutoCopyValues($resolvedPreview);
+
+        return $grid;
     }
 
     #[Computed]
     public function effectiveExpandedWeeks(): array
     {
-        $expanded = [];
-
-        foreach (range(0, $this->previewGrid->weekCount - 1) as $week) {
-            if ($this->weekHasSessionDivergence($this->previewGrid, $week)) {
-                $expanded[] = $week;
-            }
-        }
-
-        return $expanded;
+        return range(0, max($this->previewGrid->weekCount - 1, 0));
     }
 
     public function updateCellOverride(int $weekIndex, int $setIndex, string $field, mixed $value, int $session, bool $applyToAll = false): void
@@ -183,18 +188,23 @@ trait InteractsWithPreview
         $resolvedPreview = array_merge($preview, [
             'groupingMode' => $preview['groupingMode'] ?? $grouping['mode'],
             'groupSize' => $preview['groupSize'] ?? $grouping['groupSize'],
+            'copyValuesAutomatically' => $preview['copyValuesAutomatically'] ?? $grouping['copyValuesAutomatically'],
         ]);
         $config['preview'] = $resolvedPreview;
         $weeks = (int) ($resolvedPreview['weeks'] ?? $this->defaultWeeks);
         $sessionsPerWeek = SessionGroupingMode::resolvePreviewSessionCount($resolvedPreview, $this->defaultSessionsPerWeek);
 
-        return ExercisePreviewBuilder::build(
+        $grid = ExercisePreviewBuilder::build(
             $config,
             $measuredData,
             $weeks,
             GridOverrides::fromConfig(OverrideManager::reset()),
             $sessionsPerWeek,
         );
+
+        $grid->autoCopyValuesAutomatically = SessionGroupingMode::shouldAutoCopyValues($resolvedPreview);
+
+        return $grid;
     }
 
     public function resetOverrides(): void
@@ -281,5 +291,39 @@ trait InteractsWithPreview
             ])
             ->values()
             ->all();
+    }
+
+    protected function displayGridForCopy(): PreviewGrid
+    {
+        $grid = $this->previewGrid;
+        $grid->showCopyMenu = true;
+
+        return $grid;
+    }
+
+    protected function previewGridForCopy(): PreviewGrid
+    {
+        return $this->previewGrid;
+    }
+
+    protected function defaultsGridForCopy(): PreviewGrid
+    {
+        return $this->buildDefaultsGrid();
+    }
+
+    protected function expandedIndexesForCopy(): array
+    {
+        return $this->effectiveExpandedWeeks;
+    }
+
+    protected function currentGridOverridesForCopy(): array
+    {
+        return $this->data['config']['overrides'] ?? OverrideManager::reset();
+    }
+
+    protected function persistGridOverridesFromCopy(array $gridOverrides): void
+    {
+        $this->data['config']['overrides'] = $gridOverrides;
+        unset($this->previewGrid, $this->copyBuckets, $this->copyMenuOptions);
     }
 }

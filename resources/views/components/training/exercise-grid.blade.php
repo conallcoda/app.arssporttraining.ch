@@ -13,6 +13,7 @@
     'collapseWeeks' => true,
     'settingClickable' => false,
     'sessionLabels' => false,
+    'copyMenuOptions' => [],
 ])
 
 @if (count($grid->rows) === 0 && count($grid->weekColumns) === 0)
@@ -26,6 +27,7 @@
         $showGroupColumn = $hasPreparedGroups ? ($grid->showGroupColumn ?? $grid->showWeekColumn) : ($collapseWeeks ? $grid->weekCount > 1 : true);
         $showSessionColumn = true;
         $groupColumnLabel = $grid->groupColumnLabel ?? __('Week');
+        $showCopyColumn = (bool) ($grid->showCopyMenu ?? false);
     @endphp
     <div class="{{ $showHeader ? 'space-y-2 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4' : 'space-y-2' }}">
         @if ($showHeader)
@@ -68,8 +70,8 @@
                     <flux:dropdown>
                         <flux:button variant="ghost" size="sm" icon="ellipsis" class="!p-1" />
                         <flux:menu>
-                            <flux:menu.item icon="pencil" wire:click="openSettingsForm">{{ __('Edit Settings') }}</flux:menu.item>
-                            <flux:menu.item icon="rotate-ccw" wire:click="resetOverrides">{{ __('Reset Overrides') }}</flux:menu.item>
+                            <flux:menu.item icon="pencil" wire:click="openSettingsForm">{{ __('Edit') }}</flux:menu.item>
+                            <flux:menu.item icon="rotate-ccw" wire:click="resetOverrides">{{ __('Reset') }}</flux:menu.item>
                         </flux:menu>
                     </flux:dropdown>
                 @endif
@@ -120,6 +122,9 @@
                             @endif
                                 {{ $weekCol->label }}</th>
                         @endforeach
+                        @if ($showCopyColumn)
+                            <th class="border border-zinc-300 dark:border-zinc-600 px-2 py-2 w-12"></th>
+                        @endif
                     </tr>
                 </thead>
                 <tbody>
@@ -132,7 +137,7 @@
                                 fn ($session): bool => ! (bool) ($session->locked ?? false)
                             );
                             $collapsedGroupLocked = ! $groupHasEditableSessions;
-                            $applyToAllByDefault = $groupSessionCount > 1;
+                            $applyToAllByDefault = (bool) ($grid->autoCopyValuesAutomatically ?? false) && $groupSessionCount > 1;
                         @endphp
                         @if (! $groupExpanded && $collapsedSession)
                             @php
@@ -141,6 +146,10 @@
                             @endphp
                             @if (count($grid->rows) === 0)
                                 <tr wire:key="collapsed-weekonly-g{{ $group->index }}-w{{ $week }}-s{{ $session }}">
+                                    @php
+                                        $collapsedCopyKey = ($showGroupColumn && $groupSessionCount > 1) ? 'group:' . $group->index : 'session:' . $week . ':' . $session;
+                                        $collapsedCopyOptions = $copyMenuOptions[$collapsedCopyKey] ?? ['from' => [], 'to' => []];
+                                    @endphp
                                     @if ($showGroupColumn)
                                         <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle text-center">
                                             <div class="whitespace-nowrap">{!! $group->label !!}</div>
@@ -181,11 +190,46 @@
                                             </td>
                                         @endif
                                     @endforeach
+                                    @if ($showCopyColumn)
+                                        <td class="border border-zinc-300 dark:border-zinc-600 px-1 py-1 align-middle text-center">
+                                            @if (! empty($collapsedCopyOptions['from'] ?? []) || ! empty($collapsedCopyOptions['to'] ?? []))
+                                                <flux:dropdown position="bottom" align="end">
+                                                    <flux:button variant="ghost" size="xs" icon="ellipsis" class="!p-1" />
+                                                    <flux:menu>
+                                                        @if (! empty($collapsedCopyOptions['from'] ?? []))
+                                                            <flux:menu.submenu :heading="__('Copy From')">
+                                                                @foreach (($collapsedCopyOptions['from'] ?? []) as $option)
+                                                                    <flux:menu.item wire:click="copyDisplayBucket('{{ $option['source'] }}', '{{ $option['target'] }}')">
+                                                                        {{ __($option['label']) }}
+                                                                    </flux:menu.item>
+                                                                @endforeach
+                                                            </flux:menu.submenu>
+                                                        @endif
+                                                        @if (! empty($collapsedCopyOptions['to'] ?? []))
+                                                            <flux:menu.submenu :heading="__('Copy To')">
+                                                                @foreach (($collapsedCopyOptions['to'] ?? []) as $option)
+                                                                    <flux:menu.item wire:click="copyDisplayBucket('{{ $option['source'] }}', '{{ $option['target'] }}')">
+                                                                        {{ __($option['label']) }}
+                                                                    </flux:menu.item>
+                                                                @endforeach
+                                                            </flux:menu.submenu>
+                                                        @endif
+                                                        <flux:menu.separator />
+                                                        <flux:menu.item icon="rotate-ccw" wire:click="resetDisplayBucket('{{ $collapsedCopyKey }}')">
+                                                            {{ __('Reset') }}
+                                                        </flux:menu.item>
+                                                    </flux:menu>
+                                                </flux:dropdown>
+                                            @endif
+                                        </td>
+                                    @endif
                                 </tr>
                             @else
                                 @foreach ($grid->rows as $rowIdx => $row)
                                     @php
                                         $isFirstRow = $rowIdx === 0;
+                                        $collapsedCopyKey = ($showGroupColumn && $groupSessionCount > 1) ? 'group:' . $group->index : 'session:' . $week . ':' . $session;
+                                        $collapsedCopyOptions = $copyMenuOptions[$collapsedCopyKey] ?? ['from' => [], 'to' => []];
                                     @endphp
                                     <tr wire:key="collapsed-g{{ $group->index }}-w{{ $week }}-s{{ $session }}-r{{ $rowIdx }}">
                                         @if ($showGroupColumn && $isFirstRow)
@@ -269,12 +313,46 @@
                                                         <x-training.exercise-grid-input :meta="$weekCol->inputMeta" :value="$weekCell['value']" size="xs" type="text" />
                                                     </td>
                                                 @else
-                                                    <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $weekCell['color'] }} {{ $collapsedGroupLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}"
-                                                        rowspan="{{ count($grid->rows) }}">
-                                                        {{ $weekCell['value'] }}
-                                                    </td>
-                                                @endif
+                                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $weekCell['color'] }} {{ $collapsedGroupLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}"
+                                                    rowspan="{{ count($grid->rows) }}">
+                                                    {{ $weekCell['value'] }}
+                                                </td>
+                                            @endif
                                             @endforeach
+                                            @if ($showCopyColumn)
+                                                <td class="border border-zinc-300 dark:border-zinc-600 px-1 py-1 align-middle text-center"
+                                                    rowspan="{{ count($grid->rows) }}">
+                                                    @if (! empty($collapsedCopyOptions['from'] ?? []) || ! empty($collapsedCopyOptions['to'] ?? []))
+                                                        <flux:dropdown position="bottom" align="end">
+                                                            <flux:button variant="ghost" size="xs" icon="ellipsis" class="!p-1" />
+                                                            <flux:menu>
+                                                                @if (! empty($collapsedCopyOptions['from'] ?? []))
+                                                                    <flux:menu.submenu :heading="__('Copy From')">
+                                                                        @foreach (($collapsedCopyOptions['from'] ?? []) as $option)
+                                                                            <flux:menu.item wire:click="copyDisplayBucket('{{ $option['source'] }}', '{{ $option['target'] }}')">
+                                                                                {{ __($option['label']) }}
+                                                                            </flux:menu.item>
+                                                                        @endforeach
+                                                                    </flux:menu.submenu>
+                                                                @endif
+                                                                @if (! empty($collapsedCopyOptions['to'] ?? []))
+                                                                    <flux:menu.submenu :heading="__('Copy To')">
+                                                                        @foreach (($collapsedCopyOptions['to'] ?? []) as $option)
+                                                                            <flux:menu.item wire:click="copyDisplayBucket('{{ $option['source'] }}', '{{ $option['target'] }}')">
+                                                                                {{ __($option['label']) }}
+                                                                            </flux:menu.item>
+                                                                        @endforeach
+                                                                    </flux:menu.submenu>
+                                                                @endif
+                                                                <flux:menu.separator />
+                                                                <flux:menu.item icon="rotate-ccw" wire:click="resetDisplayBucket('{{ $collapsedCopyKey }}')">
+                                                                    {{ __('Reset') }}
+                                                                </flux:menu.item>
+                                                            </flux:menu>
+                                                        </flux:dropdown>
+                                                    @endif
+                                                </td>
+                                            @endif
                                         @endif
                                     </tr>
                                 @endforeach
@@ -285,6 +363,8 @@
                                     $week = $sessionEntry->weekIndex;
                                     $session = $sessionEntry->sessionIndex;
                                     $sessionLocked = (bool) ($sessionEntry->locked ?? false);
+                                    $sessionCopyKey = 'session:' . $week . ':' . $session;
+                                    $sessionCopyOptions = $copyMenuOptions[$sessionCopyKey] ?? ['from' => [], 'to' => []];
                                 @endphp
                                 <tr wire:key="weekonly-g{{ $group->index }}-w{{ $week }}-s{{ $session }}">
                                     @if ($showGroupColumn && $loop->first)
@@ -294,7 +374,7 @@
                                         </td>
                                     @endif
                                     <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 text-center text-xs font-medium text-zinc-400 dark:text-zinc-500">
-                                        {{ $sessionEntry->sessionNumber }}
+                                        <div>{{ $sessionEntry->sessionNumber }}</div>
                                     </td>
                                     @foreach ($grid->weekColumns as $weekCol)
                                         @php
@@ -325,6 +405,39 @@
                                             </td>
                                         @endif
                                     @endforeach
+                                    @if ($showCopyColumn)
+                                        <td class="border border-zinc-300 dark:border-zinc-600 px-1 py-1 align-middle text-center">
+                                            @if (! empty($sessionCopyOptions['from'] ?? []) || ! empty($sessionCopyOptions['to'] ?? []))
+                                                <flux:dropdown position="bottom" align="end">
+                                                    <flux:button variant="ghost" size="xs" icon="ellipsis" class="!p-1" />
+                                                    <flux:menu>
+                                                        @if (! empty($sessionCopyOptions['from'] ?? []))
+                                                            <flux:menu.submenu :heading="__('Copy From')">
+                                                                @foreach (($sessionCopyOptions['from'] ?? []) as $option)
+                                                                    <flux:menu.item wire:click="copyDisplayBucket('{{ $option['source'] }}', '{{ $option['target'] }}')">
+                                                                        {{ __($option['label']) }}
+                                                                    </flux:menu.item>
+                                                                @endforeach
+                                                            </flux:menu.submenu>
+                                                        @endif
+                                                        @if (! empty($sessionCopyOptions['to'] ?? []))
+                                                            <flux:menu.submenu :heading="__('Copy To')">
+                                                                @foreach (($sessionCopyOptions['to'] ?? []) as $option)
+                                                                    <flux:menu.item wire:click="copyDisplayBucket('{{ $option['source'] }}', '{{ $option['target'] }}')">
+                                                                        {{ __($option['label']) }}
+                                                                    </flux:menu.item>
+                                                                @endforeach
+                                                            </flux:menu.submenu>
+                                                        @endif
+                                                        <flux:menu.separator />
+                                                        <flux:menu.item icon="rotate-ccw" wire:click="resetDisplayBucket('{{ $sessionCopyKey }}')">
+                                                            {{ __('Reset') }}
+                                                        </flux:menu.item>
+                                                    </flux:menu>
+                                                </flux:dropdown>
+                                            @endif
+                                        </td>
+                                    @endif
                                 </tr>
                             @endforeach
                         @else
@@ -336,6 +449,8 @@
                                         $isFirstRow = $rowIdx === 0;
                                         $sessionLocked = (bool) ($sessionEntry->locked ?? false);
                                         $isLastSession = $loop->parent->index === $groupSessionCount - 1;
+                                        $sessionCopyKey = 'session:' . $week . ':' . $session;
+                                        $sessionCopyOptions = $copyMenuOptions[$sessionCopyKey] ?? ['from' => [], 'to' => []];
                                     @endphp
                                     <tr wire:key="expanded-g{{ $group->index }}-w{{ $week }}-s{{ $session }}-r{{ $rowIdx }}">
                                         @if ($showGroupColumn && $loop->parent->first && $isFirstRow)
@@ -347,7 +462,7 @@
                                         @if ($isFirstRow)
                                             <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 text-center text-xs font-medium text-zinc-400 dark:text-zinc-500"
                                                 rowspan="{{ count($grid->rows) }}">
-                                                {{ $sessionEntry->sessionNumber }}
+                                                <div>{{ $sessionEntry->sessionNumber }}</div>
                                             </td>
                                         @endif
                                         @if ($settingClickable)
@@ -427,6 +542,40 @@
                                                     </td>
                                                 @endif
                                             @endforeach
+                                            @if ($showCopyColumn)
+                                                <td class="border border-zinc-300 dark:border-zinc-600 px-1 py-1 align-middle text-center"
+                                                    rowspan="{{ count($grid->rows) }}">
+                                                    @if (! empty($sessionCopyOptions['from'] ?? []) || ! empty($sessionCopyOptions['to'] ?? []))
+                                                        <flux:dropdown position="bottom" align="end">
+                                                            <flux:button variant="ghost" size="xs" icon="ellipsis" class="!p-1" />
+                                                            <flux:menu>
+                                                                @if (! empty($sessionCopyOptions['from'] ?? []))
+                                                                    <flux:menu.submenu :heading="__('Copy From')">
+                                                                        @foreach (($sessionCopyOptions['from'] ?? []) as $option)
+                                                                            <flux:menu.item wire:click="copyDisplayBucket('{{ $option['source'] }}', '{{ $option['target'] }}')">
+                                                                                {{ __($option['label']) }}
+                                                                            </flux:menu.item>
+                                                                        @endforeach
+                                                                    </flux:menu.submenu>
+                                                                @endif
+                                                                @if (! empty($sessionCopyOptions['to'] ?? []))
+                                                                    <flux:menu.submenu :heading="__('Copy To')">
+                                                                        @foreach (($sessionCopyOptions['to'] ?? []) as $option)
+                                                                            <flux:menu.item wire:click="copyDisplayBucket('{{ $option['source'] }}', '{{ $option['target'] }}')">
+                                                                                {{ __($option['label']) }}
+                                                                            </flux:menu.item>
+                                                                        @endforeach
+                                                                    </flux:menu.submenu>
+                                                                @endif
+                                                                <flux:menu.separator />
+                                                                <flux:menu.item icon="rotate-ccw" wire:click="resetDisplayBucket('{{ $sessionCopyKey }}')">
+                                                                    {{ __('Reset') }}
+                                                                </flux:menu.item>
+                                                            </flux:menu>
+                                                        </flux:dropdown>
+                                                    @endif
+                                                </td>
+                                            @endif
                                         @endif
                                     </tr>
                                 @endforeach

@@ -48,7 +48,10 @@ class StrategyOrchestrator
         $strategy = new DeloadSetsStrategy(
             $setsSetting,
             groupingMode: (string) ($preview['groupingMode'] ?? SessionGroupingMode::defaultMode()),
-            groupSize: max(1, (int) ($preview['groupSize'] ?? SessionGroupingMode::defaultGroupSize())),
+            groupSize: SessionGroupingMode::normalizeGroupSize(
+                (int) ($preview['groupSize'] ?? SessionGroupingMode::defaultGroupSize()),
+                (string) ($preview['groupingMode'] ?? SessionGroupingMode::defaultMode()),
+            ),
             sessionCounts: $this->resolveSessionCounts(),
         );
         $strategy->generate($this->weeks, $state);
@@ -106,7 +109,10 @@ class StrategyOrchestrator
                 $state,
                 $this->resolveSessionCounts(),
                 (string) ($this->data['preview']['groupingMode'] ?? SessionGroupingMode::defaultMode()),
-                max(1, (int) ($this->data['preview']['groupSize'] ?? SessionGroupingMode::defaultGroupSize())),
+                SessionGroupingMode::normalizeGroupSize(
+                    (int) ($this->data['preview']['groupSize'] ?? SessionGroupingMode::defaultGroupSize()),
+                    (string) ($this->data['preview']['groupingMode'] ?? SessionGroupingMode::defaultMode()),
+                ),
             );
             $this->registerEditability($strategy, $state);
 
@@ -149,7 +155,10 @@ class StrategyOrchestrator
             $state,
             $this->resolveSessionCounts(),
             (string) ($this->data['preview']['groupingMode'] ?? SessionGroupingMode::defaultMode()),
-            max(1, (int) ($this->data['preview']['groupSize'] ?? SessionGroupingMode::defaultGroupSize())),
+            SessionGroupingMode::normalizeGroupSize(
+                (int) ($this->data['preview']['groupSize'] ?? SessionGroupingMode::defaultGroupSize()),
+                (string) ($this->data['preview']['groupingMode'] ?? SessionGroupingMode::defaultMode()),
+            ),
         );
         $this->registerEditability($strategy, $state);
     }

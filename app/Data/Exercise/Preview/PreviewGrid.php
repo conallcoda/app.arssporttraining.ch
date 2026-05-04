@@ -28,5 +28,6 @@ class PreviewGrid extends AbstractData
         public bool $showWeekColumn = true,
         public bool $showSessionColumn = false,
         public bool $showCopyMenu = false,
+        public bool $autoCopyValuesAutomatically = false,
     ) {}
 }

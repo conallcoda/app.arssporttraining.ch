@@ -10,7 +10,7 @@ class CalendarSidebarSetting extends AbstractCoachSetting
         public bool $enabled = true,
     ) {}
 
-    public static function fields(): array
+    public static function fields(array $data = []): array
     {
         return [
             SwitchField::make('enabled')

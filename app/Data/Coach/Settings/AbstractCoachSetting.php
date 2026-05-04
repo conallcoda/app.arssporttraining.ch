@@ -19,7 +19,7 @@ abstract class AbstractCoachSetting extends AbstractData implements HasForms
         return preg_replace('/([a-z])([A-Z])/', '$1 $2', $name);
     }
 
-    public static function fields(): array
+    public static function fields(array $data = []): array
     {
         return [];
     }

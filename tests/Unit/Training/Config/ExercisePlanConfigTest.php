@@ -1,5 +1,6 @@
 <?php
 
+use App\Data\Exercise\ExerciseConfig;
 use App\Data\Training\Config\ExerciseOverrides;
 use App\Data\Training\Config\ExercisePlanConfig;
 use Tests\TestCase;
@@ -137,4 +138,73 @@ it('exposes override rows as a flat list separate from the persisted json shape'
         ->and($rehydrated->defaultExerciseOverrides(100)->gridOverrides['sessions'][0]['data']['rest'] ?? null)->toBe(75)
         ->and($rehydrated->defaultExerciseOverrides(100)->gridOverrides['cells'][0]['data']['reps'] ?? null)->toBe(8)
         ->and($rehydrated->defaultExerciseOverrides(100)->historicalGridOverrides['cells'][0]['data']['reps'] ?? null)->toBe(10);
+});
+
+it('applies session grouping copy defaults into preview config', function () {
+    $config = ExercisePlanConfig::from([
+        'sessionGrouping' => [
+            'mode' => 'groups',
+            'groupSize' => 2,
+            'copyValuesAutomatically' => false,
+        ],
+    ]);
+
+    $resolved = $config->applySessionGroupingToPreview([
+        'preview' => [],
+    ]);
+
+    expect($resolved['preview'])
+        ->toMatchArray([
+            'groupingMode' => 'groups',
+            'groupSize' => 2,
+            'copyValuesAutomatically' => false,
+        ]);
+});
+
+it('keeps a concrete exercise-level session grouping override when plan grouping changes', function () {
+    $config = ExercisePlanConfig::from([
+        'sessionGrouping' => [
+            'mode' => 'groups',
+            'groupSize' => 2,
+            'copyValuesAutomatically' => true,
+        ],
+    ]);
+
+    $config->setDefaultExerciseOverrides(100, ExerciseOverrides::from([
+        'sessionGrouping' => [
+            'mode' => 'week',
+            'groupSize' => 1,
+            'copyValuesAutomatically' => false,
+        ],
+    ]));
+
+    $base = ExerciseConfig::from([
+        'settings' => ['reps'],
+        'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+        'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+    ]);
+
+    $resolved = $config->resolveExercise($base, 100);
+
+    expect($resolved->effectiveConfig['preview'] ?? [])
+        ->toMatchArray([
+            'groupingMode' => 'week',
+            'groupSize' => 1,
+            'copyValuesAutomatically' => false,
+        ]);
+
+    $config->sessionGrouping = \App\Data\Exercise\Preview\SessionGroupingConfig::from([
+        'mode' => 'none',
+        'groupSize' => 1,
+        'copyValuesAutomatically' => false,
+    ]);
+
+    $resolvedAfterPlanChange = $config->resolveExercise($base, 100);
+
+    expect($resolvedAfterPlanChange->effectiveConfig['preview'] ?? [])
+        ->toMatchArray([
+            'groupingMode' => 'week',
+            'groupSize' => 1,
+            'copyValuesAutomatically' => false,
+        ]);
 });

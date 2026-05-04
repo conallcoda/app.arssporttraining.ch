@@ -214,7 +214,7 @@ class ProgramEditor extends Component
     public function sessionGroupingFormConfig(): Form
     {
         return Form::make()
-            ->fieldset('Session Grouping', SessionGroupingConfig::fields(), prefix: 'data.session_grouping');
+            ->fieldset('Session Grouping', SessionGroupingConfig::fields($this->data['session_grouping'] ?? []), prefix: 'data.session_grouping');
     }
 
     #[Computed]
@@ -288,6 +288,11 @@ class ProgramEditor extends Component
     {
         $this->traitUpdated($property, $value);
 
+        if ($property === 'data.session_grouping.mode') {
+            $mode = (string) ($this->data['session_grouping']['mode'] ?? null);
+            $this->data['session_grouping']['groupSize'] = SessionGroupingMode::defaultGroupSize($mode);
+        }
+
         if (str_starts_with($property, 'data.session_grouping.')) {
             $this->saveSessionGrouping();
         }
@@ -339,8 +344,14 @@ class ProgramEditor extends Component
         $user = Auth::user();
 
         return SessionGroupingConfig::from([
-            'mode' => (string) ($user?->config->get('settings.session_grouping.mode', SessionGroupingMode::defaultMode()) ?? SessionGroupingMode::defaultMode()),
-            'groupSize' => (int) ($user?->config->get('settings.session_grouping.groupSize', SessionGroupingMode::defaultGroupSize()) ?? SessionGroupingMode::defaultGroupSize()),
+            'mode' => $mode = (string) ($user?->config->get('settings.session_grouping.mode', SessionGroupingMode::defaultMode()) ?? SessionGroupingMode::defaultMode()),
+            'groupSize' => SessionGroupingMode::normalizeGroupSize(
+                is_numeric($user?->config->get('settings.session_grouping.groupSize'))
+                    ? (int) $user?->config->get('settings.session_grouping.groupSize')
+                    : null,
+                $mode,
+            ),
+            'copyValuesAutomatically' => (bool) ($user?->config->get('settings.session_grouping.copyValuesAutomatically', SessionGroupingMode::defaultCopyValuesAutomatically()) ?? SessionGroupingMode::defaultCopyValuesAutomatically()),
         ]);
     }
 
