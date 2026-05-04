@@ -85,6 +85,7 @@ class ExportDatabaseCommand extends Command
             ->get()
             ->map(fn (ExerciseTemplate $template) => [
                 'id' => $template->id,
+                'owner_id' => $template->owner_id,
                 'name' => $template->name,
                 'config' => json_decode($template->getRawOriginal('config'), true),
                 'deleted_at' => $template->deleted_at?->toIso8601String(),
@@ -103,8 +104,10 @@ class ExportDatabaseCommand extends Command
             ->get()
             ->map(fn (Exercise $exercise) => [
                 'id' => $exercise->id,
+                'owner_id' => $exercise->owner_id,
                 'name' => $exercise->name,
                 'category_id' => $exercise->category_id,
+                'external_id' => $exercise->external_id,
                 'template_id' => $exercise->template_id,
                 'video_url' => $exercise->video_url,
                 'instructions' => $exercise->instructions,
@@ -129,6 +132,7 @@ class ExportDatabaseCommand extends Command
             ->get()
             ->map(fn (ExerciseExternal $external) => [
                 'id' => $external->id,
+                'owner_id' => $external->owner_id,
                 'source' => $external->source,
                 'name' => $external->name,
                 'video_url' => $external->video_url,
@@ -153,6 +157,7 @@ class ExportDatabaseCommand extends Command
             ->get()
             ->map(fn (ExerciseProgram $program) => [
                 'id' => $program->id,
+                'owner_id' => $program->owner_id,
                 'parent_type' => $program->parent_type,
                 'parent_id' => $program->parent_id,
                 'name' => $program->name,
@@ -184,6 +189,7 @@ class ExportDatabaseCommand extends Command
             ->get()
             ->map(fn (ExercisePlan $plan) => [
                 'id' => $plan->id,
+                'owner_id' => $plan->owner_id,
                 'name' => $plan->name,
                 'config' => $this->configWithOverrides($plan),
                 'deleted_at' => $plan->deleted_at?->toIso8601String(),
@@ -220,6 +226,7 @@ class ExportDatabaseCommand extends Command
             ->get()
             ->map(fn (UserGroup $group) => [
                 'id' => $group->id,
+                'owner_id' => $group->owner_id,
                 'name' => $group->name,
                 'config' => json_decode($group->getRawOriginal('config'), true),
                 'deleted_at' => $group->deleted_at?->toIso8601String(),
@@ -238,6 +245,7 @@ class ExportDatabaseCommand extends Command
             ->get()
             ->map(fn (User $user) => [
                 'id' => $user->id,
+                'owner_id' => $user->owner_id,
                 'type' => $user->getRawOriginal('type'),
                 'forename' => $user->forename,
                 'surname' => $user->surname,
@@ -267,6 +275,7 @@ class ExportDatabaseCommand extends Command
             ->get()
             ->map(fn (TrainingProgram $tp) => [
                 'id' => $tp->id,
+                'owner_id' => $tp->owner_id,
                 'group_id' => $tp->group_id,
                 'exercise_program_id' => $tp->exercise_program_id,
                 'sort' => $tp->sort,
@@ -285,6 +294,7 @@ class ExportDatabaseCommand extends Command
             ->map(fn (TrainingProgramBlock $block) => [
                 'id' => $block->id,
                 'parent_id' => $block->parent_id,
+                'owner_id' => $block->owner_id,
                 'group_id' => $block->group_id,
                 'user_id' => $block->user_id,
                 'category_id' => $block->category_id,
@@ -312,6 +322,7 @@ class ExportDatabaseCommand extends Command
                 'id' => $slot->id,
                 'training_program_id' => $slot->training_program_id,
                 'user_id' => $slot->user_id,
+                'owner_id' => $slot->owner_id,
                 'datetime' => $slot->datetime?->toIso8601String(),
             ])
             ->all();
