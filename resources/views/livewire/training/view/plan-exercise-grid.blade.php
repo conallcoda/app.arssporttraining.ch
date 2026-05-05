@@ -22,7 +22,7 @@
                 <flux:text class="text-zinc-400">{{ __('This athlete does not have a base 1RM measurement for this exercise.') }}</flux:text>
             </div>
         @else
-            <div wire:key="grid-content-{{ $exerciseId }}-{{ $this->configFingerprint }}">
+            <div wire:key="grid-content-{{ $exerciseId }}-{{ $valueDisplayMode }}-{{ $this->configFingerprint }}">
                 <div class="flex items-start justify-between !-mt-2">
                     <div class="space-y-2 mb-3">
                         @if (! empty($exerciseBadges))
@@ -103,6 +103,10 @@
                             :settingClickable="true"
                             :collapseWeeks="false"
                             :copyMenuOptions="$this->copyMenuOptions"
+                            :showActualValues="$this->showsActualValueTabs"
+                            :valueDisplayMode="$valueDisplayMode"
+                            :actualCellValues="$this->actualCellValues"
+                            :actualSessionValues="$this->actualSessionValues"
                         />
                     </div>
                 @endif

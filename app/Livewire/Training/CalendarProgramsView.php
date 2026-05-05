@@ -224,11 +224,10 @@ class CalendarProgramsView extends Component
             return [];
         }
 
-        $cellSlots = $this->programCellSlots;
-        $dayIndex = [];
+        $visibleKeys = array_fill_keys(array_keys($this->programCellSlots), true);
 
-        foreach ($this->days as $i => $day) {
-            $dayIndex[$day['date']] = $i;
+        if ($visibleKeys === []) {
+            return [];
         }
 
         $programCategoryMap = [];
@@ -238,39 +237,39 @@ class CalendarProgramsView extends Component
             }
         }
 
+        if ($programCategoryMap === []) {
+            return [];
+        }
+
+        [$start, $end] = $this->dateRange();
+        $blockRangesByCategory = $this->effectiveCategoryBlockRanges($start, $end);
+
+        if ($blockRangesByCategory === []) {
+            return [];
+        }
+
+        $datesByProgram = $this->loadProgramDatesForVisibleBlocks(array_keys($programCategoryMap), $blockRangesByCategory);
         $blockSlots = [];
 
-        foreach ($cellSlots as $key => $times) {
-            [$programId, $date] = explode('-', $key, 2);
+        foreach ($datesByProgram as $programId => $dates) {
             $categoryId = $programCategoryMap[(int) $programId] ?? null;
 
             if ($categoryId === null) {
                 continue;
             }
 
-            $catBlocks = $this->categoryBlocks[$categoryId] ?? null;
-            if (! $catBlocks) {
-                continue;
-            }
+            foreach ($dates as $date) {
+                foreach ($blockRangesByCategory[$categoryId] ?? [] as $block) {
+                    if ($date < $block['start'] || $date > $block['end']) {
+                        continue;
+                    }
 
-            $dayIdx = $dayIndex[$date] ?? null;
-            if ($dayIdx === null) {
-                continue;
-            }
+                    $key = $programId.'-'.$date;
+                    $blockSlots[$block['id'].'-'.$programId][] = ['date' => $date, 'key' => $key];
 
-            $blockId = null;
-            foreach ($catBlocks['notes'] as $block) {
-                if ($dayIdx >= $block['startIdx'] && $dayIdx <= $block['endIdx']) {
-                    $blockId = $block['id'];
                     break;
                 }
             }
-
-            if ($blockId === null) {
-                continue;
-            }
-
-            $blockSlots[$blockId.'-'.$programId][] = ['date' => $date, 'key' => $key];
         }
 
         $order = [];
@@ -279,11 +278,104 @@ class CalendarProgramsView extends Component
             usort($entries, fn ($a, $b) => strcmp($a['date'], $b['date']));
 
             foreach ($entries as $i => $entry) {
-                $order[$entry['key']] = $i + 1;
+                if (isset($visibleKeys[$entry['key']])) {
+                    $order[$entry['key']] = $i + 1;
+                }
             }
         }
 
         return $order;
+    }
+
+    /**
+     * @return array<int, array<int, array{id: int, start: string, end: string}>>
+     */
+    protected function effectiveCategoryBlockRanges(Carbon $start, Carbon $end): array
+    {
+        $service = app(CalendarBlockService::class);
+        $data = $service->getCategoryBlocksForDateRange(
+            $this->groupId,
+            $this->userId,
+            $start,
+            $end,
+        );
+
+        $blocks = $data['blocks'];
+        $overridesByParent = $data['overridesByParent'];
+        $ranges = [];
+
+        foreach ($blocks as $block) {
+            if ($block->user_id !== null) {
+                $effective = $block;
+            } else {
+                $override = $overridesByParent->get($block->id);
+                if ($override && ! $override->active) {
+                    continue;
+                }
+
+                $effective = $override ?? $block;
+            }
+
+            $ranges[(int) $effective->category_id][] = [
+                'id' => (int) $effective->id,
+                'start' => $effective->start->format('Y-m-d'),
+                'end' => ($effective->end ?? $effective->start)->format('Y-m-d'),
+            ];
+        }
+
+        return $ranges;
+    }
+
+    /**
+     * @param  int[]  $programIds
+     * @param  array<int, array<int, array{id: int, start: string, end: string}>>  $blockRangesByCategory
+     * @return array<int, array<int, string>>
+     */
+    protected function loadProgramDatesForVisibleBlocks(array $programIds, array $blockRangesByCategory): array
+    {
+        if ($programIds === [] || $blockRangesByCategory === []) {
+            return [];
+        }
+
+        $allRanges = [];
+        foreach ($blockRangesByCategory as $ranges) {
+            foreach ($ranges as $range) {
+                $allRanges[] = $range;
+            }
+        }
+
+        if ($allRanges === []) {
+            return [];
+        }
+
+        $rangeStart = collect($allRanges)->min('start');
+        $rangeEnd = collect($allRanges)->max('end');
+
+        if (! is_string($rangeStart) || ! is_string($rangeEnd)) {
+            return [];
+        }
+
+        $query = TrainingProgramSlot::query()
+            ->selectRaw('training_program_id, DATE(datetime) as slot_date')
+            ->whereIn('training_program_id', $programIds)
+            ->whereBetween('datetime', [
+                Carbon::parse($rangeStart)->startOfDay(),
+                Carbon::parse($rangeEnd)->endOfDay(),
+            ])
+            ->distinct()
+            ->orderBy('datetime');
+
+        if ($this->userId !== null) {
+            $query->where('user_id', $this->userId);
+        }
+
+        $datesByProgram = [];
+
+        foreach ($query->get() as $row) {
+            $datesByProgram[(int) $row->training_program_id][] = (string) $row->slot_date;
+        }
+
+        return $datesByProgram;
     }
 
     #[Computed]

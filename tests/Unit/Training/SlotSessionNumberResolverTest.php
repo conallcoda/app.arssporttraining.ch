@@ -3,7 +3,6 @@
 use App\Support\Training\SlotSessionNumberResolver;
 use App\Training\CalendarBlockService;
 use Carbon\Carbon;
-use Illuminate\Support\Collection;
 
 it('numbers sessions within category block ranges', function () {
     $service = Mockery::mock(CalendarBlockService::class);
@@ -16,7 +15,15 @@ it('numbers sessions within category block ranges', function () {
             'overridesByParent' => collect(),
         ]));
 
-    $resolver = new SlotSessionNumberResolver($service);
+    $resolver = new class($service) extends SlotSessionNumberResolver
+    {
+        protected function loadProgramDates(array $programIds, ?int $userId, array $blockRanges): array
+        {
+            return [
+                100 => ['2030-04-02', '2030-04-04', '2030-04-11'],
+            ];
+        }
+    };
 
     expect($resolver->resolve(
         rows: [
@@ -49,7 +56,16 @@ it('applies active overrides and skips disabled parent blocks', function () {
             ]),
         ]));
 
-    $resolver = new SlotSessionNumberResolver($service);
+    $resolver = new class($service) extends SlotSessionNumberResolver
+    {
+        protected function loadProgramDates(array $programIds, ?int $userId, array $blockRanges): array
+        {
+            return [
+                300 => ['2030-05-02', '2030-05-03', '2030-05-04'],
+                400 => ['2030-05-03'],
+            ];
+        }
+    };
 
     expect($resolver->resolve(
         rows: [
@@ -65,6 +81,42 @@ it('applies active overrides and skips disabled parent blocks', function () {
     ))->toBe([
         '300-2030-05-03' => 1,
         '300-2030-05-04' => 2,
+    ]);
+});
+
+it('numbers visible sessions from the full block timeline rather than the filtered window', function () {
+    $service = Mockery::mock(CalendarBlockService::class);
+    $service->shouldReceive('getCategoryBlocksForDateRange')
+        ->once()
+        ->andReturn(collect([
+            'blocks' => collect([
+                fakeBlock(id: 30, categoryId: 7, start: '2030-05-01', end: '2030-05-31'),
+            ]),
+            'overridesByParent' => collect(),
+        ]));
+
+    $resolver = new class($service) extends SlotSessionNumberResolver
+    {
+        protected function loadProgramDates(array $programIds, ?int $userId, array $blockRanges): array
+        {
+            return [
+                500 => ['2030-05-01', '2030-05-04', '2030-05-07'],
+            ];
+        }
+    };
+
+    expect($resolver->resolve(
+        rows: [
+            fakeSlotRow(programId: 500, categoryId: 7, slotDate: '2030-05-04'),
+            fakeSlotRow(programId: 500, categoryId: 7, slotDate: '2030-05-07'),
+        ],
+        groupId: 1,
+        userId: null,
+        start: Carbon::parse('2030-05-04'),
+        end: Carbon::parse('2030-05-10'),
+    ))->toBe([
+        '500-2030-05-04' => 2,
+        '500-2030-05-07' => 3,
     ]);
 });
 

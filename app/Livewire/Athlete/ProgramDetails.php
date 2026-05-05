@@ -64,16 +64,22 @@ class ProgramDetails extends Component
 
     public array $editValues = [];
 
-    public function mount(string $date, TrainingProgram $trainingProgram): void
+    public bool $previewMode = false;
+
+    public ?int $previewUserId = null;
+
+    public function mount(string $date, ?TrainingProgram $trainingProgram = null): void
     {
         $this->date = CarbonImmutable::parse($date)->format('Y-m-d');
-        $this->trainingProgramId = $trainingProgram->id;
         $this->from = $this->sanitizeReturnUrl(request()->query('from'));
+
+        abort_unless($trainingProgram instanceof TrainingProgram, 404);
+        $this->trainingProgramId = $trainingProgram->id;
 
         abort_unless(
             TrainingProgramSlot::query()
                 ->where('training_program_id', $this->trainingProgramId)
-                ->where('user_id', auth()->id())
+                ->where('user_id', $this->sessionUserId())
                 ->whereDate('datetime', $this->date)
                 ->exists(),
             404
@@ -102,7 +108,7 @@ class ProgramDetails extends Component
                 'exercises.sets.values',
             ])
             ->where('training_program_id', $this->trainingProgramId)
-            ->where('user_id', auth()->id())
+            ->where('user_id', $this->sessionUserId())
             ->whereDate('datetime', $this->date)
             ->orderBy('datetime')
             ->orderBy('id')
@@ -259,12 +265,20 @@ class ProgramDetails extends Component
     #[Computed]
     public function backUrl(): string
     {
+        if ($this->previewMode) {
+            return '#';
+        }
+
         return $this->from ?: route('athlete.dashboard.calendar', ['date' => $this->date]);
     }
 
     #[Computed]
     public function backLabel(): string
     {
+        if ($this->previewMode) {
+            return 'Back to Preview';
+        }
+
         $path = parse_url($this->backUrl, PHP_URL_PATH) ?: '';
 
         return Str::startsWith($path, '/dashboard/calendar')
@@ -275,6 +289,10 @@ class ProgramDetails extends Component
     #[Computed]
     public function athleteEditsEnabled(): bool
     {
+        if ($this->previewMode) {
+            return false;
+        }
+
         return (bool) config('athlete.allow_athlete_edits', false);
     }
 
@@ -393,6 +411,7 @@ class ProgramDetails extends Component
 
     public function markExerciseCompleted(int $slotExerciseId): void
     {
+        abort_if($this->previewMode, 403);
         abort_if($this->isFutureSession, 403);
 
         $exercise = $this->currentSlot->exercises->firstWhere('id', $slotExerciseId);
@@ -405,6 +424,7 @@ class ProgramDetails extends Component
 
     public function markExerciseSkipped(int $slotExerciseId): void
     {
+        abort_if($this->previewMode, 403);
         abort_if($this->isFutureSession, 403);
 
         $exercise = $this->currentSlot->exercises->firstWhere('id', $slotExerciseId);
@@ -441,6 +461,15 @@ class ProgramDetails extends Component
     public function isFutureSession(): bool
     {
         return AthleteDashboardDate::isFutureDate($this->date);
+    }
+
+    public function exitPreviewDetails(): void
+    {
+        if (! $this->previewMode) {
+            return;
+        }
+
+        $this->dispatch('athlete-preview-back');
     }
 
     protected function sanitizeReturnUrl(mixed $url): ?string
@@ -651,6 +680,13 @@ class ProgramDetails extends Component
         return $data;
     }
 
+    protected function sessionUserId(): int
+    {
+        return $this->previewMode
+            ? (int) ($this->previewUserId ?? 0)
+            : (int) auth()->id();
+    }
+
     public function render(): View
     {
         return view('livewire.athlete.program-details', [
@@ -661,6 +697,7 @@ class ProgramDetails extends Component
             'showsSectionTabs' => $this->showsSectionTabs,
             'isFutureSession' => $this->isFutureSession,
             'athleteEditsEnabled' => $this->athleteEditsEnabled,
+            'previewMode' => $this->previewMode,
         ])->layout('components.layouts.athlete', ['title' => $this->trainingProgram->program->name]);
     }
 }

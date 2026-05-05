@@ -17,6 +17,8 @@ class PreviewGridGroup extends AbstractData
         public array $sessions = [],
         public string $sessionRangeLabel = '',
         public bool $expanded = false,
+        public bool $forceExpanded = false,
+        public bool $collapsible = false,
         public bool $hasLockedSessions = false,
         public array $collapsedMetaLines = [],
         public bool $showCopyMenu = false,

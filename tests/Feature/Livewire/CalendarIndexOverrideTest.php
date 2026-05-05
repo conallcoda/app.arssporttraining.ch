@@ -5,7 +5,10 @@ use App\Livewire\Training\CalendarIndex;
 use App\Livewire\Training\CalendarProgramsView;
 use App\Livewire\Training\CalendarScheduleView;
 use App\Models\Exercise\ExerciseProgram;
+use App\Models\Tag;
 use App\Models\Training\TrainingProgram;
+use App\Models\Training\TrainingProgramBlock;
+use App\Models\Training\TrainingProgramBlockTypeEnum;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
@@ -217,6 +220,61 @@ it('removes only the user slot in user mode', function () {
 
     expect(TrainingProgramSlot::where('user_id', $user1->id)->exists())->toBeFalse();
     expect(TrainingProgramSlot::where('user_id', $user2->id)->exists())->toBeTrue();
+});
+
+it('numbers athlete program slots from the full block instead of the visible date range', function () {
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Three Amigos']);
+    $user = User::factory()->athlete()->create();
+    $group->members()->attach($user);
+
+    $category = Tag::factory()->create(['scope' => 'training_category']);
+    $program = ExerciseProgram::factory()->create([
+        'name' => 'Bali Programm Armando',
+        'exercise_category_id' => $category->id,
+    ]);
+
+    $trainingProgram = TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    TrainingProgramBlock::create([
+        'group_id' => $group->id,
+        'user_id' => null,
+        'category_id' => $category->id,
+        'type' => TrainingProgramBlockTypeEnum::Category,
+        'start' => '2026-05-01',
+        'end' => '2026-05-31',
+        'note' => 'May Block',
+        'active' => true,
+    ]);
+
+    TrainingProgramSlot::create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $user->id,
+        'datetime' => '2026-05-01 09:00:00',
+    ]);
+
+    TrainingProgramSlot::create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $user->id,
+        'datetime' => '2026-05-04 09:00:00',
+    ]);
+
+    Livewire::actingAs($coach)
+        ->test(CalendarProgramsView::class, [
+            'groupId' => $group->id,
+            'userId' => $user->id,
+            'calendarSettings' => new CalendarSettingsData(
+                start: '2026-05-04',
+                end: '2026-05-10',
+                preset: null,
+            ),
+            'weekStartsOn' => (int) config('training.week_starts_on', Carbon::MONDAY),
+            'weekEndsOn' => ((int) config('training.week_starts_on', Carbon::MONDAY) + 6) % 7,
+        ])
+        ->assertSet("athleteSlotOrder.{$trainingProgram->id}-2026-05-04", 2);
 });
 
 it('user view only shows that user slots', function () {

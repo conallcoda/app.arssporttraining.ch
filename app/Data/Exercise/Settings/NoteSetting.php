@@ -4,6 +4,7 @@ namespace App\Data\Exercise\Settings;
 
 use App\Data\Exercise\Preview\CellInputMeta;
 use App\Form\Fields\Exercise\ApplyPerField;
+use App\Support\Training\ApplyPerScope;
 use Coda\FormKit\Field;
 use Coda\FormKit\Fields;
 
@@ -12,7 +13,7 @@ class NoteSetting extends AbstractSetting
     public function __construct(
         public ?string $default = '',
         public ?string $label = '',
-        public string $applyPer = 'session',
+        public string $applyPer = ApplyPerScope::FORM_SET,
     ) {}
 
     public static function inputMeta(array $config = []): CellInputMeta

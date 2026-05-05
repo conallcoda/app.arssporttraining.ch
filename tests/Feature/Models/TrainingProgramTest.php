@@ -42,7 +42,7 @@ it('imports a program by duplicating it', function () {
     expect($tp->program->exercises)->toHaveCount(1);
 });
 
-it('materializes effective grouping defaults into the scheduled program copy on import', function () {
+it('keeps exercise-level grouping overrides without materializing a program-level grouping on import', function () {
     $coach = User::factory()->coach()->create();
     $coach->config->set('settings.session_grouping', [
         'mode' => 'week',
@@ -78,12 +78,7 @@ it('materializes effective grouping defaults into the scheduled program copy on 
     $tp = TrainingProgram::importProgram($program, $group->id);
     $clonedProgram = $tp->program->fresh();
 
-    expect($clonedProgram->config->resolvedSessionGrouping()?->toArray())
-        ->toBe([
-            'mode' => 'week',
-            'groupSize' => 1,
-            'copyValuesAutomatically' => true,
-        ]);
+    expect($clonedProgram->config->resolvedSessionGrouping())->toBeNull();
 
     $clonedPivot = $clonedProgram->exercises()->first()?->pivot?->id;
 

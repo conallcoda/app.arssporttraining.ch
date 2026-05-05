@@ -3,11 +3,8 @@
 namespace App\Models\Exercise;
 
 use App\Casts\ExercisePlanConfigCast;
-use App\Data\Exercise\Preview\SessionGroupingConfig;
-use App\Data\Exercise\Preview\SessionGroupingMode;
 use App\Models\Concerns\HasPlanConfigOverrides;
 use App\Models\Tag;
-use App\Models\Users\User;
 use App\Observers\ExerciseProgramObserver;
 use Coda\Cms\Models\Concerns\HasOwner;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;
@@ -20,7 +17,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ExerciseProgram extends Model implements Taggable
@@ -99,7 +95,6 @@ class ExerciseProgram extends Model implements Taggable
         $clone = $this->replicate(['id']);
 
         $config = $clone->config;
-        $config->sessionGrouping = $this->resolvedEffectiveSessionGroupingForClone();
         foreach (array_keys($config->exercises) as $programExerciseId) {
             $overrides = $config->defaultExerciseOverrides((int) $programExerciseId);
             if ($overrides->hasAnyGridOverrides()) {
@@ -132,32 +127,6 @@ class ExerciseProgram extends Model implements Taggable
 
         return $clone;
     }
-
-    protected function resolvedEffectiveSessionGroupingForClone(): SessionGroupingConfig
-    {
-        $stored = $this->config->resolvedSessionGrouping();
-
-        if ($stored !== null) {
-            return $stored;
-        }
-
-        /** @var User|null $user */
-        $user = $this->owner instanceof User
-            ? $this->owner
-            : (Auth::user() instanceof User ? Auth::user() : null);
-
-        return SessionGroupingConfig::from([
-            'mode' => $mode = (string) ($user?->config->get('settings.session_grouping.mode', SessionGroupingMode::defaultMode()) ?? SessionGroupingMode::defaultMode()),
-            'groupSize' => SessionGroupingMode::normalizeGroupSize(
-                is_numeric($user?->config->get('settings.session_grouping.groupSize'))
-                    ? (int) $user?->config->get('settings.session_grouping.groupSize')
-                    : null,
-                $mode,
-            ),
-            'copyValuesAutomatically' => (bool) ($user?->config->get('settings.session_grouping.copyValuesAutomatically', SessionGroupingMode::defaultCopyValuesAutomatically()) ?? SessionGroupingMode::defaultCopyValuesAutomatically()),
-        ]);
-    }
-
     protected static function booted(): void
     {
         static::observe(ExerciseProgramObserver::class);

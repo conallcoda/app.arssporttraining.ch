@@ -4,13 +4,14 @@ namespace App\Data\Exercise\Settings;
 
 use App\Data\Exercise\Preview\CellInputMeta;
 use App\Form\Fields\Exercise\ApplyPerField;
+use App\Support\Training\ApplyPerScope;
 use Coda\FormKit\Fields;
 
 class RestSetting extends AbstractSetting
 {
     public function __construct(
         public ?int $default = 60,
-        public string $applyPer = 'week',
+        public string $applyPer = ApplyPerScope::FORM_SESSION,
     ) {}
 
     public static function unitLabel(): string
@@ -35,7 +36,7 @@ class RestSetting extends AbstractSetting
                 ->default(60)
                 ->min(0)
                 ->suffix('sec'),
-            ApplyPerField::make('week'),
+            ApplyPerField::make(ApplyPerScope::FORM_SESSION),
         ];
     }
 }

@@ -8,7 +8,7 @@ final readonly class ResolvedPlannedValue
         public string $settingKey,
         public mixed $value,
         public ?string $unit = null,
-        public string $applyPer = 'session',
+        public string $applyPer = 'set',
         public ?ResolvedPlannedProvenance $provenance = null,
     ) {}
 }

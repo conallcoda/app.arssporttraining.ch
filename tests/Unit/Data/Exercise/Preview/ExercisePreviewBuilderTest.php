@@ -51,3 +51,28 @@ it('attaches shared planned provenance to preview rows and columns', function ()
         ->and($restColumn->presentWeekCell(0, 0)['provenance']?->kind)->toBe('config')
         ->and($restColumn->presentWeekCell(0, 0)['provenance']?->layer)->toBe('plan');
 });
+
+it('shows resolved set counts for locked sessions in the sets column', function () {
+    $grid = ExercisePreviewBuilder::build(
+        data: [
+            'settings' => ['reps'],
+            'sets' => ['default' => 3, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 8, 'applyPer' => 'session'],
+        ],
+        weeks: 1,
+        sessionsPerWeek: 2,
+        weekSessionDates: [
+            ['2026-04-10', '2026-04-11'],
+        ],
+        lockedSessionsByWeek: [
+            [true, true],
+        ],
+    );
+
+    $setsColumn = collect($grid->weekColumns)->firstWhere('field', 'sets');
+
+    expect($setsColumn)->not->toBeNull()
+        ->and($setsColumn->presentWeekCell(0, 0)['value'])->toBe(3)
+        ->and($setsColumn->presentWeekCell(0, 1)['value'])->toBe(3)
+        ->and($setsColumn->cells[0] ?? null)->toBe(3);
+});

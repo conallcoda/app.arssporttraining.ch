@@ -4,6 +4,7 @@ namespace App\Data\Exercise\Settings;
 
 use App\Data\Exercise\Preview\CellInputMeta;
 use App\Form\Fields\Exercise\ApplyPerField;
+use App\Support\Training\ApplyPerScope;
 use Coda\FormKit\Fields;
 
 class DurationSetting extends AbstractSetting
@@ -11,7 +12,7 @@ class DurationSetting extends AbstractSetting
     public function __construct(
         public string $unit = 'seconds',
         public int|string|null $default = 60,
-        public string $applyPer = 'session',
+        public string $applyPer = ApplyPerScope::FORM_SET,
     ) {}
 
     public static function unitLabel(): array

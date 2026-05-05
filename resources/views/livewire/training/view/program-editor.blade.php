@@ -1,11 +1,7 @@
 <div class="space-y-6">
     @php
-        $plannedGroupsLabel = match (data_get($data, 'session_grouping.mode')) {
-            'none' => __('Planned Sessions'),
-            'week' => __('Planned Weeks'),
-            default => __('Planned Groups'),
-        };
-        $showSettingsSection = $showWeeksInput || $this->sessionGroupingFieldset;
+        $showActualDisplayToggle = $showActualValueTabs && $userId !== null;
+        $showSettingsSection = $showWeeksInput || $showActualDisplayToggle;
         $stackSidebar = $gridLayout === 'stacked' && ($this->showAthleteContext || $showSettingsSection);
     @endphp
 
@@ -143,17 +139,28 @@
                 @if ($showSettingsSection)
                     <x-cms::section :title="__('Settings')">
                         <div class="space-y-4">
-                            @if ($this->sessionGroupingFieldset)
-                                <x-form-kit::form.fieldset
-                                    :fieldset="$this->sessionGroupingFieldset"
-                                    :prefix="$this->sessionGroupingFieldset->prefix ?? 'data'"
-                                    :showLegend="false"
-                                />
-                            @endif
+                            @if ($showActualDisplayToggle)
+                                <div>
+                                    <flux:label class="mb-1.5">{{ __('Display') }}</flux:label>
+                                    <div>
+                                        <flux:tabs wire:model.live="valueDisplayMode" variant="segmented" class="w-fit">
+                                            <flux:tab name="planned">{{ __('Plan') }}</flux:tab>
+                                            <flux:tab name="actual">{{ __('Plan + Actual') }}</flux:tab>
+                                        </flux:tabs>
+                                    </div>
 
+                                    @if ($userId !== null)
+                                        <div class="mt-3">
+                                            <flux:button variant="primary" icon="eye" wire:click="openPreviewModal">
+                                                {{ __('Preview') }}
+                                            </flux:button>
+                                        </div>
+                                    @endif
+                                </div>
+                            @endif
                             @if ($showWeeksInput)
                                 <flux:field>
-                                    <flux:label>{{ $plannedGroupsLabel }}</flux:label>
+                                    <flux:label>{{ __('Planned Weeks') }}</flux:label>
                                     <flux:input wire:model.live="weeks" type="number" min="1" max="52" step="1" />
                                 </flux:field>
                             @endif
@@ -250,17 +257,28 @@
             @if ($showSettingsSection)
                 <x-cms::section :title="__('Settings')" class="w-80 shrink-0">
                     <div class="space-y-4">
-                        @if ($this->sessionGroupingFieldset)
-                            <x-form-kit::form.fieldset
-                                :fieldset="$this->sessionGroupingFieldset"
-                                :prefix="$this->sessionGroupingFieldset->prefix ?? 'data'"
-                                :showLegend="false"
-                            />
-                        @endif
+                        @if ($showActualDisplayToggle)
+                            <div>
+                                <flux:label class="mb-1.5">{{ __('Display') }}</flux:label>
+                                <div>
+                                    <flux:tabs wire:model.live="valueDisplayMode" variant="segmented" class="w-fit">
+                                        <flux:tab name="planned">{{ __('Plan') }}</flux:tab>
+                                        <flux:tab name="actual">{{ __('Plan + Actual') }}</flux:tab>
+                                    </flux:tabs>
+                                </div>
 
+                                @if ($userId !== null)
+                                    <div class="mt-3">
+                                        <flux:button variant="primary" icon="eye" wire:click="openPreviewModal">
+                                            {{ __('Preview') }}
+                                        </flux:button>
+                                    </div>
+                                @endif
+                            </div>
+                        @endif
                         @if ($showWeeksInput)
                             <flux:field>
-                                <flux:label>{{ $plannedGroupsLabel }}</flux:label>
+                                <flux:label>{{ __('Planned Weeks') }}</flux:label>
                                 <flux:input wire:model.live="weeks" type="number" min="1" max="52" step="1" />
                             </flux:field>
                         @endif
@@ -271,11 +289,11 @@
     </div>
 
     @if ($this->exercises->isNotEmpty())
-        <div class="{{ $gridLayout === 'stacked' ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-1 lg:grid-cols-2 gap-4' }}" wire:key="grids-{{ $this->activeSection }}-{{ $this->exercises->pluck('pivot.id')->implode('-') }}">
+        <div class="grid grid-cols-1 gap-4" wire:key="grids-{{ $this->activeSection }}-{{ $valueDisplayMode }}-{{ $this->exercises->pluck('pivot.id')->implode('-') }}">
             @foreach ($this->exercises as $exercise)
-                <div wire:key="grid-{{ $exercise->pivot->id }}-{{ $userId ?? 'default' }}" class="min-w-0">
+                <div wire:key="grid-{{ $exercise->pivot->id }}-{{ $userId ?? 'default' }}-{{ $valueDisplayMode }}" class="min-w-0">
                     <livewire:training.view.plan-exercise-grid
-                        :key="'grid-' . $exercise->pivot->id . '-' . $weeks . '-' . ($userId ?? 'default')"
+                        :key="'grid-' . $exercise->pivot->id . '-' . $weeks . '-' . ($userId ?? 'default') . '-' . $valueDisplayMode"
                         :exercisePlanId="$planId"
                         :planType="$planType"
                         :programExerciseId="$exercise->pivot->id"
@@ -290,6 +308,8 @@
                         :expandedWeeks="$expandedWeeks"
                         :lockedSessionsByWeek="$lockedSessionsByWeek"
                         :sessionLabels="$sessionLabels"
+                        :showActualValueTabs="$showActualValueTabs"
+                        :valueDisplayMode="$valueDisplayMode"
                         :planMeasuredReps="$planMeasuredReps"
                         :planMeasuredWeight="$planMeasuredWeight"
                         :planTargetGoal="$planTargetGoal"
@@ -301,7 +321,6 @@
         </div>
 
         <livewire:training.view.plan-exercise-settings-form />
-        <livewire:training.view.plan-exercise-grouping-form />
     @else
         <flux:text class="text-zinc-500">{{ __('No exercises in this section. Add exercises above to see the training grids.') }}</flux:text>
     @endif
@@ -314,4 +333,41 @@
         action="confirmImportSectionExercises"
         variant="primary"
     />
+
+    @if ($userId !== null)
+        <flux:modal :name="$this->previewModalName()" class="w-[96vw] max-w-none sm:max-w-5xl">
+            <div class="space-y-4">
+                <div class="flex items-center justify-between gap-3 px-1">
+                    <div>
+                        <flux:heading size="lg">{{ __('Athlete Preview') }}</flux:heading>
+
+                        <div class="mt-2 flex flex-wrap items-center gap-2">
+                            <x-athlete.category-badge
+                                :label="$exerciseProgram->name"
+                                :color="$exerciseProgram->exerciseCategory?->color"
+                                class="normal-case text-sm"
+                            />
+
+                            @if ($this->previewAthlete)
+                                <flux:badge color="zinc" size="sm" class="px-2.5 py-1 text-sm">
+                                    {{ $this->previewAthlete->forename }} {{ $this->previewAthlete->surname }}
+                                </flux:badge>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+
+                @if ($previewTrainingProgramId)
+                    <livewire:athlete.day-schedule
+                        :key="'athlete-preview-' . $previewTrainingProgramId . '-' . $weeks . '-' . $userId"
+                        :date="($weekSessionDates[0][0] ?? now()->toDateString())"
+                        :show-readiness="false"
+                        :preview-mode="true"
+                        :preview-training-program-id="$previewTrainingProgramId"
+                        :preview-user-id="$userId"
+                    />
+                @endif
+            </div>
+        </flux:modal>
+    @endif
 </div>

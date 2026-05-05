@@ -5,6 +5,7 @@ namespace App\Data\Exercise\Settings;
 use App\Data\Exercise\Preview\CellInputMeta;
 use App\Form\Fields\Exercise\ApplyPerField;
 use App\Form\Fields\Weight;
+use App\Support\Training\ApplyPerScope;
 use Coda\FormKit\Fields;
 
 class WeightSetting extends AbstractSetting
@@ -13,7 +14,7 @@ class WeightSetting extends AbstractSetting
         public string $mode = 'manual',
         public ?int $oneRepMaxModifier = 100,
         public ?float $default = 5,
-        public string $applyPer = 'session',
+        public string $applyPer = ApplyPerScope::FORM_SET,
     ) {}
 
     public static function unitLabel(): string

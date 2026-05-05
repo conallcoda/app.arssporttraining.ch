@@ -232,6 +232,14 @@ it('shows session-specific week-column values for expanded mixed past and future
 });
 
 it('shows the week grouping column even when week mode has a single visible bucket', function () {
+    $coach = User::factory()->coach()->create();
+    $coach->config->set('settings.session_grouping', [
+        'mode' => SessionGroupingMode::Week->value,
+        'groupSize' => 1,
+        'copyValuesAutomatically' => true,
+    ]);
+    $coach->save();
+
     $exercise = Exercise::factory()->create([
         'config' => [
             'settings' => ['reps'],
@@ -257,7 +265,7 @@ it('shows the week grouping column even when week mode has a single visible buck
         'type' => 'main',
     ]);
 
-    $component = Livewire::test(PlanExerciseGrid::class, [
+    $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
         'exercisePlanId' => $program->id,
         'planType' => ExerciseProgram::class,
         'programExerciseId' => $pivot->id,
@@ -315,6 +323,109 @@ it('auto-expands a mixed week when only a week-wide field differs between past a
     $component->call('updateSessionOverride', 0, 1, 'rest', 90);
 
     expect($component->instance()->effectiveExpandedWeeks)->toBe([0]);
+});
+
+it('applies collapsed session edits across the whole visible group', function () {
+    $program = ExerciseProgram::factory()->create([
+        'config' => [
+            'sessionGrouping' => [
+                'mode' => 'week',
+                'groupSize' => 1,
+                'copyValuesAutomatically' => false,
+            ],
+        ],
+    ]);
+
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['rest'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'rest' => ['default' => 60, 'applyPer' => 'week'],
+        ],
+    ]);
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::test(PlanExerciseGrid::class, [
+        'exercisePlanId' => $program->id,
+        'planType' => ExerciseProgram::class,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'weeks' => 1,
+        'sessionsPerWeek' => 2,
+        'weekSessions' => [2],
+        'expandedWeeks' => [],
+    ]);
+
+    $component->call('updateSessionOverride', 0, 0, 'rest', 90, true);
+
+    $grid = $component->instance()->previewGrid;
+    $column = collect($grid->weekColumns)->firstWhere('field', 'rest');
+
+    expect($component->instance()->effectiveExpandedWeeks)->toBe([])
+        ->and($column)->not->toBeNull()
+        ->and($column->getCellValue(0, 0, 0))->toBe(90)
+        ->and($column->getCellValue(0, 0, 1))->toBe(90)
+        ->and($column->isCellOverriddenAt(0, 0, 0))->toBeTrue()
+        ->and($column->isCellOverriddenAt(0, 0, 1))->toBeTrue();
+});
+
+it('stops fanning out once a group is manually expanded', function () {
+    $program = ExerciseProgram::factory()->create([
+        'config' => [
+            'sessionGrouping' => [
+                'mode' => 'week',
+                'groupSize' => 1,
+                'copyValuesAutomatically' => false,
+            ],
+        ],
+    ]);
+
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['rest'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'rest' => ['default' => 60, 'applyPer' => 'week'],
+        ],
+    ]);
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::test(PlanExerciseGrid::class, [
+        'exercisePlanId' => $program->id,
+        'planType' => ExerciseProgram::class,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'weeks' => 1,
+        'sessionsPerWeek' => 2,
+        'weekSessions' => [2],
+        'expandedWeeks' => [],
+    ]);
+
+    $component->call('toggleExpandedGroup', 0)
+        ->call('updateSessionOverride', 0, 0, 'rest', 75, false);
+
+    $grid = $component->instance()->previewGrid;
+    $column = collect($grid->weekColumns)->firstWhere('field', 'rest');
+
+    expect($component->instance()->effectiveExpandedWeeks)->toBe([0])
+        ->and($column)->not->toBeNull()
+        ->and($column->getCellValue(0, 0, 0))->toBe(75)
+        ->and($column->getCellValue(0, 0, 1))->toBe(60)
+        ->and($column->isCellOverriddenAt(0, 0, 0))->toBeTrue()
+        ->and($column->isCellOverriddenAt(0, 0, 1))->toBeFalse();
 });
 
 it('can group displayed sessions into fixed-size buckets across week boundaries', function () {
@@ -464,8 +575,8 @@ it('treats planned groups as fixed-size session buckets in grouped plan grids', 
 it('hides the group column when program session grouping is none', function () {
     $coach = User::factory()->coach()->create();
     $coach->config->set('settings.session_grouping', [
-        'mode' => 'groups',
-        'groupSize' => 3,
+        'mode' => 'none',
+        'groupSize' => 1,
     ]);
     $coach->save();
 
@@ -478,14 +589,7 @@ it('hides the group column when program session grouping is none', function () {
         ],
     ]);
 
-    $program = ExerciseProgram::factory()->create([
-        'config' => [
-            'sessionGrouping' => [
-                'mode' => 'none',
-                'groupSize' => 1,
-            ],
-        ],
-    ]);
+    $program = ExerciseProgram::factory()->create();
 
     $pivot = ExerciseProgramExercise::create([
         'exercise_program_id' => $program->id,
@@ -596,4 +700,44 @@ it('renders collapsed grouped cells as editable and applies to the whole bucket 
         'weeks' => 2,
         'sessionsPerWeek' => 2,
     ])->assertSeeHtml('data-apply-to-all="true"');
+});
+
+it('keeps identical grouped sessions collapsed when the grid includes a last-session-only row', function () {
+    $coach = User::factory()->coach()->create();
+    $coach->config->set('settings.session_grouping', [
+        'mode' => 'groups',
+        'groupSize' => 2,
+    ]);
+    $coach->save();
+
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps', 'weight'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+            'weight' => ['mode' => 'automatic', 'default' => 75, 'applyPer' => 'session'],
+            'preview' => ['weeks' => 2, 'sessionsPerWeek' => 2],
+        ],
+    ]);
+
+    $program = ExerciseProgram::factory()->create();
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
+        'exercisePlanId' => $program->id,
+        'planType' => ExerciseProgram::class,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'weeks' => 2,
+        'sessionsPerWeek' => 2,
+    ]);
+
+    expect($component->instance()->effectiveExpandedWeeks)->toBe([]);
 });

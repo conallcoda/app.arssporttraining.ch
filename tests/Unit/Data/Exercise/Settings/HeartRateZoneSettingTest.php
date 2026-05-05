@@ -7,7 +7,7 @@ it('has correct defaults', function () {
     $setting = new HeartRateZoneSetting;
 
     expect($setting->default)->toBe('2');
-    expect($setting->applyPer)->toBe('session');
+    expect($setting->applyPer)->toBe('per_set');
 });
 
 it('returns zone unit label', function () {

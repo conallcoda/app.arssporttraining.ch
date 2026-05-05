@@ -55,7 +55,7 @@ class DatabaseImportSeeder extends Seeder
                 $this->seedTrainingProgramSlots();
                 $this->seedMetricSubmissions();
                 $this->normalizeLegacyStartsAtDates();
-                $this->normalizeLegacyGridOverrides();
+                $this->normalizeLegacyImportedExerciseConfigs();
             });
 
             DB::statement('SET FOREIGN_KEY_CHECKS=1');
@@ -631,14 +631,14 @@ class DatabaseImportSeeder extends Seeder
         $this->command->info("Normalized legacy starts-at dates for {$normalizedPrograms} exercise programs and {$normalizedPlans} exercise plans.");
     }
 
-    private function normalizeLegacyGridOverrides(): void
+    private function normalizeLegacyImportedExerciseConfigs(): void
     {
         $normalizedExercises = $this->normalizeConfigBag(Exercise::class);
         $normalizedTemplates = $this->normalizeConfigBag(ExerciseTemplate::class);
         $normalizedPrograms = $this->normalizeConfigBag(ExerciseProgram::class);
         $normalizedPlans = $this->normalizeConfigBag(ExercisePlan::class);
 
-        $this->command->info("Normalized legacy grid overrides for {$normalizedExercises} exercises, {$normalizedTemplates} templates, {$normalizedPrograms} programs, and {$normalizedPlans} plans.");
+        $this->command->info("Normalized imported exercise configs, including legacy grid overrides and apply-per scopes, for {$normalizedExercises} exercises, {$normalizedTemplates} templates, {$normalizedPrograms} programs, and {$normalizedPlans} plans.");
     }
 
     /** @param class-string<Model> $modelClass */

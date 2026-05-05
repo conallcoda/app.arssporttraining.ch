@@ -5,6 +5,7 @@ namespace App\Data\Exercise\Settings;
 use App\Data\Exercise\Preview\CellInputMeta;
 use App\Form\Fields\Exercise\ApplyPerField;
 use App\Form\Fields\Reps;
+use App\Support\Training\ApplyPerScope;
 use Coda\FormKit\Fields;
 
 class RepsSetting extends AbstractSetting
@@ -16,7 +17,7 @@ class RepsSetting extends AbstractSetting
         public ?int $decrement = 2,
         public ?int $minimum = 1,
         public ?string $label = '',
-        public string $applyPer = 'session',
+        public string $applyPer = ApplyPerScope::FORM_SET,
     ) {}
 
     public static function inputMeta(array $config = []): CellInputMeta
@@ -78,7 +79,7 @@ class RepsSetting extends AbstractSetting
                 ->label('Label')
                 ->placeholder('Reps')
                 ->default(''),
-            ApplyPerField::make()
+            ApplyPerField::make(ApplyPerScope::FORM_SET)
                 ->show('mode == "manual"'),
         ];
     }

@@ -39,15 +39,27 @@
     @if ($day['programs']->count() > 0)
         <div x-show="open" x-cloak x-collapse class="space-y-3 pt-3">
             @foreach ($day['programs'] as $program)
-                <a
-                    wire:key="{{ $day['date'] }}-{{ $program->slotId }}"
-                    href="{{ route('athlete.programs.show', ['date' => $day['date'], 'trainingProgram' => $program->trainingProgramId, 'from' => request()->fullUrl()]) }}"
-                    wire:navigate
-                    class="flex items-start justify-between gap-0 overflow-hidden rounded-lg bg-zinc-50 transition hover:bg-zinc-100 dark:bg-zinc-800 dark:hover:bg-zinc-700/80"
-                >
+                @php
+                    $cardClasses = 'flex items-start justify-between gap-0 overflow-hidden rounded-lg bg-zinc-50 transition hover:bg-zinc-100 dark:bg-zinc-800 dark:hover:bg-zinc-700/80';
+                @endphp
+                @if ($program->previewKey)
+                    <button
+                        type="button"
+                        wire:key="{{ $day['date'] }}-{{ $program->slotId }}"
+                        wire:click="openPreviewSession('{{ $program->previewKey }}')"
+                        class="{{ $cardClasses }} w-full text-left"
+                    >
+                @else
+                    <a
+                        wire:key="{{ $day['date'] }}-{{ $program->slotId }}"
+                        href="{{ route('athlete.programs.show', ['date' => $day['date'], 'trainingProgram' => $program->trainingProgramId, 'from' => request()->fullUrl()]) }}"
+                        wire:navigate
+                        class="{{ $cardClasses }}"
+                    >
+                @endif
                     <div class="flex w-14 shrink-0 items-start justify-center px-2 pt-3">
                         <div class="rounded px-2 py-0.5 text-sm font-semibold uppercase tracking-wide text-white {{ $program->period === 'pm' ? 'bg-blue-500 dark:bg-blue-600' : 'bg-amber-400 dark:bg-amber-500' }}">
-                            {{ strtoupper($program->period) }}
+                            {{ $program->periodLabel ?? strtoupper($program->period) }}
                         </div>
                     </div>
                     <div class="flex min-w-0 flex-1 items-start justify-between gap-3 px-3 py-2">
@@ -64,7 +76,11 @@
                         </div>
                         <flux:icon.chevron-right class="mt-1 size-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
                     </div>
-                </a>
+                @if ($program->previewKey)
+                    </button>
+                @else
+                    </a>
+                @endif
             @endforeach
         </div>
     @endif

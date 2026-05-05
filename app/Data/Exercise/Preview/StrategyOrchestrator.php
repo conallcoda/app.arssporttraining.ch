@@ -9,6 +9,7 @@ use App\Data\Exercise\Strategies\Contracts\DefinesCellColors;
 use App\Data\Exercise\Strategies\Contracts\DefinesEditability;
 use App\Data\Exercise\Strategies\HeartRate\HeartRateZoneCellColors;
 use App\Data\Exercise\Strategies\Sets\DeloadSetsStrategy;
+use App\Support\Training\ApplyPerScope;
 
 class StrategyOrchestrator
 {
@@ -91,9 +92,9 @@ class StrategyOrchestrator
 
         $config = $this->data['reps'] ?? [];
         $mode = $config['mode'] ?? 'manual';
-        $applyPer = $config['applyPer'] ?? 'session';
+        $applyPer = ApplyPerScope::normalize($config['applyPer'] ?? null);
 
-        if ($applyPer === 'week') {
+        if ($applyPer === ApplyPerScope::SESSION) {
             return;
         }
 
@@ -134,9 +135,9 @@ class StrategyOrchestrator
 
         $config = $this->data['weight'] ?? [];
         $mode = $config['mode'] ?? 'manual';
-        $applyPer = $config['applyPer'] ?? 'session';
+        $applyPer = ApplyPerScope::normalize($config['applyPer'] ?? null);
 
-        if ($applyPer === 'week' || $mode !== 'automatic' || $this->measuredData === null) {
+        if ($applyPer === ApplyPerScope::SESSION || $mode !== 'automatic' || $this->measuredData === null) {
             return;
         }
 
@@ -172,11 +173,11 @@ class StrategyOrchestrator
         }
 
         $config = $this->data['heartRateZone'] ?? [];
-        $applyPer = $config['applyPer'] ?? 'session';
+        $applyPer = ApplyPerScope::normalize($config['applyPer'] ?? null);
 
         $state->addCellColorStrategy(new HeartRateZoneCellColors);
 
-        if ($applyPer === 'week') {
+        if ($applyPer === ApplyPerScope::SESSION) {
             return;
         }
 
@@ -199,9 +200,9 @@ class StrategyOrchestrator
             return;
         }
 
-        $applyPer = $config['applyPer'] ?? 'session';
+        $applyPer = ApplyPerScope::normalize($config['applyPer'] ?? null);
 
-        if ($applyPer === 'week') {
+        if ($applyPer === ApplyPerScope::SESSION) {
             return;
         }
 

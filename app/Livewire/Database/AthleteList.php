@@ -9,7 +9,7 @@ use App\Models\Tag;
 use App\Models\Users\AccountSetupStatus;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
-use App\Notifications\AthleteAccountSetupNotification;
+use App\Notifications\AccountSetupNotification;
 use Coda\Cms\Display\DisplayFields\Ago;
 use Coda\Cms\Display\DisplayFields\Badge;
 use Coda\Cms\Display\DisplayFields\Id;
@@ -120,7 +120,7 @@ class AthleteList extends AbstractModelList
         }
 
         $token = $user->issueAccountSetupToken();
-        $user->notify(new AthleteAccountSetupNotification($token));
+        $user->notify(new AccountSetupNotification($token));
 
         Flux::toast(text: "Setup email sent to {$user->email}", variant: 'success');
     }

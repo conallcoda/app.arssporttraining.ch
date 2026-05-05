@@ -8,6 +8,7 @@ use App\Data\Exercise\Strategies\HeartRate\HeartRateZoneCellColors;
 use App\Data\Training\Config\ExerciseOverrides;
 use App\Data\Training\Planned\ResolvedPlannedExercise;
 use App\Data\Training\Planned\ResolvedPlannedProvenance;
+use App\Support\Training\ApplyPerScope;
 use App\Training\Planning\ResolvedPlannedSessionBuilder;
 use Coda\Cms\Support\ColorPalette;
 use Illuminate\Support\Str;
@@ -110,9 +111,9 @@ class ExercisePreviewBuilder
 
         foreach ($settings as $setting) {
             $config = $data[$setting] ?? [];
-            $applyPer = $config['applyPer'] ?? 'session';
+            $applyPer = ApplyPerScope::normalize($config['applyPer'] ?? null);
 
-            if ($applyPer === 'week') {
+            if ($applyPer === ApplyPerScope::SESSION) {
                 $weekColumns[] = self::buildWeekColumn($setting, $config, $weeks, $state, $plannedSessionValues, $displayProvenanceValues, $applicableWeeks, $applicableSessions, $sessionCounts, $lockedWeekMap, $lockedSessionsByWeek, $historicalOverrides);
 
                 continue;
@@ -156,11 +157,17 @@ class ExercisePreviewBuilder
                 continue;
             }
 
-            $showsHistoricalOverride = ($lockedWeekMap[$week] ?? false) && self::hasHistoricalSessionOverrideForWeek($historicalOverrides, 'sets', $week, $sessionCounts[$week] ?? 1);
-            $setsCells[$week] = $showsHistoricalOverride
-                ? self::getHistoricalSessionValueForWeek($historicalOverrides, 'sets', $week, $sessionCounts[$week] ?? 1, $setsPerWeek[$week] ?? '-')
-                : '-';
-            $setsOverrideMap[$week] = $showsHistoricalOverride;
+            for ($session = 0; $session < ($sessionCounts[$week] ?? 1); $session++) {
+                $sessionShowsHistoricalOverride = ($lockedWeekMap[$week] ?? false) && self::hasHistoricalSessionOverride($historicalOverrides, 'sets', $week, $session);
+                $sessionFallbackValue = max(0, (int) $state->getResolvedSessionValue('sets', $week, $session, $setsPerWeek[$week] ?? 0));
+                $setsSessionCells[$week][$session][0] = $sessionShowsHistoricalOverride
+                    ? self::getHistoricalSessionValue($historicalOverrides, 'sets', $week, $session, $sessionFallbackValue)
+                    : ((($lockedWeekMap[$week] ?? false) && ($lockedSessionsByWeek[$week][$session] ?? false)) ? $sessionFallbackValue : '-');
+                $setsSessionOverrideMap[$week][$session][0] = $sessionShowsHistoricalOverride;
+            }
+
+            $setsCells[$week] = $setsSessionCells[$week][0][0] ?? '-';
+            $setsOverrideMap[$week] = $setsSessionOverrideMap[$week][0][0] ?? false;
         }
 
         $weekColumns[] = new PreviewGridRow(

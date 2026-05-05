@@ -4,6 +4,9 @@ namespace App\Livewire\Training\View;
 
 use App\Data\Exercise\ExerciseConfig;
 use App\Data\Exercise\Preview\OverrideManager;
+use App\Data\Exercise\Preview\SessionGroupingConfig;
+use App\Data\Exercise\Preview\SessionGroupingMode;
+use App\Support\Training\ApplyPerScope;
 use Coda\Cms\Livewire\FormModal;
 use Coda\FormKit\Form;
 use Coda\FormKit\FormFieldsetGroup;
@@ -19,6 +22,8 @@ class PlanExerciseSettingsForm extends FormModal
     public ?int $contextProgramExerciseId = null;
 
     public ?int $contextUserId = null;
+
+    public array $contextSessionGrouping = [];
 
     public function mount(
         string $name = 'plan-exercise-settings',
@@ -54,7 +59,13 @@ class PlanExerciseSettingsForm extends FormModal
     public function formConfig(): Form
     {
         $form = Form::make();
-        ExerciseConfig::addFormFieldsets($form);
+        ExerciseConfig::addFormFieldsets($form, [
+            [
+                'label' => 'Grouping',
+                'fields' => SessionGroupingConfig::fields($this->data['session_grouping'] ?? []),
+                'prefix' => 'data.session_grouping',
+            ],
+        ]);
 
         return $form;
     }
@@ -84,13 +95,15 @@ class PlanExerciseSettingsForm extends FormModal
         $this->contextExerciseId = $data['exerciseId'] ?? null;
         $this->contextProgramExerciseId = $data['programExerciseId'] ?? null;
         $this->contextUserId = $data['userId'] ?? null;
+        $this->contextSessionGrouping = $data['sessionGrouping'] ?? [];
 
         $config = $data['config'] ?? [];
         $exerciseName = $data['exerciseName'] ?? __('Exercise');
 
         $formData = [
             'name' => $exerciseName,
-            'config' => $config,
+            'config' => ApplyPerScope::prepareConfigForForm($config),
+            'session_grouping' => $this->contextSessionGrouping,
         ];
 
         $this->open($formData, $exerciseName, $data['focusField'] ?? null);
@@ -114,6 +127,16 @@ class PlanExerciseSettingsForm extends FormModal
         $this->data['config']['overrides'] = OverrideManager::reset();
     }
 
+    public function updated(string $property, mixed $value): void
+    {
+        if ($property !== 'data.session_grouping.mode') {
+            return;
+        }
+
+        $mode = (string) ($this->data['session_grouping']['mode'] ?? null);
+        $this->data['session_grouping']['groupSize'] = SessionGroupingMode::defaultGroupSize($mode);
+    }
+
     public function submit(): void
     {
         $this->validate($this->buildValidationRulesFromFieldsets(), [
@@ -124,6 +147,7 @@ class PlanExerciseSettingsForm extends FormModal
 
         $this->dispatch('plan-exercise-settings.saved', data: [
             'config' => $this->data['config'],
+            'session_grouping' => $this->data['session_grouping'] ?? [],
             'programExerciseId' => $this->contextProgramExerciseId,
             'exerciseId' => $this->contextExerciseId,
             'userId' => $this->contextUserId,

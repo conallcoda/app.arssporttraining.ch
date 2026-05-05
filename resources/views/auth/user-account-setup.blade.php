@@ -1,18 +1,18 @@
 <x-cms::layouts.guest :title="__('Set Up Account')">
-    <form method="POST" action="{{ route('athlete.account-setup.store') }}" class="space-y-6">
+    <form method="POST" action="{{ route('user.account-setup.store') }}" class="space-y-6">
         @csrf
 
-        <input type="hidden" name="account_setup_uuid" value="{{ old('account_setup_uuid', $athlete->account_setup_uuid) }}">
+        <input type="hidden" name="account_setup_uuid" value="{{ old('account_setup_uuid', $user->account_setup_uuid) }}">
         <input type="hidden" name="token" value="{{ old('token', $token) }}">
 
         <flux:heading size="lg">{{ __('Set Up Account') }}</flux:heading>
 
         <flux:text class="text-sm">
-            {{ __('Choose a password to activate your athlete account.') }}
+            {{ __('Choose a password to activate your account.') }}
         </flux:text>
 
         <flux:text class="text-sm text-zinc-600">
-            {{ $athlete->email }}
+            {{ $user->email }}
         </flux:text>
 
         <flux:input

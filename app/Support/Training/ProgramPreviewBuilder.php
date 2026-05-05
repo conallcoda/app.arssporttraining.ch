@@ -1,0 +1,276 @@
+<?php
+
+namespace App\Support\Training;
+
+use App\Data\Athlete\ProgramDetailsExerciseData;
+use App\Data\Athlete\ScheduledProgramData;
+use App\Data\Exercise\Settings\WeightProgressionSetting;
+use App\Models\Exercise\Exercise;
+use App\Models\Exercise\ExerciseProgram;
+use App\Support\Athlete\PlannedProgramDetailsExerciseViewBuilder;
+use App\Support\AthleteDashboardDate;
+use App\Training\ExerciseGroupLabeler;
+use App\Training\Planning\ResolvedPlannedSessionBuilder;
+use Carbon\CarbonImmutable;
+
+class ProgramPreviewBuilder
+{
+    private const SECTION_ORDER = [
+        'warm_up',
+        'main',
+        'warm_down',
+    ];
+
+    public function __construct(
+        private readonly ResolvedPlannedSessionBuilder $plannedSessionBuilder,
+        private readonly PlannedProgramDetailsExerciseViewBuilder $exerciseViewBuilder,
+    ) {}
+
+    /**
+     * @return array{
+     *     days: array<int, array{
+     *         date: string,
+     *         isFuture: bool,
+     *         formattedDate: string,
+     *         sessionCount: int,
+     *         programs: \Illuminate\Support\Collection<int, ScheduledProgramData>
+     *     }>,
+     *     sessions: array<string, array{
+     *         key: string,
+     *         date: string,
+     *         formattedDate: string,
+     *         timeLabel: string,
+     *         isFutureSession: bool,
+     *         categoryLabel: ?string,
+     *         categoryColor: ?string,
+     *         progressSegments: array<int, array{submitted: bool, color: array{light: string, dark: string}}>,
+     *         sectionTabs: array<int, array{key: string, label: string, count: int}>,
+     *         exercisesBySection: array<string, array<int, ProgramDetailsExerciseData>>
+     *     }>
+     * }
+     */
+    public function build(
+        ExerciseProgram $exerciseProgram,
+        int $weeks,
+        int $sessionsPerWeek,
+        array $weekLabels = [],
+        array $weekSessions = [],
+        array $weekSessionDates = [],
+        ?int $userId = null,
+        ?int $planMeasuredReps = null,
+        ?float $planMeasuredWeight = null,
+        int|float|null $planTargetGoal = null,
+        ?int $planMaxHR = null,
+        ?int $planIatPercent = null,
+    ): array {
+        $exerciseProgram->loadMissing([
+            'exerciseCategory',
+            'exercises' => fn ($query) => $query->orderByPivot('type')->orderByPivot('sort')->orderByPivot('id'),
+            'exercises.equipment',
+            'exercises.modifiers',
+            'exercises.media',
+        ]);
+
+        $programConfig = $exerciseProgram->config;
+        $resolvedWeeks = max($weeks, 1);
+        $resolvedSessionCounts = [];
+
+        for ($weekIndex = 0; $weekIndex < $resolvedWeeks; $weekIndex++) {
+            $resolvedSessionCounts[$weekIndex] = $this->sessionCountForWeek($weekIndex, $sessionsPerWeek, $weekSessions, $weekSessionDates);
+        }
+
+        $weightProgression = $planMeasuredReps !== null && $planMeasuredWeight !== null
+            ? new WeightProgressionSetting(
+                measuredReps: $planMeasuredReps,
+                measuredWeight: $planMeasuredWeight,
+                targetGoal: $planTargetGoal ?? $exerciseProgram->config->defaultTargetGoal(),
+            )
+            : null;
+
+        $sortedExercises = $exerciseProgram->exercises
+            ->sortBy(function (Exercise $exercise): string {
+                $type = $exercise->pivot->type ?? 'main';
+                $sectionRank = array_search($type, self::SECTION_ORDER, true);
+
+                return sprintf(
+                    '%02d-%08d-%08d',
+                    $sectionRank === false ? count(self::SECTION_ORDER) : $sectionRank,
+                    (int) ($exercise->pivot->sort ?? 0),
+                    (int) ($exercise->pivot->id ?? 0),
+                );
+            })
+            ->values();
+
+        $groupLabels = ExerciseGroupLabeler::label(
+            $sortedExercises,
+            fn (Exercise $exercise): ?string => $exercise->pivot->group,
+            fn (Exercise $exercise): int => (int) $exercise->pivot->id,
+        );
+
+        $days = [];
+        $sessions = [];
+        $sessionNumber = 1;
+
+        for ($weekIndex = 0; $weekIndex < $resolvedWeeks; $weekIndex++) {
+            $sessionCount = $resolvedSessionCounts[$weekIndex] ?? 1;
+
+            for ($sessionIndex = 0; $sessionIndex < $sessionCount; $sessionIndex++) {
+                $date = $weekSessionDates[$weekIndex][$sessionIndex] ?? null;
+                $formattedDate = $date
+                    ? CarbonImmutable::parse($date)->locale(app()->getLocale())->translatedFormat('l, d.m.Y')
+                    : strip_tags((string) ($weekLabels[$weekIndex] ?? 'Week '.($weekIndex + 1)));
+                $sessionKey = $weekIndex.'-'.$sessionIndex;
+                $timeLabel = 'Session '.$sessionNumber;
+                $isFutureSession = $date
+                    ? AthleteDashboardDate::isFutureDate($date)
+                    : true;
+
+                $plannedExercises = $sortedExercises
+                    ->map(function (Exercise $exercise, int $index) use ($programConfig, $userId, $weekIndex, $sessionIndex, $resolvedWeeks, $resolvedSessionCounts, $weightProgression, $planMaxHR, $planIatPercent, $groupLabels) {
+                        $programExerciseId = (int) $exercise->pivot->id;
+                        $resolvedOverrides = $programConfig->resolveExercise($exercise->config, $programExerciseId, $userId);
+
+                        if ($resolvedOverrides->disabled) {
+                            return null;
+                        }
+
+                        $plannedExercise = $this->plannedSessionBuilder->buildExercise(
+                            exerciseId: $exercise->id,
+                            sort: $index,
+                            group: $exercise->pivot->group,
+                            type: $exercise->pivot->type ?? 'main',
+                            effectiveConfig: $resolvedOverrides->effectiveConfig,
+                            overrideLayer: $resolvedOverrides->overrideLayer,
+                            weekIndex: $weekIndex,
+                            sessionIndex: $sessionIndex,
+                            weeks: $resolvedWeeks,
+                            sessionCounts: $resolvedSessionCounts,
+                            measuredData: $weightProgression,
+                            maxHR: $planMaxHR,
+                            iatPercent: $planIatPercent,
+                            baseConfig: $exercise->config->toArray(),
+                            defaultOverrides: $resolvedOverrides->defaultOverrides,
+                            userOverrides: $resolvedOverrides->userOverrides,
+                        );
+
+                        if ($plannedExercise === null) {
+                            return null;
+                        }
+
+                        return [
+                            'type' => $plannedExercise->type,
+                            'view' => $this->exerciseViewBuilder->build(
+                                $exercise,
+                                $plannedExercise,
+                                $index,
+                                $groupLabels[$programExerciseId] ?? null,
+                            ),
+                        ];
+                    })
+                    ->filter()
+                    ->values();
+
+                $exercisesBySection = [];
+                foreach (self::SECTION_ORDER as $section) {
+                    $exercisesBySection[$section] = $plannedExercises
+                        ->filter(fn (array $exercise): bool => $exercise['type'] === $section)
+                        ->pluck('view')
+                        ->values()
+                        ->all();
+                }
+
+                $sectionTabs = collect(self::SECTION_ORDER)
+                    ->map(function (string $section) use ($exercisesBySection): ?array {
+                        $count = count($exercisesBySection[$section] ?? []);
+
+                        if ($count === 0) {
+                            return null;
+                        }
+
+                        return [
+                            'key' => $section,
+                            'label' => match ($section) {
+                                'warm_up' => 'Warm Up',
+                                'warm_down' => 'Warm Down',
+                                default => 'Program',
+                            },
+                            'count' => $count,
+                        ];
+                    })
+                    ->filter()
+                    ->values()
+                    ->all();
+
+                $progressSegments = collect($exercisesBySection)
+                    ->flatten(1)
+                    ->map(fn (ProgramDetailsExerciseData $exercise): array => [
+                        'submitted' => false,
+                        'color' => $exercise->statusColor,
+                    ])
+                    ->values()
+                    ->all();
+
+                $program = new ScheduledProgramData(
+                    slotId: $sessionNumber,
+                    trainingProgramId: $exerciseProgram->id,
+                    name: $exerciseProgram->name,
+                    time: $timeLabel,
+                    categoryName: $exerciseProgram->exerciseCategory?->name,
+                    categoryShortName: $exerciseProgram->exerciseCategory?->short_name,
+                    categoryColor: $exerciseProgram->exerciseCategory?->color,
+                    period: 'am',
+                    exerciseCount: count($exercisesBySection['main'] ?? []),
+                    progressSegments: $progressSegments,
+                    recordedExerciseCount: 0,
+                    totalExerciseCount: count($progressSegments),
+                    isFuture: $isFutureSession,
+                    previewKey: $sessionKey,
+                    periodLabel: 'S'.$sessionNumber,
+                );
+
+                $dayKey = $date ?? 'preview-week-'.$weekIndex;
+                $days[$dayKey] ??= [
+                    'date' => $dayKey,
+                    'isFuture' => $isFutureSession,
+                    'formattedDate' => $formattedDate,
+                    'sessionCount' => 0,
+                    'programs' => collect(),
+                ];
+                $days[$dayKey]['sessionCount']++;
+                $days[$dayKey]['programs']->push($program);
+
+                $sessions[$sessionKey] = [
+                    'key' => $sessionKey,
+                    'date' => $date ?? $dayKey,
+                    'formattedDate' => $formattedDate,
+                    'timeLabel' => $timeLabel,
+                    'isFutureSession' => $isFutureSession,
+                    'categoryLabel' => $exerciseProgram->exerciseCategory?->name ?: $exerciseProgram->exerciseCategory?->short_name,
+                    'categoryColor' => $exerciseProgram->exerciseCategory?->color,
+                    'progressSegments' => $progressSegments,
+                    'sectionTabs' => $sectionTabs,
+                    'exercisesBySection' => $exercisesBySection,
+                ];
+
+                $sessionNumber++;
+            }
+        }
+
+        return [
+            'days' => array_values($days),
+            'sessions' => $sessions,
+        ];
+    }
+
+    private function sessionCountForWeek(int $weekIndex, int $fallbackSessionsPerWeek, array $weekSessions, array $weekSessionDates): int
+    {
+        $explicitSessions = (int) ($weekSessions[$weekIndex] ?? 0);
+        $datedSessions = count($weekSessionDates[$weekIndex] ?? []);
+
+        if ($explicitSessions > 0 || $datedSessions > 0) {
+            return max($explicitSessions, $datedSessions, 1);
+        }
+
+        return max($fallbackSessionsPerWeek, 1);
+    }
+}

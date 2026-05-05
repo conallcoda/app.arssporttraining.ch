@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Auth\AthleteAccountSetupController;
+use App\Http\Controllers\Auth\UserAccountSetupController;
 use App\Http\Controllers\Training\SlotDetailsController;
 use App\Livewire\Admin\Docs;
 use App\Livewire\Athlete\Calendar;
@@ -15,11 +15,11 @@ use Illuminate\Support\Facades\Route;
 Route::redirect('/', '/login');
 
 Route::middleware('guest')->group(function (): void {
-    Route::get('/account-setup/{accountSetupUuid}/{token}', [AthleteAccountSetupController::class, 'create'])
-        ->name('athlete.account-setup');
+    Route::get('/account-setup/{accountSetupUuid}/{token}', [UserAccountSetupController::class, 'create'])
+        ->name('user.account-setup');
 
-    Route::post('/account-setup', [AthleteAccountSetupController::class, 'store'])
-        ->name('athlete.account-setup.store');
+    Route::post('/account-setup', [UserAccountSetupController::class, 'store'])
+        ->name('user.account-setup.store');
 });
 
 Route::middleware('auth')->group(function (): void {

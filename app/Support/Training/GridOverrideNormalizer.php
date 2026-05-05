@@ -43,7 +43,7 @@ class GridOverrideNormalizer
                         continue;
                     }
 
-                    if (self::isSessionLevelField($field)) {
+                    if (self::isSessionLevelField($field, $config)) {
                         $normalized['sessions'] = self::putSessionValue(
                             $normalized['sessions'],
                             $week,
@@ -169,9 +169,20 @@ class GridOverrideNormalizer
         return $entries;
     }
 
-    private static function isSessionLevelField(string $field): bool
+    private static function isSessionLevelField(string $field, ?array $config = null): bool
     {
-        return in_array($field, ['sets', ExerciseSetting::Rest->value, ExerciseSetting::Tempo->value], true);
+        if ($field === 'sets') {
+            return true;
+        }
+
+        $fieldConfig = is_array($config[$field] ?? null) ? $config[$field] : [];
+        $applyPer = ApplyPerScope::normalize($fieldConfig['applyPer'] ?? null, ApplyPerScope::SET);
+
+        if ($fieldConfig !== []) {
+            return $applyPer === ApplyPerScope::SESSION;
+        }
+
+        return in_array($field, [ExerciseSetting::Rest->value, ExerciseSetting::Tempo->value], true);
     }
 
     private static function resolveWeekSessionCount(?array $config, int $week, ?array $weekSessionCounts): int

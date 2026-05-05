@@ -23,6 +23,8 @@ class ScheduledProgramData extends AbstractData
         public int $recordedExerciseCount = 0,
         public int $totalExerciseCount = 0,
         public bool $isFuture = false,
+        public ?string $previewKey = null,
+        public ?string $periodLabel = null,
     ) {}
 
     public static function fromSlot(TrainingProgramSlot $slot): self

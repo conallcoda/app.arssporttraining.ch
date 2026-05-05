@@ -3,8 +3,8 @@
     "file": "assets/_commonjsHelpers-Cpj98o6Y.js",
     "name": "_commonjsHelpers"
   },
-  "_jspdf.es.min-DLppISpC.js": {
-    "file": "assets/jspdf.es.min-DLppISpC.js",
+  "_jspdf.es.min-d2WDPdRY.js": {
+    "file": "assets/jspdf.es.min-d2WDPdRY.js",
     "name": "jspdf.es.min",
     "isDynamicEntry": true,
     "imports": [
@@ -17,13 +17,13 @@
     ]
   },
   "node_modules/canvg/lib/index.es.js": {
-    "file": "assets/index.es-BORiSU8v.js",
+    "file": "assets/index.es-DcXJDBMw.js",
     "name": "index.es",
     "src": "node_modules/canvg/lib/index.es.js",
     "isDynamicEntry": true,
     "imports": [
       "__commonjsHelpers-Cpj98o6Y.js",
-      "_jspdf.es.min-DLppISpC.js",
+      "_jspdf.es.min-d2WDPdRY.js",
       "resources/js/app.js"
     ]
   },
@@ -40,18 +40,18 @@
     "isDynamicEntry": true
   },
   "node_modules/svg2pdf.js/dist/svg2pdf.es.min.js": {
-    "file": "assets/svg2pdf.es.min-A-8FwENm.js",
+    "file": "assets/svg2pdf.es.min-F7BVbjSf.js",
     "name": "svg2pdf.es.min",
     "src": "node_modules/svg2pdf.js/dist/svg2pdf.es.min.js",
     "isDynamicEntry": true,
     "imports": [
       "__commonjsHelpers-Cpj98o6Y.js",
-      "_jspdf.es.min-DLppISpC.js",
+      "_jspdf.es.min-d2WDPdRY.js",
       "resources/js/app.js"
     ]
   },
   "resources/css/app.css": {
-    "file": "assets/app-cK75auyt.css",
+    "file": "assets/app-DH5ArEnu.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -60,12 +60,12 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-B3tmXT2A.js",
+    "file": "assets/app-CeV2zi0-.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "dynamicImports": [
-      "_jspdf.es.min-DLppISpC.js",
+      "_jspdf.es.min-d2WDPdRY.js",
       "node_modules/svg2pdf.js/dist/svg2pdf.es.min.js"
     ]
   }

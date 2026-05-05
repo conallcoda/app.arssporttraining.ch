@@ -7,6 +7,7 @@ use App\Form\Fields\Coach\Email;
 use App\Form\Fields\Coach\Forename;
 use App\Form\Fields\Coach\Phone;
 use App\Form\Fields\Coach\Surname;
+use App\Models\Users\AccountSetupStatus;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
 use Carbon\Carbon;
@@ -28,6 +29,9 @@ class CoachData extends AbstractData implements HasForms
         public ?string $color = null,
         public ?Carbon $updatedAt = null,
         public string $personName = '',
+        public string $setupStatus = '',
+        public string $setupStatusLabel = '',
+        public string $setupStatusColor = 'zinc',
     ) {}
 
     public function name(): string
@@ -37,6 +41,8 @@ class CoachData extends AbstractData implements HasForms
 
     public static function fromModel(User $user): self
     {
+        $setupStatus = $user->accountSetupStatus();
+
         return new self(
             id: $user->id,
             forename: $user->forename ?? '',
@@ -46,11 +52,16 @@ class CoachData extends AbstractData implements HasForms
             color: $user->color,
             updatedAt: $user->updated_at,
             personName: trim(($user->surname ?? '').', '.($user->forename ?? ''), ', '),
+            setupStatus: $setupStatus->value,
+            setupStatusLabel: $setupStatus->label(),
+            setupStatusColor: $setupStatus->color(),
         );
     }
 
     public function persist(): void
     {
+        $existingUser = $this->id ? User::find($this->id) : null;
+
         $user = User::updateOrCreate(
             ['id' => $this->id],
             [
@@ -65,6 +76,19 @@ class CoachData extends AbstractData implements HasForms
         );
 
         $this->id = $user->id;
+
+        if ($existingUser !== null) {
+            $user->invalidatePendingAccountSetupIfEmailChanged($existingUser->email, $this->email);
+        }
+    }
+
+    /** @return list<array{label: string, color: string}> */
+    public function getSetupStatusBadge(): array
+    {
+        return [[
+            'label' => $this->setupStatusLabel,
+            'color' => $this->setupStatusColor,
+        ]];
     }
 
     public static function getForm(): Form

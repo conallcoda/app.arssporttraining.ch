@@ -4,7 +4,6 @@ namespace App\Data\Exercise\Preview;
 
 use Coda\Cms\Data\AbstractData;
 use Coda\FormKit\Fields;
-use Coda\FormKit\Fields\SwitchField;
 
 class SessionGroupingConfig extends AbstractData
 {
@@ -35,11 +34,6 @@ class SessionGroupingConfig extends AbstractData
                 ->step(1)
                 ->default(SessionGroupingMode::defaultGroupSize($mode))
                 ->suffix(SessionGroupingMode::sizeFieldSuffix($mode))
-                ->show('mode != "none"'),
-            SwitchField::make('copyValuesAutomatically')
-                ->label('Automatically Copy Values?')
-                ->helpText('When enabled, any changes to one session are automatically copied to all sessions in the same group')
-                ->default(SessionGroupingMode::defaultCopyValuesAutomatically())
                 ->show('mode != "none"'),
         ];
     }

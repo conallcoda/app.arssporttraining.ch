@@ -140,35 +140,8 @@ it('exposes override rows as a flat list separate from the persisted json shape'
         ->and($rehydrated->defaultExerciseOverrides(100)->historicalGridOverrides['cells'][0]['data']['reps'] ?? null)->toBe(10);
 });
 
-it('applies session grouping copy defaults into preview config', function () {
-    $config = ExercisePlanConfig::from([
-        'sessionGrouping' => [
-            'mode' => 'groups',
-            'groupSize' => 2,
-            'copyValuesAutomatically' => false,
-        ],
-    ]);
-
-    $resolved = $config->applySessionGroupingToPreview([
-        'preview' => [],
-    ]);
-
-    expect($resolved['preview'])
-        ->toMatchArray([
-            'groupingMode' => 'groups',
-            'groupSize' => 2,
-            'copyValuesAutomatically' => false,
-        ]);
-});
-
-it('keeps a concrete exercise-level session grouping override when plan grouping changes', function () {
-    $config = ExercisePlanConfig::from([
-        'sessionGrouping' => [
-            'mode' => 'groups',
-            'groupSize' => 2,
-            'copyValuesAutomatically' => true,
-        ],
-    ]);
+it('keeps a concrete exercise-level session grouping override without needing plan grouping', function () {
+    $config = ExercisePlanConfig::from([]);
 
     $config->setDefaultExerciseOverrides(100, ExerciseOverrides::from([
         'sessionGrouping' => [
@@ -187,21 +160,6 @@ it('keeps a concrete exercise-level session grouping override when plan grouping
     $resolved = $config->resolveExercise($base, 100);
 
     expect($resolved->effectiveConfig['preview'] ?? [])
-        ->toMatchArray([
-            'groupingMode' => 'week',
-            'groupSize' => 1,
-            'copyValuesAutomatically' => false,
-        ]);
-
-    $config->sessionGrouping = \App\Data\Exercise\Preview\SessionGroupingConfig::from([
-        'mode' => 'none',
-        'groupSize' => 1,
-        'copyValuesAutomatically' => false,
-    ]);
-
-    $resolvedAfterPlanChange = $config->resolveExercise($base, 100);
-
-    expect($resolvedAfterPlanChange->effectiveConfig['preview'] ?? [])
         ->toMatchArray([
             'groupingMode' => 'week',
             'groupSize' => 1,

@@ -1,9 +1,10 @@
 <?php
 
 use App\Livewire\Database\AthleteList;
+use App\Livewire\Database\CoachList;
 use App\Models\Users\AccountSetupStatus;
 use App\Models\Users\User;
-use App\Notifications\AthleteAccountSetupNotification;
+use App\Notifications\AccountSetupNotification;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
@@ -26,15 +27,15 @@ it('sends an athlete account setup email from the athlete list', function () {
 
     Notification::assertSentTo(
         $athlete,
-        AthleteAccountSetupNotification::class,
-        fn (AthleteAccountSetupNotification $notification): bool => str_contains($notification->setupUrl($athlete), $athlete->account_setup_uuid)
+        AccountSetupNotification::class,
+        fn (AccountSetupNotification $notification): bool => str_contains($notification->setupUrl($athlete), $athlete->account_setup_uuid)
     );
 
     $athlete->refresh();
 
     expect($athlete->account_setup_token_hash)->not->toBeNull()
         ->and($athlete->account_setup_sent_at)->not->toBeNull()
-        ->and($athlete->account_setup_expires_at?->isSameDay(now()->addDays((int) config('athlete.account_setup_expiry_days'))))->toBeTrue()
+        ->and($athlete->account_setup_expires_at?->isSameDay(now()->addDays((int) config('user.account_setup_expiry_days'))))->toBeTrue()
         ->and($athlete->accountSetupStatus())->toBe(AccountSetupStatus::SetupEmailSent);
 });
 
@@ -46,7 +47,7 @@ it('lets an athlete set a password from the setup link and logs them into the da
 
     $token = $athlete->issueAccountSetupToken();
 
-    $response = $this->post(route('athlete.account-setup.store'), [
+    $response = $this->post(route('user.account-setup.store'), [
         'account_setup_uuid' => $athlete->account_setup_uuid,
         'token' => $token,
         'password' => 'NewSecurePass123!',
@@ -62,6 +63,58 @@ it('lets an athlete set a password from the setup link and logs them into the da
         ->and($athlete->fresh()->accountSetupStatus())->toBe(AccountSetupStatus::Active);
 });
 
+it('sends a coach account setup email from the coach list', function () {
+    Notification::fake();
+
+    $admin = User::factory()->admin()->create();
+    $coach = User::factory()->coach()->create([
+        'email' => 'coach@example.com',
+        'password' => null,
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(CoachList::class)
+        ->call('sendSetupAccountEmail', $coach->id);
+
+    Notification::assertSentTo(
+        $coach,
+        AccountSetupNotification::class,
+        fn (AccountSetupNotification $notification): bool => str_contains($notification->setupUrl($coach), $coach->account_setup_uuid)
+    );
+
+    $coach->refresh();
+
+    expect($coach->account_setup_token_hash)->not->toBeNull()
+        ->and($coach->account_setup_sent_at)->not->toBeNull()
+        ->and($coach->account_setup_expires_at?->isSameDay(now()->addDays((int) config('user.account_setup_expiry_days'))))->toBeTrue()
+        ->and($coach->accountSetupStatus())->toBe(AccountSetupStatus::SetupEmailSent);
+});
+
+it('lets a coach set a password from the setup link and logs them into admin', function () {
+    $coach = User::factory()->coach()->create([
+        'email' => 'coach@example.com',
+        'password' => null,
+    ]);
+
+    $token = $coach->issueAccountSetupToken();
+
+    $response = $this->post(route('user.account-setup.store'), [
+        'account_setup_uuid' => $coach->account_setup_uuid,
+        'token' => $token,
+        'password' => 'NewSecurePass123!',
+        'password_confirmation' => 'NewSecurePass123!',
+    ]);
+
+    $response->assertRedirect('/admin/programs');
+
+    $this->assertAuthenticatedAs($coach);
+    expect(Hash::check('NewSecurePass123!', $coach->fresh()->password))->toBeTrue()
+        ->and($coach->fresh()->account_setup_completed_at)->not->toBeNull()
+        ->and($coach->fresh()->account_setup_token_hash)->toBeNull()
+        ->and($coach->fresh()->accountSetupStatus())->toBe(AccountSetupStatus::Active);
+});
+
 it('rejects expired setup links', function () {
     Carbon::setTestNow('2026-05-04 10:00:00');
 
@@ -72,12 +125,12 @@ it('rejects expired setup links', function () {
 
     $token = $athlete->issueAccountSetupToken();
 
-    Carbon::setTestNow(now()->addDays((int) config('athlete.account_setup_expiry_days', 30) + 1));
+    Carbon::setTestNow(now()->addDays((int) config('user.account_setup_expiry_days', 30) + 1));
 
-    $response = $this->from(route('athlete.account-setup', [
+    $response = $this->from(route('user.account-setup', [
         'accountSetupUuid' => $athlete->account_setup_uuid,
         'token' => $token,
-    ]))->post(route('athlete.account-setup.store'), [
+    ]))->post(route('user.account-setup.store'), [
         'account_setup_uuid' => $athlete->account_setup_uuid,
         'token' => $token,
         'password' => 'ExpiredPass123!',
@@ -151,5 +204,63 @@ it('shows and filters setup status values in the athlete list', function () {
         ->assertDontSee('Sent, Setup')
         ->assertDontSee('NotSent, Setup')
         ->assertDontSee('Athlete, Active')
+        ->assertDontSee('Missing, Email');
+});
+
+it('shows and filters setup status values in the coach list', function () {
+    $admin = User::factory()->admin()->create();
+
+    User::factory()->coach()->create([
+        'forename' => 'Email',
+        'surname' => 'Missing',
+        'email' => null,
+    ]);
+
+    User::factory()->coach()->create([
+        'forename' => 'Setup',
+        'surname' => 'NotSent',
+        'email' => 'not-sent-coach@example.com',
+    ]);
+
+    $sent = User::factory()->coach()->create([
+        'forename' => 'Setup',
+        'surname' => 'Sent',
+        'email' => 'sent-coach@example.com',
+    ]);
+    $sent->issueAccountSetupToken();
+
+    $expired = User::factory()->coach()->create([
+        'forename' => 'Setup',
+        'surname' => 'Expired',
+        'email' => 'expired-coach@example.com',
+    ]);
+    $expired->issueAccountSetupToken();
+    $expired->forceFill([
+        'account_setup_expires_at' => now()->subDay(),
+    ])->save();
+
+    $active = User::factory()->coach()->create([
+        'forename' => 'Active',
+        'surname' => 'Coach',
+        'email' => 'active-coach@example.com',
+    ]);
+    $active->forceFill([
+        'account_setup_completed_at' => now()->subDay(),
+    ])->save();
+
+    $this->actingAs($admin);
+
+    Livewire::test(CoachList::class)
+        ->assertSee('Email Missing')
+        ->assertSee('Setup Email Not Sent')
+        ->assertSee('Setup Email Sent')
+        ->assertSee('Setup Email Expired')
+        ->assertSee('Active')
+        ->set('filters.setup_status', AccountSetupStatus::SetupEmailExpired->value)
+        ->assertSee('Setup Email Expired')
+        ->assertSee('Expired, Setup')
+        ->assertDontSee('Sent, Setup')
+        ->assertDontSee('NotSent, Setup')
+        ->assertDontSee('Coach, Active')
         ->assertDontSee('Missing, Email');
 });

@@ -40,14 +40,32 @@ class ExerciseConfig extends AbstractData
         }
     }
 
-    public static function addFormFieldsets(Form $form): void
+    /**
+     * @param  array<int, array{label: string, fields: array, prefix: string}>  $prependTabFieldsets
+     */
+    public static function addFormFieldsets(Form $form, array $prependTabFieldsets = []): void
     {
+        $settingNames = [];
+
+        foreach ($prependTabFieldsets as $fieldset) {
+            $label = (string) ($fieldset['label'] ?? '');
+            $fields = $fieldset['fields'] ?? [];
+            $prefix = (string) ($fieldset['prefix'] ?? 'data');
+
+            $form->fieldset(
+                $label,
+                fn (array $data) => ['fields' => $fields, 'prefix' => $prefix],
+            );
+
+            $settingNames[] = $label;
+        }
+
         $form->fieldset(
             'Sets',
             fn (array $data) => ['fields' => Settings\SetsSetting::fields($data), 'prefix' => 'data.config.sets'],
         );
 
-        $settingNames = ['sets'];
+        $settingNames[] = 'sets';
 
         $settingsField = Fields\Pillbox::make('settings')->label('Settings')->enum(ExerciseSetting::class)->rules('array')->default(['reps'])->live();
 

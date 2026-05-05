@@ -5,12 +5,13 @@ namespace App\Data\Exercise\Settings;
 use App\Data\Exercise\Preview\CellInputMeta;
 use App\Form\Fields\Exercise\ApplyPerField;
 use App\Form\Fields\HeartRateZone;
+use App\Support\Training\ApplyPerScope;
 
 class HeartRateZoneSetting extends AbstractSetting
 {
     public function __construct(
         public ?string $default = '2',
-        public string $applyPer = 'session',
+        public string $applyPer = ApplyPerScope::FORM_SET,
     ) {}
 
     public static function unitLabel(): string

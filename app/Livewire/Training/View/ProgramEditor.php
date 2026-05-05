@@ -4,25 +4,22 @@ namespace App\Livewire\Training\View;
 
 use App\Data\Training\Config\ExerciseOverrides;
 use App\Data\Training\Config\ExercisePlanConfig;
-use App\Data\Exercise\Preview\SessionGroupingConfig;
-use App\Data\Exercise\Preview\SessionGroupingMode;
 use App\Form\Fields\Exercise\Exercises;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
 use App\Models\Exercise\ExerciseProgramTypeEnum;
+use App\Models\Users\User;
 use App\Training\ExerciseGroupLabeler;
 use App\Training\TrainingSessionRebuildDispatcher;
 use Coda\Cms\Livewire\Concerns\InteractsWithFormData;
 use Coda\FormKit\Form;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Component;
-use Spatie\LaravelData\Optional;
 
 class ProgramEditor extends Component
 {
@@ -53,6 +50,10 @@ class ProgramEditor extends Component
     public bool $sessionLabels = false;
 
     public bool $showNameInput = false;
+
+    public bool $showActualValueTabs = false;
+
+    public string $valueDisplayMode = 'planned';
 
     public string $gridLayout = 'side-by-side';
 
@@ -94,6 +95,23 @@ class ProgramEditor extends Component
 
     public ?int $importProgramId = null;
 
+    public ?int $previewTrainingProgramId = null;
+
+    public function openPreviewModal(): void
+    {
+        $this->previewTrainingProgramId = app(\App\Support\Training\AthletePreviewSlotService::class)
+            ->createPreviewProgram(
+                exerciseProgram: $this->exerciseProgram,
+                userId: $this->userId,
+                weeks: $this->weeks,
+                sessionsPerWeek: $this->sessionsPerWeek,
+                weekSessionDates: $this->weekSessionDates,
+                weekSessions: $this->weekSessions,
+            )->id;
+
+        Flux::modal($this->previewModalName())->show();
+    }
+
     public function mount(
         ExerciseProgram $exerciseProgram,
         int $planId,
@@ -114,6 +132,7 @@ class ProgramEditor extends Component
         array $lockedSessionsByWeek = [],
         bool $sessionLabels = false,
         string $gridLayout = 'side-by-side',
+        bool $showActualValueTabs = false,
         ?string $planBlockGoalLabel = null,
         ?string $plan1rmLabel = null,
         ?string $planHeartRateLabel = null,
@@ -144,6 +163,8 @@ class ProgramEditor extends Component
         $this->lockedSessionsByWeek = $lockedSessionsByWeek;
         $this->sessionLabels = $sessionLabels;
         $this->gridLayout = $gridLayout;
+        $this->showActualValueTabs = $showActualValueTabs;
+        $this->valueDisplayMode = 'planned';
         $this->planBlockGoalLabel = $planBlockGoalLabel;
         $this->plan1rmLabel = $plan1rmLabel;
         $this->planHeartRateLabel = $planHeartRateLabel;
@@ -164,8 +185,6 @@ class ProgramEditor extends Component
         foreach (self::SECTION_TYPES as $type) {
             $this->data[$this->sectionFieldName($type)] = $this->serializeSectionExercises($type);
         }
-
-        $this->data['session_grouping'] = $this->resolvedSessionGrouping()->toArray();
 
         $this->syncSectionFormData();
     }
@@ -209,19 +228,6 @@ class ProgramEditor extends Component
     public function fields(): array
     {
         return $this->formConfig->getFields();
-    }
-
-    #[Computed]
-    public function sessionGroupingFormConfig(): Form
-    {
-        return Form::make()
-            ->fieldset('Session Grouping', SessionGroupingConfig::fields($this->data['session_grouping'] ?? []), prefix: 'data.session_grouping');
-    }
-
-    #[Computed]
-    public function sessionGroupingFieldset(): mixed
-    {
-        return $this->sessionGroupingFormConfig->resolveFieldsets($this->data)[0] ?? null;
     }
 
     #[Computed]
@@ -289,15 +295,6 @@ class ProgramEditor extends Component
     {
         $this->traitUpdated($property, $value);
 
-        if ($property === 'data.session_grouping.mode') {
-            $mode = (string) ($this->data['session_grouping']['mode'] ?? null);
-            $this->data['session_grouping']['groupSize'] = SessionGroupingMode::defaultGroupSize($mode);
-        }
-
-        if (str_starts_with($property, 'data.session_grouping.')) {
-            $this->saveSessionGrouping();
-        }
-
         if (str_starts_with($property, 'data.section_exercises.') || $property === 'data.section_exercises') {
             $this->data[$this->sectionFieldName($this->activeSection)] = $this->data['section_exercises'] ?? [];
 
@@ -332,50 +329,6 @@ class ProgramEditor extends Component
         $this->exerciseProgram->saveQuietly();
         app(TrainingSessionRebuildDispatcher::class)
             ->dispatchFutureSlotsForExerciseProgramChange($this->exerciseProgram->id);
-    }
-
-    protected function resolvedSessionGrouping(): SessionGroupingConfig
-    {
-        $stored = $this->exerciseProgram->config->resolvedSessionGrouping();
-
-        if ($stored !== null) {
-            return $stored;
-        }
-
-        return $this->coachDefaultSessionGrouping();
-    }
-
-    protected function saveSessionGrouping(): void
-    {
-        $sessionGrouping = SessionGroupingConfig::from($this->data['session_grouping'] ?? []);
-        $this->data['session_grouping'] = $sessionGrouping->toArray();
-        $coachDefault = $this->coachDefaultSessionGrouping();
-
-        $config = $this->exerciseProgram->config;
-        $config->sessionGrouping = $sessionGrouping->toArray() === $coachDefault->toArray()
-            ? Optional::create()
-            : $sessionGrouping;
-        $this->exerciseProgram->config = $config;
-        $this->exerciseProgram->saveQuietly();
-
-        app(TrainingSessionRebuildDispatcher::class)
-            ->dispatchFutureSlotsForExerciseProgramChange($this->exerciseProgram->id);
-    }
-
-    protected function coachDefaultSessionGrouping(): SessionGroupingConfig
-    {
-        $user = Auth::user();
-
-        return SessionGroupingConfig::from([
-            'mode' => $mode = (string) ($user?->config->get('settings.session_grouping.mode', SessionGroupingMode::defaultMode()) ?? SessionGroupingMode::defaultMode()),
-            'groupSize' => SessionGroupingMode::normalizeGroupSize(
-                is_numeric($user?->config->get('settings.session_grouping.groupSize'))
-                    ? (int) $user?->config->get('settings.session_grouping.groupSize')
-                    : null,
-                $mode,
-            ),
-            'copyValuesAutomatically' => (bool) ($user?->config->get('settings.session_grouping.copyValuesAutomatically', SessionGroupingMode::defaultCopyValuesAutomatically()) ?? SessionGroupingMode::defaultCopyValuesAutomatically()),
-        ]);
     }
 
     public function removeRelationshipItem(string $fieldName, int $index): void
@@ -735,6 +688,21 @@ class ProgramEditor extends Component
     public function importConfirmModalName(): string
     {
         return 'confirm-import-program-exercises-'.$this->exerciseProgram->id.'-'.$this->planId;
+    }
+
+    public function previewModalName(): string
+    {
+        return 'program-preview-'.$this->exerciseProgram->id.'-'.$this->planId;
+    }
+
+    #[Computed]
+    public function previewAthlete(): ?User
+    {
+        if ($this->userId === null) {
+            return null;
+        }
+
+        return User::query()->find($this->userId);
     }
 
     public function render()

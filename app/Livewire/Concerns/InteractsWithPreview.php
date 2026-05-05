@@ -16,6 +16,8 @@ trait InteractsWithPreview
 {
     use InteractsWithDisplayGridCopying;
 
+    public array $expandedPreviewGroups = [];
+
     public int $defaultWeeks = 1;
 
     public int $defaultSessionsPerWeek = 1;
@@ -114,7 +116,16 @@ trait InteractsWithPreview
         $sessionsPerWeek = SessionGroupingMode::resolvePreviewSessionCount($resolvedPreview, $this->defaultSessionsPerWeek);
 
         $grid = ExercisePreviewBuilder::build($config, $measuredData, $weeks, $overrides, $sessionsPerWeek);
-        $grid->autoCopyValuesAutomatically = SessionGroupingMode::shouldAutoCopyValues($resolvedPreview);
+        $expandedIndexes = $this->resolvedExpandedGroupIndexes($grid, $resolvedPreview);
+        $forcedExpandedIndexes = $this->forcedExpandedGroupIndexes($grid, $grid->groups);
+
+        foreach ($grid->groups as $group) {
+            $group->forceExpanded = in_array($group->index, $forcedExpandedIndexes, true);
+            $group->collapsible = $group->sessionCount > 1 && ! $group->forceExpanded;
+            $group->expanded = in_array($group->index, $expandedIndexes, true) || $group->forceExpanded;
+        }
+
+        $grid->autoCopyValuesAutomatically = false;
 
         return $grid;
     }
@@ -122,7 +133,32 @@ trait InteractsWithPreview
     #[Computed]
     public function effectiveExpandedWeeks(): array
     {
-        return range(0, max($this->previewGrid->weekCount - 1, 0));
+        $config = $this->data['config'] ?? [];
+        $preview = $config['preview'] ?? [];
+        $grouping = $this->resolveDefaultPreviewGrouping();
+        $resolvedPreview = array_merge($preview, [
+            'groupingMode' => $preview['groupingMode'] ?? $grouping['mode'],
+            'groupSize' => $preview['groupSize'] ?? $grouping['groupSize'],
+            'copyValuesAutomatically' => $preview['copyValuesAutomatically'] ?? $grouping['copyValuesAutomatically'],
+        ]);
+
+        return $this->resolvedExpandedGroupIndexes($this->previewGrid, $resolvedPreview);
+    }
+
+    public function toggleExpandedGroup(int $groupIndex): void
+    {
+        if (in_array($groupIndex, $this->forcedExpandedGroupIndexes($this->previewGrid, $this->previewGrid->groups), true)) {
+            return;
+        }
+
+        if (in_array($groupIndex, $this->expandedPreviewGroups, true)) {
+            $this->expandedPreviewGroups = array_values(array_filter($this->expandedPreviewGroups, fn (int $index): bool => $index !== $groupIndex));
+        } else {
+            $this->expandedPreviewGroups[] = $groupIndex;
+            $this->expandedPreviewGroups = array_values(array_unique($this->expandedPreviewGroups));
+        }
+
+        unset($this->previewGrid, $this->effectiveExpandedWeeks, $this->copyBuckets, $this->copyMenuOptions);
     }
 
     public function updateCellOverride(int $weekIndex, int $setIndex, string $field, mixed $value, int $session, bool $applyToAll = false): void
@@ -153,25 +189,34 @@ trait InteractsWithPreview
 
         $this->data['config']['overrides'] = $overrides;
 
-        unset($this->previewGrid);
+        unset($this->previewGrid, $this->effectiveExpandedWeeks);
     }
 
-    public function updateSessionOverride(int $weekIndex, int $session, string $field, mixed $value): void
+    public function updateSessionOverride(int $weekIndex, int $session, string $field, mixed $value, bool $applyToAll = false): void
     {
-        $effectiveDefault = collect($this->buildDefaultsGrid()->weekColumns)
-            ->firstWhere('field', $field)?->getCellValue($weekIndex, 0, $session);
+        $overrides = $this->data['config']['overrides'] ?? OverrideManager::reset();
+        $targets = $applyToAll
+            ? $this->previewFanoutTargets($weekIndex, $session)
+            : [['week' => $weekIndex, 'session' => $session]];
 
-        $this->data['config']['overrides'] = OverrideManager::updateSessionOverride(
-            $this->data['config']['overrides'] ?? OverrideManager::reset(),
-            $this->data['config'],
-            $weekIndex,
-            $session,
-            $field,
-            $value,
-            $effectiveDefault,
-        );
+        foreach ($targets as $target) {
+            $effectiveDefault = collect($this->buildDefaultsGrid()->weekColumns)
+                ->firstWhere('field', $field)?->getCellValue($target['week'], 0, $target['session']);
 
-        unset($this->previewGrid);
+            $overrides = OverrideManager::updateSessionOverride(
+                $overrides,
+                $this->data['config'],
+                $target['week'],
+                $target['session'],
+                $field,
+                $value,
+                $effectiveDefault,
+            );
+        }
+
+        $this->data['config']['overrides'] = $overrides;
+
+        unset($this->previewGrid, $this->effectiveExpandedWeeks);
     }
 
     protected function buildDefaultsGrid(): PreviewGrid
@@ -202,7 +247,7 @@ trait InteractsWithPreview
             $sessionsPerWeek,
         );
 
-        $grid->autoCopyValuesAutomatically = SessionGroupingMode::shouldAutoCopyValues($resolvedPreview);
+        $grid->autoCopyValuesAutomatically = false;
 
         return $grid;
     }
@@ -210,13 +255,13 @@ trait InteractsWithPreview
     public function resetOverrides(): void
     {
         $this->data['config']['overrides'] = OverrideManager::reset();
-        unset($this->previewGrid);
+        unset($this->previewGrid, $this->effectiveExpandedWeeks);
     }
 
     public function updatedDataConfigSettings(): void
     {
         unset($this->fieldsets);
-        unset($this->previewGrid);
+        unset($this->previewGrid, $this->effectiveExpandedWeeks);
         $settings = $this->data['config']['settings'];
         $this->data = array_replace_recursive($this->buildDefaultsFromFieldsets(), $this->data);
         $this->data['config']['settings'] = $settings;
@@ -226,13 +271,13 @@ trait InteractsWithPreview
 
     public function updatedDataConfigWeightMode(): void
     {
-        unset($this->previewGrid);
+        unset($this->previewGrid, $this->effectiveExpandedWeeks);
         $this->data['config']['preview']['weeks'] = $this->resolveDefaultWeeks();
     }
 
     public function updatedDataConfigPreview(): void
     {
-        unset($this->previewGrid);
+        unset($this->previewGrid, $this->effectiveExpandedWeeks);
     }
 
     protected function weekHasSessionDivergence(PreviewGrid $grid, int $week): bool
@@ -260,6 +305,58 @@ trait InteractsWithPreview
                     if ($row->isCellOverriddenAt($week, (int) $set, $session) !== $baselineOverride) {
                         return true;
                     }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    protected function groupHasSessionDivergence(PreviewGrid $grid, mixed $group): bool
+    {
+        $sessions = $group->sessions ?? [];
+
+        if (count($sessions) <= 1) {
+            return false;
+        }
+
+        if (collect($grid->rows)->contains(fn ($row): bool => (bool) $row->lastSessionOnly)) {
+            return true;
+        }
+
+        $baseline = $sessions[0] ?? null;
+        if ($baseline === null) {
+            return false;
+        }
+
+        foreach ($grid->rows as $row) {
+            foreach (range(0, $grid->setCount - 1) as $set) {
+                $baselineValue = $row->getCellValue($baseline->weekIndex, $set, $baseline->sessionIndex);
+                $baselineOverride = $row->isCellOverriddenAt($baseline->weekIndex, $set, $baseline->sessionIndex);
+
+                foreach (array_slice($sessions, 1) as $session) {
+                    if ($row->getCellValue($session->weekIndex, $set, $session->sessionIndex) !== $baselineValue) {
+                        return true;
+                    }
+
+                    if ($row->isCellOverriddenAt($session->weekIndex, $set, $session->sessionIndex) !== $baselineOverride) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        foreach ($grid->weekColumns as $column) {
+            $baselineValue = $column->getCellValue($baseline->weekIndex, 0, $baseline->sessionIndex);
+            $baselineOverride = $column->isCellOverriddenAt($baseline->weekIndex, 0, $baseline->sessionIndex);
+
+            foreach (array_slice($sessions, 1) as $session) {
+                if ($column->getCellValue($session->weekIndex, 0, $session->sessionIndex) !== $baselineValue) {
+                    return true;
+                }
+
+                if ($column->isCellOverriddenAt($session->weekIndex, 0, $session->sessionIndex) !== $baselineOverride) {
+                    return true;
                 }
             }
         }
@@ -324,6 +421,39 @@ trait InteractsWithPreview
     protected function persistGridOverridesFromCopy(array $gridOverrides): void
     {
         $this->data['config']['overrides'] = $gridOverrides;
-        unset($this->previewGrid, $this->copyBuckets, $this->copyMenuOptions);
+        unset($this->previewGrid, $this->effectiveExpandedWeeks, $this->copyBuckets, $this->copyMenuOptions);
+    }
+
+    /** @param array<string, mixed> $resolvedPreview
+     *  @return int[]
+     */
+    protected function resolvedExpandedGroupIndexes(PreviewGrid $grid, array $resolvedPreview): array
+    {
+        $groups = SessionGroupBuilder::build(
+            weekCount: $grid->weekCount,
+            sessionCounts: $grid->weekSessionCounts,
+            groupingMode: (string) ($resolvedPreview['groupingMode'] ?? SessionGroupingMode::defaultMode()),
+            groupSize: SessionGroupingMode::normalizeGroupSize(
+                (int) ($resolvedPreview['groupSize'] ?? SessionGroupingMode::defaultGroupSize()),
+                (string) ($resolvedPreview['groupingMode'] ?? SessionGroupingMode::defaultMode()),
+            ),
+        )['groups'];
+
+        return collect(array_merge(
+            array_map(static fn ($index): int => (int) $index, $this->expandedPreviewGroups),
+            $this->forcedExpandedGroupIndexes($grid, $groups),
+        ))->unique()->values()->all();
+    }
+
+    /** @param array<int, mixed> $groups
+     *  @return int[]
+     */
+    protected function forcedExpandedGroupIndexes(PreviewGrid $grid, array $groups): array
+    {
+        return collect($groups)
+            ->filter(fn ($group): bool => $this->groupHasSessionDivergence($grid, $group))
+            ->map(fn ($group): int => (int) $group->index)
+            ->values()
+            ->all();
     }
 }

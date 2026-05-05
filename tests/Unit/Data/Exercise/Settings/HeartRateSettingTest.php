@@ -8,7 +8,7 @@ it('has correct defaults', function () {
 
     expect($setting->mode)->toBe('manual');
     expect($setting->default)->toBe('140');
-    expect($setting->applyPer)->toBe('session');
+    expect($setting->applyPer)->toBe('per_set');
 });
 
 it('returns bpm unit label', function () {

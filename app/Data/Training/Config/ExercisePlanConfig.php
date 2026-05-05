@@ -160,9 +160,7 @@ class ExercisePlanConfig extends AbstractConfig
     public function resolveExercise(ExerciseConfig $baseConfig, int $programExerciseId, ?int $userId = null): ResolvedExerciseOverrides
     {
         [$defaultOverrides, $userOverrides] = $this->effectiveExerciseOverrides($programExerciseId, $userId);
-        $effectiveConfig = $this->applySessionGroupingToPreview(
-            EffectiveExerciseConfig::resolve($baseConfig, $defaultOverrides, $userOverrides)
-        );
+        $effectiveConfig = EffectiveExerciseConfig::resolve($baseConfig, $defaultOverrides, $userOverrides);
 
         return new ResolvedExerciseOverrides(
             defaultOverrides: $defaultOverrides,
@@ -187,23 +185,6 @@ class ExercisePlanConfig extends AbstractConfig
         $this->sessionGrouping = SessionGroupingConfig::from($this->sessionGrouping);
 
         return $this->sessionGrouping;
-    }
-
-    public function applySessionGroupingToPreview(array $config): array
-    {
-        $sessionGrouping = $this->resolvedSessionGrouping();
-
-        if ($sessionGrouping === null) {
-            return $config;
-        }
-
-        $preview = $config['preview'] ?? [];
-        $preview['groupingMode'] ??= $sessionGrouping->mode;
-        $preview['groupSize'] ??= $sessionGrouping->groupSize;
-        $preview['copyValuesAutomatically'] ??= $sessionGrouping->copyValuesAutomatically;
-        $config['preview'] = $preview;
-
-        return $config;
     }
 
     public function setUserExerciseOverrides(int $userId, int $programExerciseId, ExerciseOverrides $overrides): void

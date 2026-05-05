@@ -14,6 +14,7 @@ use App\Data\Training\Planned\ResolvedPlannedSet;
 use App\Data\Training\Planned\ResolvedPlannedSession;
 use App\Data\Training\Planned\ResolvedPlannedValue;
 use App\Data\Training\Config\ExerciseOverrides;
+use App\Support\Training\ApplyPerScope;
 
 class ResolvedPlannedSessionBuilder
 {
@@ -142,8 +143,8 @@ class ResolvedPlannedSessionBuilder
 
             foreach ($this->orderedSettings($effectiveConfig['settings'] ?? []) as $setting) {
                 $config = $effectiveConfig[$setting] ?? [];
-                $applyPer = $config['applyPer'] ?? 'session';
-                $value = $applyPer === 'week'
+                $applyPer = ApplyPerScope::normalize($config['applyPer'] ?? null);
+                $value = $applyPer === ApplyPerScope::SESSION
                     ? $this->resolveSessionFieldValue($state, $config, $setting, $weekIndex, $sessionIndex)
                     : $this->resolveSessionValue($state, $config, $setting, $weekIndex, $setIndex, $sessionIndex);
 
@@ -156,7 +157,7 @@ class ResolvedPlannedSessionBuilder
                     value: $value,
                     unit: $this->resolveUnit($setting, $config),
                     applyPer: $applyPer,
-                    provenance: $applyPer === 'week'
+                    provenance: $applyPer === ApplyPerScope::SESSION
                         ? $this->resolveSessionValueProvenance($setting, $weekIndex, $sessionIndex, null, $effectiveConfig, $overrideLayer, $baseConfig, $defaultOverrides, $userOverrides)
                         : $this->resolveSessionValueProvenance($setting, $weekIndex, $sessionIndex, $setIndex, $effectiveConfig, $overrideLayer, $baseConfig, $defaultOverrides, $userOverrides),
                 );

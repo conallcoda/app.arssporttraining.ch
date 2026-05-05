@@ -335,10 +335,11 @@ it('persists a concrete exercise-level grouping override from the exercise menu'
         'userId' => null,
         'weeks' => 2,
         'sessionsPerWeek' => 1,
-    ])->call('onGroupingSaved', [
+    ])->call('onSettingsSaved', [
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
+        'config' => $exercise->config->toArray(),
         'session_grouping' => [
             'mode' => 'week',
             'groupSize' => 1,
@@ -355,15 +356,15 @@ it('persists a concrete exercise-level grouping override from the exercise menu'
 });
 
 it('shows a neutral default grouping badge until an exercise override is set', function () {
-    $program = ExerciseProgram::factory()->create([
-        'config' => [
-            'sessionGrouping' => [
-                'mode' => 'groups',
-                'groupSize' => 2,
-                'copyValuesAutomatically' => true,
-            ],
-        ],
+    $coach = User::factory()->coach()->create();
+    $coach->config->set('settings.session_grouping', [
+        'mode' => 'groups',
+        'groupSize' => 2,
+        'copyValuesAutomatically' => true,
     ]);
+    $coach->save();
+
+    $program = ExerciseProgram::factory()->create();
 
     $exercise = Exercise::factory()->create([
         'config' => [
@@ -380,7 +381,7 @@ it('shows a neutral default grouping badge until an exercise override is set', f
         'type' => 'main',
     ]);
 
-    $component = Livewire::test(PlanExerciseGrid::class, [
+    $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
         'exercisePlanId' => $program->id,
         'planType' => ExerciseProgram::class,
         'programExerciseId' => $pivot->id,
@@ -397,10 +398,11 @@ it('shows a neutral default grouping badge until an exercise override is set', f
             'overridden' => false,
         ]);
 
-    $component->call('onGroupingSaved', [
+    $component->call('onSettingsSaved', [
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
+        'config' => $exercise->config->toArray(),
         'session_grouping' => [
             'mode' => 'week',
             'groupSize' => 1,
@@ -416,14 +418,17 @@ it('shows a neutral default grouping badge until an exercise override is set', f
         ]);
 });
 
-it('keeps a concrete exercise-level grouping override when the program grouping changes', function () {
+it('keeps a concrete exercise-level grouping override when the coach default differs', function () {
+    $coach = User::factory()->coach()->create();
+    $coach->config->set('settings.session_grouping', [
+        'mode' => 'none',
+        'groupSize' => 1,
+        'copyValuesAutomatically' => false,
+    ]);
+    $coach->save();
+
     $program = ExerciseProgram::factory()->create([
         'config' => [
-            'sessionGrouping' => [
-                'mode' => 'groups',
-                'groupSize' => 2,
-                'copyValuesAutomatically' => true,
-            ],
             'exercises' => [],
         ],
     ]);
@@ -454,16 +459,7 @@ it('keeps a concrete exercise-level grouping override when the program grouping 
     $program->config = $config;
     $program->save();
 
-    $updatedConfig = $program->fresh()->config;
-    $updatedConfig->sessionGrouping = \App\Data\Exercise\Preview\SessionGroupingConfig::from([
-        'mode' => 'none',
-        'groupSize' => 1,
-        'copyValuesAutomatically' => false,
-    ]);
-    $program->config = $updatedConfig;
-    $program->save();
-
-    $component = Livewire::test(PlanExerciseGrid::class, [
+    $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
         'exercisePlanId' => $program->id,
         'planType' => ExerciseProgram::class,
         'programExerciseId' => $pivot->id,
@@ -486,16 +482,16 @@ it('keeps a concrete exercise-level grouping override when the program grouping 
         ->and($component->instance()->displayGrid->groupColumnLabel)->toBe('Week');
 });
 
-it('resets an exercise-level grouping override back to the program default', function () {
-    $program = ExerciseProgram::factory()->create([
-        'config' => [
-            'sessionGrouping' => [
-                'mode' => 'groups',
-                'groupSize' => 2,
-                'copyValuesAutomatically' => true,
-            ],
-        ],
+it('resets an exercise-level grouping override back to the coach default', function () {
+    $coach = User::factory()->coach()->create();
+    $coach->config->set('settings.session_grouping', [
+        'mode' => 'groups',
+        'groupSize' => 2,
+        'copyValuesAutomatically' => true,
     ]);
+    $coach->save();
+
+    $program = ExerciseProgram::factory()->create();
 
     $exercise = Exercise::factory()->create([
         'config' => [
@@ -523,7 +519,7 @@ it('resets an exercise-level grouping override back to the program default', fun
     $program->config = $config;
     $program->save();
 
-    $component = Livewire::test(PlanExerciseGrid::class, [
+    $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
         'exercisePlanId' => $program->id,
         'planType' => ExerciseProgram::class,
         'programExerciseId' => $pivot->id,
@@ -535,10 +531,16 @@ it('resets an exercise-level grouping override back to the program default', fun
         'weekSessions' => [1, 1],
     ]);
 
-    $component->call('onGroupingReset', [
+    $component->call('onSettingsSaved', [
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
+        'config' => $exercise->config->toArray(),
+        'session_grouping' => [
+            'mode' => 'groups',
+            'groupSize' => 2,
+            'copyValuesAutomatically' => true,
+        ],
     ]);
 
     expect($program->fresh()->config->defaultExerciseOverrides($pivot->id)->sessionGrouping)->toBeNull()
@@ -687,12 +689,12 @@ it('copies visible grouped sessions to another visible grouped session', functio
     ]);
 
     $component->call('updateCellOverride', 0, 0, 'reps', 17, 0, true)
-        ->call('copyDisplayBucket', 'session:0:0', 'session:2:0');
+        ->call('copyDisplayBucket', 'group:0', 'group:1');
 
     $cells = $program->fresh()->config->defaultExerciseOverrides($pivot->id)->gridOverrides['cells'] ?? [];
 
     expect(collect($cells)->where('week', 2)->where('session', 0)->first()['data']['reps'] ?? null)->toBe(17)
-        ->and(collect($cells)->where('week', 3)->where('session', 0)->first()['data']['reps'] ?? null)->toBeNull();
+        ->and(collect($cells)->where('week', 3)->where('session', 0)->first()['data']['reps'] ?? null)->toBe(17);
 });
 
 it('copies session buckets when grouping is none', function () {
@@ -847,7 +849,7 @@ it('copies using visible session targets when a later group is expanded', functi
     ]);
 
     $component->call('updateCellOverride', 0, 0, 'reps', 19, 0, true)
-        ->call('copyDisplayBucket', 'session:0:0', 'session:2:0');
+        ->call('copyDisplayBucket', 'group:0', 'session:2:0');
 
     $cells = $program->fresh()->config->defaultExerciseOverrides($pivot->id)->gridOverrides['cells'] ?? [];
 
@@ -905,17 +907,17 @@ it('resets only the selected visible grouped session overrides', function () {
 
     $component->call('updateCellOverride', 0, 0, 'reps', 17, 0, true)
         ->call('updateCellOverride', 2, 0, 'reps', 21, 0, true)
-        ->call('resetDisplayBucket', 'session:0:0');
+        ->call('resetDisplayBucket', 'group:0');
 
     $cells = $program->fresh()->config->defaultExerciseOverrides($pivot->id)->gridOverrides['cells'] ?? [];
 
     expect(collect($cells)->where('week', 0)->first())->toBeNull()
-        ->and(collect($cells)->where('week', 1)->where('session', 0)->first()['data']['reps'] ?? null)->toBe(17)
+        ->and(collect($cells)->where('week', 1)->first())->toBeNull()
         ->and(collect($cells)->where('week', 2)->where('session', 0)->first()['data']['reps'] ?? null)->toBe(21)
         ->and(collect($cells)->where('week', 3)->where('session', 0)->first()['data']['reps'] ?? null)->toBe(21);
 });
 
-it('resets only the selected visible week session overrides', function () {
+it('resets only the selected visible collapsed week group overrides', function () {
     $coach = User::factory()->create();
     $coach->config->set('settings.session_grouping', [
         'mode' => 'week',
@@ -960,14 +962,12 @@ it('resets only the selected visible week session overrides', function () {
 
     $component->call('updateCellOverride', 0, 0, 'reps', 18, 0, true)
         ->call('updateCellOverride', 1, 0, 'reps', 22, 0, true)
-        ->call('resetDisplayBucket', 'session:0:0');
+        ->call('resetDisplayBucket', 'group:0');
 
     $cells = $program->fresh()->config->defaultExerciseOverrides($pivot->id)->gridOverrides['cells'] ?? [];
 
-    expect(collect($cells)->where('week', 0)->where('session', 0)->first())->toBeNull()
-        ->and(collect($cells)->where('week', 0)->where('session', 1)->first()['data']['reps'] ?? null)->toBe(22)
-        ->and(collect($cells)->where('week', 1)->where('session', 0)->first()['data']['reps'] ?? null)->toBe(22)
-        ->and(collect($cells)->where('week', 1)->where('session', 1)->first()['data']['reps'] ?? null)->toBe(22);
+    expect(collect($cells)->where('week', 0)->first())->toBeNull()
+        ->and(collect($cells)->where('week', 1)->first())->toBeNull();
 });
 
 it('exercise-level reset removes all overrides for the exercise', function () {

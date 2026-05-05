@@ -5,6 +5,7 @@ namespace App\Data\Exercise\Settings;
 use App\Data\Exercise\Preview\CellInputMeta;
 use App\Form\Fields\Exercise\ApplyPerField;
 use App\Form\Fields\HeartRate;
+use App\Support\Training\ApplyPerScope;
 use Coda\FormKit\Fields;
 
 class HeartRateSetting extends AbstractSetting
@@ -12,7 +13,7 @@ class HeartRateSetting extends AbstractSetting
     public function __construct(
         public string $mode = 'manual',
         public ?string $default = '140',
-        public string $applyPer = 'session',
+        public string $applyPer = ApplyPerScope::FORM_SET,
     ) {}
 
     public static function unitLabel(): string

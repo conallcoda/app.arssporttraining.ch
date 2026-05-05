@@ -12,6 +12,7 @@ use App\Data\Exercise\Preview\SessionGroupingMode;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Livewire\Concerns\InteractsWithDisplayGridCopying;
 use App\Models\Exercise\ExerciseProgram;
+use App\Support\Training\ApplyPerScope;
 use Coda\Cms\Livewire\FormModal;
 use Coda\FormKit\Form;
 use Coda\FormKit\FormFieldsetGroup;
@@ -40,6 +41,8 @@ class CalendarExerciseSettingsForm extends FormModal
     public bool $scheduled = false;
 
     public ?int $contextUserId = null;
+
+    public array $expandedGroups = [];
 
     public function mount(
         string $name = 'calendar-exercise-settings',
@@ -109,7 +112,15 @@ class CalendarExerciseSettingsForm extends FormModal
             explicitWeekSessionCounts: $this->resolvedWeekSessionCounts(),
         );
 
-        $grid->autoCopyValuesAutomatically = SessionGroupingMode::shouldAutoCopyValues($config['preview'] ?? []);
+        $expandedIndexes = $this->resolvedExpandedGroupIndexes($grid, $config['preview'] ?? []);
+        $forcedExpandedIndexes = $this->forcedExpandedGroupIndexes($grid, $grid->groups);
+        foreach ($grid->groups as $group) {
+            $group->forceExpanded = in_array($group->index, $forcedExpandedIndexes, true);
+            $group->collapsible = $group->sessionCount > 1 && ! $group->forceExpanded;
+            $group->expanded = in_array($group->index, $expandedIndexes, true) || $group->forceExpanded;
+        }
+
+        $grid->autoCopyValuesAutomatically = false;
 
         return $this->applyExplicitWeekSessionCounts($grid);
     }
@@ -118,25 +129,24 @@ class CalendarExerciseSettingsForm extends FormModal
     public function effectiveExpandedWeeks(): array
     {
         $preview = $this->withResolvedPreviewGrouping($this->data['config'] ?? [])['preview'] ?? [];
-        $groupingMode = (string) ($preview['groupingMode'] ?? SessionGroupingMode::defaultMode());
-        $groupSize = SessionGroupingMode::normalizeGroupSize(
-            (int) ($preview['groupSize'] ?? SessionGroupingMode::defaultGroupSize()),
-            $groupingMode,
-        );
 
-        if ($groupingMode === SessionGroupingMode::Groups->value) {
-            return array_map(
-                static fn ($group): int => (int) $group->index,
-                SessionGroupBuilder::build(
-                    weekCount: $this->previewGrid->weekCount,
-                    sessionCounts: $this->previewGrid->weekSessionCounts,
-                    groupingMode: $groupingMode,
-                    groupSize: $groupSize,
-                )['groups'],
-            );
-        } else {
-            return range(0, max($this->previewGrid->weekCount - 1, 0));
+        return $this->resolvedExpandedGroupIndexes($this->previewGrid, $preview);
+    }
+
+    public function toggleExpandedGroup(int $groupIndex): void
+    {
+        if (in_array($groupIndex, $this->forcedExpandedGroupIndexes($this->previewGrid, $this->previewGrid->groups), true)) {
+            return;
         }
+
+        if (in_array($groupIndex, $this->expandedGroups, true)) {
+            $this->expandedGroups = array_values(array_filter($this->expandedGroups, fn (int $index): bool => $index !== $groupIndex));
+        } else {
+            $this->expandedGroups[] = $groupIndex;
+            $this->expandedGroups = array_values(array_unique($this->expandedGroups));
+        }
+
+        unset($this->previewGrid, $this->effectiveExpandedWeeks, $this->copyBuckets, $this->copyMenuOptions);
     }
 
     protected function buildDefaultsGrid(): PreviewGrid
@@ -177,7 +187,7 @@ class CalendarExerciseSettingsForm extends FormModal
 
         $formData = [
             'name' => $exerciseName,
-            'config' => $config,
+            'config' => ApplyPerScope::prepareConfigForForm($config),
         ];
 
         $this->open($formData, $exerciseName);
@@ -194,7 +204,7 @@ class CalendarExerciseSettingsForm extends FormModal
 
     public function updatedDataConfig(): void
     {
-        unset($this->previewGrid);
+        unset($this->previewGrid, $this->effectiveExpandedWeeks, $this->copyBuckets, $this->copyMenuOptions);
     }
 
     public function updatedDataConfigSettings(): void
@@ -234,25 +244,34 @@ class CalendarExerciseSettingsForm extends FormModal
 
         $this->data['config']['overrides'] = $overrides;
 
-        unset($this->previewGrid);
+        unset($this->previewGrid, $this->effectiveExpandedWeeks, $this->copyBuckets, $this->copyMenuOptions);
     }
 
-    public function updateSessionOverride(int $weekIndex, int $session, string $field, mixed $value): void
+    public function updateSessionOverride(int $weekIndex, int $session, string $field, mixed $value, bool $applyToAll = false): void
     {
-        $effectiveDefault = collect($this->buildDefaultsGrid()->weekColumns)
-            ->firstWhere('field', $field)?->getCellValue($weekIndex, 0, $session);
+        $overrides = $this->data['config']['overrides'] ?? OverrideManager::reset();
+        $targets = $applyToAll
+            ? $this->fanoutTargetsForSession($weekIndex, $session)
+            : [['week' => $weekIndex, 'session' => $session]];
 
-        $this->data['config']['overrides'] = OverrideManager::updateSessionOverride(
-            $this->data['config']['overrides'] ?? OverrideManager::reset(),
-            $this->data['config'],
-            $weekIndex,
-            $session,
-            $field,
-            $value,
-            $effectiveDefault,
-        );
+        foreach ($targets as $target) {
+            $effectiveDefault = collect($this->buildDefaultsGrid()->weekColumns)
+                ->firstWhere('field', $field)?->getCellValue($target['week'], 0, $target['session']);
 
-        unset($this->previewGrid);
+            $overrides = OverrideManager::updateSessionOverride(
+                $overrides,
+                $this->data['config'],
+                $target['week'],
+                $target['session'],
+                $field,
+                $value,
+                $effectiveDefault,
+            );
+        }
+
+        $this->data['config']['overrides'] = $overrides;
+
+        unset($this->previewGrid, $this->effectiveExpandedWeeks, $this->copyBuckets, $this->copyMenuOptions);
     }
 
     /** @return array<int, array{week:int, session:int}> */
@@ -288,7 +307,7 @@ class CalendarExerciseSettingsForm extends FormModal
     public function resetOverrides(): void
     {
         $this->data['config']['overrides'] = OverrideManager::reset();
-        unset($this->previewGrid);
+        unset($this->previewGrid, $this->effectiveExpandedWeeks, $this->copyBuckets, $this->copyMenuOptions);
     }
 
     public function submit(): void
@@ -388,16 +407,16 @@ class CalendarExerciseSettingsForm extends FormModal
             return false;
         }
 
-        if (collect($grid->rows)->contains(fn ($row): bool => (bool) $row->lastSessionOnly)) {
-            return true;
-        }
-
         $baseline = $sessions[0] ?? null;
         if ($baseline === null) {
             return false;
         }
 
         foreach ($grid->rows as $row) {
+            if ($row->lastSessionOnly) {
+                continue;
+            }
+
             foreach (range(0, $grid->setCount - 1) as $set) {
                 $baselineValue = $row->getCellValue($baseline->weekIndex, $set, $baseline->sessionIndex);
                 $baselineOverride = $row->isCellOverriddenAt($baseline->weekIndex, $set, $baseline->sessionIndex);
@@ -430,6 +449,41 @@ class CalendarExerciseSettingsForm extends FormModal
         }
 
         return false;
+    }
+
+    /** @param array<int, mixed> $groups
+     *  @return int[]
+     */
+    protected function forcedExpandedGroupIndexes(PreviewGrid $grid, array $groups): array
+    {
+        return collect($groups)
+            ->filter(fn ($group): bool => $this->groupHasSessionDivergence($grid, $group))
+            ->map(fn ($group): int => (int) $group->index)
+            ->values()
+            ->all();
+    }
+
+    /** @param array<string, mixed> $preview
+     *  @return int[]
+     */
+    protected function resolvedExpandedGroupIndexes(PreviewGrid $grid, array $preview): array
+    {
+        $groupingMode = (string) ($preview['groupingMode'] ?? SessionGroupingMode::defaultMode());
+        $groupSize = SessionGroupingMode::normalizeGroupSize(
+            (int) ($preview['groupSize'] ?? SessionGroupingMode::defaultGroupSize()),
+            $groupingMode,
+        );
+        $groups = SessionGroupBuilder::build(
+            weekCount: $grid->weekCount,
+            sessionCounts: $grid->weekSessionCounts,
+            groupingMode: $groupingMode,
+            groupSize: $groupSize,
+        )['groups'];
+
+        return collect(array_merge(
+            array_map(static fn ($index): int => (int) $index, $this->expandedGroups),
+            $this->forcedExpandedGroupIndexes($grid, $groups),
+        ))->unique()->values()->all();
     }
 
     /** @return array<int, int> */
@@ -508,6 +562,6 @@ class CalendarExerciseSettingsForm extends FormModal
     protected function persistGridOverridesFromCopy(array $gridOverrides): void
     {
         $this->data['config']['overrides'] = $gridOverrides;
-        unset($this->previewGrid, $this->copyBuckets, $this->copyMenuOptions);
+        unset($this->previewGrid, $this->effectiveExpandedWeeks, $this->copyBuckets, $this->copyMenuOptions);
     }
 }

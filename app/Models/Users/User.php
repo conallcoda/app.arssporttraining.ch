@@ -85,14 +85,14 @@ class User extends CmsUser
 
     public function issueAccountSetupToken(): string
     {
-        $token = Str::random((int) config('athlete.account_setup_token_length', 64));
+        $token = Str::random((int) config('user.account_setup_token_length', 64));
         $now = now();
 
         $this->forceFill([
             'account_setup_uuid' => $this->account_setup_uuid ?: (string) Str::uuid(),
             'account_setup_token_hash' => hash('sha256', $token),
             'account_setup_sent_at' => $now,
-            'account_setup_expires_at' => $now->copy()->addDays((int) config('athlete.account_setup_expiry_days', 30)),
+            'account_setup_expires_at' => $now->copy()->addDays((int) config('user.account_setup_expiry_days', 30)),
         ])->save();
 
         return $token;

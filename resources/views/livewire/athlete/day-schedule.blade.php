@@ -1,5 +1,13 @@
 <div>
-    @if ($hasSchedule)
+    @if ($previewMode && $selectedPreviewSessionKey)
+        <livewire:athlete.program-details
+            :key="'athlete-preview-details-' . $previewTrainingProgramId . '-' . $selectedPreviewSessionKey"
+            :date="$selectedPreviewSessionKey"
+            :preview-mode="true"
+            :preview-user-id="$previewUserId"
+            :training-program="$this->previewTrainingProgram"
+        />
+    @elseif ($hasSchedule)
         <div class="space-y-0">
             @if ($showReadiness)
                 @if ($readinessScore === null)

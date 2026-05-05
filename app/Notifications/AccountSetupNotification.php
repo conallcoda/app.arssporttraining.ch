@@ -6,7 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class AthleteAccountSetupNotification extends Notification
+class AccountSetupNotification extends Notification
 {
     use Queueable;
 
@@ -22,9 +22,9 @@ class AthleteAccountSetupNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Set up your athlete account')
+            ->subject('Set up your account')
             ->greeting('Welcome')
-            ->line('Your coach has invited you to set up your athlete account.')
+            ->line('You have been invited to set up your account.')
             ->line('Use the button below to choose your password and sign in.')
             ->action('Set Up Account', $this->setupUrl($notifiable))
             ->line('If you did not expect this email, you can ignore it.');
@@ -32,7 +32,7 @@ class AthleteAccountSetupNotification extends Notification
 
     public function setupUrl(object $notifiable): string
     {
-        return route('athlete.account-setup', [
+        return route('user.account-setup', [
             'accountSetupUuid' => $notifiable->account_setup_uuid,
             'token' => $this->setupToken,
         ]);
