@@ -15,7 +15,6 @@ it('does not expose session grouping controls in the program editor', function (
     $component = Livewire::actingAs($coach)->test(ProgramEditor::class, [
         'exerciseProgram' => $program,
         'planId' => $program->id,
-        'planType' => ExerciseProgram::class,
         'showWeeksInput' => true,
     ]);
 

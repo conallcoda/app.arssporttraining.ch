@@ -171,6 +171,29 @@ class ExerciseForm extends FormModal
         return empty($this->data['id']);
     }
 
+    /**
+     * @param  array<string, mixed>  $config
+     * @param  array<string, mixed>  $preview
+     * @return array{config: array<string, mixed>, preview: array<string, mixed>}
+     */
+    protected function applyPreviewGridContextOverrides(array $config, array $preview): array
+    {
+        $preview = array_merge($preview, [
+            'weeks' => 1,
+            'sessionsPerWeek' => 1,
+            'groupingMode' => 'none',
+            'groupSize' => 1,
+            'copyValuesAutomatically' => false,
+        ]);
+
+        $config['preview'] = $preview;
+
+        return [
+            'config' => $config,
+            'preview' => $preview,
+        ];
+    }
+
     #[Computed]
     public function formConfig(): Form
     {

@@ -92,6 +92,17 @@ trait InteractsWithPreview
         }
     }
 
+    /**
+     * @return array{config: array<string, mixed>, preview: array<string, mixed>}
+     */
+    protected function applyPreviewGridContextOverrides(array $config, array $preview): array
+    {
+        return [
+            'config' => $config,
+            'preview' => $preview,
+        ];
+    }
+
     #[Computed]
     public function previewGrid(): PreviewGrid
     {
@@ -111,6 +122,9 @@ trait InteractsWithPreview
             'groupSize' => $preview['groupSize'] ?? $grouping['groupSize'],
             'copyValuesAutomatically' => $preview['copyValuesAutomatically'] ?? $grouping['copyValuesAutomatically'],
         ]);
+        $contextOverrides = $this->applyPreviewGridContextOverrides($config, $resolvedPreview);
+        $config = $contextOverrides['config'];
+        $resolvedPreview = $contextOverrides['preview'];
         $config['preview'] = $resolvedPreview;
         $weeks = (int) ($resolvedPreview['weeks'] ?? $this->defaultWeeks);
         $sessionsPerWeek = SessionGroupingMode::resolvePreviewSessionCount($resolvedPreview, $this->defaultSessionsPerWeek);
@@ -141,6 +155,8 @@ trait InteractsWithPreview
             'groupSize' => $preview['groupSize'] ?? $grouping['groupSize'],
             'copyValuesAutomatically' => $preview['copyValuesAutomatically'] ?? $grouping['copyValuesAutomatically'],
         ]);
+        $contextOverrides = $this->applyPreviewGridContextOverrides($config, $resolvedPreview);
+        $resolvedPreview = $contextOverrides['preview'];
 
         return $this->resolvedExpandedGroupIndexes($this->previewGrid, $resolvedPreview);
     }
@@ -235,6 +251,9 @@ trait InteractsWithPreview
             'groupSize' => $preview['groupSize'] ?? $grouping['groupSize'],
             'copyValuesAutomatically' => $preview['copyValuesAutomatically'] ?? $grouping['copyValuesAutomatically'],
         ]);
+        $contextOverrides = $this->applyPreviewGridContextOverrides($config, $resolvedPreview);
+        $config = $contextOverrides['config'];
+        $resolvedPreview = $contextOverrides['preview'];
         $config['preview'] = $resolvedPreview;
         $weeks = (int) ($resolvedPreview['weeks'] ?? $this->defaultWeeks);
         $sessionsPerWeek = SessionGroupingMode::resolvePreviewSessionCount($resolvedPreview, $this->defaultSessionsPerWeek);

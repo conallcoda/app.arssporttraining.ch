@@ -40,8 +40,7 @@ it('rebuilds only the edited athlete for athlete-specific exercise grid changes'
     app()->instance(TrainingSessionRebuildDispatcher::class, $mock);
 
     Livewire::test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => $athlete->id,

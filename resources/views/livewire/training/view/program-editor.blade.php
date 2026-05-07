@@ -294,10 +294,16 @@
                 <div wire:key="grid-{{ $exercise->pivot->id }}-{{ $userId ?? 'default' }}-{{ $valueDisplayMode }}" class="min-w-0">
                     <livewire:training.view.plan-exercise-grid
                         :key="'grid-' . $exercise->pivot->id . '-' . $weeks . '-' . ($userId ?? 'default') . '-' . $valueDisplayMode"
-                        :exercisePlanId="$planId"
-                        :planType="$planType"
+                        :planId="$planId"
+                        :planConfigArray="$exerciseProgram->config->toArray()"
                         :programExerciseId="$exercise->pivot->id"
                         :exerciseId="$exercise->id"
+                        :exerciseName="$exercise->name"
+                        :exerciseConfigArray="$exercise->config->toArray()"
+                        :exerciseBadges="$this->exerciseBadgesByPivotId[$exercise->pivot->id] ?? []"
+                        :programExerciseSort="(int) ($exercise->pivot->sort ?? 0)"
+                        :programExerciseType="(string) ($exercise->pivot->type ?? 'main')"
+                        :programExerciseGroup="$exercise->pivot->group"
                         :groupLabel="$this->exerciseGroupLabels[$exercise->pivot->id] ?? null"
                         :userId="$userId"
                         :weeks="$weeks"

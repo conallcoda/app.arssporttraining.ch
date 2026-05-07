@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\Exercise\ExercisePlan;
 use App\Models\Exercise\ExerciseProgram;
 use App\Support\Training\GridOverrideNormalizer;
 use Illuminate\Database\Migrations\Migration;
@@ -42,7 +41,7 @@ return new class extends Migration
         });
 
         $this->backfillFrom('exercise_programs', ExerciseProgram::class);
-        $this->backfillFrom('exercise_plans', ExercisePlan::class);
+        $this->backfillFrom('exercise_plans', 'App\\Models\\Exercise\\ExercisePlan');
     }
 
     public function down(): void

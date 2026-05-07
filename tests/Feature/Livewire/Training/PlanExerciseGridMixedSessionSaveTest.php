@@ -4,6 +4,8 @@ use App\Livewire\Training\View\PlanExerciseGrid;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
+use App\Models\Training\TrainingPlanValueRevision;
+use App\Models\Training\TrainingRevisionBatch;
 use App\Models\Users\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -29,8 +31,7 @@ it('saves future session overrides in a week that also has locked sessions', fun
     ]);
 
     Livewire::test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -50,6 +51,205 @@ it('saves future session overrides in a week that also has locked sessions', fun
         ->not->toBeNull()
         ->and(collect($overrides['cells'] ?? [])->firstWhere(fn (array $cell) => ($cell['week'] ?? null) === 0 && ($cell['session'] ?? null) === 1 && ($cell['set'] ?? null) === 0)['data']['reps'] ?? null)
         ->toBe(14);
+});
+
+it('records a plan revision batch when a coach creates a grid override', function () {
+    $coach = User::factory()->coach()->create();
+    Livewire::actingAs($coach);
+
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+        ],
+    ]);
+
+    $program = ExerciseProgram::factory()->create();
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'weeks' => 1,
+        'sessionsPerWeek' => 1,
+        'lockedSessionsByWeek' => [[false]],
+    ])->call('updateCellOverride', 0, 0, 'reps', 14, 0, false);
+
+    $batch = TrainingRevisionBatch::query()->latest('id')->first();
+    $revision = TrainingPlanValueRevision::query()->latest('id')->first();
+
+    expect($batch?->domain)->toBe('plan')
+        ->and($batch?->action)->toBe('create_grid_overrides')
+        ->and($batch?->changed_by)->toBe($coach->id)
+        ->and($revision?->program_exercise_id)->toBe($pivot->id)
+        ->and($revision?->setting_key)->toBe('reps')
+        ->and($revision?->before_value_type)->toBeNull()
+        ->and($revision?->after_value_type)->toBe('int')
+        ->and($revision?->after_int_value)->toBe(14);
+});
+
+it('records a plan revision batch when an exercise grid override is reset', function () {
+    $coach = User::factory()->coach()->create();
+    Livewire::actingAs($coach);
+
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+        ],
+    ]);
+
+    $program = ExerciseProgram::factory()->create();
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'weeks' => 1,
+        'sessionsPerWeek' => 1,
+        'lockedSessionsByWeek' => [[false]],
+    ])->call('updateCellOverride', 0, 0, 'reps', 14, 0, false)
+        ->call('resetOverrides');
+
+    $batch = TrainingRevisionBatch::query()->latest('id')->first();
+    $revision = TrainingPlanValueRevision::query()->latest('id')->first();
+
+    expect($batch?->domain)->toBe('plan')
+        ->and($batch?->action)->toBe('reset_grid_overrides')
+        ->and($revision?->before_value_type)->toBe('int')
+        ->and($revision?->before_int_value)->toBe(14)
+        ->and($revision?->after_value_type)->toBeNull();
+});
+
+it('records a plan revision batch when a coach changes settings from the modal', function () {
+    $coach = User::factory()->coach()->create();
+
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+        ],
+    ]);
+
+    $program = ExerciseProgram::factory()->create();
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $updatedConfig = $exercise->config->toArray();
+    $updatedConfig['reps']['default'] = 14;
+
+    Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'weeks' => 1,
+        'sessionsPerWeek' => 1,
+        'lockedSessionsByWeek' => [[false]],
+    ])->call('onSettingsSaved', [
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'config' => $updatedConfig,
+    ]);
+
+    $batch = TrainingRevisionBatch::query()->latest('id')->first();
+    $revision = TrainingPlanValueRevision::query()
+        ->where('setting_key', 'reps.default')
+        ->where('after_int_value', 14)
+        ->latest('id')
+        ->first();
+
+    expect($batch?->domain)->toBe('plan')
+        ->and($batch?->action)->toBe('create_setting_overrides')
+        ->and($batch?->changed_by)->toBe($coach->id)
+        ->and($revision?->program_exercise_id)->toBe($pivot->id)
+        ->and($revision?->setting_key)->toBe('reps.default')
+        ->and($revision?->before_value_type)->toBeNull()
+        ->and($revision?->after_value_type)->toBe('int')
+        ->and($revision?->after_int_value)->toBe(14);
+});
+
+it('records a plan revision batch when a coach resets modal settings back to the parent defaults', function () {
+    $coach = User::factory()->coach()->create();
+
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+        ],
+    ]);
+
+    $program = ExerciseProgram::factory()->create();
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $updatedConfig = $exercise->config->toArray();
+    $updatedConfig['reps']['default'] = 14;
+
+    Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'weeks' => 1,
+        'sessionsPerWeek' => 1,
+        'lockedSessionsByWeek' => [[false]],
+    ])->call('onSettingsSaved', [
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'config' => $updatedConfig,
+    ])->call('onSettingsSaved', [
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'config' => $exercise->config->toArray(),
+    ]);
+
+    $batch = TrainingRevisionBatch::query()->latest('id')->first();
+    $revision = TrainingPlanValueRevision::query()
+        ->where('setting_key', 'reps.default')
+        ->where('before_int_value', 14)
+        ->latest('id')
+        ->first();
+
+    expect($batch?->domain)->toBe('plan')
+        ->and($batch?->action)->toBe('reset_setting_overrides')
+        ->and($revision?->setting_key)->toBe('reps.default')
+        ->and($revision?->before_value_type)->toBe('int')
+        ->and($revision?->before_int_value)->toBe(14)
+        ->and($revision?->after_value_type)->toBeNull();
 });
 
 it('preserves locked session values when editing a future session in the same week', function () {
@@ -83,8 +283,7 @@ it('preserves locked session values when editing a future session in the same we
     $program->saveQuietly();
 
     Livewire::test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -141,8 +340,7 @@ it('does not fan a future session edit out to other sessions even when applyToAl
     $program->saveQuietly();
 
     Livewire::test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -190,8 +388,7 @@ it('fans apply-to-all edits out across unlocked sessions in the same week-group'
     ]);
 
     Livewire::test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -238,8 +435,7 @@ it('fans apply-to-all edits out across grouped sessions that span weeks', functi
     ]);
 
     Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -288,8 +484,7 @@ it('exposes auto-copy as disabled on the grid when configured off for grouped se
     ]);
 
     $component = Livewire::test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -328,8 +523,7 @@ it('persists a concrete exercise-level grouping override from the exercise menu'
     ]);
 
     Livewire::test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -382,8 +576,7 @@ it('shows a neutral default grouping badge until an exercise override is set', f
     ]);
 
     $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -460,8 +653,7 @@ it('keeps a concrete exercise-level grouping override when the coach default dif
     $program->save();
 
     $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -520,8 +712,7 @@ it('resets an exercise-level grouping override back to the coach default', funct
     $program->save();
 
     $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -571,8 +762,7 @@ it('captures locked session values in the historical session snapshot bag for mi
     ]);
 
     Livewire::test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -615,8 +805,7 @@ it('applies to all only across sessions that exist in the edited week', function
     ]);
 
     Livewire::test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -667,8 +856,7 @@ it('copies visible grouped sessions to another visible grouped session', functio
     ]);
 
     $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -723,8 +911,7 @@ it('copies session buckets when grouping is none', function () {
     ]);
 
     $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -774,8 +961,7 @@ it('copies visible sessions when grouping is week', function () {
     ]);
 
     $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -826,8 +1012,7 @@ it('copies using visible session targets when a later group is expanded', functi
     ]);
 
     $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -884,8 +1069,7 @@ it('resets only the selected visible grouped session overrides', function () {
     ]);
 
     $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -943,8 +1127,7 @@ it('resets only the selected visible collapsed week group overrides', function (
     ]);
 
     $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -989,8 +1172,7 @@ it('exercise-level reset removes all overrides for the exercise', function () {
     ]);
 
     $component = Livewire::test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,

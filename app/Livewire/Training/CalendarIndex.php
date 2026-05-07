@@ -61,6 +61,8 @@ class CalendarIndex extends Component
 
     public string $planProgramName = '';
 
+    public string $planProgramStatus = TrainingProgram::STATUS_ACTIVE;
+
     public string $addContentSearch = '';
 
     public string $addContentTab = 'program';
@@ -142,6 +144,7 @@ class CalendarIndex extends Component
             $this->planBlock = 'ungrouped';
             $this->planProgram = '';
             $this->planProgramName = '';
+            $this->planProgramStatus = TrainingProgram::STATUS_ACTIVE;
 
             $stored = $this->loadPersistedCalendarSettings();
             if ($stored) {
@@ -161,6 +164,7 @@ class CalendarIndex extends Component
 
         if ($this->view === 'plan') {
             $this->syncPlanProgramName();
+            $this->syncPlanProgramStatus();
         }
 
         unset(
@@ -289,6 +293,7 @@ class CalendarIndex extends Component
             $this->planCategory = '';
             $this->planBlock = 'ungrouped';
             $this->planProgram = '';
+            $this->planProgramStatus = TrainingProgram::STATUS_ACTIVE;
             unset($this->selectionName, $this->selectionGroupName, $this->selectionType, $this->programs, $this->groupedPrograms);
 
             return;
@@ -309,6 +314,7 @@ class CalendarIndex extends Component
             $this->planBlock = 'ungrouped';
             $this->planProgram = '';
             $this->planProgramName = '';
+            $this->planProgramStatus = TrainingProgram::STATUS_ACTIVE;
         } elseif ($this->view === 'plan' && $this->planCategory !== '') {
             $this->selectOverlappingBlock();
         }
@@ -472,6 +478,7 @@ class CalendarIndex extends Component
             $this->planCategory = '';
             $this->planBlock = 'ungrouped';
             $this->planProgram = '';
+            $this->planProgramStatus = TrainingProgram::STATUS_ACTIVE;
 
             return;
         }
@@ -482,6 +489,7 @@ class CalendarIndex extends Component
             $this->planBlock = 'ungrouped';
             $this->planProgram = '';
             $this->planProgramName = '';
+            $this->planProgramStatus = TrainingProgram::STATUS_ACTIVE;
         }
 
         $this->dispatch('calendar-selection-changed',
@@ -533,11 +541,13 @@ class CalendarIndex extends Component
             return collect();
         }
 
+        [$start, $end] = $this->dateRange();
+
         return TrainingProgram::with([
             'program.exerciseCategory',
             'program.exercises',
         ])
-            ->where('group_id', (int) $this->group)
+            ->visibleInDateRange((int) $this->group, $start, $end, $this->user !== '' ? (int) $this->user : null)
             ->orderBy('sort')
             ->get();
     }

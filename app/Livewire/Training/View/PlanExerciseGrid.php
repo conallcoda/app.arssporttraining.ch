@@ -21,12 +21,17 @@ use App\Livewire\Concerns\InteractsWithDisplayGridCopying;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
-use App\Models\Exercise\ExercisePlan;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Training\TrainingProgramSlotExercise;
+use App\Models\Training\TrainingProgramSlotSet;
+use App\Models\Training\TrainingProgramSlotSetStatusEnum;
 use App\Models\Training\TrainingProgramSlotSetValue;
+use App\Training\AthleteExerciseValueService;
+use App\Training\TrainingSessionPlannedValueService;
+use App\Training\TrainingPlanRevisionService;
 use App\Training\TrainingSessionRebuildDispatcher;
+use App\Support\Training\ExerciseMetricAvailability;
 use Coda\Cms\Livewire\Concerns\InteractsWithParentView;
 use Illuminate\Support\Facades\Auth;
 use App\Support\Training\ApplyPerScope;
@@ -40,9 +45,9 @@ class PlanExerciseGrid extends Component
     use InteractsWithParentView;
     use InteractsWithDisplayGridCopying;
 
-    public int $exercisePlanId;
+    public int $planId;
 
-    public string $planType = ExercisePlan::class;
+    public array $planConfigArray = [];
 
     public int $programExerciseId;
 
@@ -105,7 +110,7 @@ class PlanExerciseGrid extends Component
     public ?int $planIatPercent = null;
 
     public function mount(
-        int $exercisePlanId,
+        int $planId,
         int $programExerciseId,
         int $exerciseId,
         ?int $userId,
@@ -125,8 +130,16 @@ class PlanExerciseGrid extends Component
         bool $showActualValueTabs = false,
         string $valueDisplayMode = 'planned',
         ?string $groupLabel = null,
+        array $planConfigArray = [],
+        ?string $exerciseName = null,
+        array $exerciseConfigArray = [],
+        array $exerciseBadges = [],
+        int $programExerciseSort = 0,
+        string $programExerciseType = 'main',
+        int|string|null $programExerciseGroup = null,
     ): void {
-        $this->exercisePlanId = $exercisePlanId;
+        $this->planId = $planId;
+        $this->planConfigArray = $planConfigArray;
         $this->programExerciseId = $programExerciseId;
         $this->exerciseId = $exerciseId;
         $this->userId = $userId;
@@ -147,28 +160,45 @@ class PlanExerciseGrid extends Component
         $this->valueDisplayMode = $valueDisplayMode;
         $this->groupLabel = $groupLabel;
 
-        $exercise = Exercise::with(['equipment', 'modifiers'])->findOrFail($exerciseId);
-        $this->exerciseName = $exercise->name;
-        $this->exerciseConfigArray = $exercise->config->toArray();
-        $this->exerciseBadges = $this->buildExerciseBadges($exercise);
+        if ($exerciseName !== null && $exerciseConfigArray !== []) {
+            $this->exerciseName = $exerciseName;
+            $this->exerciseConfigArray = $exerciseConfigArray;
+            $this->exerciseBadges = $exerciseBadges;
+            $this->programExerciseSort = $programExerciseSort;
+            $this->programExerciseType = $programExerciseType;
+            $this->programExerciseGroup = $programExerciseGroup;
+        } else {
+            $exercise = Exercise::with(['equipment', 'modifiers'])->findOrFail($exerciseId);
+            $this->exerciseName = $exercise->name;
+            $this->exerciseConfigArray = $exercise->config->toArray();
+            $this->exerciseBadges = $this->buildExerciseBadges($exercise);
 
-        $programExercise = ExerciseProgramExercise::findOrFail($programExerciseId);
-        $this->programExerciseSort = (int) ($programExercise->sort ?? 0);
-        $this->programExerciseType = (string) ($programExercise->type ?? 'main');
-        $this->programExerciseGroup = $programExercise->group;
-
-        if ($this->planType === ExerciseProgram::class) {
-            $program = ExerciseProgram::query()->select(['id', 'parent_type', 'parent_id'])->find($exercisePlanId);
-
-            if ($program?->parent_type === TrainingProgram::class && $program->parent_id !== null) {
-                $this->scheduledTrainingProgramId = (int) $program->parent_id;
-            }
+            $programExercise = ExerciseProgramExercise::findOrFail($programExerciseId);
+            $this->programExerciseSort = (int) ($programExercise->sort ?? 0);
+            $this->programExerciseType = (string) ($programExercise->type ?? 'main');
+            $this->programExerciseGroup = $programExercise->group;
         }
+
+        $program = ExerciseProgram::query()->select(['id', 'parent_type', 'parent_id'])->find($planId);
+
+        if ($program?->parent_type === TrainingProgram::class && $program->parent_id !== null) {
+            $this->scheduledTrainingProgramId = (int) $program->parent_id;
+        }
+    }
+
+    #[Computed]
+    public function planConfig()
+    {
+        if ($this->planConfigArray === []) {
+            $this->planConfigArray = ExerciseProgram::query()->findOrFail($this->planId)->config->toArray();
+        }
+
+        return \App\Data\Training\Config\ExercisePlanConfig::from($this->planConfigArray);
     }
 
     protected function getPlanConfig()
     {
-        return $this->planType::findOrFail($this->exercisePlanId)->config;
+        return $this->planConfig;
     }
 
     protected function getExerciseConfig(): ExerciseConfig
@@ -183,7 +213,11 @@ class PlanExerciseGrid extends Component
 
     protected function getEffectiveStartsAtDate(): ?string
     {
-        return null;
+        if ($this->isUnavailableForMissingMetrics) {
+            return '9999-12-31';
+        }
+
+        return $this->resolvedExerciseOverrides->effectiveStartsAtDate;
     }
 
     protected function getEffectiveConfig(): array
@@ -286,11 +320,26 @@ class PlanExerciseGrid extends Component
     #[Computed]
     public function missingAthleteMeasurement(): bool
     {
-        if (! $this->requiresMeasuredData || $this->userId === null) {
+        if ($this->userId === null) {
             return false;
         }
 
-        return ! $this->hasMeasuredData;
+        return $this->isUnavailableForMissingMetrics;
+    }
+
+    #[Computed]
+    public function isUnavailableForMissingMetrics(): bool
+    {
+        if ($this->userId === null) {
+            return false;
+        }
+
+        return app(ExerciseMetricAvailability::class)->missingRequiredMetrics(
+            effectiveConfig: $this->getEffectiveConfig(),
+            weightProgression: $this->getPlanMeasuredData(),
+            maxHR: $this->planMaxHR,
+            iatPercent: $this->planIatPercent,
+        );
     }
 
     /** @return array{label: string, color: string|null, overridden: bool} */
@@ -385,6 +434,7 @@ class PlanExerciseGrid extends Component
             $this->getExerciseConfig()->toArray(),
             $this->resolvedExerciseOverrides->defaultOverrides,
             $this->resolvedExerciseOverrides->userOverrides,
+            ! $this->isUnavailableForMissingMetrics,
         );
 
         return $this->clearLockedWeekHighlights($grid);
@@ -451,6 +501,13 @@ class PlanExerciseGrid extends Component
     public function actualSessionValues(): array
     {
         return $this->buildActualValueMaps()['sessions'];
+    }
+
+    /** @return array<int, array<int, bool>> */
+    #[Computed]
+    public function editableActualSessionsByWeek(): array
+    {
+        return $this->buildActualValueMaps()['editable'];
     }
 
     /** @return array{cells: array, weeks: array} */
@@ -680,11 +737,11 @@ class PlanExerciseGrid extends Component
         return $badges;
     }
 
-    /** @return array{cells: array<string, array<int, array<int, array<int, string>>>>, sessions: array<string, array<int, array<int, string>>>} */
+    /** @return array{cells: array<string, array<int, array<int, array<int, string>>>>, sessions: array<string, array<int, array<int, string>>>, editable: array<int, array<int, bool>>} */
     protected function buildActualValueMaps(): array
     {
         if (! $this->showsActualValueTabs) {
-            return ['cells' => [], 'sessions' => []];
+            return ['cells' => [], 'sessions' => [], 'editable' => []];
         }
 
         $dates = collect($this->weekSessionDates)
@@ -694,7 +751,7 @@ class PlanExerciseGrid extends Component
             ->values();
 
         if ($dates->isEmpty()) {
-            return ['cells' => [], 'sessions' => []];
+            return ['cells' => [], 'sessions' => [], 'editable' => []];
         }
 
         $slotsByDate = TrainingProgramSlot::query()
@@ -707,6 +764,7 @@ class PlanExerciseGrid extends Component
 
         $cellValues = [];
         $sessionValues = [];
+        $editableSessions = [];
 
         foreach ($this->weekSessionDates as $weekIndex => $datesForWeek) {
             foreach ($datesForWeek as $sessionIndex => $date) {
@@ -722,8 +780,19 @@ class PlanExerciseGrid extends Component
                     continue;
                 }
 
+                $editableSessions[$weekIndex][$sessionIndex] = $this->valueDisplayMode === 'actual'
+                    && ($this->lockedSessionsByWeek[$weekIndex][$sessionIndex] ?? false);
+
                 foreach ($slotExercise->sets->sortBy('set_number') as $set) {
                     $setIndex = max(((int) $set->set_number) - 1, 0);
+
+                    if ((string) ($set->status->value ?? $set->status) === TrainingProgramSlotSetStatusEnum::Skipped->value) {
+                        foreach ($set->values as $valueRow) {
+                            $cellValues[$valueRow->setting_key][$weekIndex][$sessionIndex][$setIndex] = __('Skipped');
+                        }
+
+                        continue;
+                    }
 
                     foreach ($set->values as $valueRow) {
                         $formatted = $this->formatActualValue($valueRow->setting_key, $this->extractActualValue($valueRow), $valueRow);
@@ -745,7 +814,44 @@ class PlanExerciseGrid extends Component
             }
         }
 
-        return ['cells' => $cellValues, 'sessions' => $sessionValues];
+        return ['cells' => $cellValues, 'sessions' => $sessionValues, 'editable' => $editableSessions];
+    }
+
+    public function updateActualCellValue(int $weekIndex, int $setIndex, string $field, mixed $value, int $session): void
+    {
+        abort_unless($this->canEditActualsForSession($weekIndex, $session), 403);
+
+        $slotExercise = $this->slotExerciseForWeekSession($weekIndex, $session);
+        abort_unless($slotExercise instanceof TrainingProgramSlotExercise, 404);
+
+        $set = $slotExercise->sets
+            ->sortBy('set_number')
+            ->values()
+            ->get($setIndex);
+
+        abort_unless($set !== null, 404);
+
+        app(AthleteExerciseValueService::class)->saveExerciseValues($slotExercise, [
+            $set->id => [$field => $value],
+        ], onlyProvided: true);
+
+        unset($this->actualCellValues, $this->actualSessionValues, $this->editableActualSessionsByWeek);
+    }
+
+    public function updateActualSessionValue(int $weekIndex, int $session, string $field, mixed $value): void
+    {
+        abort_unless($this->canEditActualsForSession($weekIndex, $session), 403);
+
+        $slotExercise = $this->slotExerciseForWeekSession($weekIndex, $session);
+        abort_unless($slotExercise instanceof TrainingProgramSlotExercise, 404);
+
+        $payload = $slotExercise->sets
+            ->mapWithKeys(fn ($set): array => [$set->id => [$field => $value]])
+            ->all();
+
+        app(AthleteExerciseValueService::class)->saveExerciseValues($slotExercise, $payload, onlyProvided: true);
+
+        unset($this->actualCellValues, $this->actualSessionValues, $this->editableActualSessionsByWeek);
     }
 
     protected function matchingSlotExercise(TrainingProgramSlot $slot): ?TrainingProgramSlotExercise
@@ -758,11 +864,56 @@ class PlanExerciseGrid extends Component
         }) ?? $slot->exercises->firstWhere('exercise_id', $this->exerciseId);
     }
 
+    protected function slotExerciseForWeekSession(int $weekIndex, int $sessionIndex): ?TrainingProgramSlotExercise
+    {
+        $date = $this->weekSessionDates[$weekIndex][$sessionIndex] ?? null;
+
+        if (! is_string($date) || $date === '' || $this->scheduledTrainingProgramId === null || $this->userId === null) {
+            return null;
+        }
+
+        $slot = TrainingProgramSlot::query()
+            ->with(['exercises.sets.values'])
+            ->where('training_program_id', $this->scheduledTrainingProgramId)
+            ->where('user_id', $this->userId)
+            ->whereDate('scheduled_date', $date)
+            ->first();
+
+        if (! $slot instanceof TrainingProgramSlot) {
+            return null;
+        }
+
+        return $this->matchingSlotExercise($slot);
+    }
+
+    protected function canEditActualsForSession(int $weekIndex, int $sessionIndex): bool
+    {
+        if ($this->valueDisplayMode !== 'actual' || ! $this->showsActualValueTabs) {
+            return false;
+        }
+
+        if (! $this->isSessionLocked($weekIndex, $sessionIndex)) {
+            return false;
+        }
+
+        return $this->slotExerciseForWeekSession($weekIndex, $sessionIndex) instanceof TrainingProgramSlotExercise;
+    }
+
     protected function resolveActualSessionValue(TrainingProgramSlotExercise $slotExercise, string $field): ?string
     {
+        if ($slotExercise->sets->isNotEmpty() && $slotExercise->sets->every(
+            fn (TrainingProgramSlotSet $set): bool => (string) ($set->status->value ?? $set->status) === TrainingProgramSlotSetStatusEnum::Skipped->value
+        )) {
+            return __('Skipped');
+        }
+
         $formatted = $slotExercise->sets
             ->sortBy('set_number')
             ->map(function ($set) use ($field): ?string {
+                if ((string) ($set->status->value ?? $set->status) === TrainingProgramSlotSetStatusEnum::Skipped->value) {
+                    return __('Skipped');
+                }
+
                 $valueRow = $set->values->firstWhere('setting_key', $field);
 
                 return $this->formatActualValue($field, $this->extractActualValue($valueRow), $valueRow);
@@ -955,6 +1106,7 @@ class PlanExerciseGrid extends Component
             $this->getExerciseConfig()->toArray(),
             $this->resolvedExerciseOverrides->defaultOverrides,
             $this->resolvedExerciseOverrides->userOverrides,
+            ! $this->isUnavailableForMissingMetrics,
         );
 
         return $grid;
@@ -1149,22 +1301,118 @@ class PlanExerciseGrid extends Component
     {
         $this->snapshotLockedWeeks($overrides, $this->previewGrid);
 
-        $exercisePlan = $this->planType::findOrFail($this->exercisePlanId);
-        $config = $exercisePlan->config;
+        $exerciseProgram = ExerciseProgram::query()->findOrFail($this->planId);
+        $config = $exerciseProgram->config;
+        $previousOverrides = $config->exerciseOverrides($this->programExerciseId, $this->userId);
+        $previousGridOverrides = $previousOverrides->gridOverrides;
         $config->setExerciseOverrides($this->programExerciseId, $overrides, $this->userId);
 
-        $exercisePlan->config = $config;
-        $shouldScopeRebuildToAthlete = $this->userId !== null && $this->planType === ExerciseProgram::class;
+        $exerciseProgram->config = $config;
+        $shouldScopeRebuildToAthlete = $this->userId !== null;
 
         if ($shouldScopeRebuildToAthlete) {
-            $exercisePlan->saveQuietly();
+            $exerciseProgram->saveQuietly();
             app(TrainingSessionRebuildDispatcher::class)
-                ->dispatchFutureSlotsForExerciseProgramChange($exercisePlan->id, $this->userId);
+                ->dispatchFutureSlotsForExerciseProgramChange($exerciseProgram->id, $this->userId);
         } else {
-            $exercisePlan->save();
+            $exerciseProgram->save();
         }
 
+        app(TrainingPlanRevisionService::class)->recordGridOverrideChanges(
+            owner: $exerciseProgram,
+            programExerciseId: $this->programExerciseId,
+            userId: $this->userId,
+            before: $previousGridOverrides,
+            after: $overrides->gridOverrides,
+            fieldConfigMap: $this->planRevisionFieldConfigMap(),
+            action: $this->resolvePlanRevisionAction($previousGridOverrides, $overrides->gridOverrides),
+        );
+
+        app(TrainingPlanRevisionService::class)->recordOverrideSettingChanges(
+            owner: $exerciseProgram,
+            programExerciseId: $this->programExerciseId,
+            userId: $this->userId,
+            before: $previousOverrides,
+            after: $overrides,
+            action: $this->resolvePlanSettingsRevisionAction($previousOverrides, $overrides),
+        );
+
+        $this->syncLockedHistoricalSessionSnapshots($overrides);
+        $this->planConfigArray = $config->toArray();
+        unset($this->planConfig, $this->resolvedExerciseOverrides);
+
         $this->dispatch('exercise-overrides-changed');
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    protected function planRevisionFieldConfigMap(): array
+    {
+        $map = [];
+
+        foreach (ExerciseSetting::cases() as $setting) {
+            $field = $setting->value;
+            $config = $this->getExerciseConfig()->{$field} ?? null;
+
+            $map[$field] = is_object($config) && method_exists($config, 'toArray')
+                ? $config->toArray()
+                : [];
+        }
+
+        return $map;
+    }
+
+    /** @param array{sessions?: array<int, array<string, mixed>>, cells?: array<int, array<string, mixed>>} $before
+     *  @param array{sessions?: array<int, array<string, mixed>>, cells?: array<int, array<string, mixed>>} $after
+     */
+    protected function resolvePlanRevisionAction(array $before, array $after): string
+    {
+        $beforeHasRows = ! empty($before['sessions'] ?? []) || ! empty($before['cells'] ?? []);
+        $afterHasRows = ! empty($after['sessions'] ?? []) || ! empty($after['cells'] ?? []);
+
+        return match (true) {
+            ! $beforeHasRows && $afterHasRows => 'create_grid_overrides',
+            $beforeHasRows && ! $afterHasRows => 'reset_grid_overrides',
+            default => 'update_grid_overrides',
+        };
+    }
+
+    protected function resolvePlanSettingsRevisionAction(ExerciseOverrides $before, ExerciseOverrides $after): string
+    {
+        $beforeHasOverrides = $this->hasTrackedSettingOverrides($before);
+        $afterHasOverrides = $this->hasTrackedSettingOverrides($after);
+
+        return match (true) {
+            ! $beforeHasOverrides && $afterHasOverrides => 'create_setting_overrides',
+            $beforeHasOverrides && ! $afterHasOverrides => 'reset_setting_overrides',
+            default => 'update_setting_overrides',
+        };
+    }
+
+    protected function hasTrackedSettingOverrides(ExerciseOverrides $overrides): bool
+    {
+        foreach ([
+            'settings',
+            'startsAtDate',
+            'sets',
+            'reps',
+            'weight',
+            'tempo',
+            'rest',
+            'distance',
+            'duration',
+            'heartRate',
+            'heartRateZone',
+            'pace',
+            'watts',
+            'sessionGrouping',
+            'disabled',
+        ] as $field) {
+            if (($overrides->{$field} ?? null) !== null) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     protected function snapshotLockedWeeks(ExerciseOverrides $overrides, PreviewGrid $grid): void
@@ -1450,6 +1698,122 @@ class PlanExerciseGrid extends Component
         ];
 
         return $gridOverrides;
+    }
+
+    protected function syncLockedHistoricalSessionSnapshots(ExerciseOverrides $overrides): void
+    {
+        if ($this->scheduledTrainingProgramId === null || $this->userId === null) {
+            return;
+        }
+
+        $historicalOverrides = $overrides->historicalGridOverrides;
+
+        foreach ($this->lockedHistoricalSessionPayloads($historicalOverrides) as $sessionPayload) {
+            $slotExercise = $this->slotExerciseForLockedSessionPayload(
+                $sessionPayload['week'],
+                $sessionPayload['session'],
+            );
+
+            if (! $slotExercise instanceof TrainingProgramSlotExercise) {
+                continue;
+            }
+
+            app(TrainingSessionPlannedValueService::class)->saveExercisePlannedValues(
+                $slotExercise,
+                $sessionPayload['values'],
+                onlyProvided: true,
+            );
+        }
+    }
+
+    /**
+     * @param  array{cells?: array<int, array<string, mixed>>, sessions?: array<int, array<string, mixed>>}  $historicalOverrides
+     * @return list<array{week: int, session: int, values: array<int, array<string, mixed>>}>
+     */
+    protected function lockedHistoricalSessionPayloads(array $historicalOverrides): array
+    {
+        $payloads = [];
+
+        foreach ($historicalOverrides['cells'] ?? [] as $cellOverride) {
+            $week = (int) ($cellOverride['week'] ?? -1);
+            $session = (int) ($cellOverride['session'] ?? -1);
+            $setIndex = (int) ($cellOverride['set'] ?? -1);
+
+            if (! ($this->lockedSessionsByWeek[$week][$session] ?? false) || $setIndex < 0) {
+                continue;
+            }
+
+            $payloads[$week][$session]['week'] = $week;
+            $payloads[$week][$session]['session'] = $session;
+            $payloads[$week][$session]['values'][$setIndex] = array_merge(
+                $payloads[$week][$session]['values'][$setIndex] ?? [],
+                (array) ($cellOverride['data'] ?? []),
+            );
+        }
+
+        foreach ($historicalOverrides['sessions'] ?? [] as $sessionOverride) {
+            $week = (int) ($sessionOverride['week'] ?? -1);
+            $session = (int) ($sessionOverride['session'] ?? -1);
+
+            if (! ($this->lockedSessionsByWeek[$week][$session] ?? false)) {
+                continue;
+            }
+
+            $payloads[$week][$session]['week'] = $week;
+            $payloads[$week][$session]['session'] = $session;
+            $sessionFields = (array) ($sessionOverride['data'] ?? []);
+
+            if ($this->previewGrid->setCount <= 0) {
+                continue;
+            }
+
+            foreach (range(0, $this->previewGrid->setCount - 1) as $setIndex) {
+                $payloads[$week][$session]['values'][$setIndex] = array_merge(
+                    $payloads[$week][$session]['values'][$setIndex] ?? [],
+                    $sessionFields,
+                );
+            }
+        }
+
+        return collect($payloads)
+            ->flatMap(fn (array $sessions): array => array_values($sessions))
+            ->map(function (array $payload): array {
+                $slotExercise = $this->slotExerciseForLockedSessionPayload($payload['week'], $payload['session']);
+
+                if (! $slotExercise instanceof TrainingProgramSlotExercise) {
+                    return $payload + ['values' => []];
+                }
+
+                $orderedSets = $slotExercise->sets
+                    ->sortBy('set_number')
+                    ->values();
+
+                $values = [];
+
+                foreach (($payload['values'] ?? []) as $setIndex => $setValues) {
+                    $set = $orderedSets->get((int) $setIndex);
+
+                    if (! $set instanceof TrainingProgramSlotSet) {
+                        continue;
+                    }
+
+                    $values[$set->id] = $setValues;
+                }
+
+                return [
+                    'week' => (int) $payload['week'],
+                    'session' => (int) $payload['session'],
+                    'values' => $values,
+                ];
+            })
+            ->filter(fn (array $payload): bool => $payload['values'] !== [])
+            ->values()
+            ->all();
+    }
+
+    protected function slotExerciseForLockedSessionPayload(int $weekIndex, int $sessionIndex): ?TrainingProgramSlotExercise
+    {
+        return $this->slotExerciseForWeekSession($weekIndex, $sessionIndex);
     }
 
     public function render()

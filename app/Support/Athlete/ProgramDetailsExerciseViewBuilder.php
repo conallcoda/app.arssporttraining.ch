@@ -6,6 +6,7 @@ use App\Data\Athlete\ProgramDetailsExerciseData;
 use App\Data\Athlete\ProgramDetailsNoteData;
 use App\Data\Athlete\ProgramDetailsSessionRowData;
 use App\Models\Training\TrainingProgramSlotExercise;
+use App\Models\Training\TrainingProgramSlotSetStatusEnum;
 use App\Models\Training\TrainingProgramSlotSetValue;
 use App\Support\Athlete\Concerns\FormatsProgramDetailsExerciseValues;
 use Coda\Cms\Support\ColorPalette;
@@ -15,7 +16,7 @@ class ProgramDetailsExerciseViewBuilder
 {
     use FormatsProgramDetailsExerciseValues;
 
-    public function build(TrainingProgramSlotExercise $slotExercise, int $index, ?string $groupLabel = null): ProgramDetailsExerciseData
+    public function build(TrainingProgramSlotExercise $slotExercise, int $index, ?string $groupLabel = null, array $pendingSkippedSetMap = []): ProgramDetailsExerciseData
     {
         $exercise = $slotExercise->exercise;
         $exerciseConfig = $exercise?->config;
@@ -57,6 +58,17 @@ class ProgramDetailsExerciseViewBuilder
             $firstValueRow = null;
 
             foreach ($sets as $set) {
+                $isSkipped = array_key_exists($set->id, $pendingSkippedSetMap)
+                    ? (bool) $pendingSkippedSetMap[$set->id]
+                    : (string) ($set->status->value ?? $set->status) === TrainingProgramSlotSetStatusEnum::Skipped->value;
+
+                if ($isSkipped) {
+                    $values[] = 'Skipped';
+                    $modifiedValues[] = false;
+                    $valueClasses[] = 'bg-sky-100 text-sky-900 dark:bg-sky-900/30 dark:text-sky-200';
+                    continue;
+                }
+
                 $valueRow = $set->values->firstWhere('setting_key', $setting);
                 if ($valueRow instanceof TrainingProgramSlotSetValue && $firstValueRow === null) {
                     $firstValueRow = $valueRow;

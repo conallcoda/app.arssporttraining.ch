@@ -31,8 +31,7 @@ it('does not highlight frozen locked weeks when editing a future cell', function
     ]);
 
     $component = Livewire::test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,

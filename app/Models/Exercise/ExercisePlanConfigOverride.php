@@ -23,6 +23,8 @@ class ExercisePlanConfigOverride extends Model
         'set_index',
         'setting_key',
         'value',
+        'created_by',
+        'updated_by',
     ];
 
     protected function casts(): array
@@ -33,6 +35,8 @@ class ExercisePlanConfigOverride extends Model
             'set_index' => 'integer',
             'user_id' => 'integer',
             'program_exercise_id' => 'integer',
+            'created_by' => 'integer',
+            'updated_by' => 'integer',
         ];
     }
 
@@ -49,6 +53,16 @@ class ExercisePlanConfigOverride extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function updatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 
     public function getDecodedValue(): mixed

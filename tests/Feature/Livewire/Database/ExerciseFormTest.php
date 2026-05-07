@@ -92,7 +92,7 @@ it('does not apply the category default template when editing an exercise', func
         ->assertSet('data.config.settings', ['reps']);
 });
 
-it('auto-expands a generic preview week when sessions diverge', function () {
+it('keeps the database form preview constrained to a single session', function () {
     Livewire::test(ExerciseForm::class)
         ->call('open', data: [
             'id' => null,
@@ -115,10 +115,12 @@ it('auto-expands a generic preview week when sessions diverge', function () {
             'category' => null,
         ])
         ->call('updateCellOverride', 0, 0, 'reps', 14, 1, false)
-        ->assertSet('effectiveExpandedWeeks', [0]);
+        ->assertSet('effectiveExpandedWeeks', [])
+        ->assertSet('previewGrid.sessionsPerWeek', 1)
+        ->assertSet('previewGrid.weekSessionCounts', [1]);
 });
 
-it('applies coach session-grouping defaults to new exercise previews', function () {
+it('does not apply coach session-grouping defaults to database exercise form previews', function () {
     $coach = User::factory()->coach()->create();
     $coach->config->set('settings.session_grouping', [
         'mode' => 'groups',
@@ -139,7 +141,27 @@ it('applies coach session-grouping defaults to new exercise previews', function 
 
     expect($component->get('data')['config']['preview']['groupingMode'] ?? null)->toBeNull()
         ->and($component->get('data')['config']['preview']['groupSize'] ?? null)->toBeNull()
-        ->and($component->instance()->previewGrid->groupColumnLabel)->toBe('Group')
-        ->and($component->instance()->previewGrid->sessionsPerWeek)->toBe(3)
-        ->and($component->instance()->previewGrid->weekSessionCounts)->toBe([3]);
+        ->and($component->instance()->previewGrid->sessionsPerWeek)->toBe(1)
+        ->and($component->instance()->previewGrid->weekSessionCounts)->toBe([1]);
+});
+
+it('normalizes missing apply-per defaults for exercise settings in the form', function () {
+    $component = Livewire::test(ExerciseForm::class)
+        ->call('open', data: [
+            'id' => null,
+            'name' => 'Fixture Exercise',
+            'config' => [
+                ...((new ExerciseConfig)->toArray()),
+                'settings' => ['reps', 'rest', 'distance'],
+                'reps' => ['mode' => 'manual', 'default' => 12],
+                'rest' => ['default' => 60],
+                'distance' => ['unit' => 'meters', 'default' => 500],
+            ],
+            'template' => null,
+            'category' => null,
+        ]);
+
+    expect($component->get('data')['config']['reps']['applyPer'] ?? null)->toBe('per_set')
+        ->and($component->get('data')['config']['rest']['applyPer'] ?? null)->toBe('per_session')
+        ->and($component->get('data')['config']['distance']['applyPer'] ?? null)->toBe('per_set');
 });

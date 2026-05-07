@@ -46,19 +46,37 @@
                                 'space-y-4' => true,
                                 'hidden' => count($this->editSetTabs) > 1 && $activeEditSet !== $panel['tab'],
                             ])>
-                            <div class="text-sm font-medium text-zinc-700 dark:text-zinc-200">
-                                {{ $panel['label'] }}
+                            <div class="flex items-center justify-between gap-3">
+                                <div class="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                                    {{ $panel['label'] }}
+                                </div>
+
+                                @if ($panel['isSkipped'])
+                                    <flux:button type="button" size="xs" variant="ghost" wire:click="markEditSetPending({{ $panel['id'] }})">
+                                        Unskip set
+                                    </flux:button>
+                                @else
+                                    <flux:button type="button" size="xs" variant="ghost" wire:click="markEditSetSkipped({{ $panel['id'] }})">
+                                        Skip set
+                                    </flux:button>
+                                @endif
                             </div>
 
-                            @foreach ($panel['fields'] as $field)
-                                <x-form-kit::form.field :field="$field" :prefix="'editValues.'.$panel['id']" />
-                            @endforeach
+                            @if ($panel['isSkipped'])
+                                <div class="rounded-lg border border-sky-300/40 bg-sky-100/70 px-3 py-2 text-sm text-sky-900 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200">
+                                    This set was skipped.
+                                </div>
+                            @else
+                                @foreach ($panel['fields'] as $field)
+                                    <x-form-kit::form.field :field="$field" :prefix="'editValues.'.$panel['id']" />
+                                @endforeach
+                            @endif
                         </div>
                     @endforeach
 
                     <div class="flex items-center gap-2 pt-2">
                         <flux:button type="submit" variant="primary" class="flex-1">
-                            Save values
+                            Save
                         </flux:button>
                         <flux:modal.close>
                             <flux:button type="button" variant="ghost" wire:click="cancelExerciseEditor">

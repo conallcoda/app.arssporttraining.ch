@@ -17,10 +17,6 @@
             <div class="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-6 text-center">
                 <flux:text class="text-zinc-400">{{ __('Please add this program to a block with a target goal (%) for 1RM progression.') }}</flux:text>
             </div>
-        @elseif ($this->missingAthleteMeasurement)
-            <div class="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-6 text-center">
-                <flux:text class="text-zinc-400">{{ __('This athlete does not have a base 1RM measurement for this exercise.') }}</flux:text>
-            </div>
         @else
             <div wire:key="grid-content-{{ $exerciseId }}-{{ $valueDisplayMode }}-{{ $this->configFingerprint }}">
                 <div class="flex items-start justify-between !-mt-2">
@@ -90,26 +86,21 @@
                     </flux:dropdown>
                 </div>
 
-                @if ($this->requiresMeasuredData && ! $this->hasMeasuredData)
-                    <div class="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-6 text-center">
-                        <flux:text class="text-zinc-400">{{ __('Enter measured reps and weight in the target section to generate the training grid.') }}</flux:text>
-                    </div>
-                @else
-                    <div x-on:grid-setting-click="$wire.openSettingsForm($event.detail.field)">
-                        <x-training.exercise-grid
-                            :grid="$this->displayGrid"
-                            :name="$exerciseName"
-                            :showHeader="false"
-                            :settingClickable="true"
-                            :collapseWeeks="false"
-                            :copyMenuOptions="$this->copyMenuOptions"
-                            :showActualValues="$this->showsActualValueTabs"
-                            :valueDisplayMode="$valueDisplayMode"
-                            :actualCellValues="$this->actualCellValues"
-                            :actualSessionValues="$this->actualSessionValues"
-                        />
-                    </div>
-                @endif
+                <div x-on:grid-setting-click="$wire.openSettingsForm($event.detail.field)">
+                    <x-training.exercise-grid
+                        :grid="$this->displayGrid"
+                        :name="$exerciseName"
+                        :showHeader="false"
+                        :settingClickable="true"
+                        :collapseWeeks="false"
+                        :copyMenuOptions="$this->copyMenuOptions"
+                        :showActualValues="$this->showsActualValueTabs"
+                        :valueDisplayMode="$valueDisplayMode"
+                        :actualCellValues="$this->actualCellValues"
+                        :actualSessionValues="$this->actualSessionValues"
+                        :editableActualSessionsByWeek="$this->editableActualSessionsByWeek"
+                    />
+                </div>
             </div>
         @endif
     </x-cms::section>

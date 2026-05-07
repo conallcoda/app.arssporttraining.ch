@@ -29,8 +29,7 @@ it('updates automatic heart rate per session when heart rate zone differs in a m
     ]);
 
     $component = Livewire::test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -82,8 +81,7 @@ it('does not recolor a locked session when another session zone changes in the s
     ]);
 
     $component = Livewire::test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -131,8 +129,7 @@ it('lets admins manually override automatic heart rate values', function () {
     ]);
 
     $component = Livewire::test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,

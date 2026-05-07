@@ -3,25 +3,31 @@
 namespace App\Training;
 
 use App\Data\Exercise\ExerciseSetting;
+use App\Models\Training\TrainingActualValueRevision;
 use App\Models\Training\TrainingProgramSlotExercise;
+use App\Models\Training\TrainingRevisionBatch;
 use App\Models\Training\TrainingProgramSlotSetValue;
+use App\Models\Users\UserTypeEnum;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 
 class AthleteExerciseValueService
 {
     public function __construct(
         private readonly TrainingSessionStatusService $statusService,
+        private readonly TrainingValueSnapshotCodec $valueCodec,
     ) {}
 
-    public function saveExerciseValues(TrainingProgramSlotExercise $exercise, array $submittedValues): bool
+    public function saveExerciseValues(TrainingProgramSlotExercise $exercise, array $submittedValues, bool $onlyProvided = false): bool
     {
-        return DB::transaction(function () use ($exercise, $submittedValues): bool {
+        return DB::transaction(function () use ($exercise, $submittedValues, $onlyProvided): bool {
             $exercise = TrainingProgramSlotExercise::query()
                 ->with(['slot', 'exercise', 'sets.values'])
                 ->lockForUpdate()
                 ->findOrFail($exercise->id);
 
             $hasChanges = false;
+            $batch = null;
 
             foreach ($exercise->sets as $set) {
                 foreach ($set->values as $valueRow) {
@@ -31,30 +37,44 @@ class AthleteExerciseValueService
                         continue;
                     }
 
+                    $path = $set->id.'.'.$valueRow->setting_key;
+
+                    if ($onlyProvided && ! Arr::has($submittedValues, $path)) {
+                        continue;
+                    }
+
                     $config = $this->resolveSettingConfig($exercise, $valueRow->setting_key);
                     $normalized = $settingClass::normalizeAthleteValue(
-                        data_get($submittedValues, $set->id.'.'.$valueRow->setting_key),
+                        data_get($submittedValues, $path),
                         $config
                     );
-                    $plannedValue = $this->extractPlannedValue($valueRow);
+                    $plannedValue = $this->valueCodec->extractPlannedValue($valueRow);
                     $isModified = ! $this->valuesEquivalent($normalized, $plannedValue);
 
-                    $attributes = $isModified
-                        ? $this->encodeActualValue($settingClass, $normalized, $config)
-                        : $this->clearActualValue();
-
-                    $attributes['is_modified'] = $isModified;
+                    $attributes = $this->buildActualSnapshotAttributes(
+                        valueRow: $valueRow,
+                        settingClass: $settingClass,
+                        normalized: $normalized,
+                        config: $config,
+                        isModified: $isModified,
+                    );
 
                     if ($this->rowNeedsUpdate($valueRow, $attributes)) {
+                        $before = $this->revisionSnapshot($valueRow);
                         $valueRow->forceFill($attributes)->save();
+                        $batch ??= $this->createRevisionBatch($exercise);
+                        $this->recordActualRevision(
+                            batch: $batch,
+                            valueRow: $valueRow->fresh(),
+                            before: $before,
+                        );
                         $hasChanges = true;
                     }
                 }
 
-                $this->statusService->recalculateSet($set->fresh('values'));
             }
 
-            $this->statusService->recalculateExercise($exercise->fresh('slot', 'sets.values'));
+            $this->statusService->refreshExerciseState($exercise);
 
             return $hasChanges;
         });
@@ -73,14 +93,34 @@ class AthleteExerciseValueService
             : [];
     }
 
-    private function extractPlannedValue(TrainingProgramSlotSetValue $valueRow): mixed
-    {
-        return match ($valueRow->planned_value_type) {
-            'int' => $valueRow->planned_int_value,
-            'decimal' => $valueRow->planned_decimal_value !== null ? (float) $valueRow->planned_decimal_value : null,
-            'json' => $valueRow->planned_json_value,
-            default => $valueRow->planned_string_value,
-        };
+    /**
+     * @param  class-string  $settingClass
+     * @return array<string, mixed>
+     */
+    private function buildActualSnapshotAttributes(
+        TrainingProgramSlotSetValue $valueRow,
+        string $settingClass,
+        mixed $normalized,
+        array $config,
+        bool $isModified,
+    ): array {
+        if ($normalized === null) {
+            return $this->valueCodec->clearActualValue() + [
+                'is_modified' => false,
+            ];
+        }
+
+        $valueType = $settingClass::athleteValueType($normalized, $config);
+        $canonicalValue = $settingClass::athleteCanonicalValue($normalized, $config);
+
+        return $this->valueCodec->encodeActualValue($valueType, $normalized, $canonicalValue) + [
+            'actual_recorded_by' => auth()->id(),
+            'actual_recorded_at' => now(),
+            'actual_source' => $this->resolveActualSource(),
+            'actual_is_explicit' => true,
+            'unit' => $valueRow->unit,
+            'is_modified' => $isModified,
+        ];
     }
 
     private function valuesEquivalent(mixed $left, mixed $right): bool
@@ -93,42 +133,67 @@ class AthleteExerciseValueService
     }
 
     /**
-     * @param  class-string  $settingClass
      * @return array<string, mixed>
      */
-    private function encodeActualValue(string $settingClass, mixed $value, array $config): array
-    {
-        $valueType = $settingClass::athleteValueType($value, $config);
-        $canonicalValue = $settingClass::athleteCanonicalValue($value, $config);
-
-        $row = [
-            'actual_value_type' => $valueType,
-            'actual_int_value' => null,
-            'actual_decimal_value' => null,
-            'actual_string_value' => null,
-            'actual_json_value' => $canonicalValue,
-        ];
-
-        return match ($valueType) {
-            'int' => array_merge($row, ['actual_int_value' => (int) $value]),
-            'decimal' => array_merge($row, ['actual_decimal_value' => round((float) $value, 3)]),
-            'json' => array_merge($row, ['actual_json_value' => $value]),
-            default => array_merge($row, ['actual_string_value' => (string) $value]),
-        };
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function clearActualValue(): array
+    private function revisionSnapshot(TrainingProgramSlotSetValue $valueRow): array
     {
         return [
-            'actual_value_type' => null,
-            'actual_int_value' => null,
-            'actual_decimal_value' => null,
-            'actual_string_value' => null,
-            'actual_json_value' => null,
+            'actual_value_type' => $valueRow->actual_value_type,
+            'actual_int_value' => $valueRow->actual_int_value,
+            'actual_decimal_value' => $valueRow->actual_decimal_value,
+            'actual_string_value' => $valueRow->actual_string_value,
+            'actual_json_value' => $valueRow->actual_json_value,
+            'actual_is_explicit' => (bool) $valueRow->actual_is_explicit,
+            'is_modified' => (bool) $valueRow->is_modified,
         ];
+    }
+
+    private function createRevisionBatch(TrainingProgramSlotExercise $exercise): TrainingRevisionBatch
+    {
+        return TrainingRevisionBatch::create([
+            'owner_type' => TrainingProgramSlotExercise::class,
+            'owner_id' => $exercise->id,
+            'domain' => 'actual',
+            'action' => 'record_actuals',
+            'changed_by' => auth()->id(),
+            'source' => $this->resolveActualSource(),
+        ]);
+    }
+
+    private function recordActualRevision(TrainingRevisionBatch $batch, TrainingProgramSlotSetValue $valueRow, array $before): void
+    {
+        TrainingActualValueRevision::create([
+            'batch_id' => $batch->id,
+            'training_program_slot_set_value_id' => $valueRow->id,
+            'recorded_by' => auth()->id(),
+            'source' => $this->resolveActualSource(),
+            'was_explicit' => (bool) ($before['actual_is_explicit'] ?? false),
+            'is_explicit' => (bool) $valueRow->actual_is_explicit,
+            'was_modified_from_plan' => (bool) ($before['is_modified'] ?? false),
+            'is_modified_from_plan' => (bool) $valueRow->is_modified,
+            'before_value_type' => $before['actual_value_type'] ?? null,
+            'before_int_value' => $before['actual_int_value'] ?? null,
+            'before_decimal_value' => $before['actual_decimal_value'] ?? null,
+            'before_string_value' => $before['actual_string_value'] ?? null,
+            'before_json_value' => $before['actual_json_value'] ?? null,
+            'after_value_type' => $valueRow->actual_value_type,
+            'after_int_value' => $valueRow->actual_int_value,
+            'after_decimal_value' => $valueRow->actual_decimal_value,
+            'after_string_value' => $valueRow->actual_string_value,
+            'after_json_value' => $valueRow->actual_json_value,
+            'unit' => $valueRow->unit,
+        ]);
+    }
+
+    private function resolveActualSource(): string
+    {
+        $type = auth()->user()?->type;
+
+        return match ($type) {
+            UserTypeEnum::Coach => 'coach',
+            UserTypeEnum::Admin => 'admin',
+            default => 'athlete',
+        };
     }
 
     /**

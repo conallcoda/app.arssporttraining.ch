@@ -17,6 +17,7 @@ class TrainingSessionMaterializer
 {
     public function __construct(
         private readonly TrainingSessionCompiler $compiler,
+        private readonly TrainingValueSnapshotCodec $valueCodec,
     ) {}
 
     public function materialize(TrainingProgramSlot $slot, bool $force = false): void
@@ -130,28 +131,11 @@ class TrainingSessionMaterializer
      */
     private function encodeValue(CompiledTrainingSetValue $value): array
     {
-        $row = [
+        return [
             'setting_key' => $value->settingKey,
-            'planned_value_type' => $value->plannedValueType,
-            'planned_json_value' => $value->plannedCanonicalValue,
-            'actual_value_type' => null,
-            'unit' => $value->unit,
+            ...$this->valueCodec->encodePlannedValue($value),
+            ...$this->valueCodec->clearActualValue(),
             'is_modified' => false,
         ];
-
-        return match ($value->plannedValueType) {
-            'int' => $row + [
-                'planned_int_value' => (int) $value->plannedValue,
-            ],
-            'decimal' => $row + [
-                'planned_decimal_value' => (float) $value->plannedValue,
-            ],
-            'json' => $row + [
-                'planned_json_value' => $value->plannedValue,
-            ],
-            default => $row + [
-                'planned_string_value' => (string) $value->plannedValue,
-            ],
-        };
     }
 }

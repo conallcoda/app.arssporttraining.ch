@@ -19,6 +19,7 @@ use App\Models\Training\TrainingProgramBlock;
 use App\Models\Athlete\MetricSubmission;
 use App\Models\Exercise\Exercise;
 use App\Models\Training\TrainingProgramSlot;
+use App\Support\Training\ExerciseMetricAvailability;
 use App\Training\Planning\ResolvedPlannedSessionBuilder;
 use Carbon\Carbon;
 
@@ -48,6 +49,7 @@ class TrainingSessionCompiler
     public function __construct(
         private readonly CalendarBlockService $calendarBlockService,
         private readonly ResolvedPlannedSessionBuilder $plannedSessionBuilder,
+        private readonly ExerciseMetricAvailability $exerciseMetricAvailability,
     ) {}
 
     public function compile(TrainingProgramSlot $slot): CompiledTrainingSession
@@ -85,6 +87,16 @@ class TrainingSessionCompiler
                 }
 
                 $effectiveConfig = $resolvedOverrides->effectiveConfig;
+
+                if ($this->exerciseMetricAvailability->missingRequiredMetrics(
+                    effectiveConfig: $effectiveConfig,
+                    weightProgression: $weightProgression,
+                    maxHR: $heartRateMetric?->heartRate,
+                    iatPercent: $heartRateMetric?->anaerobicThreshold,
+                )) {
+                    return null;
+                }
+
                 $overrideLayer = $resolvedOverrides->overrideLayer;
 
                 $weeks = max(

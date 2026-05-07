@@ -32,6 +32,7 @@ trait WithCalendarPlan
             $this->planProgram = (string) $options->keys()->first();
         }
         $this->syncPlanProgramName();
+        $this->syncPlanProgramStatus();
     }
 
     public function updatedPlanBlock(): void
@@ -43,11 +44,13 @@ trait WithCalendarPlan
             $this->planProgram = (string) $options->keys()->first();
         }
         $this->syncPlanProgramName();
+        $this->syncPlanProgramStatus();
     }
 
     public function updatedPlanProgram(): void
     {
         $this->syncPlanProgramName();
+        $this->syncPlanProgramStatus();
     }
 
     public function savePlanProgramName(): void
@@ -61,10 +64,32 @@ trait WithCalendarPlan
         unset($this->planProgramOptions);
     }
 
+    public function savePlanProgramStatus(): void
+    {
+        $program = $this->planSelectedProgram;
+        if (! $program) {
+            return;
+        }
+
+        $program->update([
+            'status' => TrainingProgram::normalizeStatus($this->planProgramStatus),
+        ]);
+
+        unset($this->programs, $this->groupedPrograms, $this->planCategoryOptions, $this->planProgramOptions);
+        $this->syncPlanProgramName();
+        $this->syncPlanProgramStatus();
+    }
+
     protected function syncPlanProgramName(): void
     {
         $program = $this->planSelectedProgram;
         $this->planProgramName = $program?->program->name ?? '';
+    }
+
+    protected function syncPlanProgramStatus(): void
+    {
+        $program = $this->planSelectedProgram;
+        $this->planProgramStatus = $program?->statusValue() ?? TrainingProgram::STATUS_ACTIVE;
     }
 
     #[On('navigate-to-plan')]
@@ -80,6 +105,7 @@ trait WithCalendarPlan
         $this->planBlock = 'ungrouped';
         $this->planProgram = (string) $trainingProgramId;
         $this->planProgramName = $trainingProgram->program->name;
+        $this->planProgramStatus = $trainingProgram->statusValue();
 
         unset($this->planBlockOptions, $this->planProgramOptions, $this->planCategoryOptions);
 
@@ -192,7 +218,7 @@ trait WithCalendarPlan
         }
 
         $options = $entries->mapWithKeys(fn (TrainingProgram $entry) => [
-            $entry->id => $entry->program->name,
+            $entry->id => $entry->program->name.($entry->isArchived() ? ' ('.__('Archived').')' : ''),
         ]);
 
         if ($options->isNotEmpty() && ($this->planProgram === '' || ! $options->has((int) $this->planProgram))) {

@@ -30,8 +30,7 @@ it('shows session-specific values for expanded mixed past and future weeks', fun
     ]);
 
     $component = Livewire::test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -76,8 +75,7 @@ it('shows historical sessions even when they match the other sessions', function
     ]);
 
     $component = Livewire::test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -115,8 +113,7 @@ it('auto-expands a future week when sessions diverge', function () {
     ]);
 
     $component = Livewire::test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -156,8 +153,7 @@ it('auto-expands a future week when only session 0 has an explicit override', fu
     ]);
 
     $component = Livewire::test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -204,8 +200,7 @@ it('shows session-specific week-column values for expanded mixed past and future
     ]);
 
     $component = Livewire::test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -266,8 +261,7 @@ it('shows the week grouping column even when week mode has a single visible buck
     ]);
 
     $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -304,8 +298,7 @@ it('auto-expands a mixed week when only a week-wide field differs between past a
     ]);
 
     $component = Livewire::test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -352,8 +345,7 @@ it('applies collapsed session edits across the whole visible group', function ()
     ]);
 
     $component = Livewire::test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -403,8 +395,7 @@ it('stops fanning out once a group is manually expanded', function () {
     ]);
 
     $component = Livewire::test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -458,8 +449,7 @@ it('can group displayed sessions into fixed-size buckets across week boundaries'
     ]);
 
     $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -505,8 +495,7 @@ it('uses coach grouping defaults for existing plan grids when preview grouping i
     ]);
 
     $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -554,8 +543,7 @@ it('treats planned groups as fixed-size session buckets in grouped plan grids', 
     ]);
 
     $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -599,8 +587,7 @@ it('hides the group column when program session grouping is none', function () {
     ]);
 
     $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -646,8 +633,7 @@ it('groups weeks into configurable multi-week buckets in week mode', function ()
     ]);
 
     $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -692,8 +678,7 @@ it('renders collapsed grouped cells as editable and applies to the whole bucket 
     ]);
 
     Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -730,8 +715,7 @@ it('keeps identical grouped sessions collapsed when the grid includes a last-ses
     ]);
 
     $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,

@@ -36,6 +36,8 @@ class TrainingProgramBlock extends Model
         'color',
         'config',
         'active',
+        'created_by',
+        'updated_by',
     ];
 
     protected function casts(): array
@@ -46,6 +48,8 @@ class TrainingProgramBlock extends Model
             'end' => 'date',
             'config' => BlockConfig::class,
             'active' => 'boolean',
+            'created_by' => 'integer',
+            'updated_by' => 'integer',
         ];
     }
 
@@ -57,6 +61,16 @@ class TrainingProgramBlock extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function updatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 
     public function category(): BelongsTo

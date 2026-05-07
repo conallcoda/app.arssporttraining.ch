@@ -5,6 +5,8 @@ use App\Livewire\Training\CalendarProgramsView;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
+use App\Models\Training\TrainingPlanValueRevision;
+use App\Models\Training\TrainingRevisionBatch;
 use App\Models\Training\TrainingProgram;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
@@ -16,6 +18,7 @@ use Livewire\Livewire;
 uses(RefreshDatabase::class);
 
 it('rebuilds only the edited athlete for athlete-specific exercise disable changes', function () {
+    $coach = User::factory()->coach()->create();
     $group = UserGroup::create(['name' => 'Test Group']);
     $user = User::factory()->athlete()->create();
     $group->members()->attach($user);
@@ -51,7 +54,7 @@ it('rebuilds only the edited athlete for athlete-specific exercise disable chang
 
     $weekStartsOn = (int) config('training.week_starts_on', Carbon::MONDAY);
 
-    Livewire::test(CalendarProgramsView::class, [
+    Livewire::actingAs($coach)->test(CalendarProgramsView::class, [
         'groupId' => $group->id,
         'userId' => $user->id,
         'calendarSettings' => new CalendarSettingsData(
@@ -62,4 +65,14 @@ it('rebuilds only the edited athlete for athlete-specific exercise disable chang
         'weekStartsOn' => $weekStartsOn,
         'weekEndsOn' => ($weekStartsOn + 6) % 7,
     ])->call('toggleExerciseDisabled', $pivot->id, $program->id);
+
+    expect(TrainingRevisionBatch::query()
+        ->where('domain', 'plan')
+        ->where('changed_by', $coach->id)
+        ->exists())->toBeTrue()
+        ->and(TrainingPlanValueRevision::query()
+            ->where('program_exercise_id', $pivot->id)
+            ->where('setting_key', 'disabled')
+            ->where('after_int_value', 1)
+            ->exists())->toBeTrue();
 });

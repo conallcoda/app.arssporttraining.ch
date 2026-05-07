@@ -109,16 +109,23 @@
                             <td class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 pl-5 pr-2 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-fit bg-white dark:bg-zinc-900">
                                 {{ $metricCase->label() }}
                                 @if (isset($this->currentMetricValues[$metricCase->value]))
+                                    @php $currentMetric = $this->currentMetricValues[$metricCase->value]; @endphp
                                     <div class="mt-1">
-                                        <flux:badge
-                                            size="sm"
-                                            color="zinc"
-                                            class="text-xs cursor-pointer"
-                                            title="{{ __('Current value. Recorded') }} {{ $this->currentMetricValues[$metricCase->value]['recorded_at'] }}"
-                                            wire:click="openCurrentMetric('{{ $metricCase->value }}')"
-                                        >
-                                            {{ $this->currentMetricValues[$metricCase->value]['summary'] }}
-                                        </flux:badge>
+                                        @if ($currentMetric['isAvailable'])
+                                            <flux:badge
+                                                size="sm"
+                                                color="zinc"
+                                                class="text-xs cursor-pointer"
+                                                title="{{ __('Current value. Recorded') }} {{ $currentMetric['recorded_at'] }}"
+                                                wire:click="openCurrentMetric('{{ $metricCase->value }}')"
+                                            >
+                                                {{ $currentMetric['summary'] }}
+                                            </flux:badge>
+                                        @else
+                                            <flux:badge size="sm" color="zinc" class="text-xs">
+                                                {{ $currentMetric['summary'] }}
+                                            </flux:badge>
+                                        @endif
                                     </div>
                                 @endif
                             </td>

@@ -2,13 +2,14 @@
 
 namespace Database\Seeders;
 
+use App\Data\Coach\Settings\SessionGroupingSetting;
+use App\Data\Exercise\Preview\SessionGroupingMode;
 use App\Data\Exercise\ExerciseConfig;
 use App\Data\Training\Config\ExercisePlanConfig;
 use App\Models\Athlete\MetricSubmission;
 use App\Models\Athlete\MetricValue;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseExternal;
-use App\Models\Exercise\ExercisePlan;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramTypeEnum;
 use App\Models\Exercise\ExerciseTemplate;
@@ -17,6 +18,7 @@ use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramBlock;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\User;
+use App\Models\Users\UserTypeEnum;
 use App\Models\Users\UserGroup;
 use App\Support\Import\ImportedEmailNormalizer;
 use App\Training\TrainingSessionMaterializer;
@@ -29,6 +31,36 @@ class DatabaseImportSeeder extends Seeder
 {
     private string $importPath;
 
+    private ?string $configuredImportPath = null;
+
+    private bool $includeCalendarData = true;
+
+    private bool $stripManualProgramOverrides = false;
+
+    private bool $preserveImportedEmails = false;
+
+    public function usingImportPath(string $importPath): self
+    {
+        $this->configuredImportPath = $importPath;
+
+        return $this;
+    }
+
+    public function contentOnly(): self
+    {
+        $this->includeCalendarData = false;
+        $this->stripManualProgramOverrides = true;
+
+        return $this;
+    }
+
+    public function preserveImportedEmails(): self
+    {
+        $this->preserveImportedEmails = true;
+
+        return $this;
+    }
+
     public function run(): void
     {
         $this->importPath = $this->resolveImportPath();
@@ -38,7 +70,7 @@ class DatabaseImportSeeder extends Seeder
         Model::unguard();
 
         try {
-            DB::statement('SET FOREIGN_KEY_CHECKS=0');
+            $this->setForeignKeyChecks(false);
 
             Model::withoutEvents(function (): void {
                 $this->seedTags();
@@ -47,22 +79,27 @@ class DatabaseImportSeeder extends Seeder
                 $this->seedExerciseExternals();
                 $this->seedExercisePrograms();
                 $this->normalizeLegacyWarmUpPrograms();
-                $this->seedExercisePlans();
+                $this->removeWarmUpContent();
                 $this->seedUserGroups();
                 $this->seedUsers();
-                $this->seedTrainingPrograms();
-                $this->seedTrainingProgramBlocks();
-                $this->seedTrainingProgramSlots();
-                $this->seedMetricSubmissions();
+                $this->applyDefaultCoachSessionGrouping();
+                if ($this->includeCalendarData) {
+                    $this->seedTrainingPrograms();
+                    $this->seedTrainingProgramBlocks();
+                    $this->seedTrainingProgramSlots();
+                    $this->seedMetricSubmissions();
+                }
                 $this->normalizeLegacyStartsAtDates();
                 $this->normalizeLegacyImportedExerciseConfigs();
             });
 
-            DB::statement('SET FOREIGN_KEY_CHECKS=1');
+            $this->setForeignKeyChecks(true);
 
-            $this->materializeTrainingSessions();
+            if ($this->includeCalendarData) {
+                $this->materializeTrainingSessions();
+            }
         } finally {
-            DB::statement('SET FOREIGN_KEY_CHECKS=1');
+            $this->setForeignKeyChecks(true);
             Model::reguard();
         }
     }
@@ -202,30 +239,15 @@ class DatabaseImportSeeder extends Seeder
                 }
             }
 
-            if ($program['config'] !== null) {
-                $programModel->config = $program['config'];
+            $config = $this->sanitizeImportedProgramConfig($program['config'] ?? null);
+
+            if ($config !== null) {
+                $programModel->config = $config;
                 $programModel->saveQuietly();
             }
         }
 
         $this->command->info('Imported '.count($programs).' exercise programs.');
-    }
-
-    private function seedExercisePlans(): void
-    {
-        $plans = $this->loadFile('exercise_plans.php');
-
-        foreach ($plans as $plan) {
-            ExercisePlan::create([
-                'id' => $plan['id'],
-                'owner_id' => $plan['owner_id'] ?? null,
-                'name' => $plan['name'],
-                'config' => $plan['config'],
-                'deleted_at' => $plan['deleted_at'] ?? null,
-            ]);
-        }
-
-        $this->command->info('Imported '.count($plans).' exercise plans.');
     }
 
     private function normalizeLegacyWarmUpPrograms(): void
@@ -373,6 +395,25 @@ class DatabaseImportSeeder extends Seeder
         $this->command->info('Normalized legacy warm-up programs.');
     }
 
+    private function removeWarmUpContent(): void
+    {
+        $warmUpCategoryId = 302;
+
+        $deletedExercises = DB::table('exercises')
+            ->where('category_id', $warmUpCategoryId)
+            ->delete();
+
+        $deletedExternals = DB::table('exercises_external')
+            ->where('category_id', $warmUpCategoryId)
+            ->delete();
+
+        DB::table('tags')
+            ->where('id', $warmUpCategoryId)
+            ->delete();
+
+        $this->command->info("Removed {$deletedExercises} warm-up exercises, {$deletedExternals} warm-up externals, and the warm-up category.");
+    }
+
     private function decodeProgramConfig(?string $config): array
     {
         return $config ? (json_decode($config, true) ?: []) : [];
@@ -460,7 +501,9 @@ class DatabaseImportSeeder extends Seeder
                 'type' => $user['type'],
                 'forename' => $user['forename'],
                 'surname' => $user['surname'],
-                'email' => ImportedEmailNormalizer::normalize($user['email'] ?? null),
+                'email' => $this->preserveImportedEmails
+                    ? ($user['email'] ?? null)
+                    : ImportedEmailNormalizer::normalize($user['email'] ?? null),
                 'phone' => $user['phone'],
                 'password' => $user['password'],
                 'gender' => $user['gender'] ?? null,
@@ -483,6 +526,30 @@ class DatabaseImportSeeder extends Seeder
         $this->command->info('Imported '.count($users).' users.');
     }
 
+    private function applyDefaultCoachSessionGrouping(): void
+    {
+        $sessionGrouping = SessionGroupingSetting::from([
+            'mode' => SessionGroupingMode::Groups->value,
+            'groupSize' => 2,
+            'copyValuesAutomatically' => true,
+        ])->toArray();
+
+        $updated = 0;
+
+        User::query()
+            ->where('type', UserTypeEnum::Coach->value)
+            ->orderBy('id')
+            ->chunkById(100, function ($coaches) use ($sessionGrouping, &$updated): void {
+                foreach ($coaches as $coach) {
+                    $coach->config->set('settings.'.SessionGroupingSetting::fieldsetKey(), $sessionGrouping);
+                    $coach->saveQuietly();
+                    $updated++;
+                }
+            });
+
+        $this->command->info("Applied default session grouping to {$updated} coaches.");
+    }
+
     private function seedTrainingPrograms(): void
     {
         $trainingPrograms = $this->loadFile('training_programs.php');
@@ -493,6 +560,7 @@ class DatabaseImportSeeder extends Seeder
                 'owner_id' => $tp['owner_id'] ?? null,
                 'group_id' => $tp['group_id'],
                 'exercise_program_id' => $tp['exercise_program_id'],
+                'status' => TrainingProgram::normalizeStatus($tp['status'] ?? null),
                 'sort' => $tp['sort'],
             ]);
         }
@@ -594,7 +662,6 @@ class DatabaseImportSeeder extends Seeder
     private function normalizeLegacyStartsAtDates(): void
     {
         $normalizedPrograms = 0;
-        $normalizedPlans = 0;
 
         ExerciseProgram::query()
             ->orderBy('id')
@@ -612,23 +679,7 @@ class DatabaseImportSeeder extends Seeder
                 }
             });
 
-        ExercisePlan::query()
-            ->orderBy('id')
-            ->chunkById(100, function ($plans) use (&$normalizedPlans): void {
-                foreach ($plans as $plan) {
-                    $config = $plan->config;
-
-                    if (! $config->clearStartsAtDates()) {
-                        continue;
-                    }
-
-                    $plan->config = $config;
-                    $plan->saveQuietly();
-                    $normalizedPlans++;
-                }
-            });
-
-        $this->command->info("Normalized legacy starts-at dates for {$normalizedPrograms} exercise programs and {$normalizedPlans} exercise plans.");
+        $this->command->info("Normalized legacy starts-at dates for {$normalizedPrograms} exercise programs.");
     }
 
     private function normalizeLegacyImportedExerciseConfigs(): void
@@ -636,9 +687,8 @@ class DatabaseImportSeeder extends Seeder
         $normalizedExercises = $this->normalizeConfigBag(Exercise::class);
         $normalizedTemplates = $this->normalizeConfigBag(ExerciseTemplate::class);
         $normalizedPrograms = $this->normalizeConfigBag(ExerciseProgram::class);
-        $normalizedPlans = $this->normalizeConfigBag(ExercisePlan::class);
 
-        $this->command->info("Normalized imported exercise configs, including legacy grid overrides and apply-per scopes, for {$normalizedExercises} exercises, {$normalizedTemplates} templates, {$normalizedPrograms} programs, and {$normalizedPlans} plans.");
+        $this->command->info("Normalized imported exercise configs, including legacy grid overrides and apply-per scopes, for {$normalizedExercises} exercises, {$normalizedTemplates} templates, and {$normalizedPrograms} programs.");
     }
 
     /** @param class-string<Model> $modelClass */
@@ -672,8 +722,31 @@ class DatabaseImportSeeder extends Seeder
         return $normalizedCount;
     }
 
+    /** @param  array<string, mixed>|null  $config */
+    private function sanitizeImportedProgramConfig(?array $config): ?array
+    {
+        if (! $this->stripManualProgramOverrides || $config === null) {
+            return $config;
+        }
+
+        return ExercisePlanConfig::from($config)->toPersistedArray();
+    }
+
+    private function setForeignKeyChecks(bool $enabled): void
+    {
+        $driver = DB::getDriverName();
+
+        if ($driver === 'mysql') {
+            DB::statement('SET FOREIGN_KEY_CHECKS='.(int) $enabled);
+        }
+    }
+
     private function resolveImportPath(): string
     {
+        if ($this->configuredImportPath !== null) {
+            return $this->configuredImportPath;
+        }
+
         $basePath = base_path('import/database');
 
         $directories = collect(File::directories($basePath))

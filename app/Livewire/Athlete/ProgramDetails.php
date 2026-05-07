@@ -8,6 +8,8 @@ use App\Data\Exercise\Settings\AbstractSetting;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Training\TrainingProgramSlotExercise;
+use App\Models\Training\TrainingProgramSlotSet;
+use App\Models\Training\TrainingProgramSlotSetStatusEnum;
 use App\Support\AthleteDashboardDate;
 use App\Support\Athlete\ProgramDetailsExerciseViewBuilder;
 use App\Training\AthleteExerciseValueService;
@@ -63,6 +65,10 @@ class ProgramDetails extends Component
     public string $activeEditSet = '';
 
     public array $editValues = [];
+
+    public array $editSkippedSets = [];
+
+    public array $pendingSkippedSets = [];
 
     public bool $previewMode = false;
 
@@ -175,6 +181,7 @@ class ProgramDetails extends Component
                 $exercise,
                 $index,
                 $materializedGroupLabels[$exercise->id] ?? $sourceGroupLabelsByIndex[$index] ?? null,
+                $this->pendingSkippedSets[$exercise->id] ?? [],
             ))
             ->values()
             ->all();
@@ -317,6 +324,7 @@ class ProgramDetails extends Component
             ->map(fn ($set): array => [
                 'name' => 'set-'.$set->id,
                 'label' => $this->editSetLabel($set->set_number),
+                'isSkipped' => (bool) ($this->editSkippedSets[$set->id] ?? false),
             ])
             ->all();
     }
@@ -356,6 +364,7 @@ class ProgramDetails extends Component
                     'id' => $set->id,
                     'tab' => 'set-'.$set->id,
                     'label' => $this->editSetLabel($set->set_number),
+                    'isSkipped' => (bool) ($this->editSkippedSets[$set->id] ?? false),
                     'fields' => $fields,
                 ];
             })
@@ -372,6 +381,7 @@ class ProgramDetails extends Component
 
         $this->editingExerciseId = $exercise->id;
         $this->editValues = $this->buildEditValues($exercise);
+        $this->editSkippedSets = $this->pendingSkippedSets[$exercise->id] ?? $this->buildEditSkippedSets($exercise);
         $this->activeEditSet = 'set-'.($exercise->sets->sortBy('set_number')->first()?->id ?? '');
 
         unset($this->editingExercise, $this->editSetTabs, $this->editSetPanels);
@@ -387,26 +397,49 @@ class ProgramDetails extends Component
         $exercise = $this->editingExercise;
         abort_unless($exercise instanceof TrainingProgramSlotExercise, 404);
 
-        $this->validate(
-            $this->buildEditValidationRules(),
-            ['required' => 'This field is required.'],
-            $this->buildEditValidationAttributes()
-        );
+        $rules = $this->buildEditValidationRules();
+
+        if ($rules !== []) {
+            $this->validate(
+                $rules,
+                ['required' => 'This field is required.'],
+                $this->buildEditValidationAttributes()
+            );
+        }
 
         $this->editValues = $this->castEmptyStringsToNull($this->editValues);
 
-        app(AthleteExerciseValueService::class)->saveExerciseValues($exercise, $this->editValues);
+        app(AthleteExerciseValueService::class)->saveExerciseValues($exercise, $this->filterEditableSetValues($this->editValues));
+        $this->pendingSkippedSets[$exercise->id] = $this->normalizeSkippedDraft($this->editSkippedSets);
 
         Flux::modal('athlete-exercise-editor')->close();
 
         $this->resetEditorState();
-        $this->refreshSessionState();
+        unset($this->programExercises);
     }
 
     public function cancelExerciseEditor(): void
     {
         $this->resetEditorState();
         Flux::modal('athlete-exercise-editor')->close();
+    }
+
+    public function markEditSetSkipped(int $setId): void
+    {
+        abort_if(! $this->athleteEditsEnabled, 404);
+        abort_if($this->isFutureSession, 403);
+
+        $this->editSkippedSets[$setId] = true;
+        unset($this->editingExercise, $this->editSetTabs, $this->editSetPanels);
+    }
+
+    public function markEditSetPending(int $setId): void
+    {
+        abort_if(! $this->athleteEditsEnabled, 404);
+        abort_if($this->isFutureSession, 403);
+
+        $this->editSkippedSets[$setId] = false;
+        unset($this->editingExercise, $this->editSetTabs, $this->editSetPanels);
     }
 
     public function markExerciseCompleted(int $slotExerciseId): void
@@ -417,7 +450,17 @@ class ProgramDetails extends Component
         $exercise = $this->currentSlot->exercises->firstWhere('id', $slotExerciseId);
         abort_unless($exercise instanceof TrainingProgramSlotExercise, 404);
 
+        if ($this->pendingSkipDraftSkipsEntireExercise($exercise)) {
+            unset($this->pendingSkippedSets[$slotExerciseId]);
+            app(TrainingSessionProgressService::class)->markExerciseSkipped($exercise);
+            $this->refreshSessionState();
+
+            return;
+        }
+
+        $this->persistPendingSkippedSets($exercise);
         app(TrainingSessionProgressService::class)->markExerciseCompleted($exercise);
+        unset($this->pendingSkippedSets[$slotExerciseId]);
 
         $this->refreshSessionState();
     }
@@ -430,6 +473,7 @@ class ProgramDetails extends Component
         $exercise = $this->currentSlot->exercises->firstWhere('id', $slotExerciseId);
         abort_unless($exercise instanceof TrainingProgramSlotExercise, 404);
 
+        unset($this->pendingSkippedSets[$slotExerciseId]);
         app(TrainingSessionProgressService::class)->markExerciseSkipped($exercise);
 
         $this->refreshSessionState();
@@ -557,6 +601,15 @@ class ProgramDetails extends Component
             ->all();
     }
 
+    protected function buildEditSkippedSets(TrainingProgramSlotExercise $exercise): array
+    {
+        return $exercise->sets
+            ->mapWithKeys(fn ($set): array => [
+                $set->id => (string) ($set->status->value ?? $set->status) === TrainingProgramSlotSetStatusEnum::Skipped->value,
+            ])
+            ->all();
+    }
+
     /**
      * @return array<string, string|array<int, string>>
      */
@@ -565,6 +618,10 @@ class ProgramDetails extends Component
         $rules = [];
 
         foreach ($this->editSetPanels as $panel) {
+            if ($panel['isSkipped']) {
+                continue;
+            }
+
             $rules = array_merge(
                 $rules,
                 Field::buildValidationRules(
@@ -586,6 +643,10 @@ class ProgramDetails extends Component
         $attributes = [];
 
         foreach ($this->editSetPanels as $panel) {
+            if ($panel['isSkipped']) {
+                continue;
+            }
+
             $attributes = array_merge(
                 $attributes,
                 Field::buildValidationAttributes($panel['fields'], 'editValues.'.$panel['id'].'.')
@@ -655,6 +716,7 @@ class ProgramDetails extends Component
         $this->editingExerciseId = null;
         $this->activeEditSet = '';
         $this->editValues = [];
+        $this->editSkippedSets = [];
 
         unset($this->editingExercise, $this->editSetTabs, $this->editSetPanels);
     }
@@ -662,6 +724,59 @@ class ProgramDetails extends Component
     protected function refreshSessionState(): void
     {
         unset($this->currentSlot, $this->programExercises, $this->progressSegments, $this->sectionTabs, $this->showsSectionTabs, $this->editingExercise, $this->editSetTabs, $this->editSetPanels);
+    }
+
+    protected function filterEditableSetValues(array $data): array
+    {
+        return collect($data)
+            ->reject(fn ($_values, $setId): bool => (bool) ($this->editSkippedSets[(int) $setId] ?? false))
+            ->all();
+    }
+
+    protected function normalizeSkippedDraft(array $draft): array
+    {
+        return collect($draft)
+            ->map(fn (mixed $value): bool => (bool) $value)
+            ->all();
+    }
+
+    protected function persistPendingSkippedSets(TrainingProgramSlotExercise $exercise): void
+    {
+        $draft = $this->pendingSkippedSets[$exercise->id] ?? [];
+
+        if ($draft === []) {
+            return;
+        }
+
+        foreach ($exercise->sets as $set) {
+            $shouldBeSkipped = (bool) ($draft[$set->id] ?? false);
+            $isSkipped = (string) ($set->status->value ?? $set->status) === TrainingProgramSlotSetStatusEnum::Skipped->value;
+
+            if ($shouldBeSkipped && ! $isSkipped) {
+                app(TrainingSessionProgressService::class)->markSetSkipped($set);
+            }
+
+            if (! $shouldBeSkipped && $isSkipped) {
+                app(TrainingSessionProgressService::class)->markSetPending($set);
+            }
+        }
+    }
+
+    protected function pendingSkipDraftSkipsEntireExercise(TrainingProgramSlotExercise $exercise): bool
+    {
+        $draft = $this->pendingSkippedSets[$exercise->id] ?? [];
+
+        if ($draft === []) {
+            return false;
+        }
+
+        foreach ($exercise->sets as $set) {
+            if (! ($draft[$set->id] ?? false)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     protected function castEmptyStringsToNull(array $data): array

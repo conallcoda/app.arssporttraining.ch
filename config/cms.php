@@ -39,6 +39,10 @@ return [
 
     'mobile_preview' => (bool) env('MOBILE_PREVIEW_ENABLED', false),
 
+    // Dev-only: when set to an email and APP_ENV is not production, every
+    // request is auto-authenticated as the matching user.
+    'auto_login' => env('ADMIN_AUTO_LOGIN'),
+
     'profile_menu' => [
         'settings' => [
             'label' => 'Settings',

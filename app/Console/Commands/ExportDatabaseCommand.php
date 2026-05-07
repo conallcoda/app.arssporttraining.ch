@@ -6,7 +6,6 @@ use App\Models\Athlete\MetricSubmission;
 use App\Models\Athlete\MetricValue;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseExternal;
-use App\Models\Exercise\ExercisePlan;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseTemplate;
 use App\Models\Tag;
@@ -41,7 +40,6 @@ class ExportDatabaseCommand extends Command
         $this->exportExercises();
         $this->exportExerciseExternals();
         $this->exportExercisePrograms();
-        $this->exportExercisePlans();
         $this->exportUserGroups();
         $this->exportUsers();
         $this->exportTrainingPrograms();
@@ -182,26 +180,8 @@ class ExportDatabaseCommand extends Command
         $this->info('Exported '.count($programs).' exercise programs.');
     }
 
-    private function exportExercisePlans(): void
-    {
-        $plans = ExercisePlan::withTrashed()
-            ->orderBy('id')
-            ->get()
-            ->map(fn (ExercisePlan $plan) => [
-                'id' => $plan->id,
-                'owner_id' => $plan->owner_id,
-                'name' => $plan->name,
-                'config' => $this->configWithOverrides($plan),
-                'deleted_at' => $plan->deleted_at?->toIso8601String(),
-            ])
-            ->all();
-
-        $this->writeFile('exercise_plans.php', $plans);
-        $this->info('Exported '.count($plans).' exercise plans.');
-    }
-
     /** @return array<string, mixed>|null */
-    private function configWithOverrides(ExerciseProgram|ExercisePlan $owner): ?array
+    private function configWithOverrides(ExerciseProgram $owner): ?array
     {
         $raw = $owner->getRawOriginal('config');
         $config = $raw === null ? null : json_decode($raw, true);
@@ -278,6 +258,7 @@ class ExportDatabaseCommand extends Command
                 'owner_id' => $tp->owner_id,
                 'group_id' => $tp->group_id,
                 'exercise_program_id' => $tp->exercise_program_id,
+                'status' => $tp->status,
                 'sort' => $tp->sort,
             ])
             ->all();

@@ -33,10 +33,20 @@ class ExerciseConfig extends AbstractData
 
         $settingMap = ExerciseSetting::settingMap();
 
-        foreach ($this->settings as $key) {
-            if (isset($settingMap[$key]) && $this->{$key} === null) {
-                $this->{$key} = new ($settingMap[$key]);
+        foreach ($settingMap as $key => $settingClass) {
+            $current = $this->{$key};
+
+            if ($current === null) {
+                if (in_array($key, $this->settings, true)) {
+                    $this->{$key} = new $settingClass;
+                }
+
+                continue;
             }
+
+            $this->{$key} = $current instanceof $settingClass
+                ? $settingClass::from($current->toArray())
+                : $settingClass::from((array) $current);
         }
     }
 

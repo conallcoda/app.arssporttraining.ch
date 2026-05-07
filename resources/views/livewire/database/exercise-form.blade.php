@@ -51,7 +51,7 @@
                     @elseif ($showPreview)
                         @php
                             $grid = $this->previewGrid;
-                            $grid->showCopyMenu = true;
+                            $grid->showCopyMenu = false;
                         @endphp
 
                         <div wire:key="preview-grid-{{ md5(json_encode($data['config'])) }}"
@@ -61,8 +61,8 @@
                                 :name="$data['name'] ?? 'Untitled'"
                                 :summary="$grid->summary"
                                 :showMenu="false"
-                                :editable="true"
-                                :settingClickable="true"
+                                :editable="false"
+                                :settingClickable="false"
                                 :expandedWeeks="$this->effectiveExpandedWeeks"
                                 :copyMenuOptions="$this->copyMenuOptions"
                             />

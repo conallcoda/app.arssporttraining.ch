@@ -26,7 +26,7 @@
     @else
         type="{{ $type ?? 'number' }}"
     @endif
-    class="w-full h-full px-2 py-1.5 text-center text-{{ $size }} bg-transparent border-0 focus:ring-0"
+    class="min-w-0 max-w-full w-full h-full box-border px-2 py-1.5 text-center text-{{ $size }} bg-transparent border-0 focus:ring-0"
     placeholder="{{ $value }}"
     @blur="commitEdit()"
     @keydown="handleKeydown($event)"

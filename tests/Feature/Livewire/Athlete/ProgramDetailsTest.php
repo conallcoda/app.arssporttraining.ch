@@ -4,7 +4,10 @@ use App\Livewire\Athlete\ProgramDetails;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
+use App\Models\Training\TrainingActualValueRevision;
 use App\Models\Training\TrainingProgram;
+use App\Models\Training\TrainingRevisionBatch;
+use App\Models\Training\TrainingStateRevision;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Training\TrainingProgramSlotExerciseStatusEnum;
 use App\Models\Training\TrainingProgramSlotSetStatusEnum;
@@ -128,6 +131,77 @@ it('shows all exercises in the selected program', function () {
         ->assertSee('45')
         ->assertSee('Stay tall through the lift.')
         ->assertSee('/dashboard/calendar/week/2026-03-30', false);
+});
+
+it('hides exercises that depend on missing automatic metrics on the athlete dashboard', function () {
+    config()->set('athlete.dashboard_today_override', '03.04.2026');
+
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Friday Strength']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $autoWeightExercise = Exercise::factory()->create([
+        'name' => 'Auto Front Squat',
+        'config' => [
+            'settings' => ['reps', 'weight'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 8, 'applyPer' => 'session'],
+            'weight' => ['mode' => 'automatic', 'oneRepMaxModifier' => 100, 'applyPer' => 'session'],
+        ],
+    ]);
+
+    $autoHeartRateExercise = Exercise::factory()->create([
+        'name' => 'Auto Jogging',
+        'config' => [
+            'settings' => ['duration', 'heartRate', 'heartRateZone'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'duration' => ['unit' => 'seconds', 'default' => 60, 'applyPer' => 'session'],
+            'heartRate' => ['mode' => 'automatic_jogging', 'applyPer' => 'session'],
+            'heartRateZone' => ['default' => '2', 'applyPer' => 'session'],
+        ],
+    ]);
+
+    $manualExercise = Exercise::factory()->create([
+        'name' => 'Manual Split Squat',
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 10, 'applyPer' => 'session'],
+        ],
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $autoWeightExercise->id,
+        'sort' => 0,
+    ]);
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $autoHeartRateExercise->id,
+        'sort' => 1,
+    ]);
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $manualExercise->id,
+        'sort' => 2,
+    ]);
+
+    TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2026-04-03 09:00:00'),
+    ]);
+
+    $this->actingAs($athlete)
+        ->get('/programs/2026-04-03/'.$trainingProgram->id)
+        ->assertOk()
+        ->assertSee('Manual Split Squat')
+        ->assertDontSee('Auto Front Squat')
+        ->assertDontSee('Auto Jogging');
 });
 
 it('defaults to the warm up tab when the session includes warm up exercises', function () {
@@ -290,6 +364,101 @@ it('shows the athlete edit pencil when exercise editing is enabled', function ()
         ->assertSee('Edit exercise values');
 });
 
+it('records state revision batches when an athlete completes and skips exercises', function () {
+    CarbonImmutable::setTestNow('2030-04-03 12:00:00');
+    config()->set('athlete.dashboard_today_override', '03.04.2030');
+
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Friday Strength']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => Exercise::factory()->create([
+            'name' => 'Front Squat',
+            'config' => [
+                'settings' => ['reps'],
+                'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+                'reps' => ['mode' => 'manual', 'default' => 6, 'applyPer' => 'session'],
+            ],
+        ])->id,
+        'sort' => 0,
+    ]);
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => Exercise::factory()->create([
+            'name' => 'Split Squat',
+            'config' => [
+                'settings' => ['reps'],
+                'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+                'reps' => ['mode' => 'manual', 'default' => 8, 'applyPer' => 'session'],
+            ],
+        ])->id,
+        'sort' => 1,
+    ]);
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-04-03 09:00:00'),
+    ])->fresh('exercises.sets');
+
+    $completedExercise = $slot->exercises->sortBy('sort')->values()->get(0);
+    $skippedExercise = $slot->exercises->sortBy('sort')->values()->get(1);
+    $completedSet = $completedExercise->sets->first();
+    $skippedSet = $skippedExercise->sets->first();
+
+    Livewire::actingAs($athlete)
+        ->test(ProgramDetails::class, [
+            'date' => '2030-04-03',
+            'trainingProgram' => $trainingProgram,
+        ])
+        ->call('markExerciseCompleted', $completedExercise->id)
+        ->call('markExerciseSkipped', $skippedExercise->id);
+
+    expect(TrainingRevisionBatch::query()
+        ->where('domain', 'state')
+        ->where('action', 'mark_exercise_completed')
+        ->exists())->toBeTrue()
+        ->and(TrainingRevisionBatch::query()
+            ->where('domain', 'state')
+            ->where('action', 'mark_exercise_skipped')
+            ->exists())->toBeTrue()
+        ->and(TrainingStateRevision::query()
+            ->where('subject_type', \App\Models\Training\TrainingProgramSlotExercise::class)
+            ->where('subject_id', $completedExercise->id)
+            ->where('after_value', TrainingProgramSlotExerciseStatusEnum::Completed->value)
+            ->where('changed_by', $athlete->id)
+            ->exists())->toBeTrue()
+        ->and(TrainingStateRevision::query()
+            ->where('subject_type', \App\Models\Training\TrainingProgramSlotExercise::class)
+            ->where('subject_id', $skippedExercise->id)
+            ->where('after_value', TrainingProgramSlotExerciseStatusEnum::Skipped->value)
+            ->where('changed_by', $athlete->id)
+            ->exists())->toBeTrue()
+        ->and(TrainingStateRevision::query()
+            ->where('subject_type', \App\Models\Training\TrainingProgramSlotSet::class)
+            ->where('subject_id', $completedSet->id)
+            ->where('after_value', TrainingProgramSlotSetStatusEnum::Completed->value)
+            ->exists())->toBeTrue()
+        ->and(TrainingStateRevision::query()
+            ->where('subject_type', \App\Models\Training\TrainingProgramSlotSet::class)
+            ->where('subject_id', $skippedSet->id)
+            ->where('after_value', TrainingProgramSlotSetStatusEnum::Skipped->value)
+            ->exists())->toBeTrue()
+        ->and(TrainingStateRevision::query()
+            ->where('subject_type', TrainingProgramSlot::class)
+            ->where('subject_id', $slot->id)
+            ->where('after_value', TrainingProgramSlotStatusEnum::Completed->value)
+            ->exists())->toBeTrue();
+
+    CarbonImmutable::setTestNow();
+});
+
 it('saves athlete-edited values, keeps modification flags on completion, and allows later explicit resaving', function () {
     CarbonImmutable::setTestNow('2030-04-03 12:00:00');
     config()->set('athlete.dashboard_today_override', '03.04.2030');
@@ -365,7 +534,175 @@ it('saves athlete-edited values, keeps modification flags on completion, and all
     CarbonImmutable::setTestNow();
 });
 
-it('does not mark values modified when an athlete explicitly saves the planned values', function () {
+it('lets athletes skip and unskip an individual set from the editor', function () {
+    CarbonImmutable::setTestNow('2030-04-03 12:00:00');
+    config()->set('athlete.dashboard_today_override', '03.04.2030');
+    config()->set('athlete.allow_athlete_edits', true);
+
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Friday Strength']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $exercise = Exercise::factory()->create([
+        'name' => 'Front Squat',
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 2, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 6, 'applyPer' => 'session'],
+        ],
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+    ]);
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-04-03 09:00:00'),
+    ])->fresh('exercises.sets.values');
+
+    $slotExercise = $slot->exercises->first();
+    $slotSet = $slotExercise->sets->sortBy('set_number')->values()->get(0);
+
+    $component = Livewire::actingAs($athlete)
+        ->test(ProgramDetails::class, [
+            'date' => '2030-04-03',
+            'trainingProgram' => $trainingProgram,
+        ])
+        ->call('openExerciseEditor', $slotExercise->id)
+        ->call('markEditSetSkipped', $slotSet->id)
+        ->assertSee('This set was skipped.');
+
+    $slotSet = $slotSet->fresh('values');
+
+    expect($slotSet->status)->toBe(TrainingProgramSlotSetStatusEnum::Pending)
+        ->and($slotSet->skipped_at)->toBeNull();
+
+    $component->call('saveExerciseEdits');
+
+    $slotSet = $slotSet->fresh('values');
+
+    expect($slotSet->status)->toBe(TrainingProgramSlotSetStatusEnum::Pending)
+        ->and($slotSet->skipped_at)->toBeNull();
+
+    $component->call('markExerciseCompleted', $slotExercise->id);
+
+    $slotSet = $slotSet->fresh('values');
+
+    expect($slotSet->status)->toBe(TrainingProgramSlotSetStatusEnum::Skipped)
+        ->and($slotSet->skipped_at)->not->toBeNull()
+        ->and($slotSet->values->firstWhere('setting_key', 'reps')?->actual_value_type)->toBeNull();
+
+    $component = Livewire::actingAs($athlete)
+        ->test(ProgramDetails::class, [
+            'date' => '2030-04-03',
+            'trainingProgram' => $trainingProgram,
+        ])
+        ->call('openExerciseEditor', $slotExercise->id)
+        ->call('markEditSetPending', $slotSet->id)
+        ->call('saveExerciseEdits');
+
+    $slotSet = $slotSet->fresh('values');
+
+    expect($slotSet->status)->toBe(TrainingProgramSlotSetStatusEnum::Skipped)
+        ->and($slotSet->skipped_at)->not->toBeNull();
+
+    $component->call('markExerciseCompleted', $slotExercise->id);
+
+    $slotSet = $slotSet->fresh('values');
+
+    expect($slotSet->status)->toBe(TrainingProgramSlotSetStatusEnum::Completed)
+        ->and($slotSet->skipped_at)->toBeNull()
+        ->and(TrainingRevisionBatch::query()
+            ->where('domain', 'state')
+            ->where('action', 'mark_set_skipped')
+            ->exists())->toBeTrue()
+        ->and(TrainingRevisionBatch::query()
+            ->where('domain', 'state')
+            ->where('action', 'mark_set_pending')
+            ->exists())->toBeTrue()
+        ->and(TrainingStateRevision::query()
+            ->where('subject_type', \App\Models\Training\TrainingProgramSlotSet::class)
+            ->where('subject_id', $slotSet->id)
+            ->where('after_value', TrainingProgramSlotSetStatusEnum::Skipped->value)
+            ->exists())->toBeTrue()
+        ->and(TrainingStateRevision::query()
+            ->where('subject_type', \App\Models\Training\TrainingProgramSlotSet::class)
+            ->where('subject_id', $slotSet->id)
+            ->where('after_value', TrainingProgramSlotSetStatusEnum::Pending->value)
+            ->exists())->toBeTrue();
+
+    CarbonImmutable::setTestNow();
+});
+
+it('treats mark done as skip exercise when every set is drafted as skipped', function () {
+    CarbonImmutable::setTestNow('2030-04-03 12:00:00');
+    config()->set('athlete.dashboard_today_override', '03.04.2030');
+    config()->set('athlete.allow_athlete_edits', true);
+
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Friday Strength']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $exercise = Exercise::factory()->create([
+        'name' => 'Front Squat',
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 2, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 6, 'applyPer' => 'session'],
+        ],
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+    ]);
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-04-03 09:00:00'),
+    ])->fresh('exercises.sets.values');
+
+    $slotExercise = $slot->exercises->first();
+    $sets = $slotExercise->sets->sortBy('set_number')->values();
+
+    $component = Livewire::actingAs($athlete)
+        ->test(ProgramDetails::class, [
+            'date' => '2030-04-03',
+            'trainingProgram' => $trainingProgram,
+        ])
+        ->call('openExerciseEditor', $slotExercise->id)
+        ->call('markEditSetSkipped', $sets[0]->id)
+        ->call('markEditSetSkipped', $sets[1]->id)
+        ->call('saveExerciseEdits')
+        ->call('markExerciseCompleted', $slotExercise->id);
+
+    $slot = $slot->fresh('exercises.sets');
+    $slotExercise = $slot->exercises->first();
+
+    expect($slotExercise->status)->toBe(TrainingProgramSlotExerciseStatusEnum::Skipped)
+        ->and($slotExercise->skipped_set_count)->toBe(2)
+        ->and($slotExercise->completed_set_count)->toBe(0)
+        ->and($slot->status)->toBe(TrainingProgramSlotStatusEnum::Skipped)
+        ->and($slot->skipped_exercise_count)->toBe(1);
+
+    CarbonImmutable::setTestNow();
+});
+
+it('stores an explicit actual value without marking it modified when an athlete saves the planned values', function () {
     CarbonImmutable::setTestNow('2030-04-03 12:00:00');
     config()->set('athlete.dashboard_today_override', '03.04.2030');
     config()->set('athlete.allow_athlete_edits', true);
@@ -413,8 +750,19 @@ it('does not mark values modified when an athlete explicitly saves the planned v
 
     $value = $slotSet->fresh('values')->values->firstWhere('setting_key', 'reps');
 
-    expect($value->actual_value_type)->toBeNull()
-        ->and($value->is_modified)->toBeFalse();
+    $batch = TrainingRevisionBatch::query()->latest('id')->first();
+    $revision = TrainingActualValueRevision::query()->latest('id')->first();
+
+    expect($value->actual_value_type)->toBe('string')
+        ->and($value->actual_string_value)->toBe('6')
+        ->and($value->actual_is_explicit)->toBeTrue()
+        ->and($value->actual_recorded_by)->toBe($athlete->id)
+        ->and($value->is_modified)->toBeFalse()
+        ->and($batch?->domain)->toBe('actual')
+        ->and($revision?->training_program_slot_set_value_id)->toBe($value->id)
+        ->and($revision?->was_explicit)->toBeFalse()
+        ->and($revision?->is_explicit)->toBeTrue()
+        ->and($revision?->is_modified_from_plan)->toBeFalse();
 
     CarbonImmutable::setTestNow();
 });

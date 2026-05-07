@@ -9,6 +9,7 @@ use App\Data\Athlete\Metric\Metrics\ReadinessMetric;
 use App\Data\Athlete\Metric\ReadinessMetricData;
 use App\Data\Athlete\Metric\MetricSubmissionData;
 use App\Data\Training\Calendar\CalendarSettingsData;
+use App\Data\Training\Config\ExerciseOverrides;
 use App\Data\Training\Config\EffectiveExerciseConfig;
 use App\Data\Training\ExerciseProgramData;
 use App\Models\Athlete\MetricSubmission;
@@ -27,11 +28,14 @@ use App\Support\Training\WeekSlotModalPayloadBuilder;
 use App\Training\CalendarBlockService;
 use App\Training\CalendarDateService;
 use App\Training\ProjectedOneRepMaxService;
+use App\Training\TrainingPlanRevisionService;
+use App\Training\TrainingStateRevisionService;
 use App\Training\TrainingSessionEditGuard;
 use App\Training\TrainingSessionRebuildDispatcher;
 use Carbon\Carbon;
 use Flux\Flux;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
@@ -134,11 +138,13 @@ class CalendarProgramsView extends Component
     #[Computed]
     public function programs(): Collection
     {
+        [$start, $end] = $this->dateRange();
+
         return TrainingProgram::with([
             'program.exerciseCategory',
             'program.exercises',
         ])
-            ->where('group_id', $this->groupId)
+            ->visibleInDateRange($this->groupId, $start, $end, $this->userId)
             ->orderBy('sort')
             ->get();
     }
@@ -732,10 +738,19 @@ class CalendarProgramsView extends Component
             if ($submission) {
                 $fieldValues = $submission->values->pluck('value', 'field')->all();
                 $metricInstance = $metricCase->metricClass()::from($fieldValues);
+                $label = $this->currentMetricDisplayLabel($metricCase, $fieldValues, $metricInstance);
                 $result[$metricCase->value] = [
-                    'summary' => $this->currentMetricDisplayLabel($metricCase, $fieldValues, $metricInstance),
+                    'summary' => $label ?? 'N/A',
                     'recorded_at' => $submission->recorded_at->format('d.m.Y'),
                     'data' => MetricSubmissionData::from($submission)->toArray(),
+                    'isAvailable' => $label !== null,
+                ];
+            } else {
+                $result[$metricCase->value] = [
+                    'summary' => 'N/A',
+                    'recorded_at' => null,
+                    'data' => null,
+                    'isAvailable' => false,
                 ];
             }
         }
@@ -778,7 +793,7 @@ class CalendarProgramsView extends Component
                 $members[] = [
                     'user_id' => $member->id,
                     'name' => $member->name,
-                    'label' => $label,
+                    'label' => $label ?? 'N/A',
                 ];
             }
 
@@ -887,7 +902,7 @@ class CalendarProgramsView extends Component
     {
         $current = $this->currentMetricValues[$metricValue] ?? null;
 
-        if (! $current) {
+        if (! $current || ! $current['data']) {
             return;
         }
 
@@ -1178,122 +1193,131 @@ class CalendarProgramsView extends Component
     #[On('block.submitted')]
     public function onBlockSubmitted(array $data): void
     {
-        $groupId = $data['groupId'];
-        $editingBlockId = $data['editing_block_id'] ?? null;
-        $selectedMembers = $data['selected_members'] ?? [];
-        $userId = $data['userId'] ?? null;
-        $parentId = $data['parentId'] ?? null;
-        $type = TrainingProgramBlockTypeEnum::from($data['type'] ?? 'focus');
-        $color = $data['color'] ?? null;
-        $categoryId = $data['categoryId'] ?? null;
-        $config = $data['config'] ?? null;
-        $isCategoryBlock = $categoryId !== null;
-        $projectedService = app(ProjectedOneRepMaxService::class);
+        DB::transaction(function () use ($data): void {
+            $groupId = $data['groupId'];
+            $editingBlockId = $data['editing_block_id'] ?? null;
+            $selectedMembers = $data['selected_members'] ?? [];
+            $userId = $data['userId'] ?? null;
+            $parentId = $data['parentId'] ?? null;
+            $type = TrainingProgramBlockTypeEnum::from($data['type'] ?? 'focus');
+            $color = $data['color'] ?? null;
+            $categoryId = $data['categoryId'] ?? null;
+            $config = $data['config'] ?? null;
+            $isCategoryBlock = $categoryId !== null;
+            $projectedService = app(ProjectedOneRepMaxService::class);
+            $batch = $this->createBlockRevisionBatch($groupId, 'save_block');
 
-        if ($parentId !== null) {
+            if ($parentId !== null) {
+                if ($editingBlockId !== null) {
+                    $oldBlock = TrainingProgramBlock::find($editingBlockId);
+                    if ($oldBlock) {
+                        $projectedService->removeForBlock($oldBlock);
+                        $this->deleteBlockWithRevision($oldBlock, $batch);
+                    }
+                }
+
+                $parentBlock = TrainingProgramBlock::find($parentId);
+                if ($parentBlock) {
+                    $childBlock = $this->createBlockWithRevision([
+                        'group_id' => $groupId,
+                        'user_id' => $userId,
+                        'parent_id' => $parentId,
+                        'category_id' => $parentBlock->category_id,
+                        'type' => $parentBlock->type,
+                        'start' => $data['start'],
+                        'end' => $data['end'] ?: null,
+                        'note' => $data['note'],
+                        'color' => $color ?: null,
+                        'config' => $config,
+                        'active' => true,
+                    ], $batch);
+
+                    $projectedService->syncForBlock($childBlock);
+                    $projectedService->syncForBlock($parentBlock->fresh());
+                }
+
+                return;
+            }
+
             if ($editingBlockId !== null) {
                 $oldBlock = TrainingProgramBlock::find($editingBlockId);
                 if ($oldBlock) {
                     $projectedService->removeForBlock($oldBlock);
                 }
-                TrainingProgramBlock::destroy($editingBlockId);
-            }
 
-            $parentBlock = TrainingProgramBlock::find($parentId);
-            if ($parentBlock) {
-                $childBlock = TrainingProgramBlock::create([
-                    'group_id' => $groupId,
-                    'user_id' => $userId,
-                    'parent_id' => $parentId,
-                    'category_id' => $parentBlock->category_id,
-                    'type' => $parentBlock->type,
-                    'start' => $data['start'],
-                    'end' => $data['end'] ?: null,
-                    'note' => $data['note'],
-                    'color' => $color ?: null,
-                    'config' => $config,
-                    'active' => true,
-                ]);
+                if ($isCategoryBlock) {
+                    $children = TrainingProgramBlock::where('parent_id', $editingBlockId)->get();
+                    foreach ($children as $child) {
+                        $projectedService->removeForBlock($child);
+                        $this->deleteBlockWithRevision($child, $batch);
+                    }
+                    if ($oldBlock) {
+                        $this->deleteBlockWithRevision($oldBlock, $batch);
+                    }
+                } elseif ($userId !== null && empty($selectedMembers)) {
+                    if ($oldBlock) {
+                        $this->deleteBlockWithRevision($oldBlock, $batch);
+                    }
+                } else {
+                    if ($oldBlock) {
+                        $matchingBlocks = TrainingProgramBlock::query()
+                            ->where('group_id', $groupId)
+                            ->where('type', $oldBlock->type)
+                            ->where('start', $oldBlock->start)
+                            ->where('note', $oldBlock->note)
+                            ->get();
 
-                $projectedService->syncForBlock($childBlock);
-                $projectedService->syncForBlock($parentBlock->fresh());
-            }
-
-            unset($this->allBlocks, $this->categoryBlocks, $this->visibleMetrics, $this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData, $this->groupCurrentMetricValues);
-
-            return;
-        }
-
-        if ($editingBlockId !== null) {
-            $oldBlock = TrainingProgramBlock::find($editingBlockId);
-            if ($oldBlock) {
-                $projectedService->removeForBlock($oldBlock);
-            }
-
-            if ($isCategoryBlock) {
-                $children = TrainingProgramBlock::where('parent_id', $editingBlockId)->get();
-                foreach ($children as $child) {
-                    $projectedService->removeForBlock($child);
-                }
-                TrainingProgramBlock::where('parent_id', $editingBlockId)->delete();
-                TrainingProgramBlock::destroy($editingBlockId);
-            } elseif ($userId !== null && empty($selectedMembers)) {
-                TrainingProgramBlock::destroy($editingBlockId);
-            } else {
-                if ($oldBlock) {
-                    TrainingProgramBlock::query()
-                        ->where('group_id', $groupId)
-                        ->where('type', $oldBlock->type)
-                        ->where('start', $oldBlock->start)
-                        ->where('note', $oldBlock->note)
-                        ->delete();
+                        foreach ($matchingBlocks as $matchingBlock) {
+                            $this->deleteBlockWithRevision($matchingBlock, $batch);
+                        }
+                    }
                 }
             }
-        }
 
-        $blockData = [
-            'group_id' => $groupId,
-            'type' => $type,
-            'start' => $data['start'],
-            'end' => $data['end'] ?: null,
-            'note' => $data['note'],
-            'color' => $color ?: null,
-            'category_id' => $categoryId,
-            'config' => $config,
-        ];
+            $blockData = [
+                'group_id' => $groupId,
+                'type' => $type,
+                'start' => $data['start'],
+                'end' => $data['end'] ?: null,
+                'note' => $data['note'],
+                'color' => $color ?: null,
+                'category_id' => $categoryId,
+                'config' => $config,
+            ];
 
-        if ($isCategoryBlock && $userId !== null && empty($selectedMembers)) {
-            $newBlock = TrainingProgramBlock::create([...$blockData, 'user_id' => $userId]);
-            $projectedService->syncForBlock($newBlock);
-        } elseif ($isCategoryBlock) {
-            $newBlock = TrainingProgramBlock::create([...$blockData, 'user_id' => null]);
-            $projectedService->syncForBlock($newBlock);
-
-            $deselectedMembers = $data['deselected_members'] ?? [];
-            foreach ($deselectedMembers as $memberId) {
-                TrainingProgramBlock::create([
-                    'group_id' => $groupId,
-                    'user_id' => $memberId,
-                    'parent_id' => $newBlock->id,
-                    'category_id' => $categoryId,
-                    'type' => $type,
-                    'start' => $data['start'],
-                    'end' => $data['end'] ?: null,
-                    'note' => $data['note'],
-                    'color' => $color ?: null,
-                    'config' => $config,
-                    'active' => false,
-                ]);
-            }
-        } elseif ($userId !== null && empty($selectedMembers)) {
-            $newBlock = TrainingProgramBlock::create([...$blockData, 'user_id' => $userId]);
-            $projectedService->syncForBlock($newBlock);
-        } else {
-            foreach ($selectedMembers as $memberId) {
-                $newBlock = TrainingProgramBlock::create([...$blockData, 'user_id' => $memberId]);
+            if ($isCategoryBlock && $userId !== null && empty($selectedMembers)) {
+                $newBlock = $this->createBlockWithRevision([...$blockData, 'user_id' => $userId], $batch);
                 $projectedService->syncForBlock($newBlock);
+            } elseif ($isCategoryBlock) {
+                $newBlock = $this->createBlockWithRevision([...$blockData, 'user_id' => null], $batch);
+                $projectedService->syncForBlock($newBlock);
+
+                $deselectedMembers = $data['deselected_members'] ?? [];
+                foreach ($deselectedMembers as $memberId) {
+                    $this->createBlockWithRevision([
+                        'group_id' => $groupId,
+                        'user_id' => $memberId,
+                        'parent_id' => $newBlock->id,
+                        'category_id' => $categoryId,
+                        'type' => $type,
+                        'start' => $data['start'],
+                        'end' => $data['end'] ?: null,
+                        'note' => $data['note'],
+                        'color' => $color ?: null,
+                        'config' => $config,
+                        'active' => false,
+                    ], $batch);
+                }
+            } elseif ($userId !== null && empty($selectedMembers)) {
+                $newBlock = $this->createBlockWithRevision([...$blockData, 'user_id' => $userId], $batch);
+                $projectedService->syncForBlock($newBlock);
+            } else {
+                foreach ($selectedMembers as $memberId) {
+                    $newBlock = $this->createBlockWithRevision([...$blockData, 'user_id' => $memberId], $batch);
+                    $projectedService->syncForBlock($newBlock);
+                }
             }
-        }
+        });
 
         unset($this->allBlocks, $this->categoryBlocks, $this->visibleMetrics, $this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData, $this->groupCurrentMetricValues);
     }
@@ -1301,78 +1325,189 @@ class CalendarProgramsView extends Component
     #[On('block.deleted')]
     public function onBlockDeleted(array $data): void
     {
-        $editingBlockId = $data['editing_block_id'] ?? null;
-        $groupId = $data['groupId'];
-        $userId = $data['userId'] ?? null;
+        DB::transaction(function () use ($data): void {
+            $editingBlockId = $data['editing_block_id'] ?? null;
+            $groupId = $data['groupId'];
+            $userId = $data['userId'] ?? null;
 
-        if ($editingBlockId === null) {
-            return;
-        }
+            if ($editingBlockId === null) {
+                return;
+            }
 
-        $existingBlock = TrainingProgramBlock::find($editingBlockId);
-        if (! $existingBlock) {
-            return;
-        }
+            $existingBlock = TrainingProgramBlock::find($editingBlockId);
+            if (! $existingBlock) {
+                return;
+            }
 
-        $projectedService = app(ProjectedOneRepMaxService::class);
+            $projectedService = app(ProjectedOneRepMaxService::class);
+            $batch = $this->createBlockRevisionBatch($groupId, 'delete_block');
 
-        if ($existingBlock->parent_id !== null) {
+            if ($existingBlock->parent_id !== null) {
+                $projectedService->removeForBlock($existingBlock);
+                $this->deactivateBlockWithRevision($existingBlock, $batch);
+
+                $parentBlock = TrainingProgramBlock::find($existingBlock->parent_id);
+                if ($parentBlock) {
+                    $projectedService->syncForBlock($parentBlock);
+                }
+
+                return;
+            }
+
             $projectedService->removeForBlock($existingBlock);
-            $existingBlock->update(['active' => false]);
 
-            $parentBlock = TrainingProgramBlock::find($existingBlock->parent_id);
-            if ($parentBlock) {
-                $projectedService->syncForBlock($parentBlock);
+            if ($existingBlock->category_id !== null) {
+                $children = TrainingProgramBlock::where('parent_id', $editingBlockId)->get();
+                foreach ($children as $child) {
+                    $projectedService->removeForBlock($child);
+                    $this->deleteBlockWithRevision($child, $batch);
+                }
+                $this->deleteBlockWithRevision($existingBlock, $batch);
+            } elseif ($userId !== null) {
+                $this->deleteBlockWithRevision($existingBlock, $batch);
+            } else {
+                $matchingBlocks = TrainingProgramBlock::query()
+                    ->where('group_id', $groupId)
+                    ->where('type', $existingBlock->type)
+                    ->where('start', $existingBlock->start)
+                    ->where('note', $existingBlock->note)
+                    ->get();
+
+                foreach ($matchingBlocks as $matchingBlock) {
+                    $this->deleteBlockWithRevision($matchingBlock, $batch);
+                }
             }
-
-            unset($this->allBlocks, $this->categoryBlocks, $this->visibleMetrics, $this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData, $this->groupCurrentMetricValues);
-
-            return;
-        }
-
-        $projectedService->removeForBlock($existingBlock);
-
-        if ($existingBlock->category_id !== null) {
-            $children = TrainingProgramBlock::where('parent_id', $editingBlockId)->get();
-            foreach ($children as $child) {
-                $projectedService->removeForBlock($child);
-            }
-            TrainingProgramBlock::where('parent_id', $editingBlockId)->delete();
-            TrainingProgramBlock::destroy($editingBlockId);
-        } elseif ($userId !== null) {
-            TrainingProgramBlock::destroy($editingBlockId);
-        } else {
-            TrainingProgramBlock::query()
-                ->where('group_id', $groupId)
-                ->where('type', $existingBlock->type)
-                ->where('start', $existingBlock->start)
-                ->where('note', $existingBlock->note)
-                ->delete();
-        }
+        });
 
         unset($this->allBlocks, $this->categoryBlocks, $this->visibleMetrics, $this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData, $this->groupCurrentMetricValues);
+    }
+
+    protected function createBlockRevisionBatch(int $groupId, string $action)
+    {
+        $group = UserGroup::findOrFail($groupId);
+
+        return app(TrainingStateRevisionService::class)->createBatch($group, $action);
+    }
+
+    protected function createBlockWithRevision(array $attributes, $batch): TrainingProgramBlock
+    {
+        $block = TrainingProgramBlock::create($attributes + [
+            'created_by' => auth()->id(),
+            'updated_by' => auth()->id(),
+        ]);
+
+        app(TrainingStateRevisionService::class)->recordStateChange(
+            batch: $batch,
+            subject: $block,
+            stateKey: 'block',
+            beforeValue: null,
+            afterValue: 'created',
+            beforePayload: [],
+            afterPayload: $this->blockRevisionPayload($block),
+        );
+
+        if (is_string($block->note) && trim($block->note) !== '') {
+            app(TrainingStateRevisionService::class)->recordStateChange(
+                batch: $batch,
+                subject: $block,
+                stateKey: 'note',
+                beforeValue: null,
+                afterValue: $block->note,
+                beforePayload: [],
+                afterPayload: ['note' => $block->note],
+            );
+        }
+
+        return $block;
+    }
+
+    protected function deleteBlockWithRevision(TrainingProgramBlock $block, $batch): void
+    {
+        app(TrainingStateRevisionService::class)->recordStateChange(
+            batch: $batch,
+            subject: $block,
+            stateKey: 'block',
+            beforeValue: $block->active ? 'active' : 'inactive',
+            afterValue: 'deleted',
+            beforePayload: $this->blockRevisionPayload($block),
+            afterPayload: [],
+        );
+
+        if (is_string($block->note) && trim($block->note) !== '') {
+            app(TrainingStateRevisionService::class)->recordStateChange(
+                batch: $batch,
+                subject: $block,
+                stateKey: 'note',
+                beforeValue: $block->note,
+                afterValue: null,
+                beforePayload: ['note' => $block->note],
+                afterPayload: [],
+            );
+        }
+
+        $block->delete();
+    }
+
+    protected function deactivateBlockWithRevision(TrainingProgramBlock $block, $batch): void
+    {
+        $before = $this->blockRevisionPayload($block);
+
+        $block->forceFill([
+            'active' => false,
+            'updated_by' => auth()->id(),
+        ])->save();
+
+        app(TrainingStateRevisionService::class)->recordStateChange(
+            batch: $batch,
+            subject: $block->fresh(),
+            stateKey: 'block',
+            beforeValue: 'active',
+            afterValue: 'inactive',
+            beforePayload: $before,
+            afterPayload: $this->blockRevisionPayload($block->fresh()),
+        );
+    }
+
+    protected function blockRevisionPayload(TrainingProgramBlock $block): array
+    {
+        return [
+            'group_id' => $block->group_id,
+            'user_id' => $block->user_id,
+            'parent_id' => $block->parent_id,
+            'category_id' => $block->category_id,
+            'type' => $block->type?->value ?? (string) $block->type,
+            'start' => $block->start?->format('Y-m-d'),
+            'end' => $block->end?->format('Y-m-d'),
+            'note' => $block->note,
+            'color' => $block->color,
+            'config' => $block->config?->toArray(),
+            'active' => (bool) $block->active,
+            'created_by' => $block->created_by,
+            'updated_by' => $block->updated_by,
+        ];
     }
 
     public function toggleExerciseDisabled(int $programExerciseId, int $exerciseProgramId): void
     {
         $exerciseProgram = ExerciseProgram::findOrFail($exerciseProgramId);
         $config = $exerciseProgram->config;
+        $previousOverrides = $config->exerciseOverrides($programExerciseId, $this->userId);
+        $nextOverrides = clone $previousOverrides;
 
         if ($this->userId !== null) {
-            [$planOverrides, $userOverrides] = $config->effectiveExerciseOverrides($programExerciseId, $this->userId);
-            $currentlyDisabled = EffectiveExerciseConfig::resolveDisabled($planOverrides, $userOverrides);
-            $userOverrides->disabled = $currentlyDisabled ? false : true;
+            [$planOverrides] = $config->effectiveExerciseOverrides($programExerciseId, $this->userId);
+            $currentlyDisabled = EffectiveExerciseConfig::resolveDisabled($planOverrides, $nextOverrides);
+            $nextOverrides->disabled = $currentlyDisabled ? false : true;
 
             $defaultDisabled = $planOverrides->disabled ?? false;
-            if ($userOverrides->disabled === $defaultDisabled) {
-                $userOverrides->disabled = null;
+            if ($nextOverrides->disabled === $defaultDisabled) {
+                $nextOverrides->disabled = null;
             }
 
-            $config->setExerciseOverrides($programExerciseId, $userOverrides, $this->userId);
+            $config->setExerciseOverrides($programExerciseId, $nextOverrides, $this->userId);
         } else {
-            $overrides = $config->exerciseOverrides($programExerciseId);
-            $overrides->disabled = ! ($overrides->disabled ?? false) ?: null;
-            $config->setExerciseOverrides($programExerciseId, $overrides);
+            $nextOverrides->disabled = ! ($nextOverrides->disabled ?? false) ?: null;
+            $config->setExerciseOverrides($programExerciseId, $nextOverrides);
         }
 
         $exerciseProgram->config = $config;
@@ -1386,7 +1521,55 @@ class CalendarProgramsView extends Component
             $exerciseProgram->save();
         }
 
+        app(TrainingPlanRevisionService::class)->recordOverrideSettingChanges(
+            owner: $exerciseProgram,
+            programExerciseId: $programExerciseId,
+            userId: $this->userId,
+            before: $previousOverrides,
+            after: $nextOverrides,
+            action: $this->resolvePlanSettingsRevisionAction($previousOverrides, $nextOverrides),
+        );
+
         unset($this->programs, $this->groupedPrograms);
+    }
+
+    protected function resolvePlanSettingsRevisionAction(ExerciseOverrides $before, ExerciseOverrides $after): string
+    {
+        $beforeHasOverrides = $this->hasTrackedSettingOverrides($before);
+        $afterHasOverrides = $this->hasTrackedSettingOverrides($after);
+
+        return match (true) {
+            ! $beforeHasOverrides && $afterHasOverrides => 'create_setting_overrides',
+            $beforeHasOverrides && ! $afterHasOverrides => 'reset_setting_overrides',
+            default => 'update_setting_overrides',
+        };
+    }
+
+    protected function hasTrackedSettingOverrides(ExerciseOverrides $overrides): bool
+    {
+        foreach ([
+            'settings',
+            'startsAtDate',
+            'sets',
+            'reps',
+            'weight',
+            'tempo',
+            'rest',
+            'distance',
+            'duration',
+            'heartRate',
+            'heartRateZone',
+            'pace',
+            'watts',
+            'sessionGrouping',
+            'disabled',
+        ] as $field) {
+            if (($overrides->{$field} ?? null) !== null) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function isExerciseDisabled(int $programExerciseId, ExerciseProgram $program): bool
@@ -1577,7 +1760,11 @@ class CalendarProgramsView extends Component
 
         $this->editingTrainingProgramId = $trainingProgramId;
 
-        $this->dispatch('open-edit-program', data: $programData->toArray());
+        $this->dispatch('open-edit-program', data: [
+            ...$programData->toArray(),
+            'status' => $trainingProgram->statusValue(),
+            '_show_training_program_status' => true,
+        ]);
     }
 
     #[On('edit-program.submitted')]
@@ -1594,6 +1781,9 @@ class CalendarProgramsView extends Component
             ...$data,
         ]);
         $programData->persist();
+        $trainingProgram->update([
+            'status' => TrainingProgram::normalizeStatus($data['status'] ?? null),
+        ]);
 
         $this->editingTrainingProgramId = null;
         unset($this->programs, $this->groupedPrograms);

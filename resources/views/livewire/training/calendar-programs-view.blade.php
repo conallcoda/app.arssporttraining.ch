@@ -1,14 +1,18 @@
 @php
     [$gridStart, $gridEnd] = $this->dateRange();
-    $dayCellWidth = 32;
-    $dayCellStyle = "width: {$dayCellWidth}px; min-width: {$dayCellWidth}px; max-width: {$dayCellWidth}px;";
+    $labelColumnWidth = 280;
+    $dayCellMinWidth = 32;
+    $dayCount = max(count($this->days), 1);
+    $tableMinWidth = $labelColumnWidth + ($dayCount * $dayCellMinWidth);
+    $labelCellStyle = "width: {$labelColumnWidth}px; min-width: {$labelColumnWidth}px; max-width: {$labelColumnWidth}px;";
+    $dayCellStyle = "width: max({$dayCellMinWidth}px, calc((100% - {$labelColumnWidth}px) / {$dayCount})); min-width: {$dayCellMinWidth}px;";
     $statusBarColors = \App\Models\Training\TrainingProgramSlotStatusEnum::barColorMap();
 @endphp
 <div>
 <div class="overflow-x-auto" wire:key="grid-{{ $this->groupId }}-{{ $this->userId ?? 'group' }}-{{ md5(json_encode($this->athleteSlotOrder)) }}" x-data="calendar_slot_popover({ groupId: '{{ $this->groupId }}', userId: '{{ $this->userId ?? '' }}', startDate: '{{ $gridStart->format('Y-m-d') }}', endDate: '{{ $gridEnd->format('Y-m-d') }}', gridCellsUrl: '{{ route('api.program-grid-cells') }}', slotDetailsUrl: '{{ route('api.slot-details') }}', days: {{ \Illuminate\Support\Js::from($this->days) }}, athleteSlotOrder: {{ \Illuminate\Support\Js::from($this->athleteSlotOrder) }}, statusBarColors: {{ \Illuminate\Support\Js::from($statusBarColors) }}, wireId: '{{ $this->getId() }}' })">
-    <table class="border-separate border-spacing-0 text-sm border-t border-l border-zinc-300 dark:border-zinc-600">
+    <table class="w-full border-separate border-spacing-0 text-sm border-t border-l border-zinc-300 dark:border-zinc-600" style="min-width: {{ $tableMinWidth }}px;">
         <colgroup>
-            <col>
+            <col style="{{ $labelCellStyle }}">
             @foreach ($this->days as $day)
                 <col style="{{ $dayCellStyle }}">
             @endforeach
@@ -16,7 +20,8 @@
         <thead>
             <tr class="bg-zinc-50 dark:bg-zinc-800/50">
                 <th rowspan="3"
-                    class="sticky left-0 z-10 bg-zinc-100 dark:bg-zinc-800 border-r border-b border-zinc-300 dark:border-zinc-600 px-2 py-2 text-left min-w-fit">
+                    class="sticky left-0 z-10 bg-zinc-100 dark:bg-zinc-800 border-r border-b border-zinc-300 dark:border-zinc-600 px-2 py-2 text-left min-w-fit"
+                    style="{{ $labelCellStyle }}">
                 </th>
                 @foreach ($this->months as $month)
                     <th colspan="{{ $month['colspan'] }}"
@@ -124,16 +129,23 @@
                             <td class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 pl-5 pr-2 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-fit bg-white dark:bg-zinc-900">
                                 {{ $metricCase->label() }}
                                 @if (isset($this->currentMetricValues[$metricCase->value]))
+                                    @php $currentMetric = $this->currentMetricValues[$metricCase->value]; @endphp
                                     <div class="mt-1">
-                                        <flux:badge
-                                            size="sm"
-                                            color="zinc"
-                                            class="text-xs cursor-pointer"
-                                            title="{{ __('Current value. Recorded') }} {{ $this->currentMetricValues[$metricCase->value]['recorded_at'] }}"
-                                            wire:click="openCurrentMetric('{{ $metricCase->value }}')"
-                                        >
-                                            {{ $this->currentMetricValues[$metricCase->value]['summary'] }}
-                                        </flux:badge>
+                                        @if ($currentMetric['isAvailable'])
+                                            <flux:badge
+                                                size="sm"
+                                                color="zinc"
+                                                class="text-xs cursor-pointer"
+                                                title="{{ __('Current value. Recorded') }} {{ $currentMetric['recorded_at'] }}"
+                                                wire:click="openCurrentMetric('{{ $metricCase->value }}')"
+                                            >
+                                                {{ $currentMetric['summary'] }}
+                                            </flux:badge>
+                                        @else
+                                            <flux:badge size="sm" color="zinc" class="text-xs">
+                                                {{ $currentMetric['summary'] }}
+                                            </flux:badge>
+                                        @endif
                                     </div>
                                 @elseif ($this->userId === null && isset($this->groupCurrentMetricValues[$metricCase->value]))
                                     @php $groupMetric = $this->groupCurrentMetricValues[$metricCase->value]; @endphp
@@ -347,10 +359,15 @@
                                     <span class="w-2 h-2 rounded-full shrink-0"
                                         style="{{ \Coda\Cms\Support\ColorPalette::solid($categoryColor) }}"></span>
                                 @endif
-                                <button type="button" wire:click="navigateToPlan({{ $entry->id }})"
-                                    class="text-left hover:underline">
-                                    {{ $entry->program->name }}
-                                </button>
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <button type="button" wire:click="navigateToPlan({{ $entry->id }})"
+                                        class="min-w-0 text-left hover:underline">
+                                        <span class="truncate">{{ $entry->program->name }}</span>
+                                    </button>
+                                    @if ($entry->isArchived())
+                                        <flux:badge size="sm" color="zinc">{{ __('Archived') }}</flux:badge>
+                                    @endif
+                                </div>
                                 <button type="button" wire:click.stop="openEditProgram({{ $entry->id }})"
                                     class="opacity-0 group-hover/program:opacity-100 transition-opacity shrink-0 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
                                     <flux:icon.pencil class="size-3.5" />

@@ -59,8 +59,6 @@ class ProgramEditor extends Component
 
     public int $planId;
 
-    public string $planType = ExerciseProgram::class;
-
     public ?int $userId = null;
 
     public ?int $planMeasuredReps = null;
@@ -118,7 +116,6 @@ class ProgramEditor extends Component
         int $weeks = 5,
         bool $showWeeksInput = false,
         int $sessionsPerWeek = 1,
-        string $planType = ExerciseProgram::class,
         ?int $userId = null,
         ?int $planMeasuredReps = null,
         ?float $planMeasuredWeight = null,
@@ -149,7 +146,6 @@ class ProgramEditor extends Component
         $this->showWeeksInput = $showWeeksInput;
         $this->weeks = $showWeeksInput ? $exerciseProgram->config->weeks : $weeks;
         $this->sessionsPerWeek = $sessionsPerWeek;
-        $this->planType = $planType;
         $this->userId = $userId;
         $this->planMeasuredReps = $planMeasuredReps;
         $this->planMeasuredWeight = $planMeasuredWeight;
@@ -180,6 +176,8 @@ class ProgramEditor extends Component
         $this->exerciseProgram->unsetRelation('exercises');
         $this->exerciseProgram->load([
             'exercises' => fn ($q) => $q->orderByPivot('type')->orderByPivot('sort')->orderByPivot('id'),
+            'exercises.equipment',
+            'exercises.modifiers',
         ]);
 
         foreach (self::SECTION_TYPES as $type) {
@@ -239,11 +237,10 @@ class ProgramEditor extends Component
     #[Computed]
     public function exercises(): Collection
     {
-        return $this->exerciseProgram->exercises()
-            ->wherePivot('type', $this->activeSection)
-            ->orderByPivot('sort')
-            ->orderByPivot('id')
-            ->get();
+        return $this->exerciseProgram->exercises
+            ->filter(fn (Exercise $exercise) => ($exercise->pivot->type ?? 'main') === $this->activeSection)
+            ->sortBy(fn (Exercise $exercise) => [$exercise->pivot->sort ?? 0, $exercise->pivot->id ?? 0])
+            ->values();
     }
 
     #[Computed]
@@ -254,6 +251,33 @@ class ProgramEditor extends Component
             fn (Exercise $exercise): ?string => $exercise->pivot->group,
             fn (Exercise $exercise): int => $exercise->pivot->id,
         );
+    }
+
+    /** @return array<int, array<int, array{label: string, color: string}>> */
+    #[Computed]
+    public function exerciseBadgesByPivotId(): array
+    {
+        return $this->exercises
+            ->mapWithKeys(fn (Exercise $exercise): array => [
+                (int) $exercise->pivot->id => $this->buildExerciseBadges($exercise),
+            ])
+            ->all();
+    }
+
+    /** @return array<int, array{label: string, color: string}> */
+    protected function buildExerciseBadges(Exercise $exercise): array
+    {
+        $badges = [];
+
+        foreach ($exercise->equipment as $tag) {
+            $badges[] = ['label' => $tag->name, 'color' => 'blue'];
+        }
+
+        foreach ($exercise->modifiers as $tag) {
+            $badges[] = ['label' => $tag->name, 'color' => ''];
+        }
+
+        return $badges;
     }
 
     #[Computed]

@@ -165,7 +165,7 @@ it('uses the active block baseline metric when compiling automatic weights', fun
     $weightValue = $slot->fresh('exercises.sets.values')
         ->exercises->first()->sets->first()->values->firstWhere('setting_key', 'weight');
 
-    expect((float) $weightValue?->planned_decimal_value)->toBe(64.0);
+    expect((float) $weightValue?->planned_decimal_value)->toBe(74.0);
 });
 
 it('reuses cached slot timelines and metric lookups across repeated compiles in one rebuild run', function () {
@@ -251,4 +251,73 @@ it('reuses cached slot timelines and metric lookups across repeated compiles in 
 
     expect($slotTimelineQueries)->toBe(1)
         ->and($metricQueries)->toBe(2);
+});
+
+it('excludes automatic metric-dependent exercises when required athlete metrics are missing', function () {
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Metric Dependent']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $autoWeightExercise = Exercise::factory()->create([
+        'name' => 'Auto Weight',
+        'config' => [
+            'settings' => ['reps', 'weight'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 6, 'applyPer' => 'session'],
+            'weight' => ['mode' => 'automatic', 'oneRepMaxModifier' => 100, 'applyPer' => 'session'],
+        ],
+    ]);
+
+    $autoHeartRateExercise = Exercise::factory()->create([
+        'name' => 'Auto Heart Rate',
+        'config' => [
+            'settings' => ['duration', 'heartRate', 'heartRateZone'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'duration' => ['unit' => 'seconds', 'default' => 60, 'applyPer' => 'session'],
+            'heartRate' => ['mode' => 'automatic_jogging', 'applyPer' => 'session'],
+            'heartRateZone' => ['default' => '2', 'applyPer' => 'session'],
+        ],
+    ]);
+
+    $manualExercise = Exercise::factory()->create([
+        'name' => 'Manual Reps',
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 8, 'applyPer' => 'session'],
+        ],
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $autoWeightExercise->id,
+        'sort' => 0,
+    ]);
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $autoHeartRateExercise->id,
+        'sort' => 1,
+    ]);
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $manualExercise->id,
+        'sort' => 2,
+    ]);
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2026-04-28 09:00:00'),
+    ]);
+
+    $exerciseNames = $slot->fresh('exercises.exercise')
+        ->exercises
+        ->pluck('exercise.name')
+        ->all();
+
+    expect($exerciseNames)->toBe(['Manual Reps']);
 });

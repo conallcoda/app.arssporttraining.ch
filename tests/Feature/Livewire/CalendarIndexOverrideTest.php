@@ -67,6 +67,87 @@ it('can edit a group program from user view', function () {
         ->assertDispatched('open-edit-program');
 });
 
+it('filters out archived programs without scheduled slots and keeps scheduled archived programs visible', function () {
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Three Amigos']);
+    $user = User::factory()->athlete()->create();
+    $group->members()->attach($user);
+
+    $activeProgram = ExerciseProgram::factory()->create(['name' => '1A Strength']);
+    $archivedScheduledProgram = ExerciseProgram::factory()->create(['name' => '1B Strength']);
+    $archivedUnscheduledProgram = ExerciseProgram::factory()->create(['name' => 'Old Strength']);
+
+    $activeTp = TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $activeProgram->id,
+    ]);
+
+    $archivedScheduledTp = TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $archivedScheduledProgram->id,
+        'status' => TrainingProgram::STATUS_ARCHIVED,
+    ]);
+
+    TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $archivedUnscheduledProgram->id,
+        'status' => TrainingProgram::STATUS_ARCHIVED,
+    ]);
+
+    TrainingProgramSlot::create([
+        'training_program_id' => $archivedScheduledTp->id,
+        'user_id' => $user->id,
+        'datetime' => '2026-03-03 09:00:00',
+    ]);
+
+    Livewire::actingAs($coach)
+        ->test(CalendarProgramsView::class, [
+            'groupId' => $group->id,
+            'userId' => $user->id,
+            'calendarSettings' => calendarWeekSettings(),
+            'weekStartsOn' => (int) config('training.week_starts_on', Carbon::MONDAY),
+            'weekEndsOn' => ((int) config('training.week_starts_on', Carbon::MONDAY) + 6) % 7,
+        ])
+        ->assertSee('1A Strength')
+        ->assertSee('1B Strength')
+        ->assertSee('Archived')
+        ->assertDontSee('Old Strength');
+
+    expect($activeTp->fresh()->status)->toBeNull();
+});
+
+it('persists archived status through the edit program flow', function () {
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Three Amigos']);
+    $program = ExerciseProgram::factory()->create(['name' => '1A Strength']);
+
+    $groupTp = TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    Livewire::actingAs($coach)
+        ->test(CalendarProgramsView::class, [
+            'groupId' => $group->id,
+            'calendarSettings' => calendarWeekSettings(),
+            'weekStartsOn' => (int) config('training.week_starts_on', Carbon::MONDAY),
+            'weekEndsOn' => ((int) config('training.week_starts_on', Carbon::MONDAY) + 6) % 7,
+        ])
+        ->set('editingTrainingProgramId', $groupTp->id)
+        ->call('handleEditProgramSubmitted', [
+            'name' => '1A Strength Updated',
+            'type' => 'program',
+            'exercise_category_id' => null,
+            'exercises' => [],
+            'internalTags' => [],
+            'sort' => 0,
+            'status' => TrainingProgram::STATUS_ARCHIVED,
+        ]);
+
+    expect($groupTp->fresh()->status)->toBe(TrainingProgram::STATUS_ARCHIVED)
+        ->and($program->fresh()->name)->toBe('1A Strength Updated');
+});
+
 it('can remove a group program from user view', function () {
     $coach = User::factory()->coach()->create();
     $group = UserGroup::create(['name' => 'Three Amigos']);

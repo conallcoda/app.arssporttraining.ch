@@ -35,8 +35,7 @@ it('preserves locked session history while applying settings changes to future s
     $updatedConfig['reps']['default'] = 8;
 
     $component = Livewire::test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
@@ -93,8 +92,7 @@ it('persists apply-per session changes from the settings modal and rebuilds the 
     ]);
 
     $component = Livewire::test(PlanExerciseGrid::class, [
-        'exercisePlanId' => $program->id,
-        'planType' => ExerciseProgram::class,
+        'planId' => $program->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,

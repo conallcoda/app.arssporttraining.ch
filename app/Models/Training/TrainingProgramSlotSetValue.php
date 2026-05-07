@@ -2,9 +2,11 @@
 
 namespace App\Models\Training;
 
+use App\Models\Users\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TrainingProgramSlotSetValue extends Model
 {
@@ -25,6 +27,10 @@ class TrainingProgramSlotSetValue extends Model
         'actual_decimal_value',
         'actual_string_value',
         'actual_json_value',
+        'actual_recorded_by',
+        'actual_recorded_at',
+        'actual_source',
+        'actual_is_explicit',
         'unit',
         'is_modified',
     ];
@@ -34,6 +40,8 @@ class TrainingProgramSlotSetValue extends Model
         return [
             'planned_json_value' => 'array',
             'actual_json_value' => 'array',
+            'actual_recorded_at' => 'datetime',
+            'actual_is_explicit' => 'bool',
             'is_modified' => 'bool',
         ];
     }
@@ -41,6 +49,16 @@ class TrainingProgramSlotSetValue extends Model
     public function slotSet(): BelongsTo
     {
         return $this->belongsTo(TrainingProgramSlotSet::class, 'training_program_slot_set_id');
+    }
+
+    public function actualRecordedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'actual_recorded_by');
+    }
+
+    public function actualRevisions(): HasMany
+    {
+        return $this->hasMany(TrainingActualValueRevision::class, 'training_program_slot_set_value_id');
     }
 
     public function plannedCanonicalValue(): ?array

@@ -5,6 +5,8 @@ use App\Livewire\Training\CalendarIndex;
 use App\Livewire\Training\CalendarProgramsView;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Tag;
+use App\Models\Training\TrainingRevisionBatch;
+use App\Models\Training\TrainingStateRevision;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramBlock;
 use App\Models\Training\TrainingProgramBlockTypeEnum;
@@ -191,4 +193,117 @@ it('dispatches athlete override payload when opening plan block edit', function 
                 && $params['data']['groupId'] === $group->id
                 && $params['data']['userId'] === $user->id;
         });
+});
+
+it('records provenance and state revisions when creating a block', function () {
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Three Amigos']);
+    $user = User::factory()->athlete()->create();
+    $weekStartsOn = (int) config('training.week_starts_on', Carbon::MONDAY);
+
+    Livewire::actingAs($coach)
+        ->test(CalendarProgramsView::class, [
+            'groupId' => $group->id,
+            'userId' => $user->id,
+            'calendarSettings' => blockWeekSettings(),
+            'weekStartsOn' => $weekStartsOn,
+            'weekEndsOn' => ($weekStartsOn + 6) % 7,
+        ])
+        ->call('onBlockSubmitted', [
+            'groupId' => $group->id,
+            'userId' => $user->id,
+            'selected_members' => [],
+            'type' => 'focus',
+            'start' => '2026-03-02',
+            'end' => '2026-03-04',
+            'note' => 'Peak week',
+            'color' => '#112233',
+        ]);
+
+    $block = TrainingProgramBlock::query()->latest('id')->first();
+
+    expect($block)->not->toBeNull()
+        ->and($block?->created_by)->toBe($coach->id)
+        ->and($block?->updated_by)->toBe($coach->id)
+        ->and($block?->note)->toBe('Peak week')
+        ->and(TrainingRevisionBatch::query()
+            ->where('domain', 'state')
+            ->where('action', 'save_block')
+            ->exists())->toBeTrue()
+        ->and(TrainingStateRevision::query()
+            ->where('subject_type', TrainingProgramBlock::class)
+            ->where('subject_id', $block?->id)
+            ->where('state_key', 'block')
+            ->where('after_value', 'created')
+            ->where('changed_by', $coach->id)
+            ->exists())->toBeTrue()
+        ->and(TrainingStateRevision::query()
+            ->where('subject_type', TrainingProgramBlock::class)
+            ->where('subject_id', $block?->id)
+            ->where('state_key', 'note')
+            ->where('after_value', 'Peak week')
+            ->where('changed_by', $coach->id)
+            ->exists())->toBeTrue();
+});
+
+it('records provenance and state revisions when deleting an athlete override block', function () {
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Three Amigos']);
+    $user = User::factory()->athlete()->create();
+    $tag = Tag::factory()->withScope('training_category')->create();
+    $weekStartsOn = (int) config('training.week_starts_on', Carbon::MONDAY);
+
+    $parentBlock = TrainingProgramBlock::create([
+        'group_id' => $group->id,
+        'user_id' => null,
+        'category_id' => $tag->id,
+        'type' => TrainingProgramBlockTypeEnum::Category,
+        'start' => '2026-03-01',
+        'end' => '2026-03-31',
+        'note' => 'Parent',
+        'active' => true,
+    ]);
+
+    $overrideBlock = TrainingProgramBlock::create([
+        'group_id' => $group->id,
+        'user_id' => $user->id,
+        'parent_id' => $parentBlock->id,
+        'category_id' => $tag->id,
+        'type' => TrainingProgramBlockTypeEnum::Category,
+        'start' => '2026-03-05',
+        'end' => '2026-03-31',
+        'note' => 'Override',
+        'active' => true,
+    ]);
+
+    Livewire::actingAs($coach)
+        ->test(CalendarProgramsView::class, [
+            'groupId' => $group->id,
+            'userId' => $user->id,
+            'calendarSettings' => blockWeekSettings(),
+            'weekStartsOn' => $weekStartsOn,
+            'weekEndsOn' => ($weekStartsOn + 6) % 7,
+        ])
+        ->call('onBlockDeleted', [
+            'editing_block_id' => $overrideBlock->id,
+            'groupId' => $group->id,
+            'userId' => $user->id,
+        ]);
+
+    $overrideBlock = $overrideBlock->fresh();
+
+    expect($overrideBlock)->not->toBeNull()
+        ->and($overrideBlock?->active)->toBeFalse()
+        ->and($overrideBlock?->updated_by)->toBe($coach->id)
+        ->and(TrainingRevisionBatch::query()
+            ->where('domain', 'state')
+            ->where('action', 'delete_block')
+            ->exists())->toBeTrue()
+        ->and(TrainingStateRevision::query()
+            ->where('subject_type', TrainingProgramBlock::class)
+            ->where('subject_id', $overrideBlock?->id)
+            ->where('state_key', 'block')
+            ->where('after_value', 'inactive')
+            ->where('changed_by', $coach->id)
+            ->exists())->toBeTrue();
 });

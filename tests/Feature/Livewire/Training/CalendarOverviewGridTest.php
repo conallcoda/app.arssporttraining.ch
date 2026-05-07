@@ -75,6 +75,20 @@ it('builds overview data for owned groups only when filtered to mine', function 
         ->and($overviewData[0]['members'][0]['user']->id)->toBe($ownedAthlete->id);
 });
 
+it('excludes coaches from rendered group members even if they are attached', function () {
+    $coach = User::factory()->coach()->create();
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Owned', 'owner_id' => $coach->id]);
+
+    $group->members()->attach([$coach->id, $athlete->id]);
+
+    $component = mountOverviewGrid($coach);
+    $overviewData = $component->instance()->overviewData;
+
+    expect($overviewData)->toHaveCount(1)
+        ->and(collect($overviewData[0]['members'])->pluck('user.id')->all())->toBe([$athlete->id]);
+});
+
 it('refreshes overview data when the group filter changes', function () {
     $coach = User::factory()->coach()->create();
     $ownedGroup = UserGroup::create(['name' => 'Owned', 'owner_id' => $coach->id]);

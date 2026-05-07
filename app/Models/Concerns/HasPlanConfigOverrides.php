@@ -3,6 +3,7 @@
 namespace App\Models\Concerns;
 
 use App\Models\Exercise\ExercisePlanConfigOverride;
+use App\Training\TrainingStateRevisionService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
@@ -67,6 +68,9 @@ trait HasPlanConfigOverrides
     /** @param array<int, array<string, mixed>> $rows */
     public function syncPlanConfigOverrideRows(array $rows): void
     {
+        $actorId = auth()->id();
+        $deleteBatch = null;
+
         $existing = $this->planConfigOverrides()->get()->keyBy(
             fn (ExercisePlanConfigOverride $override): string => $this->planConfigOverrideKey([
                 'programExerciseId' => $override->program_exercise_id,
@@ -87,6 +91,16 @@ trait HasPlanConfigOverrides
 
         foreach ($existing as $key => $override) {
             if (! $desired->has($key)) {
+                $deleteBatch ??= app(TrainingStateRevisionService::class)->createBatch($this, 'delete_plan_config_override_rows');
+                app(TrainingStateRevisionService::class)->recordStateChange(
+                    batch: $deleteBatch,
+                    subject: $override,
+                    stateKey: 'override_row',
+                    beforeValue: 'present',
+                    afterValue: 'deleted',
+                    beforePayload: $this->planConfigOverridePayload($override),
+                    afterPayload: [],
+                );
                 $override->delete();
             }
         }
@@ -101,7 +115,10 @@ trait HasPlanConfigOverrides
                     continue;
                 }
 
-                $override->forceFill(['value' => $encodedValue])->save();
+                $override->forceFill([
+                    'value' => $encodedValue,
+                    'updated_by' => $actorId,
+                ])->save();
 
                 continue;
             }
@@ -120,8 +137,21 @@ trait HasPlanConfigOverrides
                     : null,
                 'setting_key' => (string) $row['settingKey'],
                 'value' => $encodedValue,
+                'created_by' => $actorId,
+                'updated_by' => $actorId,
             ]);
         }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function planConfigOverridePayload(ExercisePlanConfigOverride $override): array
+    {
+        return $override->toFlatArray() + [
+            'created_by' => $override->created_by,
+            'updated_by' => $override->updated_by,
+        ];
     }
 
     private function planConfigOverrideKey(array $row): string

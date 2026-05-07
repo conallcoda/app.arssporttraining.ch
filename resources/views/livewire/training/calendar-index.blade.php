@@ -1,4 +1,4 @@
-<div class="flex gap-6">
+<div class="flex {{ $this->showSidebar ? 'gap-6' : '' }}">
     @if ($this->showSidebar)
         <div class="hidden lg:block">
             <livewire:user-group-sidebar mode="single-athlete" :initial-group="$group !== '' ? (int) $group : null" :initial-user="$user !== '' ? (int) $user : null" :show-group-filter="true" :initial-group-filter="$groupFilter" />
@@ -106,6 +106,15 @@
                                     @endforeach
                                 </flux:select>
                             </flux:field>
+                            @if ($this->planSelectedProgram)
+                                <flux:field class="w-full sm:w-auto">
+                                    <flux:label>{{ __('Status') }}</flux:label>
+                                    <flux:radio.group wire:model.live="planProgramStatus" wire:change="savePlanProgramStatus" variant="segmented" size="sm" class="w-full sm:w-auto">
+                                        <flux:radio value="active" :label="__('Active')" />
+                                        <flux:radio value="archived" :label="__('Archived')" />
+                                    </flux:radio.group>
+                                </flux:field>
+                            @endif
                         </div>
 
                         @if ($this->planSelectedProgram)
