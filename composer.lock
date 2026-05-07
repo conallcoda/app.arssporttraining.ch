@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "3343292e6198c52a60c8c5bf7a40a36b",
+    "content-hash": "0eb90aa52104bc0ab120a7f7cd908194",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -273,11 +273,11 @@
         },
         {
             "name": "coda/cms",
-            "version": "dev-main",
+            "version": "dev-manual",
             "dist": {
                 "type": "path",
-                "url": "/Users/conalloreilly/Development/coda-packages/cms",
-                "reference": "a47126d08bb62fb2968fb8e0d7a6cda1506c4307"
+                "url": "packages/cms",
+                "reference": "4630eb144fb84761f0318d1b0c448b5b7f821e84"
             },
             "require": {
                 "coda/form-kit": "*",
@@ -293,7 +293,8 @@
                 "staudenmeir/laravel-adjacency-list": "^1.0"
             },
             "suggest": {
-                "laravel/fortify": "Required for built-in authentication views and actions"
+                "laravel/fortify": "Required for built-in authentication views and actions",
+                "laravel/passkeys": "Optional WebAuthn/passkey login (pair with @laravel/passkeys on the JS side)"
             },
             "type": "library",
             "extra": {
@@ -315,17 +316,17 @@
             },
             "description": "Generic CMS framework for Laravel Livewire applications",
             "transport-options": {
-                "symlink": true,
-                "relative": false
+                "symlink": false,
+                "relative": true
             }
         },
         {
             "name": "coda/form-kit",
-            "version": "dev-main",
+            "version": "dev-manual",
             "dist": {
                 "type": "path",
-                "url": "/Users/conalloreilly/Development/coda-packages/form-kit",
-                "reference": "a3b533674db6da2b0f8573b29e1ab560504ba58b"
+                "url": "packages/form-kit",
+                "reference": "5ee34e3c44c83aa0330f119c9b4ad35155c06063"
             },
             "require": {
                 "php": "^8.2",
@@ -355,8 +356,8 @@
             },
             "description": "Framework-agnostic form field definitions with FluxUI rendering",
             "transport-options": {
-                "symlink": true,
-                "relative": false
+                "symlink": false,
+                "relative": true
             }
         },
         {
