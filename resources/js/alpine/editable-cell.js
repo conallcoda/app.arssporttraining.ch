@@ -88,6 +88,12 @@ document.addEventListener('alpine:init', () => {
                 return
             }
 
+            if (this.valueTarget === 'planned_display') {
+                this.$wire.updatePlannedDisplayCellValue(this.cellWeek, this.cellSet, this.cellField, value, this.cellSession)
+
+                return
+            }
+
             if (this.cellEditType === 'session') {
                 this.$wire.updateSessionOverride(this.cellWeek, this.cellSession, this.cellField, value, this.cellApplyToAll)
 

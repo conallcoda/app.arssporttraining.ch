@@ -94,6 +94,8 @@ class PlanExerciseGrid extends Component
     /** @var array<int, array{label: string, color: string}> */
     public array $exerciseBadges = [];
 
+    public int $gridRenderVersion = 0;
+
     #[Reactive]
     public ?int $planMeasuredReps = null;
 
@@ -192,7 +194,7 @@ class PlanExerciseGrid extends Component
 
     public function updatedValueDisplayMode(): void
     {
-        unset($this->actualCellValues, $this->actualSessionValues, $this->editableActualSessionsByWeek);
+        unset($this->actualCellValues, $this->actualSessionValues, $this->editableActualSessionsByWeek, $this->slotExercisesByWeekSession, $this->planActualGridTable);
     }
 
     #[Computed]
@@ -302,6 +304,7 @@ class PlanExerciseGrid extends Component
         }
 
         $this->saveOverrides($overrides);
+        $this->bumpGridRenderVersion();
         unset($this->isDisabled, $this->isDisabledByDefault, $this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides);
     }
 
@@ -492,6 +495,174 @@ class PlanExerciseGrid extends Component
         $grid->autoCopyValuesAutomatically = false;
 
         return $grid;
+    }
+
+    #[Computed]
+    public function planGridTable(): array
+    {
+        $grid = $this->displayGrid;
+        $sessionScopedFields = collect($grid->weekColumns)->pluck('field')->all();
+
+        return [
+            'mode' => 'planned',
+            'showsSettingBadges' => true,
+            'usesGrouping' => true,
+            'setCount' => $grid->setCount,
+            'setLabel' => $grid->setLabel,
+            'sessionScopedFields' => $sessionScopedFields,
+            'groups' => collect($grid->groups)->map(function ($group) use ($grid): array {
+                $sessions = collect($group->sessions ?? [])
+                    ->map(function ($session) use ($grid): array {
+                        $week = $session->weekIndex;
+                        $sessionIndex = $session->sessionIndex;
+
+                        return [
+                            'week' => $week,
+                            'session' => $sessionIndex,
+                            'sessionNumber' => $session->sessionNumber,
+                            'locked' => (bool) ($session->locked ?? false),
+                            'setRows' => collect($grid->rows)
+                                ->reject(fn ($row): bool => (bool) ($row->lastSessionOnly ?? false))
+                                ->map(fn ($row): array => [
+                                    'field' => $row->field,
+                                    'label' => $row->label,
+                                    'cells' => collect(range(0, max($grid->setCount - 1, 0)))
+                                        ->map(fn (int $set): mixed => $row->getCellValue($week, $set, $sessionIndex))
+                                        ->all(),
+                                ])->all(),
+                            'sessionRows' => collect($grid->weekColumns)
+                                ->map(fn ($column): array => [
+                                    'field' => $column->field,
+                                    'label' => $column->label,
+                                    'value' => $column->getCellValue($week, 0, $sessionIndex),
+                                ])->all(),
+                        ];
+                    })
+                    ->all();
+
+                return [
+                    'label' => trim(strip_tags((string) ($group->label ?? ''))),
+                    'sessionCount' => count($sessions),
+                    'expanded' => (bool) ($group->expanded ?? false),
+                    'sessions' => $sessions,
+                ];
+            })->all(),
+        ];
+    }
+
+    #[Computed]
+    public function slotExercisesByWeekSession(): array
+    {
+        if (! $this->showsActualValueTabs) {
+            return [];
+        }
+
+        $slotExercises = [];
+
+        foreach ($this->weekSessionDates as $weekIndex => $datesForWeek) {
+            foreach (array_keys($datesForWeek) as $sessionIndex) {
+                $slotExercise = $this->slotExerciseForWeekSession($weekIndex, (int) $sessionIndex);
+
+                if ($slotExercise instanceof TrainingProgramSlotExercise) {
+                    $slotExercises[$weekIndex][$sessionIndex] = $slotExercise;
+                }
+            }
+        }
+
+        return $slotExercises;
+    }
+
+    #[Computed]
+    public function planActualGridTable(): array
+    {
+        if (! $this->showsActualValueTabs || $this->valueDisplayMode !== 'actual') {
+            return [];
+        }
+
+        $previewGrid = $this->previewGrid;
+        $displayRows = array_merge(
+            array_values(array_filter(
+                $previewGrid->rows,
+                fn ($row): bool => ! in_array(($row->field ?? null), ['oneRepMax', 'sets'], true)
+            )),
+            array_values(array_filter(
+                $previewGrid->weekColumns,
+                fn ($column): bool => ($column->field ?? null) !== 'sets'
+            )),
+        );
+        $sessionScopedFields = collect($previewGrid->weekColumns)->pluck('field')->flip();
+        $slotExercises = $this->slotExercisesByWeekSession;
+        $sessions = [];
+        $blockSessionNumber = 1;
+
+        foreach ($this->resolvedWeekSessionCounts() as $weekIndex => $sessionCount) {
+            for ($sessionIndex = 0; $sessionIndex < $sessionCount; $sessionIndex++) {
+                $slotExercise = $slotExercises[$weekIndex][$sessionIndex] ?? null;
+                $rows = [];
+
+                foreach ($displayRows as $row) {
+                    $isSessionScoped = $sessionScopedFields->has($row->field);
+                    $cells = [];
+
+                    for ($setIndex = 0; $setIndex < $previewGrid->setCount; $setIndex++) {
+                        $plannedValue = $this->resolvePlanActualPlannedCellValue(
+                            $row,
+                            $weekIndex,
+                            $sessionIndex,
+                            $setIndex,
+                            $slotExercise,
+                            $isSessionScoped,
+                        );
+                        $actualValue = $this->resolvePlanActualActualCellValue(
+                            $row->field,
+                            $sessionIndex,
+                            $setIndex,
+                            $slotExercise,
+                        );
+                        $actualHighlighted = $actualValue !== null
+                            && $actualValue !== '-'
+                            && (string) $actualValue !== (string) $plannedValue;
+                        $cells[] = [
+                            'set' => $setIndex,
+                            'planned' => $plannedValue,
+                            'actual' => $actualValue,
+                            'plannedEditable' => $this->canEditPlanActualPlannedCell($row->field, $plannedValue, $slotExercise),
+                            'actualEditable' => $this->canEditPlanActualActualCell($row->field, $actualValue, $slotExercise, $weekIndex, $sessionIndex),
+                            'actualHighlighted' => $actualHighlighted,
+                            'actualColor' => $actualHighlighted
+                                ? $row->resolveCellColor($weekIndex, $isSessionScoped ? null : $setIndex, true, $sessionIndex)
+                                : $row->resolveCellColor($weekIndex, $isSessionScoped ? null : $setIndex, false, $sessionIndex),
+                        ];
+                    }
+
+                    $rows[] = [
+                        'field' => $row->field,
+                        'label' => $row->label,
+                        'color' => $row->color,
+                        'inputMeta' => $row->inputMeta,
+                        'cells' => $cells,
+                    ];
+                }
+
+                $sessions[] = [
+                    'week' => $weekIndex,
+                    'session' => $sessionIndex,
+                    'sessionNumber' => $blockSessionNumber,
+                    'locked' => $this->isSessionLocked($weekIndex, $sessionIndex),
+                    'rows' => $rows,
+                ];
+                $blockSessionNumber++;
+            }
+        }
+
+        return [
+            'mode' => 'actual',
+            'showsSettingBadges' => false,
+            'usesGrouping' => false,
+            'setCount' => $previewGrid->setCount,
+            'setLabel' => $previewGrid->setLabel,
+            'sessions' => $sessions,
+        ];
     }
 
     #[Computed]
@@ -757,37 +928,14 @@ class PlanExerciseGrid extends Component
             return ['cells' => [], 'sessions' => [], 'editable' => []];
         }
 
-        $dates = collect($this->weekSessionDates)
-            ->flatten()
-            ->filter(fn (mixed $date): bool => is_string($date) && $date !== '')
-            ->unique()
-            ->values();
-
-        if ($dates->isEmpty()) {
-            return ['cells' => [], 'sessions' => [], 'editable' => []];
-        }
-
-        $slotsByDate = TrainingProgramSlot::query()
-            ->with(['exercises.sets.values'])
-            ->where('training_program_id', $this->scheduledTrainingProgramId)
-            ->where('user_id', $this->userId)
-            ->whereIn('scheduled_date', $dates->all())
-            ->get()
-            ->keyBy(fn (TrainingProgramSlot $slot): ?string => $slot->scheduled_date?->format('Y-m-d'));
-
         $cellValues = [];
         $sessionValues = [];
         $editableSessions = [];
+        $slotExercises = $this->slotExercisesByWeekSession;
 
         foreach ($this->weekSessionDates as $weekIndex => $datesForWeek) {
             foreach ($datesForWeek as $sessionIndex => $date) {
-                $slot = $slotsByDate->get($date);
-
-                if (! $slot instanceof TrainingProgramSlot) {
-                    continue;
-                }
-
-                $slotExercise = $this->matchingSlotExercise($slot);
+                $slotExercise = $slotExercises[$weekIndex][$sessionIndex] ?? null;
 
                 if (! $slotExercise instanceof TrainingProgramSlotExercise) {
                     continue;
@@ -847,7 +995,8 @@ class PlanExerciseGrid extends Component
             $set->id => [$field => $value],
         ], onlyProvided: true);
 
-        unset($this->actualCellValues, $this->actualSessionValues, $this->editableActualSessionsByWeek);
+        $this->bumpGridRenderVersion();
+        unset($this->actualCellValues, $this->actualSessionValues, $this->editableActualSessionsByWeek, $this->slotExercisesByWeekSession, $this->planActualGridTable);
     }
 
     public function updateActualSessionValue(int $weekIndex, int $session, string $field, mixed $value): void
@@ -867,7 +1016,37 @@ class PlanExerciseGrid extends Component
 
         app(AthleteExerciseValueService::class)->saveExerciseValues($slotExercise, $payload, onlyProvided: true);
 
-        unset($this->actualCellValues, $this->actualSessionValues, $this->editableActualSessionsByWeek);
+        $this->bumpGridRenderVersion();
+        unset($this->actualCellValues, $this->actualSessionValues, $this->editableActualSessionsByWeek, $this->slotExercisesByWeekSession, $this->planActualGridTable);
+    }
+
+    public function updatePlannedDisplayCellValue(int $weekIndex, int $setIndex, string $field, mixed $value, int $session): void
+    {
+        abort_unless($this->valueDisplayMode === 'actual' && $this->showsActualValueTabs, 403);
+        abort_unless($field !== 'sets', 403);
+
+        $slotExercise = $this->slotExerciseForWeekSession($weekIndex, $session);
+        abort_unless($slotExercise instanceof TrainingProgramSlotExercise, 404);
+
+        $set = $slotExercise->sets
+            ->sortBy('set_number')
+            ->values()
+            ->get($setIndex);
+
+        abort_unless($set instanceof TrainingProgramSlotSet, 404);
+
+        app(TrainingSessionPlannedValueService::class)->saveExercisePlannedValues($slotExercise, [
+            $set->id => [$field => $value],
+        ], onlyProvided: true);
+
+        $this->bumpGridRenderVersion();
+        unset(
+            $this->slotExercisesByWeekSession,
+            $this->actualCellValues,
+            $this->actualSessionValues,
+            $this->editableActualSessionsByWeek,
+            $this->planActualGridTable
+        );
     }
 
     protected function matchingSlotExercise(TrainingProgramSlot $slot): ?TrainingProgramSlotExercise
@@ -967,6 +1146,40 @@ class PlanExerciseGrid extends Component
         };
     }
 
+    protected function extractPlannedValue(?TrainingProgramSlotSetValue $valueRow): mixed
+    {
+        if (! $valueRow || $valueRow->planned_value_type === null) {
+            return null;
+        }
+
+        return match ($valueRow->planned_value_type) {
+            'int' => $valueRow->planned_int_value,
+            'decimal' => $valueRow->planned_decimal_value !== null ? (float) $valueRow->planned_decimal_value : null,
+            'json' => $valueRow->planned_json_value,
+            default => $valueRow->planned_string_value,
+        };
+    }
+
+    protected function formatPlannedValue(string $field, mixed $value, ?TrainingProgramSlotSetValue $valueRow): ?string
+    {
+        if ($this->isBlankActualValue($value)) {
+            return null;
+        }
+
+        $settingClass = ExerciseSetting::tryFrom($field)?->settingClass();
+        $settingConfig = $this->resolveSettingConfig($field);
+
+        if (is_string($settingClass) && is_subclass_of($settingClass, AbstractSetting::class)) {
+            return $settingClass::formatAthleteValue($value, $valueRow?->unit, $settingConfig);
+        }
+
+        return match ($field) {
+            'duration' => $this->formatDurationActualValue($value, $valueRow?->unit),
+            'heartRateZone' => 'Zone '.trim((string) $value),
+            default => $this->normalizeActualScalar($value),
+        };
+    }
+
     protected function formatActualValue(string $field, mixed $value, ?TrainingProgramSlotSetValue $valueRow): ?string
     {
         if ($this->isBlankActualValue($value)) {
@@ -1042,6 +1255,85 @@ class PlanExerciseGrid extends Component
         return false;
     }
 
+    protected function resolvePlanActualPlannedCellValue(mixed $row, int $weekIndex, int $sessionIndex, int $setIndex, ?TrainingProgramSlotExercise $slotExercise, bool $isSessionScoped): string
+    {
+        if ($row->field === 'sets') {
+            return (string) ($slotExercise?->sets->count() ?? $row->getCellValue($weekIndex, 0, $sessionIndex));
+        }
+
+        if ($slotExercise instanceof TrainingProgramSlotExercise) {
+            $set = $slotExercise->sets
+                ->sortBy('set_number')
+                ->values()
+                ->get($setIndex);
+
+            if (! $set instanceof TrainingProgramSlotSet) {
+                return '-';
+            }
+
+            $valueRow = $set->values->firstWhere('setting_key', $row->field);
+            $formatted = $this->formatPlannedValue($row->field, $this->extractPlannedValue($valueRow), $valueRow);
+
+            if ($formatted !== null) {
+                return $formatted;
+            }
+        }
+
+        $fallback = $isSessionScoped
+            ? $row->getCellValue($weekIndex, 0, $sessionIndex)
+            : $row->getCellValue($weekIndex, $setIndex, $sessionIndex);
+
+        return $fallback === null || $fallback === '' ? '-' : (string) $fallback;
+    }
+
+    protected function resolvePlanActualActualCellValue(string $field, int $sessionIndex, int $setIndex, ?TrainingProgramSlotExercise $slotExercise): string
+    {
+        if (! $slotExercise instanceof TrainingProgramSlotExercise) {
+            return '-';
+        }
+
+        if ($field === 'sets') {
+            return (string) $slotExercise->sets
+                ->reject(fn (TrainingProgramSlotSet $set): bool => (string) ($set->status->value ?? $set->status) === TrainingProgramSlotSetStatusEnum::Skipped->value)
+                ->count();
+        }
+
+        $set = $slotExercise->sets
+            ->sortBy('set_number')
+            ->values()
+            ->get($setIndex);
+
+        if (! $set instanceof TrainingProgramSlotSet) {
+            return '-';
+        }
+
+        if ((string) ($set->status->value ?? $set->status) === TrainingProgramSlotSetStatusEnum::Skipped->value) {
+            return __('Skipped');
+        }
+
+        $valueRow = $set->values->firstWhere('setting_key', $field);
+        $formatted = $this->formatActualValue($field, $this->extractActualValue($valueRow), $valueRow);
+
+        return $formatted ?? '-';
+    }
+
+    protected function canEditPlanActualPlannedCell(string $field, string $plannedValue, ?TrainingProgramSlotExercise $slotExercise): bool
+    {
+        return $this->valueDisplayMode === 'actual'
+            && $this->showsActualValueTabs
+            && $field !== 'sets'
+            && $plannedValue !== '-'
+            && $slotExercise instanceof TrainingProgramSlotExercise;
+    }
+
+    protected function canEditPlanActualActualCell(string $field, string $actualValue, ?TrainingProgramSlotExercise $slotExercise, int $weekIndex, int $sessionIndex): bool
+    {
+        return $field !== 'sets'
+            && $actualValue !== __('Skipped')
+            && $slotExercise instanceof TrainingProgramSlotExercise
+            && $this->canEditActualsForSession($weekIndex, $sessionIndex);
+    }
+
     public function updateCellOverride(int $weekIndex, int $setIndex, string $field, mixed $value, int $session, bool $applyToAll = false): void
     {
         $overrides = $this->getCurrentOverrides();
@@ -1097,6 +1389,7 @@ class PlanExerciseGrid extends Component
         }
 
         $this->saveOverrides($overrides);
+        $this->bumpGridRenderVersion();
         unset($this->configFingerprint, $this->previewGrid, $this->displayGrid, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions);
     }
 
@@ -1145,6 +1438,7 @@ class PlanExerciseGrid extends Component
         }
 
         $this->saveOverrides($overrides);
+        $this->bumpGridRenderVersion();
         unset($this->configFingerprint, $this->previewGrid, $this->displayGrid, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions);
     }
 
@@ -1152,7 +1446,11 @@ class PlanExerciseGrid extends Component
     {
         $effectiveConfig = $this->getEffectiveConfig();
         $baseOverrides = $this->getBaseGridOverrides();
+        $effectiveConfig['overrides'] = $baseOverrides;
         $measuredData = $this->getPlanMeasuredData();
+        $userOverrides = ExerciseOverrides::from($this->resolvedExerciseOverrides->userOverrides?->toArray() ?? []);
+        $userOverrides->gridOverrides = OverrideManager::reset();
+        $userOverrides->historicalGridOverrides = OverrideManager::reset();
 
         $grid = ExercisePreviewBuilder::build(
             $effectiveConfig,
@@ -1170,7 +1468,7 @@ class PlanExerciseGrid extends Component
             $this->resolvedWeekSessionCounts(),
             $this->getExerciseConfig()->toArray(),
             $this->resolvedExerciseOverrides->defaultOverrides,
-            $this->resolvedExerciseOverrides->userOverrides,
+            $userOverrides,
             ! $this->isUnavailableForMissingMetrics,
         );
 
@@ -1224,12 +1522,14 @@ class PlanExerciseGrid extends Component
         $overrides->gridOverrides = OverrideManager::reset();
 
         $this->saveOverrides($overrides);
+        $this->bumpGridRenderVersion();
         unset($this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides);
     }
 
     #[On('plan-overrides-reset')]
     public function onPlanOverridesReset(): void
     {
+        $this->bumpGridRenderVersion();
         unset($this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides);
     }
 
@@ -1365,6 +1665,7 @@ class PlanExerciseGrid extends Component
         }
 
         $this->saveOverrides($overrides);
+        $this->bumpGridRenderVersion();
         unset($this->configFingerprint, $this->previewGrid, $this->displayGrid, $this->settingBadges, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions, $this->groupingBadge);
     }
 
@@ -1922,6 +2223,12 @@ class PlanExerciseGrid extends Component
         $overrides = $this->getCurrentOverrides();
         $overrides->gridOverrides = $gridOverrides;
         $this->saveOverrides($overrides);
+        $this->bumpGridRenderVersion();
         unset($this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions);
+    }
+
+    protected function bumpGridRenderVersion(): void
+    {
+        $this->gridRenderVersion++;
     }
 }

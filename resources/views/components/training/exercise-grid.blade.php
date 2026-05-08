@@ -313,7 +313,7 @@
                                                 </td>
                                             @endif
                                         @elseif ($weekCell['editable'])
-                                            <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $weekCell['color'] }}"
+                                            <td wire:key="planned-week-collapsed-weekonly-{{ $group->index }}-{{ $week }}-{{ $session }}-{{ $weekCol->field }}-{{ md5(json_encode([$weekCell['value'], $weekCell['editable'], $weekCell['color']])) }}" class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $weekCell['color'] }}"
                                                 x-data="editable_cell"
                                                 data-msg-invalid-number="{{ __('Please enter a valid number') }}"
                                                 data-msg-invalid-value="{{ __('Please enter a valid value') }}"
@@ -338,7 +338,7 @@
                                                 <x-training.exercise-grid-input :meta="$weekCol->inputMeta" :value="$weekCell['value']" size="xs" type="text" />
                                             </td>
                                         @else
-                                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $weekCell['color'] }} {{ $collapsedPlannedLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
+                                            <td wire:key="planned-week-collapsed-weekonly-{{ $group->index }}-{{ $week }}-{{ $session }}-{{ $weekCol->field }}-{{ md5(json_encode([$weekCell['value'], $weekCell['editable'], $weekCell['color']])) }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $weekCell['color'] }} {{ $collapsedPlannedLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
                                                 @include('components.training.partials.planned-actual-value', [
                                                     'plannedValue' => $weekCell['value'],
                                                     'actualValue' => $weekActualValue,
@@ -382,14 +382,14 @@
                                     @endif
                                 </tr>
                             @else
-                                @foreach ($displayRows as $rowIdx => $row)
-                                    @php
-                                        $isFirstRow = $rowIdx === 0;
-                                        $isSessionScopedRow = $splitActualColumns && in_array($row->field, $splitSessionRowFields, true);
-                                        $collapsedCopyKey = ($showGroupColumn && $groupSessionCount > 1) ? 'group:' . $group->index : 'session:' . $week . ':' . $session;
-                                        $collapsedCopyOptions = $copyMenuOptions[$collapsedCopyKey] ?? ['from' => [], 'to' => []];
-                                        $collapsedPlannedLocked = $allowCoachFreeEditing ? false : $collapsedGroupLocked;
-                                    @endphp
+                                    @foreach ($displayRows as $rowIdx => $row)
+                                        @php
+                                            $isFirstRow = $rowIdx === 0;
+                                            $isSessionScopedRow = $splitActualColumns && in_array($row->field, $splitSessionRowFields, true);
+                                            $collapsedCopyKey = ($showGroupColumn && $groupSessionCount > 1) ? 'group:' . $group->index : 'session:' . $week . ':' . $session;
+                                            $collapsedCopyOptions = $copyMenuOptions[$collapsedCopyKey] ?? ['from' => [], 'to' => []];
+                                            $collapsedPlannedLocked = $allowCoachFreeEditing ? false : $collapsedGroupLocked;
+                                        @endphp
                                     <tr wire:key="collapsed-g{{ $group->index }}-w{{ $week }}-s{{ $session }}-r{{ $rowIdx }}">
                                         @if ($showGroupColumn && $isFirstRow)
                                             <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle text-center"
@@ -502,7 +502,7 @@
                                                     </td>
                                                 @endif
                                             @elseif ($cell['editable'])
-                                                <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $cell['color'] }}"
+                                                <td wire:key="{{ $cellPlannedRenderKey }}" class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $cell['color'] }}"
                                                     x-data="editable_cell"
                                                     data-msg-invalid-number="{{ __('Please enter a valid number') }}"
                                                     data-msg-invalid-value="{{ __('Please enter a valid value') }}"
@@ -528,7 +528,7 @@
                                                     <x-training.exercise-grid-input :meta="$row->inputMeta" :value="$cell['value']" size="sm" />
                                                 </td>
                                             @else
-                                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $cell['color'] }} {{ $collapsedPlannedLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
+                                                <td wire:key="{{ $cellPlannedRenderKey }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $cell['color'] }} {{ $collapsedPlannedLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
                                                     @include('components.training.partials.planned-actual-value', [
                                                         'plannedValue' => $cell['value'],
                                                         'actualValue' => $cellActualValue,
@@ -910,7 +910,7 @@
                                                     </td>
                                                 @endif
                                             @elseif ($cell['editable'])
-                                                <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $cell['color'] }}"
+                                                <td wire:key="{{ $cellPlannedRenderKey }}" class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $cell['color'] }}"
                                                     x-data="editable_cell"
                                                     data-msg-invalid-number="{{ __('Please enter a valid number') }}"
                                                     data-msg-invalid-value="{{ __('Please enter a valid value') }}"
@@ -936,7 +936,7 @@
                                                     <x-training.exercise-grid-input :meta="$row->inputMeta" :value="$cell['value']" size="sm" />
                                                 </td>
                                             @else
-                                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $cell['color'] }} {{ $plannedSessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
+                                                <td wire:key="{{ $cellPlannedRenderKey }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $cell['color'] }} {{ $plannedSessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
                                                     @include('components.training.partials.planned-actual-value', [
                                                         'plannedValue' => $cell['value'],
                                                         'actualValue' => $cellActualValue,
@@ -1004,10 +1004,10 @@
                                                             {{ $weekActualValue ?? '-' }}
                                                         </td>
                                                     @endif
-                                                @elseif ($weekCell['editable'])
-                                                    <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $weekCell['color'] }}"
-                                                        rowspan="{{ count($grid->rows) }}"
-                                                        x-data="editable_cell"
+                                        @elseif ($weekCell['editable'])
+                                            <td wire:key="planned-week-expanded-firstrow-{{ $group->index }}-{{ $week }}-{{ $session }}-{{ $weekCol->field }}-{{ md5(json_encode([$weekCell['value'], $weekCell['editable'], $weekCell['color']])) }}" class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $weekCell['color'] }}"
+                                                rowspan="{{ count($grid->rows) }}"
+                                                x-data="editable_cell"
                                                         data-msg-invalid-number="{{ __('Please enter a valid number') }}"
                                                         data-msg-invalid-value="{{ __('Please enter a valid value') }}"
                                                         data-edit-type="session"
@@ -1031,7 +1031,7 @@
                                                         <x-training.exercise-grid-input :meta="$weekCol->inputMeta" :value="$weekCell['value']" size="xs" type="text" />
                                                     </td>
                                                 @else
-                                                    <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $weekCell['color'] }} {{ $plannedSessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}"
+                                                    <td wire:key="planned-week-expanded-firstrow-{{ $group->index }}-{{ $week }}-{{ $session }}-{{ $weekCol->field }}-{{ md5(json_encode([$weekCell['value'], $weekCell['editable'], $weekCell['color']])) }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $weekCell['color'] }} {{ $plannedSessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}"
                                                         rowspan="{{ count($grid->rows) }}">
                                                         @include('components.training.partials.planned-actual-value', [
                                                             'plannedValue' => $weekCell['value'],

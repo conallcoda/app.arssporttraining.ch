@@ -680,6 +680,8 @@ class ProgramEditor extends Component
     public function onExerciseOverridesChanged(): void
     {
         $this->exerciseProgram->refresh();
+        unset($this->exercises, $this->exerciseGroupLabels, $this->exerciseBadgesByPivotId);
+        $this->gridRenderVersion++;
     }
 
     protected function dispatchSharedProgramRebuild(): void

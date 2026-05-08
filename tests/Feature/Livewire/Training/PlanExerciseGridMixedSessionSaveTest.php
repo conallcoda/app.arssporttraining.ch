@@ -935,10 +935,10 @@ it('copies session buckets when grouping is none', function () {
     expect(collect($cells)->where('week', 1)->where('session', 0)->first()['data']['reps'] ?? null)->toBe(15);
 });
 
-it('copies visible sessions when grouping is week', function () {
+it('exposes grouped copy buckets in plan mode when groups are collapsed', function () {
     $coach = User::factory()->create();
     $coach->config->set('settings.session_grouping', [
-        'mode' => 'week',
+        'mode' => 'groups',
         'groupSize' => 2,
     ]);
     $coach->saveQuietly();
@@ -947,6 +947,158 @@ it('copies visible sessions when grouping is week', function () {
         'config' => [
             'settings' => ['reps'],
             'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+        ],
+    ]);
+
+    $program = ExerciseProgram::factory()->create();
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'weeks' => 4,
+        'sessionsPerWeek' => 1,
+        'weekSessionDates' => [
+            ['2026-04-27'],
+            ['2026-05-04'],
+            ['2026-05-11'],
+            ['2026-05-18'],
+        ],
+        'lockedSessionsByWeek' => [
+            [false],
+            [false],
+            [false],
+            [false],
+        ],
+    ]);
+
+    expect($component->get('copyBuckets'))
+        ->toHaveKeys(['group:0', 'group:1'])
+        ->not->toHaveKey('session:0:0')
+        ->not->toHaveKey('session:3:0');
+});
+
+it('hides copy actions for locked groups in collapsed plan mode', function () {
+    $coach = User::factory()->create();
+    $coach->config->set('settings.session_grouping', [
+        'mode' => 'groups',
+        'groupSize' => 2,
+    ]);
+    $coach->saveQuietly();
+
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+        ],
+    ]);
+
+    $program = ExerciseProgram::factory()->create();
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'weeks' => 4,
+        'sessionsPerWeek' => 1,
+        'weekSessionDates' => [
+            ['2026-04-27'],
+            ['2026-05-04'],
+            ['2026-05-11'],
+            ['2026-05-18'],
+        ],
+        'lockedSessionsByWeek' => [
+            [true],
+            [true],
+            [false],
+            [false],
+        ],
+    ]);
+
+    $copyMenuOptions = $component->get('copyMenuOptions');
+
+    expect($copyMenuOptions['group:0'])->toBe(['from' => [], 'to' => []])
+        ->and($copyMenuOptions['group:1']['from'])->toHaveCount(0)
+        ->and($copyMenuOptions['group:1']['to'])->toHaveCount(0);
+});
+
+it('renders grouped copy menu actions on collapsed plan groups', function () {
+    $coach = User::factory()->create();
+    $coach->config->set('settings.session_grouping', [
+        'mode' => 'groups',
+        'groupSize' => 2,
+    ]);
+    $coach->saveQuietly();
+
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+        ],
+    ]);
+
+    $program = ExerciseProgram::factory()->create();
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'weeks' => 4,
+        'sessionsPerWeek' => 1,
+        'weekSessionDates' => [
+            ['2026-04-27'],
+            ['2026-05-04'],
+            ['2026-05-11'],
+            ['2026-05-18'],
+        ],
+        'lockedSessionsByWeek' => [
+            [false],
+            [false],
+            [false],
+            [false],
+        ],
+    ]);
+
+    $html = $component->html();
+
+    expect($html)->toContain("copyDisplayBucket('group:0', 'group:1')")
+        ->and($html)->toContain("resetDisplayBucket('group:0')");
+});
+
+it('copies only the overlapping visible sets for the target session', function () {
+    $coach = User::factory()->create();
+
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 4, 'label' => 'Set', 'deload' => 'none'],
             'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
         ],
     ]);
@@ -966,139 +1118,34 @@ it('copies visible sessions when grouping is week', function () {
         'exerciseId' => $exercise->id,
         'userId' => null,
         'weeks' => 2,
-        'sessionsPerWeek' => 2,
+        'sessionsPerWeek' => 1,
         'weekSessionDates' => [
-            ['2026-04-27', '2026-04-30'],
-            ['2026-05-04', '2026-05-07'],
+            ['2026-04-27'],
+            ['2026-05-04'],
         ],
         'lockedSessionsByWeek' => [
-            [false, false],
-            [false, false],
+            [false],
+            [false],
         ],
     ]);
 
-    $component->call('updateCellOverride', 0, 0, 'reps', 18, 0, true)
+    $component->call('updateCellOverride', 0, 0, 'reps', 10, 0, false)
+        ->call('updateCellOverride', 0, 1, 'reps', 11, 0, false)
+        ->call('updateCellOverride', 0, 2, 'reps', 16, 0, false)
+        ->call('updateCellOverride', 0, 3, 'reps', 17, 0, false)
+        ->call('updateSessionOverride', 1, 0, 'sets', 3, false)
         ->call('copyDisplayBucket', 'session:0:0', 'session:1:0');
 
-    $cells = $program->fresh()->config->defaultExerciseOverrides($pivot->id)->gridOverrides['cells'] ?? [];
+    $overrides = $program->fresh()->config->defaultExerciseOverrides($pivot->id)->gridOverrides;
+    $cells = collect($overrides['cells'] ?? []);
+    $sessions = collect($overrides['sessions'] ?? []);
 
-    expect(collect($cells)->where('week', 1)->where('session', 0)->first()['data']['reps'] ?? null)->toBe(18)
-        ->and(collect($cells)->where('week', 1)->where('session', 1)->first()['data']['reps'] ?? null)->toBe(18);
-});
-
-it('copies using visible session targets when a later group is expanded', function () {
-    $coach = User::factory()->create();
-    $coach->config->set('settings.session_grouping', [
-        'mode' => 'groups',
-        'groupSize' => 2,
-    ]);
-    $coach->saveQuietly();
-
-    $exercise = Exercise::factory()->create([
-        'config' => [
-            'settings' => ['reps'],
-            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
-            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
-        ],
-    ]);
-
-    $program = ExerciseProgram::factory()->create();
-
-    $pivot = ExerciseProgramExercise::create([
-        'exercise_program_id' => $program->id,
-        'exercise_id' => $exercise->id,
-        'sort' => 0,
-        'type' => 'main',
-    ]);
-
-    $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
-        'planId' => $program->id,
-        'programExerciseId' => $pivot->id,
-        'exerciseId' => $exercise->id,
-        'userId' => null,
-        'weeks' => 4,
-        'sessionsPerWeek' => 1,
-        'weekSessionDates' => [
-            ['2026-04-27'],
-            ['2026-05-04'],
-            ['2026-05-11'],
-            ['2026-05-18'],
-        ],
-        'lockedSessionsByWeek' => [
-            [false],
-            [false],
-            [false],
-            [false],
-        ],
-        'expandedWeeks' => [1],
-    ]);
-
-    $component->call('updateCellOverride', 0, 0, 'reps', 19, 0, true)
-        ->call('copyDisplayBucket', 'group:0', 'session:2:0');
-
-    $cells = $program->fresh()->config->defaultExerciseOverrides($pivot->id)->gridOverrides['cells'] ?? [];
-
-    expect(collect($cells)->where('week', 2)->where('session', 0)->first()['data']['reps'] ?? null)->toBe(19)
-        ->and(collect($cells)->where('week', 3)->where('session', 0)->first())
-        ->toBeNull();
-});
-
-it('resets only the selected visible grouped session overrides', function () {
-    $coach = User::factory()->create();
-    $coach->config->set('settings.session_grouping', [
-        'mode' => 'groups',
-        'groupSize' => 2,
-    ]);
-    $coach->saveQuietly();
-
-    $exercise = Exercise::factory()->create([
-        'config' => [
-            'settings' => ['reps'],
-            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
-            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
-        ],
-    ]);
-
-    $program = ExerciseProgram::factory()->create();
-
-    $pivot = ExerciseProgramExercise::create([
-        'exercise_program_id' => $program->id,
-        'exercise_id' => $exercise->id,
-        'sort' => 0,
-        'type' => 'main',
-    ]);
-
-    $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
-        'planId' => $program->id,
-        'programExerciseId' => $pivot->id,
-        'exerciseId' => $exercise->id,
-        'userId' => null,
-        'weeks' => 4,
-        'sessionsPerWeek' => 1,
-        'weekSessionDates' => [
-            ['2026-04-27'],
-            ['2026-05-04'],
-            ['2026-05-11'],
-            ['2026-05-18'],
-        ],
-        'lockedSessionsByWeek' => [
-            [false],
-            [false],
-            [false],
-            [false],
-        ],
-    ]);
-
-    $component->call('updateCellOverride', 0, 0, 'reps', 17, 0, true)
-        ->call('updateCellOverride', 2, 0, 'reps', 21, 0, true)
-        ->call('resetDisplayBucket', 'group:0');
-
-    $cells = $program->fresh()->config->defaultExerciseOverrides($pivot->id)->gridOverrides['cells'] ?? [];
-
-    expect(collect($cells)->where('week', 0)->first())->toBeNull()
-        ->and(collect($cells)->where('week', 1)->first())->toBeNull()
-        ->and(collect($cells)->where('week', 2)->where('session', 0)->first()['data']['reps'] ?? null)->toBe(21)
-        ->and(collect($cells)->where('week', 3)->where('session', 0)->first()['data']['reps'] ?? null)->toBe(21);
+    expect($sessions->firstWhere(fn (array $session) => ($session['week'] ?? null) === 1 && ($session['session'] ?? null) === 0)['data']['sets'] ?? null)
+        ->toBe(3)
+        ->and($cells->firstWhere(fn (array $cell) => ($cell['week'] ?? null) === 1 && ($cell['session'] ?? null) === 0 && ($cell['set'] ?? null) === 0)['data']['reps'] ?? null)->toBe(10)
+        ->and($cells->firstWhere(fn (array $cell) => ($cell['week'] ?? null) === 1 && ($cell['session'] ?? null) === 0 && ($cell['set'] ?? null) === 1)['data']['reps'] ?? null)->toBe(11)
+        ->and($cells->firstWhere(fn (array $cell) => ($cell['week'] ?? null) === 1 && ($cell['session'] ?? null) === 0 && ($cell['set'] ?? null) === 2)['data']['reps'] ?? null)->toBe(16)
+        ->and($cells->firstWhere(fn (array $cell) => ($cell['week'] ?? null) === 1 && ($cell['session'] ?? null) === 0 && ($cell['set'] ?? null) === 3))->toBeNull();
 });
 
 it('resets only the selected visible collapsed week group overrides', function () {

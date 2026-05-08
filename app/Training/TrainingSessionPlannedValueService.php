@@ -26,6 +26,8 @@ class TrainingSessionPlannedValueService
             $hasChanges = false;
 
             foreach ($exercise->sets as $set) {
+                $existingSettingKeys = $set->values->pluck('setting_key')->all();
+
                 foreach ($set->values as $valueRow) {
                     $path = $set->id.'.'.$valueRow->setting_key;
 
@@ -46,6 +48,33 @@ class TrainingSessionPlannedValueService
                     $valueRow->forceFill($attributes)->save();
                     $hasChanges = true;
                 }
+
+                if (! isset($submittedValues[$set->id]) || ! is_array($submittedValues[$set->id])) {
+                    continue;
+                }
+
+                foreach ($submittedValues[$set->id] as $settingKey => $submittedValue) {
+                    if (in_array($settingKey, $existingSettingKeys, true)) {
+                        continue;
+                    }
+
+                    if ($onlyProvided && ! Arr::has($submittedValues, $set->id.'.'.$settingKey)) {
+                        continue;
+                    }
+
+                    $attributes = $this->buildPlannedSnapshotAttributesForSetting(
+                        $exercise,
+                        $settingKey,
+                        $submittedValue,
+                    );
+
+                    $set->values()->create([
+                        'setting_key' => $settingKey,
+                        ...$attributes,
+                    ]);
+
+                    $hasChanges = true;
+                }
             }
 
             $this->statusService->refreshExerciseState($exercise);
@@ -62,11 +91,28 @@ class TrainingSessionPlannedValueService
         TrainingProgramSlotSetValue $valueRow,
         mixed $submittedValue,
     ): array {
-        $settingClass = ExerciseSetting::tryFrom($valueRow->setting_key)?->settingClass();
-        $config = $this->resolveSettingConfig($exercise, $valueRow->setting_key);
+        return $this->buildPlannedSnapshotAttributesForSetting(
+            $exercise,
+            $valueRow->setting_key,
+            $submittedValue,
+            $valueRow->unit,
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildPlannedSnapshotAttributesForSetting(
+        TrainingProgramSlotExercise $exercise,
+        string $settingKey,
+        mixed $submittedValue,
+        ?string $fallbackUnit = null,
+    ): array {
+        $settingClass = ExerciseSetting::tryFrom($settingKey)?->settingClass();
+        $config = $this->resolveSettingConfig($exercise, $settingKey);
 
         if (! is_string($settingClass) || ! is_subclass_of($settingClass, AbstractSetting::class)) {
-            return $this->encodeFallbackPlannedValue($submittedValue, $valueRow->unit);
+            return $this->encodeFallbackPlannedValue($submittedValue, $fallbackUnit);
         }
 
         $normalized = $settingClass::normalizeAthleteValue($submittedValue, $config);

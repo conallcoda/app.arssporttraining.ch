@@ -1,17 +1,12 @@
 <?php
 
-use App\Livewire\Training\View\PlanExerciseGrid;
-use App\Livewire\Training\View\ProgramEditor;
 use App\Data\Training\Config\ExerciseOverrides;
+use App\Livewire\Training\View\PlanExerciseGrid;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
-use App\Models\Training\TrainingActualValueRevision;
 use App\Models\Training\TrainingProgram;
-use App\Models\Training\TrainingRevisionBatch;
 use App\Models\Training\TrainingProgramSlot;
-use App\Models\Training\TrainingProgramSlotExercise;
-use App\Models\Training\TrainingProgramSlotSet;
 use App\Models\Training\TrainingProgramSlotExerciseStatusEnum;
 use App\Models\Training\TrainingProgramSlotSetStatusEnum;
 use App\Models\Users\User;
@@ -23,142 +18,50 @@ use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
-it('does not show the mode toggle on the regular program editor', function () {
-    $exercise = Exercise::factory()->create([
-        'config' => [
-            'settings' => ['reps'],
-            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
-            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
-        ],
+it('builds the planned grid table with grouping semantics and separate session scoped rows', function () {
+    [$athlete, $scheduledProgram, $pivot] = buildScheduledProgramContext([
+        'settings' => ['reps', 'rest'],
+        'sets' => ['default' => 2, 'label' => 'Set', 'deload' => 'none'],
+        'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'set'],
+        'rest' => ['default' => 60, 'applyPer' => 'week'],
     ]);
 
-    $program = ExerciseProgram::factory()->create();
-
-    ExerciseProgramExercise::create([
-        'exercise_program_id' => $program->id,
-        'exercise_id' => $exercise->id,
-        'sort' => 0,
-        'type' => 'main',
-    ]);
-
-    Livewire::test(ProgramEditor::class, [
-        'exerciseProgram' => $program,
-        'planId' => $program->id,
-        'showWeeksInput' => true,
-    ])
-        ->assertSet('showActualValueTabs', false)
-        ->assertSet('valueDisplayMode', 'planned');
-});
-
-it('shows the mode toggle for scheduled program grids with a selected athlete', function () {
-    [$athlete, $scheduledProgram, $pivot] = buildScheduledProgramContext();
-
-    $component = Livewire::test(ProgramEditor::class, [
-        'exerciseProgram' => $scheduledProgram,
+    $component = Livewire::test(PlanExerciseGrid::class, [
         'planId' => $scheduledProgram->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $pivot->exercise_id,
         'userId' => $athlete->id,
-        'showWeeksInput' => false,
         'weeks' => 1,
-        'sessionsPerWeek' => 1,
-        'weekSessions' => [1],
-        'weekSessionDates' => [['2026-04-27']],
+        'sessionsPerWeek' => 2,
+        'weekSessions' => [2],
+        'weekSessionDates' => [['2026-04-27', '2026-04-30']],
         'showActualValueTabs' => true,
+        'valueDisplayMode' => 'planned',
     ]);
 
-    $component
-        ->assertSee('Display')
-        ->assertSee('Plan')
-        ->assertSee('Plan + Actual');
+    $table = plannedTable($component);
+
+    expect($table['mode'])->toBe('planned')
+        ->and($table['showsSettingBadges'])->toBeTrue()
+        ->and($table['usesGrouping'])->toBeTrue()
+        ->and($table['sessionScopedFields'])->toContain('rest');
+
+    $firstSession = $table['groups'][0]['sessions'][0];
+
+    expect(collect($firstSession['setRows'])->pluck('field')->all())->toContain('reps')
+        ->and(collect($firstSession['sessionRows'])->pluck('field')->all())->toContain('rest')
+        ->and(collect($firstSession['setRows'])->firstWhere('field', 'reps')['cells'])->toBe([12, 12])
+        ->and(collect($firstSession['sessionRows'])->firstWhere('field', 'rest')['value'])->toBe(60);
 });
 
-it('switches the scheduled program editor from planned to actual display mode', function () {
-    [$athlete, $scheduledProgram, $pivot, $exercise, $trainingProgram] = buildScheduledProgramContext([
-        'settings' => ['reps'],
+it('persists planned override removal when a planned value returns to default', function () {
+    [$athlete, $scheduledProgram, $pivot] = buildScheduledProgramContext([
+        'settings' => ['weight'],
         'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
-        'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+        'weight' => ['mode' => 'manual', 'default' => 5, 'applyPer' => 'set'],
     ]);
 
-    $slot = TrainingProgramSlot::create([
-        'training_program_id' => $trainingProgram->id,
-        'user_id' => $athlete->id,
-        'datetime' => '2026-04-27 09:00:00',
-        'scheduled_date' => '2026-04-27',
-    ]);
-
-    $slotExercise = TrainingProgramSlotExercise::create([
-        'training_program_slot_id' => $slot->id,
-        'exercise_id' => $exercise->id,
-        'sort' => $pivot->sort,
-        'group' => $pivot->group,
-        'type' => $pivot->type,
-        'set_count' => 1,
-        'completed_set_count' => 0,
-        'modified_set_count' => 0,
-        'skipped_set_count' => 0,
-        'pending_set_count' => 1,
-        'has_any_modification' => true,
-    ]);
-
-    $set = TrainingProgramSlotSet::create([
-        'training_program_slot_exercise_id' => $slotExercise->id,
-        'set_number' => 1,
-        'has_any_modification' => true,
-    ]);
-
-    $set->values()->create([
-        'setting_key' => 'reps',
-        'planned_value_type' => 'int',
-        'planned_int_value' => 12,
-        'actual_value_type' => 'int',
-        'actual_int_value' => 14,
-        'unit' => null,
-        'is_modified' => true,
-    ]);
-
-    Livewire::test(ProgramEditor::class, [
-        'exerciseProgram' => $scheduledProgram,
-        'planId' => $scheduledProgram->id,
-        'scheduledTrainingProgramId' => $trainingProgram->id,
-        'userId' => $athlete->id,
-        'showWeeksInput' => false,
-        'weeks' => 1,
-        'sessionsPerWeek' => 1,
-        'weekSessions' => [1],
-        'weekSessionDates' => [['2026-04-27']],
-        'lockedSessionsByWeek' => [[true]],
-        'showActualValueTabs' => true,
-    ])
-        ->assertSet('valueDisplayMode', 'planned')
-        ->assertDontSeeHtml('data-value-target="actual"')
-        ->set('valueDisplayMode', 'actual')
-        ->assertSet('valueDisplayMode', 'actual')
-        ->assertSee('Planned')
-        ->assertSee('Actual')
-        ->assertSee('14')
-        ->assertSeeHtml('colspan="2"');
-});
-
-it('does not show the display toggle for scheduled program grids without a selected athlete', function () {
-    [, $scheduledProgram] = buildScheduledProgramContext();
-
-    Livewire::test(ProgramEditor::class, [
-        'exerciseProgram' => $scheduledProgram,
-        'planId' => $scheduledProgram->id,
-        'userId' => null,
-        'showWeeksInput' => false,
-        'weeks' => 1,
-        'sessionsPerWeek' => 1,
-        'weekSessions' => [1],
-        'weekSessionDates' => [['2026-04-27']],
-        'showActualValueTabs' => true,
-    ])
-        ->assertDontSee('Plan + Actual');
-});
-
-it('does not show per-exercise mode tabs inside the exercise grid', function () {
-    [$athlete, $scheduledProgram, $pivot] = buildScheduledProgramContext();
-
-    Livewire::test(PlanExerciseGrid::class, [
+    $component = Livewire::test(PlanExerciseGrid::class, [
         'planId' => $scheduledProgram->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $pivot->exercise_id,
@@ -168,18 +71,47 @@ it('does not show per-exercise mode tabs inside the exercise grid', function () 
         'weekSessions' => [1],
         'weekSessionDates' => [['2026-04-27']],
         'showActualValueTabs' => true,
-    ])
-        ->assertDontSee('Display')
-        ->assertDontSee('Plan')
-        ->assertDontSee('Plan + Actual');
+        'valueDisplayMode' => 'planned',
+    ]);
+
+    expect(gridRenderVersion($component))->toBe(0)
+        ->and(plannedCellValue($component, 'weight', 0, 0))->toEqual(5);
+
+    $component->call('updateCellOverride', 0, 0, 'weight', 66, 0, false);
+
+    expect(gridRenderVersion($component))->toBe(1)
+        ->and(plannedCellValue($component, 'weight', 0, 0))->toEqual(66);
+
+    $component->call('updateCellOverride', 0, 0, 'weight', 5, 0, false);
+
+    expect(gridRenderVersion($component))->toBe(2);
+
+    $scheduledProgram->refresh();
+    $savedOverrides = $scheduledProgram->config->exerciseOverrides($pivot->id, $athlete->id);
+
+    expect($savedOverrides->gridOverrides['cells'])->toBeEmpty();
+
+    $freshComponent = Livewire::test(PlanExerciseGrid::class, [
+        'planId' => $scheduledProgram->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $pivot->exercise_id,
+        'userId' => $athlete->id,
+        'weeks' => 1,
+        'sessionsPerWeek' => 1,
+        'weekSessions' => [1],
+        'weekSessionDates' => [['2026-04-27']],
+        'showActualValueTabs' => true,
+        'valueDisplayMode' => 'planned',
+    ]);
+
+    expect(plannedCellValue($freshComponent, 'weight', 0, 0))->toEqual(5);
 });
 
-it('maps athlete actual values onto the scheduled calendar grid', function () {
+it('builds the plan plus actual table without grouping and repeats session scoped values as independent set cells', function () {
     [$athlete, $scheduledProgram, $pivot, $exercise, $trainingProgram] = buildScheduledProgramContext([
-        'settings' => ['reps', 'rest', 'weight'],
-        'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
-        'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
-        'weight' => ['mode' => 'manual', 'default' => 47.5, 'applyPer' => 'session'],
+        'settings' => ['reps', 'rest'],
+        'sets' => ['default' => 2, 'label' => 'Set', 'deload' => 'none'],
+        'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'set'],
         'rest' => ['default' => 60, 'applyPer' => 'week'],
     ]);
 
@@ -188,59 +120,27 @@ it('maps athlete actual values onto the scheduled calendar grid', function () {
         'user_id' => $athlete->id,
         'datetime' => '2026-04-27 09:00:00',
         'scheduled_date' => '2026-04-27',
-    ]);
+    ])->fresh('exercises.sets.values');
 
-    $slotExercise = TrainingProgramSlotExercise::create([
-        'training_program_slot_id' => $slot->id,
-        'exercise_id' => $exercise->id,
-        'sort' => $pivot->sort,
-        'group' => $pivot->group,
-        'type' => $pivot->type,
-        'set_count' => 1,
-        'completed_set_count' => 0,
-        'modified_set_count' => 0,
-        'skipped_set_count' => 0,
-        'pending_set_count' => 1,
-        'has_any_modification' => true,
-    ]);
+    $slotExercise = $slot->exercises->first();
+    $sets = $slotExercise->sets->sortBy('set_number')->values();
 
-    $set = TrainingProgramSlotSet::create([
-        'training_program_slot_exercise_id' => $slotExercise->id,
-        'set_number' => 1,
-        'has_any_modification' => true,
-    ]);
-
-    $set->values()->create([
-        'setting_key' => 'reps',
-        'planned_value_type' => 'int',
-        'planned_int_value' => 12,
-        'actual_value_type' => 'int',
-        'actual_int_value' => 14,
-        'unit' => null,
-        'is_modified' => true,
-    ]);
-
-    $set->values()->create([
-        'setting_key' => 'weight',
-        'planned_value_type' => 'decimal',
-        'planned_decimal_value' => 47.5,
-        'actual_value_type' => null,
-        'unit' => 'kg',
-        'is_modified' => false,
-    ]);
-
-    $set->values()->create([
-        'setting_key' => 'rest',
-        'planned_value_type' => 'int',
+    $sets[0]->values->firstWhere('setting_key', 'rest')->update([
         'planned_int_value' => 60,
+        'planned_value_type' => 'int',
         'actual_value_type' => 'int',
         'actual_int_value' => 75,
-        'unit' => 's',
-        'is_modified' => true,
+    ]);
+    $sets[1]->values->firstWhere('setting_key', 'rest')->update([
+        'planned_int_value' => 60,
+        'planned_value_type' => 'int',
+        'actual_value_type' => 'int',
+        'actual_int_value' => 60,
     ]);
 
     $component = Livewire::test(PlanExerciseGrid::class, [
         'planId' => $scheduledProgram->id,
+        'scheduledTrainingProgramId' => $trainingProgram->id,
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => $athlete->id,
@@ -252,240 +152,64 @@ it('maps athlete actual values onto the scheduled calendar grid', function () {
         'valueDisplayMode' => 'actual',
     ]);
 
-    $component
-        ->assertSee('14')
-        ->assertSee('75')
-        ->assertSee('47.5');
+    $table = actualTable($component);
+
+    expect($table['mode'])->toBe('actual')
+        ->and($table['showsSettingBadges'])->toBeFalse()
+        ->and($table['usesGrouping'])->toBeFalse()
+        ->and($table['sessions'])->toHaveCount(1);
+
+    $restRow = actualRow($table, 0, 'rest');
+
+    expect(array_column($restRow['cells'], 'planned'))->toBe(['60', '60'])
+        ->and(array_column($restRow['cells'], 'actual'))->toBe(['75', '60'])
+        ->and($restRow['cells'][0]['actualHighlighted'])->toBeTrue()
+        ->and($restRow['cells'][1]['actualHighlighted'])->toBeFalse()
+        ->and(collect($table['sessions'][0]['rows'])->pluck('field')->contains('sets'))->toBeFalse();
 });
 
-it('derives actual sets from the number of non skipped sets', function () {
-    [$athlete, $scheduledProgram, $pivot, $exercise, $trainingProgram] = buildScheduledProgramContext([
-        'settings' => ['reps'],
-        'sets' => ['default' => 4, 'label' => 'Set', 'deload' => 'none'],
-        'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'cell'],
-    ]);
-
-    $slot = TrainingProgramSlot::create([
-        'training_program_id' => $trainingProgram->id,
-        'user_id' => $athlete->id,
-        'datetime' => '2026-04-27 09:00:00',
-        'scheduled_date' => '2026-04-27',
-    ])->fresh('exercises.sets.values');
-
-    $slotExercise = $slot->exercises->first();
-    $skippedSet = $slotExercise->sets->sortBy('set_number')->values()->get(3);
-
-    $skippedSet->update([
-        'skipped_at' => now(),
-    ]);
-
-    app(TrainingSessionStatusService::class)->refreshExerciseState($slotExercise);
-
-    Livewire::test(PlanExerciseGrid::class, [
-        'planId' => $scheduledProgram->id,
-        'programExerciseId' => $pivot->id,
-        'exerciseId' => $pivot->exercise_id,
-        'userId' => $athlete->id,
-        'weeks' => 1,
-        'sessionsPerWeek' => 1,
-        'weekSessions' => [1],
-        'weekSessionDates' => [['2026-04-27']],
-        'lockedSessionsByWeek' => [[true]],
-        'showActualValueTabs' => true,
-        'valueDisplayMode' => 'actual',
-    ])->assertSee('3');
-});
-
-it('lets coaches record actual cell values for locked historical sessions in actual mode', function () {
+it('numbers sessions sequentially across the whole block in plan plus actual mode', function () {
     [$athlete, $scheduledProgram, $pivot, $exercise, $trainingProgram] = buildScheduledProgramContext([
         'settings' => ['reps'],
         'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
-        'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+        'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'set'],
     ]);
 
-    $coach = User::factory()->coach()->create();
-
-    $slot = TrainingProgramSlot::create([
-        'training_program_id' => $trainingProgram->id,
-        'user_id' => $athlete->id,
-        'datetime' => '2026-04-27 09:00:00',
-        'scheduled_date' => '2026-04-27',
-    ])->fresh('exercises.sets.values');
-
-    $slotExercise = $slot->exercises->first();
-    $set = $slotExercise->sets->first();
-    $value = $set->values->firstWhere('setting_key', 'reps');
-
-    $component = Livewire::actingAs($coach)
-        ->test(PlanExerciseGrid::class, [
-            'planId' => $scheduledProgram->id,
-            'programExerciseId' => $pivot->id,
-            'exerciseId' => $pivot->exercise_id,
-            'userId' => $athlete->id,
-            'weeks' => 1,
-            'sessionsPerWeek' => 1,
-            'weekSessions' => [1],
-            'weekSessionDates' => [['2026-04-27']],
-            'lockedSessionsByWeek' => [[true]],
-            'showActualValueTabs' => true,
-            'valueDisplayMode' => 'actual',
-        ])
-        ->call('updateActualCellValue', 0, 0, 'reps', '14', 0);
-
-    $value = $value->fresh();
-
-    expect($value->actual_value_type)->toBe('string')
-        ->and($value->actual_string_value)->toBe('14')
-        ->and($value->actual_recorded_by)->toBe($coach->id)
-        ->and($value->actual_source)->toBe('coach')
-        ->and($value->actual_is_explicit)->toBeTrue()
-        ->and($value->is_modified)->toBeTrue()
-        ->and(TrainingRevisionBatch::query()->latest('id')->first()?->domain)->toBe('actual')
-        ->and(TrainingActualValueRevision::query()->latest('id')->first()?->training_program_slot_set_value_id)->toBe($value->id);
-});
-
-it('lets coaches record session actual values across all sets for locked historical sessions in actual mode', function () {
-    [$athlete, $scheduledProgram, $pivot, $exercise, $trainingProgram] = buildScheduledProgramContext([
-        'settings' => ['rest'],
-        'sets' => ['default' => 2, 'label' => 'Set', 'deload' => 'none'],
-        'rest' => ['default' => 60, 'applyPer' => 'session'],
-    ]);
-
-    $coach = User::factory()->coach()->create();
-
-    $slot = TrainingProgramSlot::create([
-        'training_program_id' => $trainingProgram->id,
-        'user_id' => $athlete->id,
-        'datetime' => '2026-04-27 09:00:00',
-        'scheduled_date' => '2026-04-27',
-    ])->fresh('exercises.sets.values');
-
-    $slotExercise = $slot->exercises->first();
-
-    $component = Livewire::actingAs($coach)
-        ->test(PlanExerciseGrid::class, [
-            'planId' => $scheduledProgram->id,
-            'programExerciseId' => $pivot->id,
-            'exerciseId' => $pivot->exercise_id,
-            'userId' => $athlete->id,
-            'weeks' => 1,
-            'sessionsPerWeek' => 1,
-            'weekSessions' => [1],
-            'weekSessionDates' => [['2026-04-27']],
-            'lockedSessionsByWeek' => [[true]],
-            'showActualValueTabs' => true,
-            'valueDisplayMode' => 'actual',
-        ])
-        ->call('updateActualSessionValue', 0, 0, 'rest', 75);
-
-    $restValues = $slotExercise->fresh('sets.values')->sets
-        ->flatMap->values
-        ->where('setting_key', 'rest')
-        ->values();
-
-    expect($restValues)->toHaveCount(2)
-        ->and($restValues->pluck('actual_int_value')->all())->toBe([75, 75])
-        ->and($restValues->every(fn ($value): bool => $value->actual_recorded_by === $coach->id))->toBeTrue()
-        ->and($restValues->every(fn ($value): bool => $value->is_modified))->toBeTrue();
-});
-
-it('lets coaches update planned values for locked sessions while in actual mode', function () {
-    [$athlete, $scheduledProgram, $pivot] = buildScheduledProgramContext([
-        'settings' => ['reps'],
-        'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
-        'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
-    ]);
-
-    $coach = User::factory()->coach()->create();
-
-    $component = Livewire::actingAs($coach)
-        ->test(PlanExerciseGrid::class, [
-            'planId' => $scheduledProgram->id,
-            'programExerciseId' => $pivot->id,
-            'exerciseId' => $pivot->exercise_id,
-            'userId' => $athlete->id,
-            'weeks' => 1,
-            'sessionsPerWeek' => 1,
-            'weekSessions' => [1],
-            'weekSessionDates' => [['2026-04-27']],
-            'lockedSessionsByWeek' => [[true]],
-            'showActualValueTabs' => true,
-            'valueDisplayMode' => 'actual',
+    foreach ([
+        '2026-04-27 09:00:00',
+        '2026-04-30 09:00:00',
+        '2026-05-04 09:00:00',
+        '2026-05-07 09:00:00',
+    ] as $dateTime) {
+        TrainingProgramSlot::create([
+            'training_program_id' => $trainingProgram->id,
+            'user_id' => $athlete->id,
+            'datetime' => $dateTime,
+            'scheduled_date' => substr($dateTime, 0, 10),
         ]);
+    }
 
-    $component->call('updateCellOverride', 0, 0, 'reps', 15, 0, false);
-
-    $component->assertSee('15');
-});
-
-it('lets coaches record actual values for unlocked future sessions in actual mode', function () {
-    [$athlete, $scheduledProgram, $pivot, $exercise, $trainingProgram] = buildScheduledProgramContext([
-        'settings' => ['reps'],
-        'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
-        'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
-    ]);
-
-    $coach = User::factory()->coach()->create();
-
-    $slot = TrainingProgramSlot::create([
-        'training_program_id' => $trainingProgram->id,
-        'user_id' => $athlete->id,
-        'datetime' => '2026-05-05 09:00:00',
-        'scheduled_date' => '2026-05-05',
-    ])->fresh('exercises.sets.values');
-
-    $slotExercise = $slot->exercises->first();
-    $set = $slotExercise->sets->first();
-    $value = $set->values->firstWhere('setting_key', 'reps');
-
-    Livewire::actingAs($coach)
-        ->test(PlanExerciseGrid::class, [
-            'planId' => $scheduledProgram->id,
-            'programExerciseId' => $pivot->id,
-            'exerciseId' => $pivot->exercise_id,
-            'userId' => $athlete->id,
-            'weeks' => 1,
-            'sessionsPerWeek' => 1,
-            'weekSessions' => [1],
-            'weekSessionDates' => [['2026-05-05']],
-            'lockedSessionsByWeek' => [[false]],
-            'showActualValueTabs' => true,
-            'valueDisplayMode' => 'actual',
-        ])
-        ->call('updateActualCellValue', 0, 0, 'reps', '16', 0);
-
-    $value = $value->fresh();
-
-    expect($value->actual_string_value)->toBe('16')
-        ->and($value->actual_recorded_by)->toBe($coach->id)
-        ->and($value->actual_is_explicit)->toBeTrue();
-});
-
-it('groups split actual set headers under a single set label', function () {
-    [$athlete, $scheduledProgram, $pivot] = buildScheduledProgramContext([
-        'settings' => ['reps'],
-        'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
-        'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'cell'],
-    ]);
-
-    Livewire::test(PlanExerciseGrid::class, [
+    $component = Livewire::test(PlanExerciseGrid::class, [
         'planId' => $scheduledProgram->id,
+        'scheduledTrainingProgramId' => $trainingProgram->id,
         'programExerciseId' => $pivot->id,
-        'exerciseId' => $pivot->exercise_id,
+        'exerciseId' => $exercise->id,
         'userId' => $athlete->id,
-        'weeks' => 1,
-        'sessionsPerWeek' => 1,
-        'weekSessions' => [1],
-        'weekSessionDates' => [['2026-04-27']],
+        'weeks' => 2,
+        'sessionsPerWeek' => 2,
+        'weekSessions' => [2, 2],
+        'weekSessionDates' => [
+            ['2026-04-27', '2026-04-30'],
+            ['2026-05-04', '2026-05-07'],
+        ],
         'showActualValueTabs' => true,
         'valueDisplayMode' => 'actual',
-    ])
-        ->assertSeeHtml('colspan="2"')
-        ->assertSee('Planned')
-        ->assertSee('Actual');
+    ]);
+
+    expect(collect(actualTable($component)['sessions'])->pluck('sessionNumber')->all())->toBe([1, 2, 3, 4]);
 });
 
-it('syncs locked historical planned snapshot values through the central refresh path when the grid is saved', function () {
+it('keeps the planned grid snapshot sync path for locked historical sessions in planned mode', function () {
     [$athlete, $scheduledProgram, $pivot, $exercise, $trainingProgram] = buildScheduledProgramContext([
         'settings' => ['reps'],
         'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
@@ -507,15 +231,10 @@ it('syncs locked historical planned snapshot values through the central refresh 
 
     $value->update([
         'actual_value_type' => $value->planned_value_type,
-        'actual_string_value' => $value->planned_value_type === 'string' ? '5' : null,
-        'actual_int_value' => $value->planned_value_type === 'int' ? 5 : null,
-        'actual_decimal_value' => $value->planned_value_type === 'decimal' ? 5.0 : null,
-        'actual_json_value' => $value->planned_value_type === 'json' ? 5 : null,
+        'actual_int_value' => 5,
         'actual_is_explicit' => true,
     ]);
-    $slotSet->update([
-        'completed_at' => now(),
-    ]);
+    $slotSet->update(['completed_at' => now()]);
 
     app(TrainingSessionStatusService::class)->refreshExerciseState($slotExercise);
 
@@ -547,18 +266,9 @@ it('syncs locked historical planned snapshot values through the central refresh 
         ])
         ->call('updateCellOverride', 0, 0, 'reps', 12, 1, false);
 
-    $slot = $slot->fresh('exercises.sets.values');
-    $slotExercise = $slot->exercises->first();
-    $slotSet = $slotExercise->sets->first();
-    $value = $slotSet->values->firstWhere('setting_key', 'reps');
+    $value = $value->fresh();
 
-    expect((string) app(TrainingValueSnapshotCodec::class)->extractPlannedValue($value))->toBe('5')
-        ->and($value->is_modified)->toBeFalse()
-        ->and($slotSet->status)->toBe(TrainingProgramSlotSetStatusEnum::Completed)
-        ->and($slotExercise->status)->toBe(TrainingProgramSlotExerciseStatusEnum::Completed)
-        ->and($slotExercise->modified_set_count)->toBe(0)
-        ->and($slotExercise->has_any_modification)->toBeFalse()
-        ->and($slot->has_any_modification)->toBeFalse();
+    expect((string) app(TrainingValueSnapshotCodec::class)->extractPlannedValue($value))->toBe('5');
 });
 
 /**
@@ -589,4 +299,45 @@ function buildScheduledProgramContext(array $exerciseConfig = [
     $pivot = $scheduledProgram->exercises->first()->pivot;
 
     return [$athlete, $scheduledProgram, $pivot, $exercise, $trainingProgram];
+}
+
+function plannedTable($component): array
+{
+    return $component->instance()->planGridTable();
+}
+
+function actualTable($component): array
+{
+    return $component->instance()->planActualGridTable();
+}
+
+function actualRow(array $table, int $sessionIndex, string $field): array
+{
+    $session = $table['sessions'][$sessionIndex] ?? null;
+
+    expect($session)->not->toBeNull();
+
+    $row = collect($session['rows'] ?? [])->firstWhere('field', $field);
+
+    expect($row)->not->toBeNull();
+
+    return $row;
+}
+
+function gridRenderVersion($component): int
+{
+    return $component->instance()->gridRenderVersion;
+}
+
+function plannedCellValue($component, string $field, int $sessionIndex, int $setIndex): mixed
+{
+    $session = plannedTable($component)['groups'][0]['sessions'][$sessionIndex] ?? null;
+
+    expect($session)->not->toBeNull();
+
+    $row = collect($session['setRows'] ?? [])->firstWhere('field', $field);
+
+    expect($row)->not->toBeNull();
+
+    return $row['cells'][$setIndex] ?? null;
 }

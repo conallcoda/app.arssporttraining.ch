@@ -73,9 +73,21 @@ class OverrideManager
         int $sourceSession,
         int $targetWeek,
         int $targetSession,
+        ?int $sourceSetCount = null,
+        ?int $targetSetCount = null,
+        array $skipSessionFields = [],
     ): array {
         $overrides = GridOverrideNormalizer::normalize($overrides);
         $defaultRows = [];
+        $copyableSetCount = min(
+            max(0, $sourceSetCount ?? $grid->setCount),
+            max(0, $targetSetCount ?? $grid->setCount),
+            max(0, $grid->setCount),
+        );
+        $targetVisibleSetCount = min(
+            max(0, $targetSetCount ?? $grid->setCount),
+            max(0, $grid->setCount),
+        );
 
         foreach ($defaultsGrid->rows as $row) {
             $defaultRows[$row->field] = $row;
@@ -86,7 +98,7 @@ class OverrideManager
                 continue;
             }
 
-            for ($set = 0; $set < $grid->setCount; $set++) {
+            for ($set = 0; $set < $copyableSetCount; $set++) {
                 $value = $row->getCellValue($sourceWeek, $set, $sourceSession);
 
                 if ($value === null || $value === '-') {
@@ -103,9 +115,17 @@ class OverrideManager
                     $overrides = self::setCellOverride($overrides, $targetWeek, $targetSession, $set, $row->field, $value);
                 }
             }
+
+            for ($set = $targetVisibleSetCount; $set < $grid->setCount; $set++) {
+                $overrides = self::removeCellOverride($overrides, $targetWeek, $targetSession, $set, $row->field);
+            }
         }
 
         foreach ($grid->weekColumns as $column) {
+            if (in_array($column->field, $skipSessionFields, true)) {
+                continue;
+            }
+
             $value = $column->getCellValue($sourceWeek, 0, $sourceSession);
             $defaultValue = $column->getCellValue($targetWeek, 0, $targetSession);
 

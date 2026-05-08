@@ -14,6 +14,7 @@ trait InteractsWithDisplayGridCopying
         $buckets = [];
         $displayGrid = $this->displayGridForCopy();
         $groupKind = strtolower((string) ($displayGrid->groupColumnLabel ?? 'group'));
+        $sessionOnly = $this->displayGridUsesSessionOnlyCopy();
 
         foreach ($displayGrid->groups as $group) {
             $groupLabel = trim(strip_tags((string) ($group->label ?? '')));
@@ -28,7 +29,7 @@ trait InteractsWithDisplayGridCopying
                 ->values()
                 ->all();
 
-            if ($groupExpanded || ! ($displayGrid->showGroupColumn ?? false)) {
+            if ($sessionOnly || $groupExpanded || ! ($displayGrid->showGroupColumn ?? false)) {
                 foreach ($groupSessions as $session) {
                     $key = 'session:'.$session['week'].':'.$session['session'];
                     $buckets[$key] = [
@@ -36,6 +37,7 @@ trait InteractsWithDisplayGridCopying
                         'type' => 'session',
                         'label' => 'Session '.$session['number'],
                         'sessions' => [$session],
+                        'locked' => (bool) ($session['locked'] ?? false),
                     ];
                 }
 
@@ -48,6 +50,7 @@ trait InteractsWithDisplayGridCopying
                 'type' => $groupKind,
                 'label' => ucfirst($groupKind).' '.$groupLabel,
                 'sessions' => $groupSessions,
+                'locked' => collect($groupSessions)->contains(fn (array $session): bool => (bool) ($session['locked'] ?? false)),
             ];
         }
 
@@ -66,8 +69,16 @@ trait InteractsWithDisplayGridCopying
                 'to' => [],
             ];
 
+            if (($currentBucket['locked'] ?? false) === true) {
+                continue;
+            }
+
             foreach ($buckets as $otherKey => $otherBucket) {
                 if ($currentKey === $otherKey) {
+                    continue;
+                }
+
+                if (($otherBucket['locked'] ?? false) === true) {
                     continue;
                 }
 
@@ -98,6 +109,14 @@ trait InteractsWithDisplayGridCopying
             return;
         }
 
+        if (($sourceBucket['locked'] ?? false) === true || ($targetBucket['locked'] ?? false) === true) {
+            return;
+        }
+
+        if ($this->displayGridUsesSessionOnlyCopy() && (($sourceBucket['type'] ?? null) !== 'session' || ($targetBucket['type'] ?? null) !== 'session')) {
+            return;
+        }
+
         $sourceSession = $sourceBucket['sessions'][0] ?? null;
 
         if ($sourceSession === null) {
@@ -121,6 +140,9 @@ trait InteractsWithDisplayGridCopying
                 (int) $sourceSession['session'],
                 (int) $targetSession['week'],
                 (int) $targetSession['session'],
+                sourceSetCount: $this->resolvedCopySessionSetCount($previewGrid, (int) $sourceSession['week'], (int) $sourceSession['session']),
+                targetSetCount: $this->resolvedCopySessionSetCount($previewGrid, (int) $targetSession['week'], (int) $targetSession['session']),
+                skipSessionFields: ['sets'],
             );
         }
 
@@ -153,6 +175,23 @@ trait InteractsWithDisplayGridCopying
         }
 
         $this->persistGridOverridesFromCopy($gridOverrides);
+    }
+
+    protected function displayGridUsesSessionOnlyCopy(): bool
+    {
+        return method_exists($this, 'usesSessionOnlyDisplayCopy') && $this->usesSessionOnlyDisplayCopy();
+    }
+
+    protected function resolvedCopySessionSetCount(PreviewGrid $grid, int $week, int $session): int
+    {
+        $setsColumn = collect($grid->weekColumns)->firstWhere('field', 'sets');
+        $value = $setsColumn?->getCellValue($week, 0, $session);
+
+        if (is_numeric($value)) {
+            return max(0, (int) $value);
+        }
+
+        return max(0, $grid->setCount);
     }
 
     abstract protected function displayGridForCopy(): PreviewGrid;

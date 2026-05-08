@@ -260,6 +260,13 @@ it('resets Conall fixture data and creates the representative exercise bundle', 
     $johnWeekOneSecondSlot = $johnOverrideSlots[1];
     $johnWeekTwoFirstSlot = $johnOverrideSlots[2];
     $johnWeekTwoSecondSlot = $johnOverrideSlots[3];
+    $johnHistoricalStrengthSlot = TrainingProgramSlot::query()
+        ->where('training_program_id', $strengthTrainingProgram->id)
+        ->where('user_id', $john->id)
+        ->whereDate('scheduled_date', '<', today()->format('Y-m-d'))
+        ->orderBy('scheduled_date')
+        ->firstOrFail()
+        ->fresh('exercises.exercise', 'exercises.sets.values');
 
     $johnExercises = $johnOverrideSlot->exercises->keyBy(fn ($exercise) => $exercise->exercise->name);
     $johnWeekOneSecondExercises = $johnWeekOneSecondSlot->exercises->keyBy(fn ($exercise) => $exercise->exercise->name);
@@ -267,6 +274,7 @@ it('resets Conall fixture data and creates the representative exercise bundle', 
     $johnWeekTwoSecondExercises = $johnWeekTwoSecondSlot->exercises->keyBy(fn ($exercise) => $exercise->exercise->name);
     $maxExercises = $maxOverrideSlot->exercises->keyBy(fn ($exercise) => $exercise->exercise->name);
     $joeExercises = $joeOverrideSlot->exercises->keyBy(fn ($exercise) => $exercise->exercise->name);
+    $johnHistoricalStrengthExercises = $johnHistoricalStrengthSlot->exercises->keyBy(fn ($exercise) => $exercise->exercise->name);
 
     expect($johnExercises['Override - Reps Chain']->sets->first()->values->firstWhere('setting_key', 'reps')?->planned_string_value)->toBe('8')
         ->and($joeExercises['Override - Reps Chain']->sets->first()->values->firstWhere('setting_key', 'reps')?->planned_string_value)->toBe('10');
@@ -308,6 +316,20 @@ it('resets Conall fixture data and creates the representative exercise bundle', 
         ->and($johnWeekOneSecondExercises['Override - Week Rest']->sets->first()->values->firstWhere('setting_key', 'rest')?->planned_int_value)->toBe(75)
         ->and($johnWeekTwoFirstExercises['Override - Week Rest']->sets->first()->values->firstWhere('setting_key', 'rest')?->planned_int_value)->toBe(120)
         ->and($johnWeekTwoSecondExercises['Override - Week Rest']->sets->first()->values->firstWhere('setting_key', 'rest')?->planned_int_value)->toBe(120);
+
+    $johnHistoricalCoachFixedWeightSets = $johnHistoricalStrengthExercises['Strength - Coach Fixed Weight']
+        ->sets
+        ->sortBy('set_number')
+        ->values();
+
+    expect($johnHistoricalCoachFixedWeightSets)->toHaveCount(4)
+        ->and($johnHistoricalCoachFixedWeightSets->every(function ($set): bool {
+            $keys = $set->values->pluck('setting_key')->sort()->values()->all();
+
+            return $keys === ['reps', 'rest', 'tempo', 'weight']
+                && $set->values->firstWhere('setting_key', 'tempo')?->planned_string_value === '3010'
+                && $set->values->firstWhere('setting_key', 'rest')?->planned_int_value === 45;
+        }))->toBeTrue();
 
     expect($joeExercises->has('Override - Auto HR Jogging Zones'))->toBeFalse();
 

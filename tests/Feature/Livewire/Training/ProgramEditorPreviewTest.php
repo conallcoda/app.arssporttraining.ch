@@ -39,6 +39,23 @@ it('does not show the athlete preview button without a selected athlete', functi
     ])->assertDontSee('Preview');
 });
 
+it('bumps the parent grid render version when exercise overrides change', function () {
+    $coach = User::factory()->coach()->create();
+    $program = ExerciseProgram::factory()->create();
+
+    $component = Livewire::actingAs($coach)->test(ProgramEditor::class, [
+        'exerciseProgram' => $program,
+        'planId' => $program->id,
+        'showActualValueTabs' => true,
+    ]);
+
+    expect($component->instance()->gridRenderVersion)->toBe(0);
+
+    $component->call('onExerciseOverridesChanged');
+
+    expect($component->instance()->gridRenderVersion)->toBe(1);
+});
+
 it('renders program preview sessions and opens athlete-style session details', function () {
     $coach = User::factory()->coach()->create();
     $athlete = User::factory()->athlete()->create();

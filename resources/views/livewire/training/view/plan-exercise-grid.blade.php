@@ -18,7 +18,7 @@
                 <flux:text class="text-zinc-400">{{ __('Please add this program to a block with a target goal (%) for 1RM progression.') }}</flux:text>
             </div>
         @else
-            <div wire:key="grid-content-{{ $exerciseId }}-{{ $valueDisplayMode }}-{{ $this->configFingerprint }}">
+            <div wire:key="grid-content-{{ $exerciseId }}-{{ $valueDisplayMode }}-{{ $this->configFingerprint }}-{{ $gridRenderVersion }}">
                 <div class="flex items-start justify-between !-mt-2">
                     <div class="space-y-2 mb-3">
                         @if (! empty($exerciseBadges))
@@ -29,29 +29,31 @@
                             </div>
                         @endif
 
-                        @if (! empty($this->settingBadges))
-                            <div class="flex flex-wrap gap-1 {{ empty($exerciseBadges) ? 'mt-3' : '' }}">
-                                @if ($this->groupingBadge['overridden'])
-                                    <flux:badge size="sm" color="{{ $this->groupingBadge['color'] }}" class="cursor-pointer" wire:click="openGroupingForm">{{ __($this->groupingBadge['label']) }}</flux:badge>
-                                @else
-                                    <flux:badge size="sm" class="cursor-pointer" wire:click="openGroupingForm">{{ __($this->groupingBadge['label']) }}</flux:badge>
-                                @endif
-                                @foreach ($this->settingBadges as $badge)
-                                    @if ($badge['overridden'])
-                                        <flux:badge size="sm" color="green" class="cursor-pointer" wire:click="openSettingsForm('{{ $badge['modalField'] }}')">{{ $badge['label'] }}*</flux:badge>
+                        @if ($valueDisplayMode !== 'actual')
+                            @if (! empty($this->settingBadges))
+                                <div class="flex flex-wrap gap-1 {{ empty($exerciseBadges) ? 'mt-3' : '' }}">
+                                    @if ($this->groupingBadge['overridden'])
+                                        <flux:badge size="sm" color="{{ $this->groupingBadge['color'] }}" class="cursor-pointer" wire:click="openGroupingForm">{{ __($this->groupingBadge['label']) }}</flux:badge>
                                     @else
-                                        <flux:badge size="sm" class="cursor-pointer" wire:click="openSettingsForm('{{ $badge['modalField'] }}')">{{ $badge['label'] }}</flux:badge>
+                                        <flux:badge size="sm" class="cursor-pointer" wire:click="openGroupingForm">{{ __($this->groupingBadge['label']) }}</flux:badge>
                                     @endif
-                                @endforeach
-                            </div>
-                        @else
-                            <div class="flex flex-wrap gap-1 {{ empty($exerciseBadges) ? 'mt-3' : '' }}">
-                                @if ($this->groupingBadge['overridden'])
-                                    <flux:badge size="sm" color="{{ $this->groupingBadge['color'] }}" class="cursor-pointer" wire:click="openGroupingForm">{{ __($this->groupingBadge['label']) }}</flux:badge>
-                                @else
-                                    <flux:badge size="sm" class="cursor-pointer" wire:click="openGroupingForm">{{ __($this->groupingBadge['label']) }}</flux:badge>
-                                @endif
-                            </div>
+                                    @foreach ($this->settingBadges as $badge)
+                                        @if ($badge['overridden'])
+                                            <flux:badge size="sm" color="green" class="cursor-pointer" wire:click="openSettingsForm('{{ $badge['modalField'] }}')">{{ $badge['label'] }}*</flux:badge>
+                                        @else
+                                            <flux:badge size="sm" class="cursor-pointer" wire:click="openSettingsForm('{{ $badge['modalField'] }}')">{{ $badge['label'] }}</flux:badge>
+                                        @endif
+                                    @endforeach
+                                </div>
+                            @else
+                                <div class="flex flex-wrap gap-1 {{ empty($exerciseBadges) ? 'mt-3' : '' }}">
+                                    @if ($this->groupingBadge['overridden'])
+                                        <flux:badge size="sm" color="{{ $this->groupingBadge['color'] }}" class="cursor-pointer" wire:click="openGroupingForm">{{ __($this->groupingBadge['label']) }}</flux:badge>
+                                    @else
+                                        <flux:badge size="sm" class="cursor-pointer" wire:click="openGroupingForm">{{ __($this->groupingBadge['label']) }}</flux:badge>
+                                    @endif
+                                </div>
+                            @endif
                         @endif
 
                         @if (! $this->requiresMeasuredData || $this->hasMeasuredData)
@@ -86,21 +88,20 @@
                     </flux:dropdown>
                 </div>
 
-                <div x-on:grid-setting-click="$wire.openSettingsForm($event.detail.field)">
-                    <x-training.exercise-grid
-                        :grid="$this->displayGrid"
-                        :name="$exerciseName"
-                        :showHeader="false"
-                        :settingClickable="true"
-                        :collapseWeeks="false"
-                        :copyMenuOptions="$this->copyMenuOptions"
-                        :showActualValues="$this->showsActualValueTabs"
-                        :valueDisplayMode="$valueDisplayMode"
-                        :actualCellValues="$this->actualCellValues"
-                        :actualSessionValues="$this->actualSessionValues"
-                        :editableActualSessionsByWeek="$this->editableActualSessionsByWeek"
-                    />
-                </div>
+                @if ($valueDisplayMode === 'actual')
+                    <x-training.plan-actual-grid :table="$this->planActualGridTable" />
+                @else
+                    <div x-on:grid-setting-click="$wire.openSettingsForm($event.detail.field)">
+                        <x-training.plan-grid
+                            :grid="$this->displayGrid"
+                            :name="$exerciseName"
+                            :showHeader="false"
+                            :settingClickable="true"
+                            :collapseWeeks="false"
+                            :copyMenuOptions="$this->copyMenuOptions"
+                        />
+                    </div>
+                @endif
             </div>
         @endif
     </x-cms::section>
