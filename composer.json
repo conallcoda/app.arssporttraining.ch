@@ -15,6 +15,7 @@
         "codeat3/blade-fluentui-system-icons": "^1.35",
         "laravel/fortify": "^1.0",
         "laravel/framework": "^12.0",
+        "laravel/telescope": "^5.20",
         "laravel/tinker": "^2.10.1",
         "maatwebsite/excel": "^3.1",
         "mallardduck/blade-lucide-icons": "^1.23",
@@ -112,16 +113,16 @@
     "repositories": {
         "form-kit": {
             "type": "path",
-            "url": "packages/form-kit",
+            "url": "/Users/conalloreilly/Development/coda-packages/form-kit",
             "options": {
-                "symlink": false
+                "symlink": true
             }
         },
         "cms": {
             "type": "path",
-            "url": "packages/cms",
+            "url": "/Users/conalloreilly/Development/coda-packages/cms",
             "options": {
-                "symlink": false
+                "symlink": true
             }
         },
         "flux-pro": {
