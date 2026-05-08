@@ -15,6 +15,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/login');
 
+Route::get('/ping-test', fn () => response('ok', 200))
+    ->name('ping-test');
+
 Route::middleware('guest')->group(function (): void {
     Route::get('/account-setup/{accountSetupUuid}/{token}', [UserAccountSetupController::class, 'create'])
         ->name('user.account-setup');
