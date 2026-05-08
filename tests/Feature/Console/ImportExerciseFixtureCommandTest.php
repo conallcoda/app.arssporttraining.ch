@@ -17,6 +17,14 @@ use Illuminate\Support\Facades\Hash;
 
 uses(RefreshDatabase::class);
 
+beforeEach(function () {
+    Carbon::setTestNow(Carbon::parse('2026-05-04 09:00:00'));
+});
+
+afterEach(function () {
+    Carbon::setTestNow();
+});
+
 it('resets Conall fixture data and creates the representative exercise bundle', function () {
     $envPath = base_path('tests/Fixtures/tmp.exercise-fixture.env');
     File::ensureDirectoryExists(dirname($envPath));
@@ -34,7 +42,7 @@ it('resets Conall fixture data and creates the representative exercise bundle', 
         ->and(TrainingProgram::count())->toBe(5)
         ->and(TrainingProgramBlock::count())->toBe(5)
         ->and(TrainingProgramSlot::count())->toBe(162)
-        ->and(MetricSubmission::count())->toBe(8);
+        ->and(MetricSubmission::count())->toBe(7);
 
     $coach = User::query()->where('email', 'conall@coda.works')->firstOrFail();
 
@@ -69,6 +77,11 @@ it('resets Conall fixture data and creates the representative exercise bundle', 
 
     expect($group->owner_id)->toBe($coach->id)
         ->and($group->members()->count())->toBe(3);
+
+    $strengthTrainingProgram = TrainingProgram::query()
+        ->where('owner_id', $coach->id)
+        ->whereHas('program', fn ($query) => $query->where('name', 'Strength - Test Program'))
+        ->firstOrFail();
 
     $backSquat = Exercise::query()->where('name', 'Strength - 1RM 100% Template')->firstOrFail();
 
@@ -141,6 +154,11 @@ it('resets Conall fixture data and creates the representative exercise bundle', 
         ->where('name', 'Strength - Test Program')
         ->firstOrFail();
 
+    $scheduledStrengthProgram = TrainingProgram::query()
+        ->where('owner_id', $coach->id)
+        ->whereHas('program', fn ($query) => $query->where('name', 'Strength - Test Program'))
+        ->firstOrFail();
+
     $strengthStructure = $strengthProgram->exercises()
         ->withPivot(['type', 'group'])
         ->orderBy('exercise_program_exercises.sort')
@@ -162,6 +180,9 @@ it('resets Conall fixture data and creates the representative exercise bundle', 
         ['name' => 'Recovery - Warm-Down Reset', 'type' => 'warm_down', 'group' => null],
     ]);
 
+    expect($strengthProgram->parent_type)->toBe(TrainingProgram::class)
+        ->and($strengthProgram->parent_id)->toBe($scheduledStrengthProgram->id);
+
     $archivedProgram = TrainingProgram::query()
         ->where('owner_id', $coach->id)
         ->where('status', TrainingProgram::STATUS_ARCHIVED)
@@ -174,8 +195,13 @@ it('resets Conall fixture data and creates the representative exercise bundle', 
         ->where('note', 'Archived Strength Block')
         ->firstOrFail();
 
-    expect($archivedBlock->start?->format('Y-m-d'))->toBe(today()->subMonth()->format('Y-m-d'))
-        ->and($archivedBlock->end?->format('Y-m-d'))->toBe(today()->subMonth()->addWeeks(3)->format('Y-m-d'));
+    $strengthBlock = TrainingProgramBlock::query()
+        ->where('note', 'Strength Block')
+        ->firstOrFail();
+
+    expect($archivedBlock->start?->format('Y-m-d'))->toBe(today()->subWeeks(7)->subDay()->format('Y-m-d'))
+        ->and($archivedBlock->end?->format('Y-m-d'))->toBe(today()->subWeeks(4)->subDay()->format('Y-m-d'))
+        ->and($archivedBlock->end?->lt($strengthBlock->start))->toBeTrue();
 
     expect(TrainingProgramSlot::query()
         ->where('training_program_id', $archivedProgram->id)
@@ -192,6 +218,23 @@ it('resets Conall fixture data and creates the representative exercise bundle', 
     $john = User::query()->where('forename', 'John')->where('surname', 'Doe')->firstOrFail();
     $max = User::query()->where('forename', 'Max')->where('surname', 'Mustermann')->firstOrFail();
     $joe = User::query()->where('forename', 'Joe')->where('surname', 'Bloggs')->firstOrFail();
+
+    $johnOneRepMaxMetrics = MetricSubmission::query()
+        ->where('user_id', $john->id)
+        ->where('metric', 'oneRepMax')
+        ->orderBy('recorded_at')
+        ->get();
+    $joeOneRepMaxMetrics = MetricSubmission::query()
+        ->where('user_id', $joe->id)
+        ->where('metric', 'oneRepMax')
+        ->orderBy('recorded_at')
+        ->get();
+
+    expect($johnOneRepMaxMetrics)->toHaveCount(2)
+        ->and($joeOneRepMaxMetrics)->toHaveCount(1)
+        ->and($johnOneRepMaxMetrics->first()?->recorded_at?->lte($strengthBlock->start))->toBeTrue()
+        ->and($joeOneRepMaxMetrics->first()?->recorded_at?->lte($strengthBlock->start))->toBeTrue()
+        ->and($johnOneRepMaxMetrics->last()?->recorded_at?->betweenIncluded($strengthBlock->start, $strengthBlock->end))->toBeTrue();
 
     $johnOverrideSlots = TrainingProgramSlot::query()
         ->where('training_program_id', $overrideProgram->id)
@@ -292,30 +335,75 @@ it('resets Conall fixture data and creates the representative exercise bundle', 
             'copyValuesAutomatically' => true,
         ]);
 
+    $fourWeeksAgo = today()->subWeeks(4)->format('Y-m-d');
     $tomorrow = today()->addDay()->format('Y-m-d');
     $activeFirstScheduledDate = Carbon::parse((string) TrainingProgramSlot::query()
         ->where('training_program_id', '!=', $archivedProgram->id)
         ->min('scheduled_date'));
     $lastScheduledDate = Carbon::parse((string) TrainingProgramSlot::query()->max('scheduled_date'));
 
-    expect($activeFirstScheduledDate->format('Y-m-d'))->toBe($tomorrow);
+    expect($activeFirstScheduledDate->format('Y-m-d'))->toBe($fourWeeksAgo);
 
     TrainingProgramBlock::query()
         ->orderBy('id')
-        ->where('id', '!=', $archivedBlock->id)
-        ->each(function (TrainingProgramBlock $block) use ($tomorrow, $lastScheduledDate): void {
+        ->whereNotIn('id', [$archivedBlock->id])
+        ->each(function (TrainingProgramBlock $block) use ($tomorrow, $fourWeeksAgo, $lastScheduledDate): void {
+            if ($block->note === 'Strength Block') {
+                expect($block->start?->format('Y-m-d'))->toBe($fourWeeksAgo)
+                    ->and($block->end?->gte($block->start?->copy()->addWeeks(8)))->toBeTrue();
+
+                return;
+            }
+
             expect($block->start?->format('Y-m-d'))->toBe($tomorrow)
                 ->and($block->end?->gte($lastScheduledDate))->toBeTrue();
         });
 
     expect(TrainingProgramSlot::query()
         ->where('user_id', $max->id)
-        ->whereDate('scheduled_date', today()->addDay()->addWeek()->addDays(4)->format('Y-m-d'))
+        ->whereDate('scheduled_date', today()->subWeeks(3)->addDays(4)->format('Y-m-d'))
         ->exists())->toBeTrue()
         ->and(TrainingProgramSlot::query()
             ->where('user_id', $joe->id)
-            ->whereDate('scheduled_date', today()->addDay()->addWeeks(2)->addDays(1)->format('Y-m-d'))
+            ->whereDate('scheduled_date', today()->subWeeks(2)->addDays(1)->format('Y-m-d'))
             ->exists())->toBeTrue();
+
+    $pastStrengthSlots = TrainingProgramSlot::query()
+        ->with('exercises')
+        ->where('training_program_id', $strengthTrainingProgram->id)
+        ->whereDate('scheduled_date', '<', today()->format('Y-m-d'))
+        ->get();
+
+    expect($pastStrengthSlots)->toHaveCount(24)
+        ->and($pastStrengthSlots->filter(fn (TrainingProgramSlot $slot) => $slot->status?->value === 'completed')->count())->toBeGreaterThan(0)
+        ->and($pastStrengthSlots->filter(fn (TrainingProgramSlot $slot) => $slot->status?->value === 'partially_completed')->count())->toBeGreaterThan(0)
+        ->and($pastStrengthSlots->filter(fn (TrainingProgramSlot $slot) => $slot->status?->value === 'skipped')->count())->toBeGreaterThan(0);
+
+    $johnFirstPastStrengthSlot = TrainingProgramSlot::query()
+        ->with('exercises.exercise', 'exercises.sets.values')
+        ->where('training_program_id', $strengthTrainingProgram->id)
+        ->where('user_id', $john->id)
+        ->whereDate('scheduled_date', '<', today()->format('Y-m-d'))
+        ->orderBy('scheduled_date')
+        ->firstOrFail();
+
+    $johnFirstPastStrengthExercises = $johnFirstPastStrengthSlot->exercises->keyBy(fn ($exercise) => $exercise->exercise->name);
+
+    expect($johnFirstPastStrengthSlot->status?->value)->toBe('completed')
+        ->and($johnFirstPastStrengthExercises['Strength - Coach Fixed Weight']->sets->sortBy('set_number')->values()->first()->values->firstWhere('setting_key', 'weight')?->actual_decimal_value)->toBe(7.5)
+        ->and($johnFirstPastStrengthExercises['Strength - Athlete Enters Weight']->sets->sortBy('set_number')->values()->map(
+            function ($set) {
+                $weight = $set->values->firstWhere('setting_key', 'weight');
+
+                return $weight?->actual_decimal_value ?? $weight?->actual_int_value ?? $weight?->actual_string_value;
+            }
+        )->all())->toBe([22.5, 25, 27.5])
+        ->and($johnFirstPastStrengthExercises['Strength - Coach Fixed Weight']->sets->flatMap(
+            fn ($set) => $set->values->pluck('actual_value_type')
+        )->contains(null))->toBeFalse()
+        ->and($johnFirstPastStrengthExercises['Strength - Athlete Enters Weight']->sets->flatMap(
+            fn ($set) => $set->values->pluck('actual_value_type')
+        )->contains(null))->toBeFalse();
 
     File::delete($envPath);
 });

@@ -32,11 +32,11 @@
         $showGroupColumn = $hasPreparedGroups ? ($grid->showGroupColumn ?? $grid->showWeekColumn) : ($collapseWeeks ? $grid->weekCount > 1 : true);
         $showSessionColumn = true;
         $groupColumnLabel = $grid->groupColumnLabel ?? __('Week');
+        $splitActualColumns = $showActualValues && $valueDisplayMode === 'actual';
         $hasCopyActions = collect($copyMenuOptions)->contains(
             fn ($options): bool => ! empty($options['from'] ?? []) || ! empty($options['to'] ?? [])
         );
-        $showCopyColumn = (bool) ($grid->showCopyMenu ?? false) && $hasCopyActions;
-        $splitActualColumns = $showActualValues && $valueDisplayMode === 'actual';
+        $showCopyColumn = ! $splitActualColumns && (bool) ($grid->showCopyMenu ?? false) && $hasCopyActions;
         $baseRows = $splitActualColumns
             ? array_values(array_filter(
                 $grid->rows,
@@ -49,6 +49,10 @@
         $splitSetSubcellWidthClass = 'w-[5rem] min-w-[5rem] max-w-[5rem] overflow-hidden';
         $splitSetSubcellWidthStyle = 'width: 5rem; min-width: 5rem; max-width: 5rem;';
         $splitSetHeaderWidthStyle = 'width: 10rem; min-width: 10rem;';
+        $allowCoachFreeEditing = $showActualValues && $valueDisplayMode === 'actual';
+        $actualDiffersFromPlanned = static fn (mixed $plannedValue, mixed $actualValue): bool => $actualValue !== null
+            && $actualValue !== '-'
+            && (string) $actualValue !== (string) $plannedValue;
     @endphp
     <div class="{{ $showHeader ? 'space-y-2 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4' : 'space-y-2' }}">
         @if ($showHeader)
@@ -179,6 +183,23 @@
                             <th class="border border-zinc-300 dark:border-zinc-600 px-2 py-2 w-12"></th>
                         @endif
                     </tr>
+                    @if ($splitActualColumns && $displayRowCount > 0)
+                        <tr class="bg-zinc-100 dark:bg-zinc-800">
+                            @if ($showGroupColumn)
+                                <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-1"></th>
+                            @endif
+                            <th class="border border-zinc-300 dark:border-zinc-600 px-2 py-1"></th>
+                            <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-1"></th>
+                            @for ($i = 0; $i < $grid->setCount; $i++)
+                                <th style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-1 py-1 text-[9px] font-medium uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
+                                    {{ __('Planned') }}
+                                </th>
+                                <th style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-1 py-1 text-[9px] font-medium uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
+                                    {{ __('Actual') }}
+                                </th>
+                            @endfor
+                        </tr>
+                    @endif
                 </thead>
                 <tbody>
                     @foreach ($preparedGroups as $group)
@@ -194,10 +215,11 @@
                             $canToggleGroup = (bool) ($group->collapsible ?? false);
                         @endphp
                         @if (! $groupExpanded && $collapsedSession)
-                            @php
-                                $week = $collapsedSession->weekIndex;
-                                $session = $collapsedSession->sessionIndex;
-                            @endphp
+                                @php
+                                    $week = $collapsedSession->weekIndex;
+                                    $session = $collapsedSession->sessionIndex;
+                                    $collapsedPlannedLocked = $allowCoachFreeEditing ? false : $collapsedGroupLocked;
+                                @endphp
                             @if ($displayRowCount === 0)
                                 <tr wire:key="collapsed-weekonly-g{{ $group->index }}-w{{ $week }}-s{{ $session }}">
                                     @php
@@ -224,15 +246,27 @@
                                             <div>{{ $line }}</div>
                                         @endforeach
                                     </td>
-                                    @foreach ($grid->weekColumns as $weekCol)
-                                        @php
-                                            $weekCell = $weekCol->presentWeekCell($week, $session, editable: $editable, locked: $collapsedGroupLocked);
-                                            $weekActualValue = $showActualValues ? data_get($actualSessionValues, $weekCol->field . '.' . $week . '.' . $session, '-') : null;
-                                            $weekActualEditable = $splitActualColumns && data_get($editableActualSessionsByWeek, $week . '.' . $session, false);
-                                        @endphp
+                                        @foreach ($grid->weekColumns as $weekCol)
+                                            @php
+                                                $weekCell = $weekCol->presentWeekCell($week, $session, editable: $editable, locked: $collapsedPlannedLocked);
+                                                $weekPlannedEditable = $splitActualColumns
+                                                    ? ($weekCell['value'] !== '-' && ($weekCell['editable'] || $allowCoachFreeEditing))
+                                                    : $weekCell['editable'];
+                                                $weekPlannedColor = $weekCol->resolveCellColor($week, null, false, $session);
+                                                $weekPlannedRenderKey = 'split-planned-week-collapsed-weekonly-'
+                                                    .$group->index.'-'.$week.'-'.$session.'-'.$weekCol->field.'-'
+                                                    .md5(json_encode([$weekCell['value'], $weekPlannedEditable, $weekPlannedColor]));
+                                                $weekActualValue = $showActualValues ? data_get($actualSessionValues, $weekCol->field . '.' . $week . '.' . $session, '-') : null;
+                                            $weekActualColor = $actualDiffersFromPlanned($weekCell['value'], $weekActualValue)
+                                                ? $weekCol->resolveCellColor($week, null, true, $session)
+                                                : $weekCell['color'];
+                                            $weekActualEditable = $splitActualColumns
+                                                && $weekCol->field !== 'sets'
+                                                && data_get($editableActualSessionsByWeek, $week . '.' . $session, false);
+                                            @endphp
                                         @if ($splitActualColumns)
-                                            @if ($weekCell['editable'])
-                                                <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $splitSetSubcellWidthClass }} {{ $weekCell['color'] }}"
+                                            @if ($weekPlannedEditable)
+                                                <td wire:key="{{ $weekPlannedRenderKey }}" style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $splitSetSubcellWidthClass }} {{ $weekPlannedColor }}"
                                                     x-data="editable_cell"
                                                     data-msg-invalid-number="{{ __('Please enter a valid number') }}"
                                                     data-msg-invalid-value="{{ __('Please enter a valid value') }}"
@@ -240,7 +274,7 @@
                                                     data-field="{{ $weekCol->field }}"
                                                     data-week="{{ $week }}"
                                                     data-session="{{ $session }}"
-                                                    data-apply-to-all="{{ $applyToAllByDefault ? 'true' : 'false' }}"
+                                                    data-apply-to-all="{{ $splitActualColumns ? 'false' : ($applyToAllByDefault ? 'true' : 'false') }}"
                                                     data-provenance-kind="{{ $weekCell['provenance']?->kind ?? '' }}"
                                                     data-provenance-layer="{{ $weekCell['provenance']?->layer ?? '' }}"
                                                     @if ($weekCol->inputMeta && $weekCol->inputMeta->mask)
@@ -251,12 +285,12 @@
                                                     <x-training.exercise-grid-input :meta="$weekCol->inputMeta" :value="$weekCell['value']" size="xs" type="text" />
                                                 </td>
                                             @else
-                                                <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $splitSetSubcellWidthClass }} {{ $weekCell['color'] }} {{ $collapsedGroupLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
+                                                <td wire:key="{{ $weekPlannedRenderKey }}" style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $splitSetSubcellWidthClass }} {{ $weekPlannedColor }} {{ $collapsedPlannedLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
                                                     {{ $weekCell['value'] }}
                                                 </td>
                                             @endif
                                             @if ($weekActualEditable)
-                                                <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $splitSetSubcellWidthClass }} {{ $weekCell['color'] }}"
+                                                <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $splitSetSubcellWidthClass }} {{ $weekActualColor }}"
                                                     x-data="editable_cell"
                                                     data-value-target="actual"
                                                     data-msg-invalid-number="{{ __('Please enter a valid number') }}"
@@ -274,7 +308,7 @@
                                                     <x-training.exercise-grid-input :meta="$weekCol->inputMeta" :value="$weekActualValue === '-' ? '' : $weekActualValue" size="xs" type="text" />
                                                 </td>
                                             @else
-                                                <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $splitSetSubcellWidthClass }} {{ $weekCell['color'] }} {{ $collapsedGroupLocked || $weekActualValue === null || $weekActualValue === '-' ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
+                                                <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $splitSetSubcellWidthClass }} {{ $weekActualColor }} {{ $collapsedGroupLocked || $weekActualValue === null || $weekActualValue === '-' ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
                                                     {{ $weekActualValue ?? '-' }}
                                                 </td>
                                             @endif
@@ -304,7 +338,7 @@
                                                 <x-training.exercise-grid-input :meta="$weekCol->inputMeta" :value="$weekCell['value']" size="xs" type="text" />
                                             </td>
                                         @else
-                                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $weekCell['color'] }} {{ $collapsedGroupLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
+                                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $weekCell['color'] }} {{ $collapsedPlannedLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
                                                 @include('components.training.partials.planned-actual-value', [
                                                     'plannedValue' => $weekCell['value'],
                                                     'actualValue' => $weekActualValue,
@@ -354,6 +388,7 @@
                                         $isSessionScopedRow = $splitActualColumns && in_array($row->field, $splitSessionRowFields, true);
                                         $collapsedCopyKey = ($showGroupColumn && $groupSessionCount > 1) ? 'group:' . $group->index : 'session:' . $week . ':' . $session;
                                         $collapsedCopyOptions = $copyMenuOptions[$collapsedCopyKey] ?? ['from' => [], 'to' => []];
+                                        $collapsedPlannedLocked = $allowCoachFreeEditing ? false : $collapsedGroupLocked;
                                     @endphp
                                     <tr wire:key="collapsed-g{{ $group->index }}-w{{ $week }}-s{{ $session }}-r{{ $rowIdx }}">
                                         @if ($showGroupColumn && $isFirstRow)
@@ -386,25 +421,35 @@
                                         @for ($set = 0; $set < $grid->setCount; $set++)
                                             @php
                                                 $cell = $isSessionScopedRow
-                                                    ? $row->presentWeekCell($week, $session, editable: $editable, locked: $collapsedGroupLocked)
+                                                    ? $row->presentWeekCell($week, $session, editable: $editable, locked: $collapsedPlannedLocked)
                                                     : $row->presentCell(
                                                         $week,
                                                         $set,
                                                         $session,
                                                         editable: $editable,
-                                                        locked: $collapsedGroupLocked,
+                                                        locked: $collapsedPlannedLocked,
                                                         visible: true,
                                                     );
+                                                $cellPlannedColor = $row->resolveCellColor($week, $isSessionScopedRow ? null : $set, false, $session);
+                                                $cellPlannedEditable = $splitActualColumns
+                                                    ? ($cell['value'] !== '-' && ($cell['editable'] || $allowCoachFreeEditing))
+                                                    : $cell['editable'];
+                                                $cellPlannedRenderKey = 'split-planned-cell-collapsed-'
+                                                    .$group->index.'-'.$week.'-'.$session.'-'.$row->field.'-'.$set.'-'
+                                                    .md5(json_encode([$cell['value'], $cellPlannedEditable, $cellPlannedColor]));
                                                 $cellActualValue = $showActualValues
                                                     ? ($isSessionScopedRow
                                                         ? data_get($actualSessionValues, $row->field . '.' . $week . '.' . $session, '-')
                                                         : data_get($actualCellValues, $row->field . '.' . $week . '.' . $session . '.' . $set, '-'))
                                                     : null;
+                                                $cellActualColor = $actualDiffersFromPlanned($cell['value'], $cellActualValue)
+                                                    ? $row->resolveCellColor($week, $isSessionScopedRow ? null : $set, true, $session)
+                                                    : $cell['color'];
                                                 $cellActualEditable = $splitActualColumns && data_get($editableActualSessionsByWeek, $week . '.' . $session, false);
                                             @endphp
                                             @if ($splitActualColumns)
-                                                @if ($cell['editable'])
-                                                    <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $splitSetSubcellWidthClass }} {{ $cell['color'] }}"
+                                                @if ($cellPlannedEditable)
+                                                    <td wire:key="{{ $cellPlannedRenderKey }}" style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $splitSetSubcellWidthClass }} {{ $cellPlannedColor }}"
                                                         x-data="editable_cell"
                                                         data-msg-invalid-number="{{ __('Please enter a valid number') }}"
                                                         data-msg-invalid-value="{{ __('Please enter a valid value') }}"
@@ -415,7 +460,7 @@
                                                             data-set="{{ $set }}"
                                                         @endif
                                                         data-session="{{ $session }}"
-                                                        data-apply-to-all="{{ $applyToAllByDefault ? 'true' : 'false' }}"
+                                                        data-apply-to-all="{{ $splitActualColumns ? 'false' : ($applyToAllByDefault ? 'true' : 'false') }}"
                                                         data-provenance-kind="{{ $cell['provenance']?->kind ?? '' }}"
                                                         data-provenance-layer="{{ $cell['provenance']?->layer ?? '' }}"
                                                         @if ($row->inputMeta && $row->inputMeta->mask)
@@ -426,12 +471,12 @@
                                                         <x-training.exercise-grid-input :meta="$row->inputMeta" :value="$cell['value']" size="sm" />
                                                     </td>
                                                 @else
-                                                    <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $splitSetSubcellWidthClass }} {{ $cell['color'] }} {{ $collapsedGroupLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
+                                                    <td wire:key="{{ $cellPlannedRenderKey }}" style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $splitSetSubcellWidthClass }} {{ $cellPlannedColor }} {{ $collapsedPlannedLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
                                                         {{ $cell['value'] }}
                                                     </td>
                                                 @endif
                                                 @if ($cellActualEditable)
-                                                    <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $splitSetSubcellWidthClass }} {{ $cell['color'] }}"
+                                                    <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $splitSetSubcellWidthClass }} {{ $cellActualColor }}"
                                                         x-data="editable_cell"
                                                         data-value-target="actual"
                                                         data-msg-invalid-number="{{ __('Please enter a valid number') }}"
@@ -452,7 +497,7 @@
                                                         <x-training.exercise-grid-input :meta="$row->inputMeta" :value="$cellActualValue === '-' ? '' : $cellActualValue" size="sm" />
                                                     </td>
                                                 @else
-                                                    <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $splitSetSubcellWidthClass }} {{ $cell['color'] }} {{ $collapsedGroupLocked || $cellActualValue === null || $cellActualValue === '-' ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
+                                                    <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $splitSetSubcellWidthClass }} {{ $cellActualColor }} {{ $collapsedGroupLocked || $cellActualValue === null || $cellActualValue === '-' ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
                                                         {{ $cellActualValue ?? '-' }}
                                                     </td>
                                                 @endif
@@ -466,7 +511,7 @@
                                                     data-week="{{ $week }}"
                                                     data-set="{{ $set }}"
                                                     data-session="{{ $session }}"
-                                                    data-apply-to-all="{{ $applyToAllByDefault ? 'true' : 'false' }}"
+                                                    data-apply-to-all="{{ $splitActualColumns ? 'false' : ($applyToAllByDefault ? 'true' : 'false') }}"
                                                     data-provenance-kind="{{ $cell['provenance']?->kind ?? '' }}"
                                                     data-provenance-layer="{{ $cell['provenance']?->layer ?? '' }}"
                                                     @if ($row->inputMeta && $row->inputMeta->mask)
@@ -483,7 +528,7 @@
                                                     <x-training.exercise-grid-input :meta="$row->inputMeta" :value="$cell['value']" size="sm" />
                                                 </td>
                                             @else
-                                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $cell['color'] }} {{ $collapsedGroupLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
+                                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $cell['color'] }} {{ $collapsedPlannedLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
                                                     @include('components.training.partials.planned-actual-value', [
                                                         'plannedValue' => $cell['value'],
                                                         'actualValue' => $cellActualValue,
@@ -495,7 +540,7 @@
                                         @if ($isFirstRow && ! $splitActualColumns)
                                             @foreach ($grid->weekColumns as $weekCol)
                                                 @php
-                                                    $weekCell = $weekCol->presentWeekCell($week, $session, editable: $editable, locked: $collapsedGroupLocked);
+                                                    $weekCell = $weekCol->presentWeekCell($week, $session, editable: $editable, locked: $collapsedPlannedLocked);
                                                 @endphp
                                                 @if ($weekCell['editable'])
                                                     <td class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $weekCell['color'] }}"
@@ -507,7 +552,7 @@
                                                         data-field="{{ $weekCol->field }}"
                                                         data-week="{{ $week }}"
                                                         data-session="{{ $session }}"
-                                                        data-apply-to-all="{{ $applyToAllByDefault ? 'true' : 'false' }}"
+                                                        data-apply-to-all="{{ $splitActualColumns ? 'false' : ($applyToAllByDefault ? 'true' : 'false') }}"
                                                         data-provenance-kind="{{ $weekCell['provenance']?->kind ?? '' }}"
                                                         data-provenance-layer="{{ $weekCell['provenance']?->layer ?? '' }}"
                                                         @if ($weekCol->inputMeta && $weekCol->inputMeta->mask)
@@ -524,7 +569,7 @@
                                                         <x-training.exercise-grid-input :meta="$weekCol->inputMeta" :value="$weekCell['value']" size="xs" type="text" />
                                                     </td>
                                                 @else
-                                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $weekCell['color'] }} {{ $collapsedGroupLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}"
+                                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $weekCell['color'] }} {{ $collapsedPlannedLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}"
                                                     rowspan="{{ count($grid->rows) }}">
                                                     @include('components.training.partials.planned-actual-value', [
                                                         'plannedValue' => $weekCell['value'],
@@ -578,6 +623,7 @@
                                     $week = $sessionEntry->weekIndex;
                                     $session = $sessionEntry->sessionIndex;
                                     $sessionLocked = (bool) ($sessionEntry->locked ?? false);
+                                    $plannedSessionLocked = $allowCoachFreeEditing ? false : $sessionLocked;
                                     $sessionCopyKey = 'session:' . $week . ':' . $session;
                                     $sessionCopyOptions = $copyMenuOptions[$sessionCopyKey] ?? ['from' => [], 'to' => []];
                                 @endphp
@@ -600,15 +646,27 @@
                                     <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 text-center text-xs font-medium text-zinc-400 dark:text-zinc-500">
                                         <div>{{ $sessionEntry->sessionNumber }}</div>
                                     </td>
-                                    @foreach ($grid->weekColumns as $weekCol)
-                                        @php
-                                            $weekCell = $weekCol->presentWeekCell($week, $session, editable: $editable, locked: $sessionLocked);
-                                            $weekActualValue = $showActualValues ? data_get($actualSessionValues, $weekCol->field . '.' . $week . '.' . $session, '-') : null;
-                                            $weekActualEditable = $splitActualColumns && data_get($editableActualSessionsByWeek, $week . '.' . $session, false);
+                                        @foreach ($grid->weekColumns as $weekCol)
+                                            @php
+                                                $weekCell = $weekCol->presentWeekCell($week, $session, editable: $editable, locked: $plannedSessionLocked);
+                                                $weekPlannedEditable = $splitActualColumns
+                                                    ? ($weekCell['value'] !== '-' && ($weekCell['editable'] || $allowCoachFreeEditing))
+                                                    : $weekCell['editable'];
+                                                $weekPlannedColor = $weekCol->resolveCellColor($week, null, false, $session);
+                                                $weekPlannedRenderKey = 'split-planned-week-expanded-weekonly-'
+                                                    .$group->index.'-'.$week.'-'.$session.'-'.$weekCol->field.'-'
+                                                    .md5(json_encode([$weekCell['value'], $weekPlannedEditable, $weekPlannedColor]));
+                                                $weekActualValue = $showActualValues ? data_get($actualSessionValues, $weekCol->field . '.' . $week . '.' . $session, '-') : null;
+                                            $weekActualColor = $actualDiffersFromPlanned($weekCell['value'], $weekActualValue)
+                                                ? $weekCol->resolveCellColor($week, null, true, $session)
+                                                : $weekCell['color'];
+                                            $weekActualEditable = $splitActualColumns
+                                                && $weekCol->field !== 'sets'
+                                                && data_get($editableActualSessionsByWeek, $week . '.' . $session, false);
                                         @endphp
                                         @if ($splitActualColumns)
-                                            @if ($weekCell['editable'])
-                                                <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $splitSetSubcellWidthClass }} {{ $weekCell['color'] }}"
+                                            @if ($weekPlannedEditable)
+                                                <td wire:key="{{ $weekPlannedRenderKey }}" style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $splitSetSubcellWidthClass }} {{ $weekPlannedColor }}"
                                                     x-data="editable_cell"
                                                     data-msg-invalid-number="{{ __('Please enter a valid number') }}"
                                                     data-msg-invalid-value="{{ __('Please enter a valid value') }}"
@@ -616,7 +674,7 @@
                                                     data-field="{{ $weekCol->field }}"
                                                     data-week="{{ $week }}"
                                                     data-session="{{ $session }}"
-                                                    data-apply-to-all="{{ $applyToAllByDefault ? 'true' : 'false' }}"
+                                                    data-apply-to-all="{{ $splitActualColumns ? 'false' : ($applyToAllByDefault ? 'true' : 'false') }}"
                                                     data-provenance-kind="{{ $weekCell['provenance']?->kind ?? '' }}"
                                                     data-provenance-layer="{{ $weekCell['provenance']?->layer ?? '' }}"
                                                     @if ($weekCol->inputMeta && $weekCol->inputMeta->mask)
@@ -627,12 +685,12 @@
                                                     <x-training.exercise-grid-input :meta="$weekCol->inputMeta" :value="$weekCell['value']" size="xs" type="text" />
                                                 </td>
                                             @else
-                                                <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $splitSetSubcellWidthClass }} {{ $weekCell['color'] }} {{ $sessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
+                                                <td wire:key="{{ $weekPlannedRenderKey }}" style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $splitSetSubcellWidthClass }} {{ $weekPlannedColor }} {{ $plannedSessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
                                                     {{ $weekCell['value'] }}
                                                 </td>
                                             @endif
                                             @if ($weekActualEditable)
-                                                <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $splitSetSubcellWidthClass }} {{ $weekCell['color'] }}"
+                                                <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 p-0 text-center text-xs align-middle {{ $splitSetSubcellWidthClass }} {{ $weekActualColor }}"
                                                     x-data="editable_cell"
                                                     data-value-target="actual"
                                                     data-msg-invalid-number="{{ __('Please enter a valid number') }}"
@@ -650,7 +708,7 @@
                                                     <x-training.exercise-grid-input :meta="$weekCol->inputMeta" :value="$weekActualValue === '-' ? '' : $weekActualValue" size="xs" type="text" />
                                                 </td>
                                             @else
-                                                <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $splitSetSubcellWidthClass }} {{ $weekCell['color'] }} {{ $sessionLocked || $weekActualValue === null || $weekActualValue === '-' ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
+                                                <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $splitSetSubcellWidthClass }} {{ $weekActualColor }} {{ $sessionLocked || $weekActualValue === null || $weekActualValue === '-' ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
                                                     {{ $weekActualValue ?? '-' }}
                                                 </td>
                                             @endif
@@ -680,7 +738,7 @@
                                                 <x-training.exercise-grid-input :meta="$weekCol->inputMeta" :value="$weekCell['value']" size="xs" type="text" />
                                             </td>
                                         @else
-                                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $weekCell['color'] }} {{ $sessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
+                                            <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $weekCell['color'] }} {{ $plannedSessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
                                                 @include('components.training.partials.planned-actual-value', [
                                                     'plannedValue' => $weekCell['value'],
                                                     'actualValue' => $weekActualValue,
@@ -733,6 +791,7 @@
                                         $isFirstRow = $rowIdx === 0;
                                         $isSessionScopedRow = $splitActualColumns && in_array($row->field, $splitSessionRowFields, true);
                                         $sessionLocked = (bool) ($sessionEntry->locked ?? false);
+                                        $plannedSessionLocked = $allowCoachFreeEditing ? false : $sessionLocked;
                                         $isLastSession = $loop->parent->index === $groupSessionCount - 1;
                                         $sessionCopyKey = 'session:' . $week . ':' . $session;
                                         $sessionCopyOptions = $copyMenuOptions[$sessionCopyKey] ?? ['from' => [], 'to' => []];
@@ -770,25 +829,35 @@
                                         @for ($set = 0; $set < $grid->setCount; $set++)
                                             @php
                                                 $cell = $isSessionScopedRow
-                                                    ? $row->presentWeekCell($week, $session, editable: $editable, locked: $sessionLocked)
+                                                    ? $row->presentWeekCell($week, $session, editable: $editable, locked: $plannedSessionLocked)
                                                     : $row->presentCell(
                                                         $week,
                                                         $set,
                                                         $session,
                                                         editable: $editable,
-                                                        locked: $sessionLocked,
+                                                        locked: $plannedSessionLocked,
                                                         visible: ! ($row->lastSessionOnly && ! $isLastSession),
                                                     );
+                                                $cellPlannedColor = $row->resolveCellColor($week, $isSessionScopedRow ? null : $set, false, $session);
+                                                $cellPlannedEditable = $splitActualColumns
+                                                    ? ($cell['value'] !== '-' && ($cell['editable'] || $allowCoachFreeEditing))
+                                                    : $cell['editable'];
+                                                $cellPlannedRenderKey = 'split-planned-cell-expanded-'
+                                                    .$group->index.'-'.$week.'-'.$session.'-'.$row->field.'-'.$set.'-'
+                                                    .md5(json_encode([$cell['value'], $cellPlannedEditable, $cellPlannedColor]));
                                                 $cellActualValue = $showActualValues
                                                     ? ($isSessionScopedRow
                                                         ? data_get($actualSessionValues, $row->field . '.' . $week . '.' . $session, '-')
                                                         : data_get($actualCellValues, $row->field . '.' . $week . '.' . $session . '.' . $set, '-'))
                                                     : null;
+                                                $cellActualColor = $actualDiffersFromPlanned($cell['value'], $cellActualValue)
+                                                    ? $row->resolveCellColor($week, $isSessionScopedRow ? null : $set, true, $session)
+                                                    : $cell['color'];
                                                 $cellActualEditable = $splitActualColumns && data_get($editableActualSessionsByWeek, $week . '.' . $session, false);
                                             @endphp
                                             @if ($splitActualColumns)
-                                                @if ($cell['editable'])
-                                                    <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $splitSetSubcellWidthClass }} {{ $cell['color'] }}"
+                                                @if ($cellPlannedEditable)
+                                                    <td wire:key="{{ $cellPlannedRenderKey }}" style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $splitSetSubcellWidthClass }} {{ $cellPlannedColor }}"
                                                         x-data="editable_cell"
                                                         data-msg-invalid-number="{{ __('Please enter a valid number') }}"
                                                         data-msg-invalid-value="{{ __('Please enter a valid value') }}"
@@ -799,7 +868,7 @@
                                                             data-set="{{ $set }}"
                                                         @endif
                                                         data-session="{{ $session }}"
-                                                        data-apply-to-all="{{ $applyToAllByDefault ? 'true' : 'false' }}"
+                                                        data-apply-to-all="{{ $splitActualColumns ? 'false' : ($applyToAllByDefault ? 'true' : 'false') }}"
                                                         data-provenance-kind="{{ $cell['provenance']?->kind ?? '' }}"
                                                         data-provenance-layer="{{ $cell['provenance']?->layer ?? '' }}"
                                                         @if ($row->inputMeta && $row->inputMeta->mask)
@@ -810,12 +879,12 @@
                                                         <x-training.exercise-grid-input :meta="$row->inputMeta" :value="$cell['value']" size="sm" />
                                                     </td>
                                                 @else
-                                                    <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $splitSetSubcellWidthClass }} {{ $cell['color'] }} {{ $sessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
+                                                    <td wire:key="{{ $cellPlannedRenderKey }}" style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $splitSetSubcellWidthClass }} {{ $cellPlannedColor }} {{ $plannedSessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
                                                         {{ $cell['value'] }}
                                                     </td>
                                                 @endif
                                                 @if ($cellActualEditable)
-                                                    <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $splitSetSubcellWidthClass }} {{ $cell['color'] }}"
+                                                    <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $splitSetSubcellWidthClass }} {{ $cellActualColor }}"
                                                         x-data="editable_cell"
                                                         data-value-target="actual"
                                                         data-msg-invalid-number="{{ __('Please enter a valid number') }}"
@@ -836,7 +905,7 @@
                                                         <x-training.exercise-grid-input :meta="$row->inputMeta" :value="$cellActualValue === '-' ? '' : $cellActualValue" size="sm" />
                                                     </td>
                                                 @else
-                                                    <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $splitSetSubcellWidthClass }} {{ $cell['color'] }} {{ $sessionLocked || $cellActualValue === null || $cellActualValue === '-' ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
+                                                    <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $splitSetSubcellWidthClass }} {{ $cellActualColor }} {{ $sessionLocked || $cellActualValue === null || $cellActualValue === '-' ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
                                                         {{ $cellActualValue ?? '-' }}
                                                     </td>
                                                 @endif
@@ -867,7 +936,7 @@
                                                     <x-training.exercise-grid-input :meta="$row->inputMeta" :value="$cell['value']" size="sm" />
                                                 </td>
                                             @else
-                                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $cell['color'] }} {{ $sessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
+                                                <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $cell['color'] }} {{ $plannedSessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
                                                     @include('components.training.partials.planned-actual-value', [
                                                         'plannedValue' => $cell['value'],
                                                         'actualValue' => $cellActualValue,
@@ -879,7 +948,7 @@
                                         @if ($isFirstRow && ! $splitActualColumns)
                                             @foreach ($grid->weekColumns as $weekCol)
                                                 @php
-                                                    $weekCell = $weekCol->presentWeekCell($week, $session, editable: $editable, locked: $sessionLocked);
+                                                    $weekCell = $weekCol->presentWeekCell($week, $session, editable: $editable, locked: $plannedSessionLocked);
                                                     $weekActualValue = $showActualValues ? data_get($actualSessionValues, $weekCol->field . '.' . $week . '.' . $session, '-') : null;
                                                     $weekActualEditable = $splitActualColumns && data_get($editableActualSessionsByWeek, $week . '.' . $session, false);
                                                 @endphp
@@ -894,7 +963,7 @@
                                                             data-field="{{ $weekCol->field }}"
                                                             data-week="{{ $week }}"
                                                             data-session="{{ $session }}"
-                                                            data-apply-to-all="{{ $applyToAllByDefault ? 'true' : 'false' }}"
+                                                            data-apply-to-all="{{ $splitActualColumns ? 'false' : ($applyToAllByDefault ? 'true' : 'false') }}"
                                                             data-provenance-kind="{{ $weekCell['provenance']?->kind ?? '' }}"
                                                             data-provenance-layer="{{ $weekCell['provenance']?->layer ?? '' }}"
                                                             @if ($weekCol->inputMeta && $weekCol->inputMeta->mask)
@@ -905,7 +974,7 @@
                                                             <x-training.exercise-grid-input :meta="$weekCol->inputMeta" :value="$weekCell['value']" size="xs" type="text" />
                                                         </td>
                                                     @else
-                                                        <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $splitSetSubcellWidthClass }} {{ $weekCell['color'] }} {{ $sessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}"
+                                                        <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $splitSetSubcellWidthClass }} {{ $weekCell['color'] }} {{ $plannedSessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}"
                                                             rowspan="{{ count($grid->rows) }}">
                                                             {{ $weekCell['value'] }}
                                                         </td>
@@ -962,7 +1031,7 @@
                                                         <x-training.exercise-grid-input :meta="$weekCol->inputMeta" :value="$weekCell['value']" size="xs" type="text" />
                                                     </td>
                                                 @else
-                                                    <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $weekCell['color'] }} {{ $sessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}"
+                                                    <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $weekCell['color'] }} {{ $plannedSessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}"
                                                         rowspan="{{ count($grid->rows) }}">
                                                         @include('components.training.partials.planned-actual-value', [
                                                             'plannedValue' => $weekCell['value'],

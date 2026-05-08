@@ -142,11 +142,11 @@
                             @if ($showActualDisplayToggle)
                                 <div>
                                     <flux:label class="mb-1.5">{{ __('Display') }}</flux:label>
-                                    <div>
-                                        <flux:tabs wire:model.live="valueDisplayMode" variant="segmented" class="w-fit">
-                                            <flux:tab name="planned">{{ __('Plan') }}</flux:tab>
-                                            <flux:tab name="actual">{{ __('Plan + Actual') }}</flux:tab>
-                                        </flux:tabs>
+                                <div>
+                                        <flux:radio.group wire:model.live="valueDisplayMode" variant="segmented" class="w-fit">
+                                            <flux:radio value="planned" :label="__('Plan')" />
+                                            <flux:radio value="actual" :label="__('Plan + Actual')" />
+                                        </flux:radio.group>
                                     </div>
 
                                     @if ($userId !== null)
@@ -260,11 +260,11 @@
                         @if ($showActualDisplayToggle)
                             <div>
                                 <flux:label class="mb-1.5">{{ __('Display') }}</flux:label>
-                                <div>
-                                    <flux:tabs wire:model.live="valueDisplayMode" variant="segmented" class="w-fit">
-                                        <flux:tab name="planned">{{ __('Plan') }}</flux:tab>
-                                        <flux:tab name="actual">{{ __('Plan + Actual') }}</flux:tab>
-                                    </flux:tabs>
+                            <div>
+                                    <flux:radio.group wire:model.live="valueDisplayMode" variant="segmented" class="w-fit">
+                                        <flux:radio value="planned" :label="__('Plan')" />
+                                        <flux:radio value="actual" :label="__('Plan + Actual')" />
+                                    </flux:radio.group>
                                 </div>
 
                                 @if ($userId !== null)
@@ -289,12 +289,13 @@
     </div>
 
     @if ($this->exercises->isNotEmpty())
-        <div class="grid grid-cols-1 gap-4" wire:key="grids-{{ $this->activeSection }}-{{ $valueDisplayMode }}-{{ $this->exercises->pluck('pivot.id')->implode('-') }}">
+        <div class="grid grid-cols-1 gap-4" wire:key="grids-{{ $this->activeSection }}-{{ $valueDisplayMode }}-{{ $gridRenderVersion }}-{{ $this->exercises->pluck('pivot.id')->implode('-') }}">
             @foreach ($this->exercises as $exercise)
-                <div wire:key="grid-{{ $exercise->pivot->id }}-{{ $userId ?? 'default' }}-{{ $valueDisplayMode }}" class="min-w-0">
+                <div wire:key="grid-{{ $exercise->pivot->id }}-{{ $userId ?? 'default' }}-{{ $valueDisplayMode }}-{{ $gridRenderVersion }}" class="min-w-0">
                     <livewire:training.view.plan-exercise-grid
-                        :key="'grid-' . $exercise->pivot->id . '-' . $weeks . '-' . ($userId ?? 'default') . '-' . $valueDisplayMode"
+                        :key="'grid-' . $exercise->pivot->id . '-' . $weeks . '-' . ($userId ?? 'default') . '-' . $valueDisplayMode . '-' . $gridRenderVersion"
                         :planId="$planId"
+                        :scheduledTrainingProgramId="$scheduledTrainingProgramId"
                         :planConfigArray="$exerciseProgram->config->toArray()"
                         :programExerciseId="$exercise->pivot->id"
                         :exerciseId="$exercise->id"

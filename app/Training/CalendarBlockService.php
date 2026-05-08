@@ -9,6 +9,61 @@ use Illuminate\Support\Collection;
 
 class CalendarBlockService
 {
+    public function findCategoryOverlap(
+        int $groupId,
+        int $categoryId,
+        Carbon $start,
+        ?Carbon $end = null,
+        ?int $userId = null,
+        ?int $parentId = null,
+        ?int $excludeBlockId = null,
+    ): ?TrainingProgramBlock {
+        $end ??= $start->copy();
+
+        $query = TrainingProgramBlock::query()
+            ->where('group_id', $groupId)
+            ->where('category_id', $categoryId)
+            ->where('type', TrainingProgramBlockTypeEnum::Category)
+            ->where('active', true)
+            ->where('start', '<=', $end->format('Y-m-d'))
+            ->where(function ($q) use ($start) {
+                $q->where('end', '>=', $start->format('Y-m-d'))
+                    ->orWhere(function ($q2) use ($start) {
+                        $q2->whereNull('end')
+                            ->where('start', '>=', $start->format('Y-m-d'));
+                    });
+            });
+
+        if ($excludeBlockId !== null) {
+            $query->whereKeyNot($excludeBlockId);
+        }
+
+        if ($parentId !== null) {
+            $query->whereKeyNot($parentId);
+        }
+
+        if ($userId === null && $parentId === null) {
+            $query->whereNull('user_id')
+                ->whereNull('parent_id');
+        } else {
+            $query->where(function ($q) use ($userId) {
+                $q->where(function ($q2) {
+                    $q2->whereNull('user_id')
+                        ->whereNull('parent_id');
+                });
+
+                if ($userId !== null) {
+                    $q->orWhere('user_id', $userId);
+                }
+            });
+        }
+
+        return $query
+            ->orderBy('start')
+            ->orderBy('id')
+            ->first();
+    }
+
     public function getEffectiveCategoryBlocks(int $groupId, ?int $userId, int $categoryId): Collection
     {
         $blocks = TrainingProgramBlock::query()

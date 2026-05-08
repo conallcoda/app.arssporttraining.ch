@@ -16,6 +16,7 @@ class ExerciseProgramQueryBuilder extends DefaultQueryBuilder
         return $this->resolveSorts([
             'id',
             'name',
+            'type',
             'updatedAt',
             CoachSort::make('coach', 'exercise_programs'),
             'category => exerciseCategory.name',

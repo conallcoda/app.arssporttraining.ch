@@ -20,6 +20,7 @@ use Carbon\CarbonImmutable;
 use Coda\FormKit\Field;
 use Flux\Flux;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
@@ -276,7 +277,7 @@ class ProgramDetails extends Component
             return '#';
         }
 
-        return $this->from ?: route('athlete.dashboard.calendar', ['date' => $this->date]);
+        return $this->from ?: route('athlete.dashboard.train', ['date' => $this->date]);
     }
 
     #[Computed]
@@ -286,11 +287,7 @@ class ProgramDetails extends Component
             return 'Back to Preview';
         }
 
-        $path = parse_url($this->backUrl, PHP_URL_PATH) ?: '';
-
-        return Str::startsWith($path, '/dashboard/calendar')
-            ? 'Back to Calendar'
-            : 'Back to Dashboard';
+        return 'Back to Dashboard';
     }
 
     #[Computed]
@@ -301,6 +298,16 @@ class ProgramDetails extends Component
         }
 
         return (bool) config('athlete.allow_athlete_edits', false);
+    }
+
+    #[Computed]
+    public function canRecordSession(): bool
+    {
+        if ($this->previewMode) {
+            return false;
+        }
+
+        return AthleteDashboardDate::canRecordProgramExercisesForDate($this->date);
     }
 
     #[Computed]
@@ -373,26 +380,21 @@ class ProgramDetails extends Component
 
     public function openExerciseEditor(int $slotExerciseId): void
     {
-        abort_if(! $this->athleteEditsEnabled, 404);
-        abort_if($this->isFutureSession, 403);
+        abort_if(! $this->canRecordSession, 403);
 
         $exercise = $this->currentSlot->exercises->firstWhere('id', $slotExerciseId);
         abort_unless($exercise instanceof TrainingProgramSlotExercise, 404);
 
-        $this->editingExerciseId = $exercise->id;
-        $this->editValues = $this->buildEditValues($exercise);
-        $this->editSkippedSets = $this->pendingSkippedSets[$exercise->id] ?? $this->buildEditSkippedSets($exercise);
-        $this->activeEditSet = 'set-'.($exercise->sets->sortBy('set_number')->first()?->id ?? '');
+        abort_if(! $this->athleteEditsEnabled, 404);
 
-        unset($this->editingExercise, $this->editSetTabs, $this->editSetPanels);
-
+        $this->prepareExerciseEditor($exercise);
         Flux::modal('athlete-exercise-editor')->show();
     }
 
     public function saveExerciseEdits(): void
     {
         abort_if(! $this->athleteEditsEnabled, 404);
-        abort_if($this->isFutureSession, 403);
+        abort_if(! $this->canRecordSession, 403);
 
         $exercise = $this->editingExercise;
         abort_unless($exercise instanceof TrainingProgramSlotExercise, 404);
@@ -427,7 +429,7 @@ class ProgramDetails extends Component
     public function markEditSetSkipped(int $setId): void
     {
         abort_if(! $this->athleteEditsEnabled, 404);
-        abort_if($this->isFutureSession, 403);
+        abort_if(! $this->canRecordSession, 403);
 
         $this->editSkippedSets[$setId] = true;
         unset($this->editingExercise, $this->editSetTabs, $this->editSetPanels);
@@ -436,7 +438,7 @@ class ProgramDetails extends Component
     public function markEditSetPending(int $setId): void
     {
         abort_if(! $this->athleteEditsEnabled, 404);
-        abort_if($this->isFutureSession, 403);
+        abort_if(! $this->canRecordSession, 403);
 
         $this->editSkippedSets[$setId] = false;
         unset($this->editingExercise, $this->editSetTabs, $this->editSetPanels);
@@ -445,7 +447,7 @@ class ProgramDetails extends Component
     public function markExerciseCompleted(int $slotExerciseId): void
     {
         abort_if($this->previewMode, 403);
-        abort_if($this->isFutureSession, 403);
+        abort_if(! $this->canRecordSession, 403);
 
         $exercise = $this->currentSlot->exercises->firstWhere('id', $slotExerciseId);
         abort_unless($exercise instanceof TrainingProgramSlotExercise, 404);
@@ -453,8 +455,14 @@ class ProgramDetails extends Component
         if ($this->pendingSkipDraftSkipsEntireExercise($exercise)) {
             unset($this->pendingSkippedSets[$slotExerciseId]);
             app(TrainingSessionProgressService::class)->markExerciseSkipped($exercise);
+            $this->resetEditorState();
             $this->refreshSessionState();
+            $this->dispatch('athlete-exercise-action-succeeded', exerciseId: $slotExerciseId);
 
+            return;
+        }
+
+        if (! $this->validateExerciseCompletion($exercise)) {
             return;
         }
 
@@ -462,13 +470,15 @@ class ProgramDetails extends Component
         app(TrainingSessionProgressService::class)->markExerciseCompleted($exercise);
         unset($this->pendingSkippedSets[$slotExerciseId]);
 
+        $this->resetEditorState();
         $this->refreshSessionState();
+        $this->dispatch('athlete-exercise-action-succeeded', exerciseId: $slotExerciseId);
     }
 
     public function markExerciseSkipped(int $slotExerciseId): void
     {
         abort_if($this->previewMode, 403);
-        abort_if($this->isFutureSession, 403);
+        abort_if(! $this->canRecordSession, 403);
 
         $exercise = $this->currentSlot->exercises->firstWhere('id', $slotExerciseId);
         abort_unless($exercise instanceof TrainingProgramSlotExercise, 404);
@@ -477,6 +487,7 @@ class ProgramDetails extends Component
         app(TrainingSessionProgressService::class)->markExerciseSkipped($exercise);
 
         $this->refreshSessionState();
+        $this->dispatch('athlete-exercise-action-succeeded', exerciseId: $slotExerciseId);
     }
 
     protected function shouldRefreshAuxiliarySections(TrainingProgramSlot $slot): bool
@@ -726,6 +737,61 @@ class ProgramDetails extends Component
         unset($this->currentSlot, $this->programExercises, $this->progressSegments, $this->sectionTabs, $this->showsSectionTabs, $this->editingExercise, $this->editSetTabs, $this->editSetPanels);
     }
 
+    protected function prepareExerciseEditor(TrainingProgramSlotExercise $exercise): void
+    {
+        $this->editingExerciseId = $exercise->id;
+        $this->editValues = $this->buildEditValues($exercise);
+        $this->editSkippedSets = $this->pendingSkippedSets[$exercise->id] ?? $this->buildEditSkippedSets($exercise);
+        $this->activeEditSet = 'set-'.($exercise->sets->sortBy('set_number')->first()?->id ?? '');
+
+        unset($this->editingExercise, $this->editSetTabs, $this->editSetPanels);
+    }
+
+    protected function validateExerciseCompletion(TrainingProgramSlotExercise $exercise): bool
+    {
+        $this->prepareExerciseEditor($exercise);
+        $this->resetValidation();
+
+        $rules = $this->buildEditValidationRules();
+
+        if ($rules === []) {
+            return true;
+        }
+
+        $validator = Validator::make(
+            ['editValues' => $this->editValues],
+            $rules,
+            ['required' => 'This field is required.'],
+            $this->buildEditValidationAttributes()
+        );
+
+        if ($validator->fails()) {
+            $this->setErrorBag($validator->errors());
+            $this->activateFirstInvalidEditSet(array_keys($validator->errors()->messages()));
+            Flux::modal('athlete-exercise-editor')->show();
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * @param  array<int, string>  $errorKeys
+     */
+    protected function activateFirstInvalidEditSet(array $errorKeys): void
+    {
+        foreach ($errorKeys as $key) {
+            if (! preg_match('/^editValues\.(\d+)\./', $key, $matches)) {
+                continue;
+            }
+
+            $this->activeEditSet = 'set-'.$matches[1];
+
+            return;
+        }
+    }
+
     protected function filterEditableSetValues(array $data): array
     {
         return collect($data)
@@ -811,6 +877,7 @@ class ProgramDetails extends Component
             'sectionTabs' => $this->sectionTabs,
             'showsSectionTabs' => $this->showsSectionTabs,
             'isFutureSession' => $this->isFutureSession,
+            'canRecordSession' => $this->canRecordSession,
             'athleteEditsEnabled' => $this->athleteEditsEnabled,
             'previewMode' => $this->previewMode,
         ])->layout('components.layouts.athlete', ['title' => $this->trainingProgram->program->name]);

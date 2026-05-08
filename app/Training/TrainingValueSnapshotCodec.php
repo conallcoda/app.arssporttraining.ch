@@ -21,6 +21,10 @@ class TrainingValueSnapshotCodec
             'unit' => $value->unit,
         ];
 
+        if ($value->plannedValueType === null) {
+            return $row;
+        }
+
         return match ($value->plannedValueType) {
             'int' => array_merge($row, [
                 'planned_int_value' => (int) $value->plannedValue,

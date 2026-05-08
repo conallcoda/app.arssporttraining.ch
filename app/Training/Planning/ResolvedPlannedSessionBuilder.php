@@ -148,7 +148,7 @@ class ResolvedPlannedSessionBuilder
                     ? $this->resolveSessionFieldValue($state, $config, $setting, $weekIndex, $sessionIndex)
                     : $this->resolveSessionValue($state, $config, $setting, $weekIndex, $setIndex, $sessionIndex);
 
-                if ($this->isBlankValue($value)) {
+                if ($this->isBlankValue($value) && ! $this->shouldMaterializeBlankSetting($config)) {
                     continue;
                 }
 
@@ -201,6 +201,11 @@ class ResolvedPlannedSessionBuilder
     private function isBlankValue(mixed $value): bool
     {
         return $value === null || $value === '' || $value === '-' || $value === '—';
+    }
+
+    private function shouldMaterializeBlankSetting(array $config): bool
+    {
+        return ($config['mode'] ?? 'manual') === 'manual';
     }
 
     /**

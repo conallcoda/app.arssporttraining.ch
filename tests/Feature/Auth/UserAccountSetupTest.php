@@ -6,6 +6,7 @@ use App\Models\Users\AccountSetupStatus;
 use App\Models\Users\User;
 use App\Notifications\AccountSetupNotification;
 use Carbon\Carbon;
+use Coda\Cms\Form\Forms\ChangePasswordForm;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
@@ -37,6 +38,24 @@ it('sends an athlete account setup email from the athlete list', function () {
         ->and($athlete->account_setup_sent_at)->not->toBeNull()
         ->and($athlete->account_setup_expires_at?->isSameDay(now()->addDays((int) config('user.account_setup_expiry_days'))))->toBeTrue()
         ->and($athlete->accountSetupStatus())->toBe(AccountSetupStatus::SetupEmailSent);
+});
+
+it('renders athlete row menu setup email as a direct action and uses the shared change password form', function () {
+    $coach = User::factory()->coach()->create();
+    $athlete = User::factory()->athlete()->create([
+        'email' => 'athlete@example.com',
+        'password' => null,
+        'owner_id' => $coach->id,
+    ]);
+
+    $this->actingAs($coach);
+
+    $component = Livewire::test(AthleteList::class);
+
+    expect(collect($component->instance()->formModals)->pluck('formDataClass')->all())
+        ->toContain(ChangePasswordForm::class);
+
+    $component->assertSeeHtml('wire:click="sendSetupAccountEmail('.$athlete->id.')');
 });
 
 it('lets an athlete set a password from the setup link and logs them into the dashboard', function () {
@@ -89,6 +108,23 @@ it('sends a coach account setup email from the coach list', function () {
         ->and($coach->account_setup_sent_at)->not->toBeNull()
         ->and($coach->account_setup_expires_at?->isSameDay(now()->addDays((int) config('user.account_setup_expiry_days'))))->toBeTrue()
         ->and($coach->accountSetupStatus())->toBe(AccountSetupStatus::SetupEmailSent);
+});
+
+it('renders coach row menu setup email as a direct action and uses the shared change password form', function () {
+    $admin = User::factory()->admin()->create();
+    $coach = User::factory()->coach()->create([
+        'email' => 'coach@example.com',
+        'password' => null,
+    ]);
+
+    $this->actingAs($admin);
+
+    $component = Livewire::test(CoachList::class);
+
+    expect(collect($component->instance()->formModals)->pluck('formDataClass')->all())
+        ->toContain(ChangePasswordForm::class);
+
+    $component->assertSeeHtml('wire:click="sendSetupAccountEmail('.$coach->id.')');
 });
 
 it('lets a coach set a password from the setup link and logs them into admin', function () {

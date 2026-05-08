@@ -135,6 +135,7 @@
                                         :key="'plan-editor-' . $this->planSelectedProgram->id . '-' . $this->planScheduleInfo['weeks'] . '-' . ($user !== '' ? $user : 'group') . '-' . $planBlock . '-' . $this->planBlockGoal . '-' . md5(json_encode($this->planMeasuredData)) . '-' . md5(json_encode($this->planHeartRateData)) . '-' . ($user === '' ? md5(json_encode($this->planGroupMemberMetrics)) : '')"
                                         :exerciseProgram="$this->planSelectedProgram->program"
                                         :planId="$this->planSelectedProgram->program->id"
+                                        :scheduledTrainingProgramId="$this->planSelectedProgram->id"
                                         :userId="$user !== '' ? (int) $user : null"
                                         :showWeeksInput="false"
                                         :weeks="$this->planScheduleInfo['weeks']"

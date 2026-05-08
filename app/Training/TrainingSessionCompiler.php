@@ -328,8 +328,12 @@ class TrainingSessionCompiler
         return $value;
     }
 
-    private function resolveValueType(string $setting, mixed $value): string
+    private function resolveValueType(string $setting, mixed $value): ?string
     {
+        if ($value === null) {
+            return null;
+        }
+
         if (is_array($value)) {
             return 'json';
         }

@@ -10,6 +10,7 @@ use App\Models\Tag;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramBlock;
 use App\Models\Training\TrainingProgramSlot;
+use App\Models\Users\AccountSetupStatus;
 use App\Models\Users\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
@@ -285,7 +286,9 @@ it('imports content without calendar data or manual program overrides', function
             'mode' => SessionGroupingMode::Groups->value,
             'groupSize' => 2,
             'copyValuesAutomatically' => true,
-        ]);
+        ])
+        ->and($coach->accountSetupStatus())->toBe(AccountSetupStatus::Active)
+        ->and($coach->account_setup_completed_at)->not->toBeNull();
 
     $program = ExerciseProgram::query()->firstOrFail();
     $overrides = $program->config->defaultExerciseOverrides(501);

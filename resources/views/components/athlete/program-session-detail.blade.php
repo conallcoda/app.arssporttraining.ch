@@ -4,6 +4,7 @@
     'backAction' => null,
     'backLabel' => 'Back',
     'backUseHistory' => false,
+    'embedded' => false,
     'dateLabel' => null,
     'timeLabel' => null,
     'categoryLabel' => null,
@@ -15,6 +16,7 @@
     'sectionModel' => 'activeSection',
     'programExercises' => [],
     'isFutureSession' => true,
+    'canRecordSession' => false,
     'athleteEditsEnabled' => false,
 ])
 
@@ -28,7 +30,10 @@
 @endphp
 
 <div>
-    <div class="sticky top-0 z-20 md:mt-20 bg-zinc-100/95 backdrop-blur dark:bg-zinc-800/95">
+    <div @class([
+        'z-20 bg-zinc-100/95 backdrop-blur dark:bg-zinc-800/95',
+        'sticky top-0 md:mt-20' => ! $embedded,
+    ])>
         <div class="w-full md:mx-auto md:max-w-[900px] border-b border-zinc-200 dark:border-zinc-700">
             <div class="athlete-toolbar__row w-full">
                 @if ($backMode === 'action')
@@ -85,7 +90,7 @@
     <div class="w-full md:mx-auto md:max-w-[900px] px-0 py-0">
         <div class="space-y-0">
             @forelse ($programExercises as $exercise)
-                <x-athlete.section :row="$loop->iteration" class="py-0" content-class="space-y-0 py-3" wire:key="exercise-{{ $exercise->id }}" x-data="{ open: false }">
+                <x-athlete.section :row="$loop->iteration" class="py-0" content-class="space-y-0 py-3" wire:key="exercise-{{ $exercise->id }}" x-data="{ open: false }" x-on:athlete-exercise-action-succeeded.window="if (($event.detail.exerciseId ?? null) === {{ $exercise->id }}) open = false">
                     <div x-on:click="open = !open" x-on:keydown.enter.prevent="open = !open"
                         x-on:keydown.space.prevent="open = !open" :aria-expanded="open" role="button" tabindex="0"
                         class="flex w-full cursor-pointer items-start justify-between gap-3">
@@ -94,7 +99,7 @@
                                 {{ $exercise->groupLabel ? $exercise->groupLabel . ' - ' . $exercise->name : $exercise->name }}
                             </div>
 
-                            @if (! $isFutureSession)
+                            @if ($canRecordSession)
                                 <span
                                     class="status-badge inline-flex rounded-md px-2 py-1 text-[10px] font-medium"
                                     style="--status-bar-light: {{ $exercise->statusColor['light'] }}; --status-bar-dark: {{ $exercise->statusColor['dark'] }};"
@@ -152,7 +157,7 @@
                                 </flux:text>
                             @endif
 
-                            @if ($exercise->videoUrl || !empty($exercise->photoUrls) || ($athleteEditsEnabled && ! $isFutureSession))
+                            @if ($exercise->videoUrl || !empty($exercise->photoUrls) || ($athleteEditsEnabled && $canRecordSession))
                                 <div class="flex items-center justify-between gap-3">
                                     <div class="flex items-center gap-3">
                                         @if ($exercise->videoUrl)
@@ -174,7 +179,7 @@
                                         @endif
                                     </div>
 
-                                    @if ($athleteEditsEnabled && ! $isFutureSession)
+                                    @if ($athleteEditsEnabled && $canRecordSession)
                                         <button type="button"
                                             wire:click="openExerciseEditor({{ $exercise->id }})"
                                             class="inline-flex size-9 items-center justify-center rounded-md bg-zinc-900 text-white transition hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
@@ -221,12 +226,12 @@
                             </div>
                         @endif
 
-                        @if (! $isFutureSession)
+                        @if ($canRecordSession)
                             <div class="flex flex-wrap justify-end gap-2">
-                                <flux:button size="sm" variant="primary" wire:click="markExerciseCompleted({{ $exercise->id }})" x-on:click="open = false">
+                                <flux:button size="sm" variant="primary" wire:click="markExerciseCompleted({{ $exercise->id }})">
                                     Mark Done
                                 </flux:button>
-                                <flux:button size="sm" variant="ghost" wire:click="markExerciseSkipped({{ $exercise->id }})" x-on:click="open = false">
+                                <flux:button size="sm" variant="ghost" wire:click="markExerciseSkipped({{ $exercise->id }})">
                                     Skip
                                 </flux:button>
                             </div>

@@ -9,6 +9,7 @@ use App\Livewire\Test\ExerciseCreator;
 use App\Livewire\Test\PortalDemo;
 use App\Livewire\Test\ReadinessForm;
 use Coda\Cms\Registry;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -23,26 +24,44 @@ Route::middleware('guest')->group(function (): void {
 });
 
 Route::middleware('auth')->group(function (): void {
-    Route::redirect('/dashboard', '/dashboard/calendar/day')
+    Route::redirect('/dashboard', '/dashboard/train')
         ->name('athlete.dashboard');
 
     Route::get('/dashboard/calendar', function (Request $request) {
-        return redirect()->route('athlete.dashboard.calendar', [
+        return redirect()->route('athlete.dashboard.train', [
             'date' => $request->query('date'),
         ]);
     })->name('athlete.dashboard.calendar.legacy');
 
-    Route::get('/dashboard/calendar/day/{date?}', Calendar::class)
-        ->name('athlete.dashboard.calendar')
-        ->defaults('calendarView', 'day');
+    Route::get('/dashboard/train/{date?}', Calendar::class)
+        ->name('athlete.dashboard.train')
+        ->defaults('dashboardMode', 'train');
 
-    Route::get('/dashboard/calendar/week/{date?}', Calendar::class)
-        ->name('athlete.dashboard.calendar.week')
-        ->defaults('calendarView', 'week');
+    Route::get('/dashboard/schedule/{date?}', Calendar::class)
+        ->name('athlete.dashboard.schedule')
+        ->defaults('dashboardMode', 'schedule');
 
-    Route::get('/dashboard/calendar/unrecorded', Calendar::class)
-        ->name('athlete.dashboard.calendar.unrecorded')
-        ->defaults('calendarView', 'unrecorded');
+    Route::get('/dashboard/unrecorded', Calendar::class)
+        ->name('athlete.dashboard.unrecorded')
+        ->defaults('dashboardMode', 'unrecorded');
+
+    Route::get('/dashboard/calendar/day/{date?}', function (?string $date = null) {
+        return redirect()->route('athlete.dashboard.train', array_filter([
+            'date' => $date,
+        ]));
+    })->name('athlete.dashboard.calendar');
+
+    Route::get('/dashboard/calendar/week/{date?}', function (?string $date = null) {
+        return redirect()->route('athlete.dashboard.schedule', array_filter([
+            'date' => $date !== null
+                ? CarbonImmutable::parse($date)->startOfWeek()->format('Y-m-d')
+                : null,
+        ]));
+    })->name('athlete.dashboard.calendar.week');
+
+    Route::get('/dashboard/calendar/unrecorded', function () {
+        return redirect()->route('athlete.dashboard.unrecorded');
+    })->name('athlete.dashboard.calendar.unrecorded');
 
     Route::get('/programs/{date}/{trainingProgram}', ProgramDetails::class)
         ->name('athlete.programs.show');

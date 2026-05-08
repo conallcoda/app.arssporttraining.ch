@@ -56,6 +56,7 @@ class ProgramDetailsExerciseViewBuilder
             $valueClasses = [];
             $modifiedValues = [];
             $firstValueRow = null;
+            $hasSettingRow = false;
 
             foreach ($sets as $set) {
                 $isSkipped = array_key_exists($set->id, $pendingSkippedSetMap)
@@ -73,6 +74,7 @@ class ProgramDetailsExerciseViewBuilder
                 if ($valueRow instanceof TrainingProgramSlotSetValue && $firstValueRow === null) {
                     $firstValueRow = $valueRow;
                 }
+                $hasSettingRow = $hasSettingRow || $valueRow instanceof TrainingProgramSlotSetValue;
 
                 $rawValue = $this->extractResolvedValue($valueRow);
                 $zoneValue = $setting === 'heartRate'
@@ -90,7 +92,7 @@ class ProgramDetailsExerciseViewBuilder
                 );
             }
 
-            if (collect($values)->every(fn (?string $value) => $value === null)) {
+            if (! $hasSettingRow && collect($values)->every(fn (?string $value) => $value === null)) {
                 continue;
             }
 

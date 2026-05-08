@@ -793,6 +793,25 @@ trait WithCalendarPlan
             return;
         }
 
+        $categoryId = $data['categoryId'] ?? null;
+        if ($categoryId !== null) {
+            $conflict = app(CalendarBlockService::class)->findCategoryOverlap(
+                groupId: (int) $data['groupId'],
+                categoryId: (int) $categoryId,
+                start: Carbon::parse($data['start']),
+                end: filled($data['end'] ?? null) ? Carbon::parse($data['end']) : null,
+                userId: isset($data['userId']) ? (int) $data['userId'] : null,
+                parentId: isset($data['parentId']) ? (int) $data['parentId'] : null,
+                excludeBlockId: isset($data['editing_block_id']) ? (int) $data['editing_block_id'] : null,
+            );
+
+            if ($conflict) {
+                Flux::toast(text: __('Blocks in the same category cannot overlap on the calendar.'), variant: 'danger');
+
+                return;
+            }
+        }
+
         $editingBlockId = $data['editing_block_id'] ?? null;
         $parentId = $data['parentId'] ?? null;
         $userId = $data['userId'] ?? null;

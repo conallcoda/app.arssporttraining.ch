@@ -19,7 +19,7 @@ use Coda\Cms\Support\ColorPalette;
 use Coda\FormKit\Action;
 use Coda\FormKit\Fields\Select;
 use Coda\FormKit\Fields\Text as TextField;
-use Coda\FormKit\Forms\ChangePasswordForm;
+use Coda\Cms\Form\Forms\ChangePasswordForm;
 use Flux\Flux;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Hash;

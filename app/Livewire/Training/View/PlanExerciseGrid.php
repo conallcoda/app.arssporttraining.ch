@@ -116,6 +116,7 @@ class PlanExerciseGrid extends Component
         ?int $userId,
         int $weeks,
         int $sessionsPerWeek,
+        ?int $scheduledTrainingProgramId = null,
         ?int $planMeasuredReps = null,
         ?float $planMeasuredWeight = null,
         int|float|null $planTargetGoal = 10,
@@ -143,6 +144,7 @@ class PlanExerciseGrid extends Component
         $this->programExerciseId = $programExerciseId;
         $this->exerciseId = $exerciseId;
         $this->userId = $userId;
+        $this->scheduledTrainingProgramId = $scheduledTrainingProgramId;
         $this->weeks = $weeks;
         $this->sessionsPerWeek = $sessionsPerWeek;
         $this->planMeasuredReps = $planMeasuredReps;
@@ -179,11 +181,18 @@ class PlanExerciseGrid extends Component
             $this->programExerciseGroup = $programExercise->group;
         }
 
-        $program = ExerciseProgram::query()->select(['id', 'parent_type', 'parent_id'])->find($planId);
+        if ($this->scheduledTrainingProgramId === null) {
+            $program = ExerciseProgram::query()->select(['id', 'parent_type', 'parent_id'])->find($planId);
 
-        if ($program?->parent_type === TrainingProgram::class && $program->parent_id !== null) {
-            $this->scheduledTrainingProgramId = (int) $program->parent_id;
+            if ($program?->parent_type === TrainingProgram::class && $program->parent_id !== null) {
+                $this->scheduledTrainingProgramId = (int) $program->parent_id;
+            }
         }
+    }
+
+    public function updatedValueDisplayMode(): void
+    {
+        unset($this->actualCellValues, $this->actualSessionValues, $this->editableActualSessionsByWeek);
     }
 
     #[Computed]
@@ -392,7 +401,11 @@ class PlanExerciseGrid extends Component
     #[Computed]
     public function configFingerprint(): string
     {
-        return md5(json_encode($this->getEffectiveConfig()));
+        return md5(json_encode([
+            'effectiveConfig' => $this->getEffectiveConfig(),
+            'historicalOverrides' => $this->getHistoricalGridOverrides(),
+            'lockedSessionsByWeek' => $this->lockedSessionsByWeek,
+        ]));
     }
 
     #[Computed]
@@ -780,8 +793,7 @@ class PlanExerciseGrid extends Component
                     continue;
                 }
 
-                $editableSessions[$weekIndex][$sessionIndex] = $this->valueDisplayMode === 'actual'
-                    && ($this->lockedSessionsByWeek[$weekIndex][$sessionIndex] ?? false);
+                $editableSessions[$weekIndex][$sessionIndex] = $this->valueDisplayMode === 'actual';
 
                 foreach ($slotExercise->sets->sortBy('set_number') as $set) {
                     $setIndex = max(((int) $set->set_number) - 1, 0);
@@ -842,6 +854,10 @@ class PlanExerciseGrid extends Component
     {
         abort_unless($this->canEditActualsForSession($weekIndex, $session), 403);
 
+        if ($field === 'sets') {
+            return;
+        }
+
         $slotExercise = $this->slotExerciseForWeekSession($weekIndex, $session);
         abort_unless($slotExercise instanceof TrainingProgramSlotExercise, 404);
 
@@ -892,15 +908,17 @@ class PlanExerciseGrid extends Component
             return false;
         }
 
-        if (! $this->isSessionLocked($weekIndex, $sessionIndex)) {
-            return false;
-        }
-
         return $this->slotExerciseForWeekSession($weekIndex, $sessionIndex) instanceof TrainingProgramSlotExercise;
     }
 
     protected function resolveActualSessionValue(TrainingProgramSlotExercise $slotExercise, string $field): ?string
     {
+        if ($field === 'sets') {
+            return (string) $slotExercise->sets
+                ->reject(fn (TrainingProgramSlotSet $set): bool => (string) ($set->status->value ?? $set->status) === TrainingProgramSlotSetStatusEnum::Skipped->value)
+                ->count();
+        }
+
         if ($slotExercise->sets->isNotEmpty() && $slotExercise->sets->every(
             fn (TrainingProgramSlotSet $set): bool => (string) ($set->status->value ?? $set->status) === TrainingProgramSlotSetStatusEnum::Skipped->value
         )) {
@@ -1032,7 +1050,33 @@ class PlanExerciseGrid extends Component
             : [['week' => $weekIndex, 'session' => $session]];
 
         foreach ($targets as $target) {
-            if ($this->isSessionLocked($target['week'], $target['session'])) {
+            $targetWeek = $target['week'];
+            $targetSession = $target['session'];
+
+            if ($this->shouldRestrictPlannedEditForSession($targetWeek, $targetSession)) {
+                continue;
+            }
+
+            if ($this->isSessionLocked($targetWeek, $targetSession)) {
+                if ($applyToAll) {
+                    continue;
+                }
+
+                $overrides->historicalGridOverrides = OverrideManager::updateCellOverride(
+                    $overrides->historicalGridOverrides,
+                    $this->getEffectiveConfig(),
+                    $this->weeks,
+                    $this->sessionsPerWeek,
+                    $targetWeek,
+                    $setIndex,
+                    $field,
+                    $value,
+                    $targetSession,
+                    false,
+                    $this->getEffectiveCellDefault($field, $targetWeek, $setIndex, $targetSession),
+                    $this->sessionCountForWeek($targetWeek),
+                );
+
                 continue;
             }
 
@@ -1041,19 +1085,19 @@ class PlanExerciseGrid extends Component
                 $this->getEffectiveConfig(),
                 $this->weeks,
                 $this->sessionsPerWeek,
-                $target['week'],
+                $targetWeek,
                 $setIndex,
                 $field,
                 $value,
-                $target['session'],
+                $targetSession,
                 false,
-                $this->getEffectiveCellDefault($field, $target['week'], $setIndex, $target['session']),
-                $this->sessionCountForWeek($target['week']),
+                $this->getEffectiveCellDefault($field, $targetWeek, $setIndex, $targetSession),
+                $this->sessionCountForWeek($targetWeek),
             );
         }
 
         $this->saveOverrides($overrides);
-        unset($this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides);
+        unset($this->configFingerprint, $this->previewGrid, $this->displayGrid, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions);
     }
 
     public function updateSessionOverride(int $weekIndex, int $session, string $field, mixed $value, bool $applyToAll = false): void
@@ -1064,23 +1108,44 @@ class PlanExerciseGrid extends Component
             : [['week' => $weekIndex, 'session' => $session]];
 
         foreach ($targets as $target) {
-            if ($this->isSessionLocked($target['week'], $target['session'])) {
+            $targetWeek = $target['week'];
+            $targetSession = $target['session'];
+
+            if ($this->shouldRestrictPlannedEditForSession($targetWeek, $targetSession)) {
+                continue;
+            }
+
+            if ($this->isSessionLocked($targetWeek, $targetSession)) {
+                if ($applyToAll) {
+                    continue;
+                }
+
+                $overrides->historicalGridOverrides = OverrideManager::updateSessionOverride(
+                    $overrides->historicalGridOverrides,
+                    $this->getEffectiveConfig(),
+                    $targetWeek,
+                    $targetSession,
+                    $field,
+                    $value,
+                    $this->getEffectiveSessionDefault($field, $targetWeek, $targetSession),
+                );
+
                 continue;
             }
 
             $overrides->gridOverrides = OverrideManager::updateSessionOverride(
                 $overrides->gridOverrides,
                 $this->getEffectiveConfig(),
-                $target['week'],
-                $target['session'],
+                $targetWeek,
+                $targetSession,
                 $field,
                 $value,
-                $this->getEffectiveSessionDefault($field, $target['week'], $target['session']),
+                $this->getEffectiveSessionDefault($field, $targetWeek, $targetSession),
             );
         }
 
         $this->saveOverrides($overrides);
-        unset($this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides);
+        unset($this->configFingerprint, $this->previewGrid, $this->displayGrid, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions);
     }
 
     protected function buildDefaultsGrid(): PreviewGrid
@@ -1145,6 +1210,12 @@ class PlanExerciseGrid extends Component
     protected function isSessionLocked(int $weekIndex, int $sessionIndex): bool
     {
         return (bool) ($this->lockedSessionsByWeek[$weekIndex][$sessionIndex] ?? false);
+    }
+
+    protected function shouldRestrictPlannedEditForSession(int $weekIndex, int $sessionIndex): bool
+    {
+        return $this->valueDisplayMode !== 'actual'
+            && $this->isSessionLocked($weekIndex, $sessionIndex);
     }
 
     public function resetOverrides(): void

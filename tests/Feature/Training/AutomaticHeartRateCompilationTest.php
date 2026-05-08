@@ -3,6 +3,7 @@
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
+use App\Models\Athlete\MetricSubmission;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\User;
@@ -14,6 +15,7 @@ uses(RefreshDatabase::class);
 
 it('materializes automatic heart rate ranges as strings on athlete sessions', function () {
     $athlete = User::factory()->athlete()->create();
+    $coach = User::factory()->coach()->create();
     $group = UserGroup::create(['name' => 'Test Group']);
     $program = ExerciseProgram::factory()->create(['name' => 'Ergo Bike']);
     $trainingProgram = TrainingProgram::factory()->create([
@@ -55,6 +57,19 @@ it('materializes automatic heart rate ranges as strings on athlete sessions', fu
     ]));
     $program->config = $config;
     $program->saveQuietly();
+
+    $heartRate = MetricSubmission::query()->create([
+        'user_id' => $athlete->id,
+        'metric' => \App\Data\Athlete\Metric\MetricEnum::HeartRate,
+        'recorded_by' => $coach->id,
+        'recorded_at' => '2026-05-03',
+        'owner_type' => null,
+        'owner_id' => null,
+    ]);
+    $heartRate->values()->createMany([
+        ['field' => 'heartRate', 'value' => '193'],
+        ['field' => 'anaerobicThreshold', 'value' => '90'],
+    ]);
 
     $slot = TrainingProgramSlot::factory()->create([
         'training_program_id' => $trainingProgram->id,

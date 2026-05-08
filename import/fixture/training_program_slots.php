@@ -1,6 +1,7 @@
 <?php
 
 $start = now()->addDay()->setTime(9, 0, 0);
+$strengthStart = now()->subWeeks(4)->setTime(9, 0, 0);
 $archivedStart = now()->subMonth()->setTime(9, 0, 0);
 $slots = [];
 $slotId = 601;
@@ -49,10 +50,39 @@ $scheduleFor = function (int $userId, int $week): array {
 
 foreach ([2, 3, 4] as $userId) {
     for ($week = 0; $week < 8; $week++) {
+        $weekStart = $strengthStart->copy()->addWeeks($week);
+        $pattern = $scheduleFor($userId, $week);
+
+        foreach ($pattern as $programKey => $dayOffsets) {
+            if ($programKey !== 'strength') {
+                continue;
+            }
+
+            foreach ($dayOffsets as $dayOffset) {
+                $datetime = $weekStart->copy()->addDays($dayOffset);
+
+                $slots[] = [
+                    'id' => $slotId++,
+                    'training_program_id' => $programIds[$programKey],
+                    'user_id' => $userId,
+                    'owner_id' => null,
+                    'datetime' => $datetime->toIso8601String(),
+                ];
+            }
+        }
+    }
+}
+
+foreach ([2, 3, 4] as $userId) {
+    for ($week = 0; $week < 8; $week++) {
         $weekStart = $start->copy()->addWeeks($week);
         $pattern = $scheduleFor($userId, $week);
 
         foreach ($pattern as $programKey => $dayOffsets) {
+            if ($programKey === 'strength') {
+                continue;
+            }
+
             foreach ($dayOffsets as $dayOffset) {
                 $datetime = $weekStart->copy()->addDays($dayOffset);
 

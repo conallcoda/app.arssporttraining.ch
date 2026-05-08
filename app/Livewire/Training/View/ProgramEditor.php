@@ -55,11 +55,15 @@ class ProgramEditor extends Component
 
     public string $valueDisplayMode = 'planned';
 
+    public int $gridRenderVersion = 0;
+
     public string $gridLayout = 'side-by-side';
 
     public int $planId;
 
     public ?int $userId = null;
+
+    public ?int $scheduledTrainingProgramId = null;
 
     public ?int $planMeasuredReps = null;
 
@@ -113,6 +117,7 @@ class ProgramEditor extends Component
     public function mount(
         ExerciseProgram $exerciseProgram,
         int $planId,
+        ?int $scheduledTrainingProgramId = null,
         int $weeks = 5,
         bool $showWeeksInput = false,
         int $sessionsPerWeek = 1,
@@ -143,6 +148,7 @@ class ProgramEditor extends Component
             $this->activeSection = 'main';
         }
         $this->planId = $planId;
+        $this->scheduledTrainingProgramId = $scheduledTrainingProgramId;
         $this->showWeeksInput = $showWeeksInput;
         $this->weeks = $showWeeksInput ? $exerciseProgram->config->weeks : $weeks;
         $this->sessionsPerWeek = $sessionsPerWeek;
@@ -161,6 +167,7 @@ class ProgramEditor extends Component
         $this->gridLayout = $gridLayout;
         $this->showActualValueTabs = $showActualValueTabs;
         $this->valueDisplayMode = 'planned';
+        $this->gridRenderVersion = 0;
         $this->planBlockGoalLabel = $planBlockGoalLabel;
         $this->plan1rmLabel = $plan1rmLabel;
         $this->planHeartRateLabel = $planHeartRateLabel;
@@ -169,6 +176,11 @@ class ProgramEditor extends Component
         $this->planHasBlock = $planHasBlock;
         $this->planGroupMemberMetrics = $planGroupMemberMetrics;
         $this->loadExerciseData();
+    }
+
+    public function updatedValueDisplayMode(): void
+    {
+        $this->gridRenderVersion++;
     }
 
     protected function loadExerciseData(): void

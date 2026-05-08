@@ -1,10 +1,11 @@
-<div class="min-h-[60vh]">
+<div>
     @if ($this->selectedSession)
         @php
             $selectedSession = $this->selectedSession;
         @endphp
 
         <x-athlete.program-session-detail
+            :embedded="true"
             back-mode="action"
             back-action="backToPreviewList"
             back-label="Back to Preview"

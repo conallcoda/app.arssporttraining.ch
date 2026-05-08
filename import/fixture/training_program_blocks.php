@@ -2,8 +2,10 @@
 
 $start = today()->addDay();
 $end = $start->copy()->addWeeks(8);
-$archivedStart = today()->subMonth();
-$archivedEnd = $archivedStart->copy()->addWeeks(3);
+$strengthStart = today()->subWeeks(4);
+$strengthEnd = $strengthStart->copy()->addWeeks(8);
+$archivedEnd = $strengthStart->copy()->subDay();
+$archivedStart = $archivedEnd->copy()->subWeeks(3);
 
 return [
     [
@@ -14,8 +16,8 @@ return [
         'user_id' => null,
         'category_id' => 7,
         'type' => 'category',
-        'start' => $start->format('Y-m-d'),
-        'end' => $end->format('Y-m-d'),
+        'start' => $strengthStart->format('Y-m-d'),
+        'end' => $strengthEnd->format('Y-m-d'),
         'note' => 'Strength Block',
         'color' => null,
         'config' => [

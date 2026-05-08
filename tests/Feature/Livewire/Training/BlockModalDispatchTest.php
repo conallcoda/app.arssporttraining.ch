@@ -246,6 +246,53 @@ it('records provenance and state revisions when creating a block', function () {
             ->exists())->toBeTrue();
 });
 
+it('does not create overlapping category blocks in the same calendar lane', function () {
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Three Amigos']);
+    $tag = Tag::factory()->withScope('training_category')->create([
+        'name' => 'Strength',
+        'slug' => 'strength',
+    ]);
+    $weekStartsOn = (int) config('training.week_starts_on', Carbon::MONDAY);
+
+    TrainingProgramBlock::create([
+        'group_id' => $group->id,
+        'user_id' => null,
+        'category_id' => $tag->id,
+        'type' => TrainingProgramBlockTypeEnum::Category,
+        'start' => '2026-03-01',
+        'end' => '2026-03-10',
+        'note' => 'Strength Block',
+        'active' => true,
+    ]);
+
+    Livewire::actingAs($coach)
+        ->test(CalendarProgramsView::class, [
+            'groupId' => $group->id,
+            'userId' => null,
+            'calendarSettings' => blockWeekSettings(),
+            'weekStartsOn' => $weekStartsOn,
+            'weekEndsOn' => ($weekStartsOn + 6) % 7,
+        ])
+        ->call('onBlockSubmitted', [
+            'groupId' => $group->id,
+            'userId' => null,
+            'selected_members' => [],
+            'type' => 'category',
+            'categoryId' => $tag->id,
+            'start' => '2026-03-05',
+            'end' => '2026-03-12',
+            'note' => 'Archived Strength Block',
+            'color' => null,
+            'config' => [],
+        ]);
+
+    expect(TrainingProgramBlock::query()
+        ->where('group_id', $group->id)
+        ->where('category_id', $tag->id)
+        ->count())->toBe(1);
+});
+
 it('records provenance and state revisions when deleting an athlete override block', function () {
     $coach = User::factory()->coach()->create();
     $group = UserGroup::create(['name' => 'Three Amigos']);

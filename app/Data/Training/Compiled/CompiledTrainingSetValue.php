@@ -6,7 +6,7 @@ final readonly class CompiledTrainingSetValue
 {
     public function __construct(
         public string $settingKey,
-        public string $plannedValueType,
+        public ?string $plannedValueType,
         public mixed $plannedValue,
         public ?array $plannedCanonicalValue = null,
         public ?string $unit = null,

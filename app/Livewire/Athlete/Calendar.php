@@ -10,116 +10,108 @@ use Livewire\Component;
 
 class Calendar extends Component
 {
-    public string $calendarView = 'day';
+    public string $dashboardMode = 'train';
 
     public string $dashboardDate;
 
-    public string $selectedDayDate = '';
+    public string $selectedTrainDate = '';
 
-    public string $selectedWeekDate = '';
+    public string $selectedScheduleDate = '';
 
-    public function mount(string $calendarView = 'day', ?string $date = null): void
+    public function mount(string $dashboardMode = 'train', ?string $date = null): void
     {
-        $this->calendarView = in_array($calendarView, ['day', 'week', 'unrecorded'], true)
-            ? $calendarView
-            : 'day';
+        $this->dashboardMode = in_array($dashboardMode, ['train', 'schedule', 'unrecorded'], true)
+            ? $dashboardMode
+            : 'train';
         $this->dashboardDate = AthleteDashboardDate::todayDateString();
-        $this->selectedDayDate = session('athlete.calendar.day_date', $this->dashboardDate);
-        $this->selectedWeekDate = session(
-            'athlete.calendar.week_date',
-            CarbonImmutable::parse($this->dashboardDate)->startOfWeek()->format('Y-m-d'),
-        );
+        $this->selectedTrainDate = $this->dashboardDate;
+        $this->selectedScheduleDate = CarbonImmutable::parse($this->dashboardDate)->startOfWeek()->format('Y-m-d');
 
-        if ($this->calendarView === 'day') {
-            $this->selectedDayDate = $date
+        if ($this->dashboardMode === 'train') {
+            $this->selectedTrainDate = $date
                 ? CarbonImmutable::parse($date)->format('Y-m-d')
-                : $this->selectedDayDate;
-
-            session(['athlete.calendar.day_date' => $this->selectedDayDate]);
+                : $this->selectedTrainDate;
 
             return;
         }
 
-        if ($this->calendarView === 'week') {
-            $requestedWeekDate = $date ?: $this->selectedWeekDate;
-            $canonicalWeekStart = CarbonImmutable::parse($requestedWeekDate)->startOfWeek()->format('Y-m-d');
+        if ($this->dashboardMode === 'schedule') {
+            $requestedScheduleDate = $date ?: $this->selectedScheduleDate;
+            $canonicalScheduleStart = CarbonImmutable::parse($requestedScheduleDate)->startOfWeek()->format('Y-m-d');
 
-            if ($date !== null && $date !== $canonicalWeekStart) {
-                $this->redirectRoute('athlete.dashboard.calendar.week', ['date' => $canonicalWeekStart], navigate: true);
+            if ($date !== null && $date !== $canonicalScheduleStart) {
+                $this->redirectRoute('athlete.dashboard.schedule', ['date' => $canonicalScheduleStart], navigate: true);
 
                 return;
             }
 
-            $this->selectedWeekDate = $canonicalWeekStart;
-            session(['athlete.calendar.week_date' => $this->selectedWeekDate]);
+            $this->selectedScheduleDate = $canonicalScheduleStart;
         }
     }
 
-    public function updatedSelectedDayDate(string $value): void
+    public function updatedSelectedTrainDate(string $value): void
     {
         $resolvedDate = CarbonImmutable::parse($value)->format('Y-m-d');
-        $this->selectedDayDate = $resolvedDate;
-        session(['athlete.calendar.day_date' => $resolvedDate]);
+        $this->selectedTrainDate = $resolvedDate;
 
-        $this->redirect(route('athlete.dashboard.calendar', ['date' => $resolvedDate]), navigate: true);
+        $this->redirect(route('athlete.dashboard.train', ['date' => $resolvedDate]), navigate: true);
     }
 
-    public function updatedSelectedWeekDate(string $value): void
+    public function updatedSelectedScheduleDate(string $value): void
     {
-        $canonicalWeekStart = CarbonImmutable::parse($value)->startOfWeek()->format('Y-m-d');
-        $this->selectedWeekDate = $canonicalWeekStart;
-        session(['athlete.calendar.week_date' => $canonicalWeekStart]);
+        $canonicalScheduleStart = CarbonImmutable::parse($value)->startOfWeek()->format('Y-m-d');
+        $this->selectedScheduleDate = $canonicalScheduleStart;
 
-        $this->redirect(route('athlete.dashboard.calendar.week', ['date' => $canonicalWeekStart]), navigate: true);
-    }
-
-    #[Computed]
-    public function selectedDayDateValue(): string
-    {
-        return $this->selectedDayDate !== '' ? $this->selectedDayDate : $this->dashboardDate;
+        $this->redirect(route('athlete.dashboard.schedule', ['date' => $canonicalScheduleStart]), navigate: true);
     }
 
     #[Computed]
-    public function selectedWeekDateValue(): string
+    public function selectedTrainDateValue(): string
     {
-        return $this->selectedWeekDate !== ''
-            ? $this->selectedWeekDate
+        return $this->selectedTrainDate !== '' ? $this->selectedTrainDate : $this->dashboardDate;
+    }
+
+    #[Computed]
+    public function selectedScheduleDateValue(): string
+    {
+        return $this->selectedScheduleDate !== ''
+            ? $this->selectedScheduleDate
             : CarbonImmutable::parse($this->dashboardDate)->startOfWeek()->format('Y-m-d');
     }
 
     #[Computed]
-    public function selectedWeekStart(): CarbonImmutable
+    public function selectedScheduleStart(): CarbonImmutable
     {
-        return CarbonImmutable::parse($this->selectedWeekDateValue)->startOfWeek();
+        return CarbonImmutable::parse($this->selectedScheduleDateValue)->startOfWeek();
     }
 
     #[Computed]
-    public function previousWeekUrl(): string
+    public function previousScheduleUrl(): string
     {
-        return route('athlete.dashboard.calendar.week', ['date' => $this->selectedWeekStart->subWeek()->format('Y-m-d')]);
+        return route('athlete.dashboard.schedule', ['date' => $this->selectedScheduleStart->subWeek()->format('Y-m-d')]);
     }
 
     #[Computed]
-    public function nextWeekUrl(): string
+    public function nextScheduleUrl(): string
     {
-        return route('athlete.dashboard.calendar.week', ['date' => $this->selectedWeekStart->addWeek()->format('Y-m-d')]);
+        return route('athlete.dashboard.schedule', ['date' => $this->selectedScheduleStart->addWeek()->format('Y-m-d')]);
     }
 
     #[Computed]
-    public function previousDayUrl(): string
+    public function previousTrainUrl(): string
     {
-        return route('athlete.dashboard.calendar', ['date' => CarbonImmutable::parse($this->selectedDayDateValue)->subDay()->format('Y-m-d')]);
+        return route('athlete.dashboard.train', ['date' => CarbonImmutable::parse($this->selectedTrainDateValue)->subDay()->format('Y-m-d')]);
     }
 
     #[Computed]
-    public function nextDayUrl(): string
+    public function nextTrainUrl(): string
     {
-        return route('athlete.dashboard.calendar', ['date' => CarbonImmutable::parse($this->selectedDayDateValue)->addDay()->format('Y-m-d')]);
+        return route('athlete.dashboard.train', ['date' => CarbonImmutable::parse($this->selectedTrainDateValue)->addDay()->format('Y-m-d')]);
     }
 
     public function render(): View
     {
         return view('livewire.athlete.calendar')
-            ->layout('components.layouts.athlete', ['title' => 'Calendar']);
+            ->layout('components.layouts.athlete', ['title' => 'Dashboard']);
     }
 }

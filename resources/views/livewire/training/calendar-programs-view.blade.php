@@ -102,7 +102,7 @@
         @if ($this->visibleMetrics)
             <tbody x-data="{ ...metric_cell_popover(), expanded: $persist(false).as('cal-metrics'), metricSummaryDates: {{ \Illuminate\Support\Js::from($this->metricSummaryDates) }} }"
                    x-init="if (expanded && !$wire.metricsLoaded) $wire.loadMetrics()"
-                   wire:key="metrics-section">
+                   wire:key="metrics-section-{{ $metricsRenderKey }}">
                 <tr>
                     <td @click="expanded = !expanded; if (expanded && !$wire.metricsLoaded) $wire.loadMetrics()"
                         class="sticky left-0 z-10 cursor-pointer border-r border-b border-zinc-300 dark:border-zinc-600 px-2 py-2 font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-fit bg-zinc-300 dark:bg-zinc-700">
@@ -125,7 +125,7 @@
                 @if ($metricsLoaded)
                     @foreach ($this->visibleMetrics as $metricCase)
                         @php $metricRowData = $this->getMetricRowData($metricCase->value); @endphp
-                        <tr wire:key="metric-row-{{ $metricCase->value }}" x-show="expanded" x-cloak x-data="{ metricData: {{ \Illuminate\Support\Js::from($metricRowData) }} }">
+                        <tr wire:key="metric-row-{{ $metricCase->value }}-{{ $metricsRenderKey }}" x-show="expanded" x-cloak x-data="{ metricData: {{ \Illuminate\Support\Js::from($metricRowData) }} }">
                             <td class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 pl-5 pr-2 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-fit bg-white dark:bg-zinc-900">
                                 {{ $metricCase->label() }}
                                 @if (isset($this->currentMetricValues[$metricCase->value]))

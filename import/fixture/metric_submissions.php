@@ -1,6 +1,9 @@
 <?php
 
 $today = today()->format('Y-m-d');
+$strengthBlockStart = today()->subWeeks(4);
+$preStrengthBlockMetricDate = $strengthBlockStart->copy()->subDay()->format('Y-m-d');
+$midStrengthBlockMetricDate = $strengthBlockStart->copy()->addWeeks(5)->format('Y-m-d');
 
 return [
     [
@@ -8,7 +11,7 @@ return [
         'user_id' => 2,
         'metric' => 'oneRepMax',
         'recorded_by' => 1,
-        'recorded_at' => $today,
+        'recorded_at' => $preStrengthBlockMetricDate,
         'owner_type' => null,
         'owner_id' => null,
         'values' => [
@@ -29,28 +32,6 @@ return [
         'values' => [
             ['id' => 5021, 'field' => 'heartRate', 'value' => '190'],
             ['id' => 5022, 'field' => 'anaerobicThreshold', 'value' => '90'],
-        ],
-        'deleted_at' => null,
-    ],
-    [
-        'id' => 503,
-        'user_id' => 2,
-        'metric' => 'readiness',
-        'recorded_by' => 1,
-        'recorded_at' => $today,
-        'owner_type' => null,
-        'owner_id' => null,
-        'values' => [
-            ['id' => 5031, 'field' => 'sleepMinutes', 'value' => '510'],
-            ['id' => 5032, 'field' => 'sleepQuality', 'value' => '4'],
-            ['id' => 5033, 'field' => 'condition', 'value' => '4'],
-            ['id' => 5034, 'field' => 'mood', 'value' => '4'],
-            ['id' => 5035, 'field' => 'motivation', 'value' => '5'],
-            ['id' => 5036, 'field' => 'soreness', 'value' => '2'],
-            ['id' => 5037, 'field' => 'energy', 'value' => '4'],
-            ['id' => 5038, 'field' => 'restingHeartRate', 'value' => '48'],
-            ['id' => 5039, 'field' => 'restingHeartRateBaseline', 'value' => '50'],
-            ['id' => 5040, 'field' => 'hrv', 'value' => '72'],
         ],
         'deleted_at' => null,
     ],
@@ -95,7 +76,7 @@ return [
         'user_id' => 4,
         'metric' => 'oneRepMax',
         'recorded_by' => 1,
-        'recorded_at' => $today,
+        'recorded_at' => $preStrengthBlockMetricDate,
         'owner_type' => null,
         'owner_id' => null,
         'values' => [
@@ -132,7 +113,7 @@ return [
         'user_id' => 2,
         'metric' => 'oneRepMax',
         'recorded_by' => 1,
-        'recorded_at' => today()->addDays(10)->format('Y-m-d'),
+        'recorded_at' => $midStrengthBlockMetricDate,
         'owner_type' => null,
         'owner_id' => null,
         'values' => [

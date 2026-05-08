@@ -64,6 +64,8 @@ class CalendarProgramsView extends Component
 
     public bool $metricsLoaded = false;
 
+    public int $metricsRenderKey = 0;
+
     public function loadMetrics(): void
     {
         $this->metricsLoaded = true;
@@ -827,14 +829,20 @@ class CalendarProgramsView extends Component
             ->forAthlete($userId)
             ->forMetric($metricCase)
             ->manual()
+            ->where('recorded_at', '<=', now()->format('Y-m-d'))
             ->orderByDesc('recorded_at')
             ->with('values');
 
         if ($metricCase !== MetricEnum::Readiness) {
-            $query->where('recorded_at', '<=', now()->format('Y-m-d'));
+            return $query->first();
         }
 
-        return $query->first();
+        return $query->get()->first(function (MetricSubmission $submission) use ($metricCase): bool {
+            $fieldValues = $submission->values->pluck('value', 'field')->all();
+            $metricInstance = $metricCase->metricClass()::from($fieldValues);
+
+            return $this->currentMetricDisplayLabel($metricCase, $fieldValues, $metricInstance) !== null;
+        });
     }
 
     protected function currentMetricDisplayLabel(MetricEnum $metricCase, array $fieldValues, mixed $metricInstance): ?string
@@ -1027,7 +1035,7 @@ class CalendarProgramsView extends Component
             $submission->delete();
         }
 
-        unset($this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData, $this->groupCurrentMetricValues);
+        $this->refreshMetricCaches();
     }
 
     #[On('calendar-metric-form.submitted')]
@@ -1055,7 +1063,20 @@ class CalendarProgramsView extends Component
             }
         }
 
-        unset($this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData, $this->groupCurrentMetricValues);
+        $this->refreshMetricCaches();
+    }
+
+    protected function refreshMetricCaches(): void
+    {
+        unset(
+            $this->metricSummaryDates,
+            $this->metricCellData,
+            $this->currentMetricValues,
+            $this->groupMetricCellData,
+            $this->groupCurrentMetricValues,
+        );
+
+        $this->metricsRenderKey++;
     }
 
     public function openProgramSlot(int $trainingProgramId, string $date): void
@@ -1193,6 +1214,10 @@ class CalendarProgramsView extends Component
     #[On('block.submitted')]
     public function onBlockSubmitted(array $data): void
     {
+        if ($this->rejectCategoryOverlap($data)) {
+            return;
+        }
+
         DB::transaction(function () use ($data): void {
             $groupId = $data['groupId'];
             $editingBlockId = $data['editing_block_id'] ?? null;
@@ -1320,6 +1345,32 @@ class CalendarProgramsView extends Component
         });
 
         unset($this->allBlocks, $this->categoryBlocks, $this->visibleMetrics, $this->metricCellData, $this->currentMetricValues, $this->groupMetricCellData, $this->groupCurrentMetricValues);
+    }
+
+    protected function rejectCategoryOverlap(array $data): bool
+    {
+        $categoryId = $data['categoryId'] ?? null;
+        if ($categoryId === null) {
+            return false;
+        }
+
+        $conflict = app(CalendarBlockService::class)->findCategoryOverlap(
+            groupId: (int) $data['groupId'],
+            categoryId: (int) $categoryId,
+            start: Carbon::parse($data['start']),
+            end: filled($data['end'] ?? null) ? Carbon::parse($data['end']) : null,
+            userId: isset($data['userId']) ? (int) $data['userId'] : null,
+            parentId: isset($data['parentId']) ? (int) $data['parentId'] : null,
+            excludeBlockId: isset($data['editing_block_id']) ? (int) $data['editing_block_id'] : null,
+        );
+
+        if (! $conflict) {
+            return false;
+        }
+
+        Flux::toast(text: __('Blocks in the same category cannot overlap on the calendar.'), variant: 'danger');
+
+        return true;
     }
 
     #[On('block.deleted')]

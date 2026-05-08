@@ -17,12 +17,18 @@ use App\Models\Tag;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramBlock;
 use App\Models\Training\TrainingProgramSlot;
+use App\Models\Training\TrainingProgramSlotExercise;
+use App\Models\Training\TrainingProgramSlotSet;
+use App\Models\Training\TrainingProgramSlotSetValue;
 use App\Models\Training\TrainingRevisionBatch;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use App\Models\Users\UserTypeEnum;
 use App\Training\TrainingSessionMaterializer;
+use App\Training\TrainingSessionStatusService;
+use App\Training\TrainingValueSnapshotCodec;
 use Illuminate\Console\Command;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
@@ -67,6 +73,8 @@ class ExerciseFixtureImporter
 
     public function __construct(
         private readonly TrainingSessionMaterializer $materializer,
+        private readonly TrainingSessionStatusService $statusService,
+        private readonly TrainingValueSnapshotCodec $valueCodec,
     ) {}
 
     public function import(string $fixturePath, Command $command): User
@@ -88,11 +96,13 @@ class ExerciseFixtureImporter
             $this->seedExercises($owner);
             $this->seedPrograms($owner);
             $this->seedTrainingPrograms($owner);
+            $this->normalizeScheduledProgramParents();
             $this->seedTrainingBlocks($owner);
             $this->seedTrainingSlots($owner);
             $this->seedMetricSubmissions($owner);
             $this->applyDefaultCoachSessionGrouping();
             $this->materializeTrainingSessions();
+            $this->applyRecordedTrainingSessions($owner);
 
             $command->info('Exercise fixture sandbox reset complete.');
             $command->line('Owner: '.self::TEST_USER_EMAIL);
@@ -126,12 +136,16 @@ class ExerciseFixtureImporter
             'email' => self::TEST_USER_EMAIL,
         ]);
 
-        $user->fill([
+        $user->forceFill([
             'type' => UserTypeEnum::Coach,
             'forename' => 'Conall',
             'surname' => "O'Reilly",
             'color' => 'blue',
             'password' => Hash::make(self::TEST_USER_PASSWORD),
+            'account_setup_token_hash' => null,
+            'account_setup_sent_at' => null,
+            'account_setup_expires_at' => null,
+            'account_setup_completed_at' => now(),
         ]);
 
         if ($user->trashed()) {
@@ -362,6 +376,15 @@ class ExerciseFixtureImporter
                 'deleted_at' => $user['deleted_at'] ?? null,
             ]);
 
+            if (($user['type'] ?? null) === UserTypeEnum::Coach->value) {
+                $model->forceFill([
+                    'account_setup_token_hash' => null,
+                    'account_setup_sent_at' => null,
+                    'account_setup_expires_at' => null,
+                    'account_setup_completed_at' => now(),
+                ])->saveQuietly();
+            }
+
             $this->userIdMap[$fixtureId] = (int) $model->id;
         }
     }
@@ -517,6 +540,25 @@ class ExerciseFixtureImporter
         }
     }
 
+    private function normalizeScheduledProgramParents(): void
+    {
+        foreach ($this->loadFile('training_programs.php') as $trainingProgram) {
+            $trainingProgramId = $this->trainingProgramIdMap[(int) $trainingProgram['id']] ?? null;
+            $exerciseProgramId = $this->programIdMap[(int) $trainingProgram['exercise_program_id']] ?? null;
+
+            if ($trainingProgramId === null || $exerciseProgramId === null) {
+                continue;
+            }
+
+            ExerciseProgram::query()
+                ->whereKey($exerciseProgramId)
+                ->update([
+                    'parent_type' => TrainingProgram::class,
+                    'parent_id' => $trainingProgramId,
+                ]);
+        }
+    }
+
     private function seedTrainingBlocks(User $owner): void
     {
         foreach ($this->loadFile('training_program_blocks.php') as $block) {
@@ -625,6 +667,248 @@ class ExerciseFixtureImporter
                     $this->materializer->materialize($slot, force: true);
                 }
             });
+    }
+
+    private function applyRecordedTrainingSessions(User $owner): void
+    {
+        foreach ($this->loadFile('training_session_records.php') as $record) {
+            $mappedSlotId = $this->slotIdMap[(int) ($record['slot_id'] ?? 0)] ?? null;
+
+            if ($mappedSlotId === null) {
+                continue;
+            }
+
+            $slot = TrainingProgramSlot::query()
+                ->with(['exercises.exercise', 'exercises.sets.values'])
+                ->find($mappedSlotId);
+
+            if (! $slot instanceof TrainingProgramSlot) {
+                continue;
+            }
+
+            $recordedAt = $slot->datetime->copy()->addMinutes(45);
+            $defaultState = (string) ($record['default_state'] ?? '');
+
+            if ($defaultState !== '') {
+                foreach ($slot->exercises as $exercise) {
+                    $this->applyExerciseState($exercise, $defaultState, $recordedAt, (int) $slot->user_id);
+                }
+            }
+
+            foreach (($record['exercise_overrides'] ?? []) as $exerciseRecord) {
+                $exercise = $slot->exercises->first(function (TrainingProgramSlotExercise $slotExercise) use ($exerciseRecord): bool {
+                    if (isset($exerciseRecord['name'])) {
+                        return $slotExercise->exercise?->name === $exerciseRecord['name'];
+                    }
+
+                    if (isset($exerciseRecord['exercise_id'])) {
+                        $fixtureExerciseId = (int) $exerciseRecord['exercise_id'];
+                        $mappedExerciseId = $this->exerciseIdMap[$fixtureExerciseId] ?? $fixtureExerciseId;
+
+                        return (int) $slotExercise->exercise_id === (int) $mappedExerciseId;
+                    }
+
+                    return false;
+                });
+
+                if (! $exercise instanceof TrainingProgramSlotExercise) {
+                    continue;
+                }
+
+                $exerciseState = (string) ($exerciseRecord['state'] ?? '');
+
+                if ($exerciseState !== '' && empty($exerciseRecord['sets'])) {
+                    $this->applyExerciseState($exercise, $exerciseState, $recordedAt, (int) $slot->user_id);
+                }
+
+                foreach (($exerciseRecord['sets'] ?? []) as $setRecord) {
+                    $set = $exercise->sets->firstWhere('set_number', (int) ($setRecord['number'] ?? 0));
+
+                    if (! $set instanceof TrainingProgramSlotSet) {
+                        continue;
+                    }
+
+                    $this->applySetRecord($set, $setRecord, $recordedAt, (int) $slot->user_id);
+                }
+            }
+
+            foreach ($slot->exercises as $exercise) {
+                $this->statusService->refreshExerciseState($exercise);
+            }
+        }
+    }
+
+    private function applyExerciseState(
+        TrainingProgramSlotExercise $exercise,
+        string $state,
+        Carbon $recordedAt,
+        int $recordedBy,
+    ): void {
+        foreach ($exercise->sets as $set) {
+            $this->applySetState($set, $state, $recordedAt, $recordedBy);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $setRecord
+     */
+    private function applySetRecord(
+        TrainingProgramSlotSet $set,
+        array $setRecord,
+        Carbon $recordedAt,
+        int $recordedBy,
+    ): void {
+        $state = (string) ($setRecord['state'] ?? 'completed');
+        $this->applySetState($set, $state, $recordedAt, $recordedBy);
+
+        if (array_key_exists('note', $setRecord)) {
+            $set->forceFill([
+                'athlete_note' => $setRecord['note'],
+            ])->save();
+        }
+
+        foreach (($setRecord['values'] ?? []) as $settingKey => $value) {
+            $valueRow = $set->values->firstWhere('setting_key', $settingKey);
+
+            if (! $valueRow instanceof TrainingProgramSlotSetValue) {
+                continue;
+            }
+
+            $this->applyActualValue($valueRow, $value, $recordedAt, $recordedBy);
+        }
+    }
+
+    private function applySetState(
+        TrainingProgramSlotSet $set,
+        string $state,
+        Carbon $recordedAt,
+        int $recordedBy,
+    ): void {
+        if ($state === 'skipped') {
+            foreach ($set->values as $valueRow) {
+                $valueRow->forceFill($this->valueCodec->clearActualValue() + [
+                    'is_modified' => false,
+                ])->save();
+            }
+
+            $set->forceFill([
+                'completed_at' => null,
+                'skipped_at' => $recordedAt,
+            ])->save();
+
+            return;
+        }
+
+        if ($state === 'pending') {
+            foreach ($set->values as $valueRow) {
+                $valueRow->forceFill($this->valueCodec->clearActualValue() + [
+                    'is_modified' => false,
+                ])->save();
+            }
+
+            $set->forceFill([
+                'completed_at' => null,
+                'skipped_at' => null,
+            ])->save();
+
+            return;
+        }
+
+        foreach ($set->values as $valueRow) {
+            $this->copyPlannedValueToActual($valueRow, $recordedAt, $recordedBy);
+        }
+
+        $set->forceFill([
+            'completed_at' => $recordedAt,
+            'skipped_at' => null,
+        ])->save();
+    }
+
+    private function applyActualValue(
+        TrainingProgramSlotSetValue $valueRow,
+        mixed $value,
+        Carbon $recordedAt,
+        int $recordedBy,
+    ): void {
+        $normalized = $this->normalizeFixtureValue($valueRow, $value);
+        $valueType = $this->resolveFixtureValueType($valueRow, $normalized);
+        $plannedValue = $this->valueCodec->extractPlannedValue($valueRow);
+
+        $valueRow->forceFill(
+            $this->valueCodec->encodeActualValue($valueType, $normalized, is_array($normalized) ? $normalized : null) + [
+                'actual_recorded_by' => $recordedBy,
+                'actual_recorded_at' => $recordedAt,
+                'actual_source' => 'athlete',
+                'actual_is_explicit' => true,
+                'unit' => $valueRow->unit,
+                'is_modified' => $normalized !== $plannedValue,
+            ]
+        )->save();
+    }
+
+    private function copyPlannedValueToActual(
+        TrainingProgramSlotSetValue $valueRow,
+        Carbon $recordedAt,
+        int $recordedBy,
+    ): void {
+        $plannedType = $this->valueCodec->extractPlannedType($valueRow);
+
+        if ($plannedType === null) {
+            $valueRow->forceFill($this->valueCodec->clearActualValue() + [
+                'is_modified' => false,
+            ])->save();
+
+            return;
+        }
+
+        $plannedValue = $this->valueCodec->extractPlannedValue($valueRow);
+        $plannedCanonical = $valueRow->plannedCanonicalValue();
+
+        $valueRow->forceFill(
+            $this->valueCodec->encodeActualValue($plannedType, $plannedValue, $plannedCanonical) + [
+                'actual_recorded_by' => $recordedBy,
+                'actual_recorded_at' => $recordedAt,
+                'actual_source' => 'athlete',
+                'actual_is_explicit' => false,
+                'unit' => $valueRow->unit,
+                'is_modified' => false,
+            ]
+        )->save();
+    }
+
+    private function normalizeFixtureValue(TrainingProgramSlotSetValue $valueRow, mixed $value): mixed
+    {
+        $plannedType = $this->valueCodec->extractPlannedType($valueRow);
+
+        return match ($plannedType) {
+            'int' => is_numeric($value) ? (int) $value : $value,
+            'decimal' => is_numeric($value) ? round((float) $value, 3) : $value,
+            'json' => $value,
+            'string' => $value === null ? null : (string) $value,
+            default => match (true) {
+                is_int($value) => $value,
+                is_float($value) => round($value, 3),
+                is_numeric($value) && str_contains((string) $value, '.') => round((float) $value, 3),
+                is_numeric($value) => (int) $value,
+                default => $value === null ? null : (string) $value,
+            },
+        };
+    }
+
+    private function resolveFixtureValueType(TrainingProgramSlotSetValue $valueRow, mixed $value): string
+    {
+        $plannedType = $this->valueCodec->extractPlannedType($valueRow);
+
+        if ($plannedType !== null) {
+            return $plannedType;
+        }
+
+        return match (true) {
+            is_array($value) => 'json',
+            is_float($value) => 'decimal',
+            is_int($value) => 'int',
+            default => 'string',
+        };
     }
 
     private function persistTestCredentials(): void

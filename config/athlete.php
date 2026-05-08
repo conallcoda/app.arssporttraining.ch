@@ -3,6 +3,44 @@
 return [
     /*
     |--------------------------------------------------------------------------
+    | Allow All Athlete Editing
+    |--------------------------------------------------------------------------
+    |
+    | Master toggle for athlete-entered data across date-sensitive athlete
+    | flows. Set to true to allow editing for past, today, and future dates by
+    | default. Set to false to deny all of them by default. Set to null to keep
+    | each feature's built-in default unless overridden below.
+    |
+    */
+    'can_edit_all' => true,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Athlete Editability Overrides
+    |--------------------------------------------------------------------------
+    |
+    | Granular date-based overrides for specific athlete flows. Any value left
+    | as null falls back to can_edit_all when present, otherwise to the
+    | built-in default for that feature.
+    |
+    */
+    'editability' => [
+        'readiness' => [
+            'past' => null,
+            'today' => null,
+            'future' => null,
+        ],
+        'programs' => [
+            'exercises' => [
+                'past' => null,
+                'today' => null,
+                'future' => null,
+            ],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Athlete Dashboard Today Override
     |--------------------------------------------------------------------------
     |
@@ -10,7 +48,7 @@ return [
     | Set to null to use the actual current date.
     |
     */
-    'dashboard_today_override' => '30.04.2026',
+    'dashboard_today_override' => null,
 
     /*
     |--------------------------------------------------------------------------
@@ -22,28 +60,6 @@ return [
     |
     */
     'require_readiness_for_training_visibility' => true,
-
-    /*
-    |--------------------------------------------------------------------------
-    | Allow Readiness For Past Days
-    |--------------------------------------------------------------------------
-    |
-    | When true, readiness can be shown and submitted for past days. Today's
-    | readiness is always allowed regardless of this setting.
-    |
-    */
-    'allow_readiness_past' => true,
-
-    /*
-    |--------------------------------------------------------------------------
-    | Allow Readiness For Future Days
-    |--------------------------------------------------------------------------
-    |
-    | When true, readiness can be shown and submitted for future days. Today's
-    | readiness is always allowed regardless of this setting.
-    |
-    */
-    'allow_readiness_future' => true,
 
     /*
     |--------------------------------------------------------------------------

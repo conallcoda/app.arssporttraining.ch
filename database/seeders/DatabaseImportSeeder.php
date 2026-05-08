@@ -85,6 +85,7 @@ class DatabaseImportSeeder extends Seeder
                 $this->applyDefaultCoachSessionGrouping();
                 if ($this->includeCalendarData) {
                     $this->seedTrainingPrograms();
+                    $this->normalizeScheduledProgramParents();
                     $this->seedTrainingProgramBlocks();
                     $this->seedTrainingProgramSlots();
                     $this->seedMetricSubmissions();
@@ -495,15 +496,19 @@ class DatabaseImportSeeder extends Seeder
         $users = $this->loadFile('users.php');
 
         foreach ($users as $user) {
-            User::create([
+            $isCoach = ($user['type'] ?? null) === UserTypeEnum::Coach->value;
+
+            $model = User::create([
                 'id' => $user['id'],
                 'owner_id' => $user['owner_id'] ?? null,
                 'type' => $user['type'],
                 'forename' => $user['forename'],
                 'surname' => $user['surname'],
-                'email' => $this->preserveImportedEmails
+                'email' => $isCoach
                     ? ($user['email'] ?? null)
-                    : ImportedEmailNormalizer::normalize($user['email'] ?? null),
+                    : ($this->preserveImportedEmails
+                    ? ($user['email'] ?? null)
+                    : ImportedEmailNormalizer::normalize($user['email'] ?? null)),
                 'phone' => $user['phone'],
                 'password' => $user['password'],
                 'gender' => $user['gender'] ?? null,
@@ -512,6 +517,15 @@ class DatabaseImportSeeder extends Seeder
                 'config' => $user['config'],
                 'deleted_at' => $user['deleted_at'] ?? null,
             ]);
+
+            if ($isCoach) {
+                $model->forceFill([
+                    'account_setup_token_hash' => null,
+                    'account_setup_sent_at' => null,
+                    'account_setup_expires_at' => null,
+                    'account_setup_completed_at' => now(),
+                ])->saveQuietly();
+            }
 
             $groups = $user['groups'] ?? [];
             if (! empty($groups)) {
@@ -566,6 +580,35 @@ class DatabaseImportSeeder extends Seeder
         }
 
         $this->command->info('Imported '.count($trainingPrograms).' training programs.');
+    }
+
+    private function normalizeScheduledProgramParents(): void
+    {
+        $linked = 0;
+
+        TrainingProgram::query()
+            ->select(['id', 'exercise_program_id'])
+            ->orderBy('id')
+            ->chunkById(100, function ($trainingPrograms) use (&$linked): void {
+                foreach ($trainingPrograms as $trainingProgram) {
+                    $updated = ExerciseProgram::query()
+                        ->whereKey($trainingProgram->exercise_program_id)
+                        ->where(function ($query) use ($trainingProgram): void {
+                            $query->where('parent_type', '!=', TrainingProgram::class)
+                                ->orWhereNull('parent_type')
+                                ->orWhere('parent_id', '!=', $trainingProgram->id)
+                                ->orWhereNull('parent_id');
+                        })
+                        ->update([
+                            'parent_type' => TrainingProgram::class,
+                            'parent_id' => $trainingProgram->id,
+                        ]);
+
+                    $linked += $updated;
+                }
+            });
+
+        $this->command->info("Normalized {$linked} scheduled exercise program parents.");
     }
 
     private function seedTrainingProgramBlocks(): void

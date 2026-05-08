@@ -45,16 +45,6 @@ class Exercises extends Relationship
         return $this->searchable(function (string $query, mixed $currentValue, array $excludedIds): iterable {
             $base = fn () => Exercise::query()->with(['category', 'equipment', 'modifiers']);
 
-            if ($query === '') {
-                if ($currentValue === null || $currentValue === '') {
-                    return collect();
-                }
-
-                return $base()
-                    ->whereKey($currentValue)
-                    ->get();
-            }
-
             $results = $base()
                 ->when($excludedIds !== [], fn ($q) => $q->whereNotIn('exercises.id', $excludedIds))
                 ->when($query !== '', fn ($q) => $q->where(function ($w) use ($query) {

@@ -274,7 +274,7 @@ return [
                 'stepDownInterval' => 2,
                 'decrement' => 2,
                 'minimum' => 1,
-                'label' => '7-9',
+                'label' => '',
                 'applyPer' => 'session',
             ],
             'rest' => [

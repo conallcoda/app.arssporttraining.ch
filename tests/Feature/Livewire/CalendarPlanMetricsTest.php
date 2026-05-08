@@ -370,6 +370,169 @@ it('excludes soft deleted submissions from metric summary dates', function () {
     expect($dates)->not->toHaveKey('2026-04-28');
 });
 
+it('refreshes calendar metric caches immediately after submitting a metric', function () {
+    Carbon::setTestNow('2026-05-02 12:00:00');
+
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $user = User::factory()->athlete()->create();
+    $coach = User::factory()->coach()->create();
+    $group->members()->attach($user);
+
+    $component = Livewire::actingAs($coach)->test(CalendarProgramsView::class, [
+        'groupId' => $group->id,
+        'userId' => $user->id,
+        'calendarSettings' => new CalendarSettingsData(
+            start: '2026-04-28',
+            end: '2026-05-02',
+            preset: CalendarDateService::PRESET_CUSTOM,
+        ),
+        'weekStartsOn' => Carbon::MONDAY,
+        'weekEndsOn' => Carbon::SUNDAY,
+    ]);
+
+    expect($component->instance()->metricsRenderKey)->toBe(0)
+        ->and($component->instance()->metricSummaryDates)->not->toHaveKey('2026-04-30')
+        ->and($component->instance()->getMetricRowData(MetricEnum::OneRepMax->value))->toBe([])
+        ->and($component->instance()->currentMetricValues[MetricEnum::OneRepMax->value]['isAvailable'])->toBeFalse();
+
+    $component->call('onMetricFormSubmitted', [
+        'metric' => MetricEnum::OneRepMax->value,
+        'user_id' => $user->id,
+        'recorded_at' => '2026-04-30',
+        'data' => [
+            'measuredReps' => 3,
+            'measuredWeight' => 100,
+        ],
+    ]);
+
+    $rowData = $component->instance()->getMetricRowData(MetricEnum::OneRepMax->value);
+    $current = $component->instance()->currentMetricValues[MetricEnum::OneRepMax->value];
+
+    expect($component->instance()->metricsRenderKey)->toBe(1)
+        ->and($component->instance()->metricSummaryDates)->toHaveKey('2026-04-30')
+        ->and($rowData)->toHaveKey('2026-04-30')
+        ->and($rowData['2026-04-30']['label'])->not->toBeNull()
+        ->and($current['isAvailable'])->toBeTrue()
+        ->and($current['summary'])->toBe('100kg');
+
+    Carbon::setTestNow();
+});
+
+it('refreshes calendar metric caches immediately after deleting a metric', function () {
+    Carbon::setTestNow('2026-05-02 12:00:00');
+
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $user = User::factory()->athlete()->create();
+    $coach = User::factory()->coach()->create();
+    $group->members()->attach($user);
+
+    $submission = createSubmissionWithValues([
+        'user_id' => $user->id,
+        'metric' => MetricEnum::HeartRate,
+        'recorded_by' => $coach->id,
+        'recorded_at' => '2026-04-30',
+    ], [
+        'heartRate' => '190',
+        'anaerobicThreshold' => '90',
+    ]);
+
+    $component = Livewire::actingAs($coach)->test(CalendarProgramsView::class, [
+        'groupId' => $group->id,
+        'userId' => $user->id,
+        'calendarSettings' => new CalendarSettingsData(
+            start: '2026-04-28',
+            end: '2026-05-02',
+            preset: CalendarDateService::PRESET_CUSTOM,
+        ),
+        'weekStartsOn' => Carbon::MONDAY,
+        'weekEndsOn' => Carbon::SUNDAY,
+    ]);
+
+    expect($component->instance()->metricSummaryDates)->toHaveKey('2026-04-30')
+        ->and($component->instance()->getMetricRowData(MetricEnum::HeartRate->value))->toHaveKey('2026-04-30')
+        ->and($component->instance()->currentMetricValues[MetricEnum::HeartRate->value]['isAvailable'])->toBeTrue();
+
+    $component->set('pendingMetricDeleteId', $submission->id)
+        ->call('deleteMetricSubmission');
+
+    expect($component->instance()->metricsRenderKey)->toBe(1)
+        ->and($component->instance()->metricSummaryDates)->not->toHaveKey('2026-04-30')
+        ->and($component->instance()->getMetricRowData(MetricEnum::HeartRate->value))->toBe([])
+        ->and($component->instance()->currentMetricValues[MetricEnum::HeartRate->value]['isAvailable'])->toBeFalse();
+
+    Carbon::setTestNow();
+});
+
+it('uses the latest usable readiness submission for the current metric badge', function () {
+    Carbon::setTestNow('2026-05-02 12:00:00');
+
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $user = User::factory()->athlete()->create();
+    $coach = User::factory()->coach()->create();
+    $group->members()->attach($user);
+
+    createSubmissionWithValues([
+        'user_id' => $user->id,
+        'metric' => MetricEnum::Readiness,
+        'recorded_by' => $coach->id,
+        'recorded_at' => '2026-04-30',
+    ], [
+        'sleepMinutes' => '450',
+        'sleepQuality' => '4',
+        'altitudeMeters' => '1800',
+        'condition' => '4',
+        'mood' => '4',
+        'motivation' => '4',
+        'soreness' => '4',
+        'energy' => '4',
+        'restingHeartRate' => '48',
+        'restingHeartRateBaseline' => '46',
+        'readinessScore' => '4.0571428571429',
+        'trafficLight' => 'ready',
+        'trafficLightLabel' => 'Ready',
+        'trafficLightColor' => 'green',
+    ]);
+
+    createSubmissionWithValues([
+        'user_id' => $user->id,
+        'metric' => MetricEnum::Readiness,
+        'recorded_by' => $coach->id,
+        'recorded_at' => '2026-05-01',
+    ], [
+        'sleepMinutes' => '450',
+        'sleepQuality' => '4',
+        'altitudeMeters' => '1800',
+        'condition' => '4',
+        'mood' => '4',
+        'motivation' => '4',
+        'soreness' => '4',
+        'energy' => '4',
+        'restingHeartRateBaseline' => '46',
+        'trafficLightLabel' => 'Ready',
+        'trafficLightColor' => 'green',
+    ]);
+
+    $component = Livewire::actingAs($coach)->test(CalendarProgramsView::class, [
+        'groupId' => $group->id,
+        'userId' => $user->id,
+        'calendarSettings' => new CalendarSettingsData(
+            start: '2026-04-28',
+            end: '2026-05-02',
+            preset: CalendarDateService::PRESET_CUSTOM,
+        ),
+        'weekStartsOn' => Carbon::MONDAY,
+        'weekEndsOn' => Carbon::SUNDAY,
+    ]);
+
+    $current = $component->instance()->currentMetricValues[MetricEnum::Readiness->value];
+
+    expect($current['isAvailable'])->toBeTrue()
+        ->and($current['summary'])->toBe('4.1')
+        ->and($current['recorded_at'])->toBe('30.04.2026');
+
+    Carbon::setTestNow();
+});
+
 // --- openPlan1rmEdit ---
 
 it('dispatches metric form with existing 1RM submission data', function () {

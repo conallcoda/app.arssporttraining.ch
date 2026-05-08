@@ -7,19 +7,19 @@
     <div class="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
         <span class="font-medium truncate">{{ $option->name }}</span>
         @foreach ($option->equipment as $tag)
-            <span class="inline-flex items-center rounded-full bg-blue-100 px-1.5 py-0 text-[10px] leading-5 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">{{ $tag->short_name ?: $tag->name }}</span>
+            <flux:badge size="sm" color="blue" class="text-[10px] px-1.5 py-0">{{ $tag->short_name ?: $tag->name }}</flux:badge>
         @endforeach
         @foreach ($option->modifiers as $tag)
-            <span class="inline-flex items-center rounded-full bg-zinc-100 px-1.5 py-0 text-[10px] leading-5 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">{{ $tag->short_name ?: $tag->name }}</span>
+            <flux:badge size="sm" color="zinc" class="text-[10px] px-1.5 py-0">{{ $tag->short_name ?: $tag->name }}</flux:badge>
         @endforeach
     </div>
     @if ($category)
         @if ($categoryColor)
-            <span class="inline-flex items-center rounded-full px-1.5 py-0 text-[10px] leading-5 shrink-0 {{ \Coda\Cms\Support\ColorPalette::lightBadge($categoryColor) }}">
+            <flux:badge size="sm" class="{{ \Coda\Cms\Support\ColorPalette::lightBadge($categoryColor) }} shrink-0 text-[10px] px-1.5 py-0">
                 {{ $category->short_name ?: $category->name }}
-            </span>
+            </flux:badge>
         @else
-            <span class="inline-flex items-center rounded-full bg-zinc-100 px-1.5 py-0 text-[10px] leading-5 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 shrink-0">{{ $category->short_name ?: $category->name }}</span>
+            <flux:badge size="sm" class="shrink-0 text-[10px] px-1.5 py-0">{{ $category->short_name ?: $category->name }}</flux:badge>
         @endif
     @endif
 </div>

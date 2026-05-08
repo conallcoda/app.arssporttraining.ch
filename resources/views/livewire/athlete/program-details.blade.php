@@ -14,13 +14,14 @@
         :time-label="$this->currentSlot->datetime->format('gA')"
         :category-label="$programCategoryLabel"
         :category-color="$exerciseCategory?->color"
-        :show-progress="! $isFutureSession"
+        :show-progress="$canRecordSession"
         :progress-segments="$progressSegments"
         :shows-section-tabs="$showsSectionTabs"
         :section-tabs="$sectionTabs"
         section-model="activeSection"
         :program-exercises="$programExercises"
         :is-future-session="$isFutureSession"
+        :can-record-session="$canRecordSession"
         :athlete-edits-enabled="$athleteEditsEnabled"
     />
 

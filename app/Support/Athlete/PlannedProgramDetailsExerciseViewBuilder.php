@@ -51,6 +51,7 @@ class PlannedProgramDetailsExerciseViewBuilder
             $values = [];
             $valueClasses = [];
             $units = [];
+            $hasSettingRow = false;
 
             foreach ($plannedExercise->sets as $set) {
                 $valueRow = collect($set->values)->firstWhere('settingKey', $setting);
@@ -58,12 +59,13 @@ class PlannedProgramDetailsExerciseViewBuilder
                     ? collect($set->values)->firstWhere('settingKey', 'heartRateZone')?->value
                     : null;
                 $settingConfig = $this->resolveSettingConfig($exerciseConfig, $setting);
+                $hasSettingRow = $hasSettingRow || $valueRow !== null;
                 $units[] = $valueRow?->unit;
                 $values[] = $this->formatSessionValue($setting, $valueRow?->value, $valueRow?->unit, $settingConfig);
                 $valueClasses[] = $this->cellClass($setting, $valueRow?->value, $rowColorName, $zoneValue);
             }
 
-            if (collect($values)->every(fn (?string $value) => $value === null)) {
+            if (! $hasSettingRow && collect($values)->every(fn (?string $value) => $value === null)) {
                 continue;
             }
 

@@ -148,11 +148,11 @@
                 @foreach ($this->columns as $column)
                     @if ($column->sortable)
                         @if ($column->sticky)
-                            <flux:table.column sticky sortable :sorted="$this->isSortedBy($column->field)" :direction="$this->currentSortDirection()" wire:click="sortBy('{{ $column->field }}')" class="{{ $column->width }}">
+                            <flux:table.column sticky sortable :sorted="$this->isSortedBy($column->getSortField())" :direction="$this->currentSortDirection()" wire:click="sortBy('{{ $column->getSortField() }}')" class="{{ $column->width }}">
                                 {{ $column->getDisplayLabel() }}
                             </flux:table.column>
                         @else
-                            <flux:table.column sortable :sorted="$this->isSortedBy($column->field)" :direction="$this->currentSortDirection()" wire:click="sortBy('{{ $column->field }}')" class="{{ $column->width }}">
+                            <flux:table.column sortable :sorted="$this->isSortedBy($column->getSortField())" :direction="$this->currentSortDirection()" wire:click="sortBy('{{ $column->getSortField() }}')" class="{{ $column->width }}">
                                 {{ $column->getDisplayLabel() }}
                             </flux:table.column>
                         @endif
@@ -398,9 +398,23 @@
                                         <flux:button variant="ghost" size="xs" icon="ellipsis" />
                                         <flux:menu>
                                             @foreach ($this->rowMenuActions as $menuAction)
-                                                <flux:menu.item :icon="$menuAction->icon"
-                                                    wire:click="openActionModal('{{ $menuAction->name }}', {{ $item->id }})">
-                                                    {{ $menuAction->label }}</flux:menu.item>
+                                                @if ($menuAction->isFormModal())
+                                                    <flux:menu.item :icon="$menuAction->icon"
+                                                        wire:click="openActionModal('{{ $menuAction->name }}', {{ $item->id }})">
+                                                        {{ $menuAction->label }}</flux:menu.item>
+                                                @elseif ($menuAction->isConfirm())
+                                                    <flux:menu.item :icon="$menuAction->icon"
+                                                        wire:click="confirmAction('{{ $menuAction->name }}', {{ $item->id }})">
+                                                        {{ $menuAction->label }}</flux:menu.item>
+                                                @elseif ($menuAction->isAlpineEvent())
+                                                    <flux:menu.item :icon="$menuAction->icon"
+                                                        x-on:click="$dispatch('{{ $menuAction->alpineEventName }}', {{ Js::from($menuAction->getAlpineEventData($item)) }})">
+                                                        {{ $menuAction->label }}</flux:menu.item>
+                                                @else
+                                                    <flux:menu.item :icon="$menuAction->icon"
+                                                        wire:click="{{ $menuAction->getHandler() }}({{ $item->id }})">
+                                                        {{ $menuAction->label }}</flux:menu.item>
+                                                @endif
                                             @endforeach
                                         </flux:menu>
                                     </flux:dropdown>
