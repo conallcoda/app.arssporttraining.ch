@@ -47,6 +47,18 @@ composer_update_packages() {
     )
 }
 
+composer_install_dependencies() {
+    if ! command -v composer >/dev/null 2>&1; then
+        echo "Composer is required to install dependencies" >&2
+        exit 1
+    fi
+
+    (
+        cd "${PROJECT_ROOT}"
+        composer install
+    )
+}
+
 ensure_shared_source() {
     local package_name="$1"
     local source_dir="${SHARED_ROOT}/${package_name}"
@@ -243,6 +255,7 @@ restore_shared_workspace() {
     set_repository_mode "shared"
     composer_update_packages
     cleanup_vendored_packages
+    composer_install_dependencies
 }
 
 run_release() {
@@ -313,8 +326,8 @@ Commands:
   use-vendored        Point composer.json at repo-local ./packages snapshots
   refresh-lock        Run composer update for the configured CMS packages
   snapshot-commit     Sync packages, switch to vendored paths, refresh lock, stage and commit
-  cleanup             Switch back to shared paths, refresh lock, delete ./packages
-  release             Snapshot, commit, push, then restore shared mode and remove ./packages
+  cleanup             Switch back to shared paths, refresh lock, delete ./packages, install dependencies
+  release             Snapshot, commit, push, then restore shared mode, remove ./packages, install dependencies
 EOF
 }
 
