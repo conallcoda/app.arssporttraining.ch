@@ -8,6 +8,9 @@ use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
 use App\Data\Exercise\ExerciseSetting;
 use App\Data\Exercise\Preview\CellInputMeta;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
+use App\Data\Training\Compiler\AuthoringExerciseData;
+use App\Data\Training\Compiler\AuthoringProgramData;
+use App\Data\Training\Compiler\PlanningContextData;
 use App\Data\Training\Compiled\CompiledTrainingExercise;
 use App\Data\Training\Compiled\CompiledTrainingSession;
 use App\Data\Training\Compiled\CompiledTrainingSet;
@@ -19,8 +22,7 @@ use App\Models\Training\TrainingProgramBlock;
 use App\Models\Athlete\MetricSubmission;
 use App\Models\Exercise\Exercise;
 use App\Models\Training\TrainingProgramSlot;
-use App\Support\Training\ExerciseMetricAvailability;
-use App\Training\Planning\ResolvedPlannedSessionBuilder;
+use App\Training\Planning\PlanCompiler;
 use Carbon\Carbon;
 
 class TrainingSessionCompiler
@@ -48,8 +50,7 @@ class TrainingSessionCompiler
 
     public function __construct(
         private readonly CalendarBlockService $calendarBlockService,
-        private readonly ResolvedPlannedSessionBuilder $plannedSessionBuilder,
-        private readonly ExerciseMetricAvailability $exerciseMetricAvailability,
+        private readonly PlanCompiler $planCompiler,
     ) {}
 
     public function compile(TrainingProgramSlot $slot): CompiledTrainingSession
@@ -64,8 +65,8 @@ class TrainingSessionCompiler
         $oneRepMaxMetric = $this->latestMetric($slot->user_id, MetricEnum::OneRepMax, $metricContext['cutoffDate']);
         $heartRateMetric = $this->latestMetric($slot->user_id, MetricEnum::HeartRate, $scheduledDate);
         $weightProgression = $this->resolveWeightProgressionData($oneRepMaxMetric, $metricContext['targetGoal']);
-
-        $plannedExercises = $program->exercises
+        $authoringProgram = new AuthoringProgramData(
+            exercises: $program->exercises
             ->sortBy(function (Exercise $exercise): string {
                 $type = $exercise->pivot->type ?? 'main';
                 $sectionRank = array_search($type, self::SECTION_ORDER, true);
@@ -78,70 +79,40 @@ class TrainingSessionCompiler
                 );
             })
             ->values()
-            ->map(function (Exercise $exercise, int $index) use ($programConfig, $sessionContext, $weightProgression, $heartRateMetric, $slot) {
+            ->map(function (Exercise $exercise, int $index) use ($programConfig, $slot) {
                 $programExerciseId = (int) $exercise->pivot->id;
                 $resolvedOverrides = $programConfig->resolveExercise($exercise->config, $programExerciseId, $slot->user_id);
 
-                if ($resolvedOverrides->disabled) {
-                    return null;
-                }
-
-                $effectiveConfig = $resolvedOverrides->effectiveConfig;
-
-                if ($this->exerciseMetricAvailability->missingRequiredMetrics(
-                    effectiveConfig: $effectiveConfig,
-                    weightProgression: $weightProgression,
-                    maxHR: $heartRateMetric?->heartRate,
-                    iatPercent: $heartRateMetric?->anaerobicThreshold,
-                )) {
-                    return null;
-                }
-
-                $overrideLayer = $resolvedOverrides->overrideLayer;
-
-                $weeks = max(
-                    (int) data_get($effectiveConfig, 'preview.weeks', 1),
-                    count($sessionContext['weekSessionCounts'] ?? []),
-                    $sessionContext['weekIndex'] + 1
-                );
-                $sessionCounts = $sessionContext['weekSessionCounts'] ?? [];
-
-                if ($sessionCounts === []) {
-                    $sessionCounts = array_fill(0, $weeks, (int) ($sessionContext['sessionsPerWeek'] ?? 1));
-                }
-
-                for ($index = count($sessionCounts); $index < $weeks; $index++) {
-                    $sessionCounts[$index] = 1;
-                }
-
-                $sessionCounts[$sessionContext['weekIndex']] = (int) ($sessionContext['sessionsPerWeek'] ?? 1);
-
-                return $this->plannedSessionBuilder->buildExercise(
+                return new AuthoringExerciseData(
                     exerciseId: $exercise->id,
                     sort: $index,
                     group: $exercise->pivot->group,
                     type: $exercise->pivot->type ?? 'main',
-                    effectiveConfig: $effectiveConfig,
-                    overrideLayer: $overrideLayer,
-                    weekIndex: $sessionContext['weekIndex'],
-                    sessionIndex: $sessionContext['sessionIndex'],
-                    weeks: $weeks,
-                    sessionCounts: $sessionCounts,
-                    measuredData: $weightProgression,
-                    maxHR: $heartRateMetric?->heartRate,
-                    iatPercent: $heartRateMetric?->anaerobicThreshold,
+                    effectiveConfig: $resolvedOverrides->effectiveConfig,
+                    overrideLayer: $resolvedOverrides->overrideLayer,
                     baseConfig: $exercise->config->toArray(),
                     defaultOverrides: $resolvedOverrides->defaultOverrides,
                     userOverrides: $resolvedOverrides->userOverrides,
+                    disabled: (bool) $resolvedOverrides->disabled,
                 );
             })
-            ->filter()
             ->values()
-            ->all();
-
+            ->all(),
+        );
+        $planningContext = new PlanningContextData(
+            scheduledDate: $scheduledDate,
+            weekIndex: (int) $sessionContext['weekIndex'],
+            sessionIndex: (int) $sessionContext['sessionIndex'],
+            sessionsPerWeek: (int) ($sessionContext['sessionsPerWeek'] ?? 1),
+            weekSessionCounts: $sessionContext['weekSessionCounts'] ?? [1],
+            weightProgression: $weightProgression,
+            maxHR: $heartRateMetric?->heartRate,
+            iatPercent: $heartRateMetric?->anaerobicThreshold,
+        );
+        $plannedSession = $this->planCompiler->compile($authoringProgram, $planningContext);
         $compiledExercises = array_map(
             fn (ResolvedPlannedExercise $exercise): CompiledTrainingExercise => $this->compileExercise($exercise),
-            $plannedExercises,
+            $plannedSession->exercises,
         );
 
         return new CompiledTrainingSession(

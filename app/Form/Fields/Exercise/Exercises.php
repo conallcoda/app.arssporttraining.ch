@@ -3,22 +3,56 @@
 namespace App\Form\Fields\Exercise;
 
 use App\Models\Exercise\Exercise;
-use App\Models\Tag;
+use Coda\Cms\Display\DisplayFields\CompactDisplay;
 use Coda\FormKit\Fields\RelationshipSelector;
 use Coda\FormKit\Fields\Select;
 
 class Exercises extends RelationshipSelector
 {
+    /** @var array<string, iterable<mixed>> */
+    private static array $searchResultsCache = [];
+
+    /** @var array<string, iterable<mixed>> */
+    private static array $selectedRecordsCache = [];
+
+    public static function flushRequestCaches(): void
+    {
+        self::$searchResultsCache = [];
+        self::$selectedRecordsCache = [];
+    }
+
     public function __construct(string $name)
     {
         parent::__construct($name);
 
         $this->label = 'Exercises';
+        $this->modalTitle = 'Select Exercises';
+        $this->deferModalApply = true;
         $this->placeholder = 'Search exercises';
         $this->sortable = true;
         $this->default = [];
         $this->selectButtonLabel = 'Select';
         $this->emptySelectionText = 'No exercises selected yet.';
+        $this->columns([
+            CompactDisplay::make('compact')
+                ->source(function (Exercise $exercise): array {
+                    $category = $exercise->category;
+
+                    return [
+                        'title' => $exercise->name,
+                        'badges' => array_values(array_filter([
+                            $category ? [
+                                'label' => $category->short_name ?: $category->name,
+                                'color' => $category->color,
+                            ] : null,
+                        ])),
+                        'meta' => $exercise->modifiers
+                            ->map(fn ($tag) => ['label' => $tag->short_name ?: $tag->name, 'color' => 'zinc'])
+                            ->values()
+                            ->all(),
+                    ];
+                }),
+        ]);
         $this->schema([
             Select::make('group')
                 ->label('Group')
@@ -36,29 +70,22 @@ class Exercises extends RelationshipSelector
             ->orderBy('name')
             ->pluck('name', 'id')
             ->all();
+        $this->cached('exercise-selector-options');
 
         return $this;
     }
 
     public function withSearch(): static
     {
-        return $this->filters([
-            Select::make('category_id')
-                ->label('Category')
-                ->placeholder('All categories')
-                ->optionsUsing(fn () => Tag::query()
-                    ->forScope('exercise_category')
-                    ->whereNull('parent_id')
-                    ->orderBy('name')
-                    ->pluck('name', 'id')
-                    ->all())
-                ->clearable()
-                ->live(),
-        ])->searchable(function (string $query, array $selectedIds, array $excludedIds, array $filters): iterable {
-            $base = fn () => Exercise::query()->with(['category', 'equipment', 'modifiers']);
+        return $this->searchable(function (string $query, array $selectedIds, array $excludedIds, array $filters, array $items, array $sort): iterable {
+            $cacheKey = 'search:'.md5(json_encode([$query]));
 
-            $results = $base()
-                ->when(($filters['category_id'] ?? null), fn ($q, $categoryId) => $q->where('exercises.category_id', $categoryId))
+            if (isset(self::$searchResultsCache[$cacheKey])) {
+                return self::$searchResultsCache[$cacheKey];
+            }
+
+            return self::$searchResultsCache[$cacheKey] = Exercise::query()
+                ->with(['category', 'equipment', 'modifiers'])
                 ->when($query !== '', fn ($q) => $q->where(function ($w) use ($query) {
                     $w->where('exercises.name', 'like', "%{$query}%")
                         ->orWhereHas('category', fn ($c) => $c->where('tags.name', 'like', "%{$query}%"))
@@ -68,26 +95,6 @@ class Exercises extends RelationshipSelector
                 ->orderBy('name')
                 ->limit(40)
                 ->get();
-
-            $selectedIdInts = collect($selectedIds)
-                ->filter(fn ($id) => $id !== null && $id !== '')
-                ->map(fn ($id) => (int) $id)
-                ->values();
-
-            if ($selectedIdInts->isNotEmpty()) {
-                $selectedRecords = $base()
-                    ->whereKey($selectedIdInts->all())
-                    ->get()
-                    ->keyBy('id');
-
-                foreach (array_reverse($selectedIdInts->all()) as $selectedId) {
-                    if (! $results->contains('id', $selectedId) && $selectedRecords->has($selectedId)) {
-                        $results->prepend($selectedRecords->get($selectedId));
-                    }
-                }
-            }
-
-            return $results;
         })->selectedRecordsUsing(function (array $selectedIds): iterable {
             $selectedIdInts = collect($selectedIds)
                 ->filter(fn ($id) => $id !== null && $id !== '')
@@ -99,7 +106,13 @@ class Exercises extends RelationshipSelector
                 return collect();
             }
 
-            return Exercise::query()
+            $cacheKey = 'selected:'.implode(',', $selectedIdInts);
+
+            if (isset(self::$selectedRecordsCache[$cacheKey])) {
+                return self::$selectedRecordsCache[$cacheKey];
+            }
+
+            return self::$selectedRecordsCache[$cacheKey] = Exercise::query()
                 ->with(['category', 'equipment', 'modifiers'])
                 ->whereKey($selectedIdInts)
                 ->get()
@@ -110,8 +123,6 @@ class Exercises extends RelationshipSelector
 
     public function withOptionView(): static
     {
-        return $this
-            ->optionView('training.exercise-option')
-            ->selectionView('training.exercise-option');
+        return $this;
     }
 }

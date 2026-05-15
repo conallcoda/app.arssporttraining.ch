@@ -5,11 +5,14 @@ namespace App\Data\Exercise\Preview;
 use App\Data\Exercise\ExerciseSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Exercise\Strategies\HeartRate\HeartRateZoneCellColors;
+use App\Data\Training\Compiler\AuthoringExerciseData;
+use App\Data\Training\Compiler\AuthoringProgramData;
+use App\Data\Training\Compiler\PlanningContextData;
 use App\Data\Training\Config\ExerciseOverrides;
 use App\Data\Training\Planned\ResolvedPlannedExercise;
 use App\Data\Training\Planned\ResolvedPlannedProvenance;
 use App\Support\Training\ApplyPerScope;
-use App\Training\Planning\ResolvedPlannedSessionBuilder;
+use App\Training\Planning\PlanCompiler;
 use Coda\Cms\Support\ColorPalette;
 use Illuminate\Support\Str;
 
@@ -942,37 +945,46 @@ class ExercisePreviewBuilder
         $provenances = [];
         $setCounts = [];
         $setCountProvenances = [];
-        $builder = new ResolvedPlannedSessionBuilder;
+        $program = new AuthoringProgramData(exercises: [
+            new AuthoringExerciseData(
+                exerciseId: null,
+                sort: 0,
+                group: null,
+                type: 'main',
+                effectiveConfig: $data,
+                overrideLayer: $overrideLayer,
+                baseConfig: $baseConfig,
+                defaultOverrides: $defaultOverrides,
+                userOverrides: $userOverrides,
+            ),
+        ]);
+        $planCompiler = app(PlanCompiler::class);
 
         for ($week = 0; $week < $weeks; $week++) {
             for ($session = 0; $session < ($sessionCounts[$week] ?? 1); $session++) {
-                $resolved = $builder->buildExercise(
-                    exerciseId: null,
-                    sort: 0,
-                    group: null,
-                    type: 'main',
-                    effectiveConfig: $data,
-                    overrideLayer: $overrideLayer,
-                    weekIndex: $week,
-                    sessionIndex: $session,
-                    weeks: $weeks,
-                    sessionCounts: $sessionCounts,
-                    measuredData: $measuredData,
-                    maxHR: $maxHR,
-                    iatPercent: $iatPercent,
-                    baseConfig: $baseConfig,
-                    defaultOverrides: $defaultOverrides,
-                    userOverrides: $userOverrides,
+                $resolved = $planCompiler->compile(
+                    program: $program,
+                    context: new PlanningContextData(
+                        scheduledDate: sprintf('2026-01-%02d', ($week * max(1, max($sessionCounts))) + $session + 1),
+                        weekIndex: $week,
+                        sessionIndex: $session,
+                        sessionsPerWeek: $sessionCounts[$week] ?? 1,
+                        weekSessionCounts: $sessionCounts,
+                        weightProgression: $measuredData,
+                        maxHR: $maxHR,
+                        iatPercent: $iatPercent,
+                    ),
                 );
+                $exercise = $resolved->exercises[0] ?? null;
 
-                if ($resolved === null) {
+                if (! $exercise instanceof ResolvedPlannedExercise) {
                     continue;
                 }
 
-                $setCounts[$week][$session] = count($resolved->sets);
-                $setCountProvenances[$week][$session] = $resolved->setCountProvenance;
+                $setCounts[$week][$session] = count($exercise->sets);
+                $setCountProvenances[$week][$session] = $exercise->setCountProvenance;
 
-                foreach ($resolved->sets as $setIndex => $plannedSet) {
+                foreach ($exercise->sets as $setIndex => $plannedSet) {
                     foreach ($plannedSet->values as $plannedValue) {
                         $values[$week][$session][$plannedValue->settingKey][$setIndex] = $plannedValue->value;
                         $provenances[$week][$session][$plannedValue->settingKey][$setIndex] = $plannedValue->provenance;

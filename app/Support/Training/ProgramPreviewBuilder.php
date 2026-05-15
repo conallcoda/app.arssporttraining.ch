@@ -5,12 +5,16 @@ namespace App\Support\Training;
 use App\Data\Athlete\ProgramDetailsExerciseData;
 use App\Data\Athlete\ScheduledProgramData;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
+use App\Data\Training\Compiler\AuthoringExerciseData;
+use App\Data\Training\Compiler\AuthoringProgramData;
+use App\Data\Training\Compiler\PlanningContextData;
+use App\Data\Training\Planned\ResolvedPlannedExercise;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Support\Athlete\PlannedProgramDetailsExerciseViewBuilder;
 use App\Support\AthleteDashboardDate;
 use App\Training\ExerciseGroupLabeler;
-use App\Training\Planning\ResolvedPlannedSessionBuilder;
+use App\Training\Planning\PlanCompiler;
 use Carbon\CarbonImmutable;
 
 class ProgramPreviewBuilder
@@ -22,7 +26,7 @@ class ProgramPreviewBuilder
     ];
 
     public function __construct(
-        private readonly ResolvedPlannedSessionBuilder $plannedSessionBuilder,
+        private readonly PlanCompiler $planCompiler,
         private readonly PlannedProgramDetailsExerciseViewBuilder $exerciseViewBuilder,
     ) {}
 
@@ -106,6 +110,34 @@ class ProgramPreviewBuilder
             fn (Exercise $exercise): ?string => $exercise->pivot->group,
             fn (Exercise $exercise): int => (int) $exercise->pivot->id,
         );
+        $sourceExercisesBySignature = $sortedExercises
+            ->keyBy(fn (Exercise $exercise): string => $this->exerciseSignature(
+                exerciseId: $exercise->id,
+                sort: (int) ($exercise->pivot->sort ?? 0),
+                group: $exercise->pivot->group,
+                type: (string) ($exercise->pivot->type ?? 'main'),
+            ));
+        $authoringProgram = new AuthoringProgramData(
+            exercises: $sortedExercises
+                ->map(function (Exercise $exercise, int $index) use ($programConfig, $userId): AuthoringExerciseData {
+                    $programExerciseId = (int) $exercise->pivot->id;
+                    $resolvedOverrides = $programConfig->resolveExercise($exercise->config, $programExerciseId, $userId);
+
+                    return new AuthoringExerciseData(
+                        exerciseId: $exercise->id,
+                        sort: $index,
+                        group: $exercise->pivot->group,
+                        type: $exercise->pivot->type ?? 'main',
+                        effectiveConfig: $resolvedOverrides->effectiveConfig,
+                        overrideLayer: $resolvedOverrides->overrideLayer,
+                        baseConfig: $exercise->config->toArray(),
+                        defaultOverrides: $resolvedOverrides->defaultOverrides,
+                        userOverrides: $resolvedOverrides->userOverrides,
+                        disabled: (bool) $resolvedOverrides->disabled,
+                    );
+                })
+                ->all(),
+        );
 
         $days = [];
         $sessions = [];
@@ -124,38 +156,34 @@ class ProgramPreviewBuilder
                 $isFutureSession = $date
                     ? AthleteDashboardDate::isFutureDate($date)
                     : true;
+                $plannedSession = $this->planCompiler->compile(
+                    $authoringProgram,
+                    new PlanningContextData(
+                        scheduledDate: $date ?? 'preview-week-'.$weekIndex.'-session-'.$sessionIndex,
+                        weekIndex: $weekIndex,
+                        sessionIndex: $sessionIndex,
+                        sessionsPerWeek: max(1, $resolvedSessionCounts[$weekIndex] ?? $sessionsPerWeek),
+                        weekSessionCounts: $resolvedSessionCounts,
+                        weightProgression: $weightProgression,
+                        maxHR: $planMaxHR,
+                        iatPercent: $planIatPercent,
+                    ),
+                );
 
-                $plannedExercises = $sortedExercises
-                    ->map(function (Exercise $exercise, int $index) use ($programConfig, $userId, $weekIndex, $sessionIndex, $resolvedWeeks, $resolvedSessionCounts, $weightProgression, $planMaxHR, $planIatPercent, $groupLabels) {
+                $plannedExercises = collect($plannedSession->exercises)
+                    ->map(function (ResolvedPlannedExercise $plannedExercise, int $index) use ($sourceExercisesBySignature, $groupLabels): ?array {
+                        $exercise = $sourceExercisesBySignature->get($this->exerciseSignature(
+                            exerciseId: (int) $plannedExercise->exerciseId,
+                            sort: $plannedExercise->sort,
+                            group: $plannedExercise->group,
+                            type: $plannedExercise->type,
+                        ));
+
+                        if (! $exercise instanceof Exercise) {
+                            return null;
+                        }
+
                         $programExerciseId = (int) $exercise->pivot->id;
-                        $resolvedOverrides = $programConfig->resolveExercise($exercise->config, $programExerciseId, $userId);
-
-                        if ($resolvedOverrides->disabled) {
-                            return null;
-                        }
-
-                        $plannedExercise = $this->plannedSessionBuilder->buildExercise(
-                            exerciseId: $exercise->id,
-                            sort: $index,
-                            group: $exercise->pivot->group,
-                            type: $exercise->pivot->type ?? 'main',
-                            effectiveConfig: $resolvedOverrides->effectiveConfig,
-                            overrideLayer: $resolvedOverrides->overrideLayer,
-                            weekIndex: $weekIndex,
-                            sessionIndex: $sessionIndex,
-                            weeks: $resolvedWeeks,
-                            sessionCounts: $resolvedSessionCounts,
-                            measuredData: $weightProgression,
-                            maxHR: $planMaxHR,
-                            iatPercent: $planIatPercent,
-                            baseConfig: $exercise->config->toArray(),
-                            defaultOverrides: $resolvedOverrides->defaultOverrides,
-                            userOverrides: $resolvedOverrides->userOverrides,
-                        );
-
-                        if ($plannedExercise === null) {
-                            return null;
-                        }
 
                         return [
                             'type' => $plannedExercise->type,
@@ -260,6 +288,11 @@ class ProgramPreviewBuilder
             'days' => array_values($days),
             'sessions' => $sessions,
         ];
+    }
+
+    private function exerciseSignature(int $exerciseId, int $sort, ?string $group, string $type): string
+    {
+        return implode(':', [$exerciseId, $sort, $group ?? '', $type]);
     }
 
     private function sessionCountForWeek(int $weekIndex, int $fallbackSessionsPerWeek, array $weekSessions, array $weekSessionDates): int

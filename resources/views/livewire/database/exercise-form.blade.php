@@ -1,8 +1,8 @@
 <div class="focus:outline-none">
-    <flux:modal :name="$name" :flyout="$flyout" :class="$maxWidth"
+    <x-cms::modal :name="$name" :flyout="$flyout" :max-width="$maxWidth" padding="p-8"
         x-on:close="Livewire.dispatch('{{ $name }}.closed')"
         x-on:focus-field.window="
-            const content = $el.querySelector('.space-y-6');
+            const content = $el.querySelector('[data-modal-focus-content]');
             content.style.visibility = 'hidden';
             setTimeout(() => {
                 focusModalField($el, $event.detail.field, $event.detail.index);
@@ -10,12 +10,12 @@
             }, 150)
         "
         x-on:keydown.enter="handleModalEnterSubmit($event, $wire)">
-        <div class="space-y-6">
-            <flux:heading size="lg">{{ $activeTitle ?? $title }}</flux:heading>
+        <x-cms::modal.header :title="$activeTitle ?? $title" />
+        <x-cms::modal.body class="space-y-6">
 
             <div class="grid grid-cols-[minmax(420px,2fr)_3fr] gap-8">
                 <div class="space-y-4">
-                    <form wire:submit="submit" class="space-y-4" wire:key="form-{{ $openCount }}">
+                    <form id="modal-form-{{ $name }}" wire:submit="submit" class="space-y-4" wire:key="form-{{ $openCount }}">
                         @foreach ($this->fieldsets as $item)
                             @if ($item instanceof \Coda\FormKit\FormFieldsetGroup)
                                 <x-form-kit::form.fieldset-tabs :group="$item" />
@@ -23,12 +23,6 @@
                                 <x-form-kit::form.fieldset :fieldset="$item" :prefix="$item->prefix ?? 'data'" :showLegend="true" />
                             @endif
                         @endforeach
-                        <div class="flex gap-2 pt-4">
-                            <flux:button type="submit" variant="primary" class="flex-1">{{ $submitLabel }}</flux:button>
-                            <flux:modal.close>
-                                <flux:button variant="ghost">{{ $cancelLabel }}</flux:button>
-                            </flux:modal.close>
-                        </div>
                     </form>
                 </div>
 
@@ -70,6 +64,14 @@
                     @endif
                 </div>
             </div>
-        </div>
-    </flux:modal>
+        </x-cms::modal.body>
+        <x-cms::modal.footer>
+            <div class="flex gap-2">
+                <flux:button type="submit" form="modal-form-{{ $name }}" variant="primary" class="flex-1">{{ $submitLabel }}</flux:button>
+                <flux:modal.close>
+                    <flux:button variant="ghost">{{ $cancelLabel }}</flux:button>
+                </flux:modal.close>
+            </div>
+        </x-cms::modal.footer>
+    </x-cms::modal>
 </div>

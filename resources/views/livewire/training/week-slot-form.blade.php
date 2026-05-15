@@ -1,8 +1,8 @@
 <div>
-    <flux:modal :name="$name" variant="flyout" :class="$maxWidth"
+    <x-cms::modal :name="$name" variant="flyout" :max-width="$maxWidth" padding="p-8"
         x-on:close="Livewire.dispatch('{{ $name }}.closed')">
-        <div class="flex flex-col gap-6 p-2">
-            <flux:heading size="lg">{{ $isEditing ? __('Edit Slot') : __('Add Slot') }}</flux:heading>
+        <x-cms::modal.header :title="$isEditing ? __('Edit Slot') : __('Add Slot')" />
+        <x-cms::modal.body class="flex flex-col gap-6">
             @if ($openCount > 0)
                 <div wire:key="week-slot-{{ $openCount }}" class="flex flex-col gap-6">
                     @foreach ($this->fieldsets as $item)
@@ -24,18 +24,20 @@
                         </flux:field>
                     @endif
                 </div>
-                <div class="flex items-center gap-2">
-                    <flux:button variant="primary" wire:click="submit" class="flex-1">
-                        {{ $submitLabel }}
-                    </flux:button>
-                    <flux:button variant="ghost" wire:click="cancel">
-                        {{ $cancelLabel }}
-                    </flux:button>
-                    @if ($isEditing)
-                        <flux:button variant="ghost" icon="trash" wire:click="deleteSlot" />
-                    @endif
-                </div>
             @endif
-        </div>
-    </flux:modal>
+        </x-cms::modal.body>
+        <x-cms::modal.footer>
+            <div class="flex items-center gap-2">
+                <flux:button variant="primary" wire:click="submit" class="flex-1">
+                    {{ $submitLabel }}
+                </flux:button>
+                <flux:button variant="ghost" wire:click="cancel">
+                    {{ $cancelLabel }}
+                </flux:button>
+                @if ($isEditing)
+                    <flux:button variant="ghost" icon="trash" wire:click="deleteSlot" />
+                @endif
+            </div>
+        </x-cms::modal.footer>
+    </x-cms::modal>
 </div>

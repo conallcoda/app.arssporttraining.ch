@@ -20,22 +20,27 @@ class TrainingSessionMaterializer
         private readonly TrainingValueSnapshotCodec $valueCodec,
     ) {}
 
-    public function materialize(TrainingProgramSlot $slot, bool $force = false): void
+    public function materialize(
+        TrainingProgramSlot $slot,
+        bool $force = false,
+        bool $ignoreCompiledVersion = false,
+        bool $allowImmutableRewrite = false,
+    ): void
     {
-        DB::transaction(function () use ($slot, $force): void {
+        DB::transaction(function () use ($slot, $force, $ignoreCompiledVersion, $allowImmutableRewrite): void {
             $lockedSlot = TrainingProgramSlot::query()
                 ->lockForUpdate()
                 ->findOrFail($slot->id);
 
             $this->preserveCompilationRelations($slot, $lockedSlot);
 
-            if ($this->shouldSkipMaterialization($lockedSlot, $force)) {
+            if ($this->shouldSkipMaterialization($lockedSlot, $force, $allowImmutableRewrite)) {
                 return;
             }
 
             $compiled = $this->compiler->compile($lockedSlot);
 
-            if ($this->isNoOpRebuild($lockedSlot, $compiled)) {
+            if (! $ignoreCompiledVersion && $this->isNoOpRebuild($lockedSlot, $compiled)) {
                 return;
             }
 
@@ -75,13 +80,13 @@ class TrainingSessionMaterializer
         }
     }
 
-    private function shouldSkipMaterialization(TrainingProgramSlot $slot, bool $force): bool
+    private function shouldSkipMaterialization(TrainingProgramSlot $slot, bool $force, bool $allowImmutableRewrite): bool
     {
         if ($slot->compiled_at === null) {
             return false;
         }
 
-        if ($slot->datetime->lte(now())) {
+        if ($slot->datetime->lte(now()) && ! $allowImmutableRewrite) {
             return true;
         }
 

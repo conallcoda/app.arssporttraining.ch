@@ -5,24 +5,24 @@ namespace App\Support\Athlete;
 use App\Data\Athlete\ProgramDetailsExerciseData;
 use App\Data\Athlete\ProgramDetailsNoteData;
 use App\Data\Athlete\ProgramDetailsSessionRowData;
+use App\Data\Training\Snapshot\ScheduledExerciseSnapshotData;
+use App\Data\Training\Snapshot\ScheduledSetSnapshotData;
+use App\Data\Training\Snapshot\ScheduledValueSnapshotData;
+use App\Support\Training\ScheduledSessionSnapshotBuilder;
 use App\Models\Training\TrainingProgramSlotExercise;
 use App\Models\Training\TrainingProgramSlotSetStatusEnum;
-use App\Models\Training\TrainingProgramSlotSetValue;
 use App\Support\Athlete\Concerns\FormatsProgramDetailsExerciseValues;
 use Coda\Cms\Support\ColorPalette;
-use Illuminate\Support\Collection;
 
 class ProgramDetailsExerciseViewBuilder
 {
     use FormatsProgramDetailsExerciseValues;
 
-    public function build(TrainingProgramSlotExercise $slotExercise, int $index, ?string $groupLabel = null, array $pendingSkippedSetMap = []): ProgramDetailsExerciseData
+    public function buildFromSnapshot(ScheduledExerciseSnapshotData $exerciseSnapshot, int $index, ?string $groupLabel = null, array $pendingSkippedSetMap = []): ProgramDetailsExerciseData
     {
-        $exercise = $slotExercise->exercise;
-        $exerciseConfig = $exercise?->config;
-        $sets = $slotExercise->sets->sortBy('set_number')->values();
         $settingKeys = $this->orderedSettings(
-            $sets->flatMap(fn ($set) => $set->values->pluck('setting_key'))
+            collect($exerciseSnapshot->sets)
+                ->flatMap(fn (ScheduledSetSnapshotData $set) => collect($set->values)->pluck('settingKey'))
                 ->unique()
                 ->values()
                 ->all()
@@ -34,8 +34,12 @@ class ProgramDetailsExerciseViewBuilder
 
         foreach ($settingKeys as $setting) {
             if ($setting === 'note') {
-                $notes = $sets
-                    ->map(fn ($set) => $this->extractResolvedValue($set->values->firstWhere('setting_key', 'note')))
+                $notes = collect($exerciseSnapshot->sets)
+                    ->map(function (ScheduledSetSnapshotData $set): mixed {
+                        $value = collect($set->values)->firstWhere('settingKey', 'note');
+
+                        return $value instanceof ScheduledValueSnapshotData ? $value->resolvedValue : null;
+                    })
                     ->filter(fn ($value) => ! $this->isBlankValue($value))
                     ->unique()
                     ->values();
@@ -55,10 +59,10 @@ class ProgramDetailsExerciseViewBuilder
             $values = [];
             $valueClasses = [];
             $modifiedValues = [];
-            $firstValueRow = null;
+            $firstUnit = null;
             $hasSettingRow = false;
 
-            foreach ($sets as $set) {
+            foreach ($exerciseSnapshot->sets as $set) {
                 $isSkipped = array_key_exists($set->id, $pendingSkippedSetMap)
                     ? (bool) $pendingSkippedSetMap[$set->id]
                     : (string) ($set->status->value ?? $set->status) === TrainingProgramSlotSetStatusEnum::Skipped->value;
@@ -70,19 +74,19 @@ class ProgramDetailsExerciseViewBuilder
                     continue;
                 }
 
-                $valueRow = $set->values->firstWhere('setting_key', $setting);
-                if ($valueRow instanceof TrainingProgramSlotSetValue && $firstValueRow === null) {
-                    $firstValueRow = $valueRow;
+                $value = collect($set->values)->firstWhere('settingKey', $setting);
+                if ($value instanceof ScheduledValueSnapshotData && $firstUnit === null) {
+                    $firstUnit = $value->unit;
                 }
-                $hasSettingRow = $hasSettingRow || $valueRow instanceof TrainingProgramSlotSetValue;
+                $hasSettingRow = $hasSettingRow || $value instanceof ScheduledValueSnapshotData;
 
-                $rawValue = $this->extractResolvedValue($valueRow);
+                $rawValue = $value instanceof ScheduledValueSnapshotData ? $value->resolvedValue : null;
                 $zoneValue = $setting === 'heartRate'
-                    ? $this->extractResolvedValue($set->values->firstWhere('setting_key', 'heartRateZone'))
+                    ? (collect($set->values)->firstWhere('settingKey', 'heartRateZone')?->resolvedValue)
                     : null;
-                $settingConfig = $this->resolveSettingConfig($exerciseConfig, $setting);
-                $values[] = $this->formatSessionValue($setting, $rawValue, $valueRow?->unit, $settingConfig);
-                $modifiedValues[] = (bool) ($valueRow?->is_modified ?? false);
+                $settingConfig = $this->resolveSettingConfig($exerciseSnapshot->settingConfigs, $setting);
+                $values[] = $this->formatSessionValue($setting, $rawValue, $value?->unit, $settingConfig);
+                $modifiedValues[] = (bool) ($value?->isModified ?? false);
                 $valueClasses[] = $this->cellClass(
                     $setting,
                     $rawValue,
@@ -97,7 +101,7 @@ class ProgramDetailsExerciseViewBuilder
             }
 
             $sessionRows[] = new ProgramDetailsSessionRowData(
-                label: $this->resolveSettingLabel($setting, $firstValueRow?->unit, $exerciseConfig),
+                label: $this->resolveSettingLabel($setting, $firstUnit, $exerciseSnapshot->settingConfigs),
                 labelClass: $labelClass,
                 values: $values,
                 valueClasses: $valueClasses,
@@ -108,56 +112,33 @@ class ProgramDetailsExerciseViewBuilder
         }
 
         return new ProgramDetailsExerciseData(
-            id: $slotExercise->id,
+            id: $exerciseSnapshot->slotExerciseId,
             index: $index + 1,
             groupLabel: $groupLabel,
-            name: $exercise?->name ?? 'Exercise',
-            equipmentBadges: $exercise?->equipment?->pluck('name')->filter()->values()->all() ?? [],
-            modifierBadges: $exercise?->modifiers?->pluck('name')->filter()->values()->all() ?? [],
-            instructions: $exercise?->instructions,
-            videoUrl: $exercise?->video_url,
-            photoUrls: $exercise?->getMedia('photos')->map(fn ($media) => $media->getUrl())->values()->all() ?? [],
-            setLabel: $exercise?->config->sets->label ?? 'Set',
-            setCount: $sets->count(),
+            name: $exerciseSnapshot->name,
+            equipmentBadges: $exerciseSnapshot->equipmentBadges,
+            modifierBadges: $exerciseSnapshot->modifierBadges,
+            instructions: $exerciseSnapshot->instructions,
+            videoUrl: $exerciseSnapshot->videoUrl,
+            photoUrls: $exerciseSnapshot->photoUrls,
+            setLabel: $exerciseSnapshot->setLabel,
+            setCount: count($exerciseSnapshot->sets),
             sessionRows: $sessionRows,
             weekDetails: [],
             notes: $sessionNotes,
-            status: $slotExercise->status,
-            statusLabel: $slotExercise->status->label(),
-            statusColor: $slotExercise->status->barColor(),
+            status: $exerciseSnapshot->status,
+            statusLabel: $exerciseSnapshot->statusLabel,
+            statusColor: $exerciseSnapshot->statusColor,
         );
     }
 
-    protected function extractPlannedValue(?TrainingProgramSlotSetValue $valueRow): mixed
+    public function build(TrainingProgramSlotExercise $slotExercise, int $index, ?string $groupLabel = null, array $pendingSkippedSetMap = []): ProgramDetailsExerciseData
     {
-        if (! $valueRow) {
-            return null;
-        }
-
-        return match ($valueRow->planned_value_type) {
-            'int' => $valueRow->planned_int_value,
-            'decimal' => $valueRow->planned_decimal_value !== null ? (float) $valueRow->planned_decimal_value : null,
-            'json' => $valueRow->planned_json_value,
-            default => $valueRow->planned_string_value,
-        };
+        return $this->buildFromSnapshot(
+            app(ScheduledSessionSnapshotBuilder::class)->buildExercise($slotExercise),
+            $index,
+            $groupLabel,
+            $pendingSkippedSetMap,
+        );
     }
-
-    protected function extractResolvedValue(?TrainingProgramSlotSetValue $valueRow): mixed
-    {
-        if (! $valueRow) {
-            return null;
-        }
-
-        if ($valueRow->actual_value_type !== null) {
-            return match ($valueRow->actual_value_type) {
-                'int' => $valueRow->actual_int_value,
-                'decimal' => $valueRow->actual_decimal_value !== null ? (float) $valueRow->actual_decimal_value : null,
-                'json' => $valueRow->actual_json_value,
-                default => $valueRow->actual_string_value,
-            };
-        }
-
-        return $this->extractPlannedValue($valueRow);
-    }
-
 }

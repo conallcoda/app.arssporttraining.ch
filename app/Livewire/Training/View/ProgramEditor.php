@@ -27,6 +27,7 @@ class ProgramEditor extends Component
         InteractsWithFormData::updated as traitUpdated;
         InteractsWithFormData::removeRelationshipSelectorItem as traitRemoveRelationshipSelectorItem;
         InteractsWithFormData::toggleRelationshipSelectorItem as traitToggleRelationshipSelectorItem;
+        InteractsWithFormData::applyRelationshipSelectorDraft as traitApplyRelationshipSelectorDraft;
     }
 
     private const SECTION_TYPES = ['main', 'warm_up', 'warm_down'];
@@ -432,6 +433,19 @@ class ProgramEditor extends Component
 
         $this->data[$this->sectionFieldName($this->activeSection)] = $this->data[$fieldName] ?? [];
         $this->saveSectionExercises();
+    }
+
+    public function applyRelationshipSelectorDraft(string $fieldName, array $orderedKeys = []): void
+    {
+        $this->traitApplyRelationshipSelectorDraft($fieldName, $orderedKeys);
+
+        if ($fieldName !== 'section_exercises') {
+            return;
+        }
+
+        $this->data[$this->sectionFieldName($this->activeSection)] = $this->data[$fieldName] ?? [];
+        $this->saveSectionExercises();
+        unset($this->fieldsets, $this->exercises, $this->exerciseGroupLabels);
     }
 
     public function removeRelationshipSelectorItem(string $fieldName, int $index): void

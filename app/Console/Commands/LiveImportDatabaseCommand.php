@@ -37,6 +37,14 @@ class LiveImportDatabaseCommand extends Command
             return self::FAILURE;
         }
 
+        if ($this->call(FixTrainingSnapshotDriftCommand::SIGNATURE) !== self::SUCCESS) {
+            return self::FAILURE;
+        }
+
+        if ($this->call(ReconcileImportedTrainingScheduleCommand::SIGNATURE, ['dump' => $dumpPath]) !== self::SUCCESS) {
+            return self::FAILURE;
+        }
+
         $this->call('optimize:clear');
 
         $this->newLine();

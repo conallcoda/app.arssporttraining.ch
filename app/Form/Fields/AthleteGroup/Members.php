@@ -4,6 +4,7 @@ namespace App\Form\Fields\AthleteGroup;
 
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
+use Coda\Cms\Display\DisplayFields\Text;
 use Coda\FormKit\Fields\RelationshipSelector;
 
 class Members extends RelationshipSelector
@@ -18,6 +19,10 @@ class Members extends RelationshipSelector
         $this->default = [];
         $this->selectButtonLabel = 'Select';
         $this->emptySelectionText = 'No athletes selected yet.';
+        $this->columns([
+            Text::make('name')->maxLength(null),
+            Text::make('email')->maxLength(null),
+        ]);
     }
 
     public function withOptions(): static
@@ -30,13 +35,8 @@ class Members extends RelationshipSelector
             ->mapWithKeys(fn ($user) => [$user->id => $user->name])
             ->all();
 
-        $this->searchable(function (string $query, array $selectedIds): iterable {
-            $selectedIdInts = collect($selectedIds)
-                ->filter(fn ($id) => $id !== null && $id !== '')
-                ->map(fn ($id) => (int) $id)
-                ->values();
-
-            $results = User::query()
+        $this->searchable(function (string $query, array $selectedIds, array $excludedIds, array $filters, array $items, array $sort): iterable {
+            return User::query()
                 ->where('type', UserTypeEnum::Athlete)
                 ->when($query !== '', function ($q) use ($query) {
                     $q->where(function ($w) use ($query): void {
@@ -49,24 +49,6 @@ class Members extends RelationshipSelector
                 ->orderBy('surname')
                 ->limit(40)
                 ->get();
-
-            if ($selectedIdInts->isNotEmpty()) {
-                $selectedRecords = User::query()
-                    ->where('type', UserTypeEnum::Athlete)
-                    ->whereKey($selectedIdInts->all())
-                    ->orderBy('forename')
-                    ->orderBy('surname')
-                    ->get()
-                    ->keyBy('id');
-
-                foreach (array_reverse($selectedIdInts->all()) as $selectedId) {
-                    if (! $results->contains('id', $selectedId) && $selectedRecords->has($selectedId)) {
-                        $results->prepend($selectedRecords->get($selectedId));
-                    }
-                }
-            }
-
-            return $results;
         })->selectedRecordsUsing(function (array $selectedIds): iterable {
             $selectedIdInts = collect($selectedIds)
                 ->filter(fn ($id) => $id !== null && $id !== '')

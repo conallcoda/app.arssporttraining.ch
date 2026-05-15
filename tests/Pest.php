@@ -11,6 +11,9 @@
 |
 */
 
+use App\Form\Fields\Exercise\Exercises;
+use Coda\FormKit\Field;
+
 pest()->extend(Tests\TestCase::class)
     ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
     ->in('Feature');
@@ -18,6 +21,11 @@ pest()->extend(Tests\TestCase::class)
 pest()->extend(Tests\TestCase::class)
     ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
     ->in('/Users/conalloreilly/Development/coda-packages/cms/tests/Feature');
+
+beforeEach(function () {
+    Field::clearCachedOptions();
+    Exercises::flushRequestCaches();
+});
 
 /*
 |--------------------------------------------------------------------------

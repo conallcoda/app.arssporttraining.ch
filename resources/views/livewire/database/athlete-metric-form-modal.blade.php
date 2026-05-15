@@ -1,11 +1,12 @@
 <div>
-    <flux:modal
+    <x-cms::modal
         :name="$name"
         :flyout="$flyout"
-        :class="$maxWidth"
+        :max-width="$maxWidth"
+        padding="p-8"
         x-on:close="Livewire.dispatch('{{ $name }}.closed')"
         x-on:focus-field.window="
-            const content = $el.querySelector('.space-y-6');
+            const content = $el.querySelector('[data-modal-focus-content]');
             content.style.visibility = 'hidden';
             setTimeout(() => {
                 focusModalField($el, $event.detail.field, $event.detail.index);
@@ -13,10 +14,10 @@
             }, 150)
         "
         x-on:keydown.enter="handleModalEnterSubmit($event, $wire)">
-        <div class="space-y-6">
-            <flux:heading size="lg">{{ $activeTitle ?? $title }}</flux:heading>
+        <x-cms::modal.header :title="$activeTitle ?? $title" />
+        <x-cms::modal.body class="space-y-6">
             @if ($openCount > 0)
-                <form wire:submit="submit" class="space-y-4">
+                <form id="modal-form-{{ $name }}" wire:submit="submit" class="space-y-4">
                     @if ($groupMode && !empty($availableAthletes))
                         <flux:field>
                             <flux:label>{{ __('Athlete') }}</flux:label>
@@ -134,18 +135,20 @@
                             </div>
                         @endif
                     @endif
-                    <div class="flex items-center gap-2 pt-4">
-                        <flux:button type="submit" variant="primary" class="flex-1">{{ $submitLabel }}</flux:button>
-                        <flux:modal.close>
-                            <flux:button variant="ghost">{{ $cancelLabel }}</flux:button>
-                        </flux:modal.close>
-                        @if ($showDelete && !empty($data['id']))
-                            <flux:spacer />
-                            <flux:button variant="ghost" icon="trash-2" wire:click="requestDelete" />
-                        @endif
-                    </div>
                 </form>
             @endif
-        </div>
-    </flux:modal>
+        </x-cms::modal.body>
+        <x-cms::modal.footer>
+            <div class="flex items-center gap-2">
+                <flux:button type="submit" form="modal-form-{{ $name }}" variant="primary" class="flex-1">{{ $submitLabel }}</flux:button>
+                <flux:modal.close>
+                    <flux:button variant="ghost">{{ $cancelLabel }}</flux:button>
+                </flux:modal.close>
+                @if ($showDelete && !empty($data['id']))
+                    <flux:spacer />
+                    <flux:button variant="ghost" icon="trash-2" wire:click="requestDelete" />
+                @endif
+            </div>
+        </x-cms::modal.footer>
+    </x-cms::modal>
 </div>

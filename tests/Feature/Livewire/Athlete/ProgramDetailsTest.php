@@ -15,6 +15,7 @@ use App\Models\Training\TrainingProgramSlotStatusEnum;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use App\Support\Athlete\ProgramDetailsExerciseViewBuilder;
+use App\Support\Training\ScheduledSessionSnapshotBuilder;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Livewire\Livewire;
@@ -1031,6 +1032,80 @@ it('uses the same base and override cell colors as the admin grid in athlete pro
         ->and($viewData->sessionRows[1]->valueClasses[0])->toBe('bg-yellow-100 dark:bg-yellow-800/40')
         ->and($viewData->sessionRows[0]->valueClasses[0])->not->toContain('ring-amber')
         ->and($viewData->sessionRows[1]->valueClasses[0])->not->toContain('ring-amber');
+});
+
+it('renders the same athlete exercise view data from slot models and scheduled snapshots', function () {
+    CarbonImmutable::setTestNow('2030-04-03 12:00:00');
+    config()->set('athlete.dashboard_today_override', '03.04.2030');
+
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Friday Strength']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $exercise = Exercise::factory()->create([
+        'name' => 'Intervals',
+        'config' => [
+            'settings' => ['reps', 'duration', 'heartRateZone', 'note'],
+            'sets' => ['default' => 2, 'label' => 'Interval', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 6, 'applyPer' => 'session'],
+            'duration' => ['unit' => 'mm:ss', 'default' => 90, 'applyPer' => 'session'],
+            'heartRateZone' => ['default' => 2, 'applyPer' => 'session'],
+            'note' => ['default' => 'Strong finish', 'applyPer' => 'session'],
+        ],
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+        'group' => 'A1',
+    ]);
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-04-03 09:00:00'),
+    ])->fresh('exercises.sets.values');
+
+    $slotExercise = $slot->exercises->first();
+    $firstSet = $slotExercise->sets->sortBy('set_number')->first();
+
+    $firstSet->values->firstWhere('setting_key', 'reps')->update([
+        'actual_value_type' => 'string',
+        'actual_string_value' => '8',
+        'is_modified' => true,
+    ]);
+
+    $firstSet->values->firstWhere('setting_key', 'duration')->update([
+        'actual_value_type' => 'int',
+        'actual_int_value' => 105,
+        'is_modified' => true,
+    ]);
+
+    $firstSet->values->firstWhere('setting_key', 'heartRateZone')->update([
+        'actual_value_type' => 'string',
+        'actual_string_value' => '3',
+        'is_modified' => false,
+    ]);
+
+    $slotExercise = $slotExercise->fresh('exercise.equipment', 'exercise.modifiers', 'exercise.media', 'sets.values');
+    $snapshot = app(ScheduledSessionSnapshotBuilder::class)->build($slot->fresh());
+    $snapshotExercise = collect($snapshot->exercises)->firstWhere('slotExerciseId', $slotExercise->id);
+
+    $fromSlot = app(ProgramDetailsExerciseViewBuilder::class)->build($slotExercise, 0, 'A1');
+    $fromSnapshot = app(ProgramDetailsExerciseViewBuilder::class)->buildFromSnapshot($snapshotExercise, 0, 'A1');
+
+    expect($snapshotExercise)->not->toBeNull()
+        ->and($snapshotExercise->settingConfigs['duration']['unit'] ?? null)->toBe('mm:ss')
+        ->and((string) ($snapshotExercise->settingConfigs['heartRateZone']['default'] ?? ''))->toBe('2')
+        ->and($fromSnapshot->toArray())->toBe($fromSlot->toArray());
+
+    CarbonImmutable::setTestNow();
 });
 
 it('allows recording future program exercises when can_edit_all is enabled', function () {

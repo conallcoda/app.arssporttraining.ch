@@ -12,6 +12,7 @@ use App\Models\Training\TrainingProgramSlotSet;
 use App\Models\Training\TrainingProgramSlotSetStatusEnum;
 use App\Support\AthleteDashboardDate;
 use App\Support\Athlete\ProgramDetailsExerciseViewBuilder;
+use App\Support\Training\ScheduledSessionSnapshotBuilder;
 use App\Training\AthleteExerciseValueService;
 use App\Training\ExerciseGroupLabeler;
 use App\Training\TrainingSessionMaterializer;
@@ -153,15 +154,17 @@ class ProgramDetails extends Component
     #[Computed]
     public function programExercises(): array
     {
-        $sorted = $this->currentSlot->exercises
+        $snapshot = app(ScheduledSessionSnapshotBuilder::class)->build($this->currentSlot);
+
+        $sorted = collect($snapshot->exercises)
             ->where('type', $this->activeSection)
             ->sortBy('sort')
             ->values();
 
         $materializedGroupLabels = ExerciseGroupLabeler::label(
             $sorted,
-            fn (TrainingProgramSlotExercise $exercise): ?string => $exercise->group,
-            fn (TrainingProgramSlotExercise $exercise): int => $exercise->id,
+            fn ($exercise): ?string => $exercise->group,
+            fn ($exercise): int => $exercise->slotExerciseId,
         );
 
         $sourceExercises = $this->trainingProgram->program->exercises()
@@ -178,11 +181,11 @@ class ProgramDetails extends Component
         );
 
         return $sorted
-            ->map(fn (TrainingProgramSlotExercise $exercise, int $index) => app(ProgramDetailsExerciseViewBuilder::class)->build(
+            ->map(fn ($exercise, int $index) => app(ProgramDetailsExerciseViewBuilder::class)->buildFromSnapshot(
                 $exercise,
                 $index,
-                $materializedGroupLabels[$exercise->id] ?? $sourceGroupLabelsByIndex[$index] ?? null,
-                $this->pendingSkippedSets[$exercise->id] ?? [],
+                $materializedGroupLabels[$exercise->slotExerciseId] ?? $sourceGroupLabelsByIndex[$index] ?? null,
+                $this->pendingSkippedSets[$exercise->slotExerciseId] ?? [],
             ))
             ->values()
             ->all();
