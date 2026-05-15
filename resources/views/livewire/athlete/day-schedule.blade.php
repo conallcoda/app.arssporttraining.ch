@@ -1,11 +1,14 @@
 <div>
     @if ($previewMode && $selectedPreviewSessionKey)
         <livewire:athlete.program-details
-            :key="'athlete-preview-details-' . $previewTrainingProgramId . '-' . $selectedPreviewSessionKey"
+            :key="'athlete-preview-details-' . $previewTrainingProgramId . '-' . $selectedPreviewSessionKey . '-' . ($initialPreviewExerciseId ?? 'none')"
             :date="$selectedPreviewSessionKey"
             :preview-mode="true"
             :preview-user-id="$previewUserId"
             :training-program="$this->previewTrainingProgram"
+            :initial-section="$initialPreviewSection"
+            :initial-exercise-id="$initialPreviewExerciseId"
+            :initial-exercise-sort="$initialPreviewExerciseSort"
         />
     @elseif ($hasSchedule)
         <div class="space-y-0">

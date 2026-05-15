@@ -2,16 +2,14 @@
 
 namespace App\Livewire\Athlete;
 
-use App\Data\Athlete\ProgramDetailsExerciseData;
 use App\Data\Exercise\ExerciseSetting;
 use App\Data\Exercise\Settings\AbstractSetting;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Training\TrainingProgramSlotExercise;
-use App\Models\Training\TrainingProgramSlotSet;
 use App\Models\Training\TrainingProgramSlotSetStatusEnum;
-use App\Support\AthleteDashboardDate;
 use App\Support\Athlete\ProgramDetailsExerciseViewBuilder;
+use App\Support\AthleteDashboardDate;
 use App\Support\Training\ScheduledSessionSnapshotBuilder;
 use App\Training\AthleteExerciseValueService;
 use App\Training\ExerciseGroupLabeler;
@@ -20,8 +18,8 @@ use App\Training\TrainingSessionProgressService;
 use Carbon\CarbonImmutable;
 use Coda\FormKit\Field;
 use Flux\Flux;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
@@ -76,8 +74,17 @@ class ProgramDetails extends Component
 
     public ?int $previewUserId = null;
 
-    public function mount(string $date, ?TrainingProgram $trainingProgram = null): void
-    {
+    public ?int $initialExerciseId = null;
+
+    public ?int $initialExerciseSort = null;
+
+    public function mount(
+        string $date,
+        ?TrainingProgram $trainingProgram = null,
+        ?string $initialSection = null,
+        ?int $initialExerciseId = null,
+        ?int $initialExerciseSort = null,
+    ): void {
         $this->date = CarbonImmutable::parse($date)->format('Y-m-d');
         $this->from = $this->sanitizeReturnUrl(request()->query('from'));
 
@@ -93,7 +100,40 @@ class ProgramDetails extends Component
             404
         );
 
-        $this->activeSection = $this->resolveInitialSection($trainingProgram);
+        $this->initialExerciseId = $initialExerciseId;
+        $this->initialExerciseSort = $initialExerciseSort;
+
+        if ($initialSection !== null && in_array($initialSection, self::SECTION_ORDER, true)) {
+            $this->activeSection = $initialSection;
+        } else {
+            $this->activeSection = $this->resolveInitialSection($trainingProgram);
+        }
+    }
+
+    #[Computed]
+    public function autoExpandSlotExerciseId(): ?int
+    {
+        if ($this->initialExerciseId === null) {
+            return null;
+        }
+
+        $snapshot = app(ScheduledSessionSnapshotBuilder::class)->build($this->currentSlot);
+
+        $candidates = collect($snapshot->exercises)
+            ->where('type', $this->activeSection)
+            ->where('exerciseId', $this->initialExerciseId);
+
+        if ($this->initialExerciseSort !== null) {
+            $matched = $candidates->firstWhere('sort', $this->initialExerciseSort);
+
+            if ($matched !== null) {
+                return (int) $matched->slotExerciseId;
+            }
+        }
+
+        $first = $candidates->first();
+
+        return $first === null ? null : (int) $first->slotExerciseId;
     }
 
     #[Computed]
@@ -853,6 +893,7 @@ class ProgramDetails extends Component
         foreach ($data as $key => $value) {
             if (is_array($value)) {
                 $data[$key] = $this->castEmptyStringsToNull($value);
+
                 continue;
             }
 
@@ -883,6 +924,7 @@ class ProgramDetails extends Component
             'canRecordSession' => $this->canRecordSession,
             'athleteEditsEnabled' => $this->athleteEditsEnabled,
             'previewMode' => $this->previewMode,
+            'autoExpandExerciseId' => $this->autoExpandSlotExerciseId,
         ])->layout('components.layouts.athlete', ['title' => $this->trainingProgram->program->name]);
     }
 }

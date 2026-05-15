@@ -1,5 +1,5 @@
 <div class="focus:outline-none">
-    <x-cms::modal :name="$name" :flyout="$flyout" :max-width="$maxWidth" padding="p-8"
+    <x-cms::modal :name="$name" :flyout="$flyout" :max-width="$maxWidth"
         x-on:close="Livewire.dispatch('{{ $name }}.closed')"
         x-on:focus-field.window="
             const content = $el.querySelector('[data-modal-focus-content]');

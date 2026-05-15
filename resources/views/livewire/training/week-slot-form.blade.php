@@ -1,5 +1,5 @@
 <div>
-    <x-cms::modal :name="$name" variant="flyout" :max-width="$maxWidth" padding="p-8"
+    <x-cms::modal :name="$name" variant="flyout" :max-width="$maxWidth"
         x-on:close="Livewire.dispatch('{{ $name }}.closed')">
         <x-cms::modal.header :title="$isEditing ? __('Edit Slot') : __('Add Slot')" />
         <x-cms::modal.body class="flex flex-col gap-6">

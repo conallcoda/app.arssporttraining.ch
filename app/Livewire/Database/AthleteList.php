@@ -5,6 +5,7 @@ namespace App\Livewire\Database;
 use App\Data\Athlete\AthleteData;
 use App\Form\Fields\CoachFilter;
 use App\Livewire\Concerns\ClearsCoachFilterOnTabSwitch;
+use App\Livewire\Concerns\SwitchesToVisibleTabAfterCreate;
 use App\Models\Tag;
 use App\Models\Users\AccountSetupStatus;
 use App\Models\Users\User;
@@ -13,16 +14,16 @@ use App\Notifications\AccountSetupNotification;
 use Coda\Cms\Display\DisplayFields\Ago;
 use Coda\Cms\Display\DisplayFields\Badge;
 use Coda\Cms\Display\DisplayFields\Id;
-use Coda\Cms\Display\DisplayFields\PersonName;
+use Coda\Cms\Display\DisplayFields\Text;
 use Coda\Cms\Display\Table;
 use Coda\Cms\Display\TableFilter;
+use Coda\Cms\Form\Forms\ChangePasswordForm;
 use Coda\Cms\Livewire\AbstractModelList;
 use Coda\Cms\Support\OwnershipTabs;
 use Coda\FormKit\Action;
 use Coda\FormKit\Fields\Pillbox;
 use Coda\FormKit\Fields\Select;
 use Coda\FormKit\Fields\Text as TextField;
-use Coda\Cms\Form\Forms\ChangePasswordForm;
 use Flux\Flux;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Hash;
@@ -30,6 +31,7 @@ use Illuminate\Support\Facades\Hash;
 class AthleteList extends AbstractModelList
 {
     use ClearsCoachFilterOnTabSwitch;
+    use SwitchesToVisibleTabAfterCreate;
 
     protected function urlPrefix(): string
     {
@@ -98,7 +100,10 @@ class AthleteList extends AbstractModelList
 
     public function openMetrics(int $id): void
     {
-        $this->redirect(route('athlete-metric-index', ['athleteId' => $id]));
+        $this->redirect(route('athlete-details', [
+            'record' => $id,
+            'tab' => 'readiness',
+        ]));
     }
 
     public function sendSetupAccountEmail(int $id): void
@@ -142,9 +147,10 @@ class AthleteList extends AbstractModelList
         return Table::make()
             ->columns([
                 Id::make(),
-                PersonName::make('personName')
+                Text::make('personName')
                     ->label(__('Name'))
                     ->width('w-1/3')
+                    ->title()
                     ->modal(),
                 Badge::make('metrics')
                     ->label(__('Metrics'))

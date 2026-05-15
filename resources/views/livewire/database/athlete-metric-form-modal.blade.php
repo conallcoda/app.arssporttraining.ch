@@ -3,7 +3,6 @@
         :name="$name"
         :flyout="$flyout"
         :max-width="$maxWidth"
-        padding="p-8"
         x-on:close="Livewire.dispatch('{{ $name }}.closed')"
         x-on:focus-field.window="
             const content = $el.querySelector('[data-modal-focus-content]');
@@ -90,49 +89,10 @@
                         @endforeach
 
                         @if ($this->isHeartRateMetric)
-                            <div class="grid gap-4 xl:grid-cols-2">
-                                @foreach ($this->heartRatePreviewSections as $section)
-                                    <fieldset class="min-w-0 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 space-y-4 [&>legend+*]:!mt-0">
-                                        <legend class="mb-0 px-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                                            {{ $section['title'] }} Preview
-                                        </legend>
-
-                                        <flux:text class="text-sm text-zinc-500">Updates from max heart rate and anaerobic threshold.</flux:text>
-
-                                        <div class="grid grid-cols-2 gap-3">
-                                            <div class="rounded-lg border border-zinc-700 bg-zinc-800/60 px-3 py-2">
-                                                <div class="text-xs font-medium uppercase tracking-wide text-zinc-400">Max HR</div>
-                                                <div class="mt-1 text-lg font-semibold tabular-nums text-white">{{ $section['maxHeartRate'] ?? '—' }}</div>
-                                            </div>
-                                            <div class="rounded-lg border border-zinc-700 bg-zinc-800/60 px-3 py-2">
-                                                <div class="text-xs font-medium uppercase tracking-wide text-zinc-400">IAT</div>
-                                                <div class="mt-1 text-lg font-semibold tabular-nums text-white">{{ $section['anaerobicThreshold'] !== null ? $section['anaerobicThreshold'].'%' : '—' }}</div>
-                                            </div>
-                                        </div>
-
-                                        <div class="overflow-hidden rounded-xl border border-zinc-700">
-                                            <table class="min-w-full text-sm">
-                                                <thead class="bg-zinc-800/90 text-zinc-300">
-                                                    <tr>
-                                                        <th class="px-3 py-2 text-left font-medium">Zone</th>
-                                                        <th class="px-3 py-2 text-left font-medium">BPM</th>
-                                                        <th class="px-3 py-2 text-left font-medium">% of Max HR</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    @foreach ($section['rows'] as $row)
-                                                        <tr class="{{ $row['classes'] }}">
-                                                            <td class="px-3 py-2 font-semibold">{{ $row['name'] }}</td>
-                                                            <td class="px-3 py-2 tabular-nums">{{ $row['bpm'] }}</td>
-                                                            <td class="px-3 py-2 tabular-nums">{{ $row['percent'] }}</td>
-                                                        </tr>
-                                                    @endforeach
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </fieldset>
-                                @endforeach
-                            </div>
+                            @include('livewire.database.partials.heart-rate-preview-sections', [
+                                'sections' => $this->heartRatePreviewSections,
+                                'recordedAt' => $data['recorded_at'] ?? null,
+                            ])
                         @endif
                     @endif
                 </form>

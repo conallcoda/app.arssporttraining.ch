@@ -17,10 +17,14 @@ it('numbers sessions within category block ranges', function () {
 
     $resolver = new class($service) extends SlotSessionNumberResolver
     {
-        protected function loadProgramDates(array $programIds, ?int $userId, array $blockRanges): array
+        protected function loadProgramSessions(array $programIds, ?int $userId, array $blockRanges): array
         {
             return [
-                100 => ['2030-04-02', '2030-04-04', '2030-04-11'],
+                100 => [
+                    fakeTimelineSession(1, '2030-04-02 08:00:00'),
+                    fakeTimelineSession(2, '2030-04-04 08:00:00'),
+                    fakeTimelineSession(3, '2030-04-11 08:00:00'),
+                ],
             ];
         }
     };
@@ -58,11 +62,15 @@ it('applies active overrides and skips disabled parent blocks', function () {
 
     $resolver = new class($service) extends SlotSessionNumberResolver
     {
-        protected function loadProgramDates(array $programIds, ?int $userId, array $blockRanges): array
+        protected function loadProgramSessions(array $programIds, ?int $userId, array $blockRanges): array
         {
             return [
-                300 => ['2030-05-02', '2030-05-03', '2030-05-04'],
-                400 => ['2030-05-03'],
+                300 => [
+                    fakeTimelineSession(1, '2030-05-02 08:00:00'),
+                    fakeTimelineSession(2, '2030-05-03 08:00:00'),
+                    fakeTimelineSession(3, '2030-05-04 08:00:00'),
+                ],
+                400 => [fakeTimelineSession(4, '2030-05-03 08:00:00')],
             ];
         }
     };
@@ -97,10 +105,14 @@ it('numbers visible sessions from the full block timeline rather than the filter
 
     $resolver = new class($service) extends SlotSessionNumberResolver
     {
-        protected function loadProgramDates(array $programIds, ?int $userId, array $blockRanges): array
+        protected function loadProgramSessions(array $programIds, ?int $userId, array $blockRanges): array
         {
             return [
-                500 => ['2030-05-01', '2030-05-04', '2030-05-07'],
+                500 => [
+                    fakeTimelineSession(1, '2030-05-01 08:00:00'),
+                    fakeTimelineSession(2, '2030-05-04 08:00:00'),
+                    fakeTimelineSession(3, '2030-05-07 08:00:00'),
+                ],
             ];
         }
     };
@@ -117,6 +129,46 @@ it('numbers visible sessions from the full block timeline rather than the filter
     ))->toBe([
         '500-2030-05-04' => 2,
         '500-2030-05-07' => 3,
+    ]);
+});
+
+it('counts same-day sessions for user-specific timelines when numbering later visible dates', function () {
+    $service = Mockery::mock(CalendarBlockService::class);
+    $service->shouldReceive('getCategoryBlocksForDateRange')
+        ->once()
+        ->andReturn(collect([
+            'blocks' => collect([
+                fakeBlock(id: 40, categoryId: 7, start: '2030-05-01', end: '2030-05-31'),
+            ]),
+            'overridesByParent' => collect(),
+        ]));
+
+    $resolver = new class($service) extends SlotSessionNumberResolver
+    {
+        protected function loadProgramSessions(array $programIds, ?int $userId, array $blockRanges): array
+        {
+            return [
+                600 => [
+                    fakeTimelineSession(1, '2030-05-04 08:00:00'),
+                    fakeTimelineSession(2, '2030-05-04 17:00:00'),
+                    fakeTimelineSession(3, '2030-05-07 08:00:00'),
+                ],
+            ];
+        }
+    };
+
+    expect($resolver->resolve(
+        rows: [
+            fakeSlotRow(programId: 600, categoryId: 7, slotDate: '2030-05-04'),
+            fakeSlotRow(programId: 600, categoryId: 7, slotDate: '2030-05-07'),
+        ],
+        groupId: 1,
+        userId: 55,
+        start: Carbon::parse('2030-05-04'),
+        end: Carbon::parse('2030-05-10'),
+    ))->toBe([
+        '600-2030-05-04' => 1,
+        '600-2030-05-07' => 3,
     ]);
 });
 
@@ -144,5 +196,14 @@ function fakeSlotRow(int $programId, int $categoryId, string $slotDate): object
         'program_id' => $programId,
         'category_id' => $categoryId,
         'slot_date' => $slotDate,
+    ];
+}
+
+function fakeTimelineSession(int $id, string $datetime): array
+{
+    return [
+        'date' => Carbon::parse($datetime)->toDateString(),
+        'datetime' => Carbon::parse($datetime)->toDateTimeString(),
+        'id' => $id,
     ];
 }

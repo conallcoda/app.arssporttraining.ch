@@ -6,6 +6,7 @@ use App\Data\Exercise\ExerciseData;
 use App\Form\Fields\Category as CategoryField;
 use App\Form\Fields\CoachFilter;
 use App\Livewire\Concerns\ClearsCoachFilterOnTabSwitch;
+use App\Livewire\Concerns\SwitchesToVisibleTabAfterCreate;
 use App\Models\Exercise\Exercise;
 use App\Models\Tag;
 use Coda\Cms\Data\AbstractData;
@@ -27,6 +28,7 @@ use Illuminate\Database\Eloquent\Model;
 class ExerciseList extends AbstractModelList
 {
     use ClearsCoachFilterOnTabSwitch;
+    use SwitchesToVisibleTabAfterCreate;
 
     protected function urlPrefix(): string
     {

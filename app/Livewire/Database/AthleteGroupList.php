@@ -5,6 +5,7 @@ namespace App\Livewire\Database;
 use App\Data\Athlete\AthleteGroupData;
 use App\Form\Fields\CoachFilter;
 use App\Livewire\Concerns\ClearsCoachFilterOnTabSwitch;
+use App\Livewire\Concerns\SwitchesToVisibleTabAfterCreate;
 use App\Models\Tag;
 use App\Models\Users\UserGroup;
 use Coda\Cms\Display\DisplayFields\Ago;
@@ -23,6 +24,7 @@ use Illuminate\Contracts\Database\Eloquent\Builder;
 class AthleteGroupList extends AbstractModelList
 {
     use ClearsCoachFilterOnTabSwitch;
+    use SwitchesToVisibleTabAfterCreate;
 
     protected function urlPrefix(): string
     {

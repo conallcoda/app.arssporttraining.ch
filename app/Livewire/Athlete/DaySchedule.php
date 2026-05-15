@@ -38,8 +38,25 @@ class DaySchedule extends Component
 
     public ?string $selectedPreviewSessionKey = null;
 
-    public function mount(string $date, string $viewMode = 'day', bool $showReadiness = true, ?float $readinessScore = null, ?string $readinessLabel = null, ?string $readinessColor = null, string $scheduleFilter = 'today'): void
-    {
+    public ?string $initialPreviewSection = null;
+
+    public ?int $initialPreviewExerciseId = null;
+
+    public ?int $initialPreviewExerciseSort = null;
+
+    public function mount(
+        string $date,
+        string $viewMode = 'day',
+        bool $showReadiness = true,
+        ?float $readinessScore = null,
+        ?string $readinessLabel = null,
+        ?string $readinessColor = null,
+        string $scheduleFilter = 'today',
+        ?string $initialSessionKey = null,
+        ?string $initialSection = null,
+        ?int $initialExerciseId = null,
+        ?int $initialExerciseSort = null,
+    ): void {
         $this->date = $date;
         $this->viewMode = $viewMode;
         $this->showReadiness = $showReadiness
@@ -49,6 +66,14 @@ class DaySchedule extends Component
         $this->readinessLabel = $readinessLabel;
         $this->readinessColor = $readinessColor;
         $this->scheduleFilter = in_array($scheduleFilter, ['today', 'unrecorded'], true) ? $scheduleFilter : 'today';
+
+        if ($initialSessionKey !== null && $initialSessionKey !== '') {
+            $this->selectedPreviewSessionKey = $initialSessionKey;
+        }
+
+        $this->initialPreviewSection = $initialSection;
+        $this->initialPreviewExerciseId = $initialExerciseId;
+        $this->initialPreviewExerciseSort = $initialExerciseSort;
 
         if ($this->showReadiness && $this->readinessScore === null) {
             $presentation = app(ReadinessMetricService::class)->presentationForDate((int) auth()->id(), $this->date);
@@ -87,6 +112,9 @@ class DaySchedule extends Component
         }
 
         $this->selectedPreviewSessionKey = $sessionKey;
+        $this->initialPreviewSection = null;
+        $this->initialPreviewExerciseId = null;
+        $this->initialPreviewExerciseSort = null;
     }
 
     #[Computed]

@@ -77,11 +77,12 @@ class ProgramPreviewBuilder
 
         $programConfig = $exerciseProgram->config;
         $resolvedWeeks = max($weeks, 1);
-        $resolvedSessionCounts = [];
-
-        for ($weekIndex = 0; $weekIndex < $resolvedWeeks; $weekIndex++) {
-            $resolvedSessionCounts[$weekIndex] = $this->sessionCountForWeek($weekIndex, $sessionsPerWeek, $weekSessions, $weekSessionDates);
-        }
+        $resolvedSessionCounts = WeekSessionCountResolver::resolveForWeeks(
+            weeks: $resolvedWeeks,
+            fallbackSessionsPerWeek: $sessionsPerWeek,
+            weekSessions: $weekSessions,
+            weekSessionDates: $weekSessionDates,
+        );
 
         $weightProgression = $planMeasuredReps !== null && $planMeasuredWeight !== null
             ? new WeightProgressionSetting(
@@ -293,17 +294,5 @@ class ProgramPreviewBuilder
     private function exerciseSignature(int $exerciseId, int $sort, ?string $group, string $type): string
     {
         return implode(':', [$exerciseId, $sort, $group ?? '', $type]);
-    }
-
-    private function sessionCountForWeek(int $weekIndex, int $fallbackSessionsPerWeek, array $weekSessions, array $weekSessionDates): int
-    {
-        $explicitSessions = (int) ($weekSessions[$weekIndex] ?? 0);
-        $datedSessions = count($weekSessionDates[$weekIndex] ?? []);
-
-        if ($explicitSessions > 0 || $datedSessions > 0) {
-            return max($explicitSessions, $datedSessions, 1);
-        }
-
-        return max($fallbackSessionsPerWeek, 1);
     }
 }

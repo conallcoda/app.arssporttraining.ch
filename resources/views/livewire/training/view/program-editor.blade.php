@@ -6,7 +6,7 @@
     @endphp
 
     <div class="flex flex-col md:flex-row gap-6">
-        <x-cms::section :title="__('Exercises')" class="{{ $stackSidebar ? 'md:flex-1' : ($this->showAthleteContext ? 'md:w-3/4' : 'flex-1') }}">
+        <x-cms::section :title="__('Exercises')" class="self-start {{ $stackSidebar ? 'md:flex-1' : ($this->showAthleteContext ? 'md:w-3/4' : 'flex-1') }}">
             @if ($showNameInput)
                 <flux:input wire:model="$parent.planProgramName" wire:blur="$parent.savePlanProgramName" :label="__('Name')" size="sm" />
             @endif
@@ -19,25 +19,6 @@
                         <flux:tab name="warm_down">{{ __('Warm Down') }}</flux:tab>
                     </flux:tabs>
                 @endif
-
-                <div class="flex flex-col gap-3 xl:flex-row xl:items-end">
-                    <div class="flex-1">
-                        <flux:field>
-                            <flux:label>{{ __('Import Exercises From') }}</flux:label>
-                            <flux:select wire:model.live="importProgramId" variant="listbox" searchable placeholder="{{ __('Select program...') }}">
-                                @foreach ($this->importProgramOptions as $id => $name)
-                                    <flux:select.option :value="$id">{{ $name }}</flux:select.option>
-                                @endforeach
-                            </flux:select>
-                        </flux:field>
-                    </div>
-
-                    <div class="shrink-0">
-                        <flux:button wire:click="importSectionExercises" variant="primary" :disabled="blank($importProgramId)">
-                            {{ __('Import') }}
-                        </flux:button>
-                    </div>
-                </div>
             </div>
 
             @foreach ($this->fieldsets as $item)
@@ -332,15 +313,6 @@
         <flux:text class="text-zinc-500">{{ __('No exercises in this section. Add exercises above to see the training grids.') }}</flux:text>
     @endif
 
-    <x-cms::confirm-modal
-        :name="$this->importConfirmModalName()"
-        :heading="__('Import exercises?')"
-        :description="__('This will replace all current exercises and their settings. This action cannot be undone.')"
-        :confirmLabel="__('Import')"
-        action="confirmImportSectionExercises"
-        variant="primary"
-    />
-
     @if ($userId !== null)
         <flux:modal :name="$this->previewModalName()" class="w-[96vw] max-w-none sm:max-w-5xl">
             <div class="space-y-4">
@@ -366,12 +338,16 @@
 
                 @if ($previewTrainingProgramId)
                     <livewire:athlete.day-schedule
-                        :key="'athlete-preview-' . $previewTrainingProgramId . '-' . $weeks . '-' . $userId"
+                        :key="'athlete-preview-' . $previewTrainingProgramId . '-' . $weeks . '-' . $userId . '-v' . $previewOpenVersion"
                         :date="($weekSessionDates[0][0] ?? now()->toDateString())"
                         :show-readiness="false"
                         :preview-mode="true"
                         :preview-training-program-id="$previewTrainingProgramId"
                         :preview-user-id="$userId"
+                        :initial-session-key="$previewInitialSessionKey"
+                        :initial-section="$previewInitialSection"
+                        :initial-exercise-id="$previewInitialExerciseId"
+                        :initial-exercise-sort="$previewInitialExerciseSort"
                     />
                 @endif
             </div>

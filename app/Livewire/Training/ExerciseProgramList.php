@@ -5,6 +5,7 @@ namespace App\Livewire\Training;
 use App\Data\Training\ExerciseProgramData;
 use App\Form\Fields\CoachFilter;
 use App\Livewire\Concerns\ClearsCoachFilterOnTabSwitch;
+use App\Livewire\Concerns\SwitchesToVisibleTabAfterCreate;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramTypeEnum;
 use App\Models\Tag;
@@ -27,6 +28,7 @@ use Illuminate\Contracts\Database\Eloquent\Builder;
 class ExerciseProgramList extends AbstractModelList
 {
     use ClearsCoachFilterOnTabSwitch;
+    use SwitchesToVisibleTabAfterCreate;
 
     protected function urlPrefix(): string
     {

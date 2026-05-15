@@ -47,22 +47,25 @@ class SlotSessionNumberResolver
         }
 
         $sessionNumbers = [];
-        $datesByProgram = $this->loadProgramDates(array_keys($categoriesByProgram), $userId, $blockRanges);
+        $sessionsByProgram = $this->loadProgramSessions(array_keys($categoriesByProgram), $userId, $blockRanges);
 
         foreach ($categoriesByProgram as $programId => $categoryId) {
             $categoryBlocks = $blockRanges[$categoryId] ?? [];
-            $dates = $datesByProgram[$programId] ?? [];
-            $dates = array_values(array_unique($dates));
-            sort($dates);
+            $sessions = $sessionsByProgram[$programId] ?? [];
+            $timeline = $userId === null
+                ? collect($sessions)->unique('date')->values()->all()
+                : $sessions;
 
             foreach ($categoryBlocks as $block) {
                 $counter = 0;
-                foreach ($dates as $date) {
+                foreach ($timeline as $session) {
+                    $date = $session['date'];
+
                     if ($date >= $block['start'] && $date <= $block['end']) {
                         $counter++;
                         $key = $programId.'-'.$date;
 
-                        if (isset($visibleKeys[$key])) {
+                        if (isset($visibleKeys[$key]) && ! isset($sessionNumbers[$key])) {
                             $sessionNumbers[$key] = $counter;
                         }
                     }
@@ -76,9 +79,9 @@ class SlotSessionNumberResolver
     /**
      * @param  int[]  $programIds
      * @param  array<int, array<int, array{start: string, end: string}>>  $blockRanges
-     * @return array<int, array<int, string>>
+     * @return array<int, array<int, array{date: string, datetime: string, id: int}>>
      */
-    protected function loadProgramDates(array $programIds, ?int $userId, array $blockRanges): array
+    protected function loadProgramSessions(array $programIds, ?int $userId, array $blockRanges): array
     {
         if ($programIds === [] || $blockRanges === []) {
             return [];
@@ -103,22 +106,26 @@ class SlotSessionNumberResolver
         }
 
         $rows = TrainingProgramSlot::query()
-            ->selectRaw('training_program_id as program_id, DATE(datetime) as slot_date')
+            ->selectRaw('training_program_id as program_id, DATE(datetime) as slot_date, datetime, id')
             ->whereIn('training_program_id', $programIds)
             ->when($userId !== null, fn ($query) => $query->where('user_id', $userId))
             ->whereBetween('datetime', [
                 Carbon::parse($start)->startOfDay(),
                 Carbon::parse($end)->endOfDay(),
             ])
-            ->distinct()
             ->orderBy('datetime')
+            ->orderBy('id')
             ->get();
 
-        $datesByProgram = [];
+        $sessionsByProgram = [];
         foreach ($rows as $row) {
-            $datesByProgram[(int) $row->program_id][] = (string) $row->slot_date;
+            $sessionsByProgram[(int) $row->program_id][] = [
+                'date' => (string) $row->slot_date,
+                'datetime' => Carbon::parse($row->datetime)->toDateTimeString(),
+                'id' => (int) $row->id,
+            ];
         }
 
-        return $datesByProgram;
+        return $sessionsByProgram;
     }
 }

@@ -6,6 +6,7 @@ use App\Models\Exercise\ExerciseProgram;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\UserGroup;
+use App\Training\TrainingSessionMaterializer;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -13,6 +14,10 @@ use Illuminate\Support\Facades\DB;
 class AthletePreviewSlotService
 {
     private const PREVIEW_SORT = -999999;
+
+    public function __construct(
+        private readonly TrainingSessionMaterializer $materializer,
+    ) {}
 
     public function createPreviewProgram(
         ExerciseProgram $exerciseProgram,
@@ -39,18 +44,45 @@ class AthletePreviewSlotService
             ]);
 
             $slotDates = $this->resolveSlotDates($weeks, $sessionsPerWeek, $weekSessionDates, $weekSessions);
+            $slotRows = [];
 
             $dateOccurrences = [];
+            $timestamp = now();
 
             foreach ($slotDates as $index => $date) {
                 $datetime = $this->resolvePreviewDatetime($date, $index, $dateOccurrences);
 
-                TrainingProgramSlot::query()->create([
+                $slotRows[] = [
                     'training_program_id' => $trainingProgram->id,
                     'user_id' => $userId,
                     'datetime' => $datetime,
                     'owner_id' => Auth::id(),
-                ]);
+                    'created_at' => $timestamp,
+                    'updated_at' => $timestamp,
+                ];
+            }
+
+            if ($slotRows !== []) {
+                TrainingProgramSlot::query()->insert($slotRows);
+            }
+
+            $trainingProgram->load([
+                'program.exercises' => fn ($relation) => $relation
+                    ->orderByPivot('type')
+                    ->orderByPivot('sort')
+                    ->orderByPivot('id'),
+            ]);
+
+            $slots = TrainingProgramSlot::query()
+                ->where('training_program_id', $trainingProgram->id)
+                ->where('user_id', $userId)
+                ->orderBy('datetime')
+                ->orderBy('id')
+                ->get();
+
+            foreach ($slots as $slot) {
+                $slot->setRelation('trainingProgram', $trainingProgram);
+                $this->materializer->materialize($slot);
             }
 
             return $trainingProgram->fresh();
@@ -139,9 +171,15 @@ class AthletePreviewSlotService
     {
         $dates = [];
         $cursor = CarbonImmutable::today()->next('monday');
+        $resolvedSessionCounts = WeekSessionCountResolver::resolveForWeeks(
+            weeks: $weeks,
+            fallbackSessionsPerWeek: $sessionsPerWeek,
+            weekSessions: $weekSessions,
+            weekSessionDates: $weekSessionDates,
+        );
 
         for ($weekIndex = 0; $weekIndex < max($weeks, 1); $weekIndex++) {
-            $count = max((int) ($weekSessions[$weekIndex] ?? 0), count($weekSessionDates[$weekIndex] ?? []), $sessionsPerWeek, 1);
+            $count = $resolvedSessionCounts[$weekIndex] ?? 1;
 
             for ($sessionIndex = 0; $sessionIndex < $count; $sessionIndex++) {
                 $provided = $weekSessionDates[$weekIndex][$sessionIndex] ?? null;

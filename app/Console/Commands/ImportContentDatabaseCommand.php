@@ -7,16 +7,15 @@ use Illuminate\Console\Command;
 
 class ImportContentDatabaseCommand extends Command
 {
-    protected $signature = 'db:import-content {path? : Import directory path or timestamp folder inside import/database}';
+    protected $signature = 'db:import {path? : Import directory path or timestamp folder inside import/database}';
 
-    protected $description = 'Import database content without calendar data or manual program overrides';
+    protected $description = 'Import the latest safe database content without scheduled calendar structure';
 
     public function handle(): int
     {
         $seeder = app(DatabaseImportSeeder::class)
             ->setContainer(app())
-            ->setCommand($this)
-            ->contentOnly();
+            ->setCommand($this);
 
         $path = $this->argument('path');
 

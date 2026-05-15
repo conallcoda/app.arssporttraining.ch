@@ -3,25 +3,19 @@
 namespace Database\Seeders;
 
 use App\Data\Coach\Settings\SessionGroupingSetting;
-use App\Data\Exercise\Preview\SessionGroupingMode;
 use App\Data\Exercise\ExerciseConfig;
+use App\Data\Exercise\Preview\SessionGroupingMode;
 use App\Data\Training\Config\ExercisePlanConfig;
-use App\Models\Athlete\MetricSubmission;
-use App\Models\Athlete\MetricValue;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseExternal;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramTypeEnum;
 use App\Models\Exercise\ExerciseTemplate;
 use App\Models\Tag;
-use App\Models\Training\TrainingProgram;
-use App\Models\Training\TrainingProgramBlock;
-use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
 use App\Models\Users\UserGroup;
 use App\Support\Import\ImportedEmailNormalizer;
-use App\Training\TrainingSessionMaterializer;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -33,23 +27,11 @@ class DatabaseImportSeeder extends Seeder
 
     private ?string $configuredImportPath = null;
 
-    private bool $includeCalendarData = true;
-
-    private bool $stripManualProgramOverrides = false;
-
     private bool $preserveImportedEmails = false;
 
     public function usingImportPath(string $importPath): self
     {
         $this->configuredImportPath = $importPath;
-
-        return $this;
-    }
-
-    public function contentOnly(): self
-    {
-        $this->includeCalendarData = false;
-        $this->stripManualProgramOverrides = true;
 
         return $this;
     }
@@ -83,22 +65,11 @@ class DatabaseImportSeeder extends Seeder
                 $this->seedUserGroups();
                 $this->seedUsers();
                 $this->applyDefaultCoachSessionGrouping();
-                if ($this->includeCalendarData) {
-                    $this->seedTrainingPrograms();
-                    $this->normalizeScheduledProgramParents();
-                    $this->seedTrainingProgramBlocks();
-                    $this->seedTrainingProgramSlots();
-                    $this->seedMetricSubmissions();
-                }
                 $this->normalizeLegacyStartsAtDates();
                 $this->normalizeLegacyImportedExerciseConfigs();
             });
 
             $this->setForeignKeyChecks(true);
-
-            if ($this->includeCalendarData) {
-                $this->materializeTrainingSessions();
-            }
         } finally {
             $this->setForeignKeyChecks(true);
             Model::reguard();
@@ -564,144 +535,6 @@ class DatabaseImportSeeder extends Seeder
         $this->command->info("Applied default session grouping to {$updated} coaches.");
     }
 
-    private function seedTrainingPrograms(): void
-    {
-        $trainingPrograms = $this->loadFile('training_programs.php');
-
-        foreach ($trainingPrograms as $tp) {
-            TrainingProgram::create([
-                'id' => $tp['id'],
-                'owner_id' => $tp['owner_id'] ?? null,
-                'group_id' => $tp['group_id'],
-                'exercise_program_id' => $tp['exercise_program_id'],
-                'status' => TrainingProgram::normalizeStatus($tp['status'] ?? null),
-                'sort' => $tp['sort'],
-            ]);
-        }
-
-        $this->command->info('Imported '.count($trainingPrograms).' training programs.');
-    }
-
-    private function normalizeScheduledProgramParents(): void
-    {
-        $linked = 0;
-
-        TrainingProgram::query()
-            ->select(['id', 'exercise_program_id'])
-            ->orderBy('id')
-            ->chunkById(100, function ($trainingPrograms) use (&$linked): void {
-                foreach ($trainingPrograms as $trainingProgram) {
-                    $updated = ExerciseProgram::query()
-                        ->whereKey($trainingProgram->exercise_program_id)
-                        ->where(function ($query) use ($trainingProgram): void {
-                            $query->where('parent_type', '!=', TrainingProgram::class)
-                                ->orWhereNull('parent_type')
-                                ->orWhere('parent_id', '!=', $trainingProgram->id)
-                                ->orWhereNull('parent_id');
-                        })
-                        ->update([
-                            'parent_type' => TrainingProgram::class,
-                            'parent_id' => $trainingProgram->id,
-                        ]);
-
-                    $linked += $updated;
-                }
-            });
-
-        $this->command->info("Normalized {$linked} scheduled exercise program parents.");
-    }
-
-    private function seedTrainingProgramBlocks(): void
-    {
-        $blocks = $this->loadFile('training_program_blocks.php');
-
-        foreach ($blocks as $block) {
-            TrainingProgramBlock::create([
-                'id' => $block['id'],
-                'parent_id' => $block['parent_id'],
-                'owner_id' => $block['owner_id'] ?? null,
-                'group_id' => $block['group_id'],
-                'user_id' => $block['user_id'],
-                'category_id' => $block['category_id'],
-                'type' => $block['type'],
-                'start' => $block['start'],
-                'end' => $block['end'],
-                'note' => $block['note'],
-                'color' => $block['color'],
-                'config' => $block['config'],
-                'active' => $block['active'],
-                'deleted_at' => $block['deleted_at'] ?? null,
-            ]);
-        }
-
-        $this->command->info('Imported '.count($blocks).' training program blocks.');
-    }
-
-    private function seedTrainingProgramSlots(): void
-    {
-        $slots = $this->loadFile('training_program_slots.php');
-
-        foreach ($slots as $slot) {
-            TrainingProgramSlot::create([
-                'id' => $slot['id'],
-                'training_program_id' => $slot['training_program_id'],
-                'user_id' => $slot['user_id'],
-                'owner_id' => $slot['owner_id'] ?? null,
-                'datetime' => $slot['datetime'],
-            ]);
-        }
-
-        $this->command->info('Imported '.count($slots).' training program slots.');
-    }
-
-    private function seedMetricSubmissions(): void
-    {
-        $submissions = $this->loadFile('metric_submissions.php');
-
-        foreach ($submissions as $submission) {
-            MetricSubmission::create([
-                'id' => $submission['id'],
-                'user_id' => $submission['user_id'],
-                'metric' => $submission['metric'],
-                'recorded_by' => $submission['recorded_by'],
-                'recorded_at' => $submission['recorded_at'],
-                'owner_type' => $submission['owner_type'],
-                'owner_id' => $submission['owner_id'],
-                'deleted_at' => $submission['deleted_at'] ?? null,
-            ]);
-
-            foreach ($submission['values'] ?? [] as $value) {
-                MetricValue::create([
-                    'id' => $value['id'],
-                    'submission_id' => $submission['id'],
-                    'field' => $value['field'],
-                    'value' => $value['value'],
-                ]);
-            }
-        }
-
-        $this->command->info('Imported '.count($submissions).' metric submissions.');
-    }
-
-    private function materializeTrainingSessions(): void
-    {
-        $this->command->info('Materializing compiled training sessions...');
-
-        $materializer = app(TrainingSessionMaterializer::class);
-        $count = 0;
-
-        TrainingProgramSlot::query()
-            ->orderBy('id')
-            ->chunkById(100, function ($slots) use ($materializer, &$count): void {
-                foreach ($slots as $slot) {
-                    $materializer->materialize($slot, force: true);
-                    $count++;
-                }
-            });
-
-        $this->command->info("Materialized {$count} training program slots.");
-    }
-
     private function normalizeLegacyStartsAtDates(): void
     {
         $normalizedPrograms = 0;
@@ -768,7 +601,7 @@ class DatabaseImportSeeder extends Seeder
     /** @param  array<string, mixed>|null  $config */
     private function sanitizeImportedProgramConfig(?array $config): ?array
     {
-        if (! $this->stripManualProgramOverrides || $config === null) {
+        if ($config === null) {
             return $config;
         }
 

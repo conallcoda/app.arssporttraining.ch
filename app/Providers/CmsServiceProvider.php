@@ -27,8 +27,8 @@ class CmsServiceProvider extends ServiceProvider
         $registry = app(Registry::class);
 
         $registry->register(new CoachModule);
-        $registry->register(new AthleteModule);
         $registry->register(new AthleteGroupModule);
+        $registry->register(new AthleteModule);
         $registry->register(new ExerciseModule);
         $registry->register(new ExerciseTemplateModule);
         $registry->register(new CategoryModule);

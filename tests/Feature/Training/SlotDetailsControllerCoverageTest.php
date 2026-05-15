@@ -348,6 +348,57 @@ it('uses user overrides when computing grid session numbers', function () {
         ->assertJsonPath("{$program->id}-2030-04-12.status", 'completed');
 });
 
+it('counts multiple same-day sessions when deriving later grid session numbers', function () {
+    $admin = User::factory()->admin()->create();
+    $group = UserGroup::create(['name' => 'Squad']);
+    $category = Tag::factory()->create(['scope' => 'training_category']);
+    $program = createTaggedTrainingProgram($group, 'Strength', $category);
+    $athlete = User::factory()->athlete()->create();
+
+    TrainingProgramBlock::create([
+        'group_id' => $group->id,
+        'user_id' => null,
+        'category_id' => $category->id,
+        'type' => TrainingProgramBlockTypeEnum::Category,
+        'start' => '2030-04-01',
+        'end' => '2030-04-30',
+        'note' => 'April Block',
+        'active' => true,
+    ]);
+
+    TrainingProgramSlot::factory()->create([
+        'training_program_id' => $program->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-04-10 07:15:00'),
+        'status' => TrainingProgramSlotStatusEnum::Completed,
+    ]);
+
+    TrainingProgramSlot::factory()->create([
+        'training_program_id' => $program->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-04-10 16:45:00'),
+        'status' => TrainingProgramSlotStatusEnum::Completed,
+    ]);
+
+    TrainingProgramSlot::factory()->create([
+        'training_program_id' => $program->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-04-12 07:15:00'),
+        'status' => TrainingProgramSlotStatusEnum::Completed,
+    ]);
+
+    $response = $this->actingAs($admin)->getJson(route('api.program-grid-cells', [
+        'group_id' => $group->id,
+        'user_id' => $athlete->id,
+        'start' => '2030-04-07',
+        'end' => '2030-04-13',
+    ]));
+
+    $response->assertOk()
+        ->assertJsonPath("{$program->id}-2030-04-10.session", 1)
+        ->assertJsonPath("{$program->id}-2030-04-12.session", 3);
+});
+
 it('returns formatted user day slots for a single day', function () {
     $admin = User::factory()->admin()->create();
     $group = UserGroup::create(['name' => 'Squad']);

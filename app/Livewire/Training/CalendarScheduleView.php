@@ -38,6 +38,7 @@ class CalendarScheduleView extends Component
         $this->userId = $userId;
 
         unset($this->weekGridData, $this->quickProgramOptions, $this->quickAthleteOptions);
+        $this->dispatch('schedule-grid-refresh');
     }
 
     #[On('calendar-range-changed')]
@@ -47,6 +48,7 @@ class CalendarScheduleView extends Component
         $this->weekStartsOn = $weekStartsOn;
 
         unset($this->weekGridData);
+        $this->dispatch('schedule-grid-refresh');
     }
 
     /** @return array{Carbon, Carbon} */
@@ -191,6 +193,7 @@ class CalendarScheduleView extends Component
         }
 
         unset($this->weekGridData);
+        $this->dispatch('schedule-grid-refresh');
     }
 
     public function quickRemoveWeekSlot(int $trainingProgramId, string $date, string $startTime): void
@@ -217,6 +220,7 @@ class CalendarScheduleView extends Component
         }
 
         unset($this->weekGridData);
+        $this->dispatch('schedule-grid-refresh');
     }
 
     public function openWeekSlot(string $date, string $period): void
@@ -304,6 +308,7 @@ class CalendarScheduleView extends Component
         }
 
         unset($this->weekGridData);
+        $this->dispatch('schedule-grid-refresh');
     }
 
     #[On('week-slot.deleted')]
@@ -332,6 +337,7 @@ class CalendarScheduleView extends Component
         }
 
         unset($this->weekGridData);
+        $this->dispatch('schedule-grid-refresh');
     }
 
     public function render(): View

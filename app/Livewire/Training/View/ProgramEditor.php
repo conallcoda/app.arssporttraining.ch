@@ -5,11 +5,14 @@ namespace App\Livewire\Training\View;
 use App\Data\Training\Config\ExerciseOverrides;
 use App\Data\Training\Config\ExercisePlanConfig;
 use App\Form\Fields\Exercise\Exercises;
+use App\Livewire\Concerns\InteractsWithExerciseSelectorPrograms;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
 use App\Models\Exercise\ExerciseProgramTypeEnum;
 use App\Models\Users\User;
+use App\Training\ExerciseProgramSectionMutationService;
+use App\Support\Training\AthletePreviewSlotService;
 use App\Training\ExerciseGroupLabeler;
 use App\Training\TrainingSessionRebuildDispatcher;
 use Coda\Cms\Livewire\Concerns\InteractsWithFormData;
@@ -28,7 +31,9 @@ class ProgramEditor extends Component
         InteractsWithFormData::removeRelationshipSelectorItem as traitRemoveRelationshipSelectorItem;
         InteractsWithFormData::toggleRelationshipSelectorItem as traitToggleRelationshipSelectorItem;
         InteractsWithFormData::applyRelationshipSelectorDraft as traitApplyRelationshipSelectorDraft;
+        InteractsWithFormData::applyRelationshipSelectorClientState as traitApplyRelationshipSelectorClientState;
     }
+    use InteractsWithExerciseSelectorPrograms;
 
     private const SECTION_TYPES = ['main', 'warm_up', 'warm_down'];
 
@@ -102,9 +107,52 @@ class ProgramEditor extends Component
 
     public ?int $previewTrainingProgramId = null;
 
+    public ?string $previewInitialSessionKey = null;
+
+    public ?string $previewInitialSection = null;
+
+    public ?int $previewInitialExerciseId = null;
+
+    public ?int $previewInitialExerciseSort = null;
+
+    public int $previewOpenVersion = 0;
+
     public function openPreviewModal(): void
     {
-        $this->previewTrainingProgramId = app(\App\Support\Training\AthletePreviewSlotService::class)
+        $this->previewInitialSessionKey = null;
+        $this->previewInitialSection = null;
+        $this->previewInitialExerciseId = null;
+        $this->previewInitialExerciseSort = null;
+        $this->previewOpenVersion++;
+
+        $this->previewTrainingProgramId = app(AthletePreviewSlotService::class)
+            ->createPreviewProgram(
+                exerciseProgram: $this->exerciseProgram,
+                userId: $this->userId,
+                weeks: $this->weeks,
+                sessionsPerWeek: $this->sessionsPerWeek,
+                weekSessionDates: $this->weekSessionDates,
+                weekSessions: $this->weekSessions,
+                scheduledTrainingProgramId: $this->scheduledTrainingProgramId,
+            )->id;
+
+        Flux::modal($this->previewModalName())->show();
+    }
+
+    #[On('open-program-preview-at-session')]
+    public function openPreviewAtSession(string $sessionKey, string $section, int $exerciseId, int $exerciseSort): void
+    {
+        if ($this->userId === null) {
+            return;
+        }
+
+        $this->previewInitialSessionKey = $sessionKey;
+        $this->previewInitialSection = $section;
+        $this->previewInitialExerciseId = $exerciseId;
+        $this->previewInitialExerciseSort = $exerciseSort;
+        $this->previewOpenVersion++;
+
+        $this->previewTrainingProgramId = app(AthletePreviewSlotService::class)
             ->createPreviewProgram(
                 exerciseProgram: $this->exerciseProgram,
                 userId: $this->userId,
@@ -448,6 +496,19 @@ class ProgramEditor extends Component
         unset($this->fieldsets, $this->exercises, $this->exerciseGroupLabels);
     }
 
+    public function applyRelationshipSelectorClientState(string $fieldName, array $items = []): void
+    {
+        $this->traitApplyRelationshipSelectorClientState($fieldName, $items);
+
+        if ($fieldName !== 'section_exercises') {
+            return;
+        }
+
+        $this->data[$this->sectionFieldName($this->activeSection)] = $this->data[$fieldName] ?? [];
+        $this->saveSectionExercises();
+        unset($this->fieldsets, $this->exercises, $this->exerciseGroupLabels);
+    }
+
     public function removeRelationshipSelectorItem(string $fieldName, int $index): void
     {
         $this->traitRemoveRelationshipSelectorItem($fieldName, $index);
@@ -517,61 +578,20 @@ class ProgramEditor extends Component
         $sourceRows = $sourceProgram->exercises
             ->filter(fn (Exercise $exercise) => ($exercise->pivot->type ?? 'main') === $sourceSection)
             ->sortBy(fn (Exercise $exercise) => [$exercise->pivot->sort ?? 0, $exercise->pivot->id ?? 0])
-            ->values();
+            ->values()
+            ->map(fn (Exercise $exercise, int $index): array => [
+                'id' => $exercise->id,
+                '_key' => uniqid('item_', true),
+                'sort' => $index,
+                'group' => $exercise->pivot->group,
+                'source_program_id' => $sourceProgram->id,
+                'source_program_exercise_id' => (int) ($exercise->pivot->id ?? 0),
+            ])
+            ->all();
 
-        $didChange = false;
-
-        DB::transaction(function () use ($sourceProgram, $sourceRows, &$didChange): void {
-            $config = $this->exerciseProgram->config;
-            $currentRows = $this->exerciseProgram->exercises()
-                ->wherePivot('type', $this->activeSection)
-                ->get()
-                ->keyBy(fn (Exercise $exercise) => (int) $exercise->pivot->id);
-
-            foreach ($currentRows->keys() as $programExerciseId) {
-                $config->removeExerciseOverrides((int) $programExerciseId);
-                $config->removeExerciseOverridesForAllUsers((int) $programExerciseId);
-            }
-
-            $pivotIdMap = [];
-
-            ExerciseProgramExercise::withoutEvents(function () use ($currentRows, $sourceRows, &$pivotIdMap, &$didChange): void {
-                if ($currentRows->isNotEmpty()) {
-                    ExerciseProgramExercise::query()
-                        ->where('exercise_program_id', $this->exerciseProgram->id)
-                        ->whereIn('id', $currentRows->keys()->all())
-                        ->delete();
-                    $didChange = true;
-                }
-
-                foreach ($sourceRows as $index => $exercise) {
-                    $newPivot = ExerciseProgramExercise::create([
-                        'exercise_program_id' => $this->exerciseProgram->id,
-                        'exercise_id' => $exercise->id,
-                        'sort' => $exercise->pivot->sort ?? $index,
-                        'group' => $exercise->pivot->group,
-                        'type' => $this->activeSection,
-                    ]);
-
-                    $pivotIdMap[(int) $exercise->pivot->id] = (int) $newPivot->id;
-                    $didChange = true;
-                }
-            });
-
-            $sourceConfig = $sourceProgram->config;
-            $config->copyMappedExerciseOverridesFrom($sourceConfig, $pivotIdMap);
-
-            $this->exerciseProgram->config = $config;
-            $this->exerciseProgram->saveQuietly();
-        });
-
-        if ($didChange) {
-            $this->dispatchSharedProgramRebuild();
-        }
-
-        $this->exerciseProgram->refresh();
-        $this->loadExerciseData();
-        unset($this->fieldsets, $this->exercises, $this->exerciseGroupLabels);
+        $this->data['section_exercises'] = $sourceRows;
+        $this->data[$this->sectionFieldName($this->activeSection)] = $sourceRows;
+        $result = $this->saveSectionExercises();
         Flux::modal($this->importConfirmModalName())->close();
 
         Flux::toast(
@@ -583,14 +603,28 @@ class ProgramEditor extends Component
         );
     }
 
-    public function saveSectionExercises(): void
+    /**
+     * @return array{preservedImmutableCount:int}
+     */
+    public function saveSectionExercises(): array
     {
         $currentRows = $this->exerciseProgram->exercises()
             ->wherePivot('type', $this->activeSection)
             ->get()
             ->keyBy(fn (Exercise $exercise) => (int) $exercise->pivot->id);
 
-        $newRows = collect($this->data['section_exercises'] ?? []);
+        $normalization = app(ExerciseProgramSectionMutationService::class)->normalize(
+            currentRows: $currentRows,
+            proposedRows: collect($this->data['section_exercises'] ?? []),
+            config: $this->exerciseProgram->config,
+            lockedSessionsByWeek: $this->lockedSessionsByWeek,
+            weekSessionDates: $this->weekSessionDates,
+        );
+
+        $this->data['section_exercises'] = $normalization['rows'];
+        $this->data[$this->sectionFieldName($this->activeSection)] = $normalization['rows'];
+
+        $newRows = collect($normalization['rows']);
         $currentIds = $currentRows->keys()->all();
         $newIds = $newRows
             ->pluck('program_exercise_id')
@@ -604,9 +638,11 @@ class ProgramEditor extends Component
         $config = $this->exerciseProgram->config;
         $configChanged = false;
         $didChange = false;
+        $sourcePivotMaps = [];
 
         foreach ($programExerciseIdsToRemove as $programExerciseId) {
             $config->removeExerciseOverrides((int) $programExerciseId);
+            $config->removeExerciseOverridesForAllUsers((int) $programExerciseId);
             $configChanged = true;
         }
 
@@ -614,17 +650,21 @@ class ProgramEditor extends Component
             $programExerciseIdsToRemove,
             $newRows,
             $currentRows,
+            $normalization,
             &$config,
             &$configChanged,
             &$didChange,
+            &$sourcePivotMaps,
         ): void {
             ExerciseProgramExercise::withoutEvents(function () use (
                 $programExerciseIdsToRemove,
                 $newRows,
                 $currentRows,
+                $normalization,
                 &$config,
                 &$configChanged,
                 &$didChange,
+                &$sourcePivotMaps,
             ): void {
                 if ($programExerciseIdsToRemove !== []) {
                     ExerciseProgramExercise::query()
@@ -653,7 +693,16 @@ class ProgramEditor extends Component
                             'type' => $this->activeSection,
                         ]);
 
-                        $this->setDefaultOverridesForExercise($config, $exerciseId, $newPivot->id);
+                        $startsAtDate = $normalization['startsAtDate'] ?? null;
+                        $this->setDefaultOverridesForExercise($config, $exerciseId, $newPivot->id, $startsAtDate);
+
+                        $sourceProgramId = isset($exerciseData['source_program_id']) ? (int) $exerciseData['source_program_id'] : 0;
+                        $sourcePivotId = isset($exerciseData['source_program_exercise_id']) ? (int) $exerciseData['source_program_exercise_id'] : 0;
+
+                        if ($sourceProgramId > 0 && $sourcePivotId > 0) {
+                            $sourcePivotMaps[$sourceProgramId][$sourcePivotId] = (int) $newPivot->id;
+                        }
+
                         $configChanged = true;
                         $didChange = true;
 
@@ -688,6 +737,21 @@ class ProgramEditor extends Component
                 }
             });
 
+            foreach ($sourcePivotMaps as $sourceProgramId => $pivotIdMap) {
+                $sourceProgram = ExerciseProgram::query()->find($sourceProgramId);
+
+                if (! $sourceProgram || $pivotIdMap === []) {
+                    continue;
+                }
+
+                $config->copyMappedExerciseOverridesFrom(
+                    $sourceProgram->config,
+                    $pivotIdMap,
+                    $normalization['startsAtDate'] ?? null,
+                );
+                $configChanged = true;
+            }
+
             if ($configChanged) {
                 $this->exerciseProgram->config = $config;
                 $this->exerciseProgram->saveQuietly();
@@ -701,13 +765,24 @@ class ProgramEditor extends Component
         $this->exerciseProgram->refresh();
         unset($this->fieldsets, $this->exercises, $this->exerciseGroupLabels);
         $this->loadExerciseData();
+
+        if (($normalization['preservedImmutableCount'] ?? 0) > 0) {
+            Flux::toast(
+                text: __('Some historical exercises were kept because past sessions can no longer be changed.'),
+                variant: 'warning',
+            );
+        }
+
+        return [
+            'preservedImmutableCount' => (int) ($normalization['preservedImmutableCount'] ?? 0),
+        ];
     }
 
-    protected function setDefaultOverridesForExercise(ExercisePlanConfig $config, int $exerciseId, int $programExerciseId): void
+    protected function setDefaultOverridesForExercise(ExercisePlanConfig $config, int $exerciseId, int $programExerciseId, ?string $startsAtDate = null): void
     {
         $config->setDefaultExerciseOverrides(
             $programExerciseId,
-            new ExerciseOverrides,
+            new ExerciseOverrides(startsAtDate: $startsAtDate),
         );
     }
 
@@ -761,6 +836,34 @@ class ProgramEditor extends Component
     {
         return $sourceProgram->type === ExerciseProgramTypeEnum::Program
             ? $this->activeSection
+            : 'main';
+    }
+
+    protected function exerciseSelectorImportProgramType(string $fieldName): ExerciseProgramTypeEnum
+    {
+        return $fieldName === 'section_exercises'
+            ? $this->importProgramType()
+            : ExerciseProgramTypeEnum::Program;
+    }
+
+    protected function exerciseSelectorCurrentProgramId(string $fieldName): ?int
+    {
+        return $fieldName === 'section_exercises'
+            ? $this->exerciseProgram->id
+            : (is_numeric(data_get($this, 'data.id')) ? (int) data_get($this, 'data.id') : null);
+    }
+
+    protected function exerciseSelectorTargetSection(string $fieldName): string
+    {
+        return $fieldName === 'section_exercises'
+            ? $this->activeSection
+            : 'main';
+    }
+
+    protected function exerciseSelectorSourceSection(ExerciseProgram $sourceProgram, string $fieldName): string
+    {
+        return $fieldName === 'section_exercises'
+            ? $this->importSourceSection($sourceProgram)
             : 'main';
     }
 

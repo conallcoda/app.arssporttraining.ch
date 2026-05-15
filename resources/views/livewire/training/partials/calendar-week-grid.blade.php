@@ -6,14 +6,29 @@
     $allWeeks = $this->weekGridData;
     $pageSize = 2;
     $pages = array_chunk($allWeeks, $pageSize);
+    $pageRanges = [];
+    foreach ($pages as $pageIndex => $pageWeeks) {
+        $pageRanges[$pageIndex] = [
+            'start' => $pageWeeks[0]['days'][0]['date'],
+            'end' => end($pageWeeks)['days'][6]['date'],
+        ];
+    }
     $groupId = property_exists($this, 'groupId') ? $this->groupId : ($this->group !== '' ? $this->group : '');
     $userId = property_exists($this, 'userId') ? ($this->userId ?? '') : ($this->user !== '' ? $this->user : '');
 @endphp
 
-<div x-data="{
+<div
+    x-data="{
     slotPages: {},
-    async loadPage(pageIndex, startDate, endDate) {
-        if (this.slotPages[pageIndex]) return;
+    async refresh(pageRanges) {
+        this.slotPages = {};
+
+        for (const [pageIndex, range] of Object.entries(pageRanges)) {
+            await this.loadPage(pageIndex, range.start, range.end, true);
+        }
+    },
+    async loadPage(pageIndex, startDate, endDate, force = false) {
+        if (!force && this.slotPages[pageIndex]) return;
         this.slotPages[pageIndex] = 'loading';
         const params = new URLSearchParams({ start: startDate, end: endDate });
         @if ($groupId && !$userId)
@@ -36,7 +51,9 @@
     cardStyle(prog) {
         return prog.color ? 'background-color: var(--color-' + prog.color + '-500); color: white;' : '';
     }
-}" class="overflow-x-auto">
+}"
+    x-on:schedule-grid-refresh.window="refresh(@js($pageRanges))"
+    class="overflow-x-auto">
     <table class="border-separate border-spacing-0 text-sm border-t border-l border-zinc-300 dark:border-zinc-600 w-full table-fixed">
         <colgroup>
             <col style="width: 100px" />
@@ -75,13 +92,24 @@
                             {{ __('AM') }}
                         </td>
                         @foreach ($week['days'] as $day)
-                            <td @click="{{ $weekEditMode === 'edit' ? "\$wire.quickCreateWeekSlot('{$day['date']}', 'am')" : "\$wire.openWeekSlot('{$day['date']}', 'am')" }}"
+                            <td
+                                @if ($weekEditMode === 'edit')
+                                    @click="$wire.quickCreateWeekSlot('{{ $day['date'] }}', 'am')"
+                                @elseif ($weekEditMode === 'view')
+                                    @click="$wire.openWeekSlot('{{ $day['date'] }}', 'am')"
+                                @endif
                                 class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer {{ $day['isToday'] ? 'bg-blue-50/50 dark:bg-blue-900/10' : '' }}">
                                 <div class="flex flex-col gap-1 px-1.5 py-1.5">
                                     <template x-for="prog in getSlots({{ $pageIndex }}, '{{ $day['date'] }}', 'am')">
                                         <x-training.calendar-slot-card
                                             type="button"
-                                            @click.stop="$wire.editWeekSlot(prog.trainingProgramId, '{{ $day['date'] }}', prog.time)"
+                                            @click.stop="
+                                                if ('{{ $weekEditMode }}' === 'remove') {
+                                                    $wire.quickRemoveWeekSlot(prog.trainingProgramId, '{{ $day['date'] }}', prog.time)
+                                                } else {
+                                                    $wire.editWeekSlot(prog.trainingProgramId, '{{ $day['date'] }}', prog.time)
+                                                }
+                                            "
                                             class="w-full"
                                             color-expr="prog.color"
                                             time-expr="prog.time"
@@ -103,13 +131,24 @@
                             {{ __('PM') }}
                         </td>
                         @foreach ($week['days'] as $day)
-                            <td @click="{{ $weekEditMode === 'edit' ? "\$wire.quickCreateWeekSlot('{$day['date']}', 'pm')" : "\$wire.openWeekSlot('{$day['date']}', 'pm')" }}"
+                            <td
+                                @if ($weekEditMode === 'edit')
+                                    @click="$wire.quickCreateWeekSlot('{{ $day['date'] }}', 'pm')"
+                                @elseif ($weekEditMode === 'view')
+                                    @click="$wire.openWeekSlot('{{ $day['date'] }}', 'pm')"
+                                @endif
                                 class="border-r border-b border-zinc-300 dark:border-zinc-600 p-0 cursor-pointer {{ $day['isToday'] ? 'bg-blue-50/50 dark:bg-blue-900/10' : '' }}">
                                 <div class="flex flex-col gap-1 px-1.5 py-1.5">
                                     <template x-for="prog in getSlots({{ $pageIndex }}, '{{ $day['date'] }}', 'pm')">
                                         <x-training.calendar-slot-card
                                             type="button"
-                                            @click.stop="$wire.editWeekSlot(prog.trainingProgramId, '{{ $day['date'] }}', prog.time)"
+                                            @click.stop="
+                                                if ('{{ $weekEditMode }}' === 'remove') {
+                                                    $wire.quickRemoveWeekSlot(prog.trainingProgramId, '{{ $day['date'] }}', prog.time)
+                                                } else {
+                                                    $wire.editWeekSlot(prog.trainingProgramId, '{{ $day['date'] }}', prog.time)
+                                                }
+                                            "
                                             class="w-full"
                                             color-expr="prog.color"
                                             time-expr="prog.time"

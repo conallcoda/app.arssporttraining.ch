@@ -13,6 +13,7 @@ use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Livewire\Concerns\InteractsWithDisplayGridCopying;
 use App\Models\Exercise\ExerciseProgram;
 use App\Support\Training\ApplyPerScope;
+use App\Support\Training\WeekSessionCountResolver;
 use Coda\Cms\Livewire\FormModal;
 use Coda\FormKit\Form;
 use Coda\FormKit\FormFieldsetGroup;
@@ -361,13 +362,11 @@ class CalendarExerciseSettingsForm extends FormModal
 
     protected function sessionCountForWeek(int $weekIndex): int
     {
-        $explicitSessions = (int) ($this->weekSessions[$weekIndex] ?? 0);
-
-        if ($explicitSessions > 0) {
-            return max($explicitSessions, 1);
-        }
-
-        return max($this->sessionsPerWeek, 1);
+        return WeekSessionCountResolver::resolveForWeek(
+            weekIndex: $weekIndex,
+            fallbackSessionsPerWeek: $this->sessionsPerWeek,
+            weekSessions: $this->weekSessions,
+        );
     }
 
     protected function applyExplicitWeekSessionCounts(PreviewGrid $grid): PreviewGrid

@@ -2,9 +2,11 @@
 
 namespace App\Cms\Modules;
 
+use App\Livewire\Database\AthleteDetailsPage;
 use App\Livewire\Database\AthleteList;
 use App\Livewire\Database\AthleteMetricIndex;
 use App\Livewire\Database\AthleteMetricList;
+use App\Models\Users\User;
 use Coda\Cms\ComponentDefinition;
 use Coda\Cms\ComponentType;
 use Coda\Cms\Module;
@@ -28,6 +30,19 @@ class AthleteModule extends Module
                 ->route('/athletes/{athleteId}/metrics')
                 ->heading('Metrics')
                 ->component(AthleteMetricIndex::class),
+        ];
+    }
+
+    public function detailPages(): array
+    {
+        return [
+            $this->detailsPage(
+                name: 'athlete-details',
+                route: '/athletes/{record}',
+                listComponent: AthleteList::class,
+                component: AthleteDetailsPage::class,
+            )
+                ->bindCrumb('record', User::class),
         ];
     }
 

@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Exercise\ExerciseProgram;
-use App\Models\Training\TrainingProgram;
 use Database\Seeders\DatabaseImportSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
@@ -9,7 +8,7 @@ use Mockery as m;
 
 uses(RefreshDatabase::class);
 
-it('links imported scheduled exercise programs back to their training program parent', function () {
+it('skips scheduled training programs and leaves imported exercise programs unparented', function () {
     $importPath = base_path('import/database/test-scheduled-parent-import');
 
     File::deleteDirectory($importPath);
@@ -123,11 +122,11 @@ it('links imported scheduled exercise programs back to their training program pa
         ->usingImportPath($importPath)
         ->run();
 
-    $trainingProgram = TrainingProgram::query()->findOrFail(80);
     $exerciseProgram = ExerciseProgram::query()->findOrFail(40);
 
-    expect($exerciseProgram->parent_type)->toBe(TrainingProgram::class)
-        ->and($exerciseProgram->parent_id)->toBe($trainingProgram->id);
+    expect(\App\Models\Training\TrainingProgram::query()->find(80))->toBeNull()
+        ->and($exerciseProgram->parent_type)->toBeNull()
+        ->and($exerciseProgram->parent_id)->toBeNull();
 
     File::deleteDirectory($importPath);
 });

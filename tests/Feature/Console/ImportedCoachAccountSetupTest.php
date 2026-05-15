@@ -61,7 +61,7 @@ it('marks imported content coaches as active and preserves their email', functio
         ],
     ]);
 
-    $this->artisan('db:import-content', ['path' => $importPath])->assertExitCode(0);
+    $this->artisan('db:import', ['path' => $importPath])->assertExitCode(0);
 
     $coach = User::query()->findOrFail(69);
 

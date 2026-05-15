@@ -99,6 +99,8 @@
                             :settingClickable="true"
                             :collapseWeeks="false"
                             :copyMenuOptions="$this->copyMenuOptions"
+                            :previewMenuOptions="$this->previewMenuOptions"
+                            :showPreview="$this->userId !== null"
                         />
                     </div>
                 @endif

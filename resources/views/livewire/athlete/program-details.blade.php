@@ -23,6 +23,7 @@
         :is-future-session="$isFutureSession"
         :can-record-session="$canRecordSession"
         :athlete-edits-enabled="$athleteEditsEnabled"
+        :auto-expand-exercise-id="$autoExpandExerciseId ?? null"
     />
 
     <flux:modal name="athlete-exercise-editor" class="max-w-2xl" x-on:close="$wire.cancelExerciseEditor()">

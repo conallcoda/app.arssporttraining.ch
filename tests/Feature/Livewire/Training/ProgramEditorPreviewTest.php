@@ -10,6 +10,8 @@ use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
+use App\Support\Training\AthletePreviewSlotService;
+use App\Training\TrainingSessionRebuildService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -168,6 +170,91 @@ it('creates unique preview slot datetimes when multiple preview sessions share t
         '2026-05-19 14:00:00',
         '2026-05-19 17:00:00',
     ]);
+});
+
+it('does not invent extra preview sessions beyond the explicit scheduled timeline', function () {
+    $coach = User::factory()->coach()->create();
+    $athlete = User::factory()->athlete()->create();
+    $program = ExerciseProgram::factory()->create();
+
+    $group = UserGroup::query()->create([
+        'name' => 'Preview Group',
+        'owner_id' => $coach->id,
+    ]);
+    $group->members()->attach($athlete->id);
+
+    Livewire::actingAs($coach)->test(ProgramEditor::class, [
+        'exerciseProgram' => $program,
+        'planId' => $program->id,
+        'userId' => $athlete->id,
+        'showActualValueTabs' => true,
+        'weeks' => 2,
+        'sessionsPerWeek' => 4,
+        'weekSessions' => [1, 2],
+        'weekSessionDates' => [
+            ['2026-05-19'],
+            ['2026-05-26', '2026-05-30'],
+        ],
+    ])->call('openPreviewModal');
+
+    $trainingProgram = TrainingProgram::query()->latest('id')->first();
+
+    expect($trainingProgram)->not->toBeNull();
+
+    $datetimes = $trainingProgram->slots()
+        ->orderBy('datetime')
+        ->pluck('datetime')
+        ->map(fn ($datetime) => \Carbon\Carbon::parse($datetime)->format('Y-m-d H:i:s'))
+        ->all();
+
+    expect($datetimes)->toBe([
+        '2026-05-19 08:00:00',
+        '2026-05-26 08:00:00',
+        '2026-05-30 08:00:00',
+    ]);
+});
+
+it('creates preview slots without triggering future-slot rebuild cascades', function () {
+    $coach = User::factory()->coach()->create();
+    $athlete = User::factory()->athlete()->create();
+    $program = ExerciseProgram::factory()->create();
+    $exercise = Exercise::factory()->create();
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $group = UserGroup::query()->create([
+        'name' => 'Preview Group',
+        'owner_id' => $coach->id,
+    ]);
+    $group->members()->attach($athlete->id);
+
+    $rebuildService = Mockery::mock(TrainingSessionRebuildService::class);
+    $rebuildService->shouldNotReceive('rebuildFutureSlotsForTrainingProgramAthlete');
+    app()->instance(TrainingSessionRebuildService::class, $rebuildService);
+
+    $previewTrainingProgram = app(AthletePreviewSlotService::class)->createPreviewProgram(
+        exerciseProgram: $program->fresh(),
+        userId: $athlete->id,
+        weeks: 2,
+        sessionsPerWeek: 3,
+        weekSessions: [1, 2],
+        weekSessionDates: [
+            ['2026-05-19'],
+            ['2026-05-26', '2026-05-30'],
+        ],
+    );
+
+    $slots = $previewTrainingProgram->slots()
+        ->orderBy('datetime')
+        ->get();
+
+    expect($slots)->toHaveCount(3)
+        ->and($slots->every(fn (TrainingProgramSlot $slot) => $slot->compiled_at !== null))->toBeTrue();
 });
 
 it('uses the current scheduled training program when previewing with a stale exercise-program parent', function () {

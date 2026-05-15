@@ -15,17 +15,33 @@ use Coda\FormKit\Action;
 use Coda\FormKit\Form;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class AthleteMetricList extends AbstractModelList
 {
     public int $athleteId;
 
-    public function mount(int $athleteId = 0): void
-    {
-        $this->athleteId = $athleteId ?: (int) request()->route('athleteId');
+    public ?string $forcedMetric = null;
 
-        $selectedTab = request()->query('selectedTab', request()->query('am_selectedTab'));
-        if (is_string($selectedTab) && $selectedTab !== '') {
+    public bool $showTabs = true;
+
+    public function mount(
+        int $athleteId = 0,
+        ?string $forcedMetric = null,
+        bool $showTabs = true,
+        bool $prefixUrl = false,
+    ): void {
+        $this->athleteId = $athleteId ?: (int) request()->route('athleteId');
+        $this->forcedMetric = MetricEnum::tryFrom((string) $forcedMetric)?->value;
+        $this->showTabs = $showTabs;
+        $this->prefixUrl = $prefixUrl;
+
+        if ($this->forcedMetric !== null) {
+            $this->selectedTab = $this->forcedMetric;
+        }
+
+        $selectedTab = request()->query('selectedTab', request()->query($this->urlPrefix().'selectedTab'));
+        if ($this->forcedMetric === null && is_string($selectedTab) && $selectedTab !== '') {
             $this->selectedTab = $selectedTab;
         }
 
@@ -39,7 +55,20 @@ class AthleteMetricList extends AbstractModelList
 
     protected function urlPrefix(): string
     {
+        if ($this->forcedMetric !== null) {
+            return Str::of($this->forcedMetric)->kebab()->append('_')->toString();
+        }
+
         return 'am_';
+    }
+
+    protected function getEntitySlug(): string
+    {
+        if ($this->forcedMetric !== null) {
+            return 'athlete-metric-'.Str::of($this->forcedMetric)->kebab()->toString();
+        }
+
+        return parent::getEntitySlug();
     }
 
     protected function getDataClass(): string
@@ -49,6 +78,10 @@ class AthleteMetricList extends AbstractModelList
 
     protected function getTabs(): array
     {
+        if (! $this->showTabs || $this->forcedMetric !== null) {
+            return [];
+        }
+
         return collect(MetricEnum::cases())
             ->map(fn (MetricEnum $case) => IndexTab::make($case->value, $case->label())
                 ->query(fn (Builder $query) => $query->where('metric', $case->value))
@@ -58,6 +91,10 @@ class AthleteMetricList extends AbstractModelList
 
     protected function getDefaultTabKey(): ?string
     {
+        if ($this->forcedMetric !== null) {
+            return $this->forcedMetric;
+        }
+
         return MetricEnum::OneRepMax->value;
     }
 
@@ -77,14 +114,21 @@ class AthleteMetricList extends AbstractModelList
 
     protected function selectedMetric(): MetricEnum
     {
-        return MetricEnum::tryFrom($this->selectedTab ?? '') ?? MetricEnum::OneRepMax;
+        return MetricEnum::tryFrom($this->forcedMetric ?? $this->selectedTab ?? '')
+            ?? MetricEnum::OneRepMax;
     }
 
     protected function getBaseQuery(): Builder
     {
-        return MetricSubmission::query()
+        $query = MetricSubmission::query()
             ->where('user_id', $this->athleteId)
             ->with(['recordedBy', 'values']);
+
+        if ($this->forcedMetric !== null) {
+            $query->where('metric', $this->selectedMetric());
+        }
+
+        return $query;
     }
 
     protected function dataFromModel(Model $model): AbstractData
@@ -148,5 +192,10 @@ class AthleteMetricList extends AbstractModelList
             ])
             ->defaultSort('recorded_at', 'desc')
             ->sortable(['recorded_at']);
+    }
+
+    protected function emit(): void
+    {
+        $this->dispatch('athlete-metric-snapshots-changed', athleteId: $this->athleteId, metric: $this->selectedMetric()->value);
     }
 }

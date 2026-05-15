@@ -2,6 +2,7 @@
 
 namespace App\Data\Athlete;
 
+use App\Data\Athlete\Metric\MetricEnum;
 use App\Form\Fields\Athlete\DateOfBirth;
 use App\Form\Fields\Athlete\Email;
 use App\Form\Fields\Athlete\Forename;
@@ -17,6 +18,7 @@ use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Form\Fields\Tags;
 use Coda\FormKit\Concerns\InteractsWithForms;
 use Coda\FormKit\Contracts\HasForms;
+use Coda\FormKit\Fields\Text as TextField;
 use Coda\FormKit\Form;
 
 class AthleteData extends AbstractData implements HasForms
@@ -78,9 +80,9 @@ class AthleteData extends AbstractData implements HasForms
                     $fieldValues = $submission->values->pluck('value', 'field')->all();
                     $metric = $metricClass::from($fieldValues);
                     $badge = $metric->badge($submission->metric->shortLabel());
-                    $badge['url'] = route('athlete-metric-index', [
-                        'athleteId' => $user->id,
-                        'selectedTab' => $submission->metric->value,
+                    $badge['url'] = route('athlete-details', [
+                        'record' => $user->id,
+                        'tab' => self::metricTabRoute($submission->metric),
                     ]);
 
                     return $badge;
@@ -129,18 +131,33 @@ class AthleteData extends AbstractData implements HasForms
         ]];
     }
 
+    protected static function metricTabRoute(MetricEnum $metric): string
+    {
+        return match ($metric) {
+            MetricEnum::Readiness => 'readiness',
+            MetricEnum::HeartRate => 'heart_rate',
+            MetricEnum::OneRepMax => 'one_rep_max',
+        };
+    }
+
     public static function getForm(): Form
     {
         return Form::make()
-            ->fieldset('General', [
-                Owner::make('owner_id')->withOptions()->allowUnassigned(),
+            ->fieldset('Details', [
                 Forename::make('forename'),
                 Surname::make('surname'),
                 Email::make('email'),
                 Phone::make('phone'),
+            ])
+            ->fieldset('Admin', [
+                Owner::make('owner_id')->withOptions()->allowUnassigned(),
+                TextField::make('setupStatusLabel')->label('Setup Status')->disabled(),
+            ])
+            ->fieldset('Profile', [
                 Gender::make('gender'),
                 DateOfBirth::make('dateOfBirth'),
                 Tags::make('internalTags', 'athlete_internal')->label('Tags')->withOptions()->create(),
-            ]);
+            ])
+            ->fieldsetTabs(['Details', 'Admin', 'Profile']);
     }
 }

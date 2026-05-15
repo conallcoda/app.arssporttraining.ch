@@ -2,10 +2,10 @@
 
 namespace App\Form\Fields\AthleteGroup;
 
+use App\Form\Fields\RelationshipSelector;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
 use Coda\Cms\Display\DisplayFields\Text;
-use Coda\FormKit\Fields\RelationshipSelector;
 
 class Members extends RelationshipSelector
 {

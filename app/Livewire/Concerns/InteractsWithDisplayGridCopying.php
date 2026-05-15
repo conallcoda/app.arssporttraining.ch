@@ -99,6 +99,26 @@ trait InteractsWithDisplayGridCopying
         return $options;
     }
 
+    #[Computed]
+    public function previewMenuOptions(): array
+    {
+        $options = [];
+
+        foreach ($this->copyBuckets as $key => $bucket) {
+            $options[$key] = collect($bucket['sessions'] ?? [])
+                ->map(fn (array $session): array => [
+                    'week' => (int) $session['week'],
+                    'session' => (int) $session['session'],
+                    'number' => (int) ($session['number'] ?? 0),
+                    'label' => __('Session :number', ['number' => (int) ($session['number'] ?? 0)]),
+                ])
+                ->values()
+                ->all();
+        }
+
+        return $options;
+    }
+
     public function copyDisplayBucket(string $sourceKey, string $targetKey): void
     {
         $buckets = $this->copyBuckets;

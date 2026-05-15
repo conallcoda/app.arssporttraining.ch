@@ -18,6 +18,7 @@
     'isFutureSession' => true,
     'canRecordSession' => false,
     'athleteEditsEnabled' => false,
+    'autoExpandExerciseId' => null,
 ])
 
 @php
@@ -90,7 +91,7 @@
     <div class="w-full md:mx-auto md:max-w-[900px] px-0 py-0">
         <div class="space-y-0">
             @forelse ($programExercises as $exercise)
-                <x-athlete.section :row="$loop->iteration" class="py-0" content-class="space-y-0 py-3" wire:key="exercise-{{ $exercise->id }}" x-data="{ open: false }" x-on:athlete-exercise-action-succeeded.window="if (($event.detail.exerciseId ?? null) === {{ $exercise->id }}) open = false">
+                <x-athlete.section :row="$loop->iteration" class="py-0" content-class="space-y-0 py-3" wire:key="exercise-{{ $exercise->id }}" x-data="{ open: {{ $autoExpandExerciseId === $exercise->id ? 'true' : 'false' }} }" x-on:athlete-exercise-action-succeeded.window="if (($event.detail.exerciseId ?? null) === {{ $exercise->id }}) open = false">
                     <div x-on:click="open = !open" x-on:keydown.enter.prevent="open = !open"
                         x-on:keydown.space.prevent="open = !open" :aria-expanded="open" role="button" tabindex="0"
                         class="flex w-full cursor-pointer items-start justify-between gap-3">

@@ -3,6 +3,8 @@
 namespace App\Livewire\Training;
 
 use App\Data\Training\ExerciseProgramData;
+use App\Livewire\Concerns\InteractsWithExerciseSelectorPrograms;
+use App\Models\Exercise\ExerciseProgramTypeEnum;
 use Coda\Cms\Livewire\FormModal;
 use Coda\FormKit\Form;
 use Illuminate\View\View;
@@ -10,6 +12,8 @@ use Livewire\Attributes\Computed;
 
 class ExerciseProgramFormModal extends FormModal
 {
+    use InteractsWithExerciseSelectorPrograms;
+
     public bool $showTrainingProgramStatus = false;
 
     protected function getFormDataClass(): ?string
@@ -45,5 +49,11 @@ class ExerciseProgramFormModal extends FormModal
     public function render(): View
     {
         return view('livewire.training.exercise-program-form-modal');
+    }
+
+    protected function exerciseSelectorImportProgramType(string $fieldName): ExerciseProgramTypeEnum
+    {
+        return ExerciseProgramTypeEnum::tryFrom((string) ($this->data['type'] ?? ExerciseProgramTypeEnum::Program->value))
+            ?? ExerciseProgramTypeEnum::Program;
     }
 }

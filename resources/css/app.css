@@ -7,6 +7,7 @@
 @source '../views';
 @source '../js';
 @source '../../vendor/coda/cms/resources/views';
+@source '../../vendor/coda/form-kit/resources/views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 
 /* HeartRateZoneCellColors dynamic classes */

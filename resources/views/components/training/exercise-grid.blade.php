@@ -14,6 +14,8 @@
     'settingClickable' => false,
     'sessionLabels' => false,
     'copyMenuOptions' => [],
+    'previewMenuOptions' => [],
+    'showPreview' => false,
     'showActualValues' => false,
     'valueDisplayMode' => 'planned',
     'actualCellValues' => [],
@@ -39,7 +41,10 @@
         $hasCopyActions = collect($copyMenuOptions)->contains(
             fn ($options): bool => ! empty($options['from'] ?? []) || ! empty($options['to'] ?? [])
         );
-        $showCopyColumn = ! $splitActualColumns && (bool) ($grid->showCopyMenu ?? false) && $hasCopyActions;
+        $hasPreviewActions = $showPreview && collect($previewMenuOptions)->contains(
+            fn ($options): bool => ! empty($options ?? [])
+        );
+        $showCopyColumn = ! $splitActualColumns && (bool) ($grid->showCopyMenu ?? false) && ($hasCopyActions || $hasPreviewActions);
         $baseRows = $splitActualColumns
             ? array_values(array_filter(
                 $grid->rows,
@@ -352,7 +357,7 @@
                                     @endforeach
                                     @if ($showCopyColumn)
                                         <td class="border border-zinc-300 dark:border-zinc-600 px-1 py-1 align-middle text-center">
-                                            @if (! empty($collapsedCopyOptions['from'] ?? []) || ! empty($collapsedCopyOptions['to'] ?? []))
+                                            @if (! empty($collapsedCopyOptions['from'] ?? []) || ! empty($collapsedCopyOptions['to'] ?? []) || ($showPreview && ! empty($previewMenuOptions[$collapsedCopyKey] ?? [])))
                                                 <flux:dropdown position="bottom" align="end">
                                                     <flux:button variant="ghost" size="xs" icon="ellipsis" class="!p-1" />
                                                     <flux:menu>
@@ -373,6 +378,11 @@
                                                                     </flux:menu.item>
                                                                 @endforeach
                                                             </flux:menu.submenu>
+                                                        @endif
+                                                        @if ($showPreview)
+                                                            @include('components.training.partials.preview-menu-item', [
+                                                                'previewSessions' => $previewMenuOptions[$collapsedCopyKey] ?? [],
+                                                            ])
                                                         @endif
                                                         <flux:menu.separator />
                                                         <flux:menu.item icon="rotate-ccw" wire:click="resetDisplayBucket('{{ $collapsedCopyKey }}')">
@@ -585,7 +595,7 @@
                                             @if ($showCopyColumn)
                                                 <td class="border border-zinc-300 dark:border-zinc-600 px-1 py-1 align-middle text-center"
                                                     rowspan="{{ count($grid->rows) }}">
-                                                    @if (! empty($collapsedCopyOptions['from'] ?? []) || ! empty($collapsedCopyOptions['to'] ?? []))
+                                                    @if (! empty($collapsedCopyOptions['from'] ?? []) || ! empty($collapsedCopyOptions['to'] ?? []) || ($showPreview && ! empty($previewMenuOptions[$collapsedCopyKey] ?? [])))
                                                         <flux:dropdown position="bottom" align="end">
                                                             <flux:button variant="ghost" size="xs" icon="ellipsis" class="!p-1" />
                                                             <flux:menu>
@@ -606,6 +616,11 @@
                                                                             </flux:menu.item>
                                                                         @endforeach
                                                                     </flux:menu.submenu>
+                                                                @endif
+                                                                @if ($showPreview)
+                                                                    @include('components.training.partials.preview-menu-item', [
+                                                                        'previewSessions' => $previewMenuOptions[$collapsedCopyKey] ?? [],
+                                                                    ])
                                                                 @endif
                                                                 <flux:menu.separator />
                                                                 <flux:menu.item icon="rotate-ccw" wire:click="resetDisplayBucket('{{ $collapsedCopyKey }}')">
@@ -755,7 +770,7 @@
                                     @endforeach
                                     @if ($showCopyColumn)
                                         <td class="border border-zinc-300 dark:border-zinc-600 px-1 py-1 align-middle text-center">
-                                            @if (! empty($sessionCopyOptions['from'] ?? []) || ! empty($sessionCopyOptions['to'] ?? []))
+                                            @if (! empty($sessionCopyOptions['from'] ?? []) || ! empty($sessionCopyOptions['to'] ?? []) || ($showPreview && ! empty($previewMenuOptions[$sessionCopyKey] ?? [])))
                                                 <flux:dropdown position="bottom" align="end">
                                                     <flux:button variant="ghost" size="xs" icon="ellipsis" class="!p-1" />
                                                     <flux:menu>
@@ -776,6 +791,11 @@
                                                                     </flux:menu.item>
                                                                 @endforeach
                                                             </flux:menu.submenu>
+                                                        @endif
+                                                        @if ($showPreview)
+                                                            @include('components.training.partials.preview-menu-item', [
+                                                                'previewSessions' => $previewMenuOptions[$sessionCopyKey] ?? [],
+                                                            ])
                                                         @endif
                                                         <flux:menu.separator />
                                                         <flux:menu.item icon="rotate-ccw" wire:click="resetDisplayBucket('{{ $sessionCopyKey }}')">
@@ -1053,7 +1073,7 @@
                                             @if ($showCopyColumn)
                                                 <td class="border border-zinc-300 dark:border-zinc-600 px-1 py-1 align-middle text-center"
                                                     rowspan="{{ count($grid->rows) }}">
-                                                    @if (! empty($sessionCopyOptions['from'] ?? []) || ! empty($sessionCopyOptions['to'] ?? []))
+                                                    @if (! empty($sessionCopyOptions['from'] ?? []) || ! empty($sessionCopyOptions['to'] ?? []) || ($showPreview && ! empty($previewMenuOptions[$sessionCopyKey] ?? [])))
                                                         <flux:dropdown position="bottom" align="end">
                                                             <flux:button variant="ghost" size="xs" icon="ellipsis" class="!p-1" />
                                                             <flux:menu>
@@ -1074,6 +1094,11 @@
                                                                             </flux:menu.item>
                                                                         @endforeach
                                                                     </flux:menu.submenu>
+                                                                @endif
+                                                                @if ($showPreview)
+                                                                    @include('components.training.partials.preview-menu-item', [
+                                                                        'previewSessions' => $previewMenuOptions[$sessionCopyKey] ?? [],
+                                                                    ])
                                                                 @endif
                                                                 <flux:menu.separator />
                                                                 <flux:menu.item icon="rotate-ccw" wire:click="resetDisplayBucket('{{ $sessionCopyKey }}')">

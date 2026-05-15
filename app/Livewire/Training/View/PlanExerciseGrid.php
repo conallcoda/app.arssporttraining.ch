@@ -2,24 +2,26 @@
 
 namespace App\Livewire\Training\View;
 
+use App\Data\Coach\Settings\SessionGroupingSetting;
 use App\Data\Exercise\ExerciseConfig;
 use App\Data\Exercise\ExerciseSetting;
 use App\Data\Exercise\Preview\ExercisePreviewBuilder;
 use App\Data\Exercise\Preview\GridOverrides;
 use App\Data\Exercise\Preview\OverrideManager;
 use App\Data\Exercise\Preview\PreviewGrid;
-use App\Data\Exercise\Preview\SessionGroupingConfig;
 use App\Data\Exercise\Preview\SessionGroupBuilder;
+use App\Data\Exercise\Preview\SessionGroupingConfig;
 use App\Data\Exercise\Preview\SessionGroupingMode;
 use App\Data\Exercise\Settings\AbstractSetting;
 use App\Data\Exercise\Settings\SetsSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
-use App\Data\Training\Snapshot\ScheduledExerciseSnapshotData;
-use App\Data\Training\Snapshot\ScheduledSetSnapshotData;
-use App\Data\Training\Snapshot\ScheduledValueSnapshotData;
-use App\Data\Training\Config\ResolvedExerciseOverrides;
 use App\Data\Training\Config\EffectiveExerciseConfig;
 use App\Data\Training\Config\ExerciseOverrides;
+use App\Data\Training\Config\ExercisePlanConfig;
+use App\Data\Training\Config\ResolvedExerciseOverrides;
+use App\Data\Training\Snapshot\ScheduledExerciseSnapshotData;
+use App\Data\Training\Snapshot\ScheduledSessionSnapshotData;
+use App\Data\Training\Snapshot\ScheduledSetSnapshotData;
 use App\Livewire\Concerns\InteractsWithDisplayGridCopying;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
@@ -30,17 +32,18 @@ use App\Models\Training\TrainingProgramSlotExercise;
 use App\Models\Training\TrainingProgramSlotSet;
 use App\Models\Training\TrainingProgramSlotSetStatusEnum;
 use App\Models\Training\TrainingProgramSlotSetValue;
-use App\Training\AthleteExerciseValueService;
-use App\Training\TrainingSessionPlannedValueService;
-use App\Training\TrainingPlanRevisionService;
-use App\Training\TrainingSessionRebuildDispatcher;
+use App\Support\Training\ApplyPerScope;
 use App\Support\Training\ExerciseMetricAvailability;
 use App\Support\Training\ScheduledSessionSnapshotBuilder;
-use App\Data\Coach\Settings\SessionGroupingSetting;
-use Coda\Cms\Livewire\Concerns\InteractsWithParentView;
+use App\Support\Training\WeekSessionCountResolver;
+use App\Training\AthleteExerciseValueService;
+use App\Training\TrainingPlanRevisionService;
+use App\Training\TrainingSessionPlannedValueService;
+use App\Training\TrainingSessionRebuildDispatcher;
 use Carbon\Carbon;
+use Coda\Cms\Livewire\Concerns\InteractsWithParentView;
+use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
-use App\Support\Training\ApplyPerScope;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Reactive;
@@ -48,8 +51,8 @@ use Livewire\Component;
 
 class PlanExerciseGrid extends Component
 {
-    use InteractsWithParentView;
     use InteractsWithDisplayGridCopying;
+    use InteractsWithParentView;
 
     public int $planId;
 
@@ -198,6 +201,27 @@ class PlanExerciseGrid extends Component
         }
     }
 
+    public function previewSession(int $week, int $session): void
+    {
+        if ($this->userId === null) {
+            return;
+        }
+
+        $sessionKey = $this->weekSessionDates[$week][$session] ?? null;
+
+        if (! is_string($sessionKey) || $sessionKey === '') {
+            return;
+        }
+
+        $this->dispatch(
+            'open-program-preview-at-session',
+            sessionKey: $sessionKey,
+            section: $this->programExerciseType,
+            exerciseId: $this->exerciseId,
+            exerciseSort: $this->programExerciseSort,
+        );
+    }
+
     public function updatedValueDisplayMode(): void
     {
         unset(
@@ -221,7 +245,7 @@ class PlanExerciseGrid extends Component
             $this->planConfigArray = ExerciseProgram::query()->findOrFail($this->planId)->config->toArray();
         }
 
-        return \App\Data\Training\Config\ExercisePlanConfig::from($this->planConfigArray);
+        return ExercisePlanConfig::from($this->planConfigArray);
     }
 
     protected function getPlanConfig()
@@ -279,6 +303,24 @@ class PlanExerciseGrid extends Component
     protected function getEffectiveConfig(): array
     {
         return $this->withResolvedPreviewGrouping($this->resolvedExerciseOverrides->effectiveConfig);
+    }
+
+    #[On('coach-settings-saved')]
+    public function onCoachSettingsSaved(): void
+    {
+        $this->bumpGridRenderVersion();
+        unset(
+            $this->configFingerprint,
+            $this->previewGrid,
+            $this->displayGrid,
+            $this->planGridTable,
+            $this->effectiveExpandedWeeks,
+            $this->settingBadges,
+            $this->resolvedExerciseOverrides,
+            $this->copyBuckets,
+            $this->copyMenuOptions,
+            $this->groupingBadge
+        );
     }
 
     protected function getBaseGridOverrides(): array
@@ -403,17 +445,7 @@ class PlanExerciseGrid extends Component
     #[Computed]
     public function groupingBadge(): array
     {
-        $override = $this->getCurrentOverrides()->sessionGrouping;
-
-        if ($override === null) {
-            return [
-                'label' => 'Default Grouping',
-                'color' => null,
-                'overridden' => false,
-            ];
-        }
-
-        $grouping = $override instanceof SessionGroupingConfig ? $override : SessionGroupingConfig::from($override);
+        $grouping = $this->effectiveSessionGrouping();
 
         return [
             'label' => match ($grouping->mode) {
@@ -421,8 +453,8 @@ class PlanExerciseGrid extends Component
                 SessionGroupingMode::Week->value => 'Grouped By Weeks ('.$grouping->groupSize.')',
                 default => 'Grouped By Sessions ('.$grouping->groupSize.')',
             },
-            'color' => 'green',
-            'overridden' => true,
+            'color' => null,
+            'overridden' => false,
         ];
     }
 
@@ -543,6 +575,15 @@ class PlanExerciseGrid extends Component
         $grid->showSessionColumn = true;
         $grid->showSessionDates = $this->coachShowsDatePerSession();
         $grid->sessionDateLabels = $this->sessionDateLabels();
+        if ($grid->showSessionDates) {
+            foreach ($grid->groups as $group) {
+                $group->collapsedMetaLines = collect($group->sessions ?? [])
+                    ->map(fn ($session): ?string => $grid->sessionDateLabels[$session->weekIndex][$session->sessionIndex] ?? null)
+                    ->filter(fn (?string $label): bool => filled($label))
+                    ->values()
+                    ->all();
+            }
+        }
         $grid->showCopyMenu = true;
         $grid->autoCopyValuesAutomatically = false;
 
@@ -936,9 +977,9 @@ class PlanExerciseGrid extends Component
     {
         $preview = $config['preview'] ?? [];
         $grouping = $this->resolveDefaultPreviewGrouping();
-        $preview['groupingMode'] ??= $grouping['mode'];
-        $preview['groupSize'] ??= $grouping['groupSize'];
-        $preview['copyValuesAutomatically'] ??= $grouping['copyValuesAutomatically'];
+        $preview['groupingMode'] = $grouping['mode'];
+        $preview['groupSize'] = $grouping['groupSize'];
+        $preview['copyValuesAutomatically'] = $grouping['copyValuesAutomatically'];
 
         $config['preview'] = $preview;
 
@@ -1320,7 +1361,7 @@ class PlanExerciseGrid extends Component
 
         $snapshot = $this->resolveScheduledSnapshotsByDate()[$date] ?? null;
 
-        if (! $snapshot instanceof \App\Data\Training\Snapshot\ScheduledSessionSnapshotData) {
+        if (! $snapshot instanceof ScheduledSessionSnapshotData) {
             return null;
         }
 
@@ -1773,7 +1814,6 @@ class PlanExerciseGrid extends Component
 
         $this->dispatch('open-plan-exercise-settings', data: [
             'config' => $effectiveConfig,
-            'sessionGrouping' => $this->effectiveSessionGrouping()->toArray(),
             'programExerciseId' => $this->programExerciseId,
             'exerciseId' => $this->exerciseId,
             'userId' => $this->userId,
@@ -1784,7 +1824,7 @@ class PlanExerciseGrid extends Component
 
     public function openGroupingForm(): void
     {
-        $this->openSettingsForm();
+        Flux::modal('coach-settings')->show();
     }
 
     protected function getParentConfig(): array
@@ -1801,17 +1841,6 @@ class PlanExerciseGrid extends Component
     protected function effectiveSessionGrouping(): SessionGroupingConfig
     {
         $preview = $this->getEffectiveConfig()['preview'] ?? [];
-
-        return SessionGroupingConfig::from([
-            'mode' => $preview['groupingMode'] ?? null,
-            'groupSize' => $preview['groupSize'] ?? null,
-            'copyValuesAutomatically' => $preview['copyValuesAutomatically'] ?? null,
-        ]);
-    }
-
-    protected function parentSessionGrouping(): SessionGroupingConfig
-    {
-        $preview = $this->withResolvedPreviewGrouping($this->getParentConfig())['preview'] ?? [];
 
         return SessionGroupingConfig::from([
             'mode' => $preview['groupingMode'] ?? null,
@@ -1890,13 +1919,7 @@ class PlanExerciseGrid extends Component
             $overrides->gridOverrides = $settingsConfig['overrides'];
         }
 
-        if (array_key_exists('session_grouping', $data)) {
-            $grouping = SessionGroupingConfig::from($data['session_grouping'] ?? []);
-            $parentGrouping = $this->parentSessionGrouping();
-            $overrides->sessionGrouping = $grouping->toArray() === $parentGrouping->toArray()
-                ? null
-                : $grouping;
-        }
+        $overrides->sessionGrouping = null;
 
         $this->saveOverrides($overrides);
         $this->bumpGridRenderVersion();
@@ -1968,7 +1991,7 @@ class PlanExerciseGrid extends Component
     }
 
     /** @param array{sessions?: array<int, array<string, mixed>>, cells?: array<int, array<string, mixed>>} $before
-     *  @param array{sessions?: array<int, array<string, mixed>>, cells?: array<int, array<string, mixed>>} $after
+     * @param  array{sessions?: array<int, array<string, mixed>>, cells?: array<int, array<string, mixed>>}  $after
      */
     protected function resolvePlanRevisionAction(array $before, array $after): string
     {
@@ -2073,15 +2096,13 @@ class PlanExerciseGrid extends Component
 
     protected function sessionCountForWeek(int $weekIndex): int
     {
-        $explicitSessions = (int) ($this->weekSessions[$weekIndex] ?? 0);
-        $datedSessions = count($this->weekSessionDates[$weekIndex] ?? []);
-        $lockedSessions = count($this->lockedSessionsByWeek[$weekIndex] ?? []);
-
-        if ($explicitSessions > 0 || $datedSessions > 0 || $lockedSessions > 0) {
-            return max($explicitSessions, $datedSessions, $lockedSessions, 1);
-        }
-
-        return $this->effectivePreviewSessionsPerWeek($this->getEffectiveConfig());
+        return WeekSessionCountResolver::resolveForWeek(
+            weekIndex: $weekIndex,
+            fallbackSessionsPerWeek: $this->effectivePreviewSessionsPerWeek($this->getEffectiveConfig()),
+            weekSessions: $this->weekSessions,
+            weekSessionDates: $this->weekSessionDates,
+            lockedSessionsByWeek: $this->lockedSessionsByWeek,
+        );
     }
 
     protected function effectivePreviewSessionsPerWeek(array $config): int
@@ -2238,7 +2259,7 @@ class PlanExerciseGrid extends Component
     }
 
     /** @param array<int, mixed> $groups
-     *  @return int[]
+     * @return int[]
      */
     protected function forcedExpandedGroupIndexes(PreviewGrid $grid, array $groups): array
     {

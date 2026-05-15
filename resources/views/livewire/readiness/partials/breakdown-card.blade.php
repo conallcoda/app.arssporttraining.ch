@@ -1,28 +1,31 @@
 @php
     $showAdminDetails = $showAdminDetails ?? false;
+    $showScoreHeader = $showScoreHeader ?? true;
 @endphp
 
 <div class="space-y-6">
-    <flux:heading size="lg">Readiness Score</flux:heading>
+    @if ($showScoreHeader)
+        <flux:heading size="lg">Readiness Score</flux:heading>
 
-    <div class="flex items-baseline gap-2">
-        <span class="text-5xl font-semibold tabular-nums">
-            {{ $viewData['readinessScore'] !== null ? number_format($viewData['readinessScore'], 2) : '—' }}
-        </span>
-        <span class="text-zinc-500">/ 5</span>
-    </div>
-
-    @if ($viewData['trafficLightMeta'])
-        <div class="inline-flex rounded-full border px-3 py-1 text-sm font-medium {{ $viewData['trafficLightMeta']['classes'] }}">
-            {{ $viewData['trafficLightMeta']['label'] }}
+        <div class="flex items-baseline gap-2">
+            <span class="text-5xl font-semibold tabular-nums">
+                {{ $viewData['readinessScore'] !== null ? number_format($viewData['readinessScore'], 2) : '—' }}
+            </span>
+            <span class="text-zinc-500">/ 5</span>
         </div>
-    @endif
 
-    @unless ($showAdminDetails)
-        <flux:text class="text-sm text-zinc-500">
-            Complete the survey to calculate today’s readiness score.
-        </flux:text>
-    @endunless
+        @if ($viewData['trafficLightMeta'])
+            <div class="inline-flex rounded-full border px-3 py-1 text-sm font-medium {{ $viewData['trafficLightMeta']['classes'] }}">
+                {{ $viewData['trafficLightMeta']['label'] }}
+            </div>
+        @endif
+
+        @unless ($showAdminDetails)
+            <flux:text class="text-sm text-zinc-500">
+                Complete the survey to calculate today’s readiness score.
+            </flux:text>
+        @endunless
+    @endif
 
     @if ($showAdminDetails)
         <flux:separator />

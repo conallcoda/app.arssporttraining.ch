@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\File;
 
 uses(RefreshDatabase::class);
 
-it('imports content without calendar data or manual program overrides', function () {
+it('imports safe content without scheduled calendar data or manual program overrides', function () {
     $importPath = base_path('import/database/test-content-import');
 
     File::deleteDirectory($importPath);
@@ -270,7 +270,7 @@ it('imports content without calendar data or manual program overrides', function
         ],
     ]);
 
-    $this->artisan('db:import-content', ['path' => $importPath])->assertExitCode(0);
+    $this->artisan('db:import', ['path' => $importPath])->assertExitCode(0);
 
     expect(User::count())->toBe(2)
         ->and(ExerciseProgram::count())->toBe(1)
