@@ -21,10 +21,11 @@ class AthletePreviewSlotService
         int $sessionsPerWeek,
         array $weekSessionDates = [],
         array $weekSessions = [],
+        ?int $scheduledTrainingProgramId = null,
     ): TrainingProgram {
         abort_if($userId === null, 404);
 
-        $groupId = $this->resolveGroupId($exerciseProgram, $userId);
+        $groupId = $this->resolveGroupId($exerciseProgram, $userId, $scheduledTrainingProgramId);
         abort_if($groupId === null, 404);
 
         return DB::transaction(function () use ($exerciseProgram, $userId, $weeks, $sessionsPerWeek, $weekSessionDates, $weekSessions, $groupId): TrainingProgram {
@@ -39,11 +40,15 @@ class AthletePreviewSlotService
 
             $slotDates = $this->resolveSlotDates($weeks, $sessionsPerWeek, $weekSessionDates, $weekSessions);
 
+            $dateOccurrences = [];
+
             foreach ($slotDates as $index => $date) {
+                $datetime = $this->resolvePreviewDatetime($date, $index, $dateOccurrences);
+
                 TrainingProgramSlot::query()->create([
                     'training_program_id' => $trainingProgram->id,
                     'user_id' => $userId,
-                    'datetime' => $date->setTime(8 + (($index % 3) * 3), 0),
+                    'datetime' => $datetime,
                     'owner_id' => Auth::id(),
                 ]);
             }
@@ -52,10 +57,35 @@ class AthletePreviewSlotService
         });
     }
 
-    private function resolveGroupId(ExerciseProgram $exerciseProgram, int $userId): ?int
+    private function resolveGroupId(ExerciseProgram $exerciseProgram, int $userId, ?int $scheduledTrainingProgramId = null): ?int
     {
+        if ($scheduledTrainingProgramId !== null) {
+            $groupId = TrainingProgram::query()
+                ->whereKey($scheduledTrainingProgramId)
+                ->value('group_id');
+
+            if ($groupId !== null) {
+                return (int) $groupId;
+            }
+        }
+
         if ($exerciseProgram->parent_type === TrainingProgram::class && $exerciseProgram->parent_id !== null) {
-            return TrainingProgram::query()->find($exerciseProgram->parent_id)?->group_id;
+            $groupId = TrainingProgram::query()
+                ->whereKey($exerciseProgram->parent_id)
+                ->value('group_id');
+
+            if ($groupId !== null) {
+                return (int) $groupId;
+            }
+        }
+
+        $linkedGroupId = TrainingProgram::query()
+            ->where('exercise_program_id', $exerciseProgram->id)
+            ->orderBy('id')
+            ->value('group_id');
+
+        if ($linkedGroupId !== null) {
+            return (int) $linkedGroupId;
         }
 
         return UserGroup::query()
@@ -76,6 +106,30 @@ class AthletePreviewSlotService
             $program->slots()->delete();
             $program->delete();
         }
+    }
+
+    /**
+     * @param  array<string, int>  $dateOccurrences
+     */
+    private function resolvePreviewDatetime(CarbonImmutable $date, int $index, array &$dateOccurrences): CarbonImmutable
+    {
+        if ($date->format('H:i:s') !== '00:00:00') {
+            return $date;
+        }
+
+        $dateKey = $date->toDateString();
+        $occurrence = $dateOccurrences[$dateKey] ?? 0;
+        $dateOccurrences[$dateKey] = $occurrence + 1;
+
+        $hour = 8 + ($occurrence * 3);
+
+        // Keep synthetic preview sessions unique, even when several sessions share one date.
+        while ($hour >= 24) {
+            $date = $date->addDay();
+            $hour -= 24;
+        }
+
+        return $date->setTime($hour, 0);
     }
 
     /**

@@ -2,10 +2,10 @@
 
 namespace App\Form\Fields\Training\Program;
 
+use Coda\Cms\Form\Fields\Color as CmsColor;
 use Coda\Cms\Support\ColorPalette;
-use Coda\FormKit\Fields\Select;
 
-class Color extends Select
+class Color extends CmsColor
 {
     public const DEFAULT_COLOR = 'blue';
 
@@ -15,10 +15,6 @@ class Color extends Select
     {
         parent::__construct($name);
 
-        $this->label = 'Color';
-        $this->options = ColorPalette::COLORS;
         $this->default = self::DEFAULT_COLOR;
-        $this->variant = 'listbox';
-        $this->optionView = 'form.options.color';
     }
 }

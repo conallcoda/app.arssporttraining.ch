@@ -54,6 +54,9 @@
         "cms-packages": [
             "./scripts/cms-packages.sh"
         ],
+        "production:optimize": [
+            "bash ./scripts/production-optimize.sh"
+        ],
         "setup": [
             "composer install",
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
@@ -113,16 +116,16 @@
     "repositories": {
         "form-kit": {
             "type": "path",
-            "url": "packages/form-kit",
+            "url": "/Users/conalloreilly/Development/coda-packages/form-kit",
             "options": {
-                "symlink": false
+                "symlink": true
             }
         },
         "cms": {
             "type": "path",
-            "url": "packages/cms",
+            "url": "/Users/conalloreilly/Development/coda-packages/cms",
             "options": {
-                "symlink": false
+                "symlink": true
             }
         },
         "flux-pro": {

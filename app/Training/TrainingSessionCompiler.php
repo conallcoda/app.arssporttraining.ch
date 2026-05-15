@@ -32,7 +32,7 @@ class TrainingSessionCompiler
     ];
 
     /**
-     * @var array<string, array<int, array{slotIndex: int, weekIndex: int, sessionIndex: int, sessionsPerWeek: int}>>
+     * @var array<string, array<int, array{slotIndex: int, weekIndex: int, sessionIndex: int, sessionsPerWeek: int, weekSessionCounts: array<int, int>}>>
      */
     private array $sessionContextCache = [];
 
@@ -59,8 +59,8 @@ class TrainingSessionCompiler
         $program = $slot->trainingProgram->program;
         $programConfig = $program->config;
         $scheduledDate = ($slot->scheduled_date ?? $slot->datetime)->format('Y-m-d');
-        $sessionContext = $this->resolveSessionContext($slot);
         $metricContext = $this->resolveMetricContext($slot, $scheduledDate);
+        $sessionContext = $this->resolveSessionContext($slot, $scheduledDate);
         $oneRepMaxMetric = $this->latestMetric($slot->user_id, MetricEnum::OneRepMax, $metricContext['cutoffDate']);
         $heartRateMetric = $this->latestMetric($slot->user_id, MetricEnum::HeartRate, $scheduledDate);
         $weightProgression = $this->resolveWeightProgressionData($oneRepMaxMetric, $metricContext['targetGoal']);
@@ -101,9 +101,19 @@ class TrainingSessionCompiler
 
                 $weeks = max(
                     (int) data_get($effectiveConfig, 'preview.weeks', 1),
+                    count($sessionContext['weekSessionCounts'] ?? []),
                     $sessionContext['weekIndex'] + 1
                 );
-                $sessionCounts = array_fill(0, $weeks, (int) ($sessionContext['sessionsPerWeek'] ?? 1));
+                $sessionCounts = $sessionContext['weekSessionCounts'] ?? [];
+
+                if ($sessionCounts === []) {
+                    $sessionCounts = array_fill(0, $weeks, (int) ($sessionContext['sessionsPerWeek'] ?? 1));
+                }
+
+                for ($index = count($sessionCounts); $index < $weeks; $index++) {
+                    $sessionCounts[$index] = 1;
+                }
+
                 $sessionCounts[$sessionContext['weekIndex']] = (int) ($sessionContext['sessionsPerWeek'] ?? 1);
 
                 return $this->plannedSessionBuilder->buildExercise(
@@ -142,19 +152,12 @@ class TrainingSessionCompiler
         );
     }
 
-    private function resolveSessionContext(TrainingProgramSlot $slot): array
+    private function resolveSessionContext(TrainingProgramSlot $slot, string $scheduledDate): array
     {
-        $cacheKey = $slot->training_program_id.':'.$slot->user_id;
+        $cacheKey = $this->sessionContextCacheKey($slot, $scheduledDate);
 
         if (! isset($this->sessionContextCache[$cacheKey])) {
-            $slots = TrainingProgramSlot::query()
-                ->where('training_program_id', $slot->training_program_id)
-                ->where('user_id', $slot->user_id)
-                ->whereNull('cancelled_at')
-                ->orderBy('datetime')
-                ->orderBy('id')
-                ->get(['id', 'datetime'])
-                ->values();
+            $slots = $this->sessionContextSlots($slot, $scheduledDate);
 
             $contexts = [];
             $slotIndexes = $slots
@@ -166,9 +169,15 @@ class TrainingSessionCompiler
             $weeks = $slots
                 ->groupBy(fn (TrainingProgramSlot $scheduledSlot) => $scheduledSlot->datetime->isoWeekYear().'-'.$scheduledSlot->datetime->isoWeek())
                 ->values();
+            $weekSessionCounts = [];
 
             foreach ($weeks as $weekIndex => $weekSlots) {
                 $sessionCount = max(1, $weekSlots->count());
+                $weekSessionCounts[$weekIndex] = $sessionCount;
+            }
+
+            foreach ($weeks as $weekIndex => $weekSlots) {
+                $sessionCount = $weekSessionCounts[$weekIndex] ?? max(1, $weekSlots->count());
 
                 foreach ($weekSlots->values() as $sessionIndex => $scheduledSlot) {
                     $contexts[(int) $scheduledSlot->id] = [
@@ -176,6 +185,7 @@ class TrainingSessionCompiler
                         'weekIndex' => (int) $weekIndex,
                         'sessionIndex' => (int) $sessionIndex,
                         'sessionsPerWeek' => $sessionCount,
+                        'weekSessionCounts' => $weekSessionCounts,
                     ];
                 }
             }
@@ -188,7 +198,45 @@ class TrainingSessionCompiler
             'weekIndex' => 0,
             'sessionIndex' => 0,
             'sessionsPerWeek' => 1,
+            'weekSessionCounts' => [1],
         ];
+    }
+
+    private function sessionContextCacheKey(TrainingProgramSlot $slot, string $scheduledDate): string
+    {
+        $block = $this->resolveOverlappingCategoryBlock($slot, $scheduledDate);
+
+        if ($block instanceof TrainingProgramBlock) {
+            return $slot->training_program_id.':'.$slot->user_id.':block:'.$block->id;
+        }
+
+        return $slot->training_program_id.':'.$slot->user_id.':all';
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, TrainingProgramSlot>
+     */
+    private function sessionContextSlots(TrainingProgramSlot $slot, string $scheduledDate): \Illuminate\Support\Collection
+    {
+        $query = TrainingProgramSlot::query()
+            ->where('training_program_id', $slot->training_program_id)
+            ->where('user_id', $slot->user_id)
+            ->whereNull('cancelled_at');
+
+        $block = $this->resolveOverlappingCategoryBlock($slot, $scheduledDate);
+
+        if ($block instanceof TrainingProgramBlock) {
+            $query->whereBetween('datetime', [
+                $block->start->copy()->startOfDay(),
+                ($block->end ?? $block->start)->copy()->endOfDay(),
+            ]);
+        }
+
+        return $query
+            ->orderBy('datetime')
+            ->orderBy('id')
+            ->get(['id', 'datetime'])
+            ->values();
     }
 
     /**
@@ -213,12 +261,7 @@ class TrainingSessionCompiler
             return $this->metricContextCache[$cacheKey] = $fallback;
         }
 
-        $block = $this->calendarBlockService->findOverlappingBlock(
-            groupId: (int) $slot->trainingProgram->group_id,
-            userId: (int) $slot->user_id,
-            categoryId: (int) $categoryId,
-            date: Carbon::parse($scheduledDate),
-        );
+        $block = $this->resolveOverlappingCategoryBlock($slot, $scheduledDate);
 
         if (! $block instanceof TrainingProgramBlock) {
             return $this->metricContextCache[$cacheKey] = $fallback;
@@ -228,6 +271,23 @@ class TrainingSessionCompiler
             'cutoffDate' => $block->start?->format('Y-m-d') ?? $scheduledDate,
             'targetGoal' => $block->config?->goal ?? $fallback['targetGoal'],
         ];
+    }
+
+    private function resolveOverlappingCategoryBlock(TrainingProgramSlot $slot, string $scheduledDate): ?TrainingProgramBlock
+    {
+        $program = $slot->trainingProgram->program;
+        $categoryId = $program->exercise_category_id;
+
+        if (! $categoryId) {
+            return null;
+        }
+
+        return $this->calendarBlockService->findOverlappingBlock(
+            groupId: (int) $slot->trainingProgram->group_id,
+            userId: (int) $slot->user_id,
+            categoryId: (int) $categoryId,
+            date: Carbon::parse($scheduledDate),
+        );
     }
 
     private function latestMetric(int $userId, MetricEnum $metric, string $scheduledDate): OneRepMaxMetric|HeartRateMetric|null

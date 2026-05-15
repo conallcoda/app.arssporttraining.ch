@@ -6,6 +6,7 @@
     $sessions = $table['sessions'] ?? [];
     $setCount = (int) ($table['setCount'] ?? 0);
     $setLabel = (string) ($table['setLabel'] ?? 'Set');
+    $showSessionDates = (bool) ($table['showSessionDates'] ?? false);
     $setWidthClass = 'w-[10rem] min-w-[10rem]';
     $subcellWidthStyle = 'width: 5rem; min-width: 5rem; max-width: 5rem;';
 @endphp
@@ -48,6 +49,9 @@
                                 <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 text-center text-xs font-medium text-zinc-400 dark:text-zinc-500"
                                     rowspan="{{ count($session['rows'] ?? []) }}">
                                     <div>{{ $session['sessionNumber'] }}</div>
+                                    @if ($showSessionDates && filled($session['sessionDateLabel'] ?? null))
+                                        <div class="mt-1 text-[10px] font-normal text-zinc-500 dark:text-zinc-400">{{ $session['sessionDateLabel'] }}</div>
+                                    @endif
                                 </td>
                             @endif
                             <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-medium whitespace-nowrap {{ $row['color'] }}">

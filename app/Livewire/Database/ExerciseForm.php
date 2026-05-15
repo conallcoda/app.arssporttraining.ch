@@ -38,6 +38,8 @@ class ExerciseForm extends FormModal
         bool $showDelete = false,
         array $contextData = [],
         array $excludeFields = [],
+        array $formTypes = [],
+        bool $persistOnSubmit = false,
         int $defaultWeeks = 1,
         int $defaultSessionsPerWeek = 1,
         bool $showPreview = true,
@@ -56,6 +58,8 @@ class ExerciseForm extends FormModal
             showDelete: $showDelete,
             contextData: $contextData,
             excludeFields: $excludeFields,
+            formTypes: $formTypes,
+            persistOnSubmit: $persistOnSubmit,
         );
 
         unset($this->fieldsets);
@@ -64,11 +68,19 @@ class ExerciseForm extends FormModal
         unset($this->fieldsets);
     }
 
-    public function open(array $data = [], ?string $title = null, ?string $focusField = null, ?int $focusIndex = null): void
+    public function open(
+        array $data = [],
+        ?string $title = null,
+        ?string $focusField = null,
+        ?int $focusIndex = null,
+        array $formTypes = [],
+        ?string $activeFormType = null,
+        array $formTypeData = [],
+    ): void
     {
         $this->preTemplateConfig = [];
 
-        parent::open($data, $title, $focusField, $focusIndex);
+        parent::open($data, $title, $focusField, $focusIndex, $formTypes, $activeFormType, $formTypeData);
 
         unset($this->fieldsets);
         $this->data = array_replace_recursive($this->buildDefaultsFromFieldsets(), $this->data);

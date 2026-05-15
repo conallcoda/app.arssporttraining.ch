@@ -30,31 +30,46 @@ class OneRepMaxMetric extends AbstractMetric
 
     public function summary(): string
     {
-        $estimated = OneRepMaxConversion::estimatedOneRepMax(
-            (int) $this->measuredReps,
-            (float) $this->measuredWeight,
-        );
+        $estimated = $this->estimatedLabel();
 
         if ($this->goalPercent !== null && $this->goalPercent !== 0) {
             return "{$estimated}kg (+{$this->goalPercent}%)";
         }
 
-        return "{$estimated}kg ({$this->measuredReps}x{$this->measuredWeight}kg)";
+        $weight = $this->measuredWeightLabel();
+        $reps = $this->measuredReps ?? 1;
+
+        return "{$estimated}kg ({$reps}x{$weight}kg)";
     }
 
     /** @return array{label: string} */
     public function badge(string $prefix): array
     {
-        $estimated = OneRepMaxConversion::estimatedOneRepMax(
-            (int) $this->measuredReps,
-            (float) $this->measuredWeight,
-        );
+        $estimated = $this->estimatedLabel();
 
         if ($this->goalPercent !== null && $this->goalPercent !== 0) {
             return ['label' => "{$prefix}: {$estimated}kg (+{$this->goalPercent}%)"];
         }
 
         return ['label' => "{$prefix}: {$estimated}kg"];
+    }
+
+    public function estimatedLabel(): string
+    {
+        return self::formatWeight(OneRepMaxConversion::estimatedOneRepMax(
+            (int) $this->measuredReps,
+            (float) $this->measuredWeight,
+        ));
+    }
+
+    public function measuredWeightLabel(): string
+    {
+        return self::formatWeight($this->measuredWeight);
+    }
+
+    private static function formatWeight(?float $weight): string
+    {
+        return rtrim(rtrim(number_format((float) $weight, 1), '0'), '.');
     }
 
     /** @return array<string, string> */

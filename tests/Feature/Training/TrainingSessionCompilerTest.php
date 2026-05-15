@@ -85,6 +85,122 @@ it('keeps sessions in the same calendar week on the same resolved training week'
         ->and($thirdRest?->planned_int_value)->toBe(90);
 });
 
+it('compiles automatic progression using the full active block session shape', function () {
+    $athlete = User::factory()->athlete()->create();
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $category = Tag::factory()->withScope('training_category')->create(['name' => 'Strength']);
+    $program = ExerciseProgram::factory()->create([
+        'name' => 'Strength',
+        'exercise_category_id' => $category->id,
+    ]);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $exercise = Exercise::factory()->create([
+        'name' => 'Front Squat',
+        'config' => [
+            'settings' => ['reps', 'weight', 'tempo', 'rest'],
+            'sets' => ['default' => 4, 'label' => 'Set', 'deload' => 'odd', 'deloadBy' => 1],
+            'reps' => [
+                'mode' => 'automatic',
+                'default' => 14,
+                'stepDownInterval' => 2,
+                'decrement' => 2,
+                'minimum' => 1,
+                'applyPer' => 'set',
+            ],
+            'weight' => [
+                'mode' => 'automatic',
+                'oneRepMaxModifier' => 85,
+                'default' => 5,
+                'applyPer' => 'set',
+            ],
+            'tempo' => ['default' => '3010', 'applyPer' => 'week'],
+            'rest' => ['default' => 60, 'applyPer' => 'week'],
+            'preview' => ['weeks' => 5, 'sessionsPerWeek' => 1],
+        ],
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+    ]);
+
+    TrainingProgramBlock::create([
+        'group_id' => $group->id,
+        'user_id' => null,
+        'category_id' => $category->id,
+        'type' => TrainingProgramBlockTypeEnum::Category,
+        'start' => '2026-05-09',
+        'end' => '2026-06-08',
+        'note' => 'Strength Block',
+        'active' => true,
+        'config' => ['goal' => 5, 'autoRecord1rm' => false],
+    ]);
+
+    $metric = MetricSubmission::query()->create([
+        'user_id' => $athlete->id,
+        'metric' => \App\Data\Athlete\Metric\MetricEnum::OneRepMax,
+        'recorded_by' => $coach->id,
+        'recorded_at' => '2026-05-09',
+        'owner_type' => null,
+        'owner_id' => null,
+    ]);
+    $metric->values()->createMany([
+        ['field' => 'measuredReps', 'value' => '1'],
+        ['field' => 'measuredWeight', 'value' => '93'],
+        ['field' => 'estimated1RM', 'value' => '93'],
+    ]);
+
+    $slotDates = [
+        '2026-05-09 08:00:00',
+        '2026-05-11 14:00:00',
+        '2026-05-12 11:00:00',
+        '2026-05-15 08:00:00',
+        '2026-05-18 11:00:00',
+        '2026-05-22 14:00:00',
+        '2026-05-25 08:00:00',
+        '2026-05-29 11:00:00',
+        '2026-06-01 14:00:00',
+        '2026-06-05 08:00:00',
+    ];
+
+    $slots = collect($slotDates)->map(fn (string $dateTime) => TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse($dateTime),
+    ]));
+
+    $compiler = app(TrainingSessionCompiler::class);
+    $firstCompiled = $compiler->compile($slots[0]->fresh());
+    $thirdCompiled = $compiler->compile($slots[2]->fresh());
+
+    $firstSets = collect(collect($firstCompiled->exercises)
+        ->firstWhere('exerciseId', $exercise->id)
+        ->sets);
+
+    $firstWeights = $firstSets
+        ->map(fn ($set) => (float) collect($set->values)->firstWhere('settingKey', 'weight')->plannedValue)
+        ->values()
+        ->all();
+
+    $thirdSets = collect(collect($thirdCompiled->exercises)
+        ->firstWhere('exerciseId', $exercise->id)
+        ->sets);
+
+    $thirdWeights = $thirdSets
+        ->map(fn ($set) => (float) collect($set->values)->firstWhere('settingKey', 'weight')->plannedValue)
+        ->values()
+        ->all();
+
+    expect($firstWeights)->toBe([44.0, 46.5, 49.0])
+        ->and($thirdWeights)->toBe([44.0, 46.5, 49.0, 51.5]);
+});
+
 it('uses the active block baseline metric when compiling automatic weights', function () {
     $athlete = User::factory()->athlete()->create();
     $coach = User::factory()->coach()->create();

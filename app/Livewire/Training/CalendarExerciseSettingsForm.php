@@ -55,6 +55,8 @@ class CalendarExerciseSettingsForm extends FormModal
         bool $showDelete = false,
         array $contextData = [],
         array $excludeFields = [],
+        array $formTypes = [],
+        bool $persistOnSubmit = false,
     ): void {
         parent::mount(
             name: $name,
@@ -67,6 +69,8 @@ class CalendarExerciseSettingsForm extends FormModal
             showDelete: $showDelete,
             contextData: $contextData,
             excludeFields: $excludeFields,
+            formTypes: $formTypes,
+            persistOnSubmit: $persistOnSubmit,
         );
 
         unset($this->fieldsets);
@@ -193,9 +197,17 @@ class CalendarExerciseSettingsForm extends FormModal
         $this->open($formData, $exerciseName);
     }
 
-    public function open(array $data = [], ?string $title = null, ?string $focusField = null, ?int $focusIndex = null): void
+    public function open(
+        array $data = [],
+        ?string $title = null,
+        ?string $focusField = null,
+        ?int $focusIndex = null,
+        array $formTypes = [],
+        ?string $activeFormType = null,
+        array $formTypeData = [],
+    ): void
     {
-        parent::open($data, $title, $focusField, $focusIndex);
+        parent::open($data, $title, $focusField, $focusIndex, $formTypes, $activeFormType, $formTypeData);
 
         unset($this->fieldsets, $this->previewGrid);
         $this->data = array_replace_recursive($this->buildDefaultsFromFieldsets(), $this->data);

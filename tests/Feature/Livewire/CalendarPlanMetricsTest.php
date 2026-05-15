@@ -10,6 +10,7 @@ use App\Models\Training\TrainingProgramBlock;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use App\Training\CalendarDateService;
+use App\Training\Reference\OneRepMaxConversion;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -141,6 +142,40 @@ it('ignores 1RM submissions after block start date', function () {
 
     $data = $component->instance()->planMeasuredData;
     expect($data)->toBe(['measuredReps' => null, 'measuredWeight' => null]);
+});
+
+it('formats the plan 1RM label using the estimated max, not the measured lift', function () {
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $user = User::factory()->athlete()->create();
+    $coach = User::factory()->coach()->create();
+    $group->members()->attach($user);
+
+    $block = TrainingProgramBlock::create([
+        'group_id' => $group->id,
+        'type' => 'focus',
+        'start' => '2026-03-10',
+        'end' => '2026-03-31',
+        'note' => '',
+        'active' => true,
+    ]);
+
+    createSubmissionWithValues([
+        'user_id' => $user->id,
+        'metric' => MetricEnum::OneRepMax,
+        'recorded_by' => $coach->id,
+        'recorded_at' => '2026-03-05',
+    ], [
+        'measuredReps' => '12',
+        'measuredWeight' => '93',
+    ]);
+
+    $component = mountCalendarPlan([
+        'group' => (string) $group->id,
+        'user' => (string) $user->id,
+        'planBlock' => (string) $block->id,
+    ]);
+
+    expect($component->instance()->plan1rmLabel)->toBe('138.8kg (12x93kg)');
 });
 
 it('returns null measured data when planBlock is ungrouped and user selected', function () {
@@ -280,8 +315,8 @@ it('returns metrics for all group members in group mode', function () {
         'recorded_by' => $coach->id,
         'recorded_at' => '2026-03-05',
     ], [
-        'measuredReps' => '1',
-        'measuredWeight' => '100',
+        'measuredReps' => '12',
+        'measuredWeight' => '93',
     ]);
 
     createSubmissionWithValues([
@@ -305,7 +340,7 @@ it('returns metrics for all group members in group mode', function () {
     expect($data['heartRate'])->toHaveCount(2);
 
     $alice1rm = collect($data['oneRepMax'])->firstWhere('user_id', $athlete1->id);
-    expect($alice1rm['label'])->toBe('100kg');
+    expect($alice1rm['label'])->toBe(OneRepMaxConversion::estimatedOneRepMax(12, 93).'kg');
 
     $bob1rm = collect($data['oneRepMax'])->firstWhere('user_id', $athlete2->id);
     expect($bob1rm['label'])->toBeNull();
@@ -407,13 +442,14 @@ it('refreshes calendar metric caches immediately after submitting a metric', fun
 
     $rowData = $component->instance()->getMetricRowData(MetricEnum::OneRepMax->value);
     $current = $component->instance()->currentMetricValues[MetricEnum::OneRepMax->value];
+    $expected = OneRepMaxConversion::estimatedOneRepMax(3, 100).'kg';
 
     expect($component->instance()->metricsRenderKey)->toBe(1)
         ->and($component->instance()->metricSummaryDates)->toHaveKey('2026-04-30')
         ->and($rowData)->toHaveKey('2026-04-30')
         ->and($rowData['2026-04-30']['label'])->not->toBeNull()
         ->and($current['isAvailable'])->toBeTrue()
-        ->and($current['summary'])->toBe('100kg');
+        ->and($current['summary'])->toBe($expected);
 
     Carbon::setTestNow();
 });

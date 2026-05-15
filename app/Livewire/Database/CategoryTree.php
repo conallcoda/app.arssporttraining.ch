@@ -6,14 +6,12 @@ use App\Actions\DeleteCategoryTree as DeleteAction;
 use App\Data\Exercise\ExerciseCategoryData;
 use App\Models\Tag;
 use Coda\Cms\Data\AbstractData;
+use Coda\Cms\Data\TreeNodeTypeData;
 use Coda\Cms\Livewire\AbstractModelTree;
-use Coda\FormKit\Action;
 use Flux\Flux;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\View\View;
-use Livewire\Attributes\Computed;
 
 class CategoryTree extends AbstractModelTree
 {
@@ -23,8 +21,6 @@ class CategoryTree extends AbstractModelTree
     }
 
     public ?string $confirmDescription = null;
-
-    public ?string $selectedTab = null;
 
     protected function getDataClass(): string
     {
@@ -53,18 +49,55 @@ class CategoryTree extends AbstractModelTree
         return [];
     }
 
-    protected function getExtraActions(): array
+    public function usesRootFilter(): bool
+    {
+        return true;
+    }
+
+    public function rootFilterVariant(): string
+    {
+        return 'segmented';
+    }
+
+    public function showSelectedRootHeading(): bool
+    {
+        return true;
+    }
+
+    public function filteredEmptyHeading(): string
+    {
+        return __('No subcategories yet');
+    }
+
+    protected function usesTypedCreateModal(): bool
+    {
+        return true;
+    }
+
+    protected function hideSelectedRootRow(): bool
+    {
+        return true;
+    }
+
+    protected function getNodeTypes(): array
     {
         return [
-            Action::make('addChild', __('Add Child'))
-                ->rowMenu()
-                ->icon('plus')
-                ->formModal(ExerciseCategoryData::class, __('Add Child Category'))
-                ->prepareData(fn (Tag $model, array $data) => [
+            'default' => TreeNodeTypeData::make('default', __('Add Child'), ExerciseCategoryData::class)
+                ->handler('handleFormSubmitted')
+                ->modalTitle(__('Add Child Category'))
+                ->submitLabel(__('Save'))
+                ->prepareData(fn ($parent) => [
                     'id' => null,
-                    'parentId' => $model->id,
-                ])
-                ->handler('handleFormSubmitted'),
+                    'parentId' => $parent?->id,
+                ]),
+        ];
+    }
+
+    protected function getCreateNodeTypeMap(): array
+    {
+        return [
+            1 => ['default'],
+            '*' => ['default'],
         ];
     }
 
@@ -111,12 +144,10 @@ class CategoryTree extends AbstractModelTree
         $this->normalizeAlphabeticalSortOrder($dto->parentId);
 
         $this->edit = null;
-        unset($this->treeItems, $this->flatTreeItems, $this->filteredFlatTreeItems, $this->rootCategories, $this->selectedRootName);
-        $this->refreshKey++;
+        $this->refreshTree();
     }
 
-    #[Computed(persist: false)]
-    public function treeItems(): array
+    protected function buildTreeItems(): array
     {
         $roots = $this->getRootsQuery()
             ->with(['children' => fn ($q) => $q->orderBy('name')])
@@ -126,7 +157,7 @@ class CategoryTree extends AbstractModelTree
         $this->eagerLoadNestedChildren($roots);
 
         return $roots
-            ->map(fn (Model $model) => $this->dataFromModel($model))
+            ->map(fn (Model $model) => $this->mapTreeNode(ExerciseCategoryData::fromTagTree($model)))
             ->all();
     }
 
@@ -144,37 +175,6 @@ class CategoryTree extends AbstractModelTree
         $this->eagerLoadNestedChildren($children);
     }
 
-    public function mount(): void
-    {
-        parent::mount();
-
-        $firstRoot = $this->getRootsQuery()->orderBy('name')->first();
-        $this->selectedTab = $firstRoot ? (string) $firstRoot->id : null;
-    }
-
-    #[Computed]
-    public function rootCategories(): array
-    {
-        return $this->getRootsQuery()
-            ->orderBy('name')
-            ->get()
-            ->map(fn (Tag $tag) => ['id' => $tag->id, 'name' => $tag->name])
-            ->all();
-    }
-
-    #[Computed]
-    public function selectedRootName(): ?string
-    {
-        if (! $this->selectedTab) {
-            return null;
-        }
-
-        $selectedId = (int) $this->selectedTab;
-
-        return collect($this->rootCategories)
-            ->firstWhere('id', $selectedId)['name'] ?? null;
-    }
-
     public function removeItem(int $id): void
     {
         $tag = $this->getBaseQuery()->findOrFail($id);
@@ -188,35 +188,7 @@ class CategoryTree extends AbstractModelTree
 
         $this->normalizeAlphabeticalSortOrder($parentId);
 
-        unset($this->treeItems, $this->flatTreeItems, $this->filteredFlatTreeItems, $this->rootCategories, $this->selectedRootName);
-        $this->refreshKey++;
-    }
-
-    #[Computed(persist: false)]
-    public function filteredFlatTreeItems(): array
-    {
-        if (! $this->selectedTab) {
-            return [];
-        }
-
-        $selectedId = (int) $this->selectedTab;
-
-        $selectedRoot = collect($this->treeItems)
-            ->first(fn (ExerciseCategoryData $item) => $item->id === $selectedId);
-
-        if (! $selectedRoot || empty($selectedRoot->children)) {
-            return [];
-        }
-
-        return $this->flattenTree($selectedRoot->children, []);
-    }
-
-    public function render(): View
-    {
-        return view('livewire.database.category-tree', [
-            'entityName' => $this->getEntityName(),
-            'entitySlug' => $this->getEntitySlug(),
-        ]);
+        $this->refreshTree();
     }
 
     protected function normalizeAlphabeticalSortOrder(?int $parentId): void

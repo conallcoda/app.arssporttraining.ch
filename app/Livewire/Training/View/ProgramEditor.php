@@ -25,6 +25,8 @@ class ProgramEditor extends Component
 {
     use InteractsWithFormData {
         InteractsWithFormData::updated as traitUpdated;
+        InteractsWithFormData::removeRelationshipSelectorItem as traitRemoveRelationshipSelectorItem;
+        InteractsWithFormData::toggleRelationshipSelectorItem as traitToggleRelationshipSelectorItem;
     }
 
     private const SECTION_TYPES = ['main', 'warm_up', 'warm_down'];
@@ -109,6 +111,7 @@ class ProgramEditor extends Component
                 sessionsPerWeek: $this->sessionsPerWeek,
                 weekSessionDates: $this->weekSessionDates,
                 weekSessions: $this->weekSessions,
+                scheduledTrainingProgramId: $this->scheduledTrainingProgramId,
             )->id;
 
         Flux::modal($this->previewModalName())->show();
@@ -230,7 +233,7 @@ class ProgramEditor extends Component
     {
         return Form::make()
             ->fieldset('Exercises', [
-                Exercises::make('section_exercises')->withOptions()->withSearch()->withOptionView()->groupable(),
+                Exercises::make('section_exercises')->withOptions()->withSearch()->withOptionView(),
             ]);
     }
 
@@ -417,6 +420,30 @@ class ProgramEditor extends Component
             $this->data[$this->sectionFieldName($this->activeSection)] = $items;
             $this->saveSectionExercises();
         }
+    }
+
+    public function toggleRelationshipSelectorItem(string $fieldName, mixed $value): void
+    {
+        $this->traitToggleRelationshipSelectorItem($fieldName, $value);
+
+        if ($fieldName !== 'section_exercises') {
+            return;
+        }
+
+        $this->data[$this->sectionFieldName($this->activeSection)] = $this->data[$fieldName] ?? [];
+        $this->saveSectionExercises();
+    }
+
+    public function removeRelationshipSelectorItem(string $fieldName, int $index): void
+    {
+        $this->traitRemoveRelationshipSelectorItem($fieldName, $index);
+
+        if ($fieldName !== 'section_exercises') {
+            return;
+        }
+
+        $this->data[$this->sectionFieldName($this->activeSection)] = $this->data[$fieldName] ?? [];
+        $this->saveSectionExercises();
     }
 
     public function reorderRelationshipItem(string $fieldName, int $sourceIndex, int $targetIndex): void

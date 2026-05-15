@@ -17,12 +17,20 @@ class ExerciseProgramFormModal extends FormModal
         return ExerciseProgramData::class;
     }
 
-    public function open(array $data = [], ?string $title = null, ?string $focusField = null, ?int $focusIndex = null): void
+    public function open(
+        array $data = [],
+        ?string $title = null,
+        ?string $focusField = null,
+        ?int $focusIndex = null,
+        array $formTypes = [],
+        ?string $activeFormType = null,
+        array $formTypeData = [],
+    ): void
     {
         $this->showTrainingProgramStatus = (bool) ($data['_show_training_program_status'] ?? false);
         unset($data['_show_training_program_status']);
 
-        parent::open($data, $title, $focusField, $focusIndex);
+        parent::open($data, $title, $focusField, $focusIndex, $formTypes, $activeFormType, $formTypeData);
     }
 
     #[Computed]

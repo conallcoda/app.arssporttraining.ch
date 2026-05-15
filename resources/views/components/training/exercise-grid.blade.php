@@ -30,7 +30,10 @@
         $preparedGroups = $grid->groups ?? $grid->weeks ?? [];
         $hasPreparedGroups = count($preparedGroups) > 0;
         $showGroupColumn = $hasPreparedGroups ? ($grid->showGroupColumn ?? $grid->showWeekColumn) : ($collapseWeeks ? $grid->weekCount > 1 : true);
+        $renderGroupColumn = $hasPreparedGroups ? ($grid->renderGroupColumn ?? $showGroupColumn) : $showGroupColumn;
         $showSessionColumn = true;
+        $showSessionDates = (bool) ($grid->showSessionDates ?? false);
+        $sessionDateLabels = $grid->sessionDateLabels ?? [];
         $groupColumnLabel = $grid->groupColumnLabel ?? __('Week');
         $splitActualColumns = $showActualValues && $valueDisplayMode === 'actual';
         $hasCopyActions = collect($copyMenuOptions)->contains(
@@ -107,7 +110,7 @@
             <table class="border-collapse border border-zinc-300 dark:border-zinc-600 table-fixed">
                 <thead>
                     <tr class="bg-zinc-100 dark:bg-zinc-800">
-                        @if ($showGroupColumn)
+                        @if ($renderGroupColumn)
                             <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 w-20">{{ __($groupColumnLabel) }}</th>
                         @endif
                         <th class="border border-zinc-300 dark:border-zinc-600 px-2 py-2 w-12">{{ __('Session') }}</th>
@@ -185,7 +188,7 @@
                     </tr>
                     @if ($splitActualColumns && $displayRowCount > 0)
                         <tr class="bg-zinc-100 dark:bg-zinc-800">
-                            @if ($showGroupColumn)
+                            @if ($renderGroupColumn)
                                 <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-1"></th>
                             @endif
                             <th class="border border-zinc-300 dark:border-zinc-600 px-2 py-1"></th>
@@ -212,7 +215,7 @@
                             );
                             $collapsedGroupLocked = ! $groupHasEditableSessions;
                             $applyToAllByDefault = ! $groupExpanded && $groupSessionCount > 1;
-                            $canToggleGroup = (bool) ($group->collapsible ?? false);
+                            $canToggleGroup = $renderGroupColumn && (bool) ($group->collapsible ?? false);
                         @endphp
                         @if (! $groupExpanded && $collapsedSession)
                                 @php
@@ -226,7 +229,7 @@
                                         $collapsedCopyKey = ($showGroupColumn && $groupSessionCount > 1) ? 'group:' . $group->index : 'session:' . $week . ':' . $session;
                                         $collapsedCopyOptions = $copyMenuOptions[$collapsedCopyKey] ?? ['from' => [], 'to' => []];
                                     @endphp
-                                    @if ($showGroupColumn)
+                                    @if ($renderGroupColumn)
                                         <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle text-center">
                                             @if ($canToggleGroup)
                                                 <button type="button" wire:click="toggleExpandedGroup({{ $group->index }})" class="mx-auto flex items-center justify-center gap-2 whitespace-nowrap text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
@@ -391,7 +394,7 @@
                                             $collapsedPlannedLocked = $allowCoachFreeEditing ? false : $collapsedGroupLocked;
                                         @endphp
                                     <tr wire:key="collapsed-g{{ $group->index }}-w{{ $week }}-s{{ $session }}-r{{ $rowIdx }}">
-                                        @if ($showGroupColumn && $isFirstRow)
+                                        @if ($renderGroupColumn && $isFirstRow)
                                             <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle text-center"
                                                 rowspan="{{ $displayRowCount }}">
                                                 @if ($canToggleGroup)
@@ -628,7 +631,7 @@
                                     $sessionCopyOptions = $copyMenuOptions[$sessionCopyKey] ?? ['from' => [], 'to' => []];
                                 @endphp
                                 <tr wire:key="weekonly-g{{ $group->index }}-w{{ $week }}-s{{ $session }}">
-                                        @if ($showGroupColumn && $loop->first)
+                                        @if ($renderGroupColumn && $loop->first)
                                             <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle text-center"
                                                 rowspan="{{ $groupSessionCount }}">
                                             @if ($canToggleGroup)
@@ -645,6 +648,9 @@
                                     @endif
                                     <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 text-center text-xs font-medium text-zinc-400 dark:text-zinc-500">
                                         <div>{{ $sessionEntry->sessionNumber }}</div>
+                                        @if ($showSessionDates && filled($sessionDateLabels[$week][$session] ?? null))
+                                            <div class="mt-1 text-[10px] font-normal text-zinc-500 dark:text-zinc-400">{{ $sessionDateLabels[$week][$session] }}</div>
+                                        @endif
                                     </td>
                                         @foreach ($grid->weekColumns as $weekCol)
                                             @php
@@ -797,7 +803,7 @@
                                         $sessionCopyOptions = $copyMenuOptions[$sessionCopyKey] ?? ['from' => [], 'to' => []];
                                     @endphp
                                     <tr wire:key="expanded-g{{ $group->index }}-w{{ $week }}-s{{ $session }}-r{{ $rowIdx }}">
-                                        @if ($showGroupColumn && $loop->parent->first && $isFirstRow)
+                                        @if ($renderGroupColumn && $loop->parent->first && $isFirstRow)
                                             <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-bold bg-zinc-50 dark:bg-zinc-800/50 align-middle text-center"
                                                 rowspan="{{ $groupSessionCount * $displayRowCount }}">
                                                 @if ($canToggleGroup)
@@ -816,6 +822,9 @@
                                             <td class="border border-zinc-300 dark:border-zinc-600 px-2 py-1 text-center text-xs font-medium text-zinc-400 dark:text-zinc-500"
                                                 rowspan="{{ $displayRowCount }}">
                                                 <div>{{ $sessionEntry->sessionNumber }}</div>
+                                                @if ($showSessionDates && filled($sessionDateLabels[$week][$session] ?? null))
+                                                    <div class="mt-1 text-[10px] font-normal text-zinc-500 dark:text-zinc-400">{{ $sessionDateLabels[$week][$session] }}</div>
+                                                @endif
                                             </td>
                                         @endif
                                         @if ($settingClickable)

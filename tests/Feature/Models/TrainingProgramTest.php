@@ -136,6 +136,49 @@ it('deletes a training program', function () {
     expect(TrainingProgram::find($tp->id))->toBeNull();
 });
 
+it('soft deletes a uniquely owned scheduled exercise program when its training program is deleted', function () {
+    $group = UserGroup::create(['name' => 'Team Alpha']);
+    $sourceProgram = ExerciseProgram::factory()->create(['name' => 'Strength A']);
+
+    $trainingProgram = TrainingProgram::importProgram($sourceProgram, $group->id);
+    $scheduledProgramId = $trainingProgram->exercise_program_id;
+
+    $trainingProgram->delete();
+
+    expect(TrainingProgram::find($trainingProgram->id))->toBeNull();
+
+    $scheduledProgram = ExerciseProgram::withTrashed()->find($scheduledProgramId);
+
+    expect($scheduledProgram)->not->toBeNull()
+        ->and($scheduledProgram->trashed())->toBeTrue();
+});
+
+it('reassigns scheduled exercise program ownership when deleting one of multiple training programs sharing it', function () {
+    $group = UserGroup::create(['name' => 'Team Alpha']);
+    $program = ExerciseProgram::factory()->create([
+        'parent_type' => TrainingProgram::class,
+        'parent_id' => null,
+    ]);
+
+    $owner = TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $program->update(['parent_id' => $owner->id]);
+
+    $other = TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $owner->delete();
+
+    expect(TrainingProgram::find($owner->id))->toBeNull()
+        ->and($other->fresh()->exercise_program_id)->toBe($program->id)
+        ->and($program->fresh()->parent_id)->toBe($other->id);
+});
+
 it('treats null status as active and only shows archived programs when scheduled in range', function () {
     $group = UserGroup::create(['name' => 'Team Alpha']);
     $athlete = User::factory()->athlete()->create();

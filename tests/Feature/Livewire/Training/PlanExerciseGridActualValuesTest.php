@@ -271,6 +271,45 @@ it('keeps the planned grid snapshot sync path for locked historical sessions in 
     expect((string) app(TrainingValueSnapshotCodec::class)->extractPlannedValue($value))->toBe('5');
 });
 
+it('shows the frozen materialized planned snapshot for locked sessions in planned mode', function () {
+    [$athlete, $scheduledProgram, $pivot, $exercise, $trainingProgram] = buildScheduledProgramContext([
+        'settings' => ['reps'],
+        'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+        'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+    ]);
+
+    $slot = TrainingProgramSlot::create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => '2026-04-27 09:00:00',
+        'scheduled_date' => '2026-04-27',
+    ])->fresh('exercises.sets.values');
+
+    $value = $slot->exercises->first()->sets->first()->values->firstWhere('setting_key', 'reps');
+    $value->update([
+        'planned_value_type' => 'int',
+        'planned_int_value' => 8,
+        'planned_string_value' => null,
+    ]);
+
+    $component = Livewire::test(PlanExerciseGrid::class, [
+        'planId' => $scheduledProgram->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $pivot->exercise_id,
+        'userId' => $athlete->id,
+        'weeks' => 1,
+        'sessionsPerWeek' => 2,
+        'weekSessions' => [2],
+        'weekSessionDates' => [['2026-04-27', '2026-04-30']],
+        'lockedSessionsByWeek' => [[true, false]],
+        'showActualValueTabs' => true,
+        'valueDisplayMode' => 'planned',
+    ]);
+
+    expect(plannedCellValue($component, 'reps', 0, 0))->toEqual(8)
+        ->and(plannedCellValue($component, 'reps', 1, 0))->toEqual(12);
+});
+
 /**
  * @return array{0: User, 1: ExerciseProgram, 2: ExerciseProgramExercise, 3?: Exercise, 4?: TrainingProgram}
  */

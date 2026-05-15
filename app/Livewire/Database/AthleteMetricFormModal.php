@@ -42,6 +42,8 @@ class AthleteMetricFormModal extends FormModal
         bool $showDelete = false,
         array $contextData = [],
         array $excludeFields = [],
+        array $formTypes = [],
+        bool $persistOnSubmit = false,
     ): void {
         parent::mount(
             name: $name,
@@ -54,6 +56,8 @@ class AthleteMetricFormModal extends FormModal
             showDelete: $showDelete,
             contextData: $contextData,
             excludeFields: $excludeFields,
+            formTypes: $formTypes,
+            persistOnSubmit: $persistOnSubmit,
         );
 
         $this->athleteId = (int) request()->route('athleteId');
@@ -90,7 +94,15 @@ class AthleteMetricFormModal extends FormModal
         MetricSubmissionData::$formAthleteId = $this->athleteId;
     }
 
-    public function open(array $data = [], ?string $title = null, ?string $focusField = null, ?int $focusIndex = null): void
+    public function open(
+        array $data = [],
+        ?string $title = null,
+        ?string $focusField = null,
+        ?int $focusIndex = null,
+        array $formTypes = [],
+        ?string $activeFormType = null,
+        array $formTypeData = [],
+    ): void
     {
         $this->groupMode = (bool) ($data['_group_mode'] ?? false);
         $this->availableAthletes = $data['_available_athletes'] ?? [];
@@ -111,7 +123,7 @@ class AthleteMetricFormModal extends FormModal
         $this->setMetricContext();
         $this->readinessModalTab = $this->isReadinessMetric && ! empty($data['id']) ? 'breakdown' : 'data';
 
-        parent::open($data, $title, $focusField, $focusIndex);
+        parent::open($data, $title, $focusField, $focusIndex, $formTypes, $activeFormType, $formTypeData);
 
         if ($this->isReadinessMetric) {
             $this->initializeReadinessData();

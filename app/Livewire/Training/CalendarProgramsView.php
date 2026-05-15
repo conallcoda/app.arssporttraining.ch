@@ -848,23 +848,23 @@ class CalendarProgramsView extends Component
     protected function currentMetricDisplayLabel(MetricEnum $metricCase, array $fieldValues, mixed $metricInstance): ?string
     {
         return match ($metricCase) {
-            MetricEnum::OneRepMax => $this->oneRepMaxCurrentLabel($fieldValues),
+            MetricEnum::OneRepMax => $this->oneRepMaxCurrentLabel($metricInstance),
             MetricEnum::HeartRate => $this->heartRateCurrentLabel($fieldValues),
             MetricEnum::Readiness => $this->readinessCurrentLabel($fieldValues, $metricInstance),
         };
     }
 
-    protected function oneRepMaxCurrentLabel(array $fieldValues): ?string
+    protected function oneRepMaxCurrentLabel(mixed $metricInstance): ?string
     {
-        $metric = OneRepMaxMetric::from($fieldValues);
-
-        if ($metric->measuredWeight === null) {
+        if (! $metricInstance instanceof OneRepMaxMetric) {
             return null;
         }
 
-        $weight = rtrim(rtrim(number_format($metric->measuredWeight, 1), '0'), '.');
+        if ($metricInstance->measuredWeight === null) {
+            return null;
+        }
 
-        return "{$weight}kg";
+        return $metricInstance->estimatedLabel().'kg';
     }
 
     protected function heartRateCurrentLabel(array $fieldValues): ?string

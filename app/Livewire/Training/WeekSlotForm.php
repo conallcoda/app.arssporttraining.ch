@@ -40,6 +40,8 @@ class WeekSlotForm extends FormModal
         bool $showDelete = false,
         array $contextData = [],
         array $excludeFields = [],
+        array $formTypes = [],
+        bool $persistOnSubmit = false,
     ): void {
         parent::mount(
             name: $name,
@@ -52,12 +54,22 @@ class WeekSlotForm extends FormModal
             showDelete: $showDelete,
             contextData: $contextData,
             excludeFields: $excludeFields,
+            formTypes: $formTypes,
+            persistOnSubmit: $persistOnSubmit,
         );
     }
 
     public ?int $preselectedUserId = null;
 
-    public function open(array $data = [], ?string $title = null, ?string $focusField = null, ?int $focusIndex = null): void
+    public function open(
+        array $data = [],
+        ?string $title = null,
+        ?string $focusField = null,
+        ?int $focusIndex = null,
+        array $formTypes = [],
+        ?string $activeFormType = null,
+        array $formTypeData = [],
+    ): void
     {
         $this->activeTitle = $title;
         $this->groupId = $data['groupId'] ?? null;

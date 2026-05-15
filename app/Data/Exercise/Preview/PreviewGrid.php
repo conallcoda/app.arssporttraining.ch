@@ -23,10 +23,14 @@ class PreviewGrid extends AbstractData
         public array $groups = [],
         public string $groupColumnLabel = 'Week',
         public bool $showGroupColumn = true,
+        public bool $renderGroupColumn = true,
         /** @var PreviewGridGroup[] */
         public array $weeks = [],
         public bool $showWeekColumn = true,
         public bool $showSessionColumn = false,
+        public bool $showSessionDates = false,
+        /** @var array<int, array<int, string>> */
+        public array $sessionDateLabels = [],
         public bool $showCopyMenu = false,
         public bool $autoCopyValuesAutomatically = false,
     ) {}

@@ -49,6 +49,8 @@ class BlockForm extends FormModal
         bool $showDelete = false,
         array $contextData = [],
         array $excludeFields = [],
+        array $formTypes = [],
+        bool $persistOnSubmit = false,
     ): void {
         parent::mount(
             name: $name,
@@ -61,10 +63,20 @@ class BlockForm extends FormModal
             showDelete: $showDelete,
             contextData: $contextData,
             excludeFields: $excludeFields,
+            formTypes: $formTypes,
+            persistOnSubmit: $persistOnSubmit,
         );
     }
 
-    public function open(array $data = [], ?string $title = null, ?string $focusField = null, ?int $focusIndex = null): void
+    public function open(
+        array $data = [],
+        ?string $title = null,
+        ?string $focusField = null,
+        ?int $focusIndex = null,
+        array $formTypes = [],
+        ?string $activeFormType = null,
+        array $formTypeData = [],
+    ): void
     {
         $this->groupId = $data['groupId'] ?? null;
         $this->userId = $data['userId'] ?? null;

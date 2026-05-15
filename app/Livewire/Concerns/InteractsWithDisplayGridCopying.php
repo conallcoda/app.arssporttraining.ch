@@ -29,7 +29,7 @@ trait InteractsWithDisplayGridCopying
                 ->values()
                 ->all();
 
-            if ($sessionOnly || $groupExpanded || ! ($displayGrid->showGroupColumn ?? false)) {
+            if ($sessionOnly || $groupExpanded) {
                 foreach ($groupSessions as $session) {
                     $key = 'session:'.$session['week'].':'.$session['session'];
                     $buckets[$key] = [

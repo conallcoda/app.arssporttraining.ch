@@ -32,7 +32,9 @@ use App\Training\TrainingSessionPlannedValueService;
 use App\Training\TrainingPlanRevisionService;
 use App\Training\TrainingSessionRebuildDispatcher;
 use App\Support\Training\ExerciseMetricAvailability;
+use App\Data\Coach\Settings\SessionGroupingSetting;
 use Coda\Cms\Livewire\Concerns\InteractsWithParentView;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use App\Support\Training\ApplyPerScope;
 use Livewire\Attributes\Computed;
@@ -184,11 +186,7 @@ class PlanExerciseGrid extends Component
         }
 
         if ($this->scheduledTrainingProgramId === null) {
-            $program = ExerciseProgram::query()->select(['id', 'parent_type', 'parent_id'])->find($planId);
-
-            if ($program?->parent_type === TrainingProgram::class && $program->parent_id !== null) {
-                $this->scheduledTrainingProgramId = (int) $program->parent_id;
-            }
+            $this->scheduledTrainingProgramId = $this->resolveScheduledTrainingProgramId($planId);
         }
     }
 
@@ -210,6 +208,34 @@ class PlanExerciseGrid extends Component
     protected function getPlanConfig()
     {
         return $this->planConfig;
+    }
+
+    private function resolveScheduledTrainingProgramId(int $planId): ?int
+    {
+        $program = ExerciseProgram::query()
+            ->select(['id', 'parent_type', 'parent_id'])
+            ->find($planId);
+
+        if ($program?->parent_type === TrainingProgram::class && $program->parent_id !== null) {
+            $exists = TrainingProgram::query()
+                ->whereKey($program->parent_id)
+                ->exists();
+
+            if ($exists) {
+                return (int) $program->parent_id;
+            }
+        }
+
+        $linkedTrainingProgramIds = TrainingProgram::query()
+            ->where('exercise_program_id', $planId)
+            ->orderBy('id')
+            ->pluck('id');
+
+        if ($linkedTrainingProgramIds->count() === 1) {
+            return (int) $linkedTrainingProgramIds->first();
+        }
+
+        return null;
     }
 
     protected function getExerciseConfig(): ExerciseConfig
@@ -464,6 +490,12 @@ class PlanExerciseGrid extends Component
             ->map(fn (mixed $week): int => (int) $week)
             ->all();
         $effectiveConfig = $this->getEffectiveConfig();
+        $usesGroupedSessions = SessionGroupingMode::shouldShowGroupColumn(
+            $effectiveConfig['preview']['groupingMode'] ?? null,
+            $effectiveConfig['preview']['groupSize'] ?? null,
+            0,
+        );
+        $renderGroupedColumn = $this->coachShowsGroupedColumn() && $usesGroupedSessions;
         $grouping = SessionGroupBuilder::build(
             weekCount: $grid->weekCount,
             sessionCounts: $grid->weekSessionCounts,
@@ -479,18 +511,19 @@ class PlanExerciseGrid extends Component
         $forcedExpandedIndexes = $this->forcedExpandedGroupIndexes($grid, $grid->groups);
         foreach ($grid->groups as $group) {
             $group->forceExpanded = in_array($group->index, $forcedExpandedIndexes, true);
-            $group->collapsible = $group->sessionCount > 1 && ! $group->forceExpanded;
-            $group->expanded = in_array($group->index, $expandedWeekLookup, true) || $group->forceExpanded;
+            $group->collapsible = $renderGroupedColumn && $group->sessionCount > 1 && ! $group->forceExpanded;
+            $group->expanded = $renderGroupedColumn
+                ? (in_array($group->index, $expandedWeekLookup, true) || $group->forceExpanded)
+                : $group->forceExpanded;
         }
         $grid->groupColumnLabel = $grouping['columnLabel'];
-        $grid->showGroupColumn = SessionGroupingMode::shouldShowGroupColumn(
-            $effectiveConfig['preview']['groupingMode'] ?? null,
-            $effectiveConfig['preview']['groupSize'] ?? null,
-            count($grouping['groups']),
-        );
+        $grid->showGroupColumn = $usesGroupedSessions;
+        $grid->renderGroupColumn = $renderGroupedColumn;
         $grid->weeks = $grouping['groups'];
-        $grid->showWeekColumn = $grid->showGroupColumn;
+        $grid->showWeekColumn = $usesGroupedSessions;
         $grid->showSessionColumn = true;
+        $grid->showSessionDates = $this->coachShowsDatePerSession();
+        $grid->sessionDateLabels = $this->sessionDateLabels();
         $grid->showCopyMenu = true;
         $grid->autoCopyValuesAutomatically = false;
 
@@ -648,6 +681,7 @@ class PlanExerciseGrid extends Component
                     'week' => $weekIndex,
                     'session' => $sessionIndex,
                     'sessionNumber' => $blockSessionNumber,
+                    'sessionDateLabel' => $this->sessionDateLabels()[$weekIndex][$sessionIndex] ?? null,
                     'locked' => $this->isSessionLocked($weekIndex, $sessionIndex),
                     'rows' => $rows,
                 ];
@@ -659,6 +693,7 @@ class PlanExerciseGrid extends Component
             'mode' => 'actual',
             'showsSettingBadges' => false,
             'usesGrouping' => false,
+            'showSessionDates' => $this->coachShowsDatePerSession(),
             'setCount' => $previewGrid->setCount,
             'setLabel' => $previewGrid->setLabel,
             'sessions' => $sessions,
@@ -699,13 +734,83 @@ class PlanExerciseGrid extends Component
     {
         $resolvedOverrides = $this->resolvedExerciseOverrides;
         $planOverrides = $resolvedOverrides->defaultOverrides;
-        $historicalOverrides = $planOverrides->historicalGridOverrides;
+        $historicalOverrides = EffectiveExerciseConfig::mergeGridOverrides(
+            $this->materializedHistoricalGridOverrides(),
+            $planOverrides->historicalGridOverrides,
+        );
 
         if ($resolvedOverrides->userOverrides !== null) {
             $historicalOverrides = EffectiveExerciseConfig::mergeGridOverrides(
                 $historicalOverrides,
                 $resolvedOverrides->userOverrides->historicalGridOverrides,
             );
+        }
+
+        return $historicalOverrides;
+    }
+
+    /** @return array{sessions: array, cells: array} */
+    protected function materializedHistoricalGridOverrides(): array
+    {
+        if ($this->scheduledTrainingProgramId === null || $this->userId === null) {
+            return OverrideManager::reset();
+        }
+
+        $historicalOverrides = OverrideManager::reset();
+
+        foreach ($this->weekSessionDates as $weekIndex => $datesForWeek) {
+            foreach (array_keys($datesForWeek) as $sessionIndex) {
+                if (! ($this->lockedSessionsByWeek[$weekIndex][$sessionIndex] ?? false)) {
+                    continue;
+                }
+
+                $slotExercise = $this->slotExerciseForWeekSession($weekIndex, (int) $sessionIndex);
+
+                if (! $slotExercise instanceof TrainingProgramSlotExercise) {
+                    continue;
+                }
+
+                $historicalOverrides = $this->putSessionOverride(
+                    $historicalOverrides,
+                    $weekIndex,
+                    (int) $sessionIndex,
+                    'sets',
+                    $slotExercise->sets->count(),
+                );
+
+                foreach ($slotExercise->sets->sortBy('set_number')->values() as $set) {
+                    $setIndex = max(((int) $set->set_number) - 1, 0);
+
+                    foreach ($set->values as $valueRow) {
+                        $plannedValue = $this->extractPlannedSnapshotValue($valueRow);
+
+                        if ($plannedValue === null || $plannedValue === '' || $plannedValue === '-' || $plannedValue === '—') {
+                            continue;
+                        }
+
+                        if ($this->settingAppliesPerSession($valueRow->setting_key)) {
+                            $historicalOverrides = $this->putSessionOverride(
+                                $historicalOverrides,
+                                $weekIndex,
+                                (int) $sessionIndex,
+                                $valueRow->setting_key,
+                                $plannedValue,
+                            );
+
+                            continue;
+                        }
+
+                        $historicalOverrides = $this->putCellOverride(
+                            $historicalOverrides,
+                            $weekIndex,
+                            (int) $sessionIndex,
+                            $setIndex,
+                            $valueRow->setting_key,
+                            $plannedValue,
+                        );
+                    }
+                }
+            }
         }
 
         return $historicalOverrides;
@@ -784,6 +889,44 @@ class PlanExerciseGrid extends Component
         $config['preview'] = $preview;
 
         return $config;
+    }
+
+    protected function coachSessionGroupingSetting(): SessionGroupingSetting
+    {
+        $user = Auth::user();
+
+        return SessionGroupingSetting::from($user?->config->get(
+            'settings.'.SessionGroupingSetting::fieldsetKey(),
+            []
+        ) ?? []);
+    }
+
+    protected function coachShowsDatePerSession(): bool
+    {
+        return (bool) ($this->coachSessionGroupingSetting()->showDatePerSession ?? false);
+    }
+
+    protected function coachShowsGroupedColumn(): bool
+    {
+        return (bool) ($this->coachSessionGroupingSetting()->showGroupedColumn ?? true);
+    }
+
+    /** @return array<int, array<int, string>> */
+    protected function sessionDateLabels(): array
+    {
+        $labels = [];
+
+        foreach ($this->weekSessionDates as $weekIndex => $datesForWeek) {
+            foreach ($datesForWeek as $sessionIndex => $date) {
+                if (! is_string($date) || $date === '') {
+                    continue;
+                }
+
+                $labels[$weekIndex][$sessionIndex] = Carbon::parse($date)->format('d.m.y');
+            }
+        }
+
+        return $labels;
     }
 
     /**
@@ -1144,6 +1287,29 @@ class PlanExerciseGrid extends Component
             'json' => $valueRow->actual_json_value,
             default => $valueRow->actual_string_value,
         };
+    }
+
+    protected function extractPlannedSnapshotValue(?TrainingProgramSlotSetValue $valueRow): mixed
+    {
+        if (! $valueRow) {
+            return null;
+        }
+
+        return match ($valueRow->planned_value_type) {
+            'int' => $valueRow->planned_int_value,
+            'decimal' => $valueRow->planned_decimal_value !== null ? (float) $valueRow->planned_decimal_value : null,
+            'json' => $valueRow->planned_json_value,
+            default => $valueRow->planned_string_value,
+        };
+    }
+
+    protected function settingAppliesPerSession(string $settingKey): bool
+    {
+        $config = $this->getEffectiveConfig();
+        $settingConfig = $config[$settingKey] ?? [];
+
+        return ApplyPerScope::normalize($settingConfig['applyPer'] ?? null) === ApplyPerScope::SESSION
+            || $settingKey === 'sets';
     }
 
     protected function extractPlannedValue(?TrainingProgramSlotSetValue $valueRow): mixed

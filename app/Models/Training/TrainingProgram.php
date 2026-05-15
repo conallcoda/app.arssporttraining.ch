@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 
 class TrainingProgram extends Model
 {
@@ -93,12 +94,20 @@ class TrainingProgram extends Model
 
     public function program(): BelongsTo
     {
-        return $this->belongsTo(ExerciseProgram::class, 'exercise_program_id');
+        return $this->belongsTo(ExerciseProgram::class, 'exercise_program_id')
+            ->withTrashed();
     }
 
     public function slots(): HasMany
     {
         return $this->hasMany(TrainingProgramSlot::class);
+    }
+
+    protected static function booted(): void
+    {
+        static::deleted(function (self $trainingProgram): void {
+            $trainingProgram->cleanupLinkedExerciseProgramAfterDelete();
+        });
     }
 
     public static function importProgram(ExerciseProgram $program, int $groupId): self
@@ -150,5 +159,36 @@ class TrainingProgram extends Model
         ]);
 
         return $trainingProgram;
+    }
+
+    private function cleanupLinkedExerciseProgramAfterDelete(): void
+    {
+        $exerciseProgram = ExerciseProgram::withTrashed()->find($this->exercise_program_id);
+
+        if (! $exerciseProgram || $exerciseProgram->parent_type !== self::class) {
+            return;
+        }
+
+        /** @var Collection<int, int> $remainingReferenceIds */
+        $remainingReferenceIds = self::query()
+            ->where('exercise_program_id', $exerciseProgram->id)
+            ->orderBy('id')
+            ->pluck('id');
+
+        if ($remainingReferenceIds->isEmpty()) {
+            $exerciseProgram->delete();
+
+            return;
+        }
+
+        $currentParentId = $exerciseProgram->parent_id;
+        $parentStillValid = $currentParentId !== null && $remainingReferenceIds->contains((int) $currentParentId);
+
+        if (! $parentStillValid) {
+            $exerciseProgram->update([
+                'parent_type' => self::class,
+                'parent_id' => (int) $remainingReferenceIds->first(),
+            ]);
+        }
     }
 }

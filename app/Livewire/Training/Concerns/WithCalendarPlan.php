@@ -3,6 +3,8 @@
 namespace App\Livewire\Training\Concerns;
 
 use App\Data\Athlete\Metric\MetricEnum;
+use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
+use App\Data\Athlete\Metric\MetricSubmissionData;
 use App\Models\Athlete\MetricSubmission;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramBlock;
@@ -375,10 +377,12 @@ trait WithCalendarPlan
             return null;
         }
 
-        $weight = rtrim(rtrim(number_format($data['measuredWeight'], 1), '0'), '.');
-        $reps = $data['measuredReps'] ?? 1;
+        $metric = new OneRepMaxMetric(
+            measuredReps: $data['measuredReps'],
+            measuredWeight: $data['measuredWeight'],
+        );
 
-        return "{$weight}kg ({$reps}x{$weight}kg)";
+        return $metric->summary();
     }
 
     #[Computed]
@@ -505,8 +509,7 @@ trait WithCalendarPlan
                 $fieldValues = $ormSubmission->values->pluck('value', 'field')->all();
                 $metric = $ormMetricClass::from($fieldValues);
                 if ($metric->measuredWeight !== null) {
-                    $weight = rtrim(rtrim(number_format($metric->measuredWeight, 1), '0'), '.');
-                    $ormLabel = "{$weight}kg";
+                    $ormLabel = $metric->estimatedLabel().'kg';
                 }
             }
 
