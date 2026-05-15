@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "603f10c25b0c6231ac776bb4615a9c3c",
+    "content-hash": "aae1039f6f94d3a5217d0b61b79746ee",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -273,11 +273,11 @@
         },
         {
             "name": "coda/cms",
-            "version": "dev-manual-2",
+            "version": "dev-main",
             "dist": {
                 "type": "path",
-                "url": "packages/cms",
-                "reference": "4630eb144fb84761f0318d1b0c448b5b7f821e84"
+                "url": "/Users/conalloreilly/Development/coda-packages/cms",
+                "reference": "79790a5ba0b7d9fb1860be18c0bb6dd2b22d7aa1"
             },
             "require": {
                 "coda/form-kit": "*",
@@ -316,17 +316,17 @@
             },
             "description": "Generic CMS framework for Laravel Livewire applications",
             "transport-options": {
-                "symlink": false,
-                "relative": true
+                "symlink": true,
+                "relative": false
             }
         },
         {
             "name": "coda/form-kit",
-            "version": "dev-manual-2",
+            "version": "dev-main",
             "dist": {
                 "type": "path",
-                "url": "packages/form-kit",
-                "reference": "5ee34e3c44c83aa0330f119c9b4ad35155c06063"
+                "url": "/Users/conalloreilly/Development/coda-packages/form-kit",
+                "reference": "a3b533674db6da2b0f8573b29e1ab560504ba58b"
             },
             "require": {
                 "php": "^8.2",
@@ -356,8 +356,8 @@
             },
             "description": "Framework-agnostic form field definitions with FluxUI rendering",
             "transport-options": {
-                "symlink": false,
-                "relative": true
+                "symlink": true,
+                "relative": false
             }
         },
         {
