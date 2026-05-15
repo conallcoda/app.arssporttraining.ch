@@ -116,16 +116,16 @@
     "repositories": {
         "form-kit": {
             "type": "path",
-            "url": "/Users/conalloreilly/Development/coda-packages/form-kit",
+            "url": "packages/form-kit",
             "options": {
-                "symlink": true
+                "symlink": false
             }
         },
         "cms": {
             "type": "path",
-            "url": "/Users/conalloreilly/Development/coda-packages/cms",
+            "url": "packages/cms",
             "options": {
-                "symlink": true
+                "symlink": false
             }
         },
         "flux-pro": {
