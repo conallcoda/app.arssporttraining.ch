@@ -48,6 +48,69 @@ document.addEventListener('alpine:init', () => {
             };
         },
 
+        normalizeGroup(group) {
+            if (group === null || group === undefined) {
+                return null;
+            }
+
+            const normalized = String(group).trim();
+
+            return normalized === '' ? null : normalized;
+        },
+
+        compareGroups(left, right) {
+            const normalizedLeft = this.normalizeGroup(left);
+            const normalizedRight = this.normalizeGroup(right);
+
+            if (normalizedLeft === normalizedRight) {
+                return 0;
+            }
+
+            if (normalizedLeft === null) {
+                return -1;
+            }
+
+            if (normalizedRight === null) {
+                return 1;
+            }
+
+            return normalizedLeft.localeCompare(normalizedRight, undefined, {
+                numeric: true,
+                sensitivity: 'base',
+            });
+        },
+
+        normalizeSelectedItemsFromCurrentOrder(items = this.selectedItems) {
+            const groupCounters = new Map();
+
+            const prepared = items.map((entry) => {
+                const group = this.normalizeGroup(entry?.item?.group);
+                const counterKey = group ?? '__ungrouped__';
+                const nextSort = groupCounters.get(counterKey) ?? 0;
+
+                groupCounters.set(counterKey, nextSort + 1);
+
+                return {
+                    ...entry,
+                    item: {
+                        ...entry.item,
+                        group,
+                        sort: nextSort,
+                    },
+                };
+            });
+
+            return [...prepared].sort((left, right) => {
+                const groupComparison = this.compareGroups(left?.item?.group, right?.item?.group);
+
+                if (groupComparison !== 0) {
+                    return groupComparison;
+                }
+
+                return Number(left?.item?.sort ?? 0) - Number(right?.item?.sort ?? 0);
+            });
+        },
+
         listConfig(listKey) {
             return this.lists.find((list) => list.key === listKey) ?? null;
         },
@@ -100,7 +163,7 @@ document.addEventListener('alpine:init', () => {
             try {
                 const payload = await this.$wire.relationshipSelectorClientInitialState(this.fieldName, this.limit);
 
-                this.selectedItems = Array.isArray(payload?.selectedItems) ? payload.selectedItems : [];
+                this.selectedItems = this.normalizeSelectedItemsFromCurrentOrder(Array.isArray(payload?.selectedItems) ? payload.selectedItems : []);
                 this.schemaDefaults = payload?.schemaDefaults ?? this.schemaDefaults;
                 this.limit = Number(payload?.limit ?? this.limit);
                 this.search = '';
@@ -436,6 +499,8 @@ document.addEventListener('alpine:init', () => {
                     [itemField.key]: nextValue,
                 },
             });
+
+            this.selectedItems = this.normalizeSelectedItemsFromCurrentOrder();
         },
 
         isListSortable(listKey) {
@@ -454,7 +519,11 @@ document.addEventListener('alpine:init', () => {
             const targetIndex = Number(rowIndex) + Number(direction);
             const rows = this.rowsFor(listKey);
 
-            return targetIndex >= 0 && targetIndex < rows.length;
+            if (targetIndex < 0 || targetIndex >= rows.length) {
+                return false;
+            }
+
+            return this.compareGroups(rows[rowIndex]?.item?.group, rows[targetIndex]?.item?.group) === 0;
         },
 
         moveRow(listKey, rowIndex, direction) {
@@ -473,13 +542,7 @@ document.addEventListener('alpine:init', () => {
 
             nextItems.splice(targetIndex, 0, moved);
 
-            this.selectedItems = nextItems.map((entry, index) => ({
-                ...entry,
-                item: {
-                    ...entry.item,
-                    sort: index,
-                },
-            }));
+            this.selectedItems = this.normalizeSelectedItemsFromCurrentOrder(nextItems);
         },
 
         isListLoading(listKey) {
@@ -547,7 +610,7 @@ document.addEventListener('alpine:init', () => {
             }
 
             if (Array.isArray(response.selectedItems)) {
-                this.selectedItems = response.selectedItems;
+                this.selectedItems = this.normalizeSelectedItemsFromCurrentOrder(response.selectedItems);
             }
 
             if (typeof response.activeListKey === 'string' && response.activeListKey !== '') {
@@ -579,13 +642,7 @@ document.addEventListener('alpine:init', () => {
 
             if (existingIndex !== -1) {
                 this.selectedItems.splice(existingIndex, 1);
-                this.selectedItems = this.selectedItems.map((entry, index) => ({
-                    ...entry,
-                    item: {
-                        ...entry.item,
-                        sort: index,
-                    },
-                }));
+                this.selectedItems = this.normalizeSelectedItemsFromCurrentOrder();
 
                 return;
             }
@@ -599,6 +656,8 @@ document.addEventListener('alpine:init', () => {
                 },
                 record,
             });
+
+            this.selectedItems = this.normalizeSelectedItemsFromCurrentOrder();
         },
 
         async save() {
@@ -611,9 +670,8 @@ document.addEventListener('alpine:init', () => {
             try {
                 await this.$wire[this.applyAction](
                     this.fieldName,
-                    this.selectedItems.map((entry, index) => ({
+                    this.normalizeSelectedItemsFromCurrentOrder().map((entry) => ({
                         ...entry.item,
-                        sort: index,
                     })),
                 );
             } finally {

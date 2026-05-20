@@ -13,6 +13,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 uses(RefreshDatabase::class);
 
 it('counts only recorded slots as immutable', function () {
+    Carbon::setTestNow('2030-04-12 12:00:00');
+
     $group = UserGroup::create(['name' => 'Test Group']);
     $athlete = User::factory()->athlete()->create();
     $exerciseProgram = ExerciseProgram::factory()->create();

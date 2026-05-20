@@ -5,6 +5,7 @@ namespace App\Data\Athlete;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Training\TrainingProgramSlotExercise;
 use App\Support\AthleteDashboardDate;
+use App\Support\Training\ProgramExerciseOrder;
 use Coda\Cms\Data\AbstractData;
 
 class ScheduledProgramData extends AbstractData
@@ -30,8 +31,8 @@ class ScheduledProgramData extends AbstractData
     public static function fromSlot(TrainingProgramSlot $slot): self
     {
         $program = $slot->trainingProgram->program;
-        $progressSegments = $slot->exercises
-            ->sortBy('sort')
+        $progressSegments = app(ProgramExerciseOrder::class)
+            ->sortSlotExercises($slot->exercises)
             ->values()
             ->map(fn (TrainingProgramSlotExercise $exercise) => [
                 'submitted' => $exercise->status->isSubmitted(),

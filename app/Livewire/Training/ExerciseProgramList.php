@@ -11,7 +11,6 @@ use App\Models\Exercise\ExerciseProgramTypeEnum;
 use App\Models\Tag;
 use Coda\Cms\Display\DisplayFields\Ago;
 use Coda\Cms\Display\DisplayFields\Badge;
-use Coda\Cms\Display\DisplayFields\ColorBadge;
 use Coda\Cms\Display\DisplayFields\Relationship;
 use Coda\Cms\Display\DisplayFields\Text;
 use Coda\Cms\Display\DisplayFields\View;
@@ -74,12 +73,6 @@ class ExerciseProgramList extends AbstractModelList
 
     protected function getTable(): Table
     {
-        $exerciseCategoryColorLabels = Tag::query()
-            ->forScope('exercise_category')
-            ->whereNull('parent_id')
-            ->pluck('name', 'color')
-            ->all();
-
         $tagNames = Tag::query()
             ->forScope('program_internal')
             ->pluck('name', 'id');
@@ -118,10 +111,14 @@ class ExerciseProgramList extends AbstractModelList
                             'modalField' => 'owner_id',
                         ],
                     ]),
-                ColorBadge::make('exerciseCategoryColor')
+                Badge::make('exerciseCategoryName')
                     ->label(__('Category'))
                     ->sortAs('category')
-                    ->colorLabels($exerciseCategoryColorLabels),
+                    ->source(fn (ExerciseProgramData $data) => $data->exerciseCategoryName === null ? [] : [[
+                        'label' => $data->exerciseCategoryName,
+                        'color' => $data->exerciseCategoryColor,
+                        'modalField' => 'exercise_category_id',
+                    ]]),
                 Relationship::make('exercises')->label(__('Exercises'))->modal()->width('w-full'),
                 Badge::make('internalTags')
                     ->label(__('Tags'))
@@ -140,7 +137,10 @@ class ExerciseProgramList extends AbstractModelList
     {
         $filters = [
             TableFilter::callback('search', function (Builder $query, mixed $value): void {
-                $query->where('exercise_programs.name', 'like', '%'.$value.'%');
+                $query->where(function (Builder $query) use ($value): void {
+                    $query->where('exercise_programs.name', 'like', '%'.$value.'%')
+                        ->orWhere('exercise_category_tags.name', 'like', '%'.$value.'%');
+                });
             })
                 ->field(
                     TextField::make('search')

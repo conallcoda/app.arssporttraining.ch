@@ -6,9 +6,6 @@ use App\Data\Training\Calendar\CalendarModeSettingsData;
 use App\Data\Training\Calendar\CalendarSettingsData;
 use App\Data\Training\CategoryData;
 use App\Livewire\Training\Concerns\WithCalendarPlan;
-use App\Models\Exercise\Exercise;
-use App\Models\Exercise\ExerciseProgram;
-use App\Models\Exercise\ExerciseProgramTypeEnum;
 use App\Models\Tag;
 use App\Models\Training\TrainingProgram;
 use App\Models\Users\User;
@@ -16,7 +13,6 @@ use App\Models\Users\UserGroup;
 use App\Support\Training\BlockModalPayloadBuilder;
 use App\Training\CalendarDateService;
 use Carbon\Carbon;
-use Flux\Flux;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
@@ -62,10 +58,6 @@ class CalendarIndex extends Component
     public string $planProgramName = '';
 
     public string $planProgramStatus = TrainingProgram::STATUS_ACTIVE;
-
-    public string $addContentSearch = '';
-
-    public string $addContentTab = 'program';
 
     public CalendarSettingsData $calendarSettings;
 
@@ -726,72 +718,9 @@ class CalendarIndex extends Component
         $this->dispatch('open-block', data: $payload);
     }
 
-    #[On('trigger-add-content')]
     public function openAddProgram(): void
     {
-        $this->addContentSearch = '';
-        $this->addContentTab = 'program';
-        Flux::modal('add-content')->show();
-    }
-
-    public function updatedAddContentTab(): void
-    {
-        $this->addContentSearch = '';
-        unset($this->addContentOptions);
-    }
-
-    public function updatedAddContentSearch(): void
-    {
-        unset($this->addContentOptions);
-    }
-
-    #[Computed]
-    public function addContentOptions(): Collection
-    {
-        $search = trim($this->addContentSearch);
-
-        return match ($this->addContentTab) {
-            'program' => ExerciseProgram::query()
-                ->with('exerciseCategory:id,name,color')
-                ->where('type', ExerciseProgramTypeEnum::Program)
-                ->whereNull('parent_id')
-                ->whereNull('parent_type')
-                ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%"))
-                ->orderBy('name')
-                ->limit(20)
-                ->get(['id', 'name', 'exercise_category_id']),
-            'exercise' => Exercise::query()
-                ->with('category.rootAncestorOrSelf')
-                ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%"))
-                ->orderBy('name')
-                ->limit(20)
-                ->get(['id', 'name', 'category_id']),
-            default => collect(),
-        };
-    }
-
-    public function addFromProgram(int $programId): void
-    {
-        $program = ExerciseProgram::findOrFail($programId);
-
-        TrainingProgram::importProgram($program, (int) $this->group);
-
-        unset($this->programs, $this->groupedPrograms);
-        Flux::modal('add-content')->close();
-
-        $this->dispatch('programs-changed');
-    }
-
-    public function addFromExercise(int $exerciseId): void
-    {
-        $exercise = Exercise::findOrFail($exerciseId);
-
-        TrainingProgram::importExercise($exercise, (int) $this->group, categoryId: $exercise->category_id);
-
-        unset($this->programs, $this->groupedPrograms);
-        Flux::modal('add-content')->close();
-
-        $this->dispatch('programs-changed');
+        $this->dispatch('trigger-add-content');
     }
 
     public function render()

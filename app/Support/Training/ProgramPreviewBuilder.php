@@ -19,15 +19,10 @@ use Carbon\CarbonImmutable;
 
 class ProgramPreviewBuilder
 {
-    private const SECTION_ORDER = [
-        'warm_up',
-        'main',
-        'warm_down',
-    ];
-
     public function __construct(
         private readonly PlanCompiler $planCompiler,
         private readonly PlannedProgramDetailsExerciseViewBuilder $exerciseViewBuilder,
+        private readonly ProgramExerciseOrder $programExerciseOrder,
     ) {}
 
     /**
@@ -92,18 +87,8 @@ class ProgramPreviewBuilder
             )
             : null;
 
-        $sortedExercises = $exerciseProgram->exercises
-            ->sortBy(function (Exercise $exercise): string {
-                $type = $exercise->pivot->type ?? 'main';
-                $sectionRank = array_search($type, self::SECTION_ORDER, true);
-
-                return sprintf(
-                    '%02d-%08d-%08d',
-                    $sectionRank === false ? count(self::SECTION_ORDER) : $sectionRank,
-                    (int) ($exercise->pivot->sort ?? 0),
-                    (int) ($exercise->pivot->id ?? 0),
-                );
-            })
+        $sortedExercises = $this->programExerciseOrder
+            ->sortProgramExercises($exerciseProgram->exercises)
             ->values();
 
         $groupLabels = ExerciseGroupLabeler::label(
@@ -220,7 +205,7 @@ class ProgramPreviewBuilder
                             'key' => $section,
                             'label' => match ($section) {
                                 'warm_up' => 'Warm Up',
-                                'warm_down' => 'Warm Down',
+                                'warm_down' => 'Cool Down',
                                 default => 'Program',
                             },
                             'count' => $count,

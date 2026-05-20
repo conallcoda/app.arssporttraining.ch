@@ -7,6 +7,13 @@
         "dev": "vite"
     },
     "dependencies": {
+        "@editorjs/checklist": "^1.6.0",
+        "@editorjs/delimiter": "^1.4.1",
+        "@editorjs/editorjs": "^2.31.0",
+        "@editorjs/header": "^2.8.8",
+        "@editorjs/list": "^2.0.8",
+        "@editorjs/quote": "^2.7.6",
+        "@editorjs/table": "^2.4.5",
         "autoprefixer": "^10.4.20",
         "axios": "^1.7.4",
         "concurrently": "^9.0.1",

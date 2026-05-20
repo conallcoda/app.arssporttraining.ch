@@ -13,6 +13,10 @@ use App\Models\Training\TrainingProgramSlotSetValue;
 
 class ScheduledSessionSnapshotBuilder
 {
+    public function __construct(
+        private readonly ProgramExerciseOrder $programExerciseOrder,
+    ) {}
+
     public function build(TrainingProgramSlot $slot): ScheduledSessionSnapshotData
     {
         $slot->loadMissing([
@@ -25,8 +29,8 @@ class ScheduledSessionSnapshotBuilder
         return new ScheduledSessionSnapshotData(
             slotId: (int) $slot->id,
             scheduledDate: ($slot->scheduled_date ?? $slot->datetime)->format('Y-m-d'),
-            exercises: $slot->exercises
-                ->sortBy('sort')
+            exercises: $this->programExerciseOrder
+                ->sortSlotExercises($slot->exercises)
                 ->values()
                 ->map(fn (TrainingProgramSlotExercise $exercise): ScheduledExerciseSnapshotData => $this->buildExercise($exercise))
                 ->all(),

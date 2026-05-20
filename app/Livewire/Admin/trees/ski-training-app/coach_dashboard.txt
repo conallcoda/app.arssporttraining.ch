@@ -22,7 +22,7 @@ Coach Dashboard[color:orange]:Create and manage training schedules for your athl
 	Workouts[color:teal]:Build training programs from your exercise library.
 		Programs:Assemble exercises into reusable workout programs.
 			Exercise Order & Supersets:Drag to reorder and group exercises together.
-			Warm-Up & Cool-Down:Link separate programs for warm-up and cool-down.
+			Warm-Up & Cool Down:Link separate programs for warm-up and Cool Down.
 			Week-by-Week Grid:View the full program laid out across weeks and sessions.
 		Training Categories:Colour-coded types like Strength, Hypertrophy, and Conditioning.
 	Schedule[color:purple]:Plan and visualise when your athletes train.

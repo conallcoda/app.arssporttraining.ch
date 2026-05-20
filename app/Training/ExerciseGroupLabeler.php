@@ -2,6 +2,8 @@
 
 namespace App\Training;
 
+use Coda\Cms\Support\ColorPalette;
+
 class ExerciseGroupLabeler
 {
     /**
@@ -20,7 +22,7 @@ class ExerciseGroupLabeler
         $counters = [];
 
         foreach ($items as $item) {
-            $group = $getGroup($item);
+            $group = self::normalizeGroup($getGroup($item));
 
             if (! $group) {
                 continue;
@@ -30,7 +32,7 @@ class ExerciseGroupLabeler
         }
 
         foreach ($items as $item) {
-            $group = $getGroup($item);
+            $group = self::normalizeGroup($getGroup($item));
 
             if (! $group) {
                 continue;
@@ -43,5 +45,59 @@ class ExerciseGroupLabeler
         }
 
         return $labels;
+    }
+
+    /**
+     * Assign stable palette colors to grouped items. Ungrouped items are omitted.
+     *
+     * @param  iterable<array-key, object>  $items
+     * @param  callable(object): ?string  $getGroup
+     * @param  callable(object): int|string  $getId
+     * @return array<int|string, string>
+     */
+    public static function colors(iterable $items, callable $getGroup, callable $getId): array
+    {
+        $items = is_array($items) ? $items : iterator_to_array($items, false);
+        $palette = array_values(ColorPalette::ROW_COLORS);
+        $groupColors = [];
+        $itemColors = [];
+
+        if ($palette === []) {
+            return [];
+        }
+
+        $groups = collect($items)
+            ->map(fn (object $item): ?string => self::normalizeGroup($getGroup($item)))
+            ->filter()
+            ->unique(fn (string $group): string => mb_strtolower($group))
+            ->sort(fn (string $left, string $right): int => strnatcasecmp($left, $right))
+            ->values();
+
+        foreach ($groups as $index => $group) {
+            $groupColors[$group] = $palette[$index % count($palette)];
+        }
+
+        foreach ($items as $item) {
+            $group = self::normalizeGroup($getGroup($item));
+
+            if (! $group || ! isset($groupColors[$group])) {
+                continue;
+            }
+
+            $itemColors[$getId($item)] = $groupColors[$group];
+        }
+
+        return $itemColors;
+    }
+
+    private static function normalizeGroup(?string $group): ?string
+    {
+        if ($group === null) {
+            return null;
+        }
+
+        $group = trim($group);
+
+        return $group === '' ? null : $group;
     }
 }

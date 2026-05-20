@@ -14,6 +14,7 @@ use App\Support\Training\BlockModalPayloadBuilder;
 use App\Support\Training\MetricModalPayloadBuilder;
 use App\Training\CalendarBlockService;
 use App\Training\ProjectedOneRepMaxService;
+use App\Training\TrainingSessionEditGuard;
 use Carbon\Carbon;
 use Flux\Flux;
 use Illuminate\Support\Collection;
@@ -666,7 +667,13 @@ trait WithCalendarPlan
         $weekSessionDates = [];
         $expandedWeeks = [];
         $lockedSessionsByWeek = [];
-        $now = now();
+        $immutableSessionDateTimes = app(TrainingSessionEditGuard::class)
+            ->applyImmutableSlotConstraints((clone $slotQuery))
+            ->select('datetime')
+            ->distinct()
+            ->pluck('datetime')
+            ->map(fn ($datetime) => Carbon::parse($datetime)->toDateTimeString())
+            ->flip();
 
         foreach ($scheduledWeeks as $i => $weekInfo) {
             $monday = Carbon::now()->setISODate($weekInfo['year'], $weekInfo['week'], 1);
@@ -679,7 +686,7 @@ trait WithCalendarPlan
                 ->map(fn (Carbon $sessionDatetime) => $sessionDatetime->toDateString())
                 ->all();
             $lockedSessionsByWeek[$i] = collect($weekInfo['sessions'])
-                ->map(fn (Carbon $sessionDatetime) => $sessionDatetime->lessThanOrEqualTo($now))
+                ->map(fn (Carbon $sessionDatetime) => $immutableSessionDateTimes->has($sessionDatetime->toDateTimeString()))
                 ->all();
 
             if (in_array(true, $lockedSessionsByWeek[$i], true)) {

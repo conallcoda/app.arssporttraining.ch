@@ -56,4 +56,16 @@ class ExerciseProgramFormModal extends FormModal
         return ExerciseProgramTypeEnum::tryFrom((string) ($this->data['type'] ?? ExerciseProgramTypeEnum::Program->value))
             ?? ExerciseProgramTypeEnum::Program;
     }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function exerciseSelectorImportProgramTypes(string $fieldName): array
+    {
+        return [
+            ExerciseProgramTypeEnum::Program->value,
+            ExerciseProgramTypeEnum::WarmUp->value,
+            ExerciseProgramTypeEnum::WarmDown->value,
+        ];
+    }
 }

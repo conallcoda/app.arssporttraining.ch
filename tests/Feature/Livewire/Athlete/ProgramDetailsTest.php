@@ -249,6 +249,64 @@ it('defaults to the warm up tab when the session includes warm up exercises', fu
         ->assertDontSee('Front Squat');
 });
 
+it('sorts athlete program exercises by group before sort order within a section', function () {
+    config()->set('athlete.dashboard_today_override', '03.04.2026');
+
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Friday Strength']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $exerciseA2 = Exercise::factory()->create(['name' => 'Split Squat']);
+    $exerciseB1 = Exercise::factory()->create(['name' => 'Push Press']);
+    $exerciseA1 = Exercise::factory()->create(['name' => 'Front Squat']);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exerciseA2->id,
+        'sort' => 1,
+        'group' => 'A',
+        'type' => 'main',
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exerciseB1->id,
+        'sort' => 0,
+        'group' => 'B',
+        'type' => 'main',
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exerciseA1->id,
+        'sort' => 0,
+        'group' => 'A',
+        'type' => 'main',
+    ]);
+
+    TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2026-04-03 09:00:00'),
+    ]);
+
+    $component = Livewire::actingAs($athlete)
+        ->test(ProgramDetails::class, [
+            'date' => '2026-04-03',
+            'trainingProgram' => $trainingProgram,
+        ]);
+
+    expect(collect($component->instance()->programExercises)->pluck('name')->all())->toBe([
+        'Front Squat',
+        'Split Squat',
+        'Push Press',
+    ]);
+});
+
 it('returns 404 when the selected program is not scheduled for the athlete on that date', function () {
     $athlete = User::factory()->athlete()->create();
 

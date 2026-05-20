@@ -65,7 +65,7 @@
                         <template x-if="(column.badges || []).length > 0">
                             <div class="flex flex-wrap items-center gap-1 text-sm">
                                 <template x-for="(badge, badgeIndex) in column.badges" :key="String({{ $keyExpr }}) + '-badge-' + badgeIndex">
-                                    <span class="inline-flex items-center rounded-md px-2 py-1 text-sm" x-bind:class="badge.class" x-text="badge.label"></span>
+                                    <span class="inline-flex items-center rounded-md px-2 py-1 text-sm" x-bind:class="badge.class || 'bg-zinc-700 text-zinc-100 dark:bg-zinc-700 dark:text-zinc-100'" x-text="badge.label"></span>
                                 </template>
                             </div>
                         </template>
@@ -75,7 +75,7 @@
                 <template x-if="column.type === 'badges'">
                     <div class="flex flex-wrap items-center gap-1 text-sm">
                         <template x-for="(badge, badgeIndex) in column.badges" :key="String({{ $keyExpr }}) + '-flat-badge-' + badgeIndex">
-                            <span class="inline-flex items-center rounded-md px-2 py-1 text-sm" x-bind:class="badge.class" x-text="badge.label"></span>
+                            <span class="inline-flex items-center rounded-md px-2 py-1 text-sm" x-bind:class="badge.class || 'bg-zinc-700 text-zinc-100 dark:bg-zinc-700 dark:text-zinc-100'" x-text="badge.label"></span>
                         </template>
                     </div>
                 </template>

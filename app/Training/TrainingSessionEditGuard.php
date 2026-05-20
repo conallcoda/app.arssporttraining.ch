@@ -8,6 +8,28 @@ use Illuminate\Database\Eloquent\Builder;
 
 class TrainingSessionEditGuard
 {
+    /**
+     * Marks slots as immutable only once they are in the past and have some recorded outcome.
+     */
+    public function applyImmutableSlotConstraints(Builder $query): Builder
+    {
+        return $query
+            ->where('datetime', '<=', now())
+            ->where(function (Builder $query): void {
+                $query
+                    ->whereIn('status', [
+                        TrainingProgramSlotStatusEnum::Completed,
+                        TrainingProgramSlotStatusEnum::PartiallyCompleted,
+                        TrainingProgramSlotStatusEnum::Skipped,
+                    ])
+                    ->orWhereNotNull('completed_at')
+                    ->orWhere('has_any_modification', true)
+                    ->orWhere('completed_exercise_count', '>', 0)
+                    ->orWhere('partial_exercise_count', '>', 0)
+                    ->orWhere('skipped_exercise_count', '>', 0);
+            });
+    }
+
     public function hasImmutableSlotsForOccurrence(
         int $trainingProgramId,
         string $datetime,
@@ -57,27 +79,24 @@ class TrainingSessionEditGuard
 
     public function immutableSlotMessage(int $count = 1): string
     {
-        return $count === 1
-            ? __('This session has already happened and can no longer be edited.')
-            : __(':count sessions have already happened and can no longer be edited.', ['count' => $count]);
+        return trans_choice(
+            'This past session already has recorded data and can no longer be edited.|:count past sessions already have recorded data and can no longer be edited.',
+            $count,
+            ['count' => $count],
+        );
     }
 
     public function immutableProgramMessage(int $count): string
     {
-        return __('This program cannot be changed here because :count sessions have already happened.', ['count' => $count]);
+        return trans_choice(
+            'This program cannot be changed here because 1 past session already has recorded data.|This program cannot be changed here because :count past sessions already have recorded data.',
+            $count,
+            ['count' => $count],
+        );
     }
 
     private function immutableSlotsQuery(): Builder
     {
-        return TrainingProgramSlot::query()->where(function (Builder $query): void {
-            $query
-                ->where('datetime', '<=', now())
-                ->orWhereIn('status', [
-                    TrainingProgramSlotStatusEnum::Completed,
-                    TrainingProgramSlotStatusEnum::PartiallyCompleted,
-                    TrainingProgramSlotStatusEnum::Skipped,
-                ])
-                ->orWhereNotNull('completed_at');
-        });
+        return $this->applyImmutableSlotConstraints(TrainingProgramSlot::query());
     }
 }

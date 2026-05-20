@@ -13,7 +13,7 @@ enum ExerciseProgramTypeEnum: string
         return match ($this) {
             self::Program => 'Program',
             self::WarmUp => 'Warm Up',
-            self::WarmDown => 'Warm Down',
+            self::WarmDown => 'Cool Down',
         };
     }
 

@@ -22,17 +22,12 @@ use App\Models\Training\TrainingProgramBlock;
 use App\Models\Athlete\MetricSubmission;
 use App\Models\Exercise\Exercise;
 use App\Models\Training\TrainingProgramSlot;
+use App\Support\Training\ProgramExerciseOrder;
 use App\Training\Planning\PlanCompiler;
 use Carbon\Carbon;
 
 class TrainingSessionCompiler
 {
-    private const SECTION_ORDER = [
-        'warm_up',
-        'main',
-        'warm_down',
-    ];
-
     /**
      * @var array<string, array<int, array{slotIndex: int, weekIndex: int, sessionIndex: int, sessionsPerWeek: int, weekSessionCounts: array<int, int>}>>
      */
@@ -51,6 +46,7 @@ class TrainingSessionCompiler
     public function __construct(
         private readonly CalendarBlockService $calendarBlockService,
         private readonly PlanCompiler $planCompiler,
+        private readonly ProgramExerciseOrder $programExerciseOrder,
     ) {}
 
     public function compile(TrainingProgramSlot $slot): CompiledTrainingSession
@@ -66,18 +62,8 @@ class TrainingSessionCompiler
         $heartRateMetric = $this->latestMetric($slot->user_id, MetricEnum::HeartRate, $scheduledDate);
         $weightProgression = $this->resolveWeightProgressionData($oneRepMaxMetric, $metricContext['targetGoal']);
         $authoringProgram = new AuthoringProgramData(
-            exercises: $program->exercises
-            ->sortBy(function (Exercise $exercise): string {
-                $type = $exercise->pivot->type ?? 'main';
-                $sectionRank = array_search($type, self::SECTION_ORDER, true);
-
-                return sprintf(
-                    '%02d-%08d-%08d',
-                    $sectionRank === false ? count(self::SECTION_ORDER) : $sectionRank,
-                    (int) ($exercise->pivot->sort ?? 0),
-                    (int) ($exercise->pivot->id ?? 0),
-                );
-            })
+            exercises: $this->programExerciseOrder
+            ->sortProgramExercises($program->exercises)
             ->values()
             ->map(function (Exercise $exercise, int $index) use ($programConfig, $slot) {
                 $programExerciseId = (int) $exercise->pivot->id;

@@ -5,10 +5,15 @@ namespace App\Training;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramBlock;
 use App\Models\Training\TrainingProgramSlot;
+use App\Support\Training\ProgramExerciseOrder;
 use Illuminate\Support\Facades\DB;
 
 class TrainingGroupScheduleMirrorService
 {
+    public function __construct(
+        private readonly ProgramExerciseOrder $programExerciseOrder,
+    ) {}
+
     /**
      * @return array{
      *     mirrored_programs: int,
@@ -117,24 +122,12 @@ class TrainingGroupScheduleMirrorService
      */
     private function buildPivotIdMap(TrainingProgram $sourceProgram, TrainingProgram $targetProgram): array
     {
-        $sourceExercises = $sourceProgram->program->exercises
-            ->sortBy(fn ($exercise) => sprintf(
-                '%05d-%s-%s-%05d',
-                (int) ($exercise->pivot->sort ?? 0),
-                (string) ($exercise->pivot->type ?? ''),
-                (string) ($exercise->pivot->group ?? ''),
-                (int) $exercise->id,
-            ))
+        $sourceExercises = $this->programExerciseOrder
+            ->sortProgramExercises($sourceProgram->program->exercises)
             ->values();
 
-        $targetExercises = $targetProgram->program->exercises
-            ->sortBy(fn ($exercise) => sprintf(
-                '%05d-%s-%s-%05d',
-                (int) ($exercise->pivot->sort ?? 0),
-                (string) ($exercise->pivot->type ?? ''),
-                (string) ($exercise->pivot->group ?? ''),
-                (int) $exercise->id,
-            ))
+        $targetExercises = $this->programExerciseOrder
+            ->sortProgramExercises($targetProgram->program->exercises)
             ->values();
 
         $map = [];

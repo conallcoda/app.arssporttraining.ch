@@ -372,6 +372,12 @@
                                                         @endif
                                                         @if (! empty($collapsedCopyOptions['to'] ?? []))
                                                             <flux:menu.submenu :heading="__('Copy To')">
+                                                                @if (filled($collapsedCopyOptions['toAll'] ?? null))
+                                                                    <flux:menu.item wire:click="copyDisplayBucketToAll('{{ $collapsedCopyOptions['toAll']['source'] }}')">
+                                                                        {{ __($collapsedCopyOptions['toAll']['label']) }}
+                                                                    </flux:menu.item>
+                                                                    <flux:menu.separator />
+                                                                @endif
                                                                 @foreach (($collapsedCopyOptions['to'] ?? []) as $option)
                                                                     <flux:menu.item wire:click="copyDisplayBucket('{{ $option['source'] }}', '{{ $option['target'] }}')">
                                                                         {{ __($option['label']) }}
@@ -610,6 +616,12 @@
                                                                 @endif
                                                                 @if (! empty($collapsedCopyOptions['to'] ?? []))
                                                                     <flux:menu.submenu :heading="__('Copy To')">
+                                                                        @if (filled($collapsedCopyOptions['toAll'] ?? null))
+                                                                            <flux:menu.item wire:click="copyDisplayBucketToAll('{{ $collapsedCopyOptions['toAll']['source'] }}')">
+                                                                                {{ __($collapsedCopyOptions['toAll']['label']) }}
+                                                                            </flux:menu.item>
+                                                                            <flux:menu.separator />
+                                                                        @endif
                                                                         @foreach (($collapsedCopyOptions['to'] ?? []) as $option)
                                                                             <flux:menu.item wire:click="copyDisplayBucket('{{ $option['source'] }}', '{{ $option['target'] }}')">
                                                                                 {{ __($option['label']) }}
@@ -785,6 +797,12 @@
                                                         @endif
                                                         @if (! empty($sessionCopyOptions['to'] ?? []))
                                                             <flux:menu.submenu :heading="__('Copy To')">
+                                                                @if (filled($sessionCopyOptions['toAll'] ?? null))
+                                                                    <flux:menu.item wire:click="copyDisplayBucketToAll('{{ $sessionCopyOptions['toAll']['source'] }}')">
+                                                                        {{ __($sessionCopyOptions['toAll']['label']) }}
+                                                                    </flux:menu.item>
+                                                                    <flux:menu.separator />
+                                                                @endif
                                                                 @foreach (($sessionCopyOptions['to'] ?? []) as $option)
                                                                     <flux:menu.item wire:click="copyDisplayBucket('{{ $option['source'] }}', '{{ $option['target'] }}')">
                                                                         {{ __($option['label']) }}
@@ -1088,6 +1106,12 @@
                                                                 @endif
                                                                 @if (! empty($sessionCopyOptions['to'] ?? []))
                                                                     <flux:menu.submenu :heading="__('Copy To')">
+                                                                        @if (filled($sessionCopyOptions['toAll'] ?? null))
+                                                                            <flux:menu.item wire:click="copyDisplayBucketToAll('{{ $sessionCopyOptions['toAll']['source'] }}')">
+                                                                                {{ __($sessionCopyOptions['toAll']['label']) }}
+                                                                            </flux:menu.item>
+                                                                            <flux:menu.separator />
+                                                                        @endif
                                                                         @foreach (($sessionCopyOptions['to'] ?? []) as $option)
                                                                             <flux:menu.item wire:click="copyDisplayBucket('{{ $option['source'] }}', '{{ $option['target'] }}')">
                                                                                 {{ __($option['label']) }}

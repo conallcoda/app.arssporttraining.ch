@@ -174,6 +174,127 @@ it('can remove a group program from user view', function () {
     expect(TrainingProgram::find($groupTp->id))->toBeNull();
 });
 
+it('can still remove a group program when past sessions exist but nothing was recorded', function () {
+    Carbon::setTestNow('2026-03-08 12:00:00');
+
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Three Amigos']);
+    $user = User::factory()->athlete()->create();
+    $program = ExerciseProgram::factory()->create();
+
+    $groupTp = TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    TrainingProgramSlot::create([
+        'training_program_id' => $groupTp->id,
+        'user_id' => $user->id,
+        'datetime' => '2026-03-03 09:00:00',
+    ]);
+
+    $weekStartsOn = (int) config('training.week_starts_on', Carbon::MONDAY);
+
+    Livewire::actingAs($coach)
+        ->test(CalendarProgramsView::class, [
+            'groupId' => $group->id,
+            'userId' => $user->id,
+            'calendarSettings' => calendarWeekSettings(),
+            'weekStartsOn' => $weekStartsOn,
+            'weekEndsOn' => ($weekStartsOn + 6) % 7,
+        ])
+        ->call('removeTrainingProgram', $groupTp->id);
+
+    expect(TrainingProgram::find($groupTp->id))->toBeNull();
+});
+
+it('blocks removing a group program once a past session has recorded data', function () {
+    Carbon::setTestNow('2026-03-08 12:00:00');
+
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Three Amigos']);
+    $user = User::factory()->athlete()->create();
+    $program = ExerciseProgram::factory()->create();
+
+    $groupTp = TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    TrainingProgramSlot::create([
+        'training_program_id' => $groupTp->id,
+        'user_id' => $user->id,
+        'datetime' => '2026-03-03 09:00:00',
+        'status' => \App\Models\Training\TrainingProgramSlotStatusEnum::Completed,
+        'completed_at' => '2026-03-03 10:00:00',
+    ]);
+
+    $weekStartsOn = (int) config('training.week_starts_on', Carbon::MONDAY);
+
+    Livewire::actingAs($coach)
+        ->test(CalendarProgramsView::class, [
+            'groupId' => $group->id,
+            'userId' => $user->id,
+            'calendarSettings' => calendarWeekSettings(),
+            'weekStartsOn' => $weekStartsOn,
+            'weekEndsOn' => ($weekStartsOn + 6) % 7,
+        ])
+        ->call('removeTrainingProgram', $groupTp->id)
+        ->assertDispatched('toast-show', function ($event, $params) {
+            return ($params['slots']['text'] ?? null) === 'This program cannot be changed here because 1 past session already has recorded data.'
+                && ($params['dataset']['variant'] ?? null) === 'danger';
+        });
+
+    expect(TrainingProgram::find($groupTp->id))->not->toBeNull();
+});
+
+it('marks only recorded past sessions as locked in plan schedule info', function () {
+    Carbon::setTestNow('2026-03-08 12:00:00');
+
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Three Amigos']);
+    $user = User::factory()->athlete()->create();
+    $group->members()->attach($user);
+    $category = Tag::factory()->withScope('exercise_category')->create([
+        'name' => 'Mobility',
+        'sort_order' => 1,
+    ]);
+    $program = ExerciseProgram::factory()->create([
+        'exercise_category_id' => $category->id,
+    ]);
+
+    $trainingProgram = TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    TrainingProgramSlot::create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $user->id,
+        'datetime' => '2026-03-03 09:00:00',
+    ]);
+
+    TrainingProgramSlot::create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $user->id,
+        'datetime' => '2026-03-05 09:00:00',
+        'status' => \App\Models\Training\TrainingProgramSlotStatusEnum::PartiallyCompleted,
+        'has_any_modification' => true,
+        'partial_exercise_count' => 1,
+    ]);
+
+    $component = Livewire::actingAs($coach)
+        ->test(CalendarIndex::class, [
+            'group' => (string) $group->id,
+            'user' => (string) $user->id,
+            'view' => 'plan',
+            'planCategory' => (string) $category->id,
+            'planProgram' => (string) $trainingProgram->id,
+        ]);
+
+    expect($component->get('planScheduleInfo')['lockedSessionsByWeek'] ?? [])->toBe([[false, true]]);
+});
+
 it('creates individual slots per user in group mode', function () {
     $coach = User::factory()->coach()->create();
     $group = UserGroup::create(['name' => 'Three Amigos']);

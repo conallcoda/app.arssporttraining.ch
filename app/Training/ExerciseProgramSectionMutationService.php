@@ -4,10 +4,15 @@ namespace App\Training;
 
 use App\Data\Training\Config\ExercisePlanConfig;
 use App\Models\Exercise\Exercise;
+use App\Support\Training\ProgramExerciseOrder;
 use Illuminate\Support\Collection;
 
 class ExerciseProgramSectionMutationService
 {
+    public function __construct(
+        private readonly ProgramExerciseOrder $programExerciseOrder,
+    ) {}
+
     /**
      * @param  Collection<int, Exercise>  $currentRows
      * @param  Collection<int, array<string, mixed>>  $proposedRows
@@ -65,12 +70,7 @@ class ExerciseProgramSectionMutationService
             }
         }
 
-        $rows = array_values(array_map(function (array $row, int $index): array {
-            $row['_key'] = $row['_key'] ?? uniqid('item_', true);
-            $row['sort'] = $index;
-
-            return $row;
-        }, $rows, array_keys($rows)));
+        $rows = $this->programExerciseOrder->normalizeRows($rows);
 
         return [
             'rows' => $rows,

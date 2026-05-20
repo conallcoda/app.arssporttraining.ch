@@ -16,7 +16,7 @@
                     <flux:tabs wire:model.live="activeSection" variant="segmented" class="w-full [&>[data-flux-tabs]]:grid [&>[data-flux-tabs]]:w-full [&>[data-flux-tabs]]:grid-cols-3">
                         <flux:tab name="main">{{ __('Main') }}</flux:tab>
                         <flux:tab name="warm_up">{{ __('Warm Up') }}</flux:tab>
-                        <flux:tab name="warm_down">{{ __('Warm Down') }}</flux:tab>
+                        <flux:tab name="warm_down">{{ __('Cool Down') }}</flux:tab>
                     </flux:tabs>
                 @endif
             </div>

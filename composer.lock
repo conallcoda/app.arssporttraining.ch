@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "603f10c25b0c6231ac776bb4615a9c3c",
+    "content-hash": "148ab275faa87f656b5939a978fa5de5",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -273,13 +273,14 @@
         },
         {
             "name": "coda/cms",
-            "version": "dev-manual-2",
+            "version": "dev-main",
             "dist": {
                 "type": "path",
-                "url": "packages/cms",
-                "reference": "4630eb144fb84761f0318d1b0c448b5b7f821e84"
+                "url": "/Users/conalloreilly/Development/coda-packages/cms",
+                "reference": "64d1d6b0583afcd61bf0a1a1e16806a5c68eb367"
             },
             "require": {
+                "coda/expression-kit": "*",
                 "coda/form-kit": "*",
                 "livewire/flux": "^2.0",
                 "livewire/flux-pro": "^2.0",
@@ -316,21 +317,46 @@
             },
             "description": "Generic CMS framework for Laravel Livewire applications",
             "transport-options": {
-                "symlink": false,
-                "relative": true
+                "symlink": true,
+                "relative": false
+            }
+        },
+        {
+            "name": "coda/expression-kit",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "/Users/conalloreilly/Development/coda-packages/expression-kit",
+                "reference": "6463d0aadc9037b3efcb7701acea225fffd16c74"
+            },
+            "require": {
+                "illuminate/database": "^11.0 || ^12.0 || ^13.0",
+                "php": "^8.2",
+                "symfony/expression-language": "^7.0 || ^8.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Coda\\ExpressionKit\\": "src/"
+                }
+            },
+            "description": "Shared expression parsing and execution helpers for Coda packages",
+            "transport-options": {
+                "symlink": true,
+                "relative": false
             }
         },
         {
             "name": "coda/form-kit",
-            "version": "dev-manual-2",
+            "version": "dev-main",
             "dist": {
                 "type": "path",
-                "url": "packages/form-kit",
-                "reference": "5ee34e3c44c83aa0330f119c9b4ad35155c06063"
+                "url": "/Users/conalloreilly/Development/coda-packages/form-kit",
+                "reference": "246102107745848ad980e2936e8eb965d0284021"
             },
             "require": {
-                "php": "^8.2",
-                "symfony/expression-language": "^7.0 || ^8.0"
+                "coda/expression-kit": "*",
+                "php": "^8.2"
             },
             "suggest": {
                 "livewire/flux": "Required for Blade view rendering (^2.0)",
@@ -356,8 +382,8 @@
             },
             "description": "Framework-agnostic form field definitions with FluxUI rendering",
             "transport-options": {
-                "symlink": false,
-                "relative": true
+                "symlink": true,
+                "relative": false
             }
         },
         {

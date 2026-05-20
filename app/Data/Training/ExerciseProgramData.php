@@ -9,6 +9,7 @@ use App\Form\Fields\Training\Program\ProgramName;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
 use App\Models\Exercise\ExerciseProgramTypeEnum;
+use App\Support\Training\ProgramExerciseOrder;
 use Carbon\Carbon;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Form\Fields\Tags;
@@ -65,11 +66,15 @@ class ExerciseProgramData extends AbstractData implements HasForms
             'owner',
         ]);
 
-        $exercises = $program->exercises->map(fn ($exercise) => [
-            'id' => $exercise->id,
-            'name' => $exercise->name,
-            'sort' => $exercise->pivot->sort ?? 0,
-        ])->all();
+        $exercises = app(ProgramExerciseOrder::class)
+            ->sortProgramExercises($program->exercises, includeType: false)
+            ->map(fn ($exercise) => [
+                'id' => $exercise->id,
+                'name' => $exercise->name,
+                'sort' => $exercise->pivot->sort ?? 0,
+                'group' => $exercise->pivot->group,
+            ])
+            ->all();
 
         return new static(
             id: $program->id,
@@ -110,11 +115,12 @@ class ExerciseProgramData extends AbstractData implements HasForms
 
     protected function syncExercises(ExerciseProgram $program): void
     {
+        $rows = app(ProgramExerciseOrder::class)->normalizeRows($this->exercises);
         $currentExerciseIds = $program->exercises()
             ->wherePivot('type', 'main')
             ->pluck('exercises.id')
             ->toArray();
-        $newExerciseIds = collect($this->exercises)
+        $newExerciseIds = collect($rows)
             ->filter(fn ($exercise) => ! empty($exercise['id']))
             ->pluck('id')
             ->toArray();
@@ -126,26 +132,31 @@ class ExerciseProgramData extends AbstractData implements HasForms
             ->whereIn('exercise_id', $exercisesToRemove)
             ->delete();
 
-        foreach ($this->exercises as $index => $exerciseData) {
+        foreach ($rows as $index => $exerciseData) {
             if (empty($exerciseData['id'])) {
                 continue;
             }
 
             $exerciseId = $exerciseData['id'];
             $sort = $exerciseData['sort'] ?? $index;
+            $group = $exerciseData['group'] ?? null;
 
             if (in_array($exerciseId, array_diff($newExerciseIds, $currentExerciseIds))) {
                 ExerciseProgramExercise::create([
                     'exercise_program_id' => $program->id,
                     'exercise_id' => $exerciseId,
                     'sort' => $sort,
+                    'group' => $group,
                     'type' => 'main',
                 ]);
             } else {
                 ExerciseProgramExercise::where('exercise_program_id', $program->id)
                     ->where('exercise_id', $exerciseId)
                     ->where('type', 'main')
-                    ->update(['sort' => $sort]);
+                    ->update([
+                        'sort' => $sort,
+                        'group' => $group,
+                    ]);
             }
         }
     }

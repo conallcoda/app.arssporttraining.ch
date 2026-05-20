@@ -94,6 +94,13 @@ trait InteractsWithDisplayGridCopying
                     'label' => $otherBucket['label'],
                 ];
             }
+
+            if (! empty($options[$currentKey]['to'])) {
+                $options[$currentKey]['toAll'] = [
+                    'source' => $currentKey,
+                    'label' => __('All'),
+                ];
+            }
         }
 
         return $options;
@@ -147,22 +154,54 @@ trait InteractsWithDisplayGridCopying
         $previewGrid = $this->previewGridForCopy();
         $defaultsGrid = $this->defaultsGridForCopy();
 
-        foreach ($targetBucket['sessions'] as $targetSession) {
-            if (($targetSession['locked'] ?? false) === true) {
+        $gridOverrides = $this->applyDisplayBucketCopy(
+            $gridOverrides,
+            $sourceSession,
+            $targetBucket,
+            $previewGrid,
+            $defaultsGrid,
+        );
+
+        $this->persistGridOverridesFromCopy($gridOverrides);
+    }
+
+    public function copyDisplayBucketToAll(string $sourceKey): void
+    {
+        $buckets = $this->copyBuckets;
+        $sourceBucket = $buckets[$sourceKey] ?? null;
+
+        if ($sourceBucket === null || ($sourceBucket['locked'] ?? false) === true) {
+            return;
+        }
+
+        if ($this->displayGridUsesSessionOnlyCopy() && (($sourceBucket['type'] ?? null) !== 'session')) {
+            return;
+        }
+
+        $sourceSession = $sourceBucket['sessions'][0] ?? null;
+
+        if ($sourceSession === null) {
+            return;
+        }
+
+        $gridOverrides = $this->currentGridOverridesForCopy();
+        $previewGrid = $this->previewGridForCopy();
+        $defaultsGrid = $this->defaultsGridForCopy();
+        $targets = $this->copyMenuOptions[$sourceKey]['to'] ?? [];
+
+        foreach ($targets as $option) {
+            $targetBucket = $buckets[$option['target']] ?? null;
+
+            if ($targetBucket === null) {
                 continue;
             }
 
-            $gridOverrides = OverrideManager::copySessionOverrides(
+            $gridOverrides = $this->applyDisplayBucketCopy(
                 $gridOverrides,
+                $sourceSession,
+                $targetBucket,
                 $previewGrid,
                 $defaultsGrid,
-                (int) $sourceSession['week'],
-                (int) $sourceSession['session'],
-                (int) $targetSession['week'],
-                (int) $targetSession['session'],
-                sourceSetCount: $this->resolvedCopySessionSetCount($previewGrid, (int) $sourceSession['week'], (int) $sourceSession['session']),
-                targetSetCount: $this->resolvedCopySessionSetCount($previewGrid, (int) $targetSession['week'], (int) $targetSession['session']),
-                skipSessionFields: ['sets'],
             );
         }
 
@@ -212,6 +251,45 @@ trait InteractsWithDisplayGridCopying
         }
 
         return max(0, $grid->setCount);
+    }
+
+    /**
+     * @param  array{sessions: array, cells: array}  $gridOverrides
+     * @param  array{week: int, session: int, locked?: bool, number?: int}  $sourceSession
+     * @param  array{sessions: array, locked?: bool}  $targetBucket
+     * @return array{sessions: array, cells: array}
+     */
+    protected function applyDisplayBucketCopy(
+        array $gridOverrides,
+        array $sourceSession,
+        array $targetBucket,
+        PreviewGrid $previewGrid,
+        PreviewGrid $defaultsGrid,
+    ): array {
+        if (($targetBucket['locked'] ?? false) === true) {
+            return $gridOverrides;
+        }
+
+        foreach ($targetBucket['sessions'] as $targetSession) {
+            if (($targetSession['locked'] ?? false) === true) {
+                continue;
+            }
+
+            $gridOverrides = OverrideManager::copySessionOverrides(
+                $gridOverrides,
+                $previewGrid,
+                $defaultsGrid,
+                (int) $sourceSession['week'],
+                (int) $sourceSession['session'],
+                (int) $targetSession['week'],
+                (int) $targetSession['session'],
+                sourceSetCount: $this->resolvedCopySessionSetCount($previewGrid, (int) $sourceSession['week'], (int) $sourceSession['session']),
+                targetSetCount: $this->resolvedCopySessionSetCount($previewGrid, (int) $targetSession['week'], (int) $targetSession['session']),
+                skipSessionFields: ['sets'],
+            );
+        }
+
+        return $gridOverrides;
     }
 
     abstract protected function displayGridForCopy(): PreviewGrid;

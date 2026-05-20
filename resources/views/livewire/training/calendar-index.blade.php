@@ -209,6 +209,12 @@
                                 :weekEndsOn="$weekEndsOn"
                             />
                         @endif
+
+                        <livewire:training.calendar-add-program-modal
+                            :key="'calendar-add-program-' . ($group !== '' ? $group : 'none') . '-' . ($user !== '' ? $user : 'group')"
+                            :groupId="(int) $group"
+                            :userId="$user !== '' ? (int) $user : null"
+                        />
                     @endif
                 @elseif ($this->hasOverviewGroups)
                     <flux:heading size="xl">{{ __('Summary') }}</flux:heading>
@@ -264,61 +270,6 @@
                 @endif
         </div>
     </div>
-    <flux:modal name="add-content" variant="flyout" class="max-w-md">
-        <div class="flex flex-col gap-4 p-2">
-            <flux:heading size="lg">{{ __('Add Program') }}</flux:heading>
-
-            <flux:tab.group>
-                <flux:tabs wire:model.live="addContentTab">
-                    <flux:tab name="program">{{ __('Program') }}</flux:tab>
-                    <flux:tab name="exercise">{{ __('Exercise') }}</flux:tab>
-                </flux:tabs>
-
-                <flux:tab.panel name="program" class="!px-0">
-                    <div class="flex flex-col gap-3">
-                        <x-form-kit::form.field :field="\Coda\FormKit\Fields\Search::make('addContentSearch')" />
-                        <div class="flex flex-col gap-1 max-h-80 overflow-y-auto">
-                            @foreach ($this->addContentOptions as $option)
-                                <button type="button" wire:click="addFromProgram({{ $option->id }})"
-                                    class="flex items-center gap-2 px-3 py-2 text-sm text-left rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300">
-                                    @if ($option->exerciseCategory?->color)
-                                        <span class="w-2 h-2 rounded-full shrink-0"
-                                            style="{{ \Coda\Cms\Support\ColorPalette::solid($option->exerciseCategory->color) }}"></span>
-                                    @endif
-                                    {{ $option->name }}
-                                </button>
-                            @endforeach
-                            @if ($this->addContentOptions->isEmpty())
-                                <flux:text class="px-3 py-4 text-center text-zinc-400">{{ __('No programs found.') }}</flux:text>
-                            @endif
-                        </div>
-                    </div>
-                </flux:tab.panel>
-
-                <flux:tab.panel name="exercise" class="!px-0">
-                    <div class="flex flex-col gap-3">
-                        <x-form-kit::form.field :field="\Coda\FormKit\Fields\Search::make('addContentSearch')" />
-                        <div class="flex flex-col gap-1 max-h-80 overflow-y-auto">
-                            @foreach ($this->addContentOptions as $option)
-                                <button type="button" wire:click="addFromExercise({{ $option->id }})"
-                                    class="flex items-center gap-2 px-3 py-2 text-sm text-left rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300">
-                                    @if ($option->category?->rootAncestorOrSelf?->color)
-                                        <span class="w-2 h-2 rounded-full shrink-0"
-                                            style="{{ \Coda\Cms\Support\ColorPalette::solid($option->category->rootAncestorOrSelf->color) }}"></span>
-                                    @endif
-                                    {{ $option->name }}
-                                </button>
-                            @endforeach
-                            @if ($this->addContentOptions->isEmpty())
-                                <flux:text class="px-3 py-4 text-center text-zinc-400">{{ __('No exercises found.') }}</flux:text>
-                            @endif
-                        </div>
-                    </div>
-                </flux:tab.panel>
-            </flux:tab.group>
-        </div>
-    </flux:modal>
-
     <livewire:training.block-form />
 
     <livewire:database.athlete-metric-form-modal

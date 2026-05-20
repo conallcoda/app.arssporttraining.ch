@@ -856,6 +856,65 @@ it('copies session buckets when grouping is none', function () {
     expect(collect($cells)->where('week', 1)->where('session', 0)->first()['data']['reps'] ?? null)->toBe(15);
 });
 
+it('copies a session bucket to all unlocked future sessions when grouping is none', function () {
+    $coach = User::factory()->create();
+    $coach->config->set('settings.session_grouping', [
+        'mode' => 'none',
+        'groupSize' => 1,
+    ]);
+    $coach->saveQuietly();
+
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+        ],
+    ]);
+
+    $program = ExerciseProgram::factory()->create();
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'weeks' => 4,
+        'sessionsPerWeek' => 1,
+        'weekSessionDates' => [
+            ['2026-04-27'],
+            ['2026-05-04'],
+            ['2026-05-11'],
+            ['2026-05-18'],
+        ],
+        'lockedSessionsByWeek' => [
+            [false],
+            [true],
+            [false],
+            [false],
+        ],
+    ]);
+
+    $component->call('updateCellOverride', 0, 0, 'reps', 19, 0, false)
+        ->call('copyDisplayBucketToAll', 'session:0:0');
+
+    $copyMenuOptions = $component->get('copyMenuOptions');
+    $cells = $program->fresh()->config->defaultExerciseOverrides($pivot->id)->gridOverrides['cells'] ?? [];
+
+    expect($copyMenuOptions['session:0:0']['toAll']['label'] ?? null)->toBe('All')
+        ->and(collect($copyMenuOptions['session:0:0']['to'] ?? [])->pluck('target')->all())->toBe(['session:2:0', 'session:3:0'])
+        ->and(collect($cells)->where('week', 1)->where('session', 0)->first())->toBeNull()
+        ->and(collect($cells)->where('week', 2)->where('session', 0)->first()['data']['reps'] ?? null)->toBe(19)
+        ->and(collect($cells)->where('week', 3)->where('session', 0)->first()['data']['reps'] ?? null)->toBe(19);
+});
+
 it('exposes grouped copy buckets in plan mode when groups are collapsed', function () {
     $coach = User::factory()->create();
     $coach->config->set('settings.session_grouping', [
@@ -1010,6 +1069,7 @@ it('renders grouped copy menu actions on collapsed plan groups', function () {
     $html = $component->html();
 
     expect($html)->toContain("copyDisplayBucket('group:0', 'group:1')")
+        ->and($html)->toContain("copyDisplayBucketToAll('group:0')")
         ->and($html)->toContain("resetDisplayBucket('group:0')");
 });
 

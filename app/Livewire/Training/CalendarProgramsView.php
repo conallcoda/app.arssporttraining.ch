@@ -13,9 +13,7 @@ use App\Data\Training\Config\ExerciseOverrides;
 use App\Data\Training\Config\EffectiveExerciseConfig;
 use App\Data\Training\ExerciseProgramData;
 use App\Models\Athlete\MetricSubmission;
-use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
-use App\Models\Exercise\ExerciseProgramTypeEnum;
 use App\Models\Tag;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramBlock;
@@ -53,10 +51,6 @@ class CalendarProgramsView extends Component
     public int $weekStartsOn;
 
     public int $weekEndsOn;
-
-    public string $addContentSearch = '';
-
-    public string $addContentTab = 'program';
 
     public ?int $editingTrainingProgramId = null;
 
@@ -1730,62 +1724,6 @@ class CalendarProgramsView extends Component
         unset($this->programCellSlots, $this->athleteSlotOrder);
 
         $this->dispatch('grid-cells-changed');
-    }
-
-    public function updatedAddContentTab(): void
-    {
-        $this->addContentSearch = '';
-        unset($this->addContentOptions);
-    }
-
-    public function updatedAddContentSearch(): void
-    {
-        unset($this->addContentOptions);
-    }
-
-    #[Computed]
-    public function addContentOptions(): Collection
-    {
-        $search = trim($this->addContentSearch);
-
-        return match ($this->addContentTab) {
-            'program' => ExerciseProgram::query()
-                ->with('exerciseCategory:id,name,color')
-                ->where('type', ExerciseProgramTypeEnum::Program)
-                ->whereNull('parent_id')
-                ->whereNull('parent_type')
-                ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%"))
-                ->orderBy('name')
-                ->limit(20)
-                ->get(['id', 'name', 'exercise_category_id']),
-            'exercise' => Exercise::query()
-                ->with('category.rootAncestorOrSelf')
-                ->when($search !== '', fn ($q) => $q->where('name', 'like', "%{$search}%"))
-                ->orderBy('name')
-                ->limit(20)
-                ->get(['id', 'name', 'category_id']),
-            default => collect(),
-        };
-    }
-
-    public function addFromProgram(int $programId): void
-    {
-        $program = ExerciseProgram::findOrFail($programId);
-
-        TrainingProgram::importProgram($program, $this->groupId);
-
-        unset($this->programs, $this->groupedPrograms);
-        Flux::modal('add-content')->close();
-    }
-
-    public function addFromExercise(int $exerciseId): void
-    {
-        $exercise = Exercise::findOrFail($exerciseId);
-
-        TrainingProgram::importExercise($exercise, $this->groupId, categoryId: $exercise->category_id);
-
-        unset($this->programs, $this->groupedPrograms);
-        Flux::modal('add-content')->close();
     }
 
     public function removeTrainingProgram(int $trainingProgramId): void

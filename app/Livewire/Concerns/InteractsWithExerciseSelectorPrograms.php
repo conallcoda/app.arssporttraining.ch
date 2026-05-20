@@ -6,6 +6,7 @@ use App\Form\Fields\Exercise\Exercises;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramTypeEnum;
+use App\Support\Training\ProgramExerciseOrder;
 use Coda\FormKit\Field;
 use Coda\FormKit\Fields\RelationshipSelector;
 
@@ -31,12 +32,17 @@ trait InteractsWithExerciseSelectorPrograms
                 'exerciseCategory:id,name,short_name,color',
                 'exercises' => fn ($query) => $query->orderByPivot('type')->orderByPivot('sort')->orderByPivot('id'),
             ])
-            ->whereNull('exercise_programs.owner_id')
             ->whereNull('exercise_programs.parent_id')
             ->whereNull('exercise_programs.parent_type')
-            ->where('exercise_programs.type', $this->exerciseSelectorImportProgramType($fieldName)->value)
+            ->whereIn('exercise_programs.type', $this->exerciseSelectorImportProgramTypes($fieldName))
             ->when($this->exerciseSelectorCurrentProgramId($fieldName), fn ($programs, $id) => $programs->where('exercise_programs.id', '!=', $id))
-            ->when($query !== '', fn ($programs) => $programs->where('exercise_programs.name', 'like', '%'.$query.'%'))
+            ->when($query !== '', function ($programs) use ($query) {
+                $programs->where(function ($programs) use ($query): void {
+                    $programs->where('exercise_programs.name', 'like', '%'.$query.'%')
+                        ->orWhereHas('exerciseCategory', fn ($category) => $category->where('name', 'like', '%'.$query.'%'))
+                        ->orWhereHas('internalTags', fn ($tags) => $tags->where('name', 'like', '%'.$query.'%'));
+                });
+            })
             ->orderBy('exercise_programs.name')
             ->offset(max(0, $offset))
             ->limit($fetchLimit)
@@ -119,9 +125,7 @@ trait InteractsWithExerciseSelectorPrograms
         }
 
         if ($field->sortable) {
-            foreach ($items as $index => $item) {
-                $items[$index]['sort'] = $index;
-            }
+            $items = app(ProgramExerciseOrder::class)->normalizeRows($items);
         }
 
         return [
@@ -134,6 +138,14 @@ trait InteractsWithExerciseSelectorPrograms
     protected function exerciseSelectorImportProgramType(string $fieldName): ExerciseProgramTypeEnum
     {
         return ExerciseProgramTypeEnum::Program;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function exerciseSelectorImportProgramTypes(string $fieldName): array
+    {
+        return [$this->exerciseSelectorImportProgramType($fieldName)->value];
     }
 
     protected function exerciseSelectorCurrentProgramId(string $fieldName): ?int
@@ -159,10 +171,13 @@ trait InteractsWithExerciseSelectorPrograms
     {
         $sourceSection = $this->exerciseSelectorSourceSection($sourceProgram, $fieldName);
 
-        return $sourceProgram->exercises
-            ->filter(fn (Exercise $exercise) => ($exercise->pivot->type ?? 'main') === $sourceSection)
-            ->sortBy(fn (Exercise $exercise) => [$exercise->pivot->sort ?? 0, $exercise->pivot->id ?? 0])
-            ->values();
+        return app(ProgramExerciseOrder::class)
+            ->sortProgramExercises(
+                $sourceProgram->exercises
+                    ->filter(fn (Exercise $exercise) => ($exercise->pivot->type ?? 'main') === $sourceSection)
+                    ->values(),
+                includeType: false,
+            );
     }
 
     protected function decorateExerciseSelectorProgramRecord(ExerciseProgram $program, string $fieldName): void
@@ -188,14 +203,14 @@ trait InteractsWithExerciseSelectorPrograms
 
         $exerciseBadges = $sourceRows
             ->take(6)
-            ->map(fn (Exercise $exercise) => ['label' => $exercise->name, 'color' => 'zinc'])
+            ->map(fn (Exercise $exercise) => ['label' => $exercise->name, 'color' => ''])
             ->values()
             ->all();
 
         $remainingCount = $sourceRows->count() - count($exerciseBadges);
 
         if ($remainingCount > 0) {
-            $exerciseBadges[] = ['label' => '+'.$remainingCount.' more', 'color' => 'zinc'];
+            $exerciseBadges[] = ['label' => '+'.$remainingCount.' more', 'color' => ''];
         }
 
         $program->setAttribute('selector_program_exercise_count', $sourceRows->count());

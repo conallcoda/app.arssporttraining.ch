@@ -481,6 +481,53 @@ it('copies visible sessions in scheduled previews when grouping is groups', func
         ->and(collect($cells)->where('week', 3)->where('session', 0)->first()['data']['reps'] ?? null)->toBe(17);
 });
 
+it('copies a visible scheduled group to all other groups', function () {
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+            'preview' => ['weeks' => 6, 'sessionsPerWeek' => 1, 'groupingMode' => 'groups', 'groupSize' => 2],
+            'overrides' => ['sessions' => [], 'cells' => []],
+        ],
+    ]);
+
+    $program = ExerciseProgram::factory()->create();
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::test(CalendarExerciseSettingsForm::class);
+
+    $component->call('openForExercise', [
+        'exerciseId' => $exercise->id,
+        'exerciseProgramId' => $program->id,
+        'weeks' => 6,
+        'sessionsPerWeek' => 1,
+        'weekLabels' => [],
+        'weekSessions' => [1, 1, 1, 1, 1, 1],
+        'scheduled' => true,
+        'config' => $exercise->config->toArray(),
+    ]);
+
+    $component->call('updateCellOverride', 0, 0, 'reps', 20, 0, true)
+        ->call('copyDisplayBucketToAll', 'group:0');
+
+    $copyMenuOptions = $component->get('copyMenuOptions');
+    $cells = $component->get('data')['config']['overrides']['cells'] ?? [];
+
+    expect($copyMenuOptions['group:0']['toAll']['label'] ?? null)->toBe('All')
+        ->and(collect($copyMenuOptions['group:0']['to'] ?? [])->pluck('target')->all())->toBe(['group:1', 'group:2'])
+        ->and(collect($cells)->where('week', 2)->where('session', 0)->first()['data']['reps'] ?? null)->toBe(20)
+        ->and(collect($cells)->where('week', 3)->where('session', 0)->first()['data']['reps'] ?? null)->toBe(20)
+        ->and(collect($cells)->where('week', 4)->where('session', 0)->first()['data']['reps'] ?? null)->toBe(20)
+        ->and(collect($cells)->where('week', 5)->where('session', 0)->first()['data']['reps'] ?? null)->toBe(20);
+});
+
 it('resets only the selected visible scheduled session overrides', function () {
     $exercise = Exercise::factory()->create([
         'config' => [

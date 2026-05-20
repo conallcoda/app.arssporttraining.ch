@@ -142,7 +142,7 @@ it('resets Conall fixture data and creates the representative exercise bundle', 
         ->and($manualHeartRate->config->heartRate?->default)->toBe('140');
 
     $warmUp = Exercise::query()->where('name', 'Strength - Warm-Up Prep')->firstOrFail();
-    $warmDown = Exercise::query()->where('name', 'Recovery - Warm-Down Reset')->firstOrFail();
+    $warmDown = Exercise::query()->where('name', 'Recovery - Cool-Down Reset')->firstOrFail();
 
     expect($warmUp->owner_id)->toBe($coach->id)
         ->and($warmUp->config->duration?->default)->toBe('8')
@@ -177,7 +177,7 @@ it('resets Conall fixture data and creates the representative exercise bundle', 
         ['name' => 'Strength - 1RM 110%', 'type' => 'main', 'group' => 'B'],
         ['name' => 'Strength - Athlete Enters Weight', 'type' => 'main', 'group' => 'B'],
         ['name' => 'Strength - 1RM 100% Template', 'type' => 'main', 'group' => null],
-        ['name' => 'Recovery - Warm-Down Reset', 'type' => 'warm_down', 'group' => null],
+        ['name' => 'Recovery - Cool-Down Reset', 'type' => 'warm_down', 'group' => null],
     ]);
 
     expect($strengthProgram->parent_type)->toBe(TrainingProgram::class)

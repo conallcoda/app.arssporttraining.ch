@@ -56,16 +56,19 @@ class Exercises extends RelationshipSelector
 
                     return [
                         'title' => $exercise->name,
-                        'badges' => array_values(array_filter([
-                            $category ? [
-                                'label' => $category->short_name ?: $category->name,
-                                'color' => $category->color,
-                            ] : null,
-                        ])),
-                        'meta' => $exercise->modifiers
-                            ->map(fn ($tag) => ['label' => $tag->short_name ?: $tag->name, 'color' => 'zinc'])
-                            ->values()
-                            ->all(),
+                        'badges' => array_merge(
+                            array_values(array_filter([
+                                $category ? [
+                                    'label' => $category->short_name ?: $category->name,
+                                    'color' => $category->color,
+                                ] : null,
+                            ])),
+                            $exercise->modifiers
+                                ->map(fn ($tag) => ['label' => $tag->name, 'color' => ''])
+                                ->values()
+                                ->all(),
+                        ),
+                        'meta' => [],
                     ];
                 }),
         ]);
@@ -107,9 +110,10 @@ class Exercises extends RelationshipSelector
                 ])
                 ->when($query !== '', fn ($q) => $q->where(function ($w) use ($query) {
                     $w->where('exercises.name', 'like', "%{$query}%")
-                        ->orWhereHas('category', fn ($c) => $c->where('tags.name', 'like', "%{$query}%"))
-                        ->orWhereHas('equipment', fn ($e) => $e->where('tags.name', 'like', "%{$query}%"))
-                        ->orWhereHas('modifiers', fn ($m) => $m->where('tags.name', 'like', "%{$query}%"));
+                        ->orWhereHas('category', fn ($c) => $c->where('name', 'like', "%{$query}%"))
+                        ->orWhereHas('tags', fn ($tags) => $tags
+                            ->whereIn('tags.scope', ['exercise_equipment', 'exercise_modifiers', 'exercise_internal'])
+                            ->where('tags.name', 'like', "%{$query}%"));
                 }))
                 ->orderBy('name')
                 ->offset(max(0, $offset))

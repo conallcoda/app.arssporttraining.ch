@@ -743,7 +743,7 @@ return [
     [
         'id' => 71,
         'owner_id' => null,
-        'name' => 'Recovery - Warm-Down Reset',
+        'name' => 'Recovery - Cool-Down Reset',
         'category_id' => 42,
         'external_id' => null,
         'template_id' => null,

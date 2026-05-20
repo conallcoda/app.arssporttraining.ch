@@ -13,13 +13,14 @@ use App\Models\Exercise\ExerciseProgramTypeEnum;
 use App\Models\Users\User;
 use App\Training\ExerciseProgramSectionMutationService;
 use App\Support\Training\AthletePreviewSlotService;
+use App\Support\Training\ProgramExerciseOrder;
 use App\Training\ExerciseGroupLabeler;
 use App\Training\TrainingSessionRebuildDispatcher;
 use Coda\Cms\Livewire\Concerns\InteractsWithFormData;
 use Coda\FormKit\Form;
 use Flux\Flux;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -253,9 +254,13 @@ class ProgramEditor extends Component
 
     protected function serializeSectionExercises(string $type): array
     {
-        return $this->exerciseProgram->exercises
-            ->filter(fn (Exercise $exercise) => ($exercise->pivot->type ?? 'main') === $type)
-            ->sortBy(fn (Exercise $exercise) => [$exercise->pivot->sort ?? 0, $exercise->pivot->id ?? 0])
+        $rows = app(ProgramExerciseOrder::class)
+            ->sortProgramExercises(
+                $this->exerciseProgram->exercises
+                    ->filter(fn (Exercise $exercise) => ($exercise->pivot->type ?? 'main') === $type)
+                    ->values(),
+                includeType: false,
+            )
             ->values()
             ->map(fn (Exercise $exercise) => [
                 'id' => $exercise->id,
@@ -265,6 +270,8 @@ class ProgramEditor extends Component
                 'group' => $exercise->pivot->group,
             ])
             ->all();
+
+        return app(ProgramExerciseOrder::class)->normalizeRows($rows);
     }
 
     protected function syncSectionFormData(): void
@@ -301,10 +308,13 @@ class ProgramEditor extends Component
     #[Computed]
     public function exercises(): Collection
     {
-        return $this->exerciseProgram->exercises
-            ->filter(fn (Exercise $exercise) => ($exercise->pivot->type ?? 'main') === $this->activeSection)
-            ->sortBy(fn (Exercise $exercise) => [$exercise->pivot->sort ?? 0, $exercise->pivot->id ?? 0])
-            ->values();
+        return app(ProgramExerciseOrder::class)
+            ->sortProgramExercises(
+                $this->exerciseProgram->exercises
+                    ->filter(fn (Exercise $exercise) => ($exercise->pivot->type ?? 'main') === $this->activeSection)
+                    ->values(),
+                includeType: false,
+            );
     }
 
     #[Computed]
@@ -426,15 +436,8 @@ class ProgramEditor extends Component
         }
 
         unset($this->data[$fieldName][$index]);
-        $this->data[$fieldName] = array_values($this->data[$fieldName]);
+        $this->data[$fieldName] = app(ProgramExerciseOrder::class)->normalizeRows(array_values($this->data[$fieldName]));
         unset($this->relationshipSearch[$fieldName]);
-
-        $field = collect($this->getAllFields())->firstWhere('name', $fieldName);
-        if ($field?->sortable) {
-            foreach ($this->data[$fieldName] as $i => $item) {
-                $this->data[$fieldName][$i]['sort'] = $i;
-            }
-        }
 
         if ($fieldName === 'section_exercises') {
             $this->data[$this->sectionFieldName($this->activeSection)] = $this->data[$fieldName];
@@ -448,25 +451,10 @@ class ProgramEditor extends Component
             return;
         }
 
-        $newIndex = $index + $direction;
-        if ($newIndex < 0 || $newIndex >= count($this->data[$fieldName])) {
-            return;
-        }
-
-        $items = $this->data[$fieldName];
-        [$items[$index], $items[$newIndex]] = [$items[$newIndex], $items[$index]];
-
-        $field = collect($this->getAllFields())->firstWhere('name', $fieldName);
-        if ($field?->sortable) {
-            foreach ($items as $i => $item) {
-                $items[$i]['sort'] = $i;
-            }
-        }
-
-        $this->data[$fieldName] = $items;
+        $this->data[$fieldName] = app(ProgramExerciseOrder::class)->moveRow($this->data[$fieldName], $index, $direction);
 
         if ($fieldName === 'section_exercises') {
-            $this->data[$this->sectionFieldName($this->activeSection)] = $items;
+            $this->data[$this->sectionFieldName($this->activeSection)] = $this->data[$fieldName];
             $this->saveSectionExercises();
         }
     }
@@ -491,6 +479,7 @@ class ProgramEditor extends Component
             return;
         }
 
+        $this->data[$fieldName] = app(ProgramExerciseOrder::class)->normalizeRows($this->data[$fieldName] ?? []);
         $this->data[$this->sectionFieldName($this->activeSection)] = $this->data[$fieldName] ?? [];
         $this->saveSectionExercises();
         unset($this->fieldsets, $this->exercises, $this->exerciseGroupLabels);
@@ -504,6 +493,7 @@ class ProgramEditor extends Component
             return;
         }
 
+        $this->data[$fieldName] = app(ProgramExerciseOrder::class)->normalizeRows($this->data[$fieldName] ?? []);
         $this->data[$this->sectionFieldName($this->activeSection)] = $this->data[$fieldName] ?? [];
         $this->saveSectionExercises();
         unset($this->fieldsets, $this->exercises, $this->exerciseGroupLabels);
@@ -517,6 +507,7 @@ class ProgramEditor extends Component
             return;
         }
 
+        $this->data[$fieldName] = app(ProgramExerciseOrder::class)->normalizeRows($this->data[$fieldName] ?? []);
         $this->data[$this->sectionFieldName($this->activeSection)] = $this->data[$fieldName] ?? [];
         $this->saveSectionExercises();
     }
@@ -535,21 +526,13 @@ class ProgramEditor extends Component
 
         $moved = array_splice($items, $sourceIndex, 1);
         array_splice($items, $targetIndex, 0, $moved);
-
-        $field = collect($this->getAllFields())->firstWhere('name', $fieldName);
-        if ($field?->sortable) {
-            foreach ($items as $i => $item) {
-                $items[$i]['sort'] = $i;
-            }
-        }
-
-        $this->data[$fieldName] = $items;
+        $this->data[$fieldName] = app(ProgramExerciseOrder::class)->normalizeRows($items);
 
         if ($fieldName !== 'section_exercises') {
             return;
         }
 
-        $this->data[$this->sectionFieldName($this->activeSection)] = $items;
+        $this->data[$this->sectionFieldName($this->activeSection)] = $this->data[$fieldName];
         $this->saveSectionExercises();
     }
 
@@ -575,20 +558,25 @@ class ProgramEditor extends Component
             ->findOrFail($this->importProgramId);
 
         $sourceSection = $this->importSourceSection($sourceProgram);
-        $sourceRows = $sourceProgram->exercises
-            ->filter(fn (Exercise $exercise) => ($exercise->pivot->type ?? 'main') === $sourceSection)
-            ->sortBy(fn (Exercise $exercise) => [$exercise->pivot->sort ?? 0, $exercise->pivot->id ?? 0])
+        $sourceRows = app(ProgramExerciseOrder::class)
+            ->sortProgramExercises(
+                $sourceProgram->exercises
+                    ->filter(fn (Exercise $exercise) => ($exercise->pivot->type ?? 'main') === $sourceSection)
+                    ->values(),
+                includeType: false,
+            )
             ->values()
-            ->map(fn (Exercise $exercise, int $index): array => [
+            ->map(fn (Exercise $exercise): array => [
                 'id' => $exercise->id,
                 '_key' => uniqid('item_', true),
-                'sort' => $index,
+                'sort' => $exercise->pivot->sort ?? 0,
                 'group' => $exercise->pivot->group,
                 'source_program_id' => $sourceProgram->id,
                 'source_program_exercise_id' => (int) ($exercise->pivot->id ?? 0),
             ])
             ->all();
 
+        $sourceRows = app(ProgramExerciseOrder::class)->normalizeRows($sourceRows);
         $this->data['section_exercises'] = $sourceRows;
         $this->data[$this->sectionFieldName($this->activeSection)] = $sourceRows;
         $result = $this->saveSectionExercises();
@@ -768,7 +756,7 @@ class ProgramEditor extends Component
 
         if (($normalization['preservedImmutableCount'] ?? 0) > 0) {
             Flux::toast(
-                text: __('Some historical exercises were kept because past sessions can no longer be changed.'),
+                text: __('Some historical exercises were kept because recorded past sessions can no longer be changed.'),
                 variant: 'warning',
             );
         }
@@ -810,7 +798,7 @@ class ProgramEditor extends Component
     {
         return match ($section) {
             'warm_up' => __('Warm Up'),
-            'warm_down' => __('Warm Down'),
+            'warm_down' => __('Cool Down'),
             default => __('Main'),
         };
     }
@@ -844,6 +832,22 @@ class ProgramEditor extends Component
         return $fieldName === 'section_exercises'
             ? $this->importProgramType()
             : ExerciseProgramTypeEnum::Program;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function exerciseSelectorImportProgramTypes(string $fieldName): array
+    {
+        if ($fieldName !== 'section_exercises') {
+            return parent::exerciseSelectorImportProgramTypes($fieldName);
+        }
+
+        return [
+            ExerciseProgramTypeEnum::Program->value,
+            ExerciseProgramTypeEnum::WarmUp->value,
+            ExerciseProgramTypeEnum::WarmDown->value,
+        ];
     }
 
     protected function exerciseSelectorCurrentProgramId(string $fieldName): ?int

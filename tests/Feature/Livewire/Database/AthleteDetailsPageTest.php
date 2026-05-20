@@ -6,6 +6,7 @@ use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
 use App\Data\Athlete\Metric\Metrics\ReadinessMetric;
 use App\Data\Athlete\Metric\MetricSubmissionData;
 use App\Models\Users\User;
+use App\Support\AthleteMetrics\OneRepMaxExamplePreviewBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -112,12 +113,26 @@ it('renders the one rep max tab with a five week strength preview', function () 
         ->get(route('athlete-details', ['record' => $athlete->id, 'tab' => 'one_rep_max']))
         ->assertOk()
         ->assertSee('Preview')
+        ->assertSee('Goal')
         ->assertSee('Recorded')
         ->assertSee('Current 1RM')
         ->assertSee('Measured Set')
         ->assertSee('Session')
         ->assertDontSee('Tempo')
         ->assertDontSee('Rest (s)');
+});
+
+it('applies the selected preview goal when building the 1rm example grid', function () {
+    $grid = app(OneRepMaxExamplePreviewBuilder::class)->build(
+        new OneRepMaxMetric(
+            measuredReps: 1,
+            measuredWeight: 50,
+        ),
+        targetGoal: 20,
+    );
+
+    expect($grid)->not->toBeNull()
+        ->and($grid?->summary['targetGoal'])->toBe(20);
 });
 
 function storeAthleteMetric(

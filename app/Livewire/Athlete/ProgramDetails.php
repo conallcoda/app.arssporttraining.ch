@@ -10,6 +10,7 @@ use App\Models\Training\TrainingProgramSlotExercise;
 use App\Models\Training\TrainingProgramSlotSetStatusEnum;
 use App\Support\Athlete\ProgramDetailsExerciseViewBuilder;
 use App\Support\AthleteDashboardDate;
+use App\Support\Training\ProgramExerciseOrder;
 use App\Support\Training\ScheduledSessionSnapshotBuilder;
 use App\Training\AthleteExerciseValueService;
 use App\Training\ExerciseGroupLabeler;
@@ -35,7 +36,7 @@ class ProgramDetails extends Component
     private const SECTION_LABELS = [
         'warm_up' => 'Warm Up',
         'main' => 'Program',
-        'warm_down' => 'Warm Down',
+        'warm_down' => 'Cool Down',
     ];
 
     private const SETTING_PRIORITY = [
@@ -196,10 +197,13 @@ class ProgramDetails extends Component
     {
         $snapshot = app(ScheduledSessionSnapshotBuilder::class)->build($this->currentSlot);
 
-        $sorted = collect($snapshot->exercises)
-            ->where('type', $this->activeSection)
-            ->sortBy('sort')
-            ->values();
+        $sorted = app(ProgramExerciseOrder::class)
+            ->sortSlotExercises(
+                collect($snapshot->exercises)
+                    ->where('type', $this->activeSection)
+                    ->values(),
+                includeType: false,
+            );
 
         $materializedGroupLabels = ExerciseGroupLabeler::label(
             $sorted,
@@ -207,12 +211,14 @@ class ProgramDetails extends Component
             fn ($exercise): int => $exercise->slotExerciseId,
         );
 
-        $sourceExercises = $this->trainingProgram->program->exercises()
-            ->wherePivot('type', $this->activeSection)
-            ->orderByPivot('sort')
-            ->orderByPivot('id')
-            ->get()
-            ->values();
+        $sourceExercises = app(ProgramExerciseOrder::class)
+            ->sortProgramExercises(
+                $this->trainingProgram->program->exercises()
+                    ->wherePivot('type', $this->activeSection)
+                    ->get()
+                    ->values(),
+                includeType: false,
+            );
 
         $sourceGroupLabelsByIndex = ExerciseGroupLabeler::label(
             $sourceExercises,
@@ -289,7 +295,7 @@ class ProgramDetails extends Component
     public function progressSegments(): array
     {
         return $this->currentSlot->exercises
-            ->sortBy('sort')
+            ->pipe(fn ($exercises) => app(ProgramExerciseOrder::class)->sortSlotExercises($exercises))
             ->values()
             ->map(fn (TrainingProgramSlotExercise $exercise) => [
                 'submitted' => $exercise->status->isSubmitted(),

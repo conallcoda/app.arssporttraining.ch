@@ -6,6 +6,8 @@ use App\Data\Training\Config\ExerciseOverrides;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
+use App\Models\Tag;
+use App\Models\Users\User;
 use App\Training\TrainingSessionRebuildDispatcher;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -210,6 +212,62 @@ it('hydrates persisted section exercise groups into the selector client state an
         ->and($state['selectedItems'][0]['item']['group'])->toBe('B');
 });
 
+it('orders section exercises by group before sort order', function () {
+    $exerciseA2 = Exercise::factory()->create();
+    $exerciseB1 = Exercise::factory()->create();
+    $exerciseA1 = Exercise::factory()->create();
+    $exerciseUngrouped = Exercise::factory()->create();
+    $program = ExerciseProgram::factory()->create();
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exerciseA2->id,
+        'sort' => 1,
+        'group' => 'A',
+        'type' => 'main',
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exerciseB1->id,
+        'sort' => 0,
+        'group' => 'B',
+        'type' => 'main',
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exerciseA1->id,
+        'sort' => 0,
+        'group' => 'A',
+        'type' => 'main',
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exerciseUngrouped->id,
+        'sort' => 0,
+        'group' => null,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::test(ProgramEditor::class, [
+        'exerciseProgram' => $program,
+        'planId' => $program->id,
+    ]);
+
+    expect(collect($component->get('data.section_exercises'))->map(fn (array $row) => [
+        'id' => $row['id'],
+        'group' => $row['group'],
+        'sort' => $row['sort'],
+    ])->all())->toBe([
+        ['id' => $exerciseUngrouped->id, 'group' => null, 'sort' => 0],
+        ['id' => $exerciseA1->id, 'group' => 'A', 'sort' => 0],
+        ['id' => $exerciseA2->id, 'group' => 'A', 'sort' => 1],
+        ['id' => $exerciseB1->id, 'group' => 'B', 'sort' => 0],
+    ]);
+});
+
 it('defaults the selector client state to the first list tab when no exercises are selected', function () {
     $program = ExerciseProgram::factory()->create();
 
@@ -252,6 +310,39 @@ it('switches to the selected tab after importing exercises from a program in the
         ->and($response['selectedItems'] ?? [])->toHaveCount(1);
 });
 
+it('does not move exercises across group boundaries in the program editor', function () {
+    $exerciseA = Exercise::factory()->create();
+    $exerciseB = Exercise::factory()->create();
+    $program = ExerciseProgram::factory()->create();
+
+    $pivotA = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exerciseA->id,
+        'sort' => 0,
+        'group' => 'A',
+        'type' => 'main',
+    ]);
+
+    $pivotB = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exerciseB->id,
+        'sort' => 0,
+        'group' => 'B',
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::test(ProgramEditor::class, [
+        'exerciseProgram' => $program,
+        'planId' => $program->id,
+    ]);
+
+    $component->call('moveRelationshipItem', 'section_exercises', 1, -1);
+
+    expect(collect($component->get('data.section_exercises'))->pluck('id')->all())->toBe([$exerciseA->id, $exerciseB->id])
+        ->and(ExerciseProgramExercise::query()->findOrFail($pivotA->id)->sort)->toBe(0)
+        ->and(ExerciseProgramExercise::query()->findOrFail($pivotB->id)->sort)->toBe(0);
+});
+
 it('marks empty source programs so the selector can hide their import button', function () {
     $targetProgram = ExerciseProgram::factory()->create();
     $emptyProgram = ExerciseProgram::factory()->create();
@@ -266,6 +357,167 @@ it('marks empty source programs so the selector can hide their import button', f
 
     expect($emptyRecord)->not->toBeNull()
         ->and(data_get($emptyRecord, 'selector_program_has_exercises'))->toBeFalse();
+});
+
+it('searches selector programs by name, category, and internal tags', function () {
+    $targetProgram = ExerciseProgram::factory()->create();
+
+    $ski = Tag::factory()->create([
+        'scope' => 'exercise_category',
+        'name' => 'Ski',
+        'short_name' => 'SKI',
+        'color' => 'blue',
+    ]);
+
+    $internalTag = Tag::factory()->create([
+        'scope' => 'program_internal',
+        'name' => 'Travel Block',
+    ]);
+
+    $matchingProgram = ExerciseProgram::factory()->create([
+        'name' => 'Giant Slalom',
+        'exercise_category_id' => $ski->id,
+        'type' => 'program',
+    ]);
+
+    $matchingProgram->internalTags()->sync([$internalTag->id]);
+
+    $otherProgram = ExerciseProgram::factory()->create([
+        'name' => 'Back Squat Builder',
+        'type' => 'program',
+    ]);
+
+    $component = Livewire::test(ProgramEditor::class, [
+        'exerciseProgram' => $targetProgram,
+        'planId' => $targetProgram->id,
+    ]);
+
+    $namePage = $component->instance()->loadExerciseSelectorPrograms('section_exercises', 'programs', 'Slalom');
+    $categoryPage = $component->instance()->loadExerciseSelectorPrograms('section_exercises', 'programs', 'Ski');
+    $tagPage = $component->instance()->loadExerciseSelectorPrograms('section_exercises', 'programs', 'Travel Block');
+
+    expect(collect($namePage['records'] ?? [])->pluck('key')->all())->toContain($matchingProgram->id)
+        ->and(collect($categoryPage['records'] ?? [])->pluck('key')->all())->toContain($matchingProgram->id)
+        ->and(collect($tagPage['records'] ?? [])->pluck('key')->all())->toContain($matchingProgram->id)
+        ->and(collect($namePage['records'] ?? [])->pluck('key')->all())->not->toContain($otherProgram->id);
+});
+
+it('shows warm-up, main, and cool-down source programs in the selector', function () {
+    $targetProgram = ExerciseProgram::factory()->create([
+        'type' => 'program',
+    ]);
+
+    $warmUpProgram = ExerciseProgram::factory()->create([
+        'name' => 'Mobility Lower Body',
+        'type' => 'warm_up',
+    ]);
+
+    $mainProgram = ExerciseProgram::factory()->create([
+        'name' => 'Strength Builder',
+        'type' => 'program',
+    ]);
+
+    $coolDownProgram = ExerciseProgram::factory()->create([
+        'name' => 'Recovery Reset',
+        'type' => 'warm_down',
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $warmUpProgram->id,
+        'exercise_id' => Exercise::factory()->create()->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $mainProgram->id,
+        'exercise_id' => Exercise::factory()->create()->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $coolDownProgram->id,
+        'exercise_id' => Exercise::factory()->create()->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::test(ProgramEditor::class, [
+        'exerciseProgram' => $targetProgram,
+        'planId' => $targetProgram->id,
+    ]);
+
+    $mobilityPage = $component->instance()->loadExerciseSelectorPrograms('section_exercises', 'programs', 'Mobility');
+    $fullPage = $component->instance()->loadExerciseSelectorPrograms('section_exercises', 'programs');
+
+    expect(collect($mobilityPage['records'] ?? [])->pluck('key')->all())->toContain($warmUpProgram->id)
+        ->and(collect($fullPage['records'] ?? [])->pluck('key')->all())->toContain($warmUpProgram->id, $mainProgram->id, $coolDownProgram->id);
+});
+
+it('shows coach-owned programs in the selector', function () {
+    $targetProgram = ExerciseProgram::factory()->create([
+        'type' => 'program',
+    ]);
+    $owner = User::factory()->create();
+
+    $ownedProgram = ExerciseProgram::factory()->create([
+        'name' => 'Mobility Lower Body',
+        'type' => 'warm_up',
+        'owner_id' => $owner->id,
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $ownedProgram->id,
+        'exercise_id' => Exercise::factory()->create()->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::test(ProgramEditor::class, [
+        'exerciseProgram' => $targetProgram,
+        'planId' => $targetProgram->id,
+    ]);
+
+    $page = $component->instance()->loadExerciseSelectorPrograms('section_exercises', 'programs', 'Mobility');
+
+    expect(collect($page['records'] ?? [])->pluck('key')->all())->toContain($ownedProgram->id);
+});
+
+it('serializes program-tab exercise names as badges in the selector', function () {
+    $targetProgram = ExerciseProgram::factory()->create();
+    $sourceProgram = ExerciseProgram::factory()->create([
+        'name' => 'Giant Slalom',
+        'type' => 'program',
+    ]);
+
+    $exerciseA = Exercise::factory()->create(['name' => 'Skiboots']);
+    $exerciseB = Exercise::factory()->create(['name' => 'Hand on hip']);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $sourceProgram->id,
+        'exercise_id' => $exerciseA->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $sourceProgram->id,
+        'exercise_id' => $exerciseB->id,
+        'sort' => 1,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::test(ProgramEditor::class, [
+        'exerciseProgram' => $targetProgram,
+        'planId' => $targetProgram->id,
+    ]);
+
+    $page = $component->instance()->loadExerciseSelectorPrograms('section_exercises', 'programs');
+    $record = collect($page['records'] ?? [])->firstWhere('key', $sourceProgram->id);
+    $badges = data_get($record, 'views.programs.columns.0.badges', []);
+
+    expect(collect($badges)->pluck('label')->all())->toContain('Skiboots', 'Hand on hip');
 });
 
 it('does not render the legacy import controls in the program editor', function () {
@@ -417,7 +669,7 @@ it('shows the same warning toast when a direct removal is blocked by immutable h
     ])
         ->call('removeRelationshipSelectorItem', 'section_exercises', 0)
         ->assertDispatched('toast-show', function ($event, $params) {
-            return ($params['slots']['text'] ?? null) === 'Some historical exercises were kept because past sessions can no longer be changed.'
+            return ($params['slots']['text'] ?? null) === 'Some historical exercises were kept because recorded past sessions can no longer be changed.'
                 && ($params['dataset']['variant'] ?? null) === 'warning';
         });
 

@@ -11,6 +11,7 @@
     $oneRepMaxSnapshot = $this->oneRepMaxSnapshot;
     $oneRepMaxPreviewGrid = $this->oneRepMaxPreviewGrid;
     $oneRepMaxMetric = $oneRepMaxSnapshot['instance'] ?? null;
+    $oneRepMaxPreviewGoalField = $this->oneRepMaxPreviewGoalField;
 @endphp
 
 <div class="space-y-6">
@@ -207,6 +208,14 @@
                 <div>
                     <x-cms::section title="Preview">
                         @if ($oneRepMaxPreviewGrid && $oneRepMaxMetric instanceof \App\Data\Athlete\Metric\Metrics\OneRepMaxMetric)
+                            <div class="mb-4 max-w-xs">
+                                <x-form-kit::form.field
+                                    wire:key="field-one-rep-max-preview-target-goal"
+                                    :field="$oneRepMaxPreviewGoalField"
+                                    prefix="oneRepMaxPreview"
+                                />
+                            </div>
+
                             <div class="grid gap-3 sm:grid-cols-3">
                                 <div class="rounded-lg border border-zinc-700 bg-zinc-800/60 px-3 py-2">
                                     <div class="text-xs font-medium uppercase tracking-wide text-zinc-400">Recorded</div>
