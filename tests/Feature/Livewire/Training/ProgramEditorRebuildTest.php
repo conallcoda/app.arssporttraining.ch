@@ -82,6 +82,50 @@ it('persists drag-and-drop reordering for section exercises', function () {
     expect(ExerciseProgramExercise::query()->findOrFail($secondPivot->id)->sort)->toBe(0);
 });
 
+it('refreshes cached selector previews after section exercise edits', function () {
+    $originalExercise = Exercise::factory()->create(['name' => 'Original']);
+    $replacementExercise = Exercise::factory()->create(['name' => 'Replacement']);
+    $newExercise = Exercise::factory()->create(['name' => 'Added']);
+    $program = ExerciseProgram::factory()->create();
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $originalExercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $mock = Mockery::mock(TrainingSessionRebuildDispatcher::class);
+    $mock->shouldReceive('dispatchFutureSlotsForExerciseProgramChange')
+        ->once()
+        ->with($program->id);
+    app()->instance(TrainingSessionRebuildDispatcher::class, $mock);
+
+    Livewire::test(ProgramEditor::class, [
+        'exerciseProgram' => $program,
+        'planId' => $program->id,
+    ])->call('applyRelationshipSelectorClientState', 'section_exercises', [
+        [
+            'id' => $replacementExercise->id,
+            'program_exercise_id' => $pivot->id,
+            '_key' => 'item_existing',
+            'sort' => 0,
+            'group' => null,
+        ],
+        [
+            'id' => $newExercise->id,
+            '_key' => 'item_new',
+            'sort' => 0,
+            'group' => 'A',
+        ],
+    ]);
+
+    expect($program->fresh()->selector_preview_exercises)->toBe([
+        'Replacement',
+        'Added',
+    ])->and($program->fresh()->selector_preview_exercise_count)->toBe(2);
+});
+
 it('dispatches a single shared rebuild when importing a section', function () {
     $targetExercise = Exercise::factory()->create();
     $sourceExerciseOne = Exercise::factory()->create();

@@ -1,0 +1,5 @@
+php84 artisan optimize:clear
+php84 artisan config:cache
+php84 artisan route:cache
+php84 artisan view:cache
+php84 artisan event:cache

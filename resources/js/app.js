@@ -9,5 +9,6 @@ import './alpine/calendar-slot-popover';
 import './alpine/metric-cell-popover';
 import './alpine/editable-cell';
 import './alpine/org_chart_parse';
+import './alpine/relationship-selector-modal';
 
 globalThis.Treeselect = Treeselect;

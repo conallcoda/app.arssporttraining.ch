@@ -10,6 +10,7 @@ use App\Models\Training\TrainingProgramSlotExercise;
 use App\Models\Training\TrainingProgramSlotSetStatusEnum;
 use App\Support\Athlete\ProgramDetailsExerciseViewBuilder;
 use App\Support\AthleteDashboardDate;
+use App\Support\Training\EffectiveSlotExerciseConfigResolver;
 use App\Support\Training\ProgramExerciseOrder;
 use App\Support\Training\ScheduledSessionSnapshotBuilder;
 use App\Training\AthleteExerciseValueService;
@@ -78,6 +79,8 @@ class ProgramDetails extends Component
     public ?int $initialExerciseId = null;
 
     public ?int $initialExerciseSort = null;
+
+    protected array $effectiveExerciseConfigs = [];
 
     public function mount(
         string $date,
@@ -718,18 +721,31 @@ class ProgramDetails extends Component
 
     protected function editSetLabel(int $setNumber): string
     {
-        $baseLabel = $this->editingExercise?->exercise?->config?->sets->label ?? 'Set';
+        $baseLabel = (string) ($this->editingExercise instanceof TrainingProgramSlotExercise
+            ? ($this->resolveExerciseConfig($this->editingExercise)['sets']['label'] ?? 'Set')
+            : 'Set');
 
         return trim($baseLabel).' '.$setNumber;
     }
 
     protected function resolveSettingConfig(TrainingProgramSlotExercise $exercise, string $settingKey): array
     {
-        $config = $exercise->exercise?->config?->{$settingKey} ?? null;
+        $config = $this->resolveExerciseConfig($exercise)[$settingKey] ?? null;
 
-        return is_object($config) && method_exists($config, 'toArray')
-            ? $config->toArray()
-            : [];
+        if (is_array($config)) {
+            return $config;
+        }
+
+        return is_object($config) && method_exists($config, 'toArray') ? $config->toArray() : [];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function resolveExerciseConfig(TrainingProgramSlotExercise $exercise): array
+    {
+        return $this->effectiveExerciseConfigs[$exercise->id]
+            ??= app(EffectiveSlotExerciseConfigResolver::class)->resolve($exercise);
     }
 
     protected function extractResolvedValue($value): mixed
@@ -777,12 +793,15 @@ class ProgramDetails extends Component
         $this->activeEditSet = '';
         $this->editValues = [];
         $this->editSkippedSets = [];
+        $this->effectiveExerciseConfigs = [];
 
         unset($this->editingExercise, $this->editSetTabs, $this->editSetPanels);
     }
 
     protected function refreshSessionState(): void
     {
+        $this->effectiveExerciseConfigs = [];
+
         unset($this->currentSlot, $this->programExercises, $this->progressSegments, $this->sectionTabs, $this->showsSectionTabs, $this->editingExercise, $this->editSetTabs, $this->editSetPanels);
     }
 

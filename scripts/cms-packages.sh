@@ -3,7 +3,7 @@
 set -euo pipefail
 
 DEFAULT_SHARED_ROOT="/Users/conalloreilly/Development/coda-packages"
-PACKAGE_NAMES=(${CMS_PACKAGES:-cms form-kit})
+PACKAGE_NAMES=(${CMS_PACKAGES:-cms form-kit expression-kit schema-kit})
 PACKAGE_NAMESPACE="${CMS_PACKAGE_NAMESPACE:-coda}"
 SHARED_ROOT="${SHARED_ROOT:-$DEFAULT_SHARED_ROOT}"
 COMMIT_MESSAGE="${CMS_SNAPSHOT_COMMIT_MESSAGE:-Update packaged CMS snapshot}"

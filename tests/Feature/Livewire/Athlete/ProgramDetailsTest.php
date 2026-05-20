@@ -1166,6 +1166,76 @@ it('renders the same athlete exercise view data from slot models and scheduled s
     CarbonImmutable::setTestNow();
 });
 
+it('uses the effective scheduled exercise config for athlete editor fields and snapshots', function () {
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Bike Session']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $exercise = Exercise::factory()->create([
+        'name' => 'Bike Recovery',
+        'config' => [
+            'settings' => ['duration'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'duration' => ['unit' => 'seconds', 'default' => 60, 'applyPer' => 'session'],
+        ],
+    ]);
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $config = $program->config;
+    $overrides = $config->defaultExerciseOverrides($pivot->id);
+    $overrides->sets = \App\Data\Exercise\Settings\SetsSetting::from([
+        'default' => 1,
+        'label' => 'Round',
+        'deload' => 'none',
+    ]);
+    $overrides->duration = \App\Data\Exercise\Settings\DurationSetting::from([
+        'unit' => 'minutes',
+        'default' => 15,
+        'applyPer' => 'session',
+    ]);
+    $config->setDefaultExerciseOverrides($pivot->id, $overrides);
+    $program->config = $config;
+    $program->save();
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-04-03 09:00:00'),
+    ])->fresh('trainingProgram.program.exercises', 'exercises.exercise', 'exercises.sets.values');
+
+    $slotExercise = $slot->exercises->first();
+
+    $component = Livewire::actingAs($athlete)
+        ->test(ProgramDetails::class, [
+            'date' => '2030-04-03',
+            'trainingProgram' => $trainingProgram,
+        ])
+        ->call('openExerciseEditor', $slotExercise->id);
+
+    $instance = $component->instance();
+    $durationField = collect($instance->editSetPanels[0]['fields'])->firstWhere('name', 'duration');
+    $snapshot = app(ScheduledSessionSnapshotBuilder::class)->build($slot->fresh());
+    $snapshotExercise = collect($snapshot->exercises)->firstWhere('slotExerciseId', $slotExercise->id);
+
+    expect($durationField)->not->toBeNull()
+        ->and($durationField->resolveUnit())->toBe('minutes')
+        ->and($durationField->resolveSuffix())->toBe('m')
+        ->and($instance->editSetTabs[0]['label'])->toBe('Round 1')
+        ->and($snapshotExercise)->not->toBeNull()
+        ->and($snapshotExercise->setLabel)->toBe('Round')
+        ->and($snapshotExercise->settingConfigs['duration']['unit'] ?? null)->toBe('minutes');
+});
+
 it('allows recording future program exercises when can_edit_all is enabled', function () {
     CarbonImmutable::setTestNow('2030-04-03 12:00:00');
     config()->set('athlete.dashboard_today_override', '03.04.2030');

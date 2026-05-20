@@ -175,14 +175,14 @@ document.addEventListener('alpine:init', () => {
 
                 const defaultLoaderKey = this.defaultLoaderListKey();
 
-                if (defaultLoaderKey && payload?.results) {
+                if (defaultLoaderKey && payload?.results && this.activeListKey === defaultLoaderKey) {
                     this.setListPage(defaultLoaderKey, payload.results, true, '');
                 }
 
-                await this.ensureActiveListLoaded();
                 Flux.modal(this.modalName).show();
                 await this.$nextTick();
                 this.syncActiveTabSelection();
+                void this.ensureActiveListLoaded();
             } finally {
                 this.loading = false;
             }

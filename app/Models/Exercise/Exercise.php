@@ -4,6 +4,7 @@ namespace App\Models\Exercise;
 
 use App\Data\Exercise\ExerciseConfig;
 use App\Models\Tag;
+use App\Observers\ExerciseObserver;
 use Coda\Cms\Models\Concerns\HasOwner;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;
 use Coda\Cms\Models\Concerns\HasTags;
@@ -96,5 +97,10 @@ class Exercise extends Model implements HasCollectionPaths, HasMedia, Taggable
     public function internalTags(): MorphToMany
     {
         return $this->tagsWithScope('exercise_internal');
+    }
+
+    protected static function booted(): void
+    {
+        static::observe(ExerciseObserver::class);
     }
 }

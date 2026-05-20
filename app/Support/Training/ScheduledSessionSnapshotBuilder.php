@@ -15,6 +15,7 @@ class ScheduledSessionSnapshotBuilder
 {
     public function __construct(
         private readonly ProgramExerciseOrder $programExerciseOrder,
+        private readonly EffectiveSlotExerciseConfigResolver $effectiveConfigResolver,
     ) {}
 
     public function build(TrainingProgramSlot $slot): ScheduledSessionSnapshotData
@@ -47,6 +48,7 @@ class ScheduledSessionSnapshotBuilder
         ]);
 
         $exercise = $slotExercise->exercise;
+        $effectiveConfig = $this->effectiveConfigResolver->resolve($slotExercise);
 
         return new ScheduledExerciseSnapshotData(
             slotExerciseId: (int) $slotExercise->id,
@@ -60,8 +62,8 @@ class ScheduledSessionSnapshotBuilder
             instructions: $exercise?->instructions,
             videoUrl: $exercise?->video_url,
             photoUrls: $exercise?->getMedia('photos')->map(fn ($media) => $media->getUrl())->values()->all() ?? [],
-            setLabel: $exercise?->config->sets->label ?? 'Set',
-            settingConfigs: $this->extractSettingConfigs($exercise?->config),
+            setLabel: (string) ($effectiveConfig['sets']['label'] ?? $exercise?->config->sets->label ?? 'Set'),
+            settingConfigs: $this->extractSettingConfigs($effectiveConfig),
             sets: $slotExercise->sets
                 ->sortBy('set_number')
                 ->values()
@@ -137,11 +139,13 @@ class ScheduledSessionSnapshotBuilder
      */
     private function extractSettingConfigs(mixed $exerciseConfig): array
     {
-        if (! is_object($exerciseConfig) || ! method_exists($exerciseConfig, 'toArray')) {
+        if (is_array($exerciseConfig)) {
+            $configArray = $exerciseConfig;
+        } elseif (is_object($exerciseConfig) && method_exists($exerciseConfig, 'toArray')) {
+            $configArray = $exerciseConfig->toArray();
+        } else {
             return [];
         }
-
-        $configArray = $exerciseConfig->toArray();
         $settings = collect($configArray['settings'] ?? [])
             ->filter(fn ($setting) => is_string($setting) && $setting !== '')
             ->values();

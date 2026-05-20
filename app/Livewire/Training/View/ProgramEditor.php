@@ -11,6 +11,7 @@ use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
 use App\Models\Exercise\ExerciseProgramTypeEnum;
 use App\Models\Users\User;
+use App\Support\Training\ExerciseProgramSelectorPreviewService;
 use App\Training\ExerciseProgramSectionMutationService;
 use App\Support\Training\AthletePreviewSlotService;
 use App\Support\Training\ProgramExerciseOrder;
@@ -747,6 +748,7 @@ class ProgramEditor extends Component
         });
 
         if ($didChange) {
+            app(ExerciseProgramSelectorPreviewService::class)->syncProgram($this->exerciseProgram->id);
             $this->dispatchSharedProgramRebuild();
         }
 

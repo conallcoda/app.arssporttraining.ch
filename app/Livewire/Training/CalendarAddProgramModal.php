@@ -13,6 +13,7 @@ use App\Models\Tag;
 use App\Models\Training\TrainingProgram;
 use Coda\Cms\Display\DisplayFields\CompactDisplay;
 use Coda\Cms\Livewire\Concerns\InteractsWithFormData;
+use Coda\FormKit\Fields\RelationshipSelector;
 use Coda\FormKit\Form;
 use Flux\Flux;
 use Illuminate\Support\Collection;
@@ -24,7 +25,9 @@ use Livewire\Component;
 
 class CalendarAddProgramModal extends Component
 {
-    use InteractsWithFormData;
+    use InteractsWithFormData {
+        relationshipSelectorClientInitialState as protected traitRelationshipSelectorClientInitialState;
+    }
     use InteractsWithExerciseSelectorPrograms;
 
     private const SELECTOR_FIELD = 'calendar_program_selection';
@@ -182,6 +185,43 @@ class CalendarAddProgramModal extends Component
         return $this->formConfig->resolveFieldsets($this->data);
     }
 
+    public function relationshipSelectorClientInitialState(string $fieldName, int $limit = 40): array
+    {
+        if ($fieldName !== self::SELECTOR_FIELD) {
+            return $this->traitRelationshipSelectorClientInitialState($fieldName, $limit);
+        }
+
+        $this->resetSelectorState();
+
+        $field = $this->findField($fieldName);
+
+        if (! $field instanceof RelationshipSelector || ! $field->clientModal) {
+            return [];
+        }
+
+        $selectedItems = [];
+        $selectedIds = [];
+        $filters = [];
+        $sort = [
+            'field' => $field->defaultSortField,
+            'direction' => $field->defaultSortDirection,
+        ];
+        $initialListKey = $this->relationshipSelectorClientInitialListKey($field, $selectedItems);
+        $defaultLoaderKey = collect($field->getClientModalListPayload())
+            ->first(fn (array $list): bool => data_get($list, 'loader.type') === 'default')['key'] ?? null;
+
+        return [
+            'selectedItems' => [],
+            'results' => $defaultLoaderKey === $initialListKey
+                ? $this->buildRelationshipSelectorClientResults($field, '', $selectedIds, $filters, $selectedItems, $sort, 0, $limit)
+                : ['records' => [], 'nextOffset' => 0, 'hasMore' => false],
+            'schemaDefaults' => \Coda\FormKit\Field::buildDefaults($field->schema),
+            'modalState' => method_exists($field, 'getClientModalStateDefaults') ? $field->getClientModalStateDefaults() : [],
+            'initialListKey' => $initialListKey,
+            'limit' => $limit,
+        ];
+    }
+
     public function addCalendarProgramFromSelector(
         string $fieldName,
         string $listKey,
@@ -194,12 +234,6 @@ class CalendarAddProgramModal extends Component
         }
 
         $program = ExerciseProgram::findOrFail($programId);
-
-        if ($program->type !== ExerciseProgramTypeEnum::Program) {
-            Flux::toast(text: __('Only regular programs can be added here.'), variant: 'danger');
-
-            return [];
-        }
 
         TrainingProgram::importProgram($program, $this->groupId);
         $this->resetSelectorState();
@@ -296,7 +330,11 @@ class CalendarAddProgramModal extends Component
      */
     protected function exerciseSelectorImportProgramTypes(string $fieldName): array
     {
-        return [ExerciseProgramTypeEnum::Program->value];
+        return [
+            ExerciseProgramTypeEnum::Program->value,
+            ExerciseProgramTypeEnum::WarmUp->value,
+            ExerciseProgramTypeEnum::WarmDown->value,
+        ];
     }
 
     protected function exerciseSelectorCurrentProgramId(string $fieldName): ?int

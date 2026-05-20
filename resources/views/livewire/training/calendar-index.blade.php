@@ -53,7 +53,7 @@
                     <div class="flex flex-col items-center justify-center py-20 text-center">
                         <flux:icon.calendar class="size-10 text-zinc-300 dark:text-zinc-600 mb-3" />
                         <flux:heading size="lg" class="text-zinc-500 dark:text-zinc-400">{{ __('No programs in this group') }}</flux:heading>
-                        <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddProgram" class="mt-3">{{ __('Add Program') }}</flux:button>
+                        <flux:button variant="primary" icon="plus" size="sm" class="mt-3" x-data x-on:click="$dispatch('relationship-selector-open', { fieldName: 'calendar_program_selection' })">{{ __('Add Program') }}</flux:button>
                     </div>
                 @elseif ($this->hasSelection())
                     {{-- Row 1: Selection name + view switch --}}
@@ -186,7 +186,7 @@
                                 <x-training.status-legend position="left" />
                                 @if ($view === 'overview')
                                     <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddBlock">{{ __('Add Block') }}</flux:button>
-                                    <flux:button variant="primary" icon="plus" size="sm" wire:click="openAddProgram">{{ __('Add Program') }}</flux:button>
+                                    <flux:button variant="primary" icon="plus" size="sm" x-data x-on:click="$dispatch('relationship-selector-open', { fieldName: 'calendar_program_selection' })">{{ __('Add Program') }}</flux:button>
                                 @endif
                             </div>
                         </div>

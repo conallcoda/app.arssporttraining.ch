@@ -329,7 +329,7 @@
                     @endphp
                     <tr wire:key="program-{{ $entry->id }}" x-show="expanded" x-cloak class="group/program">
                         <td
-                            class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 pl-5 pr-2 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 whitespace-nowrap min-w-fit bg-white dark:bg-zinc-900">
+                            class="sticky left-0 z-10 border-r border-b border-zinc-300 dark:border-zinc-600 pl-5 pr-2 py-2 align-top text-sm font-medium text-zinc-700 dark:text-zinc-300 min-w-0 bg-white dark:bg-zinc-900">
                             <div class="flex items-center gap-2">
                                 @if ($exercises->isNotEmpty())
                                     <button type="button" @click.stop="programExpanded[{{ $entry->id }}] = !programExpanded[{{ $entry->id }}]" class="shrink-0">
@@ -341,26 +341,28 @@
                                     <span class="w-2 h-2 rounded-full shrink-0"
                                         style="{{ \Coda\Cms\Support\ColorPalette::solid($categoryColor) }}"></span>
                                 @endif
-                                <button type="button" wire:click="navigateToPlan({{ $entry->id }})"
-                                    class="text-left hover:underline">
-                                    {{ $entry->program->name }}
-                                </button>
+                                <div class="flex flex-1 min-w-0 items-center gap-2">
+                                    <button type="button" wire:click="navigateToPlan({{ $entry->id }})"
+                                        class="flex-1 min-w-0 text-left hover:underline">
+                                        <span class="block truncate">{{ $entry->program->name }}</span>
+                                    </button>
+                                </div>
                                 <button type="button" wire:click.stop="openEditProgram({{ $entry->id }})"
-                                    class="opacity-0 group-hover/program:opacity-100 transition-opacity shrink-0 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
+                                    class="ml-auto shrink-0 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
                                     <flux:icon.pencil class="size-3.5" />
                                 </button>
                             </div>
                             @if ($exercises->isNotEmpty())
-                                <div x-show="programExpanded[{{ $entry->id }}]" x-cloak class="mt-1 ml-10 flex flex-col gap-0.5">
+                                <div x-show="programExpanded[{{ $entry->id }}]" x-cloak class="mt-1 ml-10 flex min-w-0 flex-col gap-1">
                                     @foreach ($exercises as $exercise)
-                                        <label wire:key="exercise-check-{{ $exercise->pivot->id }}" class="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400 cursor-pointer">
+                                        <label wire:key="exercise-check-{{ $exercise->pivot->id }}" class="flex min-w-0 items-start gap-2 text-sm text-zinc-500 dark:text-zinc-400 cursor-pointer">
                                             <input
                                                 type="checkbox"
                                                 wire:click="toggleExerciseDisabled({{ $exercise->pivot->id }}, {{ $entry->exercise_program_id }})"
                                                 @if (!$this->isExerciseDisabled($exercise->pivot->id, $entry->program)) checked @endif
-                                                class="rounded border-zinc-300 dark:border-zinc-600 text-zinc-800 dark:text-white focus:ring-zinc-500 dark:bg-zinc-700"
+                                                class="mt-0.5 shrink-0 rounded border-zinc-300 dark:border-zinc-600 text-zinc-800 dark:text-white focus:ring-zinc-500 dark:bg-zinc-700"
                                             />
-                                            {{ $exercise->name }}
+                                            <span class="min-w-0 whitespace-normal break-words leading-tight">{{ $exercise->name }}</span>
                                         </label>
                                     @endforeach
                                 </div>

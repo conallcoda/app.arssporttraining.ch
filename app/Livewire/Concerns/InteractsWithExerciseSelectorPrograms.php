@@ -28,9 +28,16 @@ trait InteractsWithExerciseSelectorPrograms
 
         $fetchLimit = max(1, $limit) + 1;
         $programs = ExerciseProgram::query()
+            ->select([
+                'exercise_programs.id',
+                'exercise_programs.name',
+                'exercise_programs.type',
+                'exercise_programs.exercise_category_id',
+                'exercise_programs.selector_preview_exercises',
+                'exercise_programs.selector_preview_exercise_count',
+            ])
             ->with([
                 'exerciseCategory:id,name,short_name,color',
-                'exercises' => fn ($query) => $query->orderByPivot('type')->orderByPivot('sort')->orderByPivot('id'),
             ])
             ->whereNull('exercise_programs.parent_id')
             ->whereNull('exercise_programs.parent_type')
@@ -182,9 +189,12 @@ trait InteractsWithExerciseSelectorPrograms
 
     protected function decorateExerciseSelectorProgramRecord(ExerciseProgram $program, string $fieldName): void
     {
-        $sourceRows = $this->exerciseSelectorSourceRows($program, $fieldName);
         $type = $this->normalizeExerciseSelectorProgramType($program->type);
         $category = $program->exerciseCategory;
+        $previewNames = collect($program->selector_preview_exercises ?? [])
+            ->filter(fn (mixed $name): bool => is_string($name) && trim($name) !== '')
+            ->values();
+        $exerciseCount = (int) ($program->selector_preview_exercise_count ?? 0);
 
         $badges = array_values(array_filter([
             $type ? [
@@ -201,20 +211,20 @@ trait InteractsWithExerciseSelectorPrograms
             ] : null,
         ]));
 
-        $exerciseBadges = $sourceRows
+        $exerciseBadges = $previewNames
             ->take(6)
-            ->map(fn (Exercise $exercise) => ['label' => $exercise->name, 'color' => ''])
+            ->map(fn (string $name) => ['label' => $name, 'color' => ''])
             ->values()
             ->all();
 
-        $remainingCount = $sourceRows->count() - count($exerciseBadges);
+        $remainingCount = max(0, $exerciseCount - count($exerciseBadges));
 
         if ($remainingCount > 0) {
             $exerciseBadges[] = ['label' => '+'.$remainingCount.' more', 'color' => ''];
         }
 
-        $program->setAttribute('selector_program_exercise_count', $sourceRows->count());
-        $program->setAttribute('selector_program_has_exercises', $sourceRows->isNotEmpty());
+        $program->setAttribute('selector_program_exercise_count', $exerciseCount);
+        $program->setAttribute('selector_program_has_exercises', $exerciseCount > 0);
         $program->setAttribute('selector_program_badges', $badges);
         $program->setAttribute('selector_program_exercises', $exerciseBadges);
     }

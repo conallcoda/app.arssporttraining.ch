@@ -10,6 +10,7 @@ use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
 use App\Models\Exercise\ExerciseProgramTypeEnum;
 use App\Support\Training\ProgramExerciseOrder;
+use App\Support\Training\ExerciseProgramSelectorPreviewService;
 use Carbon\Carbon;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Form\Fields\Tags;
@@ -109,6 +110,7 @@ class ExerciseProgramData extends AbstractData implements HasForms
         $this->id = $program->id;
 
         $this->syncExercises($program);
+        app(ExerciseProgramSelectorPreviewService::class)->syncProgram($program->id);
 
         $program->tags()->sync($this->internalTags);
     }

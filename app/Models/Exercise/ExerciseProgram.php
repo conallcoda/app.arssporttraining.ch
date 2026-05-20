@@ -6,6 +6,7 @@ use App\Casts\ExercisePlanConfigCast;
 use App\Models\Concerns\HasPlanConfigOverrides;
 use App\Models\Tag;
 use App\Observers\ExerciseProgramObserver;
+use App\Support\Training\ExerciseProgramSelectorPreviewService;
 use Coda\Cms\Models\Concerns\HasOwner;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;
 use Coda\Cms\Models\Concerns\HasTags;
@@ -53,6 +54,7 @@ class ExerciseProgram extends Model implements Taggable
         return [
             'type' => ExerciseProgramTypeEnum::class,
             'config' => ExercisePlanConfigCast::class,
+            'selector_preview_exercises' => 'array',
         ];
     }
 
@@ -107,23 +109,26 @@ class ExerciseProgram extends Model implements Taggable
 
         $pivotIdMap = [];
 
-        foreach ($this->exercises()->withPivot(['id', 'sort', 'group', 'type'])->get() as $exercise) {
-            $newPivot = ExerciseProgramExercise::create([
-                'exercise_program_id' => $clone->id,
-                'exercise_id' => $exercise->id,
-                'sort' => $exercise->pivot->sort ?? 0,
-                'group' => $exercise->pivot->group,
-                'type' => $exercise->pivot->type ?? 'main',
-            ]);
+        ExerciseProgramExercise::withoutEvents(function () use ($clone, &$pivotIdMap): void {
+            foreach ($this->exercises()->withPivot(['id', 'sort', 'group', 'type'])->get() as $exercise) {
+                $newPivot = ExerciseProgramExercise::create([
+                    'exercise_program_id' => $clone->id,
+                    'exercise_id' => $exercise->id,
+                    'sort' => $exercise->pivot->sort ?? 0,
+                    'group' => $exercise->pivot->group,
+                    'type' => $exercise->pivot->type ?? 'main',
+                ]);
 
-            $pivotIdMap[(int) $exercise->pivot->id] = $newPivot->id;
-        }
+                $pivotIdMap[(int) $exercise->pivot->id] = $newPivot->id;
+            }
+        });
 
         $cloneConfig = $clone->config;
         $cloneConfig->remapDefaultExerciseOverrides($pivotIdMap);
         $cloneConfig->remapUserExerciseOverrides($pivotIdMap);
         $clone->config = $cloneConfig;
         $clone->save();
+        app(ExerciseProgramSelectorPreviewService::class)->syncProgram($clone->id);
 
         return $clone;
     }

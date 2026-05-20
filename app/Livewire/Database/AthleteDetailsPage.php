@@ -5,7 +5,6 @@ namespace App\Livewire\Database;
 use App\Data\Athlete\Metric\MetricEnum;
 use App\Data\Athlete\Metric\Metrics\HeartRateMetric;
 use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
-use App\Data\Training\Blocks\CategoryBlockType;
 use App\Models\Users\AccountSetupStatus;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
@@ -16,21 +15,16 @@ use App\Support\AthleteMetrics\OneRepMaxExamplePreviewBuilder;
 use App\Support\Readiness\ReadinessSurvey;
 use Coda\Cms\Form\Forms\ChangePasswordForm;
 use Coda\Cms\Livewire\AbstractModelDetailsPage;
-use Coda\FormKit\Fields\Number;
 use Flux\Flux;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
 
 class AthleteDetailsPage extends AbstractModelDetailsPage
 {
-    public array $oneRepMaxPreview = [];
-
     public function mount(int $record): void
     {
         parent::mount($record);
-        $this->initializeOneRepMaxPreview();
         $this->initializeTabState('general');
 
         if (! in_array($this->activeTab, ['general', 'readiness', 'heart_rate', 'one_rep_max'], true)) {
@@ -102,34 +96,6 @@ class AthleteDetailsPage extends AbstractModelDetailsPage
         );
     }
 
-    public function updatedOneRepMaxPreviewTargetGoal(mixed $value): void
-    {
-        $validator = Validator::make(
-            ['targetGoal' => $value],
-            ['targetGoal' => $this->oneRepMaxPreviewGoalRules()],
-            ['required' => 'This field is required.'],
-            ['targetGoal' => strtolower($this->resolveOneRepMaxPreviewGoalField()->getLabel())],
-        );
-
-        if ($validator->fails()) {
-            $this->setErrorBag($validator->errors()->merge(
-                $this->getErrorBag()->except('oneRepMaxPreview.targetGoal')
-            ));
-            $this->addError('oneRepMaxPreview.targetGoal', $validator->errors()->first('targetGoal'));
-
-            return;
-        }
-
-        $this->resetValidation('oneRepMaxPreview.targetGoal');
-
-        $goal = (int) $validator->validated()['targetGoal'];
-
-        $this->oneRepMaxPreview['targetGoal'] = $goal;
-        $this->oneRepMaxPreview['appliedTargetGoal'] = $goal;
-
-        unset($this->oneRepMaxPreviewGrid);
-    }
-
     #[Computed]
     public function readinessSnapshot(): array
     {
@@ -176,19 +142,13 @@ class AthleteDetailsPage extends AbstractModelDetailsPage
     }
 
     #[Computed]
-    public function oneRepMaxPreviewGoalField(): Number
-    {
-        return $this->resolveOneRepMaxPreviewGoalField();
-    }
-
-    #[Computed]
     public function oneRepMaxPreviewGrid(): mixed
     {
         $metric = $this->oneRepMaxSnapshot['instance'] ?? null;
 
         return app(OneRepMaxExamplePreviewBuilder::class)->build(
             $metric instanceof OneRepMaxMetric ? $metric : null,
-            targetGoal: (int) ($this->oneRepMaxPreview['appliedTargetGoal'] ?? 10),
+            targetGoal: 10,
         );
     }
 
@@ -212,55 +172,6 @@ class AthleteDetailsPage extends AbstractModelDetailsPage
     protected function snapshotService(): AthleteMetricSnapshotService
     {
         return app(AthleteMetricSnapshotService::class);
-    }
-
-    protected function initializeOneRepMaxPreview(): void
-    {
-        $field = $this->resolveOneRepMaxPreviewGoalField();
-        $defaultGoal = (int) ($field->default ?? 10);
-
-        $this->oneRepMaxPreview = array_replace([
-            'targetGoal' => $defaultGoal,
-            'appliedTargetGoal' => $defaultGoal,
-        ], $this->oneRepMaxPreview);
-    }
-
-    protected function resolveOneRepMaxPreviewGoalField(): Number
-    {
-        $field = collect(CategoryBlockType::fields(['categorySlug' => 'strength']))
-            ->first(fn (mixed $field) => $field instanceof Number && $field->name === 'config.goal');
-
-        if (! $field instanceof Number) {
-            throw new \RuntimeException('Unable to resolve the strength goal field definition.');
-        }
-
-        $field = clone $field;
-        $field->name = 'targetGoal';
-        $field->label('Preview Goal');
-
-        return $field;
-    }
-
-    /** @return array<int, string> */
-    protected function oneRepMaxPreviewGoalRules(): array
-    {
-        $field = $this->resolveOneRepMaxPreviewGoalField();
-
-        $rules = ['integer'];
-
-        if ($field->required) {
-            array_unshift($rules, 'required');
-        }
-
-        if ($field->min !== null) {
-            $rules[] = 'min:'.(int) $field->min;
-        }
-
-        if ($field->max !== null) {
-            $rules[] = 'max:'.(int) $field->max;
-        }
-
-        return $rules;
     }
 
     public function render(): View
