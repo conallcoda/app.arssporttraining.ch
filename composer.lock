@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "148ab275faa87f656b5939a978fa5de5",
+    "content-hash": "b64649e41eacf3b727eadec6b22909c5",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -273,15 +273,16 @@
         },
         {
             "name": "coda/cms",
-            "version": "dev-main",
+            "version": "dev-manual-2",
             "dist": {
                 "type": "path",
-                "url": "/Users/conalloreilly/Development/coda-packages/cms",
-                "reference": "64d1d6b0583afcd61bf0a1a1e16806a5c68eb367"
+                "url": "packages/cms",
+                "reference": "c56dc715f37ee389056a05a30191c0823953a035"
             },
             "require": {
                 "coda/expression-kit": "*",
                 "coda/form-kit": "*",
+                "coda/schema-kit": "*",
                 "livewire/flux": "^2.0",
                 "livewire/flux-pro": "^2.0",
                 "livewire/livewire": "^3.0 || ^4.0",
@@ -317,17 +318,17 @@
             },
             "description": "Generic CMS framework for Laravel Livewire applications",
             "transport-options": {
-                "symlink": true,
-                "relative": false
+                "symlink": false,
+                "relative": true
             }
         },
         {
             "name": "coda/expression-kit",
-            "version": "dev-main",
+            "version": "dev-manual-2",
             "dist": {
                 "type": "path",
-                "url": "/Users/conalloreilly/Development/coda-packages/expression-kit",
-                "reference": "6463d0aadc9037b3efcb7701acea225fffd16c74"
+                "url": "packages/expression-kit",
+                "reference": "430d4c69fe966e113cf71a9b7793478c60c7196c"
             },
             "require": {
                 "illuminate/database": "^11.0 || ^12.0 || ^13.0",
@@ -342,17 +343,17 @@
             },
             "description": "Shared expression parsing and execution helpers for Coda packages",
             "transport-options": {
-                "symlink": true,
-                "relative": false
+                "symlink": false,
+                "relative": true
             }
         },
         {
             "name": "coda/form-kit",
-            "version": "dev-main",
+            "version": "dev-manual-2",
             "dist": {
                 "type": "path",
-                "url": "/Users/conalloreilly/Development/coda-packages/form-kit",
-                "reference": "246102107745848ad980e2936e8eb965d0284021"
+                "url": "packages/form-kit",
+                "reference": "0b9793fcc0e404b355e10389b93338275f452801"
             },
             "require": {
                 "coda/expression-kit": "*",
@@ -382,8 +383,36 @@
             },
             "description": "Framework-agnostic form field definitions with FluxUI rendering",
             "transport-options": {
-                "symlink": true,
-                "relative": false
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "coda/schema-kit",
+            "version": "dev-manual-2",
+            "dist": {
+                "type": "path",
+                "url": "packages/schema-kit",
+                "reference": "b2a24ffc343e25cf1dd8791468d491cf57e9499e"
+            },
+            "require": {
+                "php": "^8.2"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Coda\\SchemaKit\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Coda\\SchemaKit\\Tests\\": "tests/"
+                }
+            },
+            "description": "Shared schema definitions for entities, facets, views, and identity metadata",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
             }
         },
         {
