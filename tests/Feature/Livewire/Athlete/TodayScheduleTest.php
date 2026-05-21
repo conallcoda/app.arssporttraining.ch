@@ -282,7 +282,7 @@ it('submits the full readiness survey and persists it as a metric', function () 
         ->set('form.energy', 4)
         ->set('form.restingHeartRate', 48)
         ->set('form.restingHeartRateBaseline', 46)
-        ->set('form.hrv', 72)
+        ->set('form.hrv', null)
         ->call('submitReadiness')
         ->assertDispatched('readiness-updated');
 
@@ -293,11 +293,12 @@ it('submits the full readiness survey and persists it as a metric', function () 
         ->first();
 
     expect($submission)->not->toBeNull()
+        ->and($submission->values->pluck('value', 'field')->has('hrv'))->toBeFalse()
         ->and($submission->values->pluck('value', 'field')->get('trafficLight'))->toBe('ready')
         ->and((float) $submission->values->pluck('value', 'field')->get('readinessScore'))->toBeGreaterThan(0);
 });
 
-it('requires resting heart rate and hrv before submitting readiness', function () {
+it('requires resting heart rate but allows missing hrv when submitting readiness', function () {
     $athlete = User::factory()->athlete()->create();
 
     Livewire::actingAs($athlete)
@@ -307,6 +308,5 @@ it('requires resting heart rate and hrv before submitting readiness', function (
         ->call('submitReadiness')
         ->assertHasErrors([
             'form.restingHeartRate' => ['required'],
-            'form.hrv' => ['required'],
         ]);
 });

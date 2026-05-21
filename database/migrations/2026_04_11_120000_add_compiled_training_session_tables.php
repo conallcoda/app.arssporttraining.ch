@@ -122,6 +122,9 @@ return new class extends Migration
         Schema::dropIfExists('training_program_slot_exercises');
 
         Schema::table('training_program_slots', function (Blueprint $table) {
+            // Preserve standalone FK-safe indexes before removing the composite date indexes.
+            $table->index('user_id', 'training_program_slots_user_id_idx');
+            $table->index('training_program_id', 'training_program_slots_program_id_idx');
             $table->dropIndex('training_program_slots_user_date_idx');
             $table->dropIndex('training_program_slots_program_date_idx');
             $table->dropIndex('training_program_slots_date_status_idx');

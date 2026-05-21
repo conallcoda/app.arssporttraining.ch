@@ -135,6 +135,9 @@ return new class extends Migration
             ->delete();
 
         Schema::table('exercise_program_exercises', function (Blueprint $table) {
+            // Keep a leftmost index on exercise_program_id so MySQL can preserve the FK
+            // when the composite type index is removed during rollback.
+            $table->index('exercise_program_id', 'epe_exercise_program_id_idx');
             $table->dropIndex('epe_program_type_sort_idx');
             $table->dropColumn('type');
         });

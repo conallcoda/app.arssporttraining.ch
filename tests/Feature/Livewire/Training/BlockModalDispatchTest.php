@@ -140,6 +140,18 @@ it('dispatches add-block payload from the calendar index', function () {
         ]);
 });
 
+it('dispatches the shared add-program trigger from the calendar index', function () {
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Three Amigos']);
+
+    Livewire::actingAs($coach)
+        ->test(CalendarIndex::class, [
+            'group' => (string) $group->id,
+        ])
+        ->call('openAddProgram')
+        ->assertDispatched('trigger-add-content');
+});
+
 it('dispatches athlete override payload when opening plan block edit', function () {
     $coach = User::factory()->coach()->create();
     $group = UserGroup::create(['name' => 'Three Amigos']);

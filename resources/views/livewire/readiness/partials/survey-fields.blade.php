@@ -142,11 +142,11 @@
                     type="number"
                     wire:model.live.debounce.250ms="{{ $bindingPrefix }}hrv"
                     min="0"
-                    required
                     class="w-full"
                 />
                 <flux:input.group.suffix>ms</flux:input.group.suffix>
             </flux:input.group>
+            <flux:description>Optional.</flux:description>
             @error($hrvField)
                 <flux:text class="text-sm text-red-500">{{ $message }}</flux:text>
             @enderror

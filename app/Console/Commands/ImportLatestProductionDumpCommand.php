@@ -10,7 +10,9 @@ use Symfony\Component\Process\Process;
 
 class ImportLatestProductionDumpCommand extends Command
 {
-    public const SIGNATURE = 'db:import-latest-production-dump
+    public const NAME = 'db:import-latest-production-dump';
+
+    public const SIGNATURE = self::NAME.'
         {dump? : Optional dump filename inside import/dumps or an absolute dump path}';
 
     protected $signature = self::SIGNATURE;

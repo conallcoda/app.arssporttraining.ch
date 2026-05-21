@@ -212,3 +212,32 @@ it('creates a readiness submission with derived readiness values', function () {
         ->and((float) $values['readinessScore'])->toBeGreaterThan(0)
         ->and($values['trafficLight'])->toBe('ready');
 });
+
+it('persists readiness submissions without hrv', function () {
+    $athlete = User::factory()->athlete()->create();
+
+    $submission = (new MetricSubmissionData(
+        user_id: $athlete->id,
+        metric: MetricEnum::Readiness,
+        recorded_at: '2026-04-29',
+        data: new ReadinessMetric(
+            sleepMinutes: 450,
+            sleepQuality: 4,
+            altitudeMeters: 1800,
+            condition: 4,
+            mood: 4,
+            motivation: 5,
+            soreness: 4,
+            energy: 4,
+            restingHeartRate: 48,
+            restingHeartRateBaseline: 46,
+            hrv: null,
+        ),
+    ))->persist();
+
+    $values = $submission->values()->pluck('value', 'field')->all();
+
+    expect($values)->not->toHaveKey('hrv')
+        ->and($values)->toHaveKey('readinessScore')
+        ->and($values)->toHaveKey('trafficLight');
+});

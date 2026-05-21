@@ -50,3 +50,34 @@ it('repopulates the group options when the filter changes and clears an invalid 
     expect($component->instance()->groupOptions->keys()->all())
         ->toBe([$ownedGroup->id]);
 });
+
+it('allows clearing the group selection when the sidebar is disabled', function () {
+    $coach = User::factory()->coach()->create();
+    $coach->config->set('settings.calendar_sidebar.enabled', false);
+    $coach->save();
+
+    $group = UserGroup::create(['name' => 'Owned Group', 'owner_id' => $coach->id]);
+
+    Livewire::actingAs($coach)
+        ->test(CalendarIndex::class, [
+            'group' => (string) $group->id,
+            'view' => 'schedule',
+        ])
+        ->set('group', '')
+        ->assertSet('group', '')
+        ->assertSet('user', '')
+        ->assertSet('view', 'overview');
+});
+
+it('keeps the add program modal mounted for the empty group state', function () {
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Owned Group', 'owner_id' => $coach->id]);
+
+    $html = Livewire::actingAs($coach)
+        ->test(CalendarIndex::class, [
+            'group' => (string) $group->id,
+        ])
+        ->html();
+
+    expect($html)->toContain('calendar_program_selection');
+});

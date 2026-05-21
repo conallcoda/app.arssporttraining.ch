@@ -209,7 +209,7 @@ class AthleteMetricFormModal extends FormModal
     {
         $this->validate([
             'data.data.restingHeartRate' => ['required', 'integer', 'min:30', 'max:200'],
-            'data.data.hrv' => ['required', 'integer', 'min:0'],
+            'data.data.hrv' => ['nullable', 'integer', 'min:0'],
         ], [], [
             'data.data.restingHeartRate' => 'resting heart rate',
             'data.data.hrv' => 'heart rate variability',

@@ -1228,7 +1228,7 @@ it('uses the effective scheduled exercise config for athlete editor fields and s
     $snapshotExercise = collect($snapshot->exercises)->firstWhere('slotExerciseId', $slotExercise->id);
 
     expect($durationField)->not->toBeNull()
-        ->and($durationField->resolveUnit())->toBe('minutes')
+        ->and($durationField->type)->toBe('number')
         ->and($durationField->resolveSuffix())->toBe('m')
         ->and($instance->editSetTabs[0]['label'])->toBe('Round 1')
         ->and($snapshotExercise)->not->toBeNull()

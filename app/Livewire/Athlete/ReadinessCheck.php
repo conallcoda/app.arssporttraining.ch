@@ -55,7 +55,7 @@ class ReadinessCheck extends Component
     {
         $this->validate([
             'form.restingHeartRate' => ['required', 'integer', 'min:30', 'max:200'],
-            'form.hrv' => ['required', 'integer', 'min:0'],
+            'form.hrv' => ['nullable', 'integer', 'min:0'],
         ], [], [
             'form.restingHeartRate' => 'resting heart rate',
             'form.hrv' => 'heart rate variability',
