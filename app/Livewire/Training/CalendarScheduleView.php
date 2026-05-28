@@ -8,12 +8,14 @@ use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\UserGroup;
 use App\Support\Training\WeekSlotModalPayloadBuilder;
 use App\Training\CalendarDateService;
+use App\Training\TrainingSessionEditGuard;
 use App\Training\TrainingSessionMaterializer;
 use App\Training\TrainingSessionRebuildService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Flux\Flux;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -33,6 +35,12 @@ class CalendarScheduleView extends Component
     public ?int $quickProgramId = null;
 
     public array $quickSelectedAthletes = [];
+
+    public ?string $pendingCopySourceWeekStart = null;
+
+    public ?int $pendingCopyForwardWeeks = null;
+
+    public ?string $pendingClearWeekStart = null;
 
     #[On('calendar-selection-changed')]
     public function onSelectionChanged(int $groupId, ?int $userId = null): void
@@ -208,6 +216,38 @@ class CalendarScheduleView extends Component
     public function quickRemoveWeekSlot(int $trainingProgramId, string $date, string $startTime): void
     {
         $datetime = $date.' '.$startTime.':00';
+        $guard = app(TrainingSessionEditGuard::class);
+
+        if ($this->userId !== null) {
+            $lockedCount = $guard->countImmutableSlotsForOccurrence(
+                $trainingProgramId,
+                $datetime,
+                $this->userId,
+            );
+
+            if ($lockedCount > 0) {
+                Flux::toast(text: $guard->immutableSlotMessage($lockedCount), variant: 'danger');
+
+                return;
+            }
+        } else {
+            $group = UserGroup::with('members')->find($this->groupId);
+
+            if ($group !== null) {
+                $lockedCount = $guard->countImmutableSlotsForOccurrence(
+                    $trainingProgramId,
+                    $datetime,
+                    null,
+                    $group->members->pluck('id')->map(fn (mixed $id): int => (int) $id)->all(),
+                );
+
+                if ($lockedCount > 0) {
+                    Flux::toast(text: $guard->immutableSlotMessage($lockedCount), variant: 'danger');
+
+                    return;
+                }
+            }
+        }
 
         if ($this->userId !== null) {
             TrainingProgramSlot::query()
@@ -252,67 +292,12 @@ class CalendarScheduleView extends Component
             return;
         }
 
-        $sourceSlots = $this->scheduleScopeSlotsQuery($userIds)
-            ->whereBetween('datetime', [$sourceStart->copy()->startOfDay(), $sourceStart->copy()->addDays(6)->endOfDay()])
-            ->get();
-
-        $targetEnd = $targetStart->copy()->addDays(6)->endOfDay();
-        $targetRangeStart = $editableTargetStart->copy()->startOfDay();
-
-        $deletedPairs = [];
-        $createdPairs = [];
-
-        DB::transaction(function () use ($userIds, $sourceSlots, $sourceStart, $targetStart, $targetRangeStart, $targetEnd, &$deletedPairs, &$createdPairs): void {
-            $deletedPairs = $this->scheduleScopeSlotsQuery($userIds)
-                ->whereBetween('datetime', [$targetRangeStart, $targetEnd])
-                ->whereNull('completed_at')
-                ->get(['training_program_id', 'user_id'])
-                ->map(fn (TrainingProgramSlot $slot): string => $slot->training_program_id.'-'.$slot->user_id)
-                ->values()
-                ->all();
-
-            $this->scheduleScopeSlotsQuery($userIds)
-                ->whereBetween('datetime', [$targetRangeStart, $targetEnd])
-                ->whereNull('completed_at')
-                ->delete();
-
-            $existingTargetKeys = $this->scheduleScopeSlotsQuery($userIds)
-                ->whereBetween('datetime', [$targetRangeStart, $targetEnd])
-                ->get(['training_program_id', 'user_id', 'datetime'])
-                ->mapWithKeys(fn (TrainingProgramSlot $slot): array => [
-                    $slot->training_program_id.'-'.$slot->user_id.'-'.$slot->datetime->format('Y-m-d H:i:s') => true,
-                ])
-                ->all();
-
-            $materializer = app(TrainingSessionMaterializer::class);
-
-            foreach ($sourceSlots as $slot) {
-                $dayOffset = $sourceStart->diffInDays($slot->datetime->copy()->startOfDay());
-                $targetDate = $targetStart->copy()->addDays($dayOffset);
-
-                if ($targetDate->lt(Carbon::today())) {
-                    continue;
-                }
-
-                $targetDateTime = $targetDate->format('Y-m-d').' '.$slot->datetime->format('H:i:s');
-                $targetKey = $slot->training_program_id.'-'.$slot->user_id.'-'.$targetDateTime;
-
-                if (isset($existingTargetKeys[$targetKey])) {
-                    continue;
-                }
-
-                $clone = new TrainingProgramSlot([
-                    'training_program_id' => $slot->training_program_id,
-                    'user_id' => $slot->user_id,
-                    'datetime' => $targetDateTime,
-                ]);
-                $clone->saveQuietly();
-                $materializer->materialize($clone);
-
-                $existingTargetKeys[$targetKey] = true;
-                $createdPairs[] = $clone->training_program_id.'-'.$clone->user_id;
-            }
-        });
+        [$deletedPairs, $createdPairs] = $this->replaceWeekSlots(
+            sourceStart: $sourceStart,
+            targetStart: $targetStart,
+            editableTargetStart: $editableTargetStart,
+            userIds: $userIds,
+        );
 
         $this->rebuildTouchedSchedulePairs(
             collect($deletedPairs)->merge($createdPairs)->unique()->values()->all(),
@@ -321,6 +306,114 @@ class CalendarScheduleView extends Component
 
         unset($this->weekGridData);
         $this->dispatch('schedule-grid-refresh');
+    }
+
+    public function requestCopyWeekSlotsForward(string $sourceWeekStart, int $weekCount): void
+    {
+        $weekCount = max(1, min(8, $weekCount));
+
+        $sourceStart = Carbon::parse($sourceWeekStart)->startOfDay();
+
+        if (! $this->weekHasAnyEditableTargetDates($sourceStart->copy()->addWeek(), $weekCount)) {
+            return;
+        }
+
+        $this->pendingCopySourceWeekStart = $sourceStart->format('Y-m-d');
+        $this->pendingCopyForwardWeeks = $weekCount;
+
+        Flux::modal('confirm-copy-schedule-weeks')->show();
+    }
+
+    public function confirmCopyWeekSlotsForward(): void
+    {
+        if ($this->pendingCopySourceWeekStart === null || $this->pendingCopyForwardWeeks === null) {
+            return;
+        }
+
+        $sourceStart = Carbon::parse($this->pendingCopySourceWeekStart)->startOfDay();
+        $weekCount = max(1, min(8, $this->pendingCopyForwardWeeks));
+        $userIds = $this->scheduleScopeUserIds();
+
+        if ($userIds === []) {
+            $this->clearPendingCopyWeekSlotsForward();
+
+            return;
+        }
+
+        $allDeletedPairs = [];
+        $allCreatedPairs = [];
+        $firstEditableTargetStart = null;
+
+        for ($offset = 1; $offset <= $weekCount; $offset++) {
+            $targetStart = $sourceStart->copy()->addWeeks($offset);
+            $editableTargetStart = $this->editableWeekStart($targetStart);
+
+            if ($editableTargetStart === null) {
+                continue;
+            }
+
+            $firstEditableTargetStart ??= $editableTargetStart->copy();
+
+            [$deletedPairs, $createdPairs] = $this->replaceWeekSlots(
+                sourceStart: $sourceStart,
+                targetStart: $targetStart,
+                editableTargetStart: $editableTargetStart,
+                userIds: $userIds,
+            );
+
+            $allDeletedPairs = [...$allDeletedPairs, ...$deletedPairs];
+            $allCreatedPairs = [...$allCreatedPairs, ...$createdPairs];
+        }
+
+        if ($firstEditableTargetStart !== null) {
+            $this->rebuildTouchedSchedulePairs(
+                collect($allDeletedPairs)->merge($allCreatedPairs)->unique()->values()->all(),
+                $firstEditableTargetStart->format('Y-m-d'),
+            );
+        }
+
+        $this->clearPendingCopyWeekSlotsForward();
+
+        unset($this->weekGridData);
+        $this->dispatch('schedule-grid-refresh');
+    }
+
+    public function clearPendingCopyWeekSlotsForward(): void
+    {
+        $this->pendingCopySourceWeekStart = null;
+        $this->pendingCopyForwardWeeks = null;
+
+        Flux::modal('confirm-copy-schedule-weeks')->close();
+    }
+
+    public function requestClearWeekSchedule(string $weekStart): void
+    {
+        $weekStartDate = Carbon::parse($weekStart)->startOfDay();
+
+        if ($this->editableWeekStart($weekStartDate) === null) {
+            return;
+        }
+
+        $this->pendingClearWeekStart = $weekStartDate->format('Y-m-d');
+
+        Flux::modal('confirm-clear-schedule-week')->show();
+    }
+
+    public function confirmClearWeekSchedule(): void
+    {
+        if ($this->pendingClearWeekStart === null) {
+            return;
+        }
+
+        $this->clearWeekSchedule($this->pendingClearWeekStart);
+        $this->clearPendingWeekScheduleRemoval();
+    }
+
+    public function clearPendingWeekScheduleRemoval(): void
+    {
+        $this->pendingClearWeekStart = null;
+
+        Flux::modal('confirm-clear-schedule-week')->close();
     }
 
     public function clearWeekSchedule(string $weekStart): void
@@ -454,6 +547,38 @@ class CalendarScheduleView extends Component
     {
         $trainingProgramId = (int) $data['training_program_id'];
         $datetime = $data['date'].' '.$data['start_time'].':00';
+        $guard = app(TrainingSessionEditGuard::class);
+
+        if ($this->userId !== null) {
+            $lockedCount = $guard->countImmutableSlotsForOccurrence(
+                $trainingProgramId,
+                $datetime,
+                $this->userId,
+            );
+
+            if ($lockedCount > 0) {
+                Flux::toast(text: $guard->immutableSlotMessage($lockedCount), variant: 'danger');
+
+                return;
+            }
+        } else {
+            $group = UserGroup::with('members')->find($this->groupId);
+
+            if ($group !== null) {
+                $lockedCount = $guard->countImmutableSlotsForOccurrence(
+                    $trainingProgramId,
+                    $datetime,
+                    null,
+                    $group->members->pluck('id')->map(fn (mixed $id): int => (int) $id)->all(),
+                );
+
+                if ($lockedCount > 0) {
+                    Flux::toast(text: $guard->immutableSlotMessage($lockedCount), variant: 'danger');
+
+                    return;
+                }
+            }
+        }
 
         if ($this->userId !== null) {
             TrainingProgramSlot::query()
@@ -481,6 +606,43 @@ class CalendarScheduleView extends Component
     public function render(): View
     {
         return view('livewire.training.calendar-schedule-view');
+    }
+
+    public function pendingCopyForwardLabel(): string
+    {
+        $weekCount = $this->pendingCopyForwardWeeks ?? 1;
+
+        return $weekCount === 1
+            ? __('Next Week')
+            : __('Next :count Weeks', ['count' => $weekCount]);
+    }
+
+    public function pendingCopyForwardDescription(): string
+    {
+        return __('This action will replace all exercises for :selection. This action cannot be undone.', [
+            'selection' => strtolower($this->pendingCopyForwardLabel()),
+        ]);
+    }
+
+    public function pendingClearWeekLabel(): string
+    {
+        if ($this->pendingClearWeekStart === null) {
+            return __('this week');
+        }
+
+        $weekStart = Carbon::parse($this->pendingClearWeekStart)->startOfDay();
+        $weekEnd = $weekStart->copy()->addDays(6);
+
+        return __('week of :range', [
+            'range' => $weekStart->format('d M').' – '.$weekEnd->format('d M'),
+        ]);
+    }
+
+    public function pendingClearWeekDescription(): string
+    {
+        return __('This action will remove all unrecorded sessions for the :selection. This action cannot be undone.', [
+            'selection' => $this->pendingClearWeekLabel(),
+        ]);
     }
 
     /**
@@ -520,6 +682,88 @@ class CalendarScheduleView extends Component
         }
 
         return $weekStart->lt($today) ? $today->copy()->startOfDay() : $weekStart->copy()->startOfDay();
+    }
+
+    protected function weekHasAnyEditableTargetDates(Carbon $firstTargetWeekStart, int $weekCount): bool
+    {
+        for ($offset = 0; $offset < $weekCount; $offset++) {
+            if ($this->editableWeekStart($firstTargetWeekStart->copy()->addWeeks($offset)) !== null) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  int[]  $userIds
+     * @return array{0: string[], 1: string[]}
+     */
+    protected function replaceWeekSlots(Carbon $sourceStart, Carbon $targetStart, Carbon $editableTargetStart, array $userIds): array
+    {
+        $sourceSlots = $this->scheduleScopeSlotsQuery($userIds)
+            ->whereBetween('datetime', [$sourceStart->copy()->startOfDay(), $sourceStart->copy()->addDays(6)->endOfDay()])
+            ->get();
+
+        $targetEnd = $targetStart->copy()->addDays(6)->endOfDay();
+        $targetRangeStart = $editableTargetStart->copy()->startOfDay();
+
+        $deletedPairs = [];
+        $createdPairs = [];
+
+        DB::transaction(function () use ($userIds, $sourceSlots, $sourceStart, $targetStart, $targetRangeStart, $targetEnd, &$deletedPairs, &$createdPairs): void {
+            $deletedPairs = $this->scheduleScopeSlotsQuery($userIds)
+                ->whereBetween('datetime', [$targetRangeStart, $targetEnd])
+                ->whereNull('completed_at')
+                ->get(['training_program_id', 'user_id'])
+                ->map(fn (TrainingProgramSlot $slot): string => $slot->training_program_id.'-'.$slot->user_id)
+                ->values()
+                ->all();
+
+            $this->scheduleScopeSlotsQuery($userIds)
+                ->whereBetween('datetime', [$targetRangeStart, $targetEnd])
+                ->whereNull('completed_at')
+                ->delete();
+
+            $existingTargetKeys = $this->scheduleScopeSlotsQuery($userIds)
+                ->whereBetween('datetime', [$targetRangeStart, $targetEnd])
+                ->get(['training_program_id', 'user_id', 'datetime'])
+                ->mapWithKeys(fn (TrainingProgramSlot $slot): array => [
+                    $slot->training_program_id.'-'.$slot->user_id.'-'.$slot->datetime->format('Y-m-d H:i:s') => true,
+                ])
+                ->all();
+
+            $materializer = app(TrainingSessionMaterializer::class);
+
+            foreach ($sourceSlots as $slot) {
+                $dayOffset = $sourceStart->diffInDays($slot->datetime->copy()->startOfDay());
+                $targetDate = $targetStart->copy()->addDays($dayOffset);
+
+                if ($targetDate->lt(Carbon::today())) {
+                    continue;
+                }
+
+                $targetDateTime = $targetDate->format('Y-m-d').' '.$slot->datetime->format('H:i:s');
+                $targetKey = $slot->training_program_id.'-'.$slot->user_id.'-'.$targetDateTime;
+
+                if (isset($existingTargetKeys[$targetKey])) {
+                    continue;
+                }
+
+                $clone = new TrainingProgramSlot([
+                    'training_program_id' => $slot->training_program_id,
+                    'user_id' => $slot->user_id,
+                    'datetime' => $targetDateTime,
+                ]);
+                $clone->saveQuietly();
+                $materializer->materialize($clone);
+
+                $existingTargetKeys[$targetKey] = true;
+                $createdPairs[] = $clone->training_program_id.'-'.$clone->user_id;
+            }
+        });
+
+        return [$deletedPairs, $createdPairs];
     }
 
     /**

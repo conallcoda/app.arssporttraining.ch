@@ -131,7 +131,24 @@ class ExerciseList extends AbstractModelList
     {
         $filters = [
             TableFilter::callback('search', function (Builder $query, mixed $value): void {
-                $query->where('name', 'like', '%'.$value.'%');
+                if (! is_string($value) || trim($value) === '') {
+                    return;
+                }
+
+                $search = trim($value);
+
+                $query->where(function (Builder $query) use ($search): void {
+                    $query->where('exercises.name', 'like', '%'.$search.'%')
+                        ->orWhereHas('category', fn (Builder $q) => $q
+                            ->where('tags.name', 'like', '%'.$search.'%')
+                            ->orWhere('tags.short_name', 'like', '%'.$search.'%'))
+                        ->orWhereHas('equipment', fn (Builder $q) => $q
+                            ->where('tags.name', 'like', '%'.$search.'%')
+                            ->orWhere('tags.short_name', 'like', '%'.$search.'%'))
+                        ->orWhereHas('modifiers', fn (Builder $q) => $q
+                            ->where('tags.name', 'like', '%'.$search.'%')
+                            ->orWhere('tags.short_name', 'like', '%'.$search.'%'));
+                });
             })
                 ->field(
                     TextField::make('search')

@@ -92,7 +92,7 @@
                     @php
                         $weekStartDate = $week['days'][0]['date'];
                         $copyFromWeeks = array_values(array_filter($allWeeks, fn (array $candidate): bool => $candidate['key'] !== $week['key']));
-                        $copyToWeeks = array_values(array_filter($allWeeks, fn (array $candidate): bool => $candidate['key'] !== $week['key'] && ($candidate['hasFutureDates'] ?? false)));
+                        $copyForwardOptions = range(1, 8);
                     @endphp
                     <tr wire:key="week-grid-{{ $week['key'] }}-am"
                         @if ($weekIdx === 0) x-init="loadPage({{ $pageIndex }}, '{{ $pageStartDate }}', '{{ $pageEndDate }}')" @endif>
@@ -138,7 +138,7 @@
                             </td>
                         @endforeach
                         <td rowspan="2" class="border-r border-b border-zinc-300 dark:border-zinc-600 px-1 py-1 align-middle text-center bg-zinc-50 dark:bg-zinc-800">
-                            @if (($week['hasFutureDates'] ?? false) && (! empty($copyFromWeeks) || ! empty($copyToWeeks)))
+                            @if (($week['hasFutureDates'] ?? false) && (! empty($copyFromWeeks) || ! empty($copyForwardOptions)))
                                 <flux:dropdown position="bottom" align="end">
                                     <flux:button variant="ghost" size="xs" icon="ellipsis" class="!p-1" />
                                     <flux:menu>
@@ -151,17 +151,17 @@
                                                 @endforeach
                                             </flux:menu.submenu>
                                         @endif
-                                        @if (! empty($copyToWeeks))
+                                        @if (! empty($copyForwardOptions))
                                             <flux:menu.submenu :heading="__('Copy To')">
-                                                @foreach ($copyToWeeks as $copyToWeek)
-                                                    <flux:menu.item wire:click="copyWeekSlots('{{ $weekStartDate }}', '{{ $copyToWeek['days'][0]['date'] }}')">
-                                                        {{ $copyToWeek['label'] }} · {{ $copyToWeek['dateRange'] }}
+                                                @foreach ($copyForwardOptions as $weekCount)
+                                                    <flux:menu.item wire:click="requestCopyWeekSlotsForward('{{ $weekStartDate }}', {{ $weekCount }})">
+                                                        {{ $weekCount === 1 ? __('Next Week') : __('Next :count Weeks', ['count' => $weekCount]) }}
                                                     </flux:menu.item>
                                                 @endforeach
                                             </flux:menu.submenu>
                                         @endif
                                         <flux:menu.separator />
-                                        <flux:menu.item variant="danger" icon="trash" wire:click="clearWeekSchedule('{{ $weekStartDate }}')">
+                                        <flux:menu.item variant="danger" icon="trash" wire:click="requestClearWeekSchedule('{{ $weekStartDate }}')">
                                             {{ __('Remove All') }}
                                         </flux:menu.item>
                                     </flux:menu>

@@ -45,11 +45,13 @@
                 {{ Str::plural(strtolower($entityName)) }} yet</flux:heading>
         </div>
     @else
-        <flux:tabs wire:model.live="selectedTab" variant="segmented" class="mb-4">
-            @foreach ($this->rootCategories as $root)
-                <flux:tab :name="(string) $root['id']">{{ $root['name'] }}</flux:tab>
-            @endforeach
-        </flux:tabs>
+        <div class="mb-4 max-w-sm">
+            <flux:select wire:model.live="selectedTab" variant="listbox" class="w-full">
+                @foreach ($this->rootCategories as $root)
+                    <flux:select.option value="{{ (string) $root['id'] }}">{{ $root['name'] }}</flux:select.option>
+                @endforeach
+            </flux:select>
+        </div>
 
         @if ($this->selectedRootName)
             <div class="flex items-center gap-2 mt-6 mb-4">

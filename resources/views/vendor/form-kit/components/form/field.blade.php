@@ -20,14 +20,16 @@
 @use('Coda\FormKit\Fields\SwitchField')
 @use('App\Training\ExerciseGroupLabeler')
 
-@props(['field', 'prefix' => null, 'repeaterItems' => null, 'currentIndex' => null])
+@props(['field', 'prefix' => null, 'repeaterItems' => null, 'currentIndex' => null, 'contextData' => null])
 
 @php
     $wireModel = $prefix ? "{$prefix}.{$field->name}" : $field->name;
     $resolvedSuffix = method_exists($field, 'resolveSuffix')
         ? $field->resolveSuffix($prefix ? (data_get($this, $prefix) ?? []) : [])
         : $resolvedSuffix ?? null;
-    $fieldContext = $prefix ? (data_get($this, $prefix) ?? []) : ($this->data ?? []);
+    $fieldContext = is_array($contextData)
+        ? $contextData
+        : ($prefix ? (data_get($this, $prefix) ?? []) : ($this->data ?? []));
 @endphp
 
 <div {{ $attributes }}>

@@ -28,6 +28,8 @@
             'label' => $tab['label'],
         ])
         ->all();
+    $hasPendingExercise = collect($programExercises)
+        ->contains(fn ($exercise): bool => ! $exercise->status->isSubmitted());
 @endphp
 
 <div>
@@ -244,6 +246,14 @@
                     <flux:text>No exercises are available for this program.</flux:text>
                 </x-athlete.section>
             @endforelse
+
+            @if ($canRecordSession && $hasPendingExercise)
+                <div class="border-t border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-zinc-700 dark:bg-zinc-900/40">
+                    <flux:button type="button" variant="primary" class="w-full" wire:click="markActiveSectionCompleted">
+                        Mark All Done
+                    </flux:button>
+                </div>
+            @endif
         </div>
     </div>
 </div>

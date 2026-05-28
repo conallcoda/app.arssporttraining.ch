@@ -29,7 +29,7 @@ class CategoryListModule extends Module
     {
         return [
             ComponentDefinition::make('category-list', CategoryList::class)
-                ->type(ComponentType::List),
+                ->type(ComponentType::Tree),
         ];
     }
 }

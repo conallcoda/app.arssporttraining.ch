@@ -28,4 +28,22 @@
     @include('livewire.training.partials.calendar-week-grid')
 
     <livewire:training.week-slot-form />
+
+    <x-cms::confirm-modal
+        name="confirm-copy-schedule-weeks"
+        :heading="__('Replace :selection?', ['selection' => strtolower($this->pendingCopyForwardLabel())])"
+        :description="$this->pendingCopyForwardDescription()"
+        :confirmLabel="__('Replace')"
+        variant="danger"
+        action="confirmCopyWeekSlotsForward"
+    />
+
+    <x-cms::confirm-modal
+        name="confirm-clear-schedule-week"
+        :heading="__('Remove all for :selection?', ['selection' => $this->pendingClearWeekLabel()])"
+        :description="$this->pendingClearWeekDescription()"
+        :confirmLabel="__('Remove All')"
+        variant="danger"
+        action="confirmClearWeekSchedule"
+    />
 </div>

@@ -18,7 +18,34 @@ use App\Support\Athlete\ProgramDetailsExerciseViewBuilder;
 use App\Support\Training\ScheduledSessionSnapshotBuilder;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
+
+beforeEach(function () {
+    if (Schema::hasTable('media')) {
+        return;
+    }
+
+    Schema::create('media', function (Blueprint $table) {
+        $table->id();
+        $table->morphs('model');
+        $table->uuid('uuid')->nullable()->unique();
+        $table->string('collection_name');
+        $table->string('name');
+        $table->string('file_name');
+        $table->string('mime_type')->nullable();
+        $table->string('disk');
+        $table->string('conversions_disk')->nullable();
+        $table->unsignedBigInteger('size');
+        $table->json('manipulations');
+        $table->json('custom_properties');
+        $table->json('generated_conversions');
+        $table->json('responsive_images');
+        $table->unsignedInteger('order_column')->nullable()->index();
+        $table->nullableTimestamps();
+    });
+});
 
 it('shows scheduled programs on the athlete day calendar page', function () {
     config()->set('athlete.dashboard_today_override', '03.04.2026');
@@ -431,6 +458,117 @@ it('requires athlete-entered values before marking an exercise done', function (
         ->assertSet('editingExerciseId', $slotExercise->id)
         ->assertSet('activeEditSet', 'set-'.$slotSet->id)
         ->assertNotDispatched('athlete-exercise-action-succeeded')
+        ->assertSee('This field is required.');
+
+    $slotExercise = $slotExercise->fresh('sets.values');
+
+    expect($slotExercise->status)->toBe(TrainingProgramSlotExerciseStatusEnum::Pending)
+        ->and($slotExercise->sets->first()?->status)->toBe(TrainingProgramSlotSetStatusEnum::Pending)
+        ->and($slotExercise->sets->first()?->values->firstWhere('setting_key', 'weight')?->actual_value_type)->toBeNull();
+
+    CarbonImmutable::setTestNow();
+});
+
+it('marks every exercise in the active athlete section done', function () {
+    CarbonImmutable::setTestNow('2030-04-03 12:00:00');
+    config()->set('athlete.dashboard_today_override', '03.04.2030');
+
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Friday Strength']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $exerciseConfig = [
+        'settings' => ['reps'],
+        'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+        'reps' => ['mode' => 'manual', 'default' => 8, 'applyPer' => 'session'],
+    ];
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => Exercise::factory()->create(['name' => 'Drop Jump', 'config' => $exerciseConfig])->id,
+        'sort' => 0,
+    ]);
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => Exercise::factory()->create(['name' => 'Box Jump', 'config' => $exerciseConfig])->id,
+        'sort' => 1,
+    ]);
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-04-03 09:00:00'),
+    ])->fresh('exercises.sets');
+
+    Livewire::actingAs($athlete)
+        ->test(ProgramDetails::class, [
+            'date' => '2030-04-03',
+            'trainingProgram' => $trainingProgram,
+        ])
+        ->assertSee('Mark All Done')
+        ->call('markActiveSectionCompleted')
+        ->assertDispatched('athlete-section-action-succeeded')
+        ->assertDontSee('Mark All Done');
+
+    $slot = $slot->fresh('exercises.sets');
+
+    expect($slot->exercises)
+        ->each(fn ($exercise) => $exercise->status->toBe(TrainingProgramSlotExerciseStatusEnum::Completed))
+        ->and($slot->status)->toBe(TrainingProgramSlotStatusEnum::Completed)
+        ->and($slot->completed_exercise_count)->toBe(2);
+
+    CarbonImmutable::setTestNow();
+});
+
+it('requires athlete-entered values before marking an active section done', function () {
+    CarbonImmutable::setTestNow('2030-04-03 12:00:00');
+    config()->set('athlete.dashboard_today_override', '03.04.2030');
+    config()->set('athlete.allow_athlete_edits', true);
+
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Friday Strength']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => Exercise::factory()->create([
+            'name' => 'Athlete Enters Weight',
+            'config' => [
+                'settings' => ['reps', 'weight'],
+                'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+                'reps' => ['mode' => 'manual', 'default' => 8, 'applyPer' => 'session'],
+                'weight' => ['mode' => 'manual', 'default' => null, 'applyPer' => 'session'],
+            ],
+        ])->id,
+        'sort' => 0,
+    ]);
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-04-03 09:00:00'),
+    ])->fresh('exercises.sets.values');
+
+    $slotExercise = $slot->exercises->first();
+    $slotSet = $slotExercise->sets->first();
+
+    Livewire::actingAs($athlete)
+        ->test(ProgramDetails::class, [
+            'date' => '2030-04-03',
+            'trainingProgram' => $trainingProgram,
+        ])
+        ->call('markActiveSectionCompleted')
+        ->assertSet('editingExerciseId', $slotExercise->id)
+        ->assertSet('activeEditSet', 'set-'.$slotSet->id)
+        ->assertNotDispatched('athlete-section-action-succeeded')
         ->assertSee('This field is required.');
 
     $slotExercise = $slotExercise->fresh('sets.values');

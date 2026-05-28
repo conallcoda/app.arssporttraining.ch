@@ -8,9 +8,36 @@ use App\Models\Exercise\ExerciseProgram;
 use App\Models\Tag;
 use App\Models\Users\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    if (Schema::hasTable('media')) {
+        return;
+    }
+
+    Schema::create('media', function (Blueprint $table) {
+        $table->id();
+        $table->morphs('model');
+        $table->uuid('uuid')->nullable()->unique();
+        $table->string('collection_name');
+        $table->string('name');
+        $table->string('file_name');
+        $table->string('mime_type')->nullable();
+        $table->string('disk');
+        $table->string('conversions_disk')->nullable();
+        $table->unsignedBigInteger('size');
+        $table->json('manipulations');
+        $table->json('custom_properties');
+        $table->json('generated_conversions');
+        $table->json('responsive_images');
+        $table->unsignedInteger('order_column')->nullable()->index();
+        $table->nullableTimestamps();
+    });
+});
 
 it('sorts exercises by category name on the admin exercise list', function () {
     $coach = User::factory()->coach()->create();
@@ -173,4 +200,77 @@ it('searches programs by category name as well as program title', function () {
     $names = $component->instance()->items->pluck('name')->values()->all();
 
     expect($names)->toBe(['Giant Slalom']);
+});
+
+it('searches exercises by category, equipment, and modifier names as well as exercise title', function () {
+    $coach = User::factory()->coach()->create();
+
+    $strength = Tag::factory()->create([
+        'scope' => 'exercise_category',
+        'name' => 'Strength',
+    ]);
+
+    $mobility = Tag::factory()->create([
+        'scope' => 'exercise_category',
+        'name' => 'Mobility',
+    ]);
+
+    $dumbbell = Tag::factory()->create([
+        'scope' => 'exercise_equipment',
+        'name' => 'Dumbbell',
+    ]);
+
+    $barbell = Tag::factory()->create([
+        'scope' => 'exercise_equipment',
+        'name' => 'Barbell',
+    ]);
+
+    $tempo = Tag::factory()->create([
+        'scope' => 'exercise_modifiers',
+        'name' => 'Tempo',
+    ]);
+
+    $paused = Tag::factory()->create([
+        'scope' => 'exercise_modifiers',
+        'name' => 'Paused',
+    ]);
+
+    $strengthExercise = Exercise::create([
+        'name' => 'Front Squat',
+        'category_id' => $strength->id,
+        'owner_id' => $coach->id,
+    ]);
+    $strengthExercise->tags()->sync([$barbell->id, $paused->id]);
+
+    $equipmentExercise = Exercise::create([
+        'name' => 'Split Squat',
+        'category_id' => $mobility->id,
+        'owner_id' => $coach->id,
+    ]);
+    $equipmentExercise->tags()->sync([$dumbbell->id]);
+
+    $modifierExercise = Exercise::create([
+        'name' => 'Push Up',
+        'category_id' => $mobility->id,
+        'owner_id' => $coach->id,
+    ]);
+    $modifierExercise->tags()->sync([$tempo->id]);
+
+    $component = Livewire::actingAs($coach)
+        ->test(ExerciseList::class)
+        ->set('filters.search', 'Strength');
+
+    expect($component->instance()->items->pluck('name')->values()->all())->toBe(['Front Squat']);
+
+    $component->set('filters.search', 'Dumbbell');
+
+    expect($component->instance()->items->pluck('name')->values()->all())->toBe(['Split Squat']);
+
+    $component->set('filters.search', 'Tempo');
+
+    expect($component->instance()->items->pluck('name')->values()->all())->toBe(['Push Up']);
+
+    $component->set('filters.search', 'Front Squat');
+
+    expect($component->instance()->items->pluck('name')->values()->all())->toBe(['Front Squat']);
 });

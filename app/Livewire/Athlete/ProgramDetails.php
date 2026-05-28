@@ -13,6 +13,7 @@ use App\Support\AthleteDashboardDate;
 use App\Support\Training\EffectiveSlotExerciseConfigResolver;
 use App\Support\Training\ProgramExerciseOrder;
 use App\Support\Training\ScheduledSessionSnapshotBuilder;
+use App\Support\Ui\CategoryColorStyle;
 use App\Training\AthleteExerciseValueService;
 use App\Training\ExerciseGroupLabeler;
 use App\Training\TrainingSessionMaterializer;
@@ -527,6 +528,60 @@ class ProgramDetails extends Component
         $this->dispatch('athlete-exercise-action-succeeded', exerciseId: $slotExerciseId);
     }
 
+    public function markActiveSectionCompleted(): void
+    {
+        abort_if($this->previewMode, 403);
+        abort_if(! $this->canRecordSession, 403);
+
+        $exercises = app(ProgramExerciseOrder::class)
+            ->sortSlotExercises(
+                $this->currentSlot->exercises
+                    ->where('type', $this->activeSection)
+                    ->values(),
+                includeType: false,
+            );
+
+        $pendingExercises = $exercises
+            ->filter(fn ($exercise): bool => $exercise instanceof TrainingProgramSlotExercise && ! $exercise->status->isSubmitted())
+            ->values();
+
+        foreach ($pendingExercises as $exercise) {
+            if (! $exercise instanceof TrainingProgramSlotExercise) {
+                continue;
+            }
+
+            if ($this->pendingSkipDraftSkipsEntireExercise($exercise)) {
+                continue;
+            }
+
+            if (! $this->validateExerciseCompletion($exercise)) {
+                return;
+            }
+        }
+
+        $this->resetEditorState();
+
+        foreach ($pendingExercises as $exercise) {
+            if (! $exercise instanceof TrainingProgramSlotExercise) {
+                continue;
+            }
+
+            if ($this->pendingSkipDraftSkipsEntireExercise($exercise)) {
+                unset($this->pendingSkippedSets[$exercise->id]);
+                app(TrainingSessionProgressService::class)->markExerciseSkipped($exercise);
+
+                continue;
+            }
+
+            $this->persistPendingSkippedSets($exercise);
+            app(TrainingSessionProgressService::class)->markExerciseCompleted($exercise);
+            unset($this->pendingSkippedSets[$exercise->id]);
+        }
+
+        $this->refreshSessionState();
+        $this->dispatch('athlete-section-action-succeeded', section: $this->activeSection);
+    }
+
     public function markExerciseSkipped(int $slotExerciseId): void
     {
         abort_if($this->previewMode, 403);
@@ -609,34 +664,7 @@ class ProgramDetails extends Component
 
     public function categoryBadgeStyle(?string $color): ?string
     {
-        if (! is_string($color) || trim($color) === '') {
-            return null;
-        }
-
-        $rawColor = trim($color);
-        $normalized = ltrim($rawColor, '#');
-
-        if (preg_match('/^[0-9a-fA-F]{3}$/', $normalized)) {
-            $normalized = implode('', array_map(
-                fn (string $char): string => $char.$char,
-                str_split($normalized)
-            ));
-        }
-
-        $textColor = '#ffffff';
-
-        if (preg_match('/^[0-9a-fA-F]{6}$/', $normalized)) {
-            $red = hexdec(substr($normalized, 0, 2));
-            $green = hexdec(substr($normalized, 2, 2));
-            $blue = hexdec(substr($normalized, 4, 2));
-            $luminance = (($red * 299) + ($green * 587) + ($blue * 114)) / 1000;
-            $textColor = $luminance > 160 ? '#111827' : '#ffffff';
-            $rawColor = '#'.$normalized;
-        } elseif (! preg_match('/^[#(),.%\-\sa-zA-Z0-9]+$/', $rawColor)) {
-            return null;
-        }
-
-        return sprintf('background-color: %s; color: %s;', $rawColor, $textColor);
+        return CategoryColorStyle::resolve($color);
     }
 
     protected function buildEditValues(TrainingProgramSlotExercise $exercise): array
