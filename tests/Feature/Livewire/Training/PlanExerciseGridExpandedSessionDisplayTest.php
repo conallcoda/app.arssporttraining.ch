@@ -56,6 +56,44 @@ it('shows session-specific values for expanded mixed past and future weeks', fun
         ->and($row->isCellOverriddenAt(0, 0, 1))->toBeTrue();
 });
 
+it('does not show a bilateral reps hint in the plan exercise grid header', function () {
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => [
+                'mode' => 'manual',
+                'default' => '7_9',
+                'bilateralExecution' => 'alternating',
+                'applyPer' => 'session',
+            ],
+        ],
+    ]);
+
+    $program = ExerciseProgram::factory()->create();
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    Livewire::test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'weeks' => 1,
+        'sessionsPerWeek' => 1,
+        'weekSessionDates' => [
+            ['2026-04-27'],
+        ],
+    ])
+        ->assertDontSee('Alternate sides each rep')
+        ->assertDontSee('Complete all reps on one side first');
+});
+
 it('shows historical sessions even when they match the other sessions', function () {
     $exercise = Exercise::factory()->create([
         'config' => [

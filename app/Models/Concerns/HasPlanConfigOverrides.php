@@ -2,6 +2,7 @@
 
 namespace App\Models\Concerns;
 
+use App\Casts\ExercisePlanConfigCast;
 use App\Models\Exercise\ExercisePlanConfigOverride;
 use App\Training\TrainingStateRevisionService;
 use Illuminate\Database\Eloquent\Model;
@@ -23,6 +24,10 @@ trait HasPlanConfigOverrides
             }
 
             $model->planConfigOverrides()->delete();
+        });
+
+        static::deleted(function ($model): void {
+            ExercisePlanConfigCast::forgetOverrideRowsFor($model);
         });
     }
 
@@ -141,6 +146,8 @@ trait HasPlanConfigOverrides
                 'updated_by' => $actorId,
             ]);
         }
+
+        ExercisePlanConfigCast::forgetOverrideRowsFor($this);
     }
 
     /**

@@ -45,7 +45,8 @@ class HeartRateZoneSetting extends AbstractSetting
         return [
             HeartRateZone::make('default')
                 ->label('Default Zone')
-                ->default('2'),
+                ->default('2')
+                ->rules('nullable|regex:/^[0-4](?:-[0-4])?$/'),
             ApplyPerField::make(),
         ];
     }

@@ -35,6 +35,7 @@ class RestSetting extends AbstractSetting
                 ->label('Default Rest')
                 ->default(60)
                 ->min(0)
+                ->rules('nullable|integer|min:0')
                 ->suffix('sec'),
             ApplyPerField::make(ApplyPerScope::FORM_SESSION),
         ];

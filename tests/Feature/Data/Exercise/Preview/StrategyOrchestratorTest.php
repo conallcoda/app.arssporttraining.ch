@@ -162,6 +162,64 @@ it('populates manual reps grid with default value', function () {
     expect($state->getCellValue('reps', 1, 2))->toBe(8);
 });
 
+it('shows blank manual reps as unspecified instead of restoring the default', function () {
+    $data = [
+        'sets' => ['deload' => 'none', 'default' => 2, 'label' => 'Set'],
+        'settings' => ['reps'],
+        'reps' => [
+            'mode' => 'manual',
+            'default' => null,
+            'applyPer' => 'session',
+        ],
+    ];
+
+    $state = (new StrategyOrchestrator($data, weeks: 1))->execute();
+
+    expect($state->hasGrid('reps'))->toBeTrue();
+    expect($state->getCellValue('reps', 0, 0))->toBe('-');
+    expect($state->getCellValue('reps', 0, 1))->toBe('-');
+});
+
+it('keeps manual rep ranges as planned grid values', function () {
+    $data = [
+        'sets' => ['deload' => 'none', 'default' => 2, 'label' => 'Set'],
+        'settings' => ['reps'],
+        'reps' => [
+            'mode' => 'manual',
+            'default' => '8-10',
+            'applyPer' => 'session',
+        ],
+    ];
+
+    $state = (new StrategyOrchestrator($data, weeks: 1))->execute();
+
+    expect($state->hasGrid('reps'))->toBeTrue();
+    expect($state->getCellValue('reps', 0, 0))->toBe('8-10');
+    expect($state->getCellValue('reps', 0, 1))->toBe('8-10');
+});
+
+it('coerces ambiguous manual reps when automatic weight depends on reps', function () {
+    $data = [
+        'sets' => ['deload' => 'none', 'default' => 2, 'label' => 'Set'],
+        'settings' => ['reps', 'weight'],
+        'reps' => [
+            'mode' => 'manual',
+            'default' => '8-10',
+            'applyPer' => 'session',
+        ],
+        'weight' => [
+            'mode' => 'automatic',
+            'oneRepMaxModifier' => 100,
+        ],
+    ];
+
+    $state = (new StrategyOrchestrator($data, weeks: 1))->execute();
+
+    expect($state->hasGrid('reps'))->toBeTrue();
+    expect($state->getCellValue('reps', 0, 0))->toBe(8);
+    expect($state->getCellValue('reps', 0, 1))->toBe(8);
+});
+
 it('skips reps when not in settings', function () {
     $data = [
         'sets' => ['deload' => 'none', 'default' => 4, 'label' => 'Set'],

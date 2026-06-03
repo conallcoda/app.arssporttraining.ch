@@ -12,7 +12,6 @@ use App\Models\Tag;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Display\DisplayFields\Ago;
 use Coda\Cms\Display\DisplayFields\Badge;
-use Coda\Cms\Display\DisplayFields\ColorBadge;
 use Coda\Cms\Display\DisplayFields\Id;
 use Coda\Cms\Display\DisplayFields\TextWithBadgeGroups;
 use Coda\Cms\Display\Table;
@@ -73,12 +72,6 @@ class ExerciseList extends AbstractModelList
             ->whereIn('scope', ['exercise_category', 'exercise_equipment', 'exercise_modifiers', 'exercise_internal'])
             ->pluck('name', 'id');
 
-        $exerciseCategoryColorLabels = Tag::query()
-            ->forScope('exercise_category')
-            ->whereNull('parent_id')
-            ->pluck('name', 'color')
-            ->all();
-
         $tagBadges = fn (ExerciseData $data, string $field) => collect($data->{$field})
             ->map(fn (int $id) => ['label' => $tagNames[$id] ?? '?', 'modalField' => $field])
             ->all();
@@ -108,10 +101,14 @@ class ExerciseList extends AbstractModelList
                             'modalField' => 'owner_id',
                         ],
                     ]),
-                ColorBadge::make('categoryColor')
+                Badge::make('categoryName')
                     ->label(__('Category'))
                     ->sortAs('category')
-                    ->colorLabels($exerciseCategoryColorLabels),
+                    ->source(fn (ExerciseData $data) => $data->categoryName === null ? [] : [[
+                        'label' => $data->categoryName,
+                        'color' => $data->categoryColor,
+                        'modalField' => 'category',
+                    ]]),
                 Badge::make('internalTags')
                     ->label(__('Tags'))
                     ->source(fn (ExerciseData $data) => collect($data->internalTags)

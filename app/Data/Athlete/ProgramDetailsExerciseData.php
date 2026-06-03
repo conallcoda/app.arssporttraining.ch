@@ -24,6 +24,7 @@ class ProgramDetailsExerciseData extends AbstractData
         public array $equipmentBadges = [],
         public array $modifierBadges = [],
         public ?string $instructions = null,
+        public ?string $bilateralRepsHint = null,
         public ?string $videoUrl = null,
         public array $photoUrls = [],
         public string $setLabel = 'Set',

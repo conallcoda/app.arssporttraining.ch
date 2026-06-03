@@ -171,6 +171,57 @@ it('builds the plan plus actual table without grouping and repeats session scope
         ->and(collect($table['sessions'][0]['rows'])->pluck('field')->contains('sets'))->toBeFalse();
 });
 
+it('shares scheduled slot data across plan exercise grid instances in one request', function () {
+    [$athlete, $scheduledProgram, $pivot, $exercise, $trainingProgram] = buildScheduledProgramContext([
+        'settings' => ['reps'],
+        'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+        'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'set'],
+    ]);
+
+    TrainingProgramSlot::create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => '2026-04-27 09:00:00',
+        'scheduled_date' => '2026-04-27',
+    ]);
+
+    $componentPayload = [
+        'planId' => $scheduledProgram->id,
+        'scheduledTrainingProgramId' => $trainingProgram->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'exerciseName' => $exercise->name,
+        'exerciseConfigArray' => $exercise->config->toArray(),
+        'userId' => $athlete->id,
+        'weeks' => 1,
+        'sessionsPerWeek' => 1,
+        'weekSessions' => [1],
+        'weekSessionDates' => [['2026-04-27']],
+        'showActualValueTabs' => true,
+        'valueDisplayMode' => 'actual',
+    ];
+
+    actualTable(Livewire::test(PlanExerciseGrid::class, $componentPayload));
+
+    DB::enableQueryLog();
+    DB::flushQueryLog();
+
+    actualTable(Livewire::test(PlanExerciseGrid::class, $componentPayload));
+
+    $scheduledTreeQueries = collect(DB::getQueryLog())
+        ->filter(function (array $query): bool {
+            $sql = $query['query'] ?? '';
+
+            return str_contains($sql, 'training_program_slots')
+                || str_contains($sql, 'training_program_slot_exercises')
+                || str_contains($sql, 'training_program_slot_sets')
+                || str_contains($sql, 'training_program_slot_set_values');
+        })
+        ->count();
+
+    expect($scheduledTreeQueries)->toBe(0);
+});
+
 it('numbers sessions sequentially across the whole block in plan plus actual mode', function () {
     [$athlete, $scheduledProgram, $pivot, $exercise, $trainingProgram] = buildScheduledProgramContext([
         'settings' => ['reps'],

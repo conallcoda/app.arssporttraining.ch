@@ -9,6 +9,7 @@ use App\Data\Exercise\Preview\OverrideManager;
 use App\Data\Exercise\Preview\PreviewGrid;
 use App\Data\Exercise\Preview\SessionGroupBuilder;
 use App\Data\Exercise\Preview\SessionGroupingMode;
+use App\Data\Exercise\Settings\RepsSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Livewire\Concerns\InteractsWithDisplayGridCopying;
 use App\Models\Exercise\ExerciseProgram;
@@ -231,6 +232,10 @@ class CalendarExerciseSettingsForm extends FormModal
 
     public function updateCellOverride(int $weekIndex, int $setIndex, string $field, mixed $value, int $session = 0, bool $applyToAll = false): void
     {
+        if (! $this->isValidPlanningValue($field, $value)) {
+            return;
+        }
+
         $overrides = $this->data['config']['overrides'] ?? OverrideManager::reset();
         $targets = $applyToAll
             ? $this->fanoutTargetsForSession($weekIndex, $session)
@@ -262,6 +267,10 @@ class CalendarExerciseSettingsForm extends FormModal
 
     public function updateSessionOverride(int $weekIndex, int $session, string $field, mixed $value, bool $applyToAll = false): void
     {
+        if (! $this->isValidPlanningValue($field, $value)) {
+            return;
+        }
+
         $overrides = $this->data['config']['overrides'] ?? OverrideManager::reset();
         $targets = $applyToAll
             ? $this->fanoutTargetsForSession($weekIndex, $session)
@@ -285,6 +294,20 @@ class CalendarExerciseSettingsForm extends FormModal
         $this->data['config']['overrides'] = $overrides;
 
         unset($this->previewGrid, $this->effectiveExpandedWeeks, $this->copyBuckets, $this->copyMenuOptions);
+    }
+
+    private function isValidPlanningValue(string $field, mixed $value): bool
+    {
+        if ($field !== 'reps' || RepsSetting::isValidPlanningValue($value, $this->data['config'] ?? [])) {
+            return true;
+        }
+
+        Flux::toast(
+            text: __('Reps must be a single number or bilateral value while automatic calculations are enabled.'),
+            variant: 'danger',
+        );
+
+        return false;
     }
 
     /** @return array<int, array{week:int, session:int}> */
@@ -327,7 +350,7 @@ class CalendarExerciseSettingsForm extends FormModal
     {
         $this->validate($this->buildValidationRulesFromFieldsets(), [
             'required' => __('This field is required.'),
-        ]);
+        ], $this->buildValidationAttributesFromFieldsets());
 
         Flux::modal($this->name)->close();
 

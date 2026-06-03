@@ -4,6 +4,7 @@ namespace App\Support\Athlete\Concerns;
 
 use App\Data\Exercise\ExerciseSetting;
 use App\Data\Exercise\Settings\AbstractSetting;
+use App\Data\Exercise\Settings\RepsSetting;
 use App\Data\Exercise\Strategies\HeartRate\HeartRateZoneCellColors;
 use Coda\Cms\Support\ColorPalette;
 use Illuminate\Support\Collection;
@@ -137,6 +138,17 @@ trait FormatsProgramDetailsExerciseValues
     protected function isBlankValue(mixed $value): bool
     {
         return $value === null || trim((string) $value) === '' || $value === '-';
+    }
+
+    protected function bilateralRepsHintForValue(mixed $value, array $settingConfig): ?string
+    {
+        $canonical = RepsSetting::athleteCanonicalValue($value, $settingConfig);
+
+        if (! ($canonical['is_bilateral'] ?? false)) {
+            return null;
+        }
+
+        return RepsSetting::bilateralExecutionHint($canonical['bilateral_execution'] ?? null);
     }
 
     protected function resolveSettingConfig(mixed $exerciseConfig, string $setting): array

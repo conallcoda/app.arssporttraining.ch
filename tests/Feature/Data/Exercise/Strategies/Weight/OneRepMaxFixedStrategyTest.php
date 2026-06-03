@@ -58,6 +58,40 @@ it('adjusts anchor weight based on last set reps', function () {
     expect($lastSetWeight)->toBeLessThan($state->getResolvedCellValue('oneRepMax', $lastWeekIndex, $lastSetIndex, 0));
 });
 
+it('anchors grouped weights to the final displayed rep cell', function () {
+    $setting = WeightSetting::from(['mode' => 'automatic', 'oneRepMaxModifier' => 100]);
+    $measuredData = new WeightProgressionSetting(measuredReps: 1, measuredWeight: 80.3, targetGoal: 0);
+
+    $setsPerWeek = [4, 4, 4, 4, 4];
+    $reps = [
+        [14, 14, 12, 12],
+        [14, 14, 12, 12],
+        [12, 12, 10, 10],
+        [12, 12, 10, 10],
+        [10, 10, 8, 8],
+    ];
+    $state = buildStateWithReps($setsPerWeek, $reps);
+    $state->setSessionGrid('sets', [
+        0 => [[0 => 2], [0 => 2]],
+        1 => [[0 => 2], [0 => 2]],
+        2 => [[0 => 2], [0 => 2]],
+        3 => [[0 => 2], [0 => 2]],
+        4 => [[0 => 2], [0 => 2]],
+    ]);
+
+    $strategy = new OneRepMaxFixedStrategy($setting, $measuredData);
+    $result = $strategy->generate(
+        weeks: 5,
+        state: $state,
+        sessionCounts: [2, 2, 2, 2, 2],
+        groupingMode: 'groups',
+        groupSize: 2,
+    );
+
+    expect($result)->not->toBeNull()
+        ->and($result['weights'][4][3])->toBe(64.0);
+});
+
 it('uses rep percentage of 1.0 when reps grid has no data for last set', function () {
     $setting = WeightSetting::from(['mode' => 'automatic', 'oneRepMaxModifier' => 100]);
     $measuredData = new WeightProgressionSetting(measuredReps: 1, measuredWeight: 100, targetGoal: 0);

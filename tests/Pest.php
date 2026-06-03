@@ -11,7 +11,9 @@
 |
 */
 
+use App\Casts\ExercisePlanConfigCast;
 use App\Form\Fields\Exercise\Exercises;
+use App\Livewire\Training\View\PlanExerciseGrid;
 use Coda\FormKit\Field;
 
 pest()->extend(Tests\TestCase::class)
@@ -25,6 +27,8 @@ pest()->extend(Tests\TestCase::class)
 beforeEach(function () {
     Field::clearCachedOptions();
     Exercises::flushRequestCaches();
+    ExercisePlanConfigCast::flushOverrideRowsCache();
+    PlanExerciseGrid::flushScheduledDataCaches();
 });
 
 /*

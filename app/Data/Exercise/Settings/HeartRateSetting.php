@@ -69,6 +69,7 @@ class HeartRateSetting extends AbstractSetting
             HeartRate::make('default')
                 ->label('Default Heart Rate')
                 ->default('140')
+                ->rules('nullable|regex:/^\d{1,3}(?:-\d{1,3})?$/')
                 ->show('mode == "manual"'),
             ApplyPerField::make()
                 ->show('mode == "manual"'),

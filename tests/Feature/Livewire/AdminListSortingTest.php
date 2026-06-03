@@ -65,6 +65,49 @@ it('sorts exercises by category name on the admin exercise list', function () {
     expect($names)->toBe(['Alpha Exercise', 'Zulu Exercise']);
 });
 
+it('shows the exercise category badge from the actual category instead of the shared color label', function () {
+    $coach = User::factory()->coach()->create();
+
+    $warmUp = Tag::factory()->create([
+        'scope' => 'exercise_category',
+        'name' => 'Warm-up',
+        'color' => 'amber',
+    ]);
+
+    Tag::factory()->create([
+        'scope' => 'exercise_category',
+        'name' => 'Cooldown',
+        'color' => 'amber',
+    ]);
+
+    $exercise = Exercise::create([
+        'name' => 'Dynamic Mobility',
+        'category_id' => $warmUp->id,
+        'owner_id' => $coach->id,
+    ]);
+
+    $component = Livewire::actingAs($coach)
+        ->test(ExerciseList::class);
+
+    $reflection = new ReflectionClass($component->instance());
+    $method = $reflection->getMethod('getTable');
+    $method->setAccessible(true);
+
+    $table = $method->invoke($component->instance());
+    $categoryColumn = collect($table->getColumns())->firstWhere('field', 'categoryName');
+    $data = \App\Data\Exercise\ExerciseData::fromExercise($exercise->fresh());
+
+    expect($categoryColumn)->not->toBeNull();
+
+    $badge = $categoryColumn->getSourceData($data);
+
+    expect($badge)->toBe([[
+        'label' => 'Warm-up',
+        'color' => 'amber',
+        'modalField' => 'category',
+    ]]);
+});
+
 it('sorts programs by coach name on the admin program list', function () {
     $signedInCoach = User::factory()->coach()->create(['forename' => 'Signed', 'surname' => 'In']);
     $adams = User::factory()->coach()->create(['forename' => 'Jane', 'surname' => 'Adams']);

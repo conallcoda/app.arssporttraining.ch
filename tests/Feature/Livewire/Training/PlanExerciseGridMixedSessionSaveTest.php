@@ -539,7 +539,51 @@ it('shows the coach grouping on the plan grid badge', function () {
         ]);
 });
 
-it('ignores a persisted exercise-level grouping override and uses coach defaults', function () {
+it('opens exercise-specific grouping settings from the grouping badge', function () {
+    $coach = User::factory()->coach()->create();
+    $coach->config->set('settings.session_grouping', [
+        'mode' => 'groups',
+        'groupSize' => 2,
+        'copyValuesAutomatically' => true,
+    ]);
+    $coach->save();
+
+    $program = ExerciseProgram::factory()->create();
+
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+        ],
+    ]);
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'weeks' => 2,
+        'sessionsPerWeek' => 1,
+    ])
+        ->call('openGroupingForm')
+        ->assertDispatched('open-plan-exercise-settings', function ($event, $params) use ($pivot, $exercise) {
+            return ($params['data']['programExerciseId'] ?? null) === $pivot->id
+                && ($params['data']['exerciseId'] ?? null) === $exercise->id
+                && ($params['data']['focusField'] ?? null) === 'session_grouping'
+                && ($params['data']['config']['preview']['groupingMode'] ?? null) === 'groups'
+                && ($params['data']['config']['preview']['groupSize'] ?? null) === 2;
+        });
+});
+
+it('uses a persisted exercise-level grouping override instead of coach defaults', function () {
     $coach = User::factory()->coach()->create();
     $coach->config->set('settings.session_grouping', [
         'mode' => 'none',
@@ -593,14 +637,14 @@ it('ignores a persisted exercise-level grouping override and uses coach defaults
 
     expect($component->instance()->groupingBadge)
         ->toBe([
-            'label' => 'Ungrouped',
-            'color' => null,
-            'overridden' => false,
+            'label' => 'Grouped By Weeks (1)',
+            'color' => 'green',
+            'overridden' => true,
         ])
-        ->and($component->instance()->displayGrid->showGroupColumn)->toBeFalse();
+        ->and($component->instance()->displayGrid->showGroupColumn)->toBeTrue();
 });
 
-it('clears a legacy exercise-level grouping override when saving plan exercise settings', function () {
+it('stores exercise-level grouping from the plan exercise settings modal', function () {
     $coach = User::factory()->coach()->create();
     $coach->config->set('settings.session_grouping', [
         'mode' => 'groups',
@@ -626,17 +670,6 @@ it('clears a legacy exercise-level grouping override when saving plan exercise s
         'type' => 'main',
     ]);
 
-    $config = $program->config;
-    $overrides = $config->defaultExerciseOverrides($pivot->id);
-    $overrides->sessionGrouping = \App\Data\Exercise\Preview\SessionGroupingConfig::from([
-        'mode' => 'week',
-        'groupSize' => 1,
-        'copyValuesAutomatically' => false,
-    ]);
-    $config->setDefaultExerciseOverrides($pivot->id, $overrides);
-    $program->config = $config;
-    $program->save();
-
     $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
         'planId' => $program->id,
         'programExerciseId' => $pivot->id,
@@ -652,15 +685,24 @@ it('clears a legacy exercise-level grouping override when saving plan exercise s
         'programExerciseId' => $pivot->id,
         'exerciseId' => $exercise->id,
         'userId' => null,
-        'config' => $exercise->config->toArray(),
+        'config' => array_replace_recursive($exercise->config->toArray(), [
+            'preview' => [
+                'groupingMode' => 'week',
+                'groupSize' => 1,
+                'copyValuesAutomatically' => true,
+            ],
+        ]),
     ]);
 
-    expect($program->fresh()->config->defaultExerciseOverrides($pivot->id)->sessionGrouping)->toBeNull()
+    $sessionGrouping = $program->fresh()->config->defaultExerciseOverrides($pivot->id)->sessionGrouping;
+
+    expect($sessionGrouping?->mode)->toBe('week')
+        ->and($sessionGrouping?->groupSize)->toBe(1)
         ->and($component->instance()->groupingBadge)
             ->toBe([
-                'label' => 'Grouped By Sessions (2)',
-                'color' => null,
-                'overridden' => false,
+                'label' => 'Grouped By Weeks (1)',
+                'color' => 'green',
+                'overridden' => true,
             ]);
 });
 

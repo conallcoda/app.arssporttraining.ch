@@ -1,15 +1,43 @@
 <?php
 
 use App\Data\Exercise\ExerciseConfig;
+use App\Data\Exercise\ExerciseData;
 use App\Livewire\Database\ExerciseForm;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseTemplate;
 use App\Models\Tag;
 use App\Models\Users\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    if (Schema::hasTable('media')) {
+        return;
+    }
+
+    Schema::create('media', function (Blueprint $table) {
+        $table->id();
+        $table->morphs('model');
+        $table->uuid('uuid')->nullable()->unique();
+        $table->string('collection_name');
+        $table->string('name');
+        $table->string('file_name');
+        $table->string('mime_type')->nullable();
+        $table->string('disk');
+        $table->string('conversions_disk')->nullable();
+        $table->unsignedBigInteger('size');
+        $table->json('manipulations');
+        $table->json('custom_properties');
+        $table->json('generated_conversions');
+        $table->json('responsive_images');
+        $table->unsignedInteger('order_column')->nullable()->index();
+        $table->nullableTimestamps();
+    });
+});
 
 it('applies the category default template when creating a new exercise', function () {
     $template = ExerciseTemplate::create([
@@ -33,6 +61,84 @@ it('applies the category default template when creating a new exercise', functio
         ->set('data.category', $category->id)
         ->assertSet('data.template', $template->id)
         ->assertSet('data.config.settings', ['note']);
+});
+
+it('persists the selected category when creating an exercise', function () {
+    $warmUp = Tag::factory()->create([
+        'scope' => 'exercise_category',
+        'name' => 'Warm-up',
+        'color' => 'amber',
+    ]);
+
+    Tag::factory()->create([
+        'scope' => 'exercise_category',
+        'name' => 'Cooldown',
+        'color' => 'amber',
+    ]);
+
+    $exercise = (new ExerciseData(
+        id: null,
+        name: 'Dynamic Mobility',
+        category: $warmUp->id,
+        config: new ExerciseConfig,
+    ))->persist();
+
+    expect($exercise->category_id)->toBe($warmUp->id)
+        ->and($exercise->category?->name)->toBe('Warm-up');
+});
+
+it('switches to the first tab with validation errors when submitting a tabbed exercise modal', function () {
+    Livewire::test(ExerciseForm::class)
+        ->call('open', data: [
+            'id' => null,
+            'name' => '',
+            'category' => null,
+            'config' => [
+                ...((new ExerciseConfig)->toArray()),
+                'settings' => ['reps'],
+                'sets' => ['default' => 5, 'label' => 'Set', 'deload' => 'none'],
+                'reps' => ['mode' => 'manual', 'default' => 10, 'applyPer' => 'session'],
+            ],
+            'template' => null,
+        ])
+        ->set('activeFieldsetTab', 'settings')
+        ->call('submit')
+        ->assertHasErrors(['data.name', 'data.category'])
+        ->assertSet('activeFieldsetTab', 'general');
+});
+
+it('binds exercise fieldset tabs to the active validation tab state', function () {
+    Livewire::test(ExerciseForm::class)
+        ->call('open', data: [
+            'id' => null,
+            'name' => '',
+            'category' => null,
+            'config' => (new ExerciseConfig)->toArray(),
+            'template' => null,
+        ])
+        ->assertSeeHtml('wire:model.live="activeFieldsetTab"');
+});
+
+it('clears validation errors when reopening a fresh exercise modal', function () {
+    Livewire::test(ExerciseForm::class)
+        ->call('open', data: [
+            'id' => null,
+            'name' => '',
+            'category' => null,
+            'config' => (new ExerciseConfig)->toArray(),
+            'template' => null,
+        ])
+        ->call('submit')
+        ->assertHasErrors(['data.name', 'data.category'])
+        ->call('open', data: [
+            'id' => null,
+            'name' => '',
+            'category' => null,
+            'config' => (new ExerciseConfig)->toArray(),
+            'template' => null,
+        ])
+        ->assertHasNoErrors()
+        ->assertSet('activeFieldsetTab', 'general');
 });
 
 it('applies the root category default template when creating an exercise in a subcategory', function () {

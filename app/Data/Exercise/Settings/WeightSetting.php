@@ -67,10 +67,12 @@ class WeightSetting extends AbstractSetting
             Fields\Percentage::make('oneRepMaxModifier')
                 ->label('1RM Modifier')
                 ->default(100)
+                ->rules('nullable|integer|min:0')
                 ->show('mode == "automatic"'),
             Weight::make('default')
                 ->label('Default Weight')
                 ->default(5)
+                ->rules('nullable|numeric|min:0')
                 ->show('mode == "manual"'),
             ApplyPerField::make()
                 ->show('mode == "manual"'),

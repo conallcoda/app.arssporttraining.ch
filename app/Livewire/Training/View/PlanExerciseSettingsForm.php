@@ -4,8 +4,10 @@ namespace App\Livewire\Training\View;
 
 use App\Data\Exercise\ExerciseConfig;
 use App\Data\Exercise\Preview\OverrideManager;
+use App\Data\Exercise\Preview\SessionGroupingMode;
 use App\Support\Training\ApplyPerScope;
 use Coda\Cms\Livewire\FormModal;
+use Coda\FormKit\Fields;
 use Coda\FormKit\Form;
 use Coda\FormKit\FormFieldsetGroup;
 use Flux\Flux;
@@ -59,9 +61,38 @@ class PlanExerciseSettingsForm extends FormModal
     public function formConfig(): Form
     {
         $form = Form::make();
-        ExerciseConfig::addFormFieldsets($form);
+        ExerciseConfig::addFormFieldsets($form, [
+            [
+                'label' => 'Grouping',
+                'fields' => $this->sessionGroupingFields(),
+                'prefix' => 'data.config.preview',
+            ],
+        ]);
 
         return $form;
+    }
+
+    private function sessionGroupingFields(): array
+    {
+        $mode = SessionGroupingMode::normalizeMode(
+            (string) ($this->data['config']['preview']['groupingMode'] ?? null)
+        );
+
+        return [
+            Fields\RadioSegmented::make('groupingMode')
+                ->label('Grouping')
+                ->options(SessionGroupingMode::options())
+                ->default(SessionGroupingMode::defaultMode())
+                ->live(),
+            Fields\Number::make('groupSize')
+                ->label(SessionGroupingMode::sizeFieldLabel($mode))
+                ->min(SessionGroupingMode::sizeFieldMin($mode))
+                ->max(SessionGroupingMode::sizeFieldMax($mode))
+                ->step(1)
+                ->default(SessionGroupingMode::defaultGroupSize($mode))
+                ->suffix(SessionGroupingMode::sizeFieldSuffix($mode))
+                ->show('groupingMode != "none"'),
+        ];
     }
 
     #[Computed]
@@ -131,7 +162,7 @@ class PlanExerciseSettingsForm extends FormModal
     {
         $this->validate($this->buildValidationRulesFromFieldsets(), [
             'required' => __('This field is required.'),
-        ]);
+        ], $this->buildValidationAttributesFromFieldsets());
 
         Flux::modal($this->name)->close();
 

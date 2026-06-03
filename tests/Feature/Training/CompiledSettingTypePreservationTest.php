@@ -68,6 +68,7 @@ it('preserves string-shaped planned values during materialization', function () 
             'total' => 24,
             'parts' => [12, 12],
             'is_bilateral' => true,
+            'bilateral_execution' => 'consecutive',
         ])
         ->and($values['duration']->planned_value_type)->toBe('int')
         ->and($values['duration']->planned_int_value)->toBe(60)

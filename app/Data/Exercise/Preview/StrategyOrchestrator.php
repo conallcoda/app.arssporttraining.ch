@@ -3,6 +3,7 @@
 namespace App\Data\Exercise\Preview;
 
 use App\Data\Exercise\Settings\SetsSetting;
+use App\Data\Exercise\Settings\RepsSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Exercise\Strategies\AutomaticStrategyFactory;
 use App\Data\Exercise\Strategies\Contracts\DefinesCellColors;
@@ -120,8 +121,15 @@ class StrategyOrchestrator
             return;
         }
 
-        $rawDefault = $config['default'] ?? 10;
-        $defaultReps = is_string($rawDefault) && str_contains($rawDefault, '_') ? $rawDefault : (int) $rawDefault;
+        $rawDefault = $config['default'] ?? null;
+        $requiresConcreteReps = RepsSetting::requiresConcretePlanningReps($this->data);
+        $defaultReps = match (true) {
+            ($rawDefault === null || $rawDefault === '') && ! $requiresConcreteReps => '-',
+            ($rawDefault === null || $rawDefault === '') => 10,
+            is_string($rawDefault) && str_contains($rawDefault, '_') => $rawDefault,
+            is_string($rawDefault) && str_contains($rawDefault, '-') && ! $requiresConcreteReps => $rawDefault,
+            default => (int) $rawDefault,
+        };
         $state->setGrid('reps', $this->fillGrid($state, $defaultReps));
     }
 

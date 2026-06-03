@@ -26,6 +26,7 @@ class PlannedProgramDetailsExerciseViewBuilder
 
         $sessionRows = [];
         $sessionNotes = [];
+        $bilateralRepsHint = null;
         $colorIndex = 0;
 
         foreach ($settingKeys as $setting) {
@@ -59,6 +60,9 @@ class PlannedProgramDetailsExerciseViewBuilder
                     ? collect($set->values)->firstWhere('settingKey', 'heartRateZone')?->value
                     : null;
                 $settingConfig = $this->resolveSettingConfig($exerciseConfig, $setting);
+                if ($setting === 'reps' && $bilateralRepsHint === null) {
+                    $bilateralRepsHint = $this->bilateralRepsHintForValue($valueRow?->value, $settingConfig);
+                }
                 $hasSettingRow = $hasSettingRow || $valueRow !== null;
                 $units[] = $valueRow?->unit;
                 $values[] = $this->formatSessionValue($setting, $valueRow?->value, $valueRow?->unit, $settingConfig);
@@ -88,6 +92,7 @@ class PlannedProgramDetailsExerciseViewBuilder
             equipmentBadges: $exercise->equipment?->pluck('name')->filter()->values()->all() ?? [],
             modifierBadges: $exercise->modifiers?->pluck('name')->filter()->values()->all() ?? [],
             instructions: $exercise->instructions,
+            bilateralRepsHint: $bilateralRepsHint,
             videoUrl: $exercise->video_url,
             photoUrls: $exercise->getMedia('photos')->map(fn ($media) => $media->getUrl())->values()->all(),
             setLabel: $exercise->config->sets->label ?? 'Set',

@@ -47,6 +47,7 @@ class PaceSetting extends AbstractSetting
                 ->label('Default Pace')
                 ->default('5:00')
                 ->defaultUnit('mm:ss')
+                ->rules('nullable|regex:/^\d{1,2}:\d{2}$/')
                 ->suffix(static::unitLabel()),
             ApplyPerField::make(),
         ];

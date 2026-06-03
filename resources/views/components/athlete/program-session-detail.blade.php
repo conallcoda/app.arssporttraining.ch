@@ -160,6 +160,12 @@
                                 </flux:text>
                             @endif
 
+                            @if ($exercise->bilateralRepsHint)
+                                <flux:text class="text-[10px] leading-snug text-zinc-500 dark:text-zinc-400">
+                                    {{ $exercise->bilateralRepsHint }}
+                                </flux:text>
+                            @endif
+
                             @if ($exercise->videoUrl || !empty($exercise->photoUrls) || ($athleteEditsEnabled && $canRecordSession))
                                 <div class="flex items-center justify-between gap-3">
                                     <div class="flex items-center gap-3">

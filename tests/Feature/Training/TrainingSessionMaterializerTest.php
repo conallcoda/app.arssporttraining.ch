@@ -105,6 +105,7 @@ it('materializes planned exercises, sets, and values when a slot is created', fu
             'total' => 6,
             'parts' => [6],
             'is_bilateral' => false,
+            'bilateral_execution' => null,
         ])
         ->and((float) $firstSet->values->firstWhere('setting_key', 'weight')?->planned_decimal_value)->toBe(82.5)
         ->and($firstSet->values->firstWhere('setting_key', 'tempo')?->planned_string_value)->toBe('3010')
@@ -167,6 +168,7 @@ it('stores canonical split-rep metadata alongside the display value', function (
             'total' => 24,
             'parts' => [12, 12],
             'is_bilateral' => true,
+            'bilateral_execution' => 'consecutive',
         ]);
 });
 

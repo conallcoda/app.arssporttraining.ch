@@ -15,6 +15,11 @@ abstract class AbstractSetting extends AbstractData implements HasForms
 {
     use InteractsWithForms;
 
+    public static function prepareForPipeline(array $properties): array
+    {
+        return static::normalizeTypedNumericProperties($properties);
+    }
+
     public static function getName(): string
     {
         $name = str_replace('Setting', '', class_basename(static::class));
@@ -283,5 +288,82 @@ abstract class AbstractSetting extends AbstractData implements HasForms
         }
 
         return static::inputMeta($config)->inputType === 'number' ? 'number' : 'text';
+    }
+
+    protected static function normalizeTypedNumericProperties(array $properties): array
+    {
+        $constructor = (new \ReflectionClass(static::class))->getConstructor();
+
+        if ($constructor === null) {
+            return $properties;
+        }
+
+        foreach ($constructor->getParameters() as $parameter) {
+            $name = $parameter->getName();
+
+            if (! array_key_exists($name, $properties)) {
+                continue;
+            }
+
+            $value = $properties[$name];
+            $isBlank = is_string($value) && trim($value) === '';
+
+            if ($name === 'default' && $isBlank && $parameter->allowsNull()) {
+                $properties[$name] = null;
+
+                continue;
+            }
+
+            $numericType = static::numericParameterType($parameter);
+
+            if ($numericType === null) {
+                continue;
+            }
+
+            if ($isBlank) {
+                if ($parameter->allowsNull()) {
+                    $properties[$name] = null;
+
+                    continue;
+                }
+
+                if ($parameter->isDefaultValueAvailable()) {
+                    $properties[$name] = $parameter->getDefaultValue();
+                }
+
+                continue;
+            }
+
+            if (is_string($value) && is_numeric($value)) {
+                $properties[$name] = $numericType === 'float' || str_contains($value, '.')
+                    ? (float) $value
+                    : (int) $value;
+            }
+        }
+
+        return $properties;
+    }
+
+    private static function numericParameterType(\ReflectionParameter $parameter): ?string
+    {
+        $type = $parameter->getType();
+        $types = $type instanceof \ReflectionUnionType
+            ? $type->getTypes()
+            : ($type instanceof \ReflectionNamedType ? [$type] : []);
+
+        $names = collect($types)
+            ->filter(fn (\ReflectionNamedType $type): bool => $type->isBuiltin())
+            ->map(fn (\ReflectionNamedType $type): string => $type->getName())
+            ->all();
+
+        if (in_array('float', $names, true)) {
+            return 'float';
+        }
+
+        if (in_array('int', $names, true)) {
+            return 'int';
+        }
+
+        return null;
     }
 }

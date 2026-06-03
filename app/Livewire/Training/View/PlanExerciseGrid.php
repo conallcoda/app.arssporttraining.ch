@@ -13,6 +13,7 @@ use App\Data\Exercise\Preview\SessionGroupBuilder;
 use App\Data\Exercise\Preview\SessionGroupingConfig;
 use App\Data\Exercise\Preview\SessionGroupingMode;
 use App\Data\Exercise\Settings\AbstractSetting;
+use App\Data\Exercise\Settings\RepsSetting;
 use App\Data\Exercise\Settings\SetsSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Training\Config\EffectiveExerciseConfig;
@@ -40,10 +41,12 @@ use App\Training\AthleteExerciseValueService;
 use App\Training\TrainingPlanRevisionService;
 use App\Training\TrainingSessionPlannedValueService;
 use App\Training\TrainingSessionRebuildDispatcher;
+use ArrayObject;
 use Carbon\Carbon;
 use Coda\Cms\Livewire\Concerns\InteractsWithParentView;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Reactive;
@@ -53,6 +56,8 @@ class PlanExerciseGrid extends Component
 {
     use InteractsWithDisplayGridCopying;
     use InteractsWithParentView;
+
+    private const SCHEDULED_DATA_CACHE_KEY = 'plan-exercise-grid-scheduled-data-cache';
 
     public int $planId;
 
@@ -108,6 +113,15 @@ class PlanExerciseGrid extends Component
     protected ?array $loadedScheduledSlotsByDate = null;
 
     protected ?array $loadedScheduledSnapshotsByDate = null;
+
+    protected static ?bool $mediaTableExists = null;
+
+    public static function flushScheduledDataCaches(): void
+    {
+        if (app()->bound(self::SCHEDULED_DATA_CACHE_KEY)) {
+            app()->forgetInstance(self::SCHEDULED_DATA_CACHE_KEY);
+        }
+    }
 
     #[Reactive]
     public ?int $planMeasuredReps = null;
@@ -236,6 +250,7 @@ class PlanExerciseGrid extends Component
         );
         $this->loadedScheduledSlotsByDate = null;
         $this->loadedScheduledSnapshotsByDate = null;
+        $this->forgetSharedScheduledDataCache();
     }
 
     #[Computed]
@@ -446,6 +461,7 @@ class PlanExerciseGrid extends Component
     public function groupingBadge(): array
     {
         $grouping = $this->effectiveSessionGrouping();
+        $overridden = $this->getCurrentOverrides()->sessionGrouping !== null;
 
         return [
             'label' => match ($grouping->mode) {
@@ -453,8 +469,8 @@ class PlanExerciseGrid extends Component
                 SessionGroupingMode::Week->value => 'Grouped By Weeks ('.$grouping->groupSize.')',
                 default => 'Grouped By Sessions ('.$grouping->groupSize.')',
             },
-            'color' => null,
-            'overridden' => false,
+            'color' => $overridden ? 'green' : null,
+            'overridden' => $overridden,
         ];
     }
 
@@ -977,9 +993,9 @@ class PlanExerciseGrid extends Component
     {
         $preview = $config['preview'] ?? [];
         $grouping = $this->resolveDefaultPreviewGrouping();
-        $preview['groupingMode'] = $grouping['mode'];
-        $preview['groupSize'] = $grouping['groupSize'];
-        $preview['copyValuesAutomatically'] = $grouping['copyValuesAutomatically'];
+        $preview['groupingMode'] ??= $grouping['mode'];
+        $preview['groupSize'] ??= $grouping['groupSize'];
+        $preview['copyValuesAutomatically'] ??= $grouping['copyValuesAutomatically'];
 
         $config['preview'] = $preview;
 
@@ -1246,6 +1262,7 @@ class PlanExerciseGrid extends Component
         );
         $this->loadedScheduledSlotsByDate = null;
         $this->loadedScheduledSnapshotsByDate = null;
+        $this->forgetSharedScheduledDataCache();
     }
 
     public function updateActualSessionValue(int $weekIndex, int $session, string $field, mixed $value): void
@@ -1278,6 +1295,7 @@ class PlanExerciseGrid extends Component
         );
         $this->loadedScheduledSlotsByDate = null;
         $this->loadedScheduledSnapshotsByDate = null;
+        $this->forgetSharedScheduledDataCache();
     }
 
     public function updatePlannedDisplayCellValue(int $weekIndex, int $setIndex, string $field, mixed $value, int $session): void
@@ -1611,6 +1629,10 @@ class PlanExerciseGrid extends Component
 
     public function updateCellOverride(int $weekIndex, int $setIndex, string $field, mixed $value, int $session, bool $applyToAll = false): void
     {
+        if (! $this->isValidPlanningValue($field, $value)) {
+            return;
+        }
+
         $overrides = $this->getCurrentOverrides();
         $targets = $applyToAll
             ? $this->fanoutTargetsForSession($weekIndex, $session)
@@ -1670,6 +1692,10 @@ class PlanExerciseGrid extends Component
 
     public function updateSessionOverride(int $weekIndex, int $session, string $field, mixed $value, bool $applyToAll = false): void
     {
+        if (! $this->isValidPlanningValue($field, $value)) {
+            return;
+        }
+
         $overrides = $this->getCurrentOverrides();
         $targets = $applyToAll
             ? $this->fanoutTargetsForSession($weekIndex, $session)
@@ -1715,6 +1741,20 @@ class PlanExerciseGrid extends Component
         $this->saveOverrides($overrides);
         $this->bumpGridRenderVersion();
         unset($this->configFingerprint, $this->previewGrid, $this->displayGrid, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions);
+    }
+
+    private function isValidPlanningValue(string $field, mixed $value): bool
+    {
+        if ($field !== 'reps' || RepsSetting::isValidPlanningValue($value, $this->getEffectiveConfig())) {
+            return true;
+        }
+
+        Flux::toast(
+            text: __('Reps must be a single number or bilateral value while automatic calculations are enabled.'),
+            variant: 'danger',
+        );
+
+        return false;
     }
 
     protected function buildDefaultsGrid(): PreviewGrid
@@ -1824,7 +1864,7 @@ class PlanExerciseGrid extends Component
 
     public function openGroupingForm(): void
     {
-        Flux::modal('coach-settings')->show();
+        $this->openSettingsForm('session_grouping');
     }
 
     protected function getParentConfig(): array
@@ -1919,11 +1959,25 @@ class PlanExerciseGrid extends Component
             $overrides->gridOverrides = $settingsConfig['overrides'];
         }
 
-        $overrides->sessionGrouping = null;
+        $formGrouping = $this->sessionGroupingFromPreview($settingsConfig['preview'] ?? []);
+        $parentGrouping = $this->sessionGroupingFromPreview($this->withResolvedPreviewGrouping($parentConfig)['preview'] ?? []);
+
+        $overrides->sessionGrouping = $formGrouping->toArray() == $parentGrouping->toArray()
+            ? null
+            : $formGrouping;
 
         $this->saveOverrides($overrides);
         $this->bumpGridRenderVersion();
         unset($this->configFingerprint, $this->previewGrid, $this->displayGrid, $this->settingBadges, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions, $this->groupingBadge);
+    }
+
+    private function sessionGroupingFromPreview(array $preview): SessionGroupingConfig
+    {
+        return SessionGroupingConfig::from([
+            'mode' => $preview['groupingMode'] ?? null,
+            'groupSize' => $preview['groupSize'] ?? null,
+            'copyValuesAutomatically' => $preview['copyValuesAutomatically'] ?? null,
+        ]);
     }
 
     protected function saveOverrides(ExerciseOverrides $overrides): void
@@ -2522,14 +2576,26 @@ class PlanExerciseGrid extends Component
         $start = Carbon::parse(min($dates))->startOfDay();
         $end = Carbon::parse(max($dates))->endOfDay();
         $dateLookup = array_flip($dates);
+        $cacheKey = $this->sharedScheduledDataCacheKey($dates);
+        $cache = self::scheduledDataCache();
+        $slotsCache = $cache['slots'] ?? [];
 
-        return $this->loadedScheduledSlotsByDate = TrainingProgramSlot::query()
-            ->with([
+        if (isset($slotsCache[$cacheKey])) {
+            return $this->loadedScheduledSlotsByDate = $slotsCache[$cacheKey];
+        }
+
+        $slotRelations = [
                 'exercises.exercise.equipment',
                 'exercises.exercise.modifiers',
-                'exercises.exercise.media',
                 'exercises.sets.values',
-            ])
+        ];
+
+        if ($this->mediaTableExists()) {
+            $slotRelations[] = 'exercises.exercise.media';
+        }
+
+        $slots = TrainingProgramSlot::query()
+            ->with($slotRelations)
             ->where('training_program_id', $this->scheduledTrainingProgramId)
             ->where('user_id', $this->userId)
             ->whereBetween('datetime', [$start, $end])
@@ -2541,6 +2607,11 @@ class PlanExerciseGrid extends Component
             ->map(fn ($slots): ?TrainingProgramSlot => $slots->first())
             ->filter()
             ->all();
+
+        $slotsCache[$cacheKey] = $slots;
+        $cache['slots'] = $slotsCache;
+
+        return $this->loadedScheduledSlotsByDate = $slots;
     }
 
     protected function resolveScheduledSnapshotsByDate(): array
@@ -2549,11 +2620,80 @@ class PlanExerciseGrid extends Component
             return $this->loadedScheduledSnapshotsByDate;
         }
 
-        return $this->loadedScheduledSnapshotsByDate = collect($this->resolveScheduledSlotsByDate())
+        if ($this->scheduledTrainingProgramId === null || $this->userId === null) {
+            return $this->loadedScheduledSnapshotsByDate = [];
+        }
+
+        $dates = $this->scheduledSessionDates();
+
+        if ($dates === []) {
+            return $this->loadedScheduledSnapshotsByDate = [];
+        }
+
+        $cacheKey = $this->sharedScheduledDataCacheKey($dates);
+        $cache = self::scheduledDataCache();
+        $snapshotsCache = $cache['snapshots'] ?? [];
+
+        if (isset($snapshotsCache[$cacheKey])) {
+            return $this->loadedScheduledSnapshotsByDate = $snapshotsCache[$cacheKey];
+        }
+
+        $snapshots = collect($this->resolveScheduledSlotsByDate())
             ->mapWithKeys(fn (TrainingProgramSlot $slot, string $date): array => [
                 $date => app(ScheduledSessionSnapshotBuilder::class)->build($slot),
             ])
             ->all();
+
+        $snapshotsCache[$cacheKey] = $snapshots;
+        $cache['snapshots'] = $snapshotsCache;
+
+        return $this->loadedScheduledSnapshotsByDate = $snapshots;
+    }
+
+    private function forgetSharedScheduledDataCache(): void
+    {
+        $dates = $this->scheduledSessionDates();
+
+        if ($this->scheduledTrainingProgramId === null || $this->userId === null || $dates === []) {
+            return;
+        }
+
+        $cache = self::scheduledDataCache();
+        $cacheKey = $this->sharedScheduledDataCacheKey($dates);
+        $slotsCache = $cache['slots'] ?? [];
+        $snapshotsCache = $cache['snapshots'] ?? [];
+
+        unset($slotsCache[$cacheKey], $snapshotsCache[$cacheKey]);
+
+        $cache['slots'] = $slotsCache;
+        $cache['snapshots'] = $snapshotsCache;
+    }
+
+    private function sharedScheduledDataCacheKey(array $dates): string
+    {
+        return implode('|', [
+            (int) $this->scheduledTrainingProgramId,
+            (int) $this->userId,
+            md5(json_encode(array_values($dates))),
+        ]);
+    }
+
+    /** @return ArrayObject<string, array<string, array>> */
+    private static function scheduledDataCache(): ArrayObject
+    {
+        if (! app()->bound(self::SCHEDULED_DATA_CACHE_KEY)) {
+            app()->scoped(self::SCHEDULED_DATA_CACHE_KEY, fn (): ArrayObject => new ArrayObject([
+                'slots' => [],
+                'snapshots' => [],
+            ]));
+        }
+
+        return app(self::SCHEDULED_DATA_CACHE_KEY);
+    }
+
+    private function mediaTableExists(): bool
+    {
+        return self::$mediaTableExists ??= Schema::hasTable('media');
     }
 
     protected function persistGridOverridesFromCopy(array $gridOverrides): void

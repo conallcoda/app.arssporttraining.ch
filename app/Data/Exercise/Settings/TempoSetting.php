@@ -28,7 +28,8 @@ class TempoSetting extends AbstractSetting
         return [
             Fields\Text::make('default')
                 ->label('Default Tempo')
-                ->default('3010'),
+                ->default('3010')
+                ->rules('nullable|regex:/^\d{4}$/'),
             ApplyPerField::make(ApplyPerScope::FORM_SESSION),
         ];
     }

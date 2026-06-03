@@ -307,6 +307,12 @@ class ProgramEditor extends Component
     }
 
     #[Computed]
+    public function planConfigArray(): array
+    {
+        return $this->exerciseProgram->config->toArray();
+    }
+
+    #[Computed]
     public function exercises(): Collection
     {
         return app(ProgramExerciseOrder::class)
@@ -426,6 +432,7 @@ class ProgramEditor extends Component
         $config->weeks = $this->weeks;
         $this->exerciseProgram->config = $config;
         $this->exerciseProgram->saveQuietly();
+        unset($this->planConfigArray);
         app(TrainingSessionRebuildDispatcher::class)
             ->dispatchFutureSlotsForExerciseProgramChange($this->exerciseProgram->id);
     }
@@ -744,6 +751,7 @@ class ProgramEditor extends Component
             if ($configChanged) {
                 $this->exerciseProgram->config = $config;
                 $this->exerciseProgram->saveQuietly();
+                unset($this->planConfigArray);
             }
         });
 
@@ -786,7 +794,7 @@ class ProgramEditor extends Component
     public function onExerciseOverridesChanged(): void
     {
         $this->exerciseProgram->refresh();
-        unset($this->exercises, $this->exerciseGroupLabels, $this->exerciseBadgesByPivotId);
+        unset($this->planConfigArray, $this->exercises, $this->exerciseGroupLabels, $this->exerciseBadgesByPivotId);
         $this->gridRenderVersion++;
     }
 

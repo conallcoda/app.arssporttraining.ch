@@ -1,6 +1,8 @@
 <?php
 
 use App\Data\Exercise\BilateralReps;
+use App\Data\Exercise\Settings\RepsSetting;
+use Coda\FormKit\ConditionEvaluator;
 
 describe('parse', function () {
     it('parses plain integer', function () {
@@ -156,5 +158,53 @@ describe('isValid', function () {
         expect(BilateralReps::isValid(''))->toBeFalse();
         expect(BilateralReps::isValid('15_15_15'))->toBeFalse();
         expect(BilateralReps::isValid('15.5'))->toBeFalse();
+    });
+});
+
+describe('athlete canonical value', function () {
+    it('includes consecutive bilateral execution metadata for bilateral reps by default', function () {
+        expect(RepsSetting::athleteCanonicalValue('6_6'))->toMatchArray([
+            'kind' => 'reps',
+            'format' => 'split',
+            'display' => '6_6',
+            'total' => 12,
+            'parts' => [6, 6],
+            'is_bilateral' => true,
+            'bilateral_execution' => RepsSetting::BILATERAL_EXECUTION_CONSECUTIVE,
+        ]);
+    });
+
+    it('includes configured alternating bilateral execution metadata', function () {
+        expect(RepsSetting::athleteCanonicalValue('6_6', [
+            'bilateralExecution' => RepsSetting::BILATERAL_EXECUTION_ALTERNATING,
+        ]))->toMatchArray([
+            'is_bilateral' => true,
+            'bilateral_execution' => RepsSetting::BILATERAL_EXECUTION_ALTERNATING,
+        ]);
+    });
+
+    it('does not include bilateral execution metadata for scalar reps', function () {
+        expect(RepsSetting::athleteCanonicalValue(6))->toMatchArray([
+            'is_bilateral' => false,
+            'bilateral_execution' => null,
+        ]);
+    });
+});
+
+describe('reps setting form fields', function () {
+    it('only shows bilateral order when default reps are bilateral', function () {
+        $field = collect(RepsSetting::fields())->firstWhere('name', 'bilateralExecution');
+        $evaluator = new ConditionEvaluator;
+
+        expect($field?->showExpression)->toBe('default matches "/^\\\\d+_\\\\d+$/"')
+            ->and($evaluator->evaluate($field->showExpression, ['default' => '5_5']))->toBeTrue()
+            ->and($evaluator->evaluate($field->showExpression, ['default' => '5']))->toBeFalse()
+            ->and($evaluator->evaluate($field->showExpression, ['default' => '']))->toBeFalse();
+    });
+
+    it('updates default reps live so bilateral order visibility can react', function () {
+        $field = collect(RepsSetting::fields())->firstWhere('name', 'default');
+
+        expect($field?->live)->toBeTrue();
     });
 });

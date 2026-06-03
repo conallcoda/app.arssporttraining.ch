@@ -6,7 +6,6 @@ use App\Cms\Modules\AthleteGroupModule;
 use App\Cms\Modules\AthleteModule;
 use App\Cms\Modules\CalendarModule;
 use App\Cms\Modules\CategoryListModule;
-use App\Cms\Modules\CategoryModule;
 use App\Cms\Modules\CoachModule;
 use App\Cms\Modules\EquipmentModule;
 use App\Cms\Modules\ExerciseExternalModule;
@@ -31,7 +30,6 @@ class CmsServiceProvider extends ServiceProvider
         $registry->register(new AthleteModule);
         $registry->register(new ExerciseModule);
         $registry->register(new ExerciseTemplateModule);
-        $registry->register(new CategoryModule);
         $registry->register(new EquipmentModule);
         $registry->register(new ModifiersModule);
         $registry->register(new ExerciseExternalModule);
@@ -49,7 +47,6 @@ class CmsServiceProvider extends ServiceProvider
                 SidebarItem::make('Exercises', 'exercise-index')->icon('dumbbell')->tabs([
                     Tab::make('Exercises', 'exercise-index'),
                     Tab::make('Templates', 'exercise-template-index'),
-                    Tab::make('Categories', 'category-index'),
                     Tab::make('Equipment', 'equipment-index'),
                     Tab::make('Modifiers', 'modifiers-index'),
                     Tab::make('Import', 'exercise-external-index'),

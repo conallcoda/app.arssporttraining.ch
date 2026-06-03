@@ -93,6 +93,7 @@ class User extends CmsUser
             'account_setup_token_hash' => hash('sha256', $token),
             'account_setup_sent_at' => $now,
             'account_setup_expires_at' => $now->copy()->addDays((int) config('user.account_setup_expiry_days', 30)),
+            'account_setup_completed_at' => null,
         ])->save();
 
         return $token;

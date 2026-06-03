@@ -35,6 +35,7 @@ class WattsSetting extends AbstractSetting
                 ->label('Default Watts')
                 ->default(100)
                 ->min(0)
+                ->rules('nullable|integer|min:0')
                 ->suffix('W'),
             ApplyPerField::make(),
         ];

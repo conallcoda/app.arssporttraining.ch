@@ -118,12 +118,6 @@ class AthleteList extends AbstractModelList
             return;
         }
 
-        if ($user->accountSetupStatus() === AccountSetupStatus::Active) {
-            Flux::toast(text: "{$user->name} is already active. Use the normal password reset flow instead.", variant: 'danger');
-
-            return;
-        }
-
         $token = $user->issueAccountSetupToken();
         $user->notify(new AccountSetupNotification($token));
 

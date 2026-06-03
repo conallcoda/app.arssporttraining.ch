@@ -7,6 +7,7 @@ use App\Data\Athlete\Metric\Metrics\HeartRateMetric;
 use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
 use App\Data\Exercise\ExerciseSetting;
 use App\Data\Exercise\Preview\CellInputMeta;
+use App\Data\Exercise\Settings\RepsSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Training\Compiler\AuthoringExerciseData;
 use App\Data\Training\Compiler\AuthoringProgramData;
@@ -394,33 +395,7 @@ class TrainingSessionCompiler
 
     private function resolveRepsCanonicalValue(mixed $value): ?array
     {
-        if (is_int($value) || (is_string($value) && preg_match('/^\d+$/', $value))) {
-            $total = (int) $value;
-
-            return [
-                'kind' => 'reps',
-                'format' => 'scalar',
-                'display' => (string) $value,
-                'total' => $total,
-                'parts' => [$total],
-                'is_bilateral' => false,
-            ];
-        }
-
-        if (! is_string($value) || ! preg_match('/^\d+(?:_\d+)+$/', $value)) {
-            return null;
-        }
-
-        $parts = array_map('intval', explode('_', $value));
-
-        return [
-            'kind' => 'reps',
-            'format' => 'split',
-            'display' => $value,
-            'total' => array_sum($parts),
-            'parts' => $parts,
-            'is_bilateral' => count($parts) === 2,
-        ];
+        return RepsSetting::athleteCanonicalValue($value);
     }
 
     private function resolveBoundedRangeCanonicalValue(mixed $value, string $kind): ?array

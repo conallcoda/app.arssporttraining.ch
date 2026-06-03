@@ -30,13 +30,16 @@ class WeightProgressionSetting extends AbstractSetting
                 ->max(15)
                 ->step(1)
                 ->default(1)
+                ->rules('nullable|integer|min:1|max:15')
                 ->suffix('rep(s)'),
             Weight::make('measuredWeight')
                 ->label('Measured Weight')
-                ->default(50),
+                ->default(50)
+                ->rules('nullable|numeric|min:0'),
             Fields\Percentage::make('targetGoal')
                 ->label('Target Goal')
-                ->default(10),
+                ->default(10)
+                ->rules('nullable|integer|min:0'),
         ];
     }
 }

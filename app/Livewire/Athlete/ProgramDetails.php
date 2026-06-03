@@ -4,6 +4,7 @@ namespace App\Livewire\Athlete;
 
 use App\Data\Exercise\ExerciseSetting;
 use App\Data\Exercise\Settings\AbstractSetting;
+use App\Data\Exercise\Settings\RepsSetting;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Training\TrainingProgramSlotExercise;
@@ -806,6 +807,10 @@ class ProgramDetails extends Component
     {
         if (! is_string($settingClass) || ! is_subclass_of($settingClass, AbstractSetting::class)) {
             return $value;
+        }
+
+        if ($settingClass === RepsSetting::class && RepsSetting::requiresAthleteSpecificValue($value)) {
+            return '';
         }
 
         if (($config['unit'] ?? null) === 'mm:ss') {

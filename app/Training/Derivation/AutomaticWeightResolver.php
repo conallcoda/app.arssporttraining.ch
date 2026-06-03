@@ -183,9 +183,11 @@ class AutomaticWeightResolver
         $lastWeekIndex = $lastSession['week'];
         $lastSessionIndex = $lastSession['session'];
         $lastGroupIndex = $lastSession['group'];
-        $lastSetIndex = $resolvedSetsForSession !== null
-            ? max(0, (int) $resolvedSetsForSession($lastWeekIndex, $lastSessionIndex, (int) ($setsPerWeek[$lastWeekIndex] ?? 0)) - 1)
-            : ((int) ($setsPerWeek[$lastWeekIndex] ?? 1) - 1);
+        $sessionSetCount = $resolvedSetsForSession !== null
+            ? max(0, (int) $resolvedSetsForSession($lastWeekIndex, $lastSessionIndex, (int) ($setsPerWeek[$lastWeekIndex] ?? 0)))
+            : 0;
+        $displayedSetCount = (int) ($setsPerWeek[$lastWeekIndex] ?? 1);
+        $lastSetIndex = max(0, max($sessionSetCount, $displayedSetCount) - 1);
 
         $lastSetReps = $resolvedRepsForCell($lastWeekIndex, $lastSetIndex, $lastSessionIndex);
         $totalReps = BilateralReps::parse($lastSetReps ?? 1)->total();

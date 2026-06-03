@@ -6,10 +6,19 @@ use App\Data\Exercise\Preview\CellInputMeta;
 use App\Form\Fields\Exercise\ApplyPerField;
 use App\Form\Fields\Reps;
 use App\Support\Training\ApplyPerScope;
+use Coda\FormKit\Field;
 use Coda\FormKit\Fields;
 
 class RepsSetting extends AbstractSetting
 {
+    public const BILATERAL_EXECUTION_CONSECUTIVE = 'consecutive';
+
+    public const BILATERAL_EXECUTION_ALTERNATING = 'alternating';
+
+    private const PLANNED_PATTERN = '\d+(?:_\d+|-\d+)?';
+
+    private const ATHLETE_PATTERN = '\d+(?:_\d+)?';
+
     public function __construct(
         public string $mode = 'manual',
         public string|int|null $default = 10,
@@ -17,6 +26,7 @@ class RepsSetting extends AbstractSetting
         public ?int $decrement = 2,
         public ?int $minimum = 1,
         public ?string $label = '',
+        public string $bilateralExecution = self::BILATERAL_EXECUTION_CONSECUTIVE,
         public string $applyPer = ApplyPerScope::FORM_SET,
     ) {}
 
@@ -25,7 +35,7 @@ class RepsSetting extends AbstractSetting
         return new CellInputMeta(
             inputType: 'text',
             maxlength: 7,
-            pattern: '\d+(_\d+)?',
+            pattern: self::PLANNED_PATTERN,
         );
     }
 
@@ -54,11 +64,14 @@ class RepsSetting extends AbstractSetting
                 ->live(),
             Reps::make('default')
                 ->label('Default Reps')
-                ->default(10),
+                ->default(10)
+                ->rules(fn (array $data): array => static::defaultRules($data))
+                ->live(),
             Fields\Number::make('stepDownInterval')
                 ->label('Step Down Interval')
                 ->default(2)
                 ->min(0)
+                ->rules('nullable|integer|min:0')
                 ->suffix('week(s)')
                 ->show('mode == "automatic"'),
             Fields\Number::make('decrement')
@@ -66,6 +79,7 @@ class RepsSetting extends AbstractSetting
                 ->default(2)
                 ->min(0)
                 ->step(1)
+                ->rules('nullable|integer|min:0')
                 ->suffix('rep(s)')
                 ->show('mode == "automatic"'),
             Fields\Number::make('minimum')
@@ -73,15 +87,105 @@ class RepsSetting extends AbstractSetting
                 ->default(1)
                 ->min(1)
                 ->step(1)
+                ->rules('nullable|integer|min:1')
                 ->suffix('rep(s)')
                 ->show('mode == "automatic"'),
             Fields\Text::make('label')
                 ->label('Label')
                 ->placeholder('Reps')
                 ->default(''),
+            Fields\RadioSegmented::make('bilateralExecution')
+                ->label('Bilateral Order')
+                ->options([
+                    self::BILATERAL_EXECUTION_CONSECUTIVE => 'One side then other',
+                    self::BILATERAL_EXECUTION_ALTERNATING => 'Alternating',
+                ])
+                ->default(self::BILATERAL_EXECUTION_CONSECUTIVE)
+                ->show('default matches "/^\\\\d+_\\\\d+$/"'),
             ApplyPerField::make(ApplyPerScope::FORM_SET)
                 ->show('mode == "manual"'),
         ];
+    }
+
+    public static function athleteField(string $name, array $config = []): Field
+    {
+        return Reps::make($name)
+            ->label(static::athleteLabel($config))
+            ->rules(static::athleteRules($config));
+    }
+
+    public static function athleteRules(array $config = []): array
+    {
+        return ['required', 'regex:/^'.self::ATHLETE_PATTERN.'$/'];
+    }
+
+    public static function defaultRules(array $data = []): array
+    {
+        $requiresConcreteReps = static::requiresConcretePlanningReps($data);
+
+        return [
+            $requiresConcreteReps ? 'required' : 'nullable',
+            'regex:/^'.($requiresConcreteReps ? self::ATHLETE_PATTERN : self::PLANNED_PATTERN).'$/',
+        ];
+    }
+
+    public static function requiresConcretePlanningReps(array $data = []): bool
+    {
+        $config = is_array($data['config'] ?? null) ? $data['config'] : $data;
+        $settings = $config['settings'] ?? [];
+        $repsMode = (string) ($config['reps']['mode'] ?? $data['mode'] ?? 'manual');
+        $weightMode = (string) ($config['weight']['mode'] ?? 'manual');
+
+        $hasAutomaticWeight = in_array('weight', $settings, true) && $weightMode === 'automatic';
+
+        return $repsMode === 'automatic' || $hasAutomaticWeight;
+    }
+
+    public static function isValidPlanningValue(mixed $value, array $data = []): bool
+    {
+        if (is_int($value)) {
+            return true;
+        }
+
+        if (! is_string($value)) {
+            return false;
+        }
+
+        $value = trim($value);
+        $requiresConcreteReps = static::requiresConcretePlanningReps($data);
+
+        if ($value === '') {
+            return ! $requiresConcreteReps;
+        }
+
+        return (bool) preg_match('/^'.($requiresConcreteReps ? self::ATHLETE_PATTERN : self::PLANNED_PATTERN).'$/', $value);
+    }
+
+    public static function normalizeBilateralExecution(?string $execution): string
+    {
+        return in_array($execution, [
+            self::BILATERAL_EXECUTION_CONSECUTIVE,
+            self::BILATERAL_EXECUTION_ALTERNATING,
+        ], true)
+            ? $execution
+            : self::BILATERAL_EXECUTION_CONSECUTIVE;
+    }
+
+    public static function bilateralExecutionHint(?string $execution): string
+    {
+        return match (static::normalizeBilateralExecution($execution)) {
+            self::BILATERAL_EXECUTION_ALTERNATING => 'Alternate sides each rep, for example 1 left, 1 right, repeat until both sides are complete.',
+            default => 'Complete all reps on one side first, then all reps on the other, for example 6 left, then 6 right.',
+        };
+    }
+
+    public static function requiresAthleteSpecificValue(mixed $value): bool
+    {
+        return $value === null
+            || $value === ''
+            || $value === '-'
+            || $value === '—'
+            || (is_string($value) && preg_match('/^\d+-\d+$/', $value));
     }
 
     public static function athleteCanonicalValue(mixed $value, array $config = []): ?array
@@ -96,6 +200,19 @@ class RepsSetting extends AbstractSetting
                 'total' => $total,
                 'parts' => [$total],
                 'is_bilateral' => false,
+                'bilateral_execution' => null,
+            ];
+        }
+
+        if (is_string($value) && preg_match('/^(?<min>\d+)-(?<max>\d+)$/', $value, $matches)) {
+            return [
+                'kind' => 'reps',
+                'format' => 'range',
+                'display' => $value,
+                'min' => (int) $matches['min'],
+                'max' => (int) $matches['max'],
+                'is_bilateral' => false,
+                'bilateral_execution' => null,
             ];
         }
 
@@ -105,13 +222,18 @@ class RepsSetting extends AbstractSetting
 
         $parts = array_map('intval', explode('_', $value));
 
+        $isBilateral = count($parts) === 2;
+
         return [
             'kind' => 'reps',
             'format' => 'split',
             'display' => $value,
             'total' => array_sum($parts),
             'parts' => $parts,
-            'is_bilateral' => count($parts) === 2,
+            'is_bilateral' => $isBilateral,
+            'bilateral_execution' => $isBilateral
+                ? static::normalizeBilateralExecution($config['bilateralExecution'] ?? null)
+                : null,
         ];
     }
 }

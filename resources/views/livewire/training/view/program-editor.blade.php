@@ -277,7 +277,7 @@
                         :key="'grid-' . $exercise->pivot->id . '-' . $weeks . '-' . ($userId ?? 'default') . '-' . $valueDisplayMode . '-' . $gridRenderVersion"
                         :planId="$planId"
                         :scheduledTrainingProgramId="$scheduledTrainingProgramId"
-                        :planConfigArray="$exerciseProgram->config->toArray()"
+                        :planConfigArray="$this->planConfigArray"
                         :programExerciseId="$exercise->pivot->id"
                         :exerciseId="$exercise->id"
                         :exerciseName="$exercise->name"

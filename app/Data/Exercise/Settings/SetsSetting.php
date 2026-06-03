@@ -37,13 +37,15 @@ class SetsSetting extends AbstractSetting
                 ->label('Deload By')
                 ->min(1)
                 ->default(1)
+                ->rules('nullable|integer|min:1')
                 ->show('deload != "none"'),
             Fields\Text::make('label')
                 ->label('Label')
                 ->default('Set')
                 ->suffix('set(s)'),
             Sets::make('default')
-                ->label('Default'),
+                ->label('Default')
+                ->rules('required|integer|min:1'),
         ];
     }
 }

@@ -5,7 +5,6 @@ namespace App\Livewire\Database;
 use App\Data\Athlete\Metric\MetricEnum;
 use App\Data\Athlete\Metric\Metrics\HeartRateMetric;
 use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
-use App\Models\Users\AccountSetupStatus;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
 use App\Notifications\AccountSetupNotification;
@@ -46,12 +45,6 @@ class AthleteDetailsPage extends AbstractModelDetailsPage
 
         if (! $user->hasSetupEmail()) {
             Flux::toast(text: "Add an email address for {$user->name} before sending a setup email.", variant: 'danger');
-
-            return;
-        }
-
-        if ($user->accountSetupStatus() === AccountSetupStatus::Active) {
-            Flux::toast(text: "{$user->name} is already active. Use the normal password reset flow instead.", variant: 'danger');
 
             return;
         }

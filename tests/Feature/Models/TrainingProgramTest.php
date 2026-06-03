@@ -11,6 +11,7 @@ use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
@@ -263,6 +264,67 @@ it('stores override rows in the dedicated overrides table and not in the config 
 
     expect($program->fresh()->config->defaultExerciseOverrides($pivot->id)->gridOverrides['cells'][0]['data']['reps'] ?? null)
         ->toBe(14);
+});
+
+it('caches config override rows per request and invalidates them after sync', function () {
+    $coach = User::factory()->coach()->create();
+    $this->actingAs($coach);
+
+    $program = ExerciseProgram::factory()->create();
+    $exercise = Exercise::factory()->create();
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $config = $program->config;
+    $overrides = $config->defaultExerciseOverrides($pivot->id);
+    $overrides->gridOverrides = [
+        'sessions' => [],
+        'cells' => [
+            ['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['reps' => 14]],
+        ],
+    ];
+    $config->setDefaultExerciseOverrides($pivot->id, $overrides);
+    $program->config = $config;
+    $program->saveQuietly();
+
+    DB::enableQueryLog();
+    DB::flushQueryLog();
+
+    $firstValue = $program->fresh()->config
+        ->defaultExerciseOverrides($pivot->id)
+        ->gridOverrides['cells'][0]['data']['reps'] ?? null;
+    $secondValue = $program->fresh()->config
+        ->defaultExerciseOverrides($pivot->id)
+        ->gridOverrides['cells'][0]['data']['reps'] ?? null;
+
+    $overrideQueries = collect(DB::getQueryLog())
+        ->filter(fn (array $query): bool => str_contains($query['query'] ?? '', 'exercise_plan_config_overrides'))
+        ->count();
+
+    expect($firstValue)->toBe(14)
+        ->and($secondValue)->toBe(14)
+        ->and($overrideQueries)->toBe(1);
+
+    $config = $program->fresh()->config;
+    $overrides = $config->defaultExerciseOverrides($pivot->id);
+    $overrides->gridOverrides = [
+        'sessions' => [],
+        'cells' => [
+            ['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['reps' => 16]],
+        ],
+    ];
+    $config->setDefaultExerciseOverrides($pivot->id, $overrides);
+    $program->config = $config;
+    $program->saveQuietly();
+
+    expect($program->fresh()->config
+        ->defaultExerciseOverrides($pivot->id)
+        ->gridOverrides['cells'][0]['data']['reps'] ?? null)->toBe(16);
 });
 
 it('updates override row provenance when an existing override value changes', function () {

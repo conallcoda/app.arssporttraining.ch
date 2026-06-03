@@ -40,6 +40,36 @@ it('sends an athlete account setup email from the athlete list', function () {
         ->and($athlete->accountSetupStatus())->toBe(AccountSetupStatus::SetupEmailSent);
 });
 
+it('resends an athlete setup email and resets active setup state', function () {
+    Notification::fake();
+
+    $coach = User::factory()->coach()->create();
+    $athlete = User::factory()->athlete()->create([
+        'email' => 'athlete@example.com',
+        'owner_id' => $coach->id,
+        'account_setup_token_hash' => hash('sha256', 'old-token'),
+        'account_setup_sent_at' => now()->subMonths(2),
+        'account_setup_expires_at' => null,
+        'account_setup_completed_at' => now()->subMonth(),
+    ]);
+
+    $this->actingAs($coach);
+
+    Livewire::test(AthleteList::class)
+        ->call('sendSetupAccountEmail', $athlete->id);
+
+    Notification::assertSentTo($athlete, AccountSetupNotification::class);
+
+    $athlete->refresh();
+
+    expect($athlete->account_setup_token_hash)->not->toBeNull()
+        ->and($athlete->account_setup_token_hash)->not->toBe(hash('sha256', 'old-token'))
+        ->and($athlete->account_setup_sent_at)->not->toBeNull()
+        ->and($athlete->account_setup_expires_at?->isSameDay(now()->addDays((int) config('user.account_setup_expiry_days'))))->toBeTrue()
+        ->and($athlete->account_setup_completed_at)->toBeNull()
+        ->and($athlete->accountSetupStatus())->toBe(AccountSetupStatus::SetupEmailSent);
+});
+
 it('renders athlete row menu setup email as a direct action and uses the shared change password form', function () {
     $coach = User::factory()->coach()->create();
     $athlete = User::factory()->athlete()->create([
@@ -107,6 +137,35 @@ it('sends a coach account setup email from the coach list', function () {
     expect($coach->account_setup_token_hash)->not->toBeNull()
         ->and($coach->account_setup_sent_at)->not->toBeNull()
         ->and($coach->account_setup_expires_at?->isSameDay(now()->addDays((int) config('user.account_setup_expiry_days'))))->toBeTrue()
+        ->and($coach->accountSetupStatus())->toBe(AccountSetupStatus::SetupEmailSent);
+});
+
+it('resends a coach setup email and resets active setup state', function () {
+    Notification::fake();
+
+    $admin = User::factory()->admin()->create();
+    $coach = User::factory()->coach()->create([
+        'email' => 'coach@example.com',
+        'account_setup_token_hash' => hash('sha256', 'old-token'),
+        'account_setup_sent_at' => now()->subMonths(2),
+        'account_setup_expires_at' => null,
+        'account_setup_completed_at' => now()->subMonth(),
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(CoachList::class)
+        ->call('sendSetupAccountEmail', $coach->id);
+
+    Notification::assertSentTo($coach, AccountSetupNotification::class);
+
+    $coach->refresh();
+
+    expect($coach->account_setup_token_hash)->not->toBeNull()
+        ->and($coach->account_setup_token_hash)->not->toBe(hash('sha256', 'old-token'))
+        ->and($coach->account_setup_sent_at)->not->toBeNull()
+        ->and($coach->account_setup_expires_at?->isSameDay(now()->addDays((int) config('user.account_setup_expiry_days'))))->toBeTrue()
+        ->and($coach->account_setup_completed_at)->toBeNull()
         ->and($coach->accountSetupStatus())->toBe(AccountSetupStatus::SetupEmailSent);
 });
 

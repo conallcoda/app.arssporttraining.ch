@@ -72,6 +72,7 @@ class DurationSetting extends AbstractSetting
                     'minutes' => 1,
                     'mm:ss' => '1:00',
                 ])
+                ->rules(['nullable', 'regex:/^(?:\d+|\d{1,2}:\d{2})$/'])
                 ->unit('unit'),
             ApplyPerField::make(),
         ];

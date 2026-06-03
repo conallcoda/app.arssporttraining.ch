@@ -10,9 +10,12 @@ use App\Models\Training\TrainingProgramSlot;
 use App\Models\Training\TrainingProgramSlotExercise;
 use App\Models\Training\TrainingProgramSlotSet;
 use App\Models\Training\TrainingProgramSlotSetValue;
+use Illuminate\Support\Facades\Schema;
 
 class ScheduledSessionSnapshotBuilder
 {
+    private static ?bool $mediaTableExists = null;
+
     public function __construct(
         private readonly ProgramExerciseOrder $programExerciseOrder,
         private readonly EffectiveSlotExerciseConfigResolver $effectiveConfigResolver,
@@ -20,12 +23,17 @@ class ScheduledSessionSnapshotBuilder
 
     public function build(TrainingProgramSlot $slot): ScheduledSessionSnapshotData
     {
-        $slot->loadMissing([
+        $relations = [
             'exercises.exercise.equipment',
             'exercises.exercise.modifiers',
-            'exercises.exercise.media',
             'exercises.sets.values',
-        ]);
+        ];
+
+        if ($this->mediaTableExists()) {
+            $relations[] = 'exercises.exercise.media';
+        }
+
+        $slot->loadMissing($relations);
 
         return new ScheduledSessionSnapshotData(
             slotId: (int) $slot->id,
@@ -40,15 +48,23 @@ class ScheduledSessionSnapshotBuilder
 
     public function buildExercise(TrainingProgramSlotExercise $slotExercise): ScheduledExerciseSnapshotData
     {
-        $slotExercise->loadMissing([
+        $relations = [
             'exercise.equipment',
             'exercise.modifiers',
-            'exercise.media',
             'sets.values',
-        ]);
+        ];
+
+        if ($this->mediaTableExists()) {
+            $relations[] = 'exercise.media';
+        }
+
+        $slotExercise->loadMissing($relations);
 
         $exercise = $slotExercise->exercise;
         $effectiveConfig = $this->effectiveConfigResolver->resolve($slotExercise);
+        $photoUrls = $this->mediaTableExists()
+            ? ($exercise?->getMedia('photos')->map(fn ($media) => $media->getUrl())->values()->all() ?? [])
+            : [];
 
         return new ScheduledExerciseSnapshotData(
             slotExerciseId: (int) $slotExercise->id,
@@ -61,7 +77,7 @@ class ScheduledSessionSnapshotBuilder
             modifierBadges: $exercise?->modifiers?->pluck('name')->filter()->values()->all() ?? [],
             instructions: $exercise?->instructions,
             videoUrl: $exercise?->video_url,
-            photoUrls: $exercise?->getMedia('photos')->map(fn ($media) => $media->getUrl())->values()->all() ?? [],
+            photoUrls: $photoUrls,
             setLabel: (string) ($effectiveConfig['sets']['label'] ?? $exercise?->config->sets->label ?? 'Set'),
             settingConfigs: $this->extractSettingConfigs($effectiveConfig),
             sets: $slotExercise->sets
@@ -153,5 +169,10 @@ class ScheduledSessionSnapshotBuilder
         return $settings
             ->mapWithKeys(fn (string $setting): array => [$setting => is_array($configArray[$setting] ?? null) ? $configArray[$setting] : []])
             ->all();
+    }
+
+    private function mediaTableExists(): bool
+    {
+        return self::$mediaTableExists ??= Schema::hasTable('media');
     }
 }
