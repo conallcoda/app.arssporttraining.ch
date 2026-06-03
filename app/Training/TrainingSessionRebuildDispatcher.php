@@ -10,31 +10,31 @@ use App\Jobs\RebuildFutureSlotsForTrainingProgramJob;
 
 class TrainingSessionRebuildDispatcher
 {
-    public function dispatchFutureSlotsForExerciseProgramChange(int $exerciseProgramId, ?int $userId = null): void
+    public function dispatchFutureSlotsForExerciseProgramChange(int $exerciseProgramId, ?int $userId = null, ?string $fromDate = null): void
     {
         if ($userId !== null) {
-            $this->dispatchFutureSlotsForAthleteExerciseProgram($userId, $exerciseProgramId);
+            $this->dispatchFutureSlotsForAthleteExerciseProgram($userId, $exerciseProgramId, $fromDate);
 
             return;
         }
 
-        $this->dispatchFutureSlotsForExerciseProgram($exerciseProgramId);
+        $this->dispatchFutureSlotsForExerciseProgram($exerciseProgramId, $fromDate);
     }
 
-    public function dispatchFutureSlotsForExerciseProgram(int $exerciseProgramId): void
+    public function dispatchFutureSlotsForExerciseProgram(int $exerciseProgramId, ?string $fromDate = null): void
     {
-        dispatch_sync(new RebuildFutureSlotsForExerciseProgramJob($exerciseProgramId));
+        dispatch_sync(new RebuildFutureSlotsForExerciseProgramJob($exerciseProgramId, $fromDate));
     }
 
-    public function dispatchFutureSlotsForAthleteExerciseProgram(int $userId, int $exerciseProgramId): void
+    public function dispatchFutureSlotsForAthleteExerciseProgram(int $userId, int $exerciseProgramId, ?string $fromDate = null): void
     {
-        dispatch_sync(new RebuildFutureSlotsForAthleteExerciseProgramJob($userId, $exerciseProgramId));
+        dispatch_sync(new RebuildFutureSlotsForAthleteExerciseProgramJob($userId, $exerciseProgramId, $fromDate));
     }
 
-    public function dispatchFutureSlotsForTrainingProgramChange(int $trainingProgramId, ?int $userId = null): void
+    public function dispatchFutureSlotsForTrainingProgramChange(int $trainingProgramId, ?int $userId = null, ?string $fromDate = null): void
     {
         if ($userId !== null) {
-            dispatch_sync(new RebuildFutureSlotsForTrainingProgramAthleteJob($trainingProgramId, $userId));
+            dispatch_sync(new RebuildFutureSlotsForTrainingProgramAthleteJob($trainingProgramId, $userId, $fromDate));
 
             return;
         }

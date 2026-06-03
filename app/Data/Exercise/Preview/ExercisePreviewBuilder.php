@@ -110,7 +110,7 @@ class ExercisePreviewBuilder
                 defaultOverrides: $defaultOverrides,
                 userOverrides: $userOverrides,
             );
-            $displayProvenanceValues = $highlightOverrides !== null
+            $displayProvenanceValues = $highlightOverrides !== null && ! $highlightOverrides->isEmpty()
                 ? self::buildPlannedSessionValueMaps(
                     data: $data,
                     overrideLayer: $highlightOverrides->toArray(),

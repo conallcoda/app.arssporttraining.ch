@@ -44,6 +44,11 @@ class TrainingSessionCompiler
      */
     private array $latestMetricCache = [];
 
+    /**
+     * @var array<string, TrainingProgramBlock|null>
+     */
+    private array $overlappingCategoryBlockCache = [];
+
     public function __construct(
         private readonly CalendarBlockService $calendarBlockService,
         private readonly PlanCompiler $planCompiler,
@@ -240,7 +245,18 @@ class TrainingSessionCompiler
             return null;
         }
 
-        return $this->calendarBlockService->findOverlappingBlock(
+        $cacheKey = implode(':', [
+            (int) $slot->trainingProgram->group_id,
+            (int) $slot->user_id,
+            (int) $categoryId,
+            $scheduledDate,
+        ]);
+
+        if (array_key_exists($cacheKey, $this->overlappingCategoryBlockCache)) {
+            return $this->overlappingCategoryBlockCache[$cacheKey];
+        }
+
+        return $this->overlappingCategoryBlockCache[$cacheKey] = $this->calendarBlockService->findOverlappingBlock(
             groupId: (int) $slot->trainingProgram->group_id,
             userId: (int) $slot->user_id,
             categoryId: (int) $categoryId,

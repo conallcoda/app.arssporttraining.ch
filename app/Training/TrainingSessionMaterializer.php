@@ -46,6 +46,9 @@ class TrainingSessionMaterializer
 
             $lockedSlot->exercises()->delete();
 
+            $valueRows = [];
+            $timestamp = now();
+
             foreach ($compiled->exercises as $exercise) {
                 $exerciseModel = $this->createExercise($lockedSlot, $exercise);
 
@@ -53,14 +56,23 @@ class TrainingSessionMaterializer
                     $setModel = $this->createSet($exerciseModel, $set);
 
                     foreach ($set->values as $value) {
-                        $setModel->values()->create($this->encodeValue($value));
+                        $valueRows[] = [
+                            'training_program_slot_set_id' => $setModel->id,
+                            ...$this->encodeValueForInsert($value),
+                            'created_at' => $timestamp,
+                            'updated_at' => $timestamp,
+                        ];
                     }
                 }
             }
 
+            foreach (array_chunk($valueRows, 500) as $chunk) {
+                DB::table('training_program_slot_set_values')->insert($chunk);
+            }
+
             $lockedSlot->forceFill([
                 'scheduled_date' => $compiled->scheduledDate,
-                'compiled_at' => now(),
+                'compiled_at' => $timestamp,
                 'compiled_version' => $compiled->compiledVersion,
                 'status' => $lockedSlot->status ?? TrainingProgramSlotStatusEnum::Pending,
                 'exercise_count' => count($compiled->exercises),
@@ -142,5 +154,16 @@ class TrainingSessionMaterializer
             ...$this->valueCodec->clearActualValue(),
             'is_modified' => false,
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function encodeValueForInsert(CompiledTrainingSetValue $value): array
+    {
+        return array_map(
+            fn (mixed $columnValue): mixed => is_array($columnValue) ? json_encode($columnValue) : $columnValue,
+            $this->encodeValue($value),
+        );
     }
 }

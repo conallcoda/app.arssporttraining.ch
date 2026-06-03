@@ -24,6 +24,7 @@ class ScheduledSessionSnapshotBuilder
     public function build(TrainingProgramSlot $slot): ScheduledSessionSnapshotData
     {
         $relations = [
+            'trainingProgram.program.exercises',
             'exercises.exercise.equipment',
             'exercises.exercise.modifiers',
             'exercises.sets.values',
@@ -34,6 +35,7 @@ class ScheduledSessionSnapshotBuilder
         }
 
         $slot->loadMissing($relations);
+        $slot->exercises->each->setRelation('slot', $slot);
 
         return new ScheduledSessionSnapshotData(
             slotId: (int) $slot->id,

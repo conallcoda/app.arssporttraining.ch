@@ -13,20 +13,22 @@ class TrainingSessionRebuildService
         private readonly TrainingSessionMaterializer $materializer,
     ) {}
 
-    public function rebuildFutureSlotsForExerciseProgram(int $exerciseProgramId): void
+    public function rebuildFutureSlotsForExerciseProgram(int $exerciseProgramId, ?string $fromDate = null): void
     {
         $this->rebuildFutureSlots(
             $this->futureSlotsQuery()
                 ->whereHas('trainingProgram', fn (Builder $query) => $query->where('exercise_program_id', $exerciseProgramId))
+                ->when($fromDate !== null, fn (Builder $query) => $this->whereOnOrAfterFromDate($query, $fromDate))
         );
     }
 
-    public function rebuildFutureSlotsForAthleteExerciseProgram(int $userId, int $exerciseProgramId): void
+    public function rebuildFutureSlotsForAthleteExerciseProgram(int $userId, int $exerciseProgramId, ?string $fromDate = null): void
     {
         $this->rebuildFutureSlots(
             $this->futureSlotsQuery()
                 ->where('user_id', $userId)
                 ->whereHas('trainingProgram', fn (Builder $query) => $query->where('exercise_program_id', $exerciseProgramId))
+                ->when($fromDate !== null, fn (Builder $query) => $this->whereOnOrAfterFromDate($query, $fromDate))
         );
     }
 
@@ -76,6 +78,17 @@ class TrainingSessionRebuildService
             ->where('datetime', '>', now())
             ->orderBy('datetime')
             ->orderBy('id');
+    }
+
+    private function whereOnOrAfterFromDate(Builder $query, string $fromDate): Builder
+    {
+        $threshold = Carbon::parse($fromDate)->startOfDay();
+        $now = now();
+        if ($threshold->lt($now)) {
+            $threshold = $now;
+        }
+
+        return $query->where('datetime', '>=', $threshold);
     }
 
     private function rebuildFutureSlots(Builder $query): void

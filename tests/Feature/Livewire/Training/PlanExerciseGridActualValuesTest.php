@@ -340,6 +340,24 @@ it('loads scheduled actual snapshots for multiple sessions without per-session q
         'rest' => ['default' => 60, 'applyPer' => 'week'],
     ]);
 
+    foreach (range(1, 10) as $sort) {
+        $siblingExercise = Exercise::factory()->create([
+            'config' => [
+                'settings' => ['reps', 'rest'],
+                'sets' => ['default' => 2, 'label' => 'Set', 'deload' => 'none'],
+                'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'set'],
+                'rest' => ['default' => 60, 'applyPer' => 'week'],
+            ],
+        ]);
+
+        ExerciseProgramExercise::create([
+            'exercise_program_id' => $scheduledProgram->id,
+            'exercise_id' => $siblingExercise->id,
+            'sort' => $sort,
+            'type' => 'main',
+        ]);
+    }
+
     foreach ([
         '2026-04-27 09:00:00',
         '2026-04-30 09:00:00',

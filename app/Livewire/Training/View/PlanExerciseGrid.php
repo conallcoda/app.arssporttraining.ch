@@ -1786,7 +1786,11 @@ class PlanExerciseGrid extends Component
                 );
             }
 
-            $this->saveOverrides($overrides, notifyParent: false);
+            $this->saveOverrides(
+                $overrides,
+                notifyParent: false,
+                futureRebuildFromDate: $this->earliestFutureRebuildDateForTargets($targets),
+            );
             $this->bumpGridRenderVersion();
             unset($this->configFingerprint, $this->previewGrid, $this->displayGrid, $this->planGridTable, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions);
         } finally {
@@ -1857,7 +1861,11 @@ class PlanExerciseGrid extends Component
                 );
             }
 
-            $this->saveOverrides($overrides, notifyParent: false);
+            $this->saveOverrides(
+                $overrides,
+                notifyParent: false,
+                futureRebuildFromDate: $this->earliestFutureRebuildDateForTargets($targets),
+            );
             $this->bumpGridRenderVersion();
             unset($this->configFingerprint, $this->previewGrid, $this->displayGrid, $this->planGridTable, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions);
         } finally {
@@ -1944,6 +1952,31 @@ class PlanExerciseGrid extends Component
             ])
             ->values()
             ->all();
+    }
+
+    /** @param list<array{week:int, session:int}> $targets */
+    protected function earliestFutureRebuildDateForTargets(array $targets): ?string
+    {
+        $dates = [];
+
+        foreach ($targets as $target) {
+            $week = (int) $target['week'];
+            $session = (int) $target['session'];
+
+            if ($this->isSessionLocked($week, $session)) {
+                continue;
+            }
+
+            $date = $this->resolvedScheduledSessionDate($week, $session);
+
+            if ($date !== null) {
+                $dates[] = $date;
+            }
+        }
+
+        sort($dates);
+
+        return $dates[0] ?? null;
     }
 
     protected function isSessionLocked(int $weekIndex, int $sessionIndex): bool
@@ -2114,13 +2147,14 @@ class PlanExerciseGrid extends Component
         ]);
     }
 
-    protected function saveOverrides(ExerciseOverrides $overrides, bool $notifyParent = true): void
+    protected function saveOverrides(ExerciseOverrides $overrides, bool $notifyParent = true, ?string $futureRebuildFromDate = null): void
     {
         $span = PlanGridProfiler::start('PlanExerciseGrid.saveOverrides', $this->profileContext([
             'notify_parent' => $notifyParent,
             'grid_override_cells' => count($overrides->gridOverrides['cells'] ?? []),
             'grid_override_sessions' => count($overrides->gridOverrides['sessions'] ?? []),
             'historical_cells' => count($overrides->historicalGridOverrides['cells'] ?? []),
+            'future_rebuild_from_date' => $futureRebuildFromDate,
         ]));
 
         try {
@@ -2150,8 +2184,9 @@ class PlanExerciseGrid extends Component
             if ($futureSessionsAffected) {
                 PlanGridProfiler::measure('PlanExerciseGrid.saveOverrides.dispatchFutureRebuild', $this->profileContext([
                     'scope_user_id' => $shouldScopeRebuildToAthlete ? $this->userId : null,
-                ]), function () use ($exerciseProgram, $shouldScopeRebuildToAthlete): void {
-                    $this->dispatchFutureRebuild($exerciseProgram->id, $shouldScopeRebuildToAthlete ? $this->userId : null);
+                    'from_date' => $futureRebuildFromDate,
+                ]), function () use ($exerciseProgram, $shouldScopeRebuildToAthlete, $futureRebuildFromDate): void {
+                    $this->dispatchFutureRebuild($exerciseProgram->id, $shouldScopeRebuildToAthlete ? $this->userId : null, $futureRebuildFromDate);
                 });
             }
 
@@ -2213,17 +2248,17 @@ class PlanExerciseGrid extends Component
         return $data;
     }
 
-    protected function dispatchFutureRebuild(int $exerciseProgramId, ?int $userId): void
+    protected function dispatchFutureRebuild(int $exerciseProgramId, ?int $userId, ?string $fromDate = null): void
     {
         $dispatcher = app(TrainingSessionRebuildDispatcher::class);
 
         if ($this->scheduledTrainingProgramId !== null) {
-            $dispatcher->dispatchFutureSlotsForTrainingProgramChange($this->scheduledTrainingProgramId, $userId);
+            $dispatcher->dispatchFutureSlotsForTrainingProgramChange($this->scheduledTrainingProgramId, $userId, $fromDate);
 
             return;
         }
 
-        $dispatcher->dispatchFutureSlotsForExerciseProgramChange($exerciseProgramId, $userId);
+        $dispatcher->dispatchFutureSlotsForExerciseProgramChange($exerciseProgramId, $userId, $fromDate);
     }
 
     /** @return array<string, array<string, mixed>> */
@@ -2812,6 +2847,7 @@ class PlanExerciseGrid extends Component
         }
 
         $slotRelations = [
+            'trainingProgram.program.exercises',
             'exercises.exercise.equipment',
             'exercises.exercise.modifiers',
             'exercises.sets.values',

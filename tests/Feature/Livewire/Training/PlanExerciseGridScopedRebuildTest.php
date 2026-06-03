@@ -36,7 +36,7 @@ it('rebuilds only the edited athlete for athlete-specific exercise grid changes'
     $mock = Mockery::mock(TrainingSessionRebuildDispatcher::class);
     $mock->shouldReceive('dispatchFutureSlotsForExerciseProgramChange')
         ->once()
-        ->with($program->id, $athlete->id);
+        ->with($program->id, $athlete->id, '2026-04-30');
     $mock->shouldNotReceive('dispatchFutureSlotsForExerciseProgram');
     $mock->shouldNotReceive('dispatchFutureSlotsForAthleteExerciseProgram');
     $mock->shouldNotReceive('dispatchFutureSlotsForTrainingProgramChange');
@@ -82,7 +82,7 @@ it('rebuilds only the selected scheduled training program when editing from the 
     $mock = Mockery::mock(TrainingSessionRebuildDispatcher::class);
     $mock->shouldReceive('dispatchFutureSlotsForTrainingProgramChange')
         ->once()
-        ->with($trainingProgram->id, $athlete->id);
+        ->with($trainingProgram->id, $athlete->id, '2026-04-30');
     $mock->shouldNotReceive('dispatchFutureSlotsForExerciseProgramChange');
     $mock->shouldNotReceive('dispatchFutureSlotsForExerciseProgram');
     $mock->shouldNotReceive('dispatchFutureSlotsForAthleteExerciseProgram');

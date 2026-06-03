@@ -19,10 +19,11 @@ class RebuildFutureSlotsForTrainingProgramAthleteJob implements ShouldQueue
     public function __construct(
         public int $trainingProgramId,
         public int $userId,
+        public ?string $fromDate = null,
     ) {}
 
     public function handle(TrainingSessionRebuildService $rebuildService): void
     {
-        $rebuildService->rebuildFutureSlotsForTrainingProgramAthlete($this->trainingProgramId, $this->userId);
+        $rebuildService->rebuildFutureSlotsForTrainingProgramAthlete($this->trainingProgramId, $this->userId, $this->fromDate);
     }
 }
