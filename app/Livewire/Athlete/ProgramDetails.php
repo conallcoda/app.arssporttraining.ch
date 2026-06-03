@@ -22,6 +22,7 @@ use App\Training\TrainingSessionProgressService;
 use Carbon\CarbonImmutable;
 use Coda\FormKit\Field;
 use Flux\Flux;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -78,6 +79,8 @@ class ProgramDetails extends Component
 
     public ?int $previewUserId = null;
 
+    public ?int $previewSlotId = null;
+
     public ?int $initialExerciseId = null;
 
     public ?int $initialExerciseSort = null;
@@ -90,21 +93,26 @@ class ProgramDetails extends Component
         ?string $initialSection = null,
         ?int $initialExerciseId = null,
         ?int $initialExerciseSort = null,
+        ?int $previewSlotId = null,
     ): void {
         $this->date = CarbonImmutable::parse($date)->format('Y-m-d');
         $this->from = $this->sanitizeReturnUrl(request()->query('from'));
+        $this->previewSlotId = $previewSlotId;
 
         abort_unless($trainingProgram instanceof TrainingProgram, 404);
         $this->trainingProgramId = $trainingProgram->id;
 
-        abort_unless(
-            TrainingProgramSlot::query()
-                ->where('training_program_id', $this->trainingProgramId)
-                ->where('user_id', $this->sessionUserId())
-                ->whereDate('datetime', $this->date)
-                ->exists(),
-            404
-        );
+        $slotExists = TrainingProgramSlot::query()
+            ->where('training_program_id', $this->trainingProgramId)
+            ->where('user_id', $this->sessionUserId())
+            ->when(
+                $this->previewSlotId !== null,
+                fn ($query) => $query->whereKey($this->previewSlotId),
+                fn ($query) => $query->whereDate('datetime', $this->date),
+            )
+            ->exists();
+
+        abort_unless($slotExists, 404);
 
         $this->initialExerciseId = $initialExerciseId;
         $this->initialExerciseSort = $initialExerciseSort;
@@ -152,18 +160,14 @@ class ProgramDetails extends Component
     public function currentSlot(): TrainingProgramSlot
     {
         $slot = TrainingProgramSlot::query()
-            ->with([
-                'trainingProgram.program.exerciseCategory',
-                'trainingProgram.program.exercises',
-                'exercises.exercise.category',
-                'exercises.exercise.equipment',
-                'exercises.exercise.modifiers',
-                'exercises.exercise.media',
-                'exercises.sets.values',
-            ])
+            ->with($this->currentSlotRelations())
             ->where('training_program_id', $this->trainingProgramId)
             ->where('user_id', $this->sessionUserId())
-            ->whereDate('datetime', $this->date)
+            ->when(
+                $this->previewSlotId !== null,
+                fn ($query) => $query->whereKey($this->previewSlotId),
+                fn ($query) => $query->whereDate('datetime', $this->date),
+            )
             ->orderBy('datetime')
             ->orderBy('id')
             ->firstOrFail();
@@ -171,30 +175,32 @@ class ProgramDetails extends Component
         if ($slot->compiled_at === null) {
             app(TrainingSessionMaterializer::class)->materialize($slot, force: true);
 
-            $slot = $slot->fresh([
-                'trainingProgram.program.exerciseCategory',
-                'trainingProgram.program.exercises',
-                'exercises.exercise.category',
-                'exercises.exercise.equipment',
-                'exercises.exercise.modifiers',
-                'exercises.exercise.media',
-                'exercises.sets.values',
-            ]);
+            $slot = $slot->fresh($this->currentSlotRelations());
         } elseif ($this->shouldRefreshAuxiliarySections($slot)) {
             app(TrainingSessionMaterializer::class)->materialize($slot, force: true);
 
-            $slot = $slot->fresh([
-                'trainingProgram.program.exerciseCategory',
-                'trainingProgram.program.exercises',
-                'exercises.exercise.category',
-                'exercises.exercise.equipment',
-                'exercises.exercise.modifiers',
-                'exercises.exercise.media',
-                'exercises.sets.values',
-            ]);
+            $slot = $slot->fresh($this->currentSlotRelations());
         }
 
         return $slot;
+    }
+
+    protected function currentSlotRelations(): array
+    {
+        $relations = [
+            'trainingProgram.program.exerciseCategory',
+            'trainingProgram.program.exercises',
+            'exercises.exercise.category',
+            'exercises.exercise.equipment',
+            'exercises.exercise.modifiers',
+            'exercises.sets.values',
+        ];
+
+        if (Schema::hasTable('media')) {
+            $relations[] = 'exercises.exercise.media';
+        }
+
+        return $relations;
     }
 
     #[Computed]

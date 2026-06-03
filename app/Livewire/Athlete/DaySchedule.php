@@ -127,6 +127,35 @@ class DaySchedule extends Component
         return TrainingProgram::query()->find($this->previewTrainingProgramId);
     }
 
+    #[Computed]
+    public function selectedPreviewSlot(): ?TrainingProgramSlot
+    {
+        if (
+            ! $this->previewMode
+            || $this->previewTrainingProgramId === null
+            || $this->previewUserId === null
+            || $this->selectedPreviewSessionKey === null
+        ) {
+            return null;
+        }
+
+        $query = TrainingProgramSlot::query()
+            ->where('training_program_id', $this->previewTrainingProgramId)
+            ->where('user_id', $this->previewUserId)
+            ->orderBy('datetime')
+            ->orderBy('id');
+
+        if (ctype_digit($this->selectedPreviewSessionKey)) {
+            return (clone $query)
+                ->whereKey((int) $this->selectedPreviewSessionKey)
+                ->first();
+        }
+
+        return $query
+            ->whereDate('datetime', $this->selectedPreviewSessionKey)
+            ->first();
+    }
+
     public function render(): View
     {
         if ($this->previewMode) {
@@ -140,7 +169,7 @@ class DaySchedule extends Component
             $days = $slots
                 ->map(function (TrainingProgramSlot $slot): array {
                     $program = ScheduledProgramData::fromSlot($slot);
-                    $program->previewKey = $slot->datetime->format('Y-m-d');
+                    $program->previewKey = (string) $slot->id;
 
                     return [
                         'date' => $slot->datetime->format('Y-m-d'),

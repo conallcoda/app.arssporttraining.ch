@@ -4,6 +4,7 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
+        "check:client-js-logger": "node --check public/client-js-logger.js",
         "dev": "vite"
     },
     "dependencies": {

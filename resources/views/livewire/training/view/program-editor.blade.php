@@ -130,7 +130,7 @@
                                         </flux:radio.group>
                                     </div>
 
-                                    @if ($userId !== null)
+                                    @if ($userId !== null && $scheduledTrainingProgramId !== null)
                                         <div class="mt-3">
                                             <flux:button variant="primary" icon="eye" wire:click="openPreviewModal">
                                                 {{ __('Preview') }}
@@ -248,7 +248,7 @@
                                     </flux:radio.group>
                                 </div>
 
-                                @if ($userId !== null)
+                                @if ($userId !== null && $scheduledTrainingProgramId !== null)
                                     <div class="mt-3">
                                         <flux:button variant="primary" icon="eye" wire:click="openPreviewModal">
                                             {{ __('Preview') }}
@@ -313,7 +313,7 @@
         <flux:text class="text-zinc-500">{{ __('No exercises in this section. Add exercises above to see the training grids.') }}</flux:text>
     @endif
 
-    @if ($userId !== null)
+    @if ($userId !== null && $scheduledTrainingProgramId !== null)
         <flux:modal :name="$this->previewModalName()" class="w-[96vw] max-w-none sm:max-w-5xl">
             <div class="space-y-4">
                 <div class="flex items-center justify-between gap-3 px-1">

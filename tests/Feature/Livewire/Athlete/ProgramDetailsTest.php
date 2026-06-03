@@ -1,17 +1,21 @@
 <?php
 
+use App\Data\Exercise\Settings\DurationSetting;
+use App\Data\Exercise\Settings\SetsSetting;
 use App\Livewire\Athlete\ProgramDetails;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
 use App\Models\Training\TrainingActualValueRevision;
 use App\Models\Training\TrainingProgram;
-use App\Models\Training\TrainingRevisionBatch;
-use App\Models\Training\TrainingStateRevision;
 use App\Models\Training\TrainingProgramSlot;
+use App\Models\Training\TrainingProgramSlotExercise;
 use App\Models\Training\TrainingProgramSlotExerciseStatusEnum;
+use App\Models\Training\TrainingProgramSlotSet;
 use App\Models\Training\TrainingProgramSlotSetStatusEnum;
 use App\Models\Training\TrainingProgramSlotStatusEnum;
+use App\Models\Training\TrainingRevisionBatch;
+use App\Models\Training\TrainingStateRevision;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use App\Support\Athlete\ProgramDetailsExerciseViewBuilder;
@@ -883,24 +887,24 @@ it('records state revision batches when an athlete completes and skips exercises
             ->where('action', 'mark_exercise_skipped')
             ->exists())->toBeTrue()
         ->and(TrainingStateRevision::query()
-            ->where('subject_type', \App\Models\Training\TrainingProgramSlotExercise::class)
+            ->where('subject_type', TrainingProgramSlotExercise::class)
             ->where('subject_id', $completedExercise->id)
             ->where('after_value', TrainingProgramSlotExerciseStatusEnum::Completed->value)
             ->where('changed_by', $athlete->id)
             ->exists())->toBeTrue()
         ->and(TrainingStateRevision::query()
-            ->where('subject_type', \App\Models\Training\TrainingProgramSlotExercise::class)
+            ->where('subject_type', TrainingProgramSlotExercise::class)
             ->where('subject_id', $skippedExercise->id)
             ->where('after_value', TrainingProgramSlotExerciseStatusEnum::Skipped->value)
             ->where('changed_by', $athlete->id)
             ->exists())->toBeTrue()
         ->and(TrainingStateRevision::query()
-            ->where('subject_type', \App\Models\Training\TrainingProgramSlotSet::class)
+            ->where('subject_type', TrainingProgramSlotSet::class)
             ->where('subject_id', $completedSet->id)
             ->where('after_value', TrainingProgramSlotSetStatusEnum::Completed->value)
             ->exists())->toBeTrue()
         ->and(TrainingStateRevision::query()
-            ->where('subject_type', \App\Models\Training\TrainingProgramSlotSet::class)
+            ->where('subject_type', TrainingProgramSlotSet::class)
             ->where('subject_id', $skippedSet->id)
             ->where('after_value', TrainingProgramSlotSetStatusEnum::Skipped->value)
             ->exists())->toBeTrue()
@@ -1032,7 +1036,15 @@ it('requires athletes to record a concrete rep value when planned reps are a ran
         ])
         ->assertSee('8-10')
         ->call('openExerciseEditor', $slotExercise->id)
-        ->assertSet("editValues.{$slotSet->id}.reps", '')
+        ->assertSet("editValues.{$slotSet->id}.reps", '');
+
+    $component
+        ->call('markExerciseCompleted', $slotExercise->id)
+        ->assertHasErrors("editValues.{$slotSet->id}.reps");
+
+    expect($slotExercise->fresh()->status)->toBe(TrainingProgramSlotExerciseStatusEnum::Pending);
+
+    $component
         ->set("editValues.{$slotSet->id}.reps", '8-10')
         ->call('saveExerciseEdits')
         ->assertHasErrors(["editValues.{$slotSet->id}.reps" => 'regex']);
@@ -1040,13 +1052,16 @@ it('requires athletes to record a concrete rep value when planned reps are a ran
     $component
         ->set("editValues.{$slotSet->id}.reps", '9')
         ->call('saveExerciseEdits')
+        ->assertHasNoErrors()
+        ->call('markExerciseCompleted', $slotExercise->id)
         ->assertHasNoErrors();
 
     $value = $slotSet->fresh('values')->values->firstWhere('setting_key', 'reps');
 
     expect($value->actual_value_type)->toBe('string')
         ->and($value->actual_string_value)->toBe('9')
-        ->and($value->is_modified)->toBeTrue();
+        ->and($value->is_modified)->toBeTrue()
+        ->and($slotExercise->fresh()->status)->toBe(TrainingProgramSlotExerciseStatusEnum::Completed);
 
     CarbonImmutable::setTestNow();
 });
@@ -1146,12 +1161,12 @@ it('lets athletes skip and unskip an individual set from the editor', function (
             ->where('action', 'mark_set_pending')
             ->exists())->toBeTrue()
         ->and(TrainingStateRevision::query()
-            ->where('subject_type', \App\Models\Training\TrainingProgramSlotSet::class)
+            ->where('subject_type', TrainingProgramSlotSet::class)
             ->where('subject_id', $slotSet->id)
             ->where('after_value', TrainingProgramSlotSetStatusEnum::Skipped->value)
             ->exists())->toBeTrue()
         ->and(TrainingStateRevision::query()
-            ->where('subject_type', \App\Models\Training\TrainingProgramSlotSet::class)
+            ->where('subject_type', TrainingProgramSlotSet::class)
             ->where('subject_id', $slotSet->id)
             ->where('after_value', TrainingProgramSlotSetStatusEnum::Pending->value)
             ->exists())->toBeTrue();
@@ -1443,12 +1458,12 @@ it('uses the effective scheduled exercise config for athlete editor fields and s
 
     $config = $program->config;
     $overrides = $config->defaultExerciseOverrides($pivot->id);
-    $overrides->sets = \App\Data\Exercise\Settings\SetsSetting::from([
+    $overrides->sets = SetsSetting::from([
         'default' => 1,
         'label' => 'Round',
         'deload' => 'none',
     ]);
-    $overrides->duration = \App\Data\Exercise\Settings\DurationSetting::from([
+    $overrides->duration = DurationSetting::from([
         'unit' => 'minutes',
         'default' => 15,
         'applyPer' => 'session',

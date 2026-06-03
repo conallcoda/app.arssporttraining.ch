@@ -1,7 +1,8 @@
 <?php
 
-use App\Livewire\Training\View\ProgramEditor;
 use App\Livewire\Athlete\DaySchedule;
+use App\Livewire\Training\View\PlanExerciseGrid;
+use App\Livewire\Training\View\ProgramEditor;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
@@ -10,33 +11,57 @@ use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
-use App\Support\Training\AthletePreviewSlotService;
-use App\Training\TrainingSessionRebuildService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
-it('shows the athlete preview button in the settings panel when an athlete is selected', function () {
+it('shows the athlete preview button in the settings panel for a scheduled athlete program', function () {
     $coach = User::factory()->coach()->create();
     $athlete = User::factory()->athlete()->create();
     $program = ExerciseProgram::factory()->create();
+    $group = UserGroup::query()->create([
+        'name' => 'Preview Group',
+        'owner_id' => $coach->id,
+    ]);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
 
     Livewire::actingAs($coach)->test(ProgramEditor::class, [
         'exerciseProgram' => $program,
         'planId' => $program->id,
+        'scheduledTrainingProgramId' => $trainingProgram->id,
         'userId' => $athlete->id,
         'showActualValueTabs' => true,
     ])->assertSee('Preview');
 });
 
-it('does not show the athlete preview button without a selected athlete', function () {
+it('does not show the athlete preview button without a selected athlete and scheduled program', function () {
     $coach = User::factory()->coach()->create();
+    $athlete = User::factory()->athlete()->create();
     $program = ExerciseProgram::factory()->create();
+    $group = UserGroup::query()->create([
+        'name' => 'Preview Group',
+        'owner_id' => $coach->id,
+    ]);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
 
     Livewire::actingAs($coach)->test(ProgramEditor::class, [
         'exerciseProgram' => $program,
         'planId' => $program->id,
+        'scheduledTrainingProgramId' => $trainingProgram->id,
+        'showActualValueTabs' => true,
+    ])->assertDontSee('Preview');
+
+    Livewire::actingAs($coach)->test(ProgramEditor::class, [
+        'exerciseProgram' => $program,
+        'planId' => $program->id,
+        'userId' => $athlete->id,
         'showActualValueTabs' => true,
     ])->assertDontSee('Preview');
 });
@@ -100,7 +125,7 @@ it('renders program preview sessions and opens athlete-style session details', f
         'exercise_program_id' => $program->id,
     ]);
 
-    TrainingProgramSlot::factory()->create([
+    $slot = TrainingProgramSlot::factory()->create([
         'training_program_id' => $trainingProgram->id,
         'user_id' => $athlete->id,
         'datetime' => '2026-05-06 08:00:00',
@@ -120,14 +145,64 @@ it('renders program preview sessions and opens athlete-style session details', f
         'previewUserId' => $athlete->id,
     ])
         ->assertSee('08:00')
-        ->call('openPreviewSession', '2026-05-06')
+        ->call('openPreviewSession', (string) $slot->id)
         ->assertSee('Back to Preview')
         ->assertSee('Front Squat')
         ->assertSee('Reps')
         ->assertSee('8');
 });
 
-it('creates unique preview slot datetimes when multiple preview sessions share the same date', function () {
+it('opens an exercise session preview from the plan grid using the real scheduled slot id', function () {
+    $coach = User::factory()->coach()->create();
+    $athlete = User::factory()->athlete()->create();
+    $exercise = Exercise::factory()->create(['name' => 'Trap Bar Deadlift']);
+    $program = ExerciseProgram::factory()->create();
+    $programExercise = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 2,
+        'type' => 'main',
+    ]);
+    $group = UserGroup::query()->create([
+        'name' => 'Preview Group',
+        'owner_id' => $coach->id,
+    ]);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => '2026-05-20 08:00:00',
+    ]);
+
+    Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'programExerciseId' => $programExercise->id,
+        'exerciseId' => $exercise->id,
+        'userId' => $athlete->id,
+        'weeks' => 1,
+        'sessionsPerWeek' => 1,
+        'scheduledTrainingProgramId' => $trainingProgram->id,
+        'weekSessions' => [1],
+        'weekSessionDates' => [['2026-05-20']],
+        'exerciseName' => $exercise->name,
+        'exerciseConfigArray' => $exercise->config->toArray(),
+        'programExerciseSort' => 2,
+        'programExerciseType' => 'main',
+    ])
+        ->call('previewSession', 0, 0)
+        ->assertDispatched(
+            'open-program-preview-at-session',
+            sessionKey: (string) $slot->id,
+            section: 'main',
+            exerciseId: $exercise->id,
+            exerciseSort: 2,
+        );
+});
+
+it('opens preview using the existing scheduled training program without creating preview rows', function () {
     $coach = User::factory()->coach()->create();
     $athlete = User::factory()->athlete()->create();
     $program = ExerciseProgram::factory()->create();
@@ -138,131 +213,47 @@ it('creates unique preview slot datetimes when multiple preview sessions share t
     ]);
     $group->members()->attach($athlete->id);
 
-    Livewire::actingAs($coach)->test(ProgramEditor::class, [
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => '2026-05-19 08:00:00',
+    ]);
+
+    $programCount = TrainingProgram::query()->count();
+    $slotCount = TrainingProgramSlot::query()->count();
+
+    $component = Livewire::actingAs($coach)->test(ProgramEditor::class, [
         'exerciseProgram' => $program,
         'planId' => $program->id,
+        'scheduledTrainingProgramId' => $trainingProgram->id,
         'userId' => $athlete->id,
         'showActualValueTabs' => true,
         'weeks' => 1,
-        'sessionsPerWeek' => 4,
-        'weekSessions' => [4],
-        'weekSessionDates' => [[
-            '2026-05-19',
-            '2026-05-19',
-            '2026-05-19',
-            '2026-05-19',
-        ]],
+        'sessionsPerWeek' => 1,
+        'weekSessions' => [1],
+        'weekSessionDates' => [['2026-05-19']],
     ])->call('openPreviewModal');
 
-    $trainingProgram = TrainingProgram::query()->latest('id')->first();
-
-    expect($trainingProgram)->not->toBeNull();
-
-    $datetimes = $trainingProgram->slots()
-        ->orderBy('datetime')
-        ->pluck('datetime')
-        ->map(fn ($datetime) => \Carbon\Carbon::parse($datetime)->format('Y-m-d H:i:s'))
-        ->all();
-
-    expect($datetimes)->toBe([
-        '2026-05-19 08:00:00',
-        '2026-05-19 11:00:00',
-        '2026-05-19 14:00:00',
-        '2026-05-19 17:00:00',
-    ]);
+    expect($component->instance()->previewTrainingProgramId)->toBe($trainingProgram->id)
+        ->and(TrainingProgram::query()->count())->toBe($programCount)
+        ->and(TrainingProgramSlot::query()->count())->toBe($slotCount);
 });
 
-it('does not invent extra preview sessions beyond the explicit scheduled timeline', function () {
+it('renders the existing scheduled slots in preview mode', function () {
     $coach = User::factory()->coach()->create();
     $athlete = User::factory()->athlete()->create();
-    $program = ExerciseProgram::factory()->create();
-
-    $group = UserGroup::query()->create([
-        'name' => 'Preview Group',
-        'owner_id' => $coach->id,
+    $category = Tag::factory()->withScope('exercise_category')->create([
+        'name' => 'Strength',
+        'short_name' => 'STR',
+        'color' => '#22c55e',
     ]);
-    $group->members()->attach($athlete->id);
-
-    Livewire::actingAs($coach)->test(ProgramEditor::class, [
-        'exerciseProgram' => $program,
-        'planId' => $program->id,
-        'userId' => $athlete->id,
-        'showActualValueTabs' => true,
-        'weeks' => 2,
-        'sessionsPerWeek' => 4,
-        'weekSessions' => [1, 2],
-        'weekSessionDates' => [
-            ['2026-05-19'],
-            ['2026-05-26', '2026-05-30'],
-        ],
-    ])->call('openPreviewModal');
-
-    $trainingProgram = TrainingProgram::query()->latest('id')->first();
-
-    expect($trainingProgram)->not->toBeNull();
-
-    $datetimes = $trainingProgram->slots()
-        ->orderBy('datetime')
-        ->pluck('datetime')
-        ->map(fn ($datetime) => \Carbon\Carbon::parse($datetime)->format('Y-m-d H:i:s'))
-        ->all();
-
-    expect($datetimes)->toBe([
-        '2026-05-19 08:00:00',
-        '2026-05-26 08:00:00',
-        '2026-05-30 08:00:00',
-    ]);
-});
-
-it('creates preview slots without triggering future-slot rebuild cascades', function () {
-    $coach = User::factory()->coach()->create();
-    $athlete = User::factory()->athlete()->create();
-    $program = ExerciseProgram::factory()->create();
-    $exercise = Exercise::factory()->create();
-
-    ExerciseProgramExercise::create([
-        'exercise_program_id' => $program->id,
-        'exercise_id' => $exercise->id,
-        'sort' => 0,
-        'type' => 'main',
-    ]);
-
-    $group = UserGroup::query()->create([
-        'name' => 'Preview Group',
-        'owner_id' => $coach->id,
-    ]);
-    $group->members()->attach($athlete->id);
-
-    $rebuildService = Mockery::mock(TrainingSessionRebuildService::class);
-    $rebuildService->shouldNotReceive('rebuildFutureSlotsForTrainingProgramAthlete');
-    app()->instance(TrainingSessionRebuildService::class, $rebuildService);
-
-    $previewTrainingProgram = app(AthletePreviewSlotService::class)->createPreviewProgram(
-        exerciseProgram: $program->fresh(),
-        userId: $athlete->id,
-        weeks: 2,
-        sessionsPerWeek: 3,
-        weekSessions: [1, 2],
-        weekSessionDates: [
-            ['2026-05-19'],
-            ['2026-05-26', '2026-05-30'],
-        ],
-    );
-
-    $slots = $previewTrainingProgram->slots()
-        ->orderBy('datetime')
-        ->get();
-
-    expect($slots)->toHaveCount(3)
-        ->and($slots->every(fn (TrainingProgramSlot $slot) => $slot->compiled_at !== null))->toBeTrue();
-});
-
-it('uses the current scheduled training program when previewing with a stale exercise-program parent', function () {
-    $coach = User::factory()->coach()->create();
-    $athlete = User::factory()->athlete()->create();
     $program = ExerciseProgram::factory()->create([
-        'parent_type' => TrainingProgram::class,
-        'parent_id' => 999999,
+        'exercise_category_id' => $category->id,
     ]);
 
     $group = UserGroup::query()->create([
@@ -276,21 +267,24 @@ it('uses the current scheduled training program when previewing with a stale exe
         'exercise_program_id' => $program->id,
     ]);
 
-    $component = Livewire::actingAs($coach)->test(ProgramEditor::class, [
-        'exerciseProgram' => $program->fresh(),
-        'planId' => $program->id,
-        'userId' => $athlete->id,
-        'scheduledTrainingProgramId' => $trainingProgram->id,
-        'showActualValueTabs' => true,
-        'weeks' => 1,
-        'sessionsPerWeek' => 1,
-        'weekSessions' => [1],
-        'weekSessionDates' => [['2026-05-19']],
-    ])->call('openPreviewModal');
+    TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => '2026-05-19 08:00:00',
+    ]);
+    TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => '2026-05-26 08:00:00',
+    ]);
 
-    $previewTrainingProgram = TrainingProgram::query()
-        ->find($component->instance()->previewTrainingProgramId);
-
-    expect($previewTrainingProgram)->not->toBeNull()
-        ->and($previewTrainingProgram->group_id)->toBe($group->id);
+    Livewire::actingAs($coach)->test(DaySchedule::class, [
+        'date' => '2026-05-19',
+        'showReadiness' => false,
+        'previewMode' => true,
+        'previewTrainingProgramId' => $trainingProgram->id,
+        'previewUserId' => $athlete->id,
+    ])
+        ->assertSee('08:00')
+        ->assertSee('Strength');
 });

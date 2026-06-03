@@ -106,6 +106,22 @@ it('uses rep percentage of 1.0 when reps grid has no data for last set', functio
     expect($result['weights'][1][1])->toBe(100.0);
 });
 
+it('uses the lower bound of a rep range for automatic weight calculation without changing the reps grid', function () {
+    $setting = WeightSetting::from(['mode' => 'automatic', 'oneRepMaxModifier' => 100]);
+    $measuredData = new WeightProgressionSetting(measuredReps: 10, measuredWeight: 52, targetGoal: 7);
+
+    $state = buildStateWithReps([1], [
+        ['8-10'],
+    ]);
+
+    $strategy = new OneRepMaxFixedStrategy($setting, $measuredData);
+    $result = $strategy->generate(1, $state);
+
+    expect($result)->not->toBeNull()
+        ->and($state->getResolvedCellValue('reps', 0, 0))->toBe('8-10')
+        ->and($state->hasGrid('weight'))->toBeTrue();
+});
+
 it('writes weight grid and metadata to state', function () {
     $setting = WeightSetting::from(['mode' => 'automatic', 'oneRepMaxModifier' => 100]);
     $measuredData = new WeightProgressionSetting(measuredReps: 10, measuredWeight: 52, targetGoal: 7);

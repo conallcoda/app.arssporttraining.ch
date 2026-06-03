@@ -13,6 +13,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(\App\Http\Middleware\LogRequestTiming::class);
+        $middleware->validateCsrfTokens(except: [
+            'client-js-log',
+        ]);
         $middleware->redirectGuestsTo('/login');
         $middleware->redirectUsersTo(function () {
             $homeByType = config('cms.home_by_type');

@@ -12,22 +12,22 @@ use App\Models\Exercise\ExerciseProgramExercise;
 use App\Models\Exercise\ExerciseProgramTypeEnum;
 use App\Models\Users\User;
 use App\Support\Training\ExerciseProgramSelectorPreviewService;
-use App\Training\ExerciseProgramSectionMutationService;
-use App\Support\Training\AthletePreviewSlotService;
 use App\Support\Training\ProgramExerciseOrder;
 use App\Training\ExerciseGroupLabeler;
+use App\Training\ExerciseProgramSectionMutationService;
 use App\Training\TrainingSessionRebuildDispatcher;
 use Coda\Cms\Livewire\Concerns\InteractsWithFormData;
 use Coda\FormKit\Form;
 use Flux\Flux;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
 class ProgramEditor extends Component
 {
+    use InteractsWithExerciseSelectorPrograms;
     use InteractsWithFormData {
         InteractsWithFormData::updated as traitUpdated;
         InteractsWithFormData::removeRelationshipSelectorItem as traitRemoveRelationshipSelectorItem;
@@ -35,7 +35,6 @@ class ProgramEditor extends Component
         InteractsWithFormData::applyRelationshipSelectorDraft as traitApplyRelationshipSelectorDraft;
         InteractsWithFormData::applyRelationshipSelectorClientState as traitApplyRelationshipSelectorClientState;
     }
-    use InteractsWithExerciseSelectorPrograms;
 
     private const SECTION_TYPES = ['main', 'warm_up', 'warm_down'];
 
@@ -121,22 +120,17 @@ class ProgramEditor extends Component
 
     public function openPreviewModal(): void
     {
+        if ($this->userId === null || $this->scheduledTrainingProgramId === null) {
+            return;
+        }
+
         $this->previewInitialSessionKey = null;
         $this->previewInitialSection = null;
         $this->previewInitialExerciseId = null;
         $this->previewInitialExerciseSort = null;
         $this->previewOpenVersion++;
 
-        $this->previewTrainingProgramId = app(AthletePreviewSlotService::class)
-            ->createPreviewProgram(
-                exerciseProgram: $this->exerciseProgram,
-                userId: $this->userId,
-                weeks: $this->weeks,
-                sessionsPerWeek: $this->sessionsPerWeek,
-                weekSessionDates: $this->weekSessionDates,
-                weekSessions: $this->weekSessions,
-                scheduledTrainingProgramId: $this->scheduledTrainingProgramId,
-            )->id;
+        $this->previewTrainingProgramId = $this->scheduledTrainingProgramId;
 
         Flux::modal($this->previewModalName())->show();
     }
@@ -144,7 +138,7 @@ class ProgramEditor extends Component
     #[On('open-program-preview-at-session')]
     public function openPreviewAtSession(string $sessionKey, string $section, int $exerciseId, int $exerciseSort): void
     {
-        if ($this->userId === null) {
+        if ($this->userId === null || $this->scheduledTrainingProgramId === null) {
             return;
         }
 
@@ -154,16 +148,7 @@ class ProgramEditor extends Component
         $this->previewInitialExerciseSort = $exerciseSort;
         $this->previewOpenVersion++;
 
-        $this->previewTrainingProgramId = app(AthletePreviewSlotService::class)
-            ->createPreviewProgram(
-                exerciseProgram: $this->exerciseProgram,
-                userId: $this->userId,
-                weeks: $this->weeks,
-                sessionsPerWeek: $this->sessionsPerWeek,
-                weekSessionDates: $this->weekSessionDates,
-                weekSessions: $this->weekSessions,
-                scheduledTrainingProgramId: $this->scheduledTrainingProgramId,
-            )->id;
+        $this->previewTrainingProgramId = $this->scheduledTrainingProgramId;
 
         Flux::modal($this->previewModalName())->show();
     }

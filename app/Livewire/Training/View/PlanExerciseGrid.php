@@ -217,23 +217,40 @@ class PlanExerciseGrid extends Component
 
     public function previewSession(int $week, int $session): void
     {
-        if ($this->userId === null) {
+        if ($this->userId === null || $this->scheduledTrainingProgramId === null) {
             return;
         }
 
-        $sessionKey = $this->weekSessionDates[$week][$session] ?? null;
+        $sessionKey = $this->previewSlotIdForWeekSession($week, $session);
 
-        if (! is_string($sessionKey) || $sessionKey === '') {
+        if ($sessionKey === null) {
             return;
         }
 
         $this->dispatch(
             'open-program-preview-at-session',
-            sessionKey: $sessionKey,
+            sessionKey: (string) $sessionKey,
             section: $this->programExerciseType,
             exerciseId: $this->exerciseId,
             exerciseSort: $this->programExerciseSort,
         );
+    }
+
+    protected function previewSlotIdForWeekSession(int $week, int $session): ?int
+    {
+        $date = $this->weekSessionDates[$week][$session] ?? null;
+
+        if (! is_string($date) || $date === '') {
+            return null;
+        }
+
+        return TrainingProgramSlot::query()
+            ->where('training_program_id', $this->scheduledTrainingProgramId)
+            ->where('user_id', $this->userId)
+            ->whereDate('datetime', $date)
+            ->orderBy('datetime')
+            ->orderBy('id')
+            ->value('id');
     }
 
     public function updatedValueDisplayMode(): void
@@ -2585,9 +2602,9 @@ class PlanExerciseGrid extends Component
         }
 
         $slotRelations = [
-                'exercises.exercise.equipment',
-                'exercises.exercise.modifiers',
-                'exercises.sets.values',
+            'exercises.exercise.equipment',
+            'exercises.exercise.modifiers',
+            'exercises.sets.values',
         ];
 
         if ($this->mediaTableExists()) {

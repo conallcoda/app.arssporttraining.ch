@@ -2,8 +2,8 @@
 
 use App\Data\Exercise\Preview\StrategyOrchestrator;
 use App\Data\Exercise\Settings\RepsSetting;
-use App\Data\Exercise\Strategies\AutomaticStrategyFactory;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
+use App\Data\Exercise\Strategies\AutomaticStrategyFactory;
 use App\Training\Derivation\AutomaticRepsResolver;
 
 it('populates sets per week from sets config', function () {
@@ -198,7 +198,7 @@ it('keeps manual rep ranges as planned grid values', function () {
     expect($state->getCellValue('reps', 0, 1))->toBe('8-10');
 });
 
-it('coerces ambiguous manual reps when automatic weight depends on reps', function () {
+it('keeps manual rep ranges visible when automatic weight depends on reps', function () {
     $data = [
         'sets' => ['deload' => 'none', 'default' => 2, 'label' => 'Set'],
         'settings' => ['reps', 'weight'],
@@ -216,8 +216,8 @@ it('coerces ambiguous manual reps when automatic weight depends on reps', functi
     $state = (new StrategyOrchestrator($data, weeks: 1))->execute();
 
     expect($state->hasGrid('reps'))->toBeTrue();
-    expect($state->getCellValue('reps', 0, 0))->toBe(8);
-    expect($state->getCellValue('reps', 0, 1))->toBe(8);
+    expect($state->getCellValue('reps', 0, 0))->toBe('8-10');
+    expect($state->getCellValue('reps', 0, 1))->toBe('8-10');
 });
 
 it('skips reps when not in settings', function () {

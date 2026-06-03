@@ -115,6 +115,14 @@ document.addEventListener('alpine:init', () => {
             return this.lists.find((list) => list.key === listKey) ?? null;
         },
 
+        currentListSearchable() {
+            return Boolean(this.listConfig(this.activeListKey)?.searchable);
+        },
+
+        currentSearchPlaceholder() {
+            return this.listConfig(this.activeListKey)?.searchPlaceholder ?? 'Search...';
+        },
+
         listState(listKey) {
             if (!this.listStates[listKey]) {
                 this.listStates[listKey] = this.createListState();

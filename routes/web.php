@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AthleteDashboardController;
 use App\Http\Controllers\Auth\UserAccountSetupController;
+use App\Http\Controllers\ClientJsLogController;
 use App\Http\Controllers\Training\SlotDetailsController;
 use App\Livewire\Admin\Docs;
 use App\Livewire\Athlete\Calendar;
@@ -13,6 +14,10 @@ use Coda\Cms\Registry;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/login');
+
+Route::post('/client-js-log', ClientJsLogController::class)
+    ->middleware('throttle:client-js-log')
+    ->name('client-js-log');
 
 Route::get('/ping-test', [AthleteDashboardController::class, 'ping'])
     ->name('ping-test');

@@ -734,6 +734,7 @@
             $visibleExistingItems = $field->multiple || ! $newUploads ? $existingItems : [];
             $hasSingleUpload = ! $field->multiple && (filled($newUploads) || count($visibleExistingItems) > 0);
             $hasEditors = ! empty($field->editors);
+            $focusEnabled = $field->previewUsesFocusPoint || in_array('focus', $field->editors, true);
             $previewMaxWidthClasses = $field->previewMaxWidth;
             $previewAspectRatioClass = blank($field->previewAspectRatio)
                 ? null
@@ -827,7 +828,7 @@
                             @else
                                 <div class="relative">
                                     <img src="{{ $media['url'] }}" alt="{{ $media['name'] }}" class="h-auto w-full rounded-t-lg object-contain" />
-                                    @if (is_array($focusPoint))
+                                    @if ($focusEnabled && is_array($focusPoint))
                                         <div
                                             class="pointer-events-none absolute z-[11] h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-zinc-900/55 shadow"
                                             style="left: {{ ($focusPoint['x'] ?? 0.5) * 100 }}%; top: {{ ($focusPoint['y'] ?? 0.5) * 100 }}%;"
@@ -860,7 +861,7 @@
                             $uploadImage = ($uploadExists && $upload->isPreviewable()) ? $upload->temporaryUrl() : null;
                             $formattedUploadSize = $formatFileSize($uploadSize);
                             $draftKey = method_exists($this, 'mediaUploadDraftKey') ? $this->mediaUploadDraftKey($field->name, $index) : null;
-                            $draftFocusPoint = $draftKey ? ($this->mediaEditorDrafts[$field->name][$draftKey]['focus'] ?? null) : null;
+                            $draftFocusPoint = $focusEnabled && $draftKey ? ($this->mediaEditorDrafts[$field->name][$draftKey]['focus'] ?? null) : null;
                             $uploadPreviewObjectPosition = $resolvePreviewObjectPosition($draftFocusPoint, $field->previewUsesFocusPoint);
                         @endphp
                         @if ($uploadImage)
@@ -879,7 +880,7 @@
                                     @else
                                         <div class="relative">
                                             <img src="{{ $uploadImage }}" alt="{{ $uploadName }}" class="h-auto w-full rounded-t-lg object-contain" />
-                                            @if (is_array($draftFocusPoint))
+                                            @if ($focusEnabled && is_array($draftFocusPoint))
                                                 <div
                                                     class="pointer-events-none absolute z-[11] h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-zinc-900/55 shadow"
                                                     style="left: {{ ($draftFocusPoint['x'] ?? 0.5) * 100 }}%; top: {{ ($draftFocusPoint['y'] ?? 0.5) * 100 }}%;"
@@ -921,7 +922,7 @@
                         $uploadImage = ($uploadExists && $newUploads->isPreviewable()) ? $newUploads->temporaryUrl() : null;
                         $formattedUploadSize = $formatFileSize($uploadSize);
                         $draftKey = method_exists($this, 'mediaUploadDraftKey') ? $this->mediaUploadDraftKey($field->name, 0) : null;
-                        $draftFocusPoint = $draftKey ? ($this->mediaEditorDrafts[$field->name][$draftKey]['focus'] ?? null) : null;
+                        $draftFocusPoint = $focusEnabled && $draftKey ? ($this->mediaEditorDrafts[$field->name][$draftKey]['focus'] ?? null) : null;
                         $singleUploadPreviewObjectPosition = $resolvePreviewObjectPosition($draftFocusPoint, $field->previewUsesFocusPoint);
                     @endphp
                     @if ($uploadImage)
@@ -940,7 +941,7 @@
                                 @else
                                     <div class="relative">
                                         <img src="{{ $uploadImage }}" alt="{{ $uploadName }}" class="h-auto w-full rounded-t-lg object-contain" />
-                                        @if (is_array($draftFocusPoint))
+                                        @if ($focusEnabled && is_array($draftFocusPoint))
                                             <div
                                                 class="pointer-events-none absolute z-[11] h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-zinc-900/55 shadow"
                                                 style="left: {{ ($draftFocusPoint['x'] ?? 0.5) * 100 }}%; top: {{ ($draftFocusPoint['y'] ?? 0.5) * 100 }}%;"

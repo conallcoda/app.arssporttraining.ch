@@ -19,6 +19,9 @@
         }
     </script>
     @fluxAppearance
+    @if (config('logging.client_js.enabled'))
+        <script src="{{ asset('client-js-logger.js') }}"></script>
+    @endif
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 

@@ -31,8 +31,7 @@ class OneRepMaxFixedStrategy implements DefinesEditability
         array $sessionCounts = [],
         ?string $groupingMode = null,
         ?int $groupSize = null,
-    ): ?array
-    {
+    ): ?array {
         $groupingMode = SessionGroupingMode::tryFrom((string) $groupingMode)?->value ?? SessionGroupingMode::defaultMode();
         $groupSize = SessionGroupingMode::normalizeGroupSize($groupSize, $groupingMode);
 
@@ -42,7 +41,9 @@ class OneRepMaxFixedStrategy implements DefinesEditability
             $this->measuredData,
             $weeks,
             $state->getSetsPerWeek(),
-            fn (int $weekIndex, int $setIndex, ?int $sessionIndex = null): mixed => $state->getResolvedCellValue('reps', $weekIndex, $setIndex, $sessionIndex),
+            fn (int $weekIndex, int $setIndex, ?int $sessionIndex = null): mixed => $this->concreteRepsForWeightCalculation(
+                $state->getResolvedCellValue('reps', $weekIndex, $setIndex, $sessionIndex)
+            ),
             $sessionCounts,
             $groupingMode,
             $groupSize,
@@ -62,5 +63,14 @@ class OneRepMaxFixedStrategy implements DefinesEditability
             'weights' => $weights,
             'oneRepMax' => $oneRepMax,
         ];
+    }
+
+    private function concreteRepsForWeightCalculation(mixed $value): mixed
+    {
+        if (is_string($value) && preg_match('/^(?<min>\d+)-\d+$/', trim($value), $matches)) {
+            return (int) $matches['min'];
+        }
+
+        return $value;
     }
 }

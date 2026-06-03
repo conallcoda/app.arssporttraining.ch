@@ -194,26 +194,24 @@
                     </div>
 
                     <div>
-                        <flux:tab.group class="w-full">
-                            <flux:tabs x-ref="tabs" x-model="activeListKey" class="w-full text-sm">
-                                @foreach ($clientModalListsPayload as $clientList)
-                                    <flux:tab
-                                        name="{{ $clientList['key'] }}"
-                                        x-bind:selected="activeListKey === '{{ $clientList['key'] }}'"
-                                        class="text-sm"
-                                        x-on:click="setActiveList('{{ $clientList['key'] }}')"
-                                        x-bind:class="{ 'opacity-100': activeListKey === '{{ $clientList['key'] }}', 'opacity-60': activeListKey !== '{{ $clientList['key'] }}' }"
-                                    >
-                                        <span class="inline-flex items-center gap-2 text-sm">
-                                            <span>{{ $clientList['label'] }}</span>
-                                            @if (! empty($clientList['badge']))
-                                                <flux:badge size="sm" color="zinc" x-text="listBadgeValue('{{ $clientList['key'] }}')"></flux:badge>
-                                            @endif
-                                        </span>
-                                    </flux:tab>
-                                @endforeach
-                            </flux:tabs>
-                        </flux:tab.group>
+                        <flux:tabs x-ref="tabs" x-model="activeListKey" class="w-full text-sm">
+                            @foreach ($clientModalListsPayload as $clientList)
+                                <flux:tab
+                                    name="{{ $clientList['key'] }}"
+                                    x-bind:selected="activeListKey === '{{ $clientList['key'] }}'"
+                                    class="text-sm"
+                                    x-on:click="setActiveList('{{ $clientList['key'] }}')"
+                                    x-bind:class="{ 'opacity-100': activeListKey === '{{ $clientList['key'] }}', 'opacity-60': activeListKey !== '{{ $clientList['key'] }}' }"
+                                >
+                                    <span class="inline-flex items-center gap-2 text-sm">
+                                        <span>{{ $clientList['label'] }}</span>
+                                        @if (! empty($clientList['badge']))
+                                            <flux:badge size="sm" color="zinc" x-text="listBadgeValue('{{ $clientList['key'] }}')"></flux:badge>
+                                        @endif
+                                    </span>
+                                </flux:tab>
+                            @endforeach
+                        </flux:tabs>
                     </div>
 
                     <div class="min-h-0 flex-1 overflow-hidden">

@@ -36,6 +36,11 @@ return [
         'trace' => env('LOG_DEPRECATIONS_TRACE', false),
     ],
 
+    'client_js' => [
+        'enabled' => env('CLIENT_JS_LOGGING_ENABLED', false),
+        'max_bytes' => env('CLIENT_JS_LOGGING_MAX_BYTES', 20000),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Log Channels
@@ -70,6 +75,13 @@ return [
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'days' => env('LOG_DAILY_DAYS', 14),
+            'replace_placeholders' => true,
+        ],
+
+        'client_js' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/client-js.log'),
+            'level' => 'info',
             'replace_placeholders' => true,
         ],
 
