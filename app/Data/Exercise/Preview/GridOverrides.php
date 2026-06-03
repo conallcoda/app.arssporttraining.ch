@@ -2,6 +2,7 @@
 
 namespace App\Data\Exercise\Preview;
 
+use App\Support\Training\GridOverrideNormalizer;
 use Coda\Cms\Data\AbstractData;
 
 class GridOverrides extends AbstractData
@@ -23,7 +24,7 @@ class GridOverrides extends AbstractData
         $cells = $second;
 
         if ($first !== [] && isset($first[0]['set'])) {
-            $normalized = \App\Support\Training\GridOverrideNormalizer::normalize([
+            $normalized = GridOverrideNormalizer::normalize([
                 'cells' => $first,
                 'weeks' => $second,
             ]);
@@ -41,7 +42,7 @@ class GridOverrides extends AbstractData
     /** @param array{sessions?: array, cells?: array, weeks?: array} $overrides */
     public static function fromConfig(array $overrides): self
     {
-        $normalized = \App\Support\Training\GridOverrideNormalizer::normalize($overrides);
+        $normalized = GridOverrideNormalizer::normalize($overrides);
 
         return self::fromArrays(
             $normalized['sessions'] ?? [],
@@ -61,18 +62,9 @@ class GridOverrides extends AbstractData
             return false;
         }
 
-        foreach ($this->cells as $override) {
-            if (
-                $override->week === $week
-                && $override->set === $set
-                && $session === null
-                && isset($override->data[$field])
-            ) {
-                return true;
-            }
-        }
+        $override = $this->findExactCellOverride($week, 0, $set);
 
-        return false;
+        return $override !== null && isset($override->data[$field]);
     }
 
     public function getCellOverrideValue(int $week, int $set, string $field, ?int $session = null): mixed
@@ -87,13 +79,9 @@ class GridOverrides extends AbstractData
             return null;
         }
 
-        foreach ($this->cells as $override) {
-            if ($override->week === $week && $override->set === $set && isset($override->data[$field])) {
-                return $override->data[$field];
-            }
-        }
+        $override = $this->findExactCellOverride($week, 0, $set);
 
-        return null;
+        return $override?->data[$field] ?? null;
     }
 
     public function hasSessionOverride(int $week, int $session, string $field): bool

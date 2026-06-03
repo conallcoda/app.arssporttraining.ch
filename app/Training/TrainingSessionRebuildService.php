@@ -30,6 +30,14 @@ class TrainingSessionRebuildService
         );
     }
 
+    public function rebuildFutureSlotsForTrainingProgram(int $trainingProgramId): void
+    {
+        $this->rebuildFutureSlots(
+            $this->futureSlotsQuery()
+                ->where('training_program_id', $trainingProgramId)
+        );
+    }
+
     public function rebuildFutureSlotsForTrainingProgramAthlete(int $trainingProgramId, int $userId, ?string $fromDate = null): void
     {
         $threshold = Carbon::parse($fromDate ?? now()->toDateString())->startOfDay();

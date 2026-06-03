@@ -11,6 +11,7 @@ use App\Data\Training\Compiler\PlanningContextData;
 use App\Data\Training\Config\ExerciseOverrides;
 use App\Data\Training\Planned\ResolvedPlannedExercise;
 use App\Data\Training\Planned\ResolvedPlannedProvenance;
+use App\Support\Profiling\PlanGridProfiler;
 use App\Support\Training\ApplyPerScope;
 use App\Training\Planning\PlanCompiler;
 use Coda\Cms\Support\ColorPalette;
@@ -56,52 +57,50 @@ class ExercisePreviewBuilder
         ?ExerciseOverrides $userOverrides = null,
         bool $preserveLockedValuesForUnavailable = true,
     ): PreviewGrid {
-        $sessionCounts = self::buildSessionCountMap($weeks, $sessionsPerWeek, $weekSessionDates, $explicitWeekSessionCounts);
-        $orchestrator = new StrategyOrchestrator($data, $measuredData, $weeks, $overrides, $maxHR, $iatPercent, sessionCounts: $sessionCounts);
-        $state = $orchestrator->execute();
+        $span = PlanGridProfiler::start('ExercisePreviewBuilder.build', [
+            'weeks' => $weeks,
+            'sessions_per_week' => $sessionsPerWeek,
+            'settings' => $data['settings'] ?? [],
+            'override_cells' => count($overrides?->cells ?? []),
+            'override_sessions' => count($overrides?->sessions ?? []),
+            'highlight_cells' => count($highlightOverrides?->cells ?? []),
+            'locked_weeks' => count($lockedSessionsByWeek),
+        ]);
 
-        if ($highlightOverrides !== null) {
-            $state->setHighlightOverrides($highlightOverrides);
-        }
+        try {
+            $sessionCounts = self::buildSessionCountMap($weeks, $sessionsPerWeek, $weekSessionDates, $explicitWeekSessionCounts);
+            $orchestrator = new StrategyOrchestrator($data, $measuredData, $weeks, $overrides, $maxHR, $iatPercent, sessionCounts: $sessionCounts);
+            $state = $orchestrator->execute();
 
-        $settings = $data['settings'] ?? [];
+            if ($highlightOverrides !== null) {
+                $state->setHighlightOverrides($highlightOverrides);
+            }
 
-        usort($settings, function (string $a, string $b) {
-            $priorityA = array_search($a, self::PRIORITY);
-            $priorityB = array_search($b, self::PRIORITY);
+            $settings = $data['settings'] ?? [];
 
-            return ($priorityA === false ? PHP_INT_MAX : $priorityA)
-                <=> ($priorityB === false ? PHP_INT_MAX : $priorityB);
-        });
+            usort($settings, function (string $a, string $b) {
+                $priorityA = array_search($a, self::PRIORITY);
+                $priorityB = array_search($b, self::PRIORITY);
 
-        $rows = [];
-        $weekColumns = [];
-        $colorIndex = 0;
-        $setsPerWeek = $state->getSetsPerWeek();
-        $applicableWeeks = self::buildApplicableWeekMap($weeks, $startsAtDate, $weekSessionDates, $lockedSessionsByWeek);
-        $applicableSessions = self::buildApplicableSessionMap($weeks, $sessionsPerWeek, $startsAtDate, $weekSessionDates, $explicitWeekSessionCounts, $lockedSessionsByWeek);
-        $lockedWeekMap = self::buildLockedWeekMap($weeks, $lockedSessionsByWeek);
-        $groupingMode = (string) ($data['preview']['groupingMode'] ?? SessionGroupingMode::defaultMode());
-        $groupSize = SessionGroupingMode::normalizeGroupSize(
-            (int) ($data['preview']['groupSize'] ?? SessionGroupingMode::defaultGroupSize()),
-            $groupingMode,
-        );
-        $plannedSessionValues = self::buildPlannedSessionValueMaps(
-            data: $data,
-            overrideLayer: $overrides?->toArray() ?? ['sessions' => [], 'cells' => []],
-            weeks: $weeks,
-            sessionCounts: $sessionCounts,
-            measuredData: $measuredData,
-            maxHR: $maxHR,
-            iatPercent: $iatPercent,
-            baseConfig: $baseConfig,
-            defaultOverrides: $defaultOverrides,
-            userOverrides: $userOverrides,
-        );
-        $displayProvenanceValues = $highlightOverrides !== null
-            ? self::buildPlannedSessionValueMaps(
+                return ($priorityA === false ? PHP_INT_MAX : $priorityA)
+                    <=> ($priorityB === false ? PHP_INT_MAX : $priorityB);
+            });
+
+            $rows = [];
+            $weekColumns = [];
+            $colorIndex = 0;
+            $setsPerWeek = $state->getSetsPerWeek();
+            $applicableWeeks = self::buildApplicableWeekMap($weeks, $startsAtDate, $weekSessionDates, $lockedSessionsByWeek);
+            $applicableSessions = self::buildApplicableSessionMap($weeks, $sessionsPerWeek, $startsAtDate, $weekSessionDates, $explicitWeekSessionCounts, $lockedSessionsByWeek);
+            $lockedWeekMap = self::buildLockedWeekMap($weeks, $lockedSessionsByWeek);
+            $groupingMode = (string) ($data['preview']['groupingMode'] ?? SessionGroupingMode::defaultMode());
+            $groupSize = SessionGroupingMode::normalizeGroupSize(
+                (int) ($data['preview']['groupSize'] ?? SessionGroupingMode::defaultGroupSize()),
+                $groupingMode,
+            );
+            $plannedSessionValues = self::buildPlannedSessionValueMaps(
                 data: $data,
-                overrideLayer: $highlightOverrides->toArray(),
+                overrideLayer: $overrides?->toArray() ?? ['sessions' => [], 'cells' => []],
                 weeks: $weeks,
                 sessionCounts: $sessionCounts,
                 measuredData: $measuredData,
@@ -110,115 +109,136 @@ class ExercisePreviewBuilder
                 baseConfig: $baseConfig,
                 defaultOverrides: $defaultOverrides,
                 userOverrides: $userOverrides,
-            )
-            : $plannedSessionValues;
+            );
+            $displayProvenanceValues = $highlightOverrides !== null
+                ? self::buildPlannedSessionValueMaps(
+                    data: $data,
+                    overrideLayer: $highlightOverrides->toArray(),
+                    weeks: $weeks,
+                    sessionCounts: $sessionCounts,
+                    measuredData: $measuredData,
+                    maxHR: $maxHR,
+                    iatPercent: $iatPercent,
+                    baseConfig: $baseConfig,
+                    defaultOverrides: $defaultOverrides,
+                    userOverrides: $userOverrides,
+                )
+                : $plannedSessionValues;
 
-        foreach ($settings as $setting) {
-            $config = $data[$setting] ?? [];
-            $applyPer = ApplyPerScope::normalize($config['applyPer'] ?? null);
+            foreach ($settings as $setting) {
+                $config = $data[$setting] ?? [];
+                $applyPer = ApplyPerScope::normalize($config['applyPer'] ?? null);
 
-            if ($applyPer === ApplyPerScope::SESSION) {
-                $weekColumns[] = self::buildWeekColumn($setting, $config, $weeks, $state, $plannedSessionValues, $displayProvenanceValues, $applicableWeeks, $applicableSessions, $sessionCounts, $lockedWeekMap, $lockedSessionsByWeek, $historicalOverrides, $preserveLockedValuesForUnavailable);
+                if ($applyPer === ApplyPerScope::SESSION) {
+                    $weekColumns[] = self::buildWeekColumn($setting, $config, $weeks, $state, $plannedSessionValues, $displayProvenanceValues, $applicableWeeks, $applicableSessions, $sessionCounts, $lockedWeekMap, $lockedSessionsByWeek, $historicalOverrides, $preserveLockedValuesForUnavailable);
 
-                continue;
-            }
-
-            $rowColorName = ColorPalette::ROW_COLORS[$colorIndex] ?? null;
-            $color = $rowColorName ? ColorPalette::light($rowColorName) : 'bg-zinc-50 dark:bg-zinc-800/20';
-            $overrideColor = $rowColorName ? ColorPalette::lightStrong($rowColorName) : 'bg-zinc-200 dark:bg-zinc-600/50';
-            $colorIndex++;
-
-            if ($setting === 'weight') {
-                $weightRows = self::buildWeightRows($config, $color, $overrideColor, $weeks, $setsPerWeek, $state, $plannedSessionValues, $displayProvenanceValues, $applicableWeeks, $applicableSessions, $sessionCounts, $lockedWeekMap, $lockedSessionsByWeek, $historicalOverrides, $preserveLockedValuesForUnavailable);
-                foreach ($weightRows as $row) {
-                    $rows[] = $row;
+                    continue;
                 }
-            } else {
-                $rows[] = self::buildRow($setting, $config, $color, $overrideColor, $weeks, $setsPerWeek, $state, $plannedSessionValues, $displayProvenanceValues, $applicableWeeks, $applicableSessions, $sessionCounts, $lockedWeekMap, $lockedSessionsByWeek, $historicalOverrides, $preserveLockedValuesForUnavailable);
+
+                $rowColorName = ColorPalette::ROW_COLORS[$colorIndex] ?? null;
+                $color = $rowColorName ? ColorPalette::light($rowColorName) : 'bg-zinc-50 dark:bg-zinc-800/20';
+                $overrideColor = $rowColorName ? ColorPalette::lightStrong($rowColorName) : 'bg-zinc-200 dark:bg-zinc-600/50';
+                $colorIndex++;
+
+                if ($setting === 'weight') {
+                    $weightRows = self::buildWeightRows($config, $color, $overrideColor, $weeks, $setsPerWeek, $state, $plannedSessionValues, $displayProvenanceValues, $applicableWeeks, $applicableSessions, $sessionCounts, $lockedWeekMap, $lockedSessionsByWeek, $historicalOverrides, $preserveLockedValuesForUnavailable);
+                    foreach ($weightRows as $row) {
+                        $rows[] = $row;
+                    }
+                } else {
+                    $rows[] = self::buildRow($setting, $config, $color, $overrideColor, $weeks, $setsPerWeek, $state, $plannedSessionValues, $displayProvenanceValues, $applicableWeeks, $applicableSessions, $sessionCounts, $lockedWeekMap, $lockedSessionsByWeek, $historicalOverrides, $preserveLockedValuesForUnavailable);
+                }
             }
-        }
 
-        $setsCells = [];
-        $setsOverrideMap = [];
-        $setsSessionCells = [];
-        $setsSessionOverrideMap = [];
-        $setsProvenanceMap = [];
-        $setsSessionProvenanceMap = [];
+            $setsCells = [];
+            $setsOverrideMap = [];
+            $setsSessionCells = [];
+            $setsSessionOverrideMap = [];
+            $setsProvenanceMap = [];
+            $setsSessionProvenanceMap = [];
 
-        for ($week = 0; $week < $weeks; $week++) {
-            if ($applicableWeeks[$week]) {
-                $setsCells[$week] = $setsPerWeek[$week];
-                $setsOverrideMap[$week] = self::hasSessionOverrideForWeek($displayProvenanceValues, $week, $sessionCounts[$week] ?? 1);
-                $setsProvenanceMap[$week] = self::plannedSetCountProvenance($plannedSessionValues, $week, 0);
+            for ($week = 0; $week < $weeks; $week++) {
+                if ($applicableWeeks[$week]) {
+                    $setsCells[$week] = $setsPerWeek[$week];
+                    $setsOverrideMap[$week] = self::hasSessionOverrideForWeek($displayProvenanceValues, $week, $sessionCounts[$week] ?? 1);
+                    $setsProvenanceMap[$week] = self::plannedSetCountProvenance($plannedSessionValues, $week, 0);
+
+                    for ($session = 0; $session < ($sessionCounts[$week] ?? 1); $session++) {
+                        $setsSessionCells[$week][$session][0] = self::plannedSetCount($plannedSessionValues, $week, $session)
+                            ?? max(0, (int) $state->getResolvedSessionValue('sets', $week, $session, $setsPerWeek[$week] ?? 0));
+                        $setsSessionOverrideMap[$week][$session][0] = self::plannedSetCountIsHighlighted($displayProvenanceValues, $week, $session);
+                        $setsSessionProvenanceMap[$week][$session][0] = self::plannedSetCountProvenance($plannedSessionValues, $week, $session);
+                    }
+
+                    continue;
+                }
 
                 for ($session = 0; $session < ($sessionCounts[$week] ?? 1); $session++) {
-                    $setsSessionCells[$week][$session][0] = self::plannedSetCount($plannedSessionValues, $week, $session)
-                        ?? max(0, (int) $state->getResolvedSessionValue('sets', $week, $session, $setsPerWeek[$week] ?? 0));
-                    $setsSessionOverrideMap[$week][$session][0] = self::plannedSetCountIsHighlighted($displayProvenanceValues, $week, $session);
-                    $setsSessionProvenanceMap[$week][$session][0] = self::plannedSetCountProvenance($plannedSessionValues, $week, $session);
+                    $sessionShowsHistoricalOverride = ($lockedWeekMap[$week] ?? false) && self::hasHistoricalSessionOverride($historicalOverrides, 'sets', $week, $session);
+                    $sessionFallbackValue = max(0, (int) $state->getResolvedSessionValue('sets', $week, $session, $setsPerWeek[$week] ?? 0));
+                    $setsSessionCells[$week][$session][0] = $sessionShowsHistoricalOverride
+                        ? self::getHistoricalSessionValue($historicalOverrides, 'sets', $week, $session, $sessionFallbackValue)
+                        : ((($lockedWeekMap[$week] ?? false) && ($lockedSessionsByWeek[$week][$session] ?? false)) ? $sessionFallbackValue : '-');
+                    $setsSessionOverrideMap[$week][$session][0] = $sessionShowsHistoricalOverride;
                 }
 
-                continue;
+                $setsCells[$week] = $setsSessionCells[$week][0][0] ?? '-';
+                $setsOverrideMap[$week] = $setsSessionOverrideMap[$week][0][0] ?? false;
             }
 
-            for ($session = 0; $session < ($sessionCounts[$week] ?? 1); $session++) {
-                $sessionShowsHistoricalOverride = ($lockedWeekMap[$week] ?? false) && self::hasHistoricalSessionOverride($historicalOverrides, 'sets', $week, $session);
-                $sessionFallbackValue = max(0, (int) $state->getResolvedSessionValue('sets', $week, $session, $setsPerWeek[$week] ?? 0));
-                $setsSessionCells[$week][$session][0] = $sessionShowsHistoricalOverride
-                    ? self::getHistoricalSessionValue($historicalOverrides, 'sets', $week, $session, $sessionFallbackValue)
-                    : ((($lockedWeekMap[$week] ?? false) && ($lockedSessionsByWeek[$week][$session] ?? false)) ? $sessionFallbackValue : '-');
-                $setsSessionOverrideMap[$week][$session][0] = $sessionShowsHistoricalOverride;
+            $weekColumns[] = new PreviewGridRow(
+                field: 'sets',
+                label: Str::plural($data['sets']['label'] ?? 'Set'),
+                color: self::WEEK_COLUMN_COLOR,
+                clickField: 'sets',
+                cells: $setsCells,
+                sessionCells: $setsSessionCells,
+                overrideColor: self::WEEK_COLUMN_OVERRIDE_COLOR,
+                overrides: $setsOverrideMap,
+                sessionOverrides: $setsSessionOverrideMap,
+                inputMeta: new CellInputMeta(inputType: 'number', inputStep: '1', min: 0),
+                editableMap: array_map(fn (bool $isApplicable) => $isApplicable, $applicableWeeks),
+                provenanceMap: $setsProvenanceMap,
+                sessionProvenanceMap: $setsSessionProvenanceMap,
+            );
+
+            $summary = $state->getMetadata('weight', 'summary');
+
+            if ($summary !== null) {
+                $summary['modifier'] = $data['weight']['oneRepMaxModifier'] ?? 100;
             }
 
-            $setsCells[$week] = $setsSessionCells[$week][0][0] ?? '-';
-            $setsOverrideMap[$week] = $setsSessionOverrideMap[$week][0][0] ?? false;
+            $grouping = SessionGroupBuilder::build(
+                weekCount: $weeks,
+                sessionCounts: $sessionCounts,
+                groupingMode: $groupingMode,
+                groupSize: $groupSize,
+                lockedSessionsByWeek: $lockedSessionsByWeek,
+            );
+
+            return new PreviewGrid(
+                rows: $rows,
+                weekCount: $weeks,
+                setCount: $state->maxSets(),
+                setLabel: ($data['sets']['label'] ?? 'Set'),
+                weekColumns: $weekColumns,
+                summary: $summary,
+                sessionsPerWeek: $sessionsPerWeek,
+                weekSessionCounts: $sessionCounts,
+                groups: $grouping['groups'],
+                groupColumnLabel: $grouping['columnLabel'],
+                showGroupColumn: count($grouping['groups']) > 1,
+                weeks: $grouping['groups'],
+                showWeekColumn: count($grouping['groups']) > 1,
+            );
+        } finally {
+            PlanGridProfiler::end($span, [
+                'rows' => isset($rows) ? count($rows) : null,
+                'week_columns' => isset($weekColumns) ? count($weekColumns) : null,
+                'set_count' => isset($state) ? $state->maxSets() : null,
+                'session_count_total' => isset($sessionCounts) ? array_sum($sessionCounts) : null,
+            ]);
         }
-
-        $weekColumns[] = new PreviewGridRow(
-            field: 'sets',
-            label: Str::plural($data['sets']['label'] ?? 'Set'),
-            color: self::WEEK_COLUMN_COLOR,
-            clickField: 'sets',
-            cells: $setsCells,
-            sessionCells: $setsSessionCells,
-            overrideColor: self::WEEK_COLUMN_OVERRIDE_COLOR,
-            overrides: $setsOverrideMap,
-            sessionOverrides: $setsSessionOverrideMap,
-            inputMeta: new CellInputMeta(inputType: 'number', inputStep: '1', min: 0),
-            editableMap: array_map(fn (bool $isApplicable) => $isApplicable, $applicableWeeks),
-            provenanceMap: $setsProvenanceMap,
-            sessionProvenanceMap: $setsSessionProvenanceMap,
-        );
-
-        $summary = $state->getMetadata('weight', 'summary');
-
-        if ($summary !== null) {
-            $summary['modifier'] = $data['weight']['oneRepMaxModifier'] ?? 100;
-        }
-
-        $grouping = SessionGroupBuilder::build(
-            weekCount: $weeks,
-            sessionCounts: $sessionCounts,
-            groupingMode: $groupingMode,
-            groupSize: $groupSize,
-            lockedSessionsByWeek: $lockedSessionsByWeek,
-        );
-
-        return new PreviewGrid(
-            rows: $rows,
-            weekCount: $weeks,
-            setCount: $state->maxSets(),
-            setLabel: ($data['sets']['label'] ?? 'Set'),
-            weekColumns: $weekColumns,
-            summary: $summary,
-            sessionsPerWeek: $sessionsPerWeek,
-            weekSessionCounts: $sessionCounts,
-            groups: $grouping['groups'],
-            groupColumnLabel: $grouping['columnLabel'],
-            showGroupColumn: count($grouping['groups']) > 1,
-            weeks: $grouping['groups'],
-            showWeekColumn: count($grouping['groups']) > 1,
-        );
     }
 
     /** @param array<int, int> $setsPerWeek */
@@ -250,8 +270,8 @@ class ExercisePreviewBuilder
                     continue;
                 }
 
-                $resolved = self::plannedCellValue($plannedSessionValues, $setting, $week, 0, $set)
-                    ?? $state->getResolvedCellValue($setting, $week, $set);
+                $resolved = $state->getResolvedCellValue($setting, $week, $set)
+                    ?? self::plannedCellValue($plannedSessionValues, $setting, $week, 0, $set);
                 $cells[$week][$set] = $resolved ?? ($defaultGrid[$week][$set] ?? '-');
                 $overrideMap[$week][$set] = self::plannedCellIsHighlighted($displayProvenanceValues, $setting, $week, 0, $set);
                 $provenanceMap[$week][$set] = self::plannedCellProvenance($plannedSessionValues, $setting, $week, 0, $set);
@@ -279,8 +299,8 @@ class ExercisePreviewBuilder
                         continue;
                     }
 
-                    $sessionResolved = self::plannedCellValue($plannedSessionValues, $setting, $week, $session, $set)
-                        ?? $state->getResolvedCellValue($setting, $week, $set, $session);
+                    $sessionResolved = $state->getResolvedCellValue($setting, $week, $set, $session)
+                        ?? self::plannedCellValue($plannedSessionValues, $setting, $week, $session, $set);
                     $sessionCells[$week][$session][$set] = $sessionResolved ?? ($defaultGrid[$week][$set] ?? '-');
                     $sessionOverrideMap[$week][$session][$set] = self::plannedCellIsHighlighted($displayProvenanceValues, $setting, $week, $session, $set);
                     $sessionProvenanceMap[$week][$session][$set] = self::plannedCellProvenance($plannedSessionValues, $setting, $week, $session, $set);
@@ -344,8 +364,8 @@ class ExercisePreviewBuilder
                         continue;
                     }
 
-                    $resolved = self::plannedCellValue($plannedSessionValues, 'weight', $week, 0, $set)
-                        ?? $state->getResolvedCellValue('weight', $week, $set);
+                    $resolved = $state->getResolvedCellValue('weight', $week, $set)
+                        ?? self::plannedCellValue($plannedSessionValues, 'weight', $week, 0, $set);
                     $weightCells[$week][$set] = $resolved ?? ($state->getCellValue('weight', $week, $set) ?? '-');
                     $weightOverrides[$week][$set] = self::plannedCellIsHighlighted($displayProvenanceValues, 'weight', $week, 0, $set);
                     $weightProvenanceMap[$week][$set] = self::plannedCellProvenance($plannedSessionValues, 'weight', $week, 0, $set);
@@ -373,8 +393,8 @@ class ExercisePreviewBuilder
                             continue;
                         }
 
-                        $sessionResolved = self::plannedCellValue($plannedSessionValues, 'weight', $week, $session, $set)
-                            ?? $state->getResolvedCellValue('weight', $week, $set, $session);
+                        $sessionResolved = $state->getResolvedCellValue('weight', $week, $set, $session)
+                            ?? self::plannedCellValue($plannedSessionValues, 'weight', $week, $session, $set);
                         $weightSessionCells[$week][$session][$set] = $sessionResolved ?? ($state->getCellValue('weight', $week, $set) ?? '-');
                         $weightSessionOverrides[$week][$session][$set] = self::plannedCellIsHighlighted($displayProvenanceValues, 'weight', $week, $session, $set);
                         $weightSessionProvenanceMap[$week][$session][$set] = self::plannedCellProvenance($plannedSessionValues, 'weight', $week, $session, $set);
@@ -464,11 +484,11 @@ class ExercisePreviewBuilder
                     continue;
                 }
 
-                    $resolved = self::plannedCellValue($plannedSessionValues, 'weight', $week, 0, $set)
-                        ?? $state->getResolvedCellValue('weight', $week, $set);
-                    if ($resolved !== null) {
-                        $cells[$week][$set] = $resolved;
-                    }
+                $resolved = $state->getResolvedCellValue('weight', $week, $set)
+                    ?? self::plannedCellValue($plannedSessionValues, 'weight', $week, 0, $set);
+                if ($resolved !== null) {
+                    $cells[$week][$set] = $resolved;
+                }
                 $overrideMap[$week][$set] = self::plannedCellIsHighlighted($displayProvenanceValues, 'weight', $week, 0, $set);
                 $provenanceMap[$week][$set] = self::plannedCellProvenance($plannedSessionValues, 'weight', $week, 0, $set);
 
@@ -494,8 +514,8 @@ class ExercisePreviewBuilder
                         continue;
                     }
 
-                    $sessionResolved = self::plannedCellValue($plannedSessionValues, 'weight', $week, $session, $set)
-                        ?? $state->getResolvedCellValue('weight', $week, $set, $session);
+                    $sessionResolved = $state->getResolvedCellValue('weight', $week, $set, $session)
+                        ?? self::plannedCellValue($plannedSessionValues, 'weight', $week, $session, $set);
                     $sessionCells[$week][$session][$set] = $sessionResolved ?? $cells[$week][$set];
                     $sessionOverrideMap[$week][$session][$set] = self::plannedCellIsHighlighted($displayProvenanceValues, 'weight', $week, $session, $set);
                     $sessionProvenanceMap[$week][$session][$set] = self::plannedCellProvenance($plannedSessionValues, 'weight', $week, $session, $set);
@@ -939,66 +959,80 @@ class ExercisePreviewBuilder
         array $baseConfig = [],
         ?ExerciseOverrides $defaultOverrides = null,
         ?ExerciseOverrides $userOverrides = null,
-    ): array
-    {
-        $values = [];
-        $provenances = [];
-        $setCounts = [];
-        $setCountProvenances = [];
-        $program = new AuthoringProgramData(exercises: [
-            new AuthoringExerciseData(
-                exerciseId: null,
-                sort: 0,
-                group: null,
-                type: 'main',
-                effectiveConfig: $data,
-                overrideLayer: $overrideLayer,
-                baseConfig: $baseConfig,
-                defaultOverrides: $defaultOverrides,
-                userOverrides: $userOverrides,
-            ),
+    ): array {
+        $span = PlanGridProfiler::start('ExercisePreviewBuilder.buildPlannedSessionValueMaps', [
+            'weeks' => $weeks,
+            'session_count_total' => array_sum($sessionCounts),
+            'override_cells' => count($overrideLayer['cells'] ?? []),
+            'override_sessions' => count($overrideLayer['sessions'] ?? []),
+            'has_default_overrides' => $defaultOverrides !== null,
+            'has_user_overrides' => $userOverrides !== null,
         ]);
-        $planCompiler = app(PlanCompiler::class);
 
-        for ($week = 0; $week < $weeks; $week++) {
-            for ($session = 0; $session < ($sessionCounts[$week] ?? 1); $session++) {
-                $resolved = $planCompiler->compile(
-                    program: $program,
-                    context: new PlanningContextData(
-                        scheduledDate: sprintf('2026-01-%02d', ($week * max(1, max($sessionCounts))) + $session + 1),
-                        weekIndex: $week,
-                        sessionIndex: $session,
-                        sessionsPerWeek: $sessionCounts[$week] ?? 1,
-                        weekSessionCounts: $sessionCounts,
-                        weightProgression: $measuredData,
-                        maxHR: $maxHR,
-                        iatPercent: $iatPercent,
-                    ),
-                );
-                $exercise = $resolved->exercises[0] ?? null;
+        try {
+            $values = [];
+            $provenances = [];
+            $setCounts = [];
+            $setCountProvenances = [];
+            $program = new AuthoringProgramData(exercises: [
+                new AuthoringExerciseData(
+                    exerciseId: null,
+                    sort: 0,
+                    group: null,
+                    type: 'main',
+                    effectiveConfig: $data,
+                    overrideLayer: $overrideLayer,
+                    baseConfig: $baseConfig,
+                    defaultOverrides: $defaultOverrides,
+                    userOverrides: $userOverrides,
+                ),
+            ]);
+            $planCompiler = app(PlanCompiler::class);
 
-                if (! $exercise instanceof ResolvedPlannedExercise) {
-                    continue;
-                }
+            for ($week = 0; $week < $weeks; $week++) {
+                for ($session = 0; $session < ($sessionCounts[$week] ?? 1); $session++) {
+                    $resolved = $planCompiler->compile(
+                        program: $program,
+                        context: new PlanningContextData(
+                            scheduledDate: sprintf('2026-01-%02d', ($week * max(1, max($sessionCounts))) + $session + 1),
+                            weekIndex: $week,
+                            sessionIndex: $session,
+                            sessionsPerWeek: $sessionCounts[$week] ?? 1,
+                            weekSessionCounts: $sessionCounts,
+                            weightProgression: $measuredData,
+                            maxHR: $maxHR,
+                            iatPercent: $iatPercent,
+                        ),
+                    );
+                    $exercise = $resolved->exercises[0] ?? null;
 
-                $setCounts[$week][$session] = count($exercise->sets);
-                $setCountProvenances[$week][$session] = $exercise->setCountProvenance;
+                    if (! $exercise instanceof ResolvedPlannedExercise) {
+                        continue;
+                    }
 
-                foreach ($exercise->sets as $setIndex => $plannedSet) {
-                    foreach ($plannedSet->values as $plannedValue) {
-                        $values[$week][$session][$plannedValue->settingKey][$setIndex] = $plannedValue->value;
-                        $provenances[$week][$session][$plannedValue->settingKey][$setIndex] = $plannedValue->provenance;
+                    $setCounts[$week][$session] = count($exercise->sets);
+                    $setCountProvenances[$week][$session] = $exercise->setCountProvenance;
+
+                    foreach ($exercise->sets as $setIndex => $plannedSet) {
+                        foreach ($plannedSet->values as $plannedValue) {
+                            $values[$week][$session][$plannedValue->settingKey][$setIndex] = $plannedValue->value;
+                            $provenances[$week][$session][$plannedValue->settingKey][$setIndex] = $plannedValue->provenance;
+                        }
                     }
                 }
             }
-        }
 
-        return [
-            'values' => $values,
-            'provenances' => $provenances,
-            'setCounts' => $setCounts,
-            'setCountProvenances' => $setCountProvenances,
-        ];
+            return [
+                'values' => $values,
+                'provenances' => $provenances,
+                'setCounts' => $setCounts,
+                'setCountProvenances' => $setCountProvenances,
+            ];
+        } finally {
+            PlanGridProfiler::end($span, [
+                'compiled_sessions' => isset($setCounts) ? collect($setCounts)->flatten(1)->count() : null,
+            ]);
+        }
     }
 
     private static function plannedCellValue(array $plannedSessionValues, string $setting, int $week, int $session, int $set): mixed

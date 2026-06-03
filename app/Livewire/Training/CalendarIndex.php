@@ -10,6 +10,7 @@ use App\Models\Tag;
 use App\Models\Training\TrainingProgram;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
+use App\Support\Profiling\PlanGridProfiler;
 use App\Support\Training\BlockModalPayloadBuilder;
 use App\Training\CalendarDateService;
 use Carbon\Carbon;
@@ -67,66 +68,72 @@ class CalendarIndex extends Component
 
     public function mount(): void
     {
-        $this->weekStartsOn = (int) config('training.week_starts_on', Carbon::MONDAY);
-        $this->weekEndsOn = ($this->weekStartsOn + 6) % 7;
+        $span = PlanGridProfiler::start('CalendarIndex.mount', $this->profileContext());
 
-        if ($this->groupFilter === 'mine' && ! request()->has('groupFilter')) {
-            $ownsGroups = UserGroup::where('owner_id', auth()->id())->exists();
-            if (! $ownsGroups) {
-                $this->groupFilter = 'all';
+        try {
+            $this->weekStartsOn = (int) config('training.week_starts_on', Carbon::MONDAY);
+            $this->weekEndsOn = ($this->weekStartsOn + 6) % 7;
+
+            if ($this->groupFilter === 'mine' && ! request()->has('groupFilter')) {
+                $ownsGroups = UserGroup::where('owner_id', auth()->id())->exists();
+                if (! $ownsGroups) {
+                    $this->groupFilter = 'all';
+                }
             }
-        }
 
-        $hasUrlOverride = request()->hasAny(['start', 'end', 'preset']);
+            $hasUrlOverride = request()->hasAny(['start', 'end', 'preset']);
 
-        if (! $hasUrlOverride) {
-            $stored = $this->loadPersistedCalendarSettings();
-            if ($stored) {
-                $this->applyCalendarSettings($stored);
+            if (! $hasUrlOverride) {
+                $stored = $this->loadPersistedCalendarSettings();
+                if ($stored) {
+                    $this->applyCalendarSettings($stored);
 
-                return;
+                    return;
+                }
             }
-        }
 
-        $this->calendarSettings = new CalendarSettingsData(
-            start: $this->start ?: null,
-            end: $this->end ?: null,
-            preset: CalendarDateService::normalizePreset($this->preset),
-        );
-
-        if (CalendarDateService::isConcretePreset($this->calendarSettings->preset)) {
-            [$rangeStart, $rangeEnd] = app(CalendarDateService::class)->presetRange($this->calendarSettings->preset);
-            $this->preset = $this->calendarSettings->preset;
-            $this->start = '';
-            $this->end = '';
             $this->calendarSettings = new CalendarSettingsData(
-                start: $rangeStart->format('Y-m-d'),
-                end: $rangeEnd->format('Y-m-d'),
-                preset: $this->calendarSettings->preset,
-            );
-        } elseif ($this->calendarSettings->preset === CalendarDateService::PRESET_CUSTOM || $this->calendarSettings->start || $this->calendarSettings->end) {
-            $normalized = app(CalendarDateService::class)->normalizeRange(
-                $this->calendarSettings->start,
-                $this->calendarSettings->end,
+                start: $this->start ?: null,
+                end: $this->end ?: null,
+                preset: CalendarDateService::normalizePreset($this->preset),
             );
 
-            $this->start = $normalized['start'];
-            $this->end = $normalized['end'];
-            $this->preset = CalendarDateService::PRESET_CUSTOM;
-            $this->calendarSettings = new CalendarSettingsData(start: $this->start, end: $this->end, preset: $this->preset);
-        } else {
-            $this->preset = CalendarDateService::PRESET_NEXT_3_MONTHS;
-            [$rangeStart, $rangeEnd] = app(CalendarDateService::class)->presetRange($this->preset);
-            $this->start = '';
-            $this->end = '';
-            $this->calendarSettings = new CalendarSettingsData(
-                start: $rangeStart->format('Y-m-d'),
-                end: $rangeEnd->format('Y-m-d'),
-                preset: $this->preset,
-            );
+            if (CalendarDateService::isConcretePreset($this->calendarSettings->preset)) {
+                [$rangeStart, $rangeEnd] = app(CalendarDateService::class)->presetRange($this->calendarSettings->preset);
+                $this->preset = $this->calendarSettings->preset;
+                $this->start = '';
+                $this->end = '';
+                $this->calendarSettings = new CalendarSettingsData(
+                    start: $rangeStart->format('Y-m-d'),
+                    end: $rangeEnd->format('Y-m-d'),
+                    preset: $this->calendarSettings->preset,
+                );
+            } elseif ($this->calendarSettings->preset === CalendarDateService::PRESET_CUSTOM || $this->calendarSettings->start || $this->calendarSettings->end) {
+                $normalized = app(CalendarDateService::class)->normalizeRange(
+                    $this->calendarSettings->start,
+                    $this->calendarSettings->end,
+                );
+
+                $this->start = $normalized['start'];
+                $this->end = $normalized['end'];
+                $this->preset = CalendarDateService::PRESET_CUSTOM;
+                $this->calendarSettings = new CalendarSettingsData(start: $this->start, end: $this->end, preset: $this->preset);
+            } else {
+                $this->preset = CalendarDateService::PRESET_NEXT_3_MONTHS;
+                [$rangeStart, $rangeEnd] = app(CalendarDateService::class)->presetRange($this->preset);
+                $this->start = '';
+                $this->end = '';
+                $this->calendarSettings = new CalendarSettingsData(
+                    start: $rangeStart->format('Y-m-d'),
+                    end: $rangeEnd->format('Y-m-d'),
+                    preset: $this->preset,
+                );
+            }
+
+            $this->syncRangeFromState();
+        } finally {
+            PlanGridProfiler::end($span, $this->profileContext());
         }
-
-        $this->syncRangeFromState();
     }
 
     public function updatedView(): void
@@ -516,32 +523,36 @@ class CalendarIndex extends Component
     #[Computed]
     public function groupedPrograms(): Collection
     {
-        return $this->programs->groupBy(
-            fn (TrainingProgram $entry) => $entry->program->exercise_category_id ?? 0
-        )->map(function (Collection $entries, int $categoryId) {
-            return [
-                'category' => $categoryId > 0 ? $entries->first()->program->exerciseCategory : null,
-                'entries' => $entries,
-            ];
+        return PlanGridProfiler::measure('CalendarIndex.groupedPrograms', $this->profileContext(), function (): Collection {
+            return $this->programs->groupBy(
+                fn (TrainingProgram $entry) => $entry->program->exercise_category_id ?? 0
+            )->map(function (Collection $entries, int $categoryId) {
+                return [
+                    'category' => $categoryId > 0 ? $entries->first()->program->exerciseCategory : null,
+                    'entries' => $entries,
+                ];
+            });
         });
     }
 
     #[Computed]
     public function programs(): Collection
     {
-        if (! $this->hasSelection()) {
-            return collect();
-        }
+        return PlanGridProfiler::measure('CalendarIndex.programs', $this->profileContext(), function (): Collection {
+            if (! $this->hasSelection()) {
+                return collect();
+            }
 
-        [$start, $end] = $this->dateRange();
+            [$start, $end] = $this->dateRange();
 
-        return TrainingProgram::with([
-            'program.exerciseCategory',
-            'program.exercises',
-        ])
-            ->visibleInDateRange((int) $this->group, $start, $end, $this->user !== '' ? (int) $this->user : null)
-            ->orderBy('sort')
-            ->get();
+            return TrainingProgram::with([
+                'program.exerciseCategory',
+                'program.exercises',
+            ])
+                ->visibleInDateRange((int) $this->group, $start, $end, $this->user !== '' ? (int) $this->user : null)
+                ->orderBy('sort')
+                ->get();
+        });
     }
 
     #[Computed]
@@ -725,10 +736,37 @@ class CalendarIndex extends Component
 
     public function render()
     {
-        if ($this->view === 'plan' && $this->planProgramName === '' && $this->planProgram !== '') {
-            $this->syncPlanProgramName();
-        }
+        return PlanGridProfiler::measure('CalendarIndex.render', $this->profileContext(), function () {
+            if ($this->view === 'plan' && $this->planProgramName === '' && $this->planProgram !== '') {
+                $this->syncPlanProgramName();
+            }
 
-        return view('livewire.training.calendar-index');
+            return view('livewire.training.calendar-index');
+        });
+    }
+
+    public function hydrate(): void
+    {
+        PlanGridProfiler::mark('CalendarIndex.hydrate', $this->profileContext());
+    }
+
+    public function dehydrate(): void
+    {
+        PlanGridProfiler::mark('CalendarIndex.dehydrate', $this->profileContext());
+    }
+
+    protected function profileContext(array $extra = []): array
+    {
+        return array_merge([
+            'component' => static::class,
+            'view' => $this->view ?? null,
+            'group' => $this->group ?? null,
+            'user' => $this->user ?? null,
+            'group_filter' => $this->groupFilter ?? null,
+            'preset' => $this->preset ?? null,
+            'plan_category' => $this->planCategory ?? null,
+            'plan_block' => $this->planBlock ?? null,
+            'plan_program' => $this->planProgram ?? null,
+        ], $extra);
     }
 }

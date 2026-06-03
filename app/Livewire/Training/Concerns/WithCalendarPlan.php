@@ -10,6 +10,7 @@ use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramBlock;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\UserGroup;
+use App\Support\Profiling\PlanGridProfiler;
 use App\Support\Training\BlockModalPayloadBuilder;
 use App\Support\Training\MetricModalPayloadBuilder;
 use App\Training\CalendarBlockService;
@@ -143,43 +144,47 @@ trait WithCalendarPlan
     #[Computed]
     public function planCategoryOptions(): Collection
     {
-        $grouped = $this->groupedPrograms;
+        return PlanGridProfiler::measure('WithCalendarPlan.planCategoryOptions', $this->profileContext(), function (): Collection {
+            $grouped = $this->groupedPrograms;
 
-        $options = $grouped->mapWithKeys(function (array $group, int $categoryId) {
-            $name = $group['category']?->name ?? __('Uncategorized');
+            $options = $grouped->mapWithKeys(function (array $group, int $categoryId) {
+                $name = $group['category']?->name ?? __('Uncategorized');
 
-            return [$categoryId => $name];
+                return [$categoryId => $name];
+            });
+
+            if ($options->isNotEmpty() && $this->planCategory === '') {
+                $this->planCategory = (string) $options->keys()->first();
+            }
+
+            return $options;
         });
-
-        if ($options->isNotEmpty() && $this->planCategory === '') {
-            $this->planCategory = (string) $options->keys()->first();
-        }
-
-        return $options;
     }
 
     #[Computed]
     public function planBlockOptions(): Collection
     {
-        $options = collect(['ungrouped' => __('Ungrouped')]);
+        return PlanGridProfiler::measure('WithCalendarPlan.planBlockOptions', $this->profileContext(), function (): Collection {
+            $options = collect(['ungrouped' => __('Ungrouped')]);
 
-        if ($this->planCategory === '' || $this->group === '') {
-            return $options;
-        }
+            if ($this->planCategory === '' || $this->group === '') {
+                return $options;
+            }
 
-        $categoryId = (int) $this->planCategory;
-        if ($categoryId === 0) {
-            return $options;
-        }
+            $categoryId = (int) $this->planCategory;
+            if ($categoryId === 0) {
+                return $options;
+            }
 
-        $service = app(CalendarBlockService::class);
-        $blockOptions = $service->buildBlockOptions(
-            (int) $this->group,
-            $this->user !== '' ? (int) $this->user : null,
-            $categoryId,
-        );
+            $service = app(CalendarBlockService::class);
+            $blockOptions = $service->buildBlockOptions(
+                (int) $this->group,
+                $this->user !== '' ? (int) $this->user : null,
+                $categoryId,
+            );
 
-        return $options->union(collect($blockOptions)->mapWithKeys(fn ($label, $id) => [(string) $id => $label]));
+            return $options->union(collect($blockOptions)->mapWithKeys(fn ($label, $id) => [(string) $id => $label]));
+        });
     }
 
     #[Computed]
@@ -286,50 +291,54 @@ trait WithCalendarPlan
     #[Computed]
     public function planMeasuredData(): array
     {
-        if ($this->user === '') {
-            return ['measuredReps' => 1, 'measuredWeight' => 50];
-        }
+        return PlanGridProfiler::measure('WithCalendarPlan.planMeasuredData', $this->profileContext(), function (): array {
+            if ($this->user === '') {
+                return ['measuredReps' => 1, 'measuredWeight' => 50];
+            }
 
-        if ($this->planBlock === 'ungrouped') {
-            return ['measuredReps' => null, 'measuredWeight' => null];
-        }
+            if ($this->planBlock === 'ungrouped') {
+                return ['measuredReps' => null, 'measuredWeight' => null];
+            }
 
-        $submission = $this->findLatestSubmission((int) $this->user, MetricEnum::OneRepMax, $this->planCutoffDate());
+            $submission = $this->findLatestSubmission((int) $this->user, MetricEnum::OneRepMax, $this->planCutoffDate());
 
-        if (! $submission) {
-            return ['measuredReps' => null, 'measuredWeight' => null];
-        }
+            if (! $submission) {
+                return ['measuredReps' => null, 'measuredWeight' => null];
+            }
 
-        $fieldValues = $submission->values->pluck('value', 'field')->all();
-        $metric = MetricEnum::OneRepMax->metricClass()::from($fieldValues);
+            $fieldValues = $submission->values->pluck('value', 'field')->all();
+            $metric = MetricEnum::OneRepMax->metricClass()::from($fieldValues);
 
-        return [
-            'measuredReps' => $metric->measuredReps,
-            'measuredWeight' => $metric->measuredWeight,
-        ];
+            return [
+                'measuredReps' => $metric->measuredReps,
+                'measuredWeight' => $metric->measuredWeight,
+            ];
+        });
     }
 
     /** @return array{maxHR: ?int, iatPercent: ?int} */
     #[Computed]
     public function planHeartRateData(): array
     {
-        if ($this->user === '') {
-            return ['maxHR' => null, 'iatPercent' => null];
-        }
+        return PlanGridProfiler::measure('WithCalendarPlan.planHeartRateData', $this->profileContext(), function (): array {
+            if ($this->user === '') {
+                return ['maxHR' => null, 'iatPercent' => null];
+            }
 
-        $submission = $this->findLatestSubmission((int) $this->user, MetricEnum::HeartRate, $this->planCutoffDate());
+            $submission = $this->findLatestSubmission((int) $this->user, MetricEnum::HeartRate, $this->planCutoffDate());
 
-        if (! $submission) {
-            return ['maxHR' => null, 'iatPercent' => null];
-        }
+            if (! $submission) {
+                return ['maxHR' => null, 'iatPercent' => null];
+            }
 
-        $fieldValues = $submission->values->pluck('value', 'field')->all();
-        $metric = MetricEnum::HeartRate->metricClass()::from($fieldValues);
+            $fieldValues = $submission->values->pluck('value', 'field')->all();
+            $metric = MetricEnum::HeartRate->metricClass()::from($fieldValues);
 
-        return [
-            'maxHR' => $metric->heartRate,
-            'iatPercent' => $metric->anaerobicThreshold,
-        ];
+            return [
+                'maxHR' => $metric->heartRate,
+                'iatPercent' => $metric->anaerobicThreshold,
+            ];
+        });
     }
 
     #[Computed]
@@ -465,82 +474,91 @@ trait WithCalendarPlan
     #[Computed]
     public function planGroupMemberMetrics(): array
     {
-        if ($this->user !== '' || $this->group === '') {
-            return ['oneRepMax' => [], 'heartRate' => []];
-        }
+        $span = PlanGridProfiler::start('WithCalendarPlan.planGroupMemberMetrics', $this->profileContext());
 
-        $group = UserGroup::with('members')->find((int) $this->group);
-        if (! $group) {
-            return ['oneRepMax' => [], 'heartRate' => []];
-        }
-
-        $cutoffDate = $this->planCutoffDate();
-        $memberIds = $group->members->pluck('id');
-
-        $ormSubmissions = MetricSubmission::query()
-            ->whereIn('user_id', $memberIds)
-            ->forMetric(MetricEnum::OneRepMax)
-            ->where('recorded_at', '<=', $cutoffDate)
-            ->orderByDesc('recorded_at')
-            ->with('values')
-            ->get()
-            ->groupBy('user_id')
-            ->map->first();
-
-        $hrSubmissions = MetricSubmission::query()
-            ->whereIn('user_id', $memberIds)
-            ->forMetric(MetricEnum::HeartRate)
-            ->manual()
-            ->where('recorded_at', '<=', $cutoffDate)
-            ->orderByDesc('recorded_at')
-            ->with('values')
-            ->get()
-            ->groupBy('user_id')
-            ->map->first();
-
-        $oneRepMax = [];
-        $heartRate = [];
-        $ormMetricClass = MetricEnum::OneRepMax->metricClass();
-        $hrMetricClass = MetricEnum::HeartRate->metricClass();
-
-        foreach ($group->members as $member) {
-            $ormLabel = null;
-            $ormSubmission = $ormSubmissions->get($member->id);
-            if ($ormSubmission) {
-                $fieldValues = $ormSubmission->values->pluck('value', 'field')->all();
-                $metric = $ormMetricClass::from($fieldValues);
-                if ($metric->measuredWeight !== null) {
-                    $ormLabel = $metric->estimatedLabel().'kg';
-                }
+        try {
+            if ($this->user !== '' || $this->group === '') {
+                return ['oneRepMax' => [], 'heartRate' => []];
             }
 
-            $oneRepMax[] = [
-                'user_id' => $member->id,
-                'name' => $member->name,
-                'label' => $ormLabel,
-            ];
+            $group = UserGroup::with('members')->find((int) $this->group);
+            if (! $group) {
+                return ['oneRepMax' => [], 'heartRate' => []];
+            }
 
-            $hrLabel = null;
-            $hrSubmission = $hrSubmissions->get($member->id);
-            if ($hrSubmission) {
-                $fieldValues = $hrSubmission->values->pluck('value', 'field')->all();
-                $hrMetric = $hrMetricClass::from($fieldValues);
-                if ($hrMetric->heartRate !== null) {
-                    $hrLabel = $hrMetric->heartRate.' HR';
-                    if ($hrMetric->anaerobicThreshold !== null) {
-                        $hrLabel .= ' - '.$hrMetric->anaerobicThreshold.'% IAT';
+            $cutoffDate = $this->planCutoffDate();
+            $memberIds = $group->members->pluck('id');
+
+            $ormSubmissions = MetricSubmission::query()
+                ->whereIn('user_id', $memberIds)
+                ->forMetric(MetricEnum::OneRepMax)
+                ->where('recorded_at', '<=', $cutoffDate)
+                ->orderByDesc('recorded_at')
+                ->with('values')
+                ->get()
+                ->groupBy('user_id')
+                ->map->first();
+
+            $hrSubmissions = MetricSubmission::query()
+                ->whereIn('user_id', $memberIds)
+                ->forMetric(MetricEnum::HeartRate)
+                ->manual()
+                ->where('recorded_at', '<=', $cutoffDate)
+                ->orderByDesc('recorded_at')
+                ->with('values')
+                ->get()
+                ->groupBy('user_id')
+                ->map->first();
+
+            $oneRepMax = [];
+            $heartRate = [];
+            $ormMetricClass = MetricEnum::OneRepMax->metricClass();
+            $hrMetricClass = MetricEnum::HeartRate->metricClass();
+
+            foreach ($group->members as $member) {
+                $ormLabel = null;
+                $ormSubmission = $ormSubmissions->get($member->id);
+                if ($ormSubmission) {
+                    $fieldValues = $ormSubmission->values->pluck('value', 'field')->all();
+                    $metric = $ormMetricClass::from($fieldValues);
+                    if ($metric->measuredWeight !== null) {
+                        $ormLabel = $metric->estimatedLabel().'kg';
                     }
                 }
+
+                $oneRepMax[] = [
+                    'user_id' => $member->id,
+                    'name' => $member->name,
+                    'label' => $ormLabel,
+                ];
+
+                $hrLabel = null;
+                $hrSubmission = $hrSubmissions->get($member->id);
+                if ($hrSubmission) {
+                    $fieldValues = $hrSubmission->values->pluck('value', 'field')->all();
+                    $hrMetric = $hrMetricClass::from($fieldValues);
+                    if ($hrMetric->heartRate !== null) {
+                        $hrLabel = $hrMetric->heartRate.' HR';
+                        if ($hrMetric->anaerobicThreshold !== null) {
+                            $hrLabel .= ' - '.$hrMetric->anaerobicThreshold.'% IAT';
+                        }
+                    }
+                }
+
+                $heartRate[] = [
+                    'user_id' => $member->id,
+                    'name' => $member->name,
+                    'label' => $hrLabel,
+                ];
             }
 
-            $heartRate[] = [
-                'user_id' => $member->id,
-                'name' => $member->name,
-                'label' => $hrLabel,
-            ];
+            return ['oneRepMax' => $oneRepMax, 'heartRate' => $heartRate];
+        } finally {
+            PlanGridProfiler::end($span, [
+                'one_rep_max_count' => isset($oneRepMax) ? count($oneRepMax) : null,
+                'heart_rate_count' => isset($heartRate) ? count($heartRate) : null,
+            ]);
         }
-
-        return ['oneRepMax' => $oneRepMax, 'heartRate' => $heartRate];
     }
 
     #[Renderless]
@@ -603,107 +621,119 @@ trait WithCalendarPlan
     #[Computed]
     public function planSelectedProgram(): ?TrainingProgram
     {
-        if ($this->planProgram === '') {
-            return null;
-        }
+        return PlanGridProfiler::measure('WithCalendarPlan.planSelectedProgram', $this->profileContext(), function (): ?TrainingProgram {
+            if ($this->planProgram === '') {
+                return null;
+            }
 
-        return TrainingProgram::with('program.exerciseCategory', 'program.exercises')
-            ->find((int) $this->planProgram);
+            return TrainingProgram::with('program.exerciseCategory', 'program.exercises')
+                ->find((int) $this->planProgram);
+        });
     }
 
     #[Computed]
     public function planScheduleInfo(): array
     {
-        if ($this->planProgram === '') {
-            return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false, 'weekLabels' => [], 'weekSessions' => [], 'weekSessionDates' => [], 'expandedWeeks' => [], 'lockedSessionsByWeek' => []];
-        }
+        $span = PlanGridProfiler::start('WithCalendarPlan.planScheduleInfo', $this->profileContext());
 
-        $slotQuery = TrainingProgramSlot::query()
-            ->where('training_program_id', (int) $this->planProgram);
-
-        if ($this->user !== '') {
-            $slotQuery->where('user_id', (int) $this->user);
-        }
-
-        if ($this->planBlock === 'ungrouped') {
-            $this->applyUngroupedFilter($slotQuery);
-        } else {
-            $block = TrainingProgramBlock::find((int) $this->planBlock);
-            if ($block) {
-                $slotQuery->whereBetween('datetime', [
-                    $block->start->startOfDay(),
-                    ($block->end ?? $block->start)->endOfDay(),
-                ]);
+        try {
+            if ($this->planProgram === '') {
+                return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false, 'weekLabels' => [], 'weekSessions' => [], 'weekSessionDates' => [], 'expandedWeeks' => [], 'lockedSessionsByWeek' => []];
             }
-        }
 
-        $sessionDatetimes = $slotQuery
-            ->select('datetime')
-            ->distinct()
-            ->orderBy('datetime')
-            ->pluck('datetime')
-            ->map(fn ($dt) => Carbon::parse($dt))
-            ->values();
+            $slotQuery = TrainingProgramSlot::query()
+                ->where('training_program_id', (int) $this->planProgram);
 
-        $scheduledWeeks = $sessionDatetimes
-            ->groupBy(fn (Carbon $datetime) => $datetime->isoWeekYear().'-'.$datetime->isoWeek())
-            ->map(fn ($sessions, $key) => [
-                'key' => $key,
-                'sessions' => $sessions->values(),
-                'week' => $sessions->first()->isoWeek(),
-                'year' => $sessions->first()->isoWeekYear(),
-            ])
-            ->values();
-
-        $weeks = count($scheduledWeeks);
-        if ($weeks === 0) {
-            return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false, 'weekLabels' => [], 'weekSessions' => [], 'weekSessionDates' => [], 'expandedWeeks' => [], 'lockedSessionsByWeek' => []];
-        }
-
-        $sessionsPerWeek = max(1, (int) $scheduledWeeks->map(fn (array $week) => count($week['sessions']))->max());
-
-        $weekLabels = [];
-        $weekSessions = [];
-        $weekSessionDates = [];
-        $expandedWeeks = [];
-        $lockedSessionsByWeek = [];
-        $immutableSessionDateTimes = app(TrainingSessionEditGuard::class)
-            ->applyImmutableSlotConstraints((clone $slotQuery))
-            ->select('datetime')
-            ->distinct()
-            ->pluck('datetime')
-            ->map(fn ($datetime) => Carbon::parse($datetime)->toDateTimeString())
-            ->flip();
-
-        foreach ($scheduledWeeks as $i => $weekInfo) {
-            $monday = Carbon::now()->setISODate($weekInfo['year'], $weekInfo['week'], 1);
-            $sunday = $monday->copy()->addDays(6);
-            $dateRange = $monday->format('d.m').' - '.$sunday->format('d.m');
-            $weekLabels[$i] = 'W'.$weekInfo['week'].', '.$weekInfo['year']
-                .'<br><span class="text-[10px] font-normal text-zinc-400 dark:text-zinc-500">'.$dateRange.'</span>';
-            $weekSessions[$i] = count($weekInfo['sessions']);
-            $weekSessionDates[$i] = collect($weekInfo['sessions'])
-                ->map(fn (Carbon $sessionDatetime) => $sessionDatetime->toDateString())
-                ->all();
-            $lockedSessionsByWeek[$i] = collect($weekInfo['sessions'])
-                ->map(fn (Carbon $sessionDatetime) => $immutableSessionDateTimes->has($sessionDatetime->toDateTimeString()))
-                ->all();
-
-            if (in_array(true, $lockedSessionsByWeek[$i], true)) {
-                $expandedWeeks[] = $i;
+            if ($this->user !== '') {
+                $slotQuery->where('user_id', (int) $this->user);
             }
-        }
 
-        return [
-            'weeks' => $weeks,
-            'sessionsPerWeek' => $sessionsPerWeek,
-            'scheduled' => true,
-            'weekLabels' => $weekLabels,
-            'weekSessions' => $weekSessions,
-            'weekSessionDates' => $weekSessionDates,
-            'expandedWeeks' => $expandedWeeks,
-            'lockedSessionsByWeek' => $lockedSessionsByWeek,
-        ];
+            if ($this->planBlock === 'ungrouped') {
+                $this->applyUngroupedFilter($slotQuery);
+            } else {
+                $block = TrainingProgramBlock::find((int) $this->planBlock);
+                if ($block) {
+                    $slotQuery->whereBetween('datetime', [
+                        $block->start->startOfDay(),
+                        ($block->end ?? $block->start)->endOfDay(),
+                    ]);
+                }
+            }
+
+            $sessionDatetimes = $slotQuery
+                ->select('datetime')
+                ->distinct()
+                ->orderBy('datetime')
+                ->pluck('datetime')
+                ->map(fn ($dt) => Carbon::parse($dt))
+                ->values();
+
+            $scheduledWeeks = $sessionDatetimes
+                ->groupBy(fn (Carbon $datetime) => $datetime->isoWeekYear().'-'.$datetime->isoWeek())
+                ->map(fn ($sessions, $key) => [
+                    'key' => $key,
+                    'sessions' => $sessions->values(),
+                    'week' => $sessions->first()->isoWeek(),
+                    'year' => $sessions->first()->isoWeekYear(),
+                ])
+                ->values();
+
+            $weeks = count($scheduledWeeks);
+            if ($weeks === 0) {
+                return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false, 'weekLabels' => [], 'weekSessions' => [], 'weekSessionDates' => [], 'expandedWeeks' => [], 'lockedSessionsByWeek' => []];
+            }
+
+            $sessionsPerWeek = max(1, (int) $scheduledWeeks->map(fn (array $week) => count($week['sessions']))->max());
+
+            $weekLabels = [];
+            $weekSessions = [];
+            $weekSessionDates = [];
+            $expandedWeeks = [];
+            $lockedSessionsByWeek = [];
+            $immutableSessionDateTimes = app(TrainingSessionEditGuard::class)
+                ->applyImmutableSlotConstraints((clone $slotQuery))
+                ->select('datetime')
+                ->distinct()
+                ->pluck('datetime')
+                ->map(fn ($datetime) => Carbon::parse($datetime)->toDateTimeString())
+                ->flip();
+
+            foreach ($scheduledWeeks as $i => $weekInfo) {
+                $monday = Carbon::now()->setISODate($weekInfo['year'], $weekInfo['week'], 1);
+                $sunday = $monday->copy()->addDays(6);
+                $dateRange = $monday->format('d.m').' - '.$sunday->format('d.m');
+                $weekLabels[$i] = 'W'.$weekInfo['week'].', '.$weekInfo['year']
+                    .'<br><span class="text-[10px] font-normal text-zinc-400 dark:text-zinc-500">'.$dateRange.'</span>';
+                $weekSessions[$i] = count($weekInfo['sessions']);
+                $weekSessionDates[$i] = collect($weekInfo['sessions'])
+                    ->map(fn (Carbon $sessionDatetime) => $sessionDatetime->toDateString())
+                    ->all();
+                $lockedSessionsByWeek[$i] = collect($weekInfo['sessions'])
+                    ->map(fn (Carbon $sessionDatetime) => $immutableSessionDateTimes->has($sessionDatetime->toDateTimeString()))
+                    ->all();
+
+                if (in_array(true, $lockedSessionsByWeek[$i], true)) {
+                    $expandedWeeks[] = $i;
+                }
+            }
+
+            return [
+                'weeks' => $weeks,
+                'sessionsPerWeek' => $sessionsPerWeek,
+                'scheduled' => true,
+                'weekLabels' => $weekLabels,
+                'weekSessions' => $weekSessions,
+                'weekSessionDates' => $weekSessionDates,
+                'expandedWeeks' => $expandedWeeks,
+                'lockedSessionsByWeek' => $lockedSessionsByWeek,
+            ];
+        } finally {
+            PlanGridProfiler::end($span, [
+                'session_datetimes' => isset($sessionDatetimes) ? $sessionDatetimes->count() : null,
+                'weeks' => $weeks ?? null,
+                'sessions_per_week' => $sessionsPerWeek ?? null,
+            ]);
+        }
     }
 
     protected function getActiveBlockDateRanges(): array

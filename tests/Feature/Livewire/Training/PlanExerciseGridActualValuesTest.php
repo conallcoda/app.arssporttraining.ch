@@ -84,9 +84,18 @@ it('persists planned override removal when a planned value returns to default', 
         ->and(plannedCellValue($component, 'weight', 0, 0))->toEqual(66);
     $component->assertNotDispatched('exercise-overrides-changed');
 
+    $component->call('updateCellOverride', 0, 0, 'weight', 77, 0, false);
+
+    $scheduledProgram->refresh();
+    expect($scheduledProgram->config->exerciseOverrides($pivot->id, $athlete->id)->gridOverrides['cells'][0]['data']['weight'] ?? null)->toEqual(77);
+
+    expect(gridRenderVersion($component))->toBe(2)
+        ->and(plannedCellValue($component, 'weight', 0, 0))->toEqual(77);
+
     $component->call('updateCellOverride', 0, 0, 'weight', 5, 0, false);
 
-    expect(gridRenderVersion($component))->toBe(2);
+    expect(gridRenderVersion($component))->toBe(3)
+        ->and(plannedCellValue($component, 'weight', 0, 0))->toEqual(5);
     $component->assertNotDispatched('exercise-overrides-changed');
 
     $scheduledProgram->refresh();

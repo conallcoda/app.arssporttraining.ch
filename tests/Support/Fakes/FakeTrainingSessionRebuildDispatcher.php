@@ -37,6 +37,15 @@ class FakeTrainingSessionRebuildDispatcher extends TrainingSessionRebuildDispatc
         ];
     }
 
+    public function dispatchFutureSlotsForTrainingProgramChange(int $trainingProgramId, ?int $userId = null): void
+    {
+        $this->calls[] = [
+            'method' => __FUNCTION__,
+            'trainingProgramId' => $trainingProgramId,
+            'userId' => $userId,
+        ];
+    }
+
     public function dispatchFutureSlotsForAthlete(int $userId, ?string $fromDate = null): void
     {
         $this->calls[] = [

@@ -12,8 +12,10 @@ it('resolves session-specific cell overrides without leaking them to other sessi
 
     expect($overrides->getCellOverrideValue(0, 0, 'reps', 0))->toBeNull()
         ->and($overrides->getCellOverrideValue(0, 0, 'reps', 1))->toBe(8)
+        ->and($overrides->getCellOverrideValue(0, 0, 'reps'))->toBeNull()
         ->and($overrides->hasCellOverride(0, 0, 'reps', 0))->toBeFalse()
-        ->and($overrides->hasCellOverride(0, 0, 'reps', 1))->toBeTrue();
+        ->and($overrides->hasCellOverride(0, 0, 'reps', 1))->toBeTrue()
+        ->and($overrides->hasCellOverride(0, 0, 'reps'))->toBeFalse();
 });
 
 it('does not apply session 0 overrides to later sessions without an explicit row', function () {

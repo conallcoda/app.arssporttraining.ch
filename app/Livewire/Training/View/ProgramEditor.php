@@ -11,6 +11,7 @@ use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
 use App\Models\Exercise\ExerciseProgramTypeEnum;
 use App\Models\Users\User;
+use App\Support\Profiling\PlanGridProfiler;
 use App\Support\Training\ExerciseProgramSelectorPreviewService;
 use App\Support\Training\ProgramExerciseOrder;
 use App\Training\ExerciseGroupLabeler;
@@ -182,39 +183,54 @@ class ProgramEditor extends Component
         bool $planHasBlock = false,
         array $planGroupMemberMetrics = [],
     ): void {
-        $this->exerciseProgram = $exerciseProgram;
-        if ($exerciseProgram->type !== ExerciseProgramTypeEnum::Program) {
-            $this->activeSection = 'main';
+        $span = PlanGridProfiler::start('ProgramEditor.mount', [
+            'component' => static::class,
+            'exercise_program_id' => $exerciseProgram->id,
+            'plan_id' => $planId,
+            'scheduled_training_program_id' => $scheduledTrainingProgramId,
+            'user_id' => $userId,
+            'weeks' => $weeks,
+            'sessions_per_week' => $sessionsPerWeek,
+            'week_session_dates_count' => collect($weekSessionDates)->flatten()->count(),
+        ]);
+
+        try {
+            $this->exerciseProgram = $exerciseProgram;
+            if ($exerciseProgram->type !== ExerciseProgramTypeEnum::Program) {
+                $this->activeSection = 'main';
+            }
+            $this->planId = $planId;
+            $this->scheduledTrainingProgramId = $scheduledTrainingProgramId;
+            $this->showWeeksInput = $showWeeksInput;
+            $this->weeks = $showWeeksInput ? $exerciseProgram->config->weeks : $weeks;
+            $this->sessionsPerWeek = $sessionsPerWeek;
+            $this->userId = $userId;
+            $this->planMeasuredReps = $planMeasuredReps;
+            $this->planMeasuredWeight = $planMeasuredWeight;
+            $this->planTargetGoal = $planTargetGoal;
+            $this->planMaxHR = $planMaxHR;
+            $this->planIatPercent = $planIatPercent;
+            $this->weekLabels = $weekLabels;
+            $this->weekSessions = $weekSessions;
+            $this->weekSessionDates = $weekSessionDates;
+            $this->expandedWeeks = $expandedWeeks;
+            $this->lockedSessionsByWeek = $lockedSessionsByWeek;
+            $this->sessionLabels = $sessionLabels;
+            $this->gridLayout = $gridLayout;
+            $this->showActualValueTabs = $showActualValueTabs;
+            $this->valueDisplayMode = 'planned';
+            $this->gridRenderVersion = 0;
+            $this->planBlockGoalLabel = $planBlockGoalLabel;
+            $this->plan1rmLabel = $plan1rmLabel;
+            $this->planHeartRateLabel = $planHeartRateLabel;
+            $this->hasAutoWeightExercises = $hasAutoWeightExercises;
+            $this->hasHeartRateExercises = $hasHeartRateExercises;
+            $this->planHasBlock = $planHasBlock;
+            $this->planGroupMemberMetrics = $planGroupMemberMetrics;
+            $this->loadExerciseData();
+        } finally {
+            PlanGridProfiler::end($span, $this->profileContext());
         }
-        $this->planId = $planId;
-        $this->scheduledTrainingProgramId = $scheduledTrainingProgramId;
-        $this->showWeeksInput = $showWeeksInput;
-        $this->weeks = $showWeeksInput ? $exerciseProgram->config->weeks : $weeks;
-        $this->sessionsPerWeek = $sessionsPerWeek;
-        $this->userId = $userId;
-        $this->planMeasuredReps = $planMeasuredReps;
-        $this->planMeasuredWeight = $planMeasuredWeight;
-        $this->planTargetGoal = $planTargetGoal;
-        $this->planMaxHR = $planMaxHR;
-        $this->planIatPercent = $planIatPercent;
-        $this->weekLabels = $weekLabels;
-        $this->weekSessions = $weekSessions;
-        $this->weekSessionDates = $weekSessionDates;
-        $this->expandedWeeks = $expandedWeeks;
-        $this->lockedSessionsByWeek = $lockedSessionsByWeek;
-        $this->sessionLabels = $sessionLabels;
-        $this->gridLayout = $gridLayout;
-        $this->showActualValueTabs = $showActualValueTabs;
-        $this->valueDisplayMode = 'planned';
-        $this->gridRenderVersion = 0;
-        $this->planBlockGoalLabel = $planBlockGoalLabel;
-        $this->plan1rmLabel = $plan1rmLabel;
-        $this->planHeartRateLabel = $planHeartRateLabel;
-        $this->hasAutoWeightExercises = $hasAutoWeightExercises;
-        $this->hasHeartRateExercises = $hasHeartRateExercises;
-        $this->planHasBlock = $planHasBlock;
-        $this->planGroupMemberMetrics = $planGroupMemberMetrics;
-        $this->loadExerciseData();
     }
 
     public function updatedValueDisplayMode(): void
@@ -224,18 +240,20 @@ class ProgramEditor extends Component
 
     protected function loadExerciseData(): void
     {
-        $this->exerciseProgram->unsetRelation('exercises');
-        $this->exerciseProgram->load([
-            'exercises' => fn ($q) => $q->orderByPivot('type')->orderByPivot('sort')->orderByPivot('id'),
-            'exercises.equipment',
-            'exercises.modifiers',
-        ]);
+        PlanGridProfiler::measure('ProgramEditor.loadExerciseData', $this->profileContext(), function (): void {
+            $this->exerciseProgram->unsetRelation('exercises');
+            $this->exerciseProgram->load([
+                'exercises' => fn ($q) => $q->orderByPivot('type')->orderByPivot('sort')->orderByPivot('id'),
+                'exercises.equipment',
+                'exercises.modifiers',
+            ]);
 
-        foreach (self::SECTION_TYPES as $type) {
-            $this->data[$this->sectionFieldName($type)] = $this->serializeSectionExercises($type);
-        }
+            foreach (self::SECTION_TYPES as $type) {
+                $this->data[$this->sectionFieldName($type)] = $this->serializeSectionExercises($type);
+            }
 
-        $this->syncSectionFormData();
+            $this->syncSectionFormData();
+        });
     }
 
     protected function serializeSectionExercises(string $type): array
@@ -294,19 +312,25 @@ class ProgramEditor extends Component
     #[Computed]
     public function planConfigArray(): array
     {
-        return $this->exerciseProgram->config->toArray();
+        return PlanGridProfiler::measure('ProgramEditor.planConfigArray', $this->profileContext(), function (): array {
+            return $this->exerciseProgram->config->toArray();
+        });
     }
 
     #[Computed]
     public function exercises(): Collection
     {
-        return app(ProgramExerciseOrder::class)
-            ->sortProgramExercises(
-                $this->exerciseProgram->exercises
-                    ->filter(fn (Exercise $exercise) => ($exercise->pivot->type ?? 'main') === $this->activeSection)
-                    ->values(),
-                includeType: false,
-            );
+        return PlanGridProfiler::measure('ProgramEditor.exercises', $this->profileContext([
+            'active_section' => $this->activeSection,
+        ]), function (): Collection {
+            return app(ProgramExerciseOrder::class)
+                ->sortProgramExercises(
+                    $this->exerciseProgram->exercises
+                        ->filter(fn (Exercise $exercise) => ($exercise->pivot->type ?? 'main') === $this->activeSection)
+                        ->values(),
+                    includeType: false,
+                );
+        });
     }
 
     #[Computed]
@@ -323,11 +347,13 @@ class ProgramEditor extends Component
     #[Computed]
     public function exerciseBadgesByPivotId(): array
     {
-        return $this->exercises
-            ->mapWithKeys(fn (Exercise $exercise): array => [
-                (int) $exercise->pivot->id => $this->buildExerciseBadges($exercise),
-            ])
-            ->all();
+        return PlanGridProfiler::measure('ProgramEditor.exerciseBadgesByPivotId', $this->profileContext(), function (): array {
+            return $this->exercises
+                ->mapWithKeys(fn (Exercise $exercise): array => [
+                    (int) $exercise->pivot->id => $this->buildExerciseBadges($exercise),
+                ])
+                ->all();
+        });
     }
 
     /** @return array<int, array{label: string, color: string}> */
@@ -896,11 +922,42 @@ class ProgramEditor extends Component
 
     public function render()
     {
-        if (! in_array($this->activeSection, $this->availableSections, true)) {
-            $this->activeSection = $this->availableSections[0] ?? 'main';
-            $this->syncSectionFormData();
-        }
+        return PlanGridProfiler::measure('ProgramEditor.render', $this->profileContext(), function () {
+            if (! in_array($this->activeSection, $this->availableSections, true)) {
+                $this->activeSection = $this->availableSections[0] ?? 'main';
+                $this->syncSectionFormData();
+            }
 
-        return view('livewire.training.view.program-editor');
+            return view('livewire.training.view.program-editor');
+        });
+    }
+
+    public function hydrate(): void
+    {
+        PlanGridProfiler::mark('ProgramEditor.hydrate', $this->profileContext());
+    }
+
+    public function dehydrate(): void
+    {
+        PlanGridProfiler::mark('ProgramEditor.dehydrate', $this->profileContext());
+    }
+
+    protected function profileContext(array $extra = []): array
+    {
+        return array_merge([
+            'component' => static::class,
+            'exercise_program_id' => $this->exerciseProgram->id ?? null,
+            'plan_id' => $this->planId ?? null,
+            'scheduled_training_program_id' => $this->scheduledTrainingProgramId ?? null,
+            'user_id' => $this->userId ?? null,
+            'weeks' => $this->weeks ?? null,
+            'sessions_per_week' => $this->sessionsPerWeek ?? null,
+            'active_section' => $this->activeSection ?? null,
+            'value_display_mode' => $this->valueDisplayMode ?? null,
+            'grid_render_version' => $this->gridRenderVersion ?? null,
+            'exercise_count' => isset($this->exerciseProgram) && $this->exerciseProgram->relationLoaded('exercises')
+                ? $this->exerciseProgram->exercises->count()
+                : null,
+        ], $extra);
     }
 }

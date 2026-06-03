@@ -3,17 +3,17 @@
 namespace App\Training\Planning;
 
 use App\Data\Exercise\ExerciseSetting;
-use App\Data\Exercise\Preview\CellInputMeta;
 use App\Data\Exercise\Preview\GridOverrides;
 use App\Data\Exercise\Preview\GridState;
 use App\Data\Exercise\Preview\StrategyOrchestrator;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
+use App\Data\Training\Config\ExerciseOverrides;
 use App\Data\Training\Planned\ResolvedPlannedExercise;
 use App\Data\Training\Planned\ResolvedPlannedProvenance;
-use App\Data\Training\Planned\ResolvedPlannedSet;
 use App\Data\Training\Planned\ResolvedPlannedSession;
+use App\Data\Training\Planned\ResolvedPlannedSet;
 use App\Data\Training\Planned\ResolvedPlannedValue;
-use App\Data\Training\Config\ExerciseOverrides;
+use App\Support\Profiling\PlanGridProfiler;
 use App\Support\Training\ApplyPerScope;
 
 class ResolvedPlannedSessionBuilder
@@ -57,34 +57,48 @@ class ResolvedPlannedSessionBuilder
         int $weeks,
         array $sessionCounts = [],
     ): ResolvedPlannedSession {
-        $exercises = array_values(array_filter(array_map(
-            fn (array $exercise): ?ResolvedPlannedExercise => $this->buildExercise(
-                exerciseId: $exercise['exerciseId'] ?? null,
-                sort: (int) ($exercise['sort'] ?? 0),
-                group: $exercise['group'] ?? null,
-                type: (string) ($exercise['type'] ?? 'main'),
-                effectiveConfig: $exercise['effectiveConfig'] ?? [],
-                overrideLayer: $exercise['overrideLayer'] ?? ['sessions' => [], 'cells' => []],
-                baseConfig: $exercise['baseConfig'] ?? [],
-                defaultOverrides: $exercise['defaultOverrides'] ?? null,
-                userOverrides: $exercise['userOverrides'] ?? null,
+        $span = PlanGridProfiler::start('ResolvedPlannedSessionBuilder.build', [
+            'week' => $weekIndex,
+            'session' => $sessionIndex,
+            'exercise_config_count' => count($exerciseConfigs),
+            'weeks' => $weeks,
+            'session_count_total' => array_sum($sessionCounts),
+        ]);
+
+        try {
+            $exercises = array_values(array_filter(array_map(
+                fn (array $exercise): ?ResolvedPlannedExercise => $this->buildExercise(
+                    exerciseId: $exercise['exerciseId'] ?? null,
+                    sort: (int) ($exercise['sort'] ?? 0),
+                    group: $exercise['group'] ?? null,
+                    type: (string) ($exercise['type'] ?? 'main'),
+                    effectiveConfig: $exercise['effectiveConfig'] ?? [],
+                    overrideLayer: $exercise['overrideLayer'] ?? ['sessions' => [], 'cells' => []],
+                    baseConfig: $exercise['baseConfig'] ?? [],
+                    defaultOverrides: $exercise['defaultOverrides'] ?? null,
+                    userOverrides: $exercise['userOverrides'] ?? null,
+                    weekIndex: $weekIndex,
+                    sessionIndex: $sessionIndex,
+                    weeks: $weeks,
+                    sessionCounts: $sessionCounts,
+                    measuredData: $exercise['measuredData'] ?? null,
+                    maxHR: $exercise['maxHR'] ?? null,
+                    iatPercent: $exercise['iatPercent'] ?? null,
+                ),
+                $exerciseConfigs,
+            )));
+
+            return new ResolvedPlannedSession(
                 weekIndex: $weekIndex,
                 sessionIndex: $sessionIndex,
-                weeks: $weeks,
-                sessionCounts: $sessionCounts,
-                measuredData: $exercise['measuredData'] ?? null,
-                maxHR: $exercise['maxHR'] ?? null,
-                iatPercent: $exercise['iatPercent'] ?? null,
-            ),
-            $exerciseConfigs,
-        )));
-
-        return new ResolvedPlannedSession(
-            weekIndex: $weekIndex,
-            sessionIndex: $sessionIndex,
-            scheduledDate: $scheduledDate,
-            exercises: $exercises,
-        );
+                scheduledDate: $scheduledDate,
+                exercises: $exercises,
+            );
+        } finally {
+            PlanGridProfiler::end($span, [
+                'resolved_exercise_count' => isset($exercises) ? count($exercises) : null,
+            ]);
+        }
     }
 
     /**
@@ -109,74 +123,93 @@ class ResolvedPlannedSessionBuilder
         ?ExerciseOverrides $defaultOverrides = null,
         ?ExerciseOverrides $userOverrides = null,
     ): ?ResolvedPlannedExercise {
-        $state = (new StrategyOrchestrator(
-            data: $effectiveConfig,
-            measuredData: $measuredData,
-            weeks: $weeks,
-            overrides: GridOverrides::fromConfig($overrideLayer),
-            maxHR: $maxHR,
-            iatPercent: $iatPercent,
-            sessionCounts: $sessionCounts,
-        ))->execute();
+        $span = PlanGridProfiler::start('ResolvedPlannedSessionBuilder.buildExercise', [
+            'exercise_id' => $exerciseId,
+            'week' => $weekIndex,
+            'session' => $sessionIndex,
+            'weeks' => $weeks,
+            'settings' => $effectiveConfig['settings'] ?? [],
+            'override_cells' => count($overrideLayer['cells'] ?? []),
+            'override_sessions' => count($overrideLayer['sessions'] ?? []),
+            'has_default_overrides' => $defaultOverrides !== null,
+            'has_user_overrides' => $userOverrides !== null,
+        ]);
 
-        $setCount = max(0, (int) $state->getResolvedSessionValue(
-            'sets',
-            $weekIndex,
-            $sessionIndex,
-            (int) ($state->getSetsPerWeek()[$weekIndex] ?? data_get($effectiveConfig, 'sets.default', 0)),
-        ));
-        $setCountProvenance = $this->resolveSessionValueProvenance(
-            setting: 'sets',
-            weekIndex: $weekIndex,
-            sessionIndex: $sessionIndex,
-            setIndex: null,
-            effectiveConfig: $effectiveConfig,
-            effectiveGridOverrides: $overrideLayer,
-            baseConfig: $baseConfig,
-            defaultOverrides: $defaultOverrides,
-            userOverrides: $userOverrides,
-        );
+        try {
+            $state = (new StrategyOrchestrator(
+                data: $effectiveConfig,
+                measuredData: $measuredData,
+                weeks: $weeks,
+                overrides: GridOverrides::fromConfig($overrideLayer),
+                maxHR: $maxHR,
+                iatPercent: $iatPercent,
+                sessionCounts: $sessionCounts,
+            ))->execute();
 
-        $sets = [];
-        for ($setIndex = 0; $setIndex < $setCount; $setIndex++) {
-            $values = [];
+            $setCount = max(0, (int) $state->getResolvedSessionValue(
+                'sets',
+                $weekIndex,
+                $sessionIndex,
+                (int) ($state->getSetsPerWeek()[$weekIndex] ?? data_get($effectiveConfig, 'sets.default', 0)),
+            ));
+            $setCountProvenance = $this->resolveSessionValueProvenance(
+                setting: 'sets',
+                weekIndex: $weekIndex,
+                sessionIndex: $sessionIndex,
+                setIndex: null,
+                effectiveConfig: $effectiveConfig,
+                effectiveGridOverrides: $overrideLayer,
+                baseConfig: $baseConfig,
+                defaultOverrides: $defaultOverrides,
+                userOverrides: $userOverrides,
+            );
 
-            foreach ($this->orderedSettings($effectiveConfig['settings'] ?? []) as $setting) {
-                $config = $effectiveConfig[$setting] ?? [];
-                $applyPer = ApplyPerScope::normalize($config['applyPer'] ?? null);
-                $value = $applyPer === ApplyPerScope::SESSION
-                    ? $this->resolveSessionFieldValue($state, $config, $setting, $weekIndex, $sessionIndex)
-                    : $this->resolveSessionValue($state, $config, $setting, $weekIndex, $setIndex, $sessionIndex);
+            $sets = [];
+            for ($setIndex = 0; $setIndex < $setCount; $setIndex++) {
+                $values = [];
 
-                if ($this->isBlankValue($value) && ! $this->shouldMaterializeBlankSetting($config)) {
-                    continue;
+                foreach ($this->orderedSettings($effectiveConfig['settings'] ?? []) as $setting) {
+                    $config = $effectiveConfig[$setting] ?? [];
+                    $applyPer = ApplyPerScope::normalize($config['applyPer'] ?? null);
+                    $value = $applyPer === ApplyPerScope::SESSION
+                        ? $this->resolveSessionFieldValue($state, $config, $setting, $weekIndex, $sessionIndex)
+                        : $this->resolveSessionValue($state, $config, $setting, $weekIndex, $setIndex, $sessionIndex);
+
+                    if ($this->isBlankValue($value) && ! $this->shouldMaterializeBlankSetting($config)) {
+                        continue;
+                    }
+
+                    $values[] = new ResolvedPlannedValue(
+                        settingKey: $setting,
+                        value: $value,
+                        unit: $this->resolveUnit($setting, $config),
+                        applyPer: $applyPer,
+                        provenance: $applyPer === ApplyPerScope::SESSION
+                            ? $this->resolveSessionValueProvenance($setting, $weekIndex, $sessionIndex, null, $effectiveConfig, $overrideLayer, $baseConfig, $defaultOverrides, $userOverrides)
+                            : $this->resolveSessionValueProvenance($setting, $weekIndex, $sessionIndex, $setIndex, $effectiveConfig, $overrideLayer, $baseConfig, $defaultOverrides, $userOverrides),
+                    );
                 }
 
-                $values[] = new ResolvedPlannedValue(
-                    settingKey: $setting,
-                    value: $value,
-                    unit: $this->resolveUnit($setting, $config),
-                    applyPer: $applyPer,
-                    provenance: $applyPer === ApplyPerScope::SESSION
-                        ? $this->resolveSessionValueProvenance($setting, $weekIndex, $sessionIndex, null, $effectiveConfig, $overrideLayer, $baseConfig, $defaultOverrides, $userOverrides)
-                        : $this->resolveSessionValueProvenance($setting, $weekIndex, $sessionIndex, $setIndex, $effectiveConfig, $overrideLayer, $baseConfig, $defaultOverrides, $userOverrides),
+                $sets[] = new ResolvedPlannedSet(
+                    setNumber: $setIndex + 1,
+                    values: $values,
                 );
             }
 
-            $sets[] = new ResolvedPlannedSet(
-                setNumber: $setIndex + 1,
-                values: $values,
+            return new ResolvedPlannedExercise(
+                exerciseId: $exerciseId,
+                sort: $sort,
+                group: $group,
+                type: $type,
+                sets: $sets,
+                setCountProvenance: $setCountProvenance,
             );
+        } finally {
+            PlanGridProfiler::end($span, [
+                'set_count' => $setCount ?? null,
+                'value_count' => isset($sets) ? collect($sets)->sum(fn (ResolvedPlannedSet $set): int => count($set->values)) : null,
+            ]);
         }
-
-        return new ResolvedPlannedExercise(
-            exerciseId: $exerciseId,
-            sort: $sort,
-            group: $group,
-            type: $type,
-            sets: $sets,
-            setCountProvenance: $setCountProvenance,
-        );
     }
 
     private function resolveSessionValue(GridState $state, array $config, string $setting, int $weekIndex, int $setIndex, int $sessionIndex): mixed

@@ -10,6 +10,7 @@ use App\Data\Exercise\Strategies\Contracts\DefinesCellColors;
 use App\Data\Exercise\Strategies\Contracts\DefinesEditability;
 use App\Data\Exercise\Strategies\HeartRate\HeartRateZoneCellColors;
 use App\Data\Exercise\Strategies\Sets\DeloadSetsStrategy;
+use App\Support\Profiling\PlanGridProfiler;
 use App\Support\Training\ApplyPerScope;
 
 class StrategyOrchestrator
@@ -28,19 +29,33 @@ class StrategyOrchestrator
 
     public function execute(): GridState
     {
-        $state = new GridState;
+        $span = PlanGridProfiler::start('StrategyOrchestrator.execute', [
+            'weeks' => $this->weeks,
+            'settings' => $this->data['settings'] ?? [],
+            'session_count_total' => array_sum($this->resolveSessionCounts()),
+            'override_cells' => count($this->overrides?->cells ?? []),
+            'override_sessions' => count($this->overrides?->sessions ?? []),
+        ]);
 
-        if ($this->overrides !== null) {
-            $state->setOverrides($this->overrides);
+        try {
+            $state = new GridState;
+
+            if ($this->overrides !== null) {
+                $state->setOverrides($this->overrides);
+            }
+
+            PlanGridProfiler::measure('StrategyOrchestrator.execute.sets', [], fn () => $this->executeSetsPhase($state));
+            PlanGridProfiler::measure('StrategyOrchestrator.execute.reps', [], fn () => $this->executeRepsPhase($state));
+            PlanGridProfiler::measure('StrategyOrchestrator.execute.weight', [], fn () => $this->executeWeightPhase($state));
+            PlanGridProfiler::measure('StrategyOrchestrator.execute.heartRateZone', [], fn () => $this->executeHeartRateZonePhase($state));
+            PlanGridProfiler::measure('StrategyOrchestrator.execute.heartRate', [], fn () => $this->executeHeartRatePhase($state));
+
+            return $state;
+        } finally {
+            PlanGridProfiler::end($span, [
+                'max_sets' => isset($state) ? $state->maxSets() : null,
+            ]);
         }
-
-        $this->executeSetsPhase($state);
-        $this->executeRepsPhase($state);
-        $this->executeWeightPhase($state);
-        $this->executeHeartRateZonePhase($state);
-        $this->executeHeartRatePhase($state);
-
-        return $state;
     }
 
     private function executeSetsPhase(GridState $state): void
