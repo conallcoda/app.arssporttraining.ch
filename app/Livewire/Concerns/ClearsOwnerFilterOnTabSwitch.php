@@ -2,12 +2,12 @@
 
 namespace App\Livewire\Concerns;
 
-trait ClearsCoachFilterOnTabSwitch
+trait ClearsOwnerFilterOnTabSwitch
 {
     public function updatedSelectedTab(): void
     {
         if ($this->selectedTab !== 'all') {
-            unset($this->filters['coach']);
+            unset($this->filters['owner']);
         }
 
         parent::updatedSelectedTab();

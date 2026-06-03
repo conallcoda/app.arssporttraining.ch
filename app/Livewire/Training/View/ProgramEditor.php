@@ -40,7 +40,7 @@ class ProgramEditor extends Component
 
     public ExerciseProgram $exerciseProgram;
 
-    public int $weeks = 5;
+    public int|string $weeks = 5;
 
     public bool $showWeeksInput = false;
 
@@ -407,11 +407,21 @@ class ProgramEditor extends Component
         unset($this->fieldsets, $this->exercises, $this->exerciseGroupLabels);
     }
 
-    public function updatedWeeks(): void
+    public function updatedWeeks(mixed $value): void
     {
         if (! $this->showWeeksInput) {
             return;
         }
+
+        if (! is_numeric($value) || (int) $value < 1 || (int) $value > 52) {
+            $this->weeks = max(1, min(52, (int) ($this->exerciseProgram->config->weeks ?: 5)));
+            $this->addError('weeks', __('Preview weeks must be between 1 and 52.'));
+
+            return;
+        }
+
+        $this->resetValidation('weeks');
+        $this->weeks = (int) $value;
 
         $config = $this->exerciseProgram->config;
         $config->weeks = $this->weeks;

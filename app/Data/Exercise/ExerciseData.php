@@ -124,7 +124,7 @@ class ExerciseData extends AbstractData implements HasForms, PersistsWithMedia
     {
         $form = Form::make()
             ->fieldset('General', [
-                Owner::make('owner_id')->withOptions()->allowUnassigned(),
+                Owner::make('owner_id')->withOptions()->allowNoOwner(),
                 Fields\Text::make('name')->required(true),
                 Category::make('category', 'exercise_category')->label('Category')->required()->withOptions(),
                 Fields\Select::make('template')

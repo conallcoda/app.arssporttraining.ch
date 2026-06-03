@@ -71,7 +71,7 @@ class AthleteGroupData extends AbstractData implements HasForms
     {
         return Form::make()
             ->fieldset('General', [
-                Owner::make('owner_id')->withOptions()->allowUnassigned(),
+                Owner::make('owner_id')->withOptions()->allowNoOwner(),
                 GroupName::make('name'),
                 Members::make('members')->withOptions(),
                 Tags::make('internalTags', 'athlete_group_internal')->label('Tags')->withOptions()->create(),

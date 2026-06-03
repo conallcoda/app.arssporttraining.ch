@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Data\Coach\Settings\AbstractCoachSetting;
 use App\Data\Coach\Settings\CalendarSidebarSetting;
 use App\Data\Coach\Settings\SessionGroupingSetting;
+use App\Data\Exercise\Preview\SessionGroupingConfig;
 use Coda\Cms\Livewire\Concerns\InteractsWithFormData;
 use Coda\FormKit\Form;
 use Flux\Flux;
@@ -82,7 +83,13 @@ class CoachSettings extends Component
 
         foreach (static::SETTINGS as $settingClass) {
             $key = $settingClass::fieldsetKey();
-            $user->config->set("settings.{$key}", $settingClass::from($this->data[$key] ?? [])->toArray());
+            $payload = $this->data[$key] ?? [];
+
+            if ($settingClass === SessionGroupingSetting::class) {
+                $payload = SessionGroupingConfig::normalizeFormData($payload);
+            }
+
+            $user->config->set("settings.{$key}", $settingClass::from($payload)->toArray());
         }
 
         $user->save();

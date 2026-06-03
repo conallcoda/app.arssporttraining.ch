@@ -3,8 +3,8 @@
 namespace App\Livewire\Database;
 
 use App\Data\Athlete\AthleteGroupData;
-use App\Form\Fields\CoachFilter;
-use App\Livewire\Concerns\ClearsCoachFilterOnTabSwitch;
+use App\Form\Fields\OwnerFilter;
+use App\Livewire\Concerns\ClearsOwnerFilterOnTabSwitch;
 use App\Livewire\Concerns\SwitchesToVisibleTabAfterCreate;
 use App\Models\Tag;
 use App\Models\Users\UserGroup;
@@ -23,7 +23,7 @@ use Illuminate\Contracts\Database\Eloquent\Builder;
 
 class AthleteGroupList extends AbstractModelList
 {
-    use ClearsCoachFilterOnTabSwitch;
+    use ClearsOwnerFilterOnTabSwitch;
     use SwitchesToVisibleTabAfterCreate;
 
     protected function urlPrefix(): string
@@ -62,10 +62,10 @@ class AthleteGroupList extends AbstractModelList
                 Id::make(),
                 Text::make('name')->label(__('Name'))->modal(),
                 Badge::make('coach')
-                    ->label(__('Coach'))
+                    ->label(__('Owner'))
                     ->source(fn (AthleteGroupData $data) => [
                         [
-                            'label' => $data->ownerName ?? __('Unassigned'),
+                            'label' => $data->ownerName ?? __('No owner'),
                             'color' => $data->ownerColor,
                             'modalField' => 'owner_id',
                         ],
@@ -112,10 +112,10 @@ class AthleteGroupList extends AbstractModelList
         ];
 
         if ($this->selectedTab === 'all') {
-            $filters[] = TableFilter::callback('coach', function (Builder $query, mixed $value): void {
+            $filters[] = TableFilter::callback('owner', function (Builder $query, mixed $value): void {
                 $query->whereIn('user_groups.owner_id', (array) $value);
             })
-                ->field(new CoachFilter('coach'));
+                ->field(new OwnerFilter('owner'));
         }
 
         return $filters;

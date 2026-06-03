@@ -150,7 +150,7 @@ class AthleteData extends AbstractData implements HasForms
                 Phone::make('phone'),
             ])
             ->fieldset('Admin', [
-                Owner::make('owner_id')->withOptions()->allowUnassigned(),
+                Owner::make('owner_id')->withOptions()->allowNoOwner(),
                 TextField::make('setupStatusLabel')->label('Setup Status')->disabled(),
             ])
             ->fieldset('Profile', [

@@ -9,8 +9,8 @@ use App\Form\Fields\Training\Program\ProgramName;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
 use App\Models\Exercise\ExerciseProgramTypeEnum;
-use App\Support\Training\ProgramExerciseOrder;
 use App\Support\Training\ExerciseProgramSelectorPreviewService;
+use App\Support\Training\ProgramExerciseOrder;
 use Carbon\Carbon;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Form\Fields\Tags;
@@ -167,7 +167,7 @@ class ExerciseProgramData extends AbstractData implements HasForms
     {
         return Form::make()
             ->fieldset('General', [
-                Owner::make('owner_id')->withOptions()->allowUnassigned(),
+                Owner::make('owner_id')->withOptions()->allowNoOwner(),
                 ProgramName::make('name'),
                 RadioSegmented::make('type')
                     ->label(__('Type'))

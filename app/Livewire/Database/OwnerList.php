@@ -2,8 +2,7 @@
 
 namespace App\Livewire\Database;
 
-use App\Data\Coach\CoachData;
-use App\Form\Fields\CoachOwnerFilter;
+use App\Data\Coach\OwnerData;
 use App\Models\Users\AccountSetupStatus;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
@@ -13,7 +12,6 @@ use Coda\Cms\Display\DisplayFields\Badge;
 use Coda\Cms\Display\DisplayFields\ColorBadge;
 use Coda\Cms\Display\DisplayFields\Id;
 use Coda\Cms\Display\DisplayFields\PersonName;
-use Coda\Cms\Display\IndexTab;
 use Coda\Cms\Display\Table;
 use Coda\Cms\Display\TableFilter;
 use Coda\Cms\Form\Forms\ChangePasswordForm;
@@ -26,43 +24,23 @@ use Flux\Flux;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Hash;
 
-class CoachList extends AbstractModelList
+class OwnerList extends AbstractModelList
 {
     protected function urlPrefix(): string
     {
-        return 'cl_';
+        return 'ol_';
     }
 
     protected function getDataClass(): string
     {
-        return CoachData::class;
-    }
-
-    protected function getTabs(): array
-    {
-        return [
-            IndexTab::make('mine', __('My Coaches'))
-                ->query(fn (Builder $query) => $query->where('owner_id', auth()->id())),
-            IndexTab::make('all', __('All Coaches'))
-                ->query(fn (Builder $query) => $query->whereNotNull('owner_id')),
-        ];
-    }
-
-    protected function getDefaultTabKey(): ?string
-    {
-        return (clone $this->getBaseQuery())
-            ->where('owner_id', auth()->id())
-            ->exists()
-                ? 'mine'
-                : 'all';
+        return OwnerData::class;
     }
 
     protected function getBaseQuery(): Builder
     {
         return User::query()
             ->where('type', UserTypeEnum::Coach)
-            ->whereNotNull('owner_id')
-            ->with('owner');
+            ->whereNull('owner_id');
     }
 
     protected function getExtraActions(): array
@@ -112,6 +90,7 @@ class CoachList extends AbstractModelList
     public function handleFormSubmitted(array $data): void
     {
         $data['name'] = trim(($data['forename'] ?? '').' '.($data['surname'] ?? ''));
+        $data['owner_id'] = null;
 
         parent::handleFormSubmitted($data);
     }
@@ -125,18 +104,9 @@ class CoachList extends AbstractModelList
                     ->label(__('Name'))
                     ->width('w-1/2')
                     ->modal(),
-                Badge::make('owner')
-                    ->label(__('Owner'))
-                    ->source(fn (CoachData $data) => [
-                        [
-                            'label' => $data->ownerName ?? __('No owner'),
-                            'color' => $data->ownerColor,
-                            'modalField' => 'owner_id',
-                        ],
-                    ]),
                 Badge::make('setupStatus')
                     ->label(__('Setup Status'))
-                    ->source(fn (CoachData $data) => $data->getSetupStatusBadge()),
+                    ->source(fn (OwnerData $data) => $data->getSetupStatusBadge()),
                 ColorBadge::make('color')
                     ->label(__('Color'))
                     ->colorLabels(ColorPalette::COLORS),
@@ -144,7 +114,7 @@ class CoachList extends AbstractModelList
             ])
             ->defaultSort('personName', 'asc')
             ->sortable(['id', 'personName', 'updatedAt'])
-            ->filters(array_filter([
+            ->filters([
                 TableFilter::callback('search', function (Builder $query, mixed $value): void {
                     $query->where(function (Builder $q) use ($value): void {
                         $q->where('forename', 'like', '%'.$value.'%')
@@ -154,12 +124,8 @@ class CoachList extends AbstractModelList
                     ->field(
                         TextField::make('search')
                             ->label(__('Search'))
-                            ->placeholder(__('Search coaches...'))
+                            ->placeholder(__('Search owners...'))
                     ),
-                $this->selectedTab === 'all' ? TableFilter::callback('owner', function (Builder $query, mixed $value): void {
-                    $query->whereIn('owner_id', (array) $value);
-                })
-                    ->field(new CoachOwnerFilter('owner')) : null,
                 TableFilter::callback('setup_status', function (Builder $query, mixed $value): void {
                     $query->forAccountSetupStatus((string) $value);
                 })
@@ -169,6 +135,6 @@ class CoachList extends AbstractModelList
                             ->placeholder(__('All setup statuses'))
                             ->options(AccountSetupStatus::options())
                     ),
-            ]));
+            ]);
     }
 }

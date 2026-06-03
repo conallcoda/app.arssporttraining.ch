@@ -13,15 +13,29 @@ class ExerciseMetricAvailability
         ?int $maxHR = null,
         ?int $iatPercent = null,
     ): bool {
+        return $this->missingRequiredMetricLabels($effectiveConfig, $weightProgression, $maxHR, $iatPercent) !== [];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function missingRequiredMetricLabels(
+        array $effectiveConfig,
+        ?WeightProgressionSetting $weightProgression = null,
+        ?int $maxHR = null,
+        ?int $iatPercent = null,
+    ): array {
+        $missing = [];
+
         if ($this->requiresAutomaticWeight($effectiveConfig) && ! $weightProgression?->isComplete()) {
-            return true;
+            $missing[] = '1RM';
         }
 
         if ($this->requiresAutomaticHeartRate($effectiveConfig) && ! $this->hasCompleteHeartRateMetric($maxHR, $iatPercent)) {
-            return true;
+            $missing[] = 'heart rate';
         }
 
-        return false;
+        return $missing;
     }
 
     public function requiresAutomaticWeight(array $effectiveConfig): bool

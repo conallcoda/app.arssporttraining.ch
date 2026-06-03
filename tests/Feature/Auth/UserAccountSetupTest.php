@@ -115,8 +115,9 @@ it('lets an athlete set a password from the setup link and logs them into the da
 it('sends a coach account setup email from the coach list', function () {
     Notification::fake();
 
-    $admin = User::factory()->admin()->create();
+    $admin = User::factory()->coach()->create(['owner_id' => null]);
     $coach = User::factory()->coach()->create([
+        'owner_id' => $admin->id,
         'email' => 'coach@example.com',
         'password' => null,
     ]);
@@ -143,8 +144,9 @@ it('sends a coach account setup email from the coach list', function () {
 it('resends a coach setup email and resets active setup state', function () {
     Notification::fake();
 
-    $admin = User::factory()->admin()->create();
+    $admin = User::factory()->coach()->create(['owner_id' => null]);
     $coach = User::factory()->coach()->create([
+        'owner_id' => $admin->id,
         'email' => 'coach@example.com',
         'account_setup_token_hash' => hash('sha256', 'old-token'),
         'account_setup_sent_at' => now()->subMonths(2),
@@ -170,8 +172,9 @@ it('resends a coach setup email and resets active setup state', function () {
 });
 
 it('renders coach row menu setup email as a direct action and uses the shared change password form', function () {
-    $admin = User::factory()->admin()->create();
+    $admin = User::factory()->coach()->create(['owner_id' => null]);
     $coach = User::factory()->coach()->create([
+        'owner_id' => $admin->id,
         'email' => 'coach@example.com',
         'password' => null,
     ]);
@@ -303,21 +306,24 @@ it('shows and filters setup status values in the athlete list', function () {
 });
 
 it('shows and filters setup status values in the coach list', function () {
-    $admin = User::factory()->admin()->create();
+    $admin = User::factory()->coach()->create(['owner_id' => null]);
 
     User::factory()->coach()->create([
+        'owner_id' => $admin->id,
         'forename' => 'Email',
         'surname' => 'Missing',
         'email' => null,
     ]);
 
     User::factory()->coach()->create([
+        'owner_id' => $admin->id,
         'forename' => 'Setup',
         'surname' => 'NotSent',
         'email' => 'not-sent-coach@example.com',
     ]);
 
     $sent = User::factory()->coach()->create([
+        'owner_id' => $admin->id,
         'forename' => 'Setup',
         'surname' => 'Sent',
         'email' => 'sent-coach@example.com',
@@ -325,6 +331,7 @@ it('shows and filters setup status values in the coach list', function () {
     $sent->issueAccountSetupToken();
 
     $expired = User::factory()->coach()->create([
+        'owner_id' => $admin->id,
         'forename' => 'Setup',
         'surname' => 'Expired',
         'email' => 'expired-coach@example.com',
@@ -335,6 +342,7 @@ it('shows and filters setup status values in the coach list', function () {
     ])->save();
 
     $active = User::factory()->coach()->create([
+        'owner_id' => $admin->id,
         'forename' => 'Active',
         'surname' => 'Coach',
         'email' => 'active-coach@example.com',

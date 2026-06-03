@@ -8,6 +8,10 @@ it('allows coaches to access admin routes', function () {
     $this->actingAs($coach)
         ->get('/admin/coaches')
         ->assertSuccessful();
+
+    $this->actingAs($coach)
+        ->get('/admin/owners')
+        ->assertSuccessful();
 });
 
 it('allows admins to access admin routes', function () {

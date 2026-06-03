@@ -10,7 +10,7 @@ use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
-it('renders automatic 1rm exercises as unavailable dashes for an athlete with no 1rm metric, including locked history', function () {
+it('hides automatic 1rm exercises for an athlete with no 1rm metric', function () {
     $athlete = User::factory()->athlete()->create();
 
     $exercise = Exercise::factory()->create([
@@ -52,14 +52,22 @@ it('renders automatic 1rm exercises as unavailable dashes for an athlete with no
     $weightRow = collect($grid->rows)->firstWhere('field', 'weight');
 
     expect($component->instance()->isUnavailableForMissingMetrics)->toBeTrue()
+        ->and($component->instance()->missingAthleteMetricLabels)->toBe(['1RM'])
         ->and($weightRow)->not->toBeNull()
         ->and($weightRow->getCellValue(0, 0, 0))->toBe('-')
         ->and($weightRow->getCellValue(1, 0, 0))->toBe('-')
         ->and($weightRow->editableMap[0][0] ?? null)->toBeFalse()
         ->and($weightRow->editableMap[1][0] ?? null)->toBeFalse();
+
+    $component
+        ->assertSee('Required metric missing')
+        ->assertSee('1RM')
+        ->assertDontSee('Set 1')
+        ->call('openSettingsForm')
+        ->assertNotDispatched('open-plan-exercise-settings');
 });
 
-it('renders automatic heart rate exercises as unavailable dashes for an athlete with no heart rate metric', function () {
+it('hides automatic heart rate exercises for an athlete with no heart rate metric', function () {
     $athlete = User::factory()->athlete()->create();
 
     $exercise = Exercise::factory()->create([
@@ -102,10 +110,18 @@ it('renders automatic heart rate exercises as unavailable dashes for an athlete 
     $zoneRow = collect($grid->rows)->firstWhere('field', 'heartRateZone');
 
     expect($component->instance()->isUnavailableForMissingMetrics)->toBeTrue()
+        ->and($component->instance()->missingAthleteMetricLabels)->toBe(['heart rate'])
         ->and($heartRateRow)->not->toBeNull()
         ->and($zoneRow)->not->toBeNull()
         ->and($heartRateRow->getCellValue(0, 0, 0))->toBe('-')
         ->and($heartRateRow->getCellValue(0, 0, 1))->toBe('-')
         ->and($zoneRow->getCellValue(0, 0, 0))->toBe('-')
         ->and($zoneRow->getCellValue(0, 0, 1))->toBe('-');
+
+    $component
+        ->assertSee('Required metric missing')
+        ->assertSee('heart rate')
+        ->assertDontSee('Set 1')
+        ->call('openSettingsForm')
+        ->assertNotDispatched('open-plan-exercise-settings');
 });

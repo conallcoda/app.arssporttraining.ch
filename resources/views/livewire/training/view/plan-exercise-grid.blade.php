@@ -17,6 +17,15 @@
             <div class="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-6 text-center">
                 <flux:text class="text-zinc-400">{{ __('Please add this program to a block with a target goal (%) for 1RM progression.') }}</flux:text>
             </div>
+        @elseif ($this->missingAthleteMeasurement)
+            <div class="py-8 text-center space-y-2">
+                <flux:heading size="sm">{{ __('Required metric missing') }}</flux:heading>
+                <flux:text class="text-zinc-400">
+                    {{ __('Please record the :metrics in order to plan this exercise.', [
+                        'metrics' => implode(' and ', $this->missingAthleteMetricLabels),
+                    ]) }}
+                </flux:text>
+            </div>
         @else
             <div wire:key="grid-content-{{ $exerciseId }}-{{ $valueDisplayMode }}-{{ $this->configFingerprint }}-{{ $gridRenderVersion }}">
                 <div class="flex items-start justify-between !-mt-2">

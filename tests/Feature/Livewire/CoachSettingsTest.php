@@ -67,6 +67,7 @@ it('normalizes none grouping to a group size of one when saving coach settings',
     Livewire::actingAs($coach)
         ->test(CoachSettings::class)
         ->set('data.'.SessionGroupingSetting::fieldsetKey().'.mode', SessionGroupingMode::None->value)
+        ->set('data.'.SessionGroupingSetting::fieldsetKey().'.groupSize', '')
         ->call('save')
         ->assertHasNoErrors();
 
@@ -75,6 +76,19 @@ it('normalizes none grouping to a group size of one when saving coach settings',
             'mode' => SessionGroupingMode::None->value,
             'groupSize' => 1,
             'copyValuesAutomatically' => false,
+        ]);
+});
+
+it('validates empty coach session grouping group size before hydration', function () {
+    $coach = User::factory()->coach()->create();
+
+    Livewire::actingAs($coach)
+        ->test(CoachSettings::class)
+        ->set('data.'.SessionGroupingSetting::fieldsetKey().'.mode', SessionGroupingMode::Groups->value)
+        ->set('data.'.SessionGroupingSetting::fieldsetKey().'.groupSize', '')
+        ->call('save')
+        ->assertHasErrors([
+            'data.'.SessionGroupingSetting::fieldsetKey().'.groupSize' => 'required',
         ]);
 });
 

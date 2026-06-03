@@ -12,8 +12,8 @@ class Owner extends SelectEntity
     {
         parent::__construct($name);
 
-        $this->label = 'Coach';
-        $this->placeholder = 'Defaults to current user';
+        $this->label = 'Owner';
+        $this->placeholder = 'Select owner...';
         $this->searchable = true;
         $this->clearable = true;
         $this->validationRules = 'nullable|integer|exists:users,id';
@@ -32,9 +32,9 @@ class Owner extends SelectEntity
         return $this;
     }
 
-    public function allowUnassigned(): static
+    public function allowNoOwner(): static
     {
-        $this->withExtraOption('Unassigned', 0);
+        $this->withExtraOption('No owner', 0);
 
         $this->validationRules = 'required|integer';
         $this->required = true;

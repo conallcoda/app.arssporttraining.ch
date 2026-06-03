@@ -141,7 +141,7 @@
                             @endif
                             @if ($showWeeksInput)
                                 <flux:field>
-                                    <flux:label>{{ __('Planned Weeks') }}</flux:label>
+                                    <flux:label>{{ __('Preview Weeks') }}</flux:label>
                                     <flux:input wire:model.live="weeks" type="number" min="1" max="52" step="1" />
                                 </flux:field>
                             @endif
@@ -259,7 +259,7 @@
                         @endif
                         @if ($showWeeksInput)
                             <flux:field>
-                                <flux:label>{{ __('Planned Weeks') }}</flux:label>
+                                <flux:label>{{ __('Preview Weeks') }}</flux:label>
                                 <flux:input wire:model.live="weeks" type="number" min="1" max="52" step="1" />
                             </flux:field>
                         @endif

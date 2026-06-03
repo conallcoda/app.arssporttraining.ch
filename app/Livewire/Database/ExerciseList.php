@@ -4,8 +4,8 @@ namespace App\Livewire\Database;
 
 use App\Data\Exercise\ExerciseData;
 use App\Form\Fields\Category as CategoryField;
-use App\Form\Fields\CoachFilter;
-use App\Livewire\Concerns\ClearsCoachFilterOnTabSwitch;
+use App\Form\Fields\OwnerFilter;
+use App\Livewire\Concerns\ClearsOwnerFilterOnTabSwitch;
 use App\Livewire\Concerns\SwitchesToVisibleTabAfterCreate;
 use App\Models\Exercise\Exercise;
 use App\Models\Tag;
@@ -26,7 +26,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ExerciseList extends AbstractModelList
 {
-    use ClearsCoachFilterOnTabSwitch;
+    use ClearsOwnerFilterOnTabSwitch;
     use SwitchesToVisibleTabAfterCreate;
 
     protected function urlPrefix(): string
@@ -93,10 +93,10 @@ class ExerciseList extends AbstractModelList
                         '',
                     ),
                 Badge::make('coach')
-                    ->label(__('Coach'))
+                    ->label(__('Owner'))
                     ->source(fn (ExerciseData $data) => [
                         [
-                            'label' => $data->ownerName ?? __('Unassigned'),
+                            'label' => $data->ownerName ?? __('No owner'),
                             'color' => $data->ownerColor,
                             'modalField' => 'owner_id',
                         ],
@@ -197,10 +197,10 @@ class ExerciseList extends AbstractModelList
         ];
 
         if ($this->selectedTab === 'all') {
-            $filters[] = TableFilter::callback('coach', function (Builder $query, mixed $value): void {
+            $filters[] = TableFilter::callback('owner', function (Builder $query, mixed $value): void {
                 $query->whereIn('exercises.owner_id', (array) $value);
             })
-                ->field(new CoachFilter('coach'));
+                ->field(new OwnerFilter('owner'));
         }
 
         return $filters;

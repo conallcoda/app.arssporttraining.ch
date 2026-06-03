@@ -455,22 +455,28 @@ class PlanExerciseGrid extends Component
             return false;
         }
 
-        return $this->isUnavailableForMissingMetrics;
+        return $this->missingAthleteMetricLabels !== [];
     }
 
     #[Computed]
-    public function isUnavailableForMissingMetrics(): bool
+    public function missingAthleteMetricLabels(): array
     {
         if ($this->userId === null) {
-            return false;
+            return [];
         }
 
-        return app(ExerciseMetricAvailability::class)->missingRequiredMetrics(
+        return app(ExerciseMetricAvailability::class)->missingRequiredMetricLabels(
             effectiveConfig: $this->getEffectiveConfig(),
             weightProgression: $this->getPlanMeasuredData(),
             maxHR: $this->planMaxHR,
             iatPercent: $this->planIatPercent,
         );
+    }
+
+    #[Computed]
+    public function isUnavailableForMissingMetrics(): bool
+    {
+        return $this->missingAthleteMeasurement;
     }
 
     /** @return array{label: string, color: string|null, overridden: bool} */
@@ -1709,6 +1715,10 @@ class PlanExerciseGrid extends Component
 
     public function updateSessionOverride(int $weekIndex, int $session, string $field, mixed $value, bool $applyToAll = false): void
     {
+        if ($this->missingAthleteMeasurement) {
+            return;
+        }
+
         if (! $this->isValidPlanningValue($field, $value)) {
             return;
         }
@@ -1867,6 +1877,10 @@ class PlanExerciseGrid extends Component
 
     public function openSettingsForm(?string $focusField = null): void
     {
+        if ($this->missingAthleteMeasurement) {
+            return;
+        }
+
         $effectiveConfig = $this->getEffectiveConfig();
 
         $this->dispatch('open-plan-exercise-settings', data: [
@@ -1919,6 +1933,10 @@ class PlanExerciseGrid extends Component
         }
 
         if (($data['userId'] ?? null) !== $this->userId) {
+            return;
+        }
+
+        if ($this->missingAthleteMeasurement) {
             return;
         }
 

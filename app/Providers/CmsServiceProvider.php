@@ -39,6 +39,7 @@ class CmsServiceProvider extends ServiceProvider
 
         $registry->setNavigation([
             SidebarGroup::make('database', 'Database')->icon('database')->items([
+                SidebarItem::make('Owners', 'owner-index')->icon('user-key'),
                 SidebarItem::make('Coaches', 'coach-index')->icon('user-key'),
                 SidebarItem::make('Athletes', 'athlete-index')->icon('user'),
                 SidebarItem::make('Groups', 'athlete-group-index')->icon('users'),

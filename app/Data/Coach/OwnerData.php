@@ -7,7 +7,6 @@ use App\Form\Fields\Coach\Email;
 use App\Form\Fields\Coach\Forename;
 use App\Form\Fields\Coach\Phone;
 use App\Form\Fields\Coach\Surname;
-use App\Form\Fields\CoachOwner;
 use App\Models\Users\User;
 use App\Models\Users\UserTypeEnum;
 use Carbon\Carbon;
@@ -16,7 +15,7 @@ use Coda\FormKit\Concerns\InteractsWithForms;
 use Coda\FormKit\Contracts\HasForms;
 use Coda\FormKit\Form;
 
-class CoachData extends AbstractData implements HasForms
+class OwnerData extends AbstractData implements HasForms
 {
     use InteractsWithForms;
 
@@ -27,9 +26,6 @@ class CoachData extends AbstractData implements HasForms
         public ?string $email = null,
         public ?string $phone = null,
         public ?string $color = null,
-        public ?int $owner_id = null,
-        public ?string $ownerName = null,
-        public ?string $ownerColor = null,
         public ?Carbon $updatedAt = null,
         public string $personName = '',
         public string $setupStatus = '',
@@ -53,9 +49,6 @@ class CoachData extends AbstractData implements HasForms
             email: $user->email,
             phone: $user->phone,
             color: $user->color,
-            owner_id: $user->owner_id,
-            ownerName: $user->relationLoaded('owner') ? $user->owner?->name : null,
-            ownerColor: $user->relationLoaded('owner') ? $user->owner?->color : null,
             updatedAt: $user->updated_at,
             personName: trim(($user->surname ?? '').', '.($user->forename ?? ''), ', '),
             setupStatus: $setupStatus->value,
@@ -76,7 +69,7 @@ class CoachData extends AbstractData implements HasForms
                 'email' => $this->email,
                 'phone' => $this->phone,
                 'color' => $this->color,
-                'owner_id' => $this->owner_id ?? auth()->id(),
+                'owner_id' => 0,
                 'type' => UserTypeEnum::Coach,
                 'config' => [],
             ]
@@ -102,7 +95,6 @@ class CoachData extends AbstractData implements HasForms
     {
         return Form::make()
             ->fieldset('General', [
-                CoachOwner::make('owner_id')->withOptions(),
                 Forename::make('forename'),
                 Surname::make('surname'),
                 Email::make('email'),
