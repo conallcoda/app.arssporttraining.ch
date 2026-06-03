@@ -824,9 +824,7 @@ class ProgramEditor extends Component
 
     protected function importSourceSection(ExerciseProgram $sourceProgram): string
     {
-        return $sourceProgram->type === ExerciseProgramTypeEnum::Program
-            ? $this->activeSection
-            : 'main';
+        return 'main';
     }
 
     protected function exerciseSelectorImportProgramType(string $fieldName): ExerciseProgramTypeEnum

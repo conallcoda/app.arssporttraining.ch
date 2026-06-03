@@ -169,9 +169,7 @@ trait InteractsWithExerciseSelectorPrograms
 
     protected function exerciseSelectorSourceSection(ExerciseProgram $sourceProgram, string $fieldName): string
     {
-        return $this->normalizeExerciseSelectorProgramType($sourceProgram->type) === ExerciseProgramTypeEnum::Program
-            ? $this->exerciseSelectorTargetSection($fieldName)
-            : 'main';
+        return 'main';
     }
 
     protected function exerciseSelectorSourceRows(ExerciseProgram $sourceProgram, string $fieldName)

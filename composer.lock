@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b64649e41eacf3b727eadec6b22909c5",
+    "content-hash": "e380943bea5704cea4f3038054f733eb",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -273,11 +273,11 @@
         },
         {
             "name": "coda/cms",
-            "version": "dev-manual-2",
+            "version": "dev-main",
             "dist": {
                 "type": "path",
-                "url": "packages/cms",
-                "reference": "c56dc715f37ee389056a05a30191c0823953a035"
+                "url": "/Users/conalloreilly/Development/coda-packages/cms",
+                "reference": "a63b4ec7048a0fdc766fc607800e7da2d5768cc5"
             },
             "require": {
                 "coda/expression-kit": "*",
@@ -318,17 +318,17 @@
             },
             "description": "Generic CMS framework for Laravel Livewire applications",
             "transport-options": {
-                "symlink": false,
-                "relative": true
+                "symlink": true,
+                "relative": false
             }
         },
         {
             "name": "coda/expression-kit",
-            "version": "dev-manual-2",
+            "version": "dev-main",
             "dist": {
                 "type": "path",
-                "url": "packages/expression-kit",
-                "reference": "430d4c69fe966e113cf71a9b7793478c60c7196c"
+                "url": "/Users/conalloreilly/Development/coda-packages/expression-kit",
+                "reference": "6463d0aadc9037b3efcb7701acea225fffd16c74"
             },
             "require": {
                 "illuminate/database": "^11.0 || ^12.0 || ^13.0",
@@ -343,17 +343,17 @@
             },
             "description": "Shared expression parsing and execution helpers for Coda packages",
             "transport-options": {
-                "symlink": false,
-                "relative": true
+                "symlink": true,
+                "relative": false
             }
         },
         {
             "name": "coda/form-kit",
-            "version": "dev-manual-2",
+            "version": "dev-main",
             "dist": {
                 "type": "path",
-                "url": "packages/form-kit",
-                "reference": "0b9793fcc0e404b355e10389b93338275f452801"
+                "url": "/Users/conalloreilly/Development/coda-packages/form-kit",
+                "reference": "246102107745848ad980e2936e8eb965d0284021"
             },
             "require": {
                 "coda/expression-kit": "*",
@@ -383,17 +383,17 @@
             },
             "description": "Framework-agnostic form field definitions with FluxUI rendering",
             "transport-options": {
-                "symlink": false,
-                "relative": true
+                "symlink": true,
+                "relative": false
             }
         },
         {
             "name": "coda/schema-kit",
-            "version": "dev-manual-2",
+            "version": "dev-main",
             "dist": {
                 "type": "path",
-                "url": "packages/schema-kit",
-                "reference": "f48de26633a33d7bc97398d28bd992649f000152"
+                "url": "/Users/conalloreilly/Development/coda-packages/schema-kit",
+                "reference": "1838351d23288e13784f545bd73e09fa04bc2e0b"
             },
             "require": {
                 "illuminate/database": "^12.0 || ^13.0",
@@ -420,8 +420,8 @@
             },
             "description": "Shared schema definitions for entities, facets, views, and identity metadata",
             "transport-options": {
-                "symlink": false,
-                "relative": true
+                "symlink": true,
+                "relative": false
             }
         },
         {

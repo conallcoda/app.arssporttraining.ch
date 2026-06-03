@@ -6,6 +6,7 @@ use App\Data\Training\Config\ExerciseOverrides;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
+use App\Models\Exercise\ExerciseProgramTypeEnum;
 use App\Models\Tag;
 use App\Models\Users\User;
 use App\Training\TrainingSessionRebuildDispatcher;
@@ -352,6 +353,37 @@ it('switches to the selected tab after importing exercises from a program in the
 
     expect($response['activeListKey'] ?? null)->toBe('selected')
         ->and($response['selectedItems'] ?? [])->toHaveCount(1);
+});
+
+it('imports main source exercises into the active warm-up section from the selector', function () {
+    $targetProgram = ExerciseProgram::factory()->create();
+    $sourceProgram = ExerciseProgram::factory()->create([
+        'type' => ExerciseProgramTypeEnum::Program,
+    ]);
+    $exercise = Exercise::factory()->create();
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $sourceProgram->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::test(ProgramEditor::class, [
+        'exerciseProgram' => $targetProgram,
+        'planId' => $targetProgram->id,
+    ])->set('activeSection', 'warm_up');
+
+    $response = $component->instance()->importExercisesFromProgramSelector(
+        'section_exercises',
+        'programs',
+        ['key' => $sourceProgram->id],
+        [],
+    );
+
+    expect($response['activeListKey'] ?? null)->toBe('selected')
+        ->and($response['selectedItems'] ?? [])->toHaveCount(1)
+        ->and(data_get($response, 'selectedItems.0.item.id'))->toBe($exercise->id);
 });
 
 it('does not move exercises across group boundaries in the program editor', function () {
