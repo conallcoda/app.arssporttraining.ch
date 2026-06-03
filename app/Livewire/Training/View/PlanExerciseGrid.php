@@ -1708,7 +1708,7 @@ class PlanExerciseGrid extends Component
             );
         }
 
-        $this->saveOverrides($overrides);
+        $this->saveOverrides($overrides, notifyParent: false);
         $this->bumpGridRenderVersion();
         unset($this->configFingerprint, $this->previewGrid, $this->displayGrid, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions);
     }
@@ -1765,7 +1765,7 @@ class PlanExerciseGrid extends Component
             );
         }
 
-        $this->saveOverrides($overrides);
+        $this->saveOverrides($overrides, notifyParent: false);
         $this->bumpGridRenderVersion();
         unset($this->configFingerprint, $this->previewGrid, $this->displayGrid, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions);
     }
@@ -2015,7 +2015,7 @@ class PlanExerciseGrid extends Component
         ]);
     }
 
-    protected function saveOverrides(ExerciseOverrides $overrides): void
+    protected function saveOverrides(ExerciseOverrides $overrides, bool $notifyParent = true): void
     {
         $this->snapshotLockedWeeks($overrides, $this->previewGrid);
 
@@ -2059,7 +2059,9 @@ class PlanExerciseGrid extends Component
         $this->planConfigArray = $config->toArray();
         unset($this->planConfig, $this->resolvedExerciseOverrides);
 
-        $this->dispatch('exercise-overrides-changed');
+        if ($notifyParent) {
+            $this->dispatch('exercise-overrides-changed');
+        }
     }
 
     /** @return array<string, array<string, mixed>> */

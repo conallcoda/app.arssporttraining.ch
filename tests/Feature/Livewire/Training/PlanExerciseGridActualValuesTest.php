@@ -7,8 +7,6 @@ use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
-use App\Models\Training\TrainingProgramSlotExerciseStatusEnum;
-use App\Models\Training\TrainingProgramSlotSetStatusEnum;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use App\Support\Athlete\ProgramDetailsExerciseViewBuilder;
@@ -84,10 +82,12 @@ it('persists planned override removal when a planned value returns to default', 
 
     expect(gridRenderVersion($component))->toBe(1)
         ->and(plannedCellValue($component, 'weight', 0, 0))->toEqual(66);
+    $component->assertNotDispatched('exercise-overrides-changed');
 
     $component->call('updateCellOverride', 0, 0, 'weight', 5, 0, false);
 
     expect(gridRenderVersion($component))->toBe(2);
+    $component->assertNotDispatched('exercise-overrides-changed');
 
     $scheduledProgram->refresh();
     $savedOverrides = $scheduledProgram->config->exerciseOverrides($pivot->id, $athlete->id);
@@ -486,7 +486,8 @@ function buildScheduledProgramContext(array $exerciseConfig = [
     'settings' => ['reps'],
     'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
     'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
-]): array {
+]): array
+{
     $athlete = User::factory()->create();
     $group = UserGroup::create(['name' => 'Team Alpha']);
     $exercise = Exercise::factory()->create([
