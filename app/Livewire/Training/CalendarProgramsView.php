@@ -365,7 +365,7 @@ class CalendarProgramsView extends Component
                 Carbon::parse($rangeEnd)->endOfDay(),
             ])
             ->distinct()
-            ->orderBy('datetime');
+            ->orderBy('slot_date');
 
         if ($this->userId !== null) {
             $query->where('user_id', $this->userId);
