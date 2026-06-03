@@ -1,6 +1,7 @@
 <div class="space-y-6">
     @php
         $showActualDisplayToggle = $showActualValueTabs && $userId !== null;
+        $effectiveValueDisplayMode = $showActualDisplayToggle ? $valueDisplayMode : 'planned';
         $showSettingsSection = $showWeeksInput || $showActualDisplayToggle;
         $stackSidebar = $gridLayout === 'stacked' && ($this->showAthleteContext || $showSettingsSection);
     @endphp
@@ -270,11 +271,11 @@
     </div>
 
     @if ($this->exercises->isNotEmpty())
-        <div class="grid grid-cols-1 gap-4" wire:key="grids-{{ $this->activeSection }}-{{ $valueDisplayMode }}-{{ $gridRenderVersion }}-{{ $this->exercises->pluck('pivot.id')->implode('-') }}">
+        <div class="grid grid-cols-1 gap-4" wire:key="grids-{{ $this->activeSection }}-{{ $effectiveValueDisplayMode }}-{{ $gridRenderVersion }}-{{ $this->exercises->pluck('pivot.id')->implode('-') }}">
             @foreach ($this->exercises as $exercise)
-                <div wire:key="grid-{{ $exercise->pivot->id }}-{{ $userId ?? 'default' }}-{{ $valueDisplayMode }}-{{ $gridRenderVersion }}" class="min-w-0">
+                <div wire:key="grid-{{ $exercise->pivot->id }}-{{ $effectiveValueDisplayMode }}-{{ $gridRenderVersion }}" class="min-w-0">
                     <livewire:training.view.plan-exercise-grid
-                        :key="'grid-' . $exercise->pivot->id . '-' . $weeks . '-' . ($userId ?? 'default') . '-' . $valueDisplayMode . '-' . $gridRenderVersion"
+                        :key="'grid-' . $exercise->pivot->id . '-' . $weeks . '-' . $effectiveValueDisplayMode . '-' . $gridRenderVersion"
                         :planId="$planId"
                         :scheduledTrainingProgramId="$scheduledTrainingProgramId"
                         :planConfigArray="$this->planConfigArray"
@@ -297,7 +298,7 @@
                         :lockedSessionsByWeek="$lockedSessionsByWeek"
                         :sessionLabels="$sessionLabels"
                         :showActualValueTabs="$showActualValueTabs"
-                        :valueDisplayMode="$valueDisplayMode"
+                        :valueDisplayMode="$effectiveValueDisplayMode"
                         :planMeasuredReps="$planMeasuredReps"
                         :planMeasuredWeight="$planMeasuredWeight"
                         :planTargetGoal="$planTargetGoal"

@@ -8,6 +8,7 @@ use SplFileObject;
 class SummarizePlanGridProfileCommand extends Command
 {
     protected $signature = 'logs:plan-grid-profile
+        {path? : Profile log path. Defaults to storage/logs/plan-grid-profile.log}
         {--path= : Profile log path. Defaults to storage/logs/plan-grid-profile.log}
         {--request=latest : Request id, request id prefix, latest, or latest-livewire}
         {--list : List requests instead of showing one request in detail}
@@ -21,7 +22,11 @@ class SummarizePlanGridProfileCommand extends Command
 
     public function handle(): int
     {
-        $path = $this->resolvePath($this->option('path') ?: storage_path('logs/plan-grid-profile.log'));
+        $path = $this->resolvePath(
+            $this->option('path')
+                ?: $this->argument('path')
+                ?: storage_path('logs/plan-grid-profile.log')
+        );
         $top = max(1, (int) $this->option('top'));
 
         if (! is_file($path)) {
@@ -153,7 +158,9 @@ class SummarizePlanGridProfileCommand extends Command
         if ($selector === 'latest-livewire') {
             $livewire = array_values(array_filter(
                 $requests,
-                fn (array $request): bool => (bool) data_get($request, 'request.livewire', false),
+                fn (array $request): bool => (bool) data_get($request, 'request.livewire', false)
+                    || str_contains((string) data_get($request, 'request.path', ''), 'livewire')
+                    || str_contains((string) data_get($request, 'request.path', ''), 'update'),
             ));
             usort($livewire, fn (array $a, array $b): int => strcmp((string) $b['last_ts'], (string) $a['last_ts']));
 

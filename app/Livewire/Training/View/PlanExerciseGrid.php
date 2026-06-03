@@ -47,7 +47,6 @@ use Carbon\Carbon;
 use Coda\Cms\Livewire\Concerns\InteractsWithParentView;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Schema;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Reactive;
@@ -68,6 +67,7 @@ class PlanExerciseGrid extends Component
 
     public int $exerciseId;
 
+    #[Reactive]
     public ?int $userId = null;
 
     public int $weeks;
@@ -114,8 +114,6 @@ class PlanExerciseGrid extends Component
     protected ?array $loadedScheduledSlotsByDate = null;
 
     protected ?array $loadedScheduledSnapshotsByDate = null;
-
-    protected static ?bool $mediaTableExists = null;
 
     public static function flushScheduledDataCaches(): void
     {
@@ -2846,19 +2844,10 @@ class PlanExerciseGrid extends Component
             return $this->loadedScheduledSlotsByDate = $slotsCache[$cacheKey];
         }
 
-        $slotRelations = [
-            'trainingProgram.program.exercises',
-            'exercises.exercise.equipment',
-            'exercises.exercise.modifiers',
-            'exercises.sets.values',
-        ];
-
-        if ($this->mediaTableExists()) {
-            $slotRelations[] = 'exercises.exercise.media';
-        }
-
         $slots = TrainingProgramSlot::query()
-            ->with($slotRelations)
+            ->with([
+                'exercises.sets.values',
+            ])
             ->where('training_program_id', $this->scheduledTrainingProgramId)
             ->where('user_id', $this->userId)
             ->whereBetween('datetime', [$start, $end])
@@ -2903,7 +2892,7 @@ class PlanExerciseGrid extends Component
 
         $snapshots = collect($this->resolveScheduledSlotsByDate())
             ->mapWithKeys(fn (TrainingProgramSlot $slot, string $date): array => [
-                $date => app(ScheduledSessionSnapshotBuilder::class)->build($slot),
+                $date => app(ScheduledSessionSnapshotBuilder::class)->buildPlanGrid($slot),
             ])
             ->all();
 
@@ -2952,11 +2941,6 @@ class PlanExerciseGrid extends Component
         }
 
         return app(self::SCHEDULED_DATA_CACHE_KEY);
-    }
-
-    private function mediaTableExists(): bool
-    {
-        return self::$mediaTableExists ??= Schema::hasTable('media');
     }
 
     protected function persistGridOverridesFromCopy(array $gridOverrides): void

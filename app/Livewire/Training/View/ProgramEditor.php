@@ -24,6 +24,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
+use Livewire\Attributes\Reactive;
 use Livewire\Component;
 
 class ProgramEditor extends Component
@@ -71,24 +72,33 @@ class ProgramEditor extends Component
 
     public int $planId;
 
+    #[Reactive]
     public ?int $userId = null;
 
     public ?int $scheduledTrainingProgramId = null;
 
+    #[Reactive]
     public ?int $planMeasuredReps = null;
 
+    #[Reactive]
     public ?float $planMeasuredWeight = null;
 
+    #[Reactive]
     public int|float|null $planTargetGoal = 10;
 
+    #[Reactive]
     public ?int $planMaxHR = null;
 
+    #[Reactive]
     public ?int $planIatPercent = null;
 
+    #[Reactive]
     public ?string $planBlockGoalLabel = null;
 
+    #[Reactive]
     public ?string $plan1rmLabel = null;
 
+    #[Reactive]
     public ?string $planHeartRateLabel = null;
 
     public bool $hasAutoWeightExercises = false;
@@ -97,6 +107,7 @@ class ProgramEditor extends Component
 
     public bool $planHasBlock = false;
 
+    #[Reactive]
     public array $planGroupMemberMetrics = [];
 
     public array $data = [];

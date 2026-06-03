@@ -10,6 +10,7 @@ use App\Models\Exercise\Exercise;
 use App\Models\Training\TrainingProgramSlotExerciseStatusEnum;
 use App\Support\Athlete\Concerns\FormatsProgramDetailsExerciseValues;
 use Coda\Cms\Support\ColorPalette;
+use Illuminate\Support\Facades\Schema;
 
 class PlannedProgramDetailsExerciseViewBuilder
 {
@@ -94,7 +95,9 @@ class PlannedProgramDetailsExerciseViewBuilder
             instructions: $exercise->instructions,
             bilateralRepsHint: $bilateralRepsHint,
             videoUrl: $exercise->video_url,
-            photoUrls: $exercise->getMedia('photos')->map(fn ($media) => $media->getUrl())->values()->all(),
+            photoUrls: Schema::hasTable('media')
+                ? $exercise->getMedia('photos')->map(fn ($media) => $media->getUrl())->values()->all()
+                : [],
             setLabel: $exercise->config->sets->label ?? 'Set',
             setCount: count($plannedExercise->sets),
             sessionRows: $sessionRows,

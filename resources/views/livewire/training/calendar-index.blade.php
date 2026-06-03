@@ -132,7 +132,7 @@
                             @if ($this->planScheduleInfo['scheduled'])
                                 <div class="py-4">
                                     <livewire:training.view.program-editor
-                                        :key="'plan-editor-' . $this->planSelectedProgram->id . '-' . $this->planScheduleInfo['weeks'] . '-' . ($user !== '' ? $user : 'group') . '-' . $planBlock . '-' . $this->planBlockGoal . '-' . md5(json_encode($this->planMeasuredData)) . '-' . md5(json_encode($this->planHeartRateData)) . '-' . ($user === '' ? md5(json_encode($this->planGroupMemberMetrics)) : '')"
+                                        :key="'plan-editor-' . $this->planSelectedProgram->id . '-' . $this->planScheduleInfo['weeks'] . '-' . $planBlock"
                                         :exerciseProgram="$this->planSelectedProgram->program"
                                         :planId="$this->planSelectedProgram->program->id"
                                         :scheduledTrainingProgramId="$this->planSelectedProgram->id"

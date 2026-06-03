@@ -14,7 +14,8 @@ use Illuminate\Support\Facades\Schema;
 
 class ScheduledSessionSnapshotBuilder
 {
-    private static ?bool $mediaTableExists = null;
+    /** @var array<string, bool> */
+    private static array $mediaTableExists = [];
 
     public function __construct(
         private readonly ProgramExerciseOrder $programExerciseOrder,
@@ -44,6 +45,23 @@ class ScheduledSessionSnapshotBuilder
                 ->sortSlotExercises($slot->exercises)
                 ->values()
                 ->map(fn (TrainingProgramSlotExercise $exercise): ScheduledExerciseSnapshotData => $this->buildExercise($exercise))
+                ->all(),
+        );
+    }
+
+    public function buildPlanGrid(TrainingProgramSlot $slot): ScheduledSessionSnapshotData
+    {
+        $slot->loadMissing([
+            'exercises.sets.values',
+        ]);
+
+        return new ScheduledSessionSnapshotData(
+            slotId: (int) $slot->id,
+            scheduledDate: ($slot->scheduled_date ?? $slot->datetime)->format('Y-m-d'),
+            exercises: $this->programExerciseOrder
+                ->sortSlotExercises($slot->exercises)
+                ->values()
+                ->map(fn (TrainingProgramSlotExercise $exercise): ScheduledExerciseSnapshotData => $this->buildPlanGridExercise($exercise))
                 ->all(),
         );
     }
@@ -82,6 +100,30 @@ class ScheduledSessionSnapshotBuilder
             photoUrls: $photoUrls,
             setLabel: (string) ($effectiveConfig['sets']['label'] ?? $exercise?->config->sets->label ?? 'Set'),
             settingConfigs: $this->extractSettingConfigs($effectiveConfig),
+            sets: $slotExercise->sets
+                ->sortBy('set_number')
+                ->values()
+                ->map(fn (TrainingProgramSlotSet $set): ScheduledSetSnapshotData => $this->buildSet($set))
+                ->all(),
+            status: $slotExercise->status,
+            statusLabel: $slotExercise->status->label(),
+            statusColor: $slotExercise->status->barColor(),
+        );
+    }
+
+    public function buildPlanGridExercise(TrainingProgramSlotExercise $slotExercise): ScheduledExerciseSnapshotData
+    {
+        $slotExercise->loadMissing([
+            'sets.values',
+        ]);
+
+        return new ScheduledExerciseSnapshotData(
+            slotExerciseId: (int) $slotExercise->id,
+            exerciseId: (int) $slotExercise->exercise_id,
+            sort: (int) $slotExercise->sort,
+            group: $slotExercise->group,
+            type: (string) ($slotExercise->type ?? 'main'),
+            name: '',
             sets: $slotExercise->sets
                 ->sortBy('set_number')
                 ->values()
@@ -175,6 +217,8 @@ class ScheduledSessionSnapshotBuilder
 
     private function mediaTableExists(): bool
     {
-        return self::$mediaTableExists ??= Schema::hasTable('media');
+        $connection = Schema::getConnection()->getName();
+
+        return self::$mediaTableExists[$connection] ??= Schema::hasTable('media');
     }
 }

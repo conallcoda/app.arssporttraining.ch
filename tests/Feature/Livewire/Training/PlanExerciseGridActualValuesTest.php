@@ -397,11 +397,21 @@ it('loads scheduled actual snapshots for multiple sessions without per-session q
 
     $queries = DB::getQueryLog();
     DB::disableQueryLog();
+    $snapshotOverfetchQueries = collect($queries)
+        ->filter(function (array $query): bool {
+            $sql = $query['query'] ?? '';
+
+            return str_contains($sql, 'media')
+                || str_contains($sql, 'taggables')
+                || str_contains($sql, 'tags');
+        })
+        ->all();
 
     expect($slotExercises[0] ?? [])->toHaveCount(2)
         ->and($slotExercises[1] ?? [])->toHaveCount(2)
         ->and($snapshotExercises[0] ?? [])->toHaveCount(2)
         ->and($snapshotExercises[1] ?? [])->toHaveCount(2)
+        ->and($snapshotOverfetchQueries)->toBeEmpty()
         ->and(count($queries))->toBeLessThanOrEqual(12);
 });
 

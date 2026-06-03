@@ -16,9 +16,12 @@ use App\Support\AthleteDashboardDate;
 use App\Training\ExerciseGroupLabeler;
 use App\Training\Planning\PlanCompiler;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Schema;
 
 class ProgramPreviewBuilder
 {
+    private const SECTION_ORDER = ['warm_up', 'main', 'warm_down'];
+
     public function __construct(
         private readonly PlanCompiler $planCompiler,
         private readonly PlannedProgramDetailsExerciseViewBuilder $exerciseViewBuilder,
@@ -62,13 +65,18 @@ class ProgramPreviewBuilder
         ?int $planMaxHR = null,
         ?int $planIatPercent = null,
     ): array {
-        $exerciseProgram->loadMissing([
+        $exerciseRelations = [
             'exerciseCategory',
             'exercises' => fn ($query) => $query->orderByPivot('type')->orderByPivot('sort')->orderByPivot('id'),
             'exercises.equipment',
             'exercises.modifiers',
-            'exercises.media',
-        ]);
+        ];
+
+        if (Schema::hasTable('media')) {
+            $exerciseRelations[] = 'exercises.media';
+        }
+
+        $exerciseProgram->loadMissing($exerciseRelations);
 
         $programConfig = $exerciseProgram->config;
         $resolvedWeeks = max($weeks, 1);
