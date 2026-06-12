@@ -15,6 +15,7 @@
     'sessionLabels' => false,
     'copyMenuOptions' => [],
     'previewMenuOptions' => [],
+    'resetMenuOptions' => [],
     'showPreview' => false,
     'showActualValues' => false,
     'valueDisplayMode' => 'planned',
@@ -44,6 +45,7 @@
         $hasPreviewActions = $showPreview && collect($previewMenuOptions)->contains(
             fn ($options): bool => ! empty($options ?? [])
         );
+        $canResetBucket = fn (string $key): bool => $resetMenuOptions === [] || (bool) ($resetMenuOptions[$key] ?? false);
         $showCopyColumn = ! $splitActualColumns && (bool) ($grid->showCopyMenu ?? false) && ($hasCopyActions || $hasPreviewActions);
         $baseRows = $splitActualColumns
             ? array_values(array_filter(
@@ -395,10 +397,12 @@
                                                                 'previewSessions' => $previewMenuOptions[$collapsedCopyKey] ?? [],
                                                             ])
                                                         @endif
-                                                        <flux:menu.separator />
-                                                        <flux:menu.item icon="rotate-ccw" wire:click="resetDisplayBucket('{{ $collapsedCopyKey }}')">
-                                                            {{ __('Reset') }}
-                                                        </flux:menu.item>
+                                                        @if ($canResetBucket($collapsedCopyKey))
+                                                            <flux:menu.separator />
+                                                            <flux:menu.item icon="rotate-ccw" wire:click="resetDisplayBucket('{{ $collapsedCopyKey }}')">
+                                                                {{ __('Reset') }}
+                                                            </flux:menu.item>
+                                                        @endif
                                                     </flux:menu>
                                                 </flux:dropdown>
                                             @endif
@@ -643,10 +647,12 @@
                                                                         'previewSessions' => $previewMenuOptions[$collapsedCopyKey] ?? [],
                                                                     ])
                                                                 @endif
-                                                                <flux:menu.separator />
-                                                                <flux:menu.item icon="rotate-ccw" wire:click="resetDisplayBucket('{{ $collapsedCopyKey }}')">
-                                                                    {{ __('Reset') }}
-                                                                </flux:menu.item>
+                                                                @if ($canResetBucket($collapsedCopyKey))
+                                                                    <flux:menu.separator />
+                                                                    <flux:menu.item icon="rotate-ccw" wire:click="resetDisplayBucket('{{ $collapsedCopyKey }}')">
+                                                                        {{ __('Reset') }}
+                                                                    </flux:menu.item>
+                                                                @endif
                                                             </flux:menu>
                                                         </flux:dropdown>
                                                     @endif
@@ -826,10 +832,12 @@
                                                                 'previewSessions' => $previewMenuOptions[$sessionCopyKey] ?? [],
                                                             ])
                                                         @endif
-                                                        <flux:menu.separator />
-                                                        <flux:menu.item icon="rotate-ccw" wire:click="resetDisplayBucket('{{ $sessionCopyKey }}')">
-                                                            {{ __('Reset') }}
-                                                        </flux:menu.item>
+                                                        @if ($canResetBucket($sessionCopyKey))
+                                                            <flux:menu.separator />
+                                                            <flux:menu.item icon="rotate-ccw" wire:click="resetDisplayBucket('{{ $sessionCopyKey }}')">
+                                                                {{ __('Reset') }}
+                                                            </flux:menu.item>
+                                                        @endif
                                                     </flux:menu>
                                                 </flux:dropdown>
                                             @endif
@@ -1139,10 +1147,12 @@
                                                                         'previewSessions' => $previewMenuOptions[$sessionCopyKey] ?? [],
                                                                     ])
                                                                 @endif
-                                                                <flux:menu.separator />
-                                                                <flux:menu.item icon="rotate-ccw" wire:click="resetDisplayBucket('{{ $sessionCopyKey }}')">
-                                                                    {{ __('Reset') }}
-                                                                </flux:menu.item>
+                                                                @if ($canResetBucket($sessionCopyKey))
+                                                                    <flux:menu.separator />
+                                                                    <flux:menu.item icon="rotate-ccw" wire:click="resetDisplayBucket('{{ $sessionCopyKey }}')">
+                                                                        {{ __('Reset') }}
+                                                                    </flux:menu.item>
+                                                                @endif
                                                             </flux:menu>
                                                         </flux:dropdown>
                                                     @endif

@@ -11,7 +11,7 @@ use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
-it('preserves locked session history while applying settings changes to future sessions without a persisted boundary', function () {
+it('applies settings changes without creating historical overrides during settings save', function () {
     Carbon::setTestNow('2026-04-17 12:00:00');
 
     $exercise = Exercise::factory()->create([
@@ -68,8 +68,10 @@ it('preserves locked session history while applying settings changes to future s
 
     expect($overrides->startsAtDate)->toBeNull()
         ->and($overrides->reps?->default)->toBe(8)
+        ->and($overrides->historicalGridOverrides['cells'] ?? [])->toBe([])
+        ->and($overrides->historicalGridOverrides['sessions'] ?? [])->toBe([])
         ->and($before->rows[0]->cells[0][0] ?? null)->toBe(6)
-        ->and($after->rows[0]->cells[0][0] ?? null)->toBe(6)
+        ->and($after->rows[0]->cells[0][0] ?? null)->toBe(8)
         ->and($after->rows[0]->cells[1][0] ?? null)->toBe(8);
 });
 

@@ -18,14 +18,19 @@ trait InteractsWithDisplayGridCopying
 
         foreach ($displayGrid->groups as $group) {
             $groupLabel = trim(strip_tags((string) ($group->label ?? '')));
-            $groupExpanded = in_array($group->index, $this->expandedIndexesForCopy(), true) || (bool) ($group->expanded ?? false);
+            $groupExpanded = (bool) ($group->expanded ?? false);
             $groupSessions = collect($group->sessions ?? [])
-                ->map(fn ($session): array => [
-                    'week' => (int) $session->weekIndex,
-                    'session' => (int) $session->sessionIndex,
-                    'locked' => (bool) ($session->locked ?? false),
-                    'number' => (int) $session->sessionNumber,
-                ])
+                ->map(function ($session): array {
+                    $week = (int) $session->weekIndex;
+                    $sessionIndex = (int) $session->sessionIndex;
+
+                    return [
+                        'week' => $week,
+                        'session' => $sessionIndex,
+                        'locked' => $this->displayBucketSessionLocked($week, $sessionIndex, (bool) ($session->locked ?? false)),
+                        'number' => (int) $session->sessionNumber,
+                    ];
+                })
                 ->values()
                 ->all();
 
@@ -126,6 +131,16 @@ trait InteractsWithDisplayGridCopying
         return $options;
     }
 
+    #[Computed]
+    public function resetMenuOptions(): array
+    {
+        return collect($this->copyBuckets)
+            ->mapWithKeys(fn (array $bucket, string $key): array => [
+                $key => ! (bool) ($bucket['locked'] ?? false),
+            ])
+            ->all();
+    }
+
     public function copyDisplayBucket(string $sourceKey, string $targetKey): void
     {
         $buckets = $this->copyBuckets;
@@ -212,7 +227,7 @@ trait InteractsWithDisplayGridCopying
     {
         $bucket = $this->copyBuckets[$bucketKey] ?? null;
 
-        if ($bucket === null) {
+        if ($bucket === null || (bool) ($bucket['locked'] ?? false)) {
             return;
         }
 
@@ -239,6 +254,15 @@ trait InteractsWithDisplayGridCopying
     protected function displayGridUsesSessionOnlyCopy(): bool
     {
         return method_exists($this, 'usesSessionOnlyDisplayCopy') && $this->usesSessionOnlyDisplayCopy();
+    }
+
+    protected function displayBucketSessionLocked(int $week, int $session, bool $fallback = false): bool
+    {
+        if (method_exists($this, 'isSessionResetLocked')) {
+            return (bool) $this->isSessionResetLocked($week, $session) || $fallback;
+        }
+
+        return $fallback;
     }
 
     protected function resolvedCopySessionSetCount(PreviewGrid $grid, int $week, int $session): int

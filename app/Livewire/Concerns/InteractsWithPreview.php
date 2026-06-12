@@ -174,7 +174,7 @@ trait InteractsWithPreview
             $this->expandedPreviewGroups = array_values(array_unique($this->expandedPreviewGroups));
         }
 
-        unset($this->previewGrid, $this->effectiveExpandedWeeks, $this->copyBuckets, $this->copyMenuOptions);
+        unset($this->previewGrid, $this->effectiveExpandedWeeks, $this->copyBuckets, $this->copyMenuOptions, $this->resetMenuOptions);
     }
 
     public function updateCellOverride(int $weekIndex, int $setIndex, string $field, mixed $value, int $session, bool $applyToAll = false): void
@@ -440,7 +440,7 @@ trait InteractsWithPreview
     protected function persistGridOverridesFromCopy(array $gridOverrides): void
     {
         $this->data['config']['overrides'] = $gridOverrides;
-        unset($this->previewGrid, $this->effectiveExpandedWeeks, $this->copyBuckets, $this->copyMenuOptions);
+        unset($this->previewGrid, $this->effectiveExpandedWeeks, $this->copyBuckets, $this->copyMenuOptions, $this->resetMenuOptions);
     }
 
     /** @param array<string, mixed> $resolvedPreview

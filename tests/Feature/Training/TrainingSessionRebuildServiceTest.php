@@ -1,5 +1,6 @@
 <?php
 
+use App\Data\Exercise\Preview\SessionGroupingConfig;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
@@ -114,4 +115,73 @@ it('can rebuild future exercise program slots from a specific date', function ()
 
     app(TrainingSessionRebuildService::class)
         ->rebuildFutureSlotsForExerciseProgram($program->id, '2030-04-12');
+});
+
+it('rebuilds future slots from the full plan timeline when grouping affects deloading', function () {
+    Carbon::setTestNow('2030-04-12 12:00:00');
+
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create();
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => [],
+            'sets' => ['default' => 4, 'label' => 'Set', 'deload' => 'odd', 'deloadBy' => 1],
+            'preview' => ['groupingMode' => 'none', 'groupSize' => 1],
+        ],
+    ]);
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $config = $program->config;
+    $overrides = $config->defaultExerciseOverrides($pivot->id);
+    $overrides->sessionGrouping = SessionGroupingConfig::from([
+        'mode' => 'none',
+        'groupSize' => 1,
+        'copyValuesAutomatically' => false,
+    ]);
+    $config->setDefaultExerciseOverrides($pivot->id, $overrides);
+    $program->config = $config;
+    $program->save();
+
+    foreach (['2030-04-01', '2030-04-08', '2030-04-15', '2030-04-22'] as $date) {
+        TrainingProgramSlot::factory()->create([
+            'training_program_id' => $trainingProgram->id,
+            'user_id' => $athlete->id,
+            'datetime' => Carbon::parse($date.' 09:00:00'),
+        ]);
+    }
+
+    $futureSlot = TrainingProgramSlot::query()
+        ->where('datetime', '2030-04-15 09:00:00')
+        ->firstOrFail();
+
+    app(TrainingSessionMaterializer::class)->materialize($futureSlot, force: true);
+
+    expect($futureSlot->fresh('exercises.sets')->exercises->firstOrFail()->sets)->toHaveCount(3);
+
+    $config = $program->fresh()->config;
+    $overrides = $config->defaultExerciseOverrides($pivot->id);
+    $overrides->sessionGrouping = SessionGroupingConfig::from([
+        'mode' => 'groups',
+        'groupSize' => 2,
+        'copyValuesAutomatically' => true,
+    ]);
+    $config->setDefaultExerciseOverrides($pivot->id, $overrides);
+    $program->config = $config;
+    $program->save();
+
+    app(TrainingSessionRebuildService::class)->rebuildFutureSlotsForExerciseProgram($program->id);
+
+    expect($futureSlot->fresh('exercises.sets')->exercises->firstOrFail()->sets)->toHaveCount(4);
 });

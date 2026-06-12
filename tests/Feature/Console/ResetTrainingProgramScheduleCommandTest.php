@@ -154,3 +154,42 @@ it('reschedules a training program into the future and clears compiled historica
         'cells' => [],
     ]);
 });
+
+it('reschedules slots without colliding with later slots in the same program', function () {
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Team Alpha']);
+    $exerciseProgram = ExerciseProgram::factory()->create();
+    $trainingProgram = TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $exerciseProgram->id,
+        'sort' => 0,
+    ]);
+
+    $block = TrainingProgramBlock::create([
+        'group_id' => $group->id,
+        'type' => 'category',
+        'start' => '2026-06-02',
+        'end' => '2026-06-20',
+        'note' => 'Block 1 STR',
+        'active' => true,
+    ]);
+
+    foreach (['2026-06-02', '2026-06-04', '2026-06-14', '2026-06-16'] as $date) {
+        TrainingProgramSlot::withoutEvents(fn () => TrainingProgramSlot::create([
+            'training_program_id' => $trainingProgram->id,
+            'user_id' => $athlete->id,
+            'datetime' => $date.' 09:00:00',
+            'scheduled_date' => $date,
+        ]));
+    }
+
+    $this->artisan('training:reset-program-schedule', [
+        'trainingProgramId' => $trainingProgram->id,
+        '--block' => $block->id,
+        '--first-session' => '2026-06-14',
+    ])->assertExitCode(0)
+        ->expectsOutputToContain('Slots reset/offset: 4');
+
+    expect(TrainingProgramSlot::query()->orderBy('datetime')->pluck('scheduled_date')->map->toDateString()->all())
+        ->toBe(['2026-06-14', '2026-06-16', '2026-06-26', '2026-06-28']);
+});

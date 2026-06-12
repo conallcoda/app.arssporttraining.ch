@@ -369,6 +369,7 @@ class PlanExerciseGrid extends Component
             $this->resolvedExerciseOverrides,
             $this->copyBuckets,
             $this->copyMenuOptions,
+            $this->resetMenuOptions,
             $this->groupingBadge
         );
     }
@@ -440,7 +441,7 @@ class PlanExerciseGrid extends Component
             $overrides->disabled = ! ($overrides->disabled ?? false) ?: null;
         }
 
-        $this->saveOverrides($overrides);
+        $this->saveOverrides($overrides, snapshotLockedWeeks: false);
         $this->bumpGridRenderVersion();
         unset($this->isDisabled, $this->isDisabledByDefault, $this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides);
     }
@@ -1076,7 +1077,7 @@ class PlanExerciseGrid extends Component
 
         $this->expandedWeeks = array_values(array_unique($expanded));
 
-        unset($this->displayGrid, $this->effectiveExpandedWeeks, $this->copyBuckets, $this->copyMenuOptions);
+        unset($this->displayGrid, $this->effectiveExpandedWeeks, $this->copyBuckets, $this->copyMenuOptions, $this->resetMenuOptions);
     }
 
     protected function withResolvedPreviewGrouping(array $config): array
@@ -1856,7 +1857,7 @@ class PlanExerciseGrid extends Component
                 futureRebuildFromDate: $this->earliestFutureRebuildDateForTargets($targets),
             );
             $this->bumpGridRenderVersion();
-            unset($this->configFingerprint, $this->previewGrid, $this->displayGrid, $this->planGridTable, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions);
+            unset($this->configFingerprint, $this->previewGrid, $this->displayGrid, $this->planGridTable, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions, $this->resetMenuOptions);
         } finally {
             PlanGridProfiler::end($span, [
                 'target_count' => isset($targets) ? count($targets) : null,
@@ -1931,7 +1932,7 @@ class PlanExerciseGrid extends Component
                 futureRebuildFromDate: $this->earliestFutureRebuildDateForTargets($targets),
             );
             $this->bumpGridRenderVersion();
-            unset($this->configFingerprint, $this->previewGrid, $this->displayGrid, $this->planGridTable, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions);
+            unset($this->configFingerprint, $this->previewGrid, $this->displayGrid, $this->planGridTable, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions, $this->resetMenuOptions);
         } finally {
             PlanGridProfiler::end($span, [
                 'target_count' => isset($targets) ? count($targets) : null,
@@ -2048,6 +2049,31 @@ class PlanExerciseGrid extends Component
         return (bool) ($this->lockedSessionsByWeek[$weekIndex][$sessionIndex] ?? false);
     }
 
+    protected function isSessionResetLocked(int $weekIndex, int $sessionIndex): bool
+    {
+        if ($this->isSessionLocked($weekIndex, $sessionIndex)) {
+            return true;
+        }
+
+        if ($this->scheduledTrainingProgramId === null || $this->userId === null) {
+            return false;
+        }
+
+        $date = $this->resolvedScheduledSessionDate($weekIndex, $sessionIndex);
+
+        if ($date === null) {
+            return false;
+        }
+
+        $slot = $this->resolveScheduledSlotsByDate()[$date] ?? null;
+
+        if ($slot instanceof TrainingProgramSlot) {
+            return $slot->datetime->lessThanOrEqualTo(now());
+        }
+
+        return Carbon::parse($date)->isBefore(now()->startOfDay());
+    }
+
     protected function shouldRestrictPlannedEditForSession(int $weekIndex, int $sessionIndex): bool
     {
         return $this->valueDisplayMode !== 'actual'
@@ -2059,7 +2085,7 @@ class PlanExerciseGrid extends Component
         $overrides = $this->getCurrentOverrides();
         $overrides->gridOverrides = OverrideManager::reset();
 
-        $this->saveOverrides($overrides);
+        $this->saveOverrides($overrides, snapshotLockedWeeks: false);
         $this->bumpGridRenderVersion();
         unset($this->configFingerprint, $this->previewGrid, $this->displayGrid, $this->planGridTable, $this->resolvedExerciseOverrides);
     }
@@ -2197,9 +2223,9 @@ class PlanExerciseGrid extends Component
             ? null
             : $formGrouping;
 
-        $this->saveOverrides($overrides);
+        $this->saveOverrides($overrides, snapshotLockedWeeks: false);
         $this->bumpGridRenderVersion();
-        unset($this->configFingerprint, $this->previewGrid, $this->displayGrid, $this->settingBadges, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions, $this->groupingBadge);
+        unset($this->configFingerprint, $this->previewGrid, $this->displayGrid, $this->settingBadges, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions, $this->resetMenuOptions, $this->groupingBadge);
     }
 
     private function sessionGroupingFromPreview(array $preview): SessionGroupingConfig
@@ -3199,7 +3225,7 @@ class PlanExerciseGrid extends Component
         $overrides->gridOverrides = $gridOverrides;
         $this->saveOverrides($overrides);
         $this->bumpGridRenderVersion();
-        unset($this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions);
+        unset($this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions, $this->resetMenuOptions);
     }
 
     protected function bumpGridRenderVersion(): void

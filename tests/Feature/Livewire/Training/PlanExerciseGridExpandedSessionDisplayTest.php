@@ -5,7 +5,10 @@ use App\Livewire\Training\View\PlanExerciseGrid;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
+use App\Models\Training\TrainingProgram;
+use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\User;
+use App\Models\Users\UserGroup;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -730,6 +733,126 @@ it('hides the grouped column when disabled in coach settings', function () {
 
     expect($component->instance()->displayGrid->showGroupColumn)->toBeTrue()
         ->and($component->instance()->displayGrid->renderGroupColumn)->toBeFalse();
+});
+
+it('keeps grouped preview buckets and hides reset for locked groups when the grouped column is hidden', function () {
+    $coach = User::factory()->coach()->create();
+    $athlete = User::factory()->athlete()->create();
+    $coach->config->set('settings.session_grouping', [
+        'mode' => 'groups',
+        'groupSize' => 2,
+        'copyValuesAutomatically' => true,
+        'showGroupedColumn' => false,
+    ]);
+    $coach->save();
+
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+            'preview' => ['weeks' => 2, 'sessionsPerWeek' => 2],
+        ],
+    ]);
+
+    $program = ExerciseProgram::factory()->create();
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => $athlete->id,
+        'weeks' => 2,
+        'sessionsPerWeek' => 2,
+        'expandedWeeks' => [0],
+        'lockedSessionsByWeek' => [
+            [true, true],
+            [false, false],
+        ],
+    ]);
+
+    expect($component->instance()->displayGrid->renderGroupColumn)->toBeFalse()
+        ->and(array_keys($component->get('previewMenuOptions')))->toContain('group:0', 'group:1')
+        ->and($component->get('previewMenuOptions')['group:0'] ?? [])->toHaveCount(2)
+        ->and($component->get('resetMenuOptions')['group:0'] ?? null)->toBeFalse()
+        ->and($component->get('resetMenuOptions')['group:1'] ?? null)->toBeTrue();
+});
+
+it('hides reset for historical grouped sessions even when lock metadata is missing', function () {
+    $coach = User::factory()->coach()->create();
+    $athlete = User::factory()->athlete()->create();
+    $coach->config->set('settings.session_grouping', [
+        'mode' => 'groups',
+        'groupSize' => 2,
+        'copyValuesAutomatically' => true,
+        'showGroupedColumn' => false,
+    ]);
+    $coach->save();
+
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+            'preview' => ['weeks' => 2, 'sessionsPerWeek' => 2],
+        ],
+    ]);
+
+    $program = ExerciseProgram::factory()->create();
+    $scheduledProgram = TrainingProgram::factory()->create([
+        'group_id' => UserGroup::create(['name' => 'Test Group'])->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $pastDates = [now()->subDays(10)->toDateString(), now()->subDays(8)->toDateString()];
+    $futureDates = [now()->addDays(10)->toDateString(), now()->addDays(12)->toDateString()];
+
+    foreach ([...$pastDates, ...$futureDates] as $date) {
+        TrainingProgramSlot::factory()->create([
+            'training_program_id' => $scheduledProgram->id,
+            'user_id' => $athlete->id,
+            'datetime' => $date.' 09:00:00',
+            'scheduled_date' => $date,
+        ]);
+    }
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'scheduledTrainingProgramId' => $scheduledProgram->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => $athlete->id,
+        'weeks' => 2,
+        'sessionsPerWeek' => 2,
+        'weekSessionDates' => [
+            $pastDates,
+            $futureDates,
+        ],
+        'lockedSessionsByWeek' => [
+            [false, false],
+            [false, false],
+        ],
+    ]);
+
+    expect($component->instance()->displayGrid->renderGroupColumn)->toBeFalse()
+        ->and($component->get('previewMenuOptions')['group:0'] ?? [])->toHaveCount(2)
+        ->and($component->get('previewMenuOptions')['group:1'] ?? [])->toHaveCount(2)
+        ->and($component->get('resetMenuOptions')['group:0'] ?? null)->toBeFalse()
+        ->and($component->get('resetMenuOptions')['group:1'] ?? null)->toBeTrue();
 });
 
 it('refreshes an open plan grid after coach settings change', function () {

@@ -118,36 +118,39 @@ class ResetTrainingProgramScheduleCommand extends Command
         $slotsReset = 0;
         $compiledExercisesRemoved = 0;
 
+        $direction = $offsetDays >= 0 ? 'desc' : 'asc';
+
         TrainingProgramSlot::query()
             ->where('training_program_id', $trainingProgramId)
             ->withCount('exercises')
-            ->chunkById(100, function ($slots) use ($offsetDays, $dryRun, &$slotsReset, &$compiledExercisesRemoved): void {
-                foreach ($slots as $slot) {
-                    $slotsReset++;
-                    $compiledExercisesRemoved += (int) $slot->exercises_count;
+            ->orderBy('datetime', $direction)
+            ->orderBy('id', $direction)
+            ->get()
+            ->each(function (TrainingProgramSlot $slot) use ($offsetDays, $dryRun, &$slotsReset, &$compiledExercisesRemoved): void {
+                $slotsReset++;
+                $compiledExercisesRemoved += (int) $slot->exercises_count;
 
-                    if ($dryRun) {
-                        continue;
-                    }
-
-                    $slot->exercises()->delete();
-
-                    $slot->forceFill([
-                        'datetime' => $slot->datetime->copy()->addDays($offsetDays),
-                        'scheduled_date' => $slot->scheduled_date?->copy()->addDays($offsetDays),
-                        'status' => TrainingProgramSlotStatusEnum::Pending,
-                        'compiled_at' => null,
-                        'compiled_version' => null,
-                        'exercise_count' => 0,
-                        'completed_exercise_count' => 0,
-                        'partial_exercise_count' => 0,
-                        'skipped_exercise_count' => 0,
-                        'pending_exercise_count' => 0,
-                        'has_any_modification' => false,
-                        'completed_at' => null,
-                        'cancelled_at' => null,
-                    ])->saveQuietly();
+                if ($dryRun) {
+                    return;
                 }
+
+                $slot->exercises()->delete();
+
+                $slot->forceFill([
+                    'datetime' => $slot->datetime->copy()->addDays($offsetDays),
+                    'scheduled_date' => $slot->scheduled_date?->copy()->addDays($offsetDays),
+                    'status' => TrainingProgramSlotStatusEnum::Pending,
+                    'compiled_at' => null,
+                    'compiled_version' => null,
+                    'exercise_count' => 0,
+                    'completed_exercise_count' => 0,
+                    'partial_exercise_count' => 0,
+                    'skipped_exercise_count' => 0,
+                    'pending_exercise_count' => 0,
+                    'has_any_modification' => false,
+                    'completed_at' => null,
+                    'cancelled_at' => null,
+                ])->saveQuietly();
             });
 
         return [

@@ -109,6 +109,7 @@
                             :collapseWeeks="false"
                             :copyMenuOptions="$this->copyMenuOptions"
                             :previewMenuOptions="$this->previewMenuOptions"
+                            :resetMenuOptions="$this->resetMenuOptions"
                             :showPreview="$this->userId !== null"
                         />
                     </div>

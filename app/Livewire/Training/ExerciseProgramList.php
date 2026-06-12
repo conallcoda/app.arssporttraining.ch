@@ -22,12 +22,16 @@ use Coda\FormKit\Action;
 use Coda\FormKit\Fields\Pillbox;
 use Coda\FormKit\Fields\Select;
 use Coda\FormKit\Fields\Text as TextField;
+use Flux\Flux;
 use Illuminate\Contracts\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 class ExerciseProgramList extends AbstractModelList
 {
     use ClearsOwnerFilterOnTabSwitch;
-    use SwitchesToVisibleTabAfterCreate;
+    use SwitchesToVisibleTabAfterCreate {
+        handleFormSubmitted as handleStandardFormSubmitted;
+    }
 
     protected function urlPrefix(): string
     {
@@ -73,10 +77,6 @@ class ExerciseProgramList extends AbstractModelList
 
     protected function getTable(): Table
     {
-        $tagNames = Tag::query()
-            ->forScope('program_internal')
-            ->pluck('name', 'id');
-
         $exerciseCategoryOptions = Tag::query()
             ->forScope('exercise_category')
             ->whereNull('parent_id')
@@ -89,7 +89,7 @@ class ExerciseProgramList extends AbstractModelList
         return Table::make()
             ->columns([
                 Text::make('id')->label(__('ID'))->width('w-16')->prefix('#'),
-                View::make('name', ExerciseProgramView::class)->label(__('Name')),
+                View::make('name', ExerciseProgramView::class)->label(__('Name'))->width('w-[14rem]'),
                 Badge::make('type')
                     ->label(__('Type'))
                     ->source(fn (ExerciseProgramData $data) => [[
@@ -120,12 +120,6 @@ class ExerciseProgramList extends AbstractModelList
                         'modalField' => 'exercise_category_id',
                     ]]),
                 Relationship::make('exercises')->label(__('Exercises'))->modal()->width('w-full'),
-                Badge::make('internalTags')
-                    ->label(__('Tags'))
-                    ->source(fn (ExerciseProgramData $data) => collect($data->internalTags)
-                        ->map(fn (int $id) => ['label' => $tagNames[$id] ?? '?', 'modalField' => 'internalTags'])
-                        ->all()
-                    ),
                 Ago::make('updatedAt')->label(__('Last Changed')),
             ])
             ->sortable(['id', 'name', 'type', 'coach', 'category', 'updatedAt'])
@@ -190,5 +184,80 @@ class ExerciseProgramList extends AbstractModelList
     protected function getEditAction(): Action
     {
         return parent::getEditAction()->formComponent('training.exercise-program-form-modal');
+    }
+
+    protected function getExtraActions(): array
+    {
+        return [
+            ...parent::getExtraActions(),
+            Action::make('duplicate', __('Duplicate'))
+                ->rowMenu()
+                ->icon('copy')
+                ->handler('openDuplicateProgram'),
+        ];
+    }
+
+    public function openDuplicateProgram(int $programId): void
+    {
+        $program = $this->getBaseQuery()->findOrFail($programId);
+        $data = ExerciseProgramData::fromModel($program)->toArray();
+        $addAction = $this->getAddAction();
+        $modalName = $addAction !== null
+            ? $this->getModalNameForAction($addAction)
+            : $this->editModalName;
+
+        $this->dispatch("open-{$modalName}", data: [
+            ...$data,
+            'id' => null,
+            'name' => '',
+            '_duplicate_source_program_id' => $program->id,
+        ], title: __('Duplicate Program'), focusField: 'name');
+    }
+
+    public function handleFormSubmitted(array $data): void
+    {
+        if (! empty($data['_duplicate_source_program_id'])) {
+            $this->handleDuplicateProgramSubmitted($data);
+
+            return;
+        }
+
+        $this->handleStandardFormSubmitted($data);
+    }
+
+    protected function handleDuplicateProgramSubmitted(array $data): void
+    {
+        $sourceProgramId = (int) ($data['_duplicate_source_program_id'] ?? 0);
+
+        if ($sourceProgramId <= 0) {
+            return;
+        }
+
+        $clone = DB::transaction(function () use ($sourceProgramId, $data): ExerciseProgram {
+            $sourceProgram = $this->getBaseQuery()->findOrFail($sourceProgramId);
+            $clone = $sourceProgram->duplicate();
+
+            $clone->update([
+                'name' => $data['name'] ?? '',
+            ]);
+            $clone->tags()->sync($sourceProgram->internalTags()->pluck('tags.id')->all());
+
+            return $clone;
+        });
+
+        Flux::toast(text: "{$clone->name} created", variant: 'success');
+
+        $listContext = $this->resolveCreatedItemListContext((int) $clone->id);
+
+        if ($listContext !== null) {
+            $this->selectedTab = $listContext['selectedTab'];
+            $this->filters = $listContext['filters'];
+            $this->setPage($listContext['page'], pageName: $this->prefixedPageName());
+        }
+
+        $this->edit = null;
+        $this->resetState();
+        $this->refreshKey++;
+        $this->emit();
     }
 }
