@@ -1,0 +1,41 @@
+{
+    "name": "coda/cms",
+    "description": "Generic CMS framework for Laravel Livewire applications",
+    "type": "library",
+    "autoload": {
+        "psr-4": {
+            "Coda\\Cms\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Coda\\Cms\\Tests\\": "tests/"
+        }
+    },
+    "require": {
+        "php": "^8.2",
+        "coda/expression-kit": "*",
+        "coda/form-kit": "*",
+        "coda/schema-kit": "*",
+        "livewire/flux": "^2.0",
+        "livewire/flux-pro": "^2.0",
+        "livewire/livewire": "^3.0 || ^4.0",
+        "spatie/laravel-data": "^4.0",
+        "spatie/laravel-query-builder": "^6.0",
+        "spatie/laravel-sluggable": "^3.0",
+        "staudenmeir/laravel-adjacency-list": "^1.0",
+        "spatie/laravel-schemaless-attributes": "^2.0",
+        "spatie/laravel-medialibrary": "^11.0"
+    },
+    "suggest": {
+        "laravel/fortify": "Required for built-in authentication views and actions",
+        "laravel/passkeys": "Optional WebAuthn/passkey login (pair with @laravel/passkeys on the JS side)"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Coda\\Cms\\CmsPackageServiceProvider"
+            ]
+        }
+    }
+}
