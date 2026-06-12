@@ -8,6 +8,7 @@
     'collapseWeeks' => true,
     'copyMenuOptions' => [],
     'previewMenuOptions' => [],
+    'resetMenuOptions' => [],
     'showPreview' => false,
 ])
 
@@ -21,6 +22,7 @@
     :collapseWeeks="$collapseWeeks"
     :copyMenuOptions="$copyMenuOptions"
     :previewMenuOptions="$previewMenuOptions"
+    :resetMenuOptions="$resetMenuOptions"
     :showPreview="$showPreview"
     :showActualValues="false"
     valueDisplayMode="planned"
