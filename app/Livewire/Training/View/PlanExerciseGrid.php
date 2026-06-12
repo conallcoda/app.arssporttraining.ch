@@ -36,6 +36,7 @@ use App\Models\Training\TrainingProgramSlotSetValue;
 use App\Support\Profiling\PlanGridProfiler;
 use App\Support\Training\ApplyPerScope;
 use App\Support\Training\ExerciseMetricAvailability;
+use App\Support\Training\GridOverrideNormalizer;
 use App\Support\Training\ScheduledSessionSnapshotBuilder;
 use App\Support\Training\WeekSessionCountResolver;
 use App\Training\AthleteExerciseValueService;
@@ -1392,6 +1393,12 @@ class PlanExerciseGrid extends Component
         abort_unless($this->valueDisplayMode === 'actual' && $this->showsActualValueTabs, 403);
         abort_unless($field !== 'sets', 403);
 
+        if ($this->isSessionLocked($weekIndex, $session)) {
+            $this->updateHistoricalPlannedDisplayValue($weekIndex, $setIndex, $field, $value, $session);
+
+            return;
+        }
+
         $slotExercise = $this->slotExerciseForWeekSession($weekIndex, $session);
         abort_unless($slotExercise instanceof TrainingProgramSlotExercise, 404);
 
@@ -1421,24 +1428,85 @@ class PlanExerciseGrid extends Component
         $this->loadedScheduledSnapshotsByDate = null;
     }
 
+    protected function updateHistoricalPlannedDisplayValue(int $weekIndex, int $setIndex, string $field, mixed $value, int $session): void
+    {
+        $targets = $this->lockedHistoricalTargetsForSession($weekIndex, $session);
+        abort_unless($targets !== [], 404);
+
+        $overrides = $this->getCurrentOverrides();
+        $historicalGridOverrides = $overrides->historicalGridOverrides;
+
+        foreach ($targets as $target) {
+            if ($this->settingAppliesPerSession($field)) {
+                $historicalGridOverrides = $this->putSessionOverride(
+                    $historicalGridOverrides,
+                    (int) $target['week'],
+                    (int) $target['session'],
+                    $field,
+                    $value,
+                );
+
+                continue;
+            }
+
+            $historicalGridOverrides = $this->putCellOverride(
+                $historicalGridOverrides,
+                (int) $target['week'],
+                (int) $target['session'],
+                $setIndex,
+                $field,
+                $value,
+            );
+        }
+
+        $overrides->historicalGridOverrides = $historicalGridOverrides;
+
+        $this->saveOverrides($overrides, notifyParent: false, snapshotLockedWeeks: false);
+
+        $this->bumpGridRenderVersion();
+        unset(
+            $this->slotExercisesByWeekSession,
+            $this->snapshotExercisesByWeekSession,
+            $this->scheduledSlotsByDate,
+            $this->scheduledSnapshotsByDate,
+            $this->actualCellValues,
+            $this->actualSessionValues,
+            $this->editableActualSessionsByWeek,
+            $this->planActualGridTable
+        );
+        $this->loadedScheduledSlotsByDate = null;
+        $this->loadedScheduledSnapshotsByDate = null;
+    }
+
     protected function matchingSlotExercise(TrainingProgramSlot $slot): ?TrainingProgramSlotExercise
     {
-        return $slot->exercises->first(function (TrainingProgramSlotExercise $slotExercise): bool {
+        $matchesExerciseContext = function (TrainingProgramSlotExercise $slotExercise): bool {
             return (int) $slotExercise->exercise_id === $this->exerciseId
-                && (int) $slotExercise->sort === $this->programExerciseSort
                 && (string) ($slotExercise->type ?? 'main') === $this->programExerciseType
                 && (string) ($slotExercise->group ?? '') === (string) ($this->programExerciseGroup ?? '');
-        }) ?? $slot->exercises->firstWhere('exercise_id', $this->exerciseId);
+        };
+
+        return $slot->exercises->first(function (TrainingProgramSlotExercise $slotExercise) use ($matchesExerciseContext): bool {
+            return $matchesExerciseContext($slotExercise)
+                && (int) $slotExercise->sort === $this->programExerciseSort;
+        })
+            ?? $slot->exercises->first($matchesExerciseContext);
     }
 
     protected function matchingSnapshotExercise(array $exercises): ?ScheduledExerciseSnapshotData
     {
-        return collect($exercises)->first(function (ScheduledExerciseSnapshotData $exercise): bool {
+        $snapshotExercises = collect($exercises);
+        $matchesExerciseContext = function (ScheduledExerciseSnapshotData $exercise): bool {
             return (int) $exercise->exerciseId === $this->exerciseId
-                && (int) $exercise->sort === $this->programExerciseSort
                 && (string) ($exercise->type ?? 'main') === $this->programExerciseType
                 && (string) ($exercise->group ?? '') === (string) ($this->programExerciseGroup ?? '');
-        }) ?? collect($exercises)->firstWhere('exerciseId', $this->exerciseId);
+        };
+
+        return $snapshotExercises->first(function (ScheduledExerciseSnapshotData $exercise) use ($matchesExerciseContext): bool {
+            return $matchesExerciseContext($exercise)
+                && (int) $exercise->sort === $this->programExerciseSort;
+        })
+            ?? $snapshotExercises->first($matchesExerciseContext);
     }
 
     protected function slotExerciseForWeekSession(int $weekIndex, int $sessionIndex): ?TrainingProgramSlotExercise
@@ -1645,30 +1713,28 @@ class PlanExerciseGrid extends Component
 
     protected function resolvePlanActualPlannedCellValue(mixed $row, int $weekIndex, int $sessionIndex, int $setIndex, ?ScheduledExerciseSnapshotData $snapshotExercise, bool $isSessionScoped): string
     {
-        if ($row->field === 'sets') {
-            return (string) (count($snapshotExercise?->sets ?? []) ?: $row->getCellValue($weekIndex, 0, $sessionIndex));
-        }
-
-        if ($snapshotExercise instanceof ScheduledExerciseSnapshotData) {
-            $set = $snapshotExercise->sets[$setIndex] ?? null;
-
-            if (! $set instanceof ScheduledSetSnapshotData) {
-                return '-';
-            }
-
-            $valueRow = collect($set->values)->firstWhere('settingKey', $row->field);
-            $formatted = $this->formatPlannedValue($row->field, $valueRow?->plannedValue, $valueRow?->unit);
-
-            if ($formatted !== null) {
-                return $formatted;
-            }
-        }
-
-        $fallback = $isSessionScoped
+        $plannedValue = $isSessionScoped
             ? $row->getCellValue($weekIndex, 0, $sessionIndex)
             : $row->getCellValue($weekIndex, $setIndex, $sessionIndex);
 
-        return $fallback === null || $fallback === '' ? '-' : (string) $fallback;
+        if ($plannedValue !== null && $plannedValue !== '') {
+            return (string) $plannedValue;
+        }
+
+        if (! $snapshotExercise instanceof ScheduledExerciseSnapshotData) {
+            return '-';
+        }
+
+        $set = $snapshotExercise->sets[$setIndex] ?? null;
+
+        if (! $set instanceof ScheduledSetSnapshotData) {
+            return '-';
+        }
+
+        $valueRow = collect($set->values)->firstWhere('settingKey', $row->field);
+        $formatted = $this->formatPlannedValue($row->field, $valueRow?->plannedValue, $valueRow?->unit);
+
+        return $formatted ?? '-';
     }
 
     protected function resolvePlanActualActualCellValue(string $field, int $sessionIndex, int $setIndex, ?ScheduledExerciseSnapshotData $snapshotExercise): string
@@ -2145,7 +2211,7 @@ class PlanExerciseGrid extends Component
         ]);
     }
 
-    protected function saveOverrides(ExerciseOverrides $overrides, bool $notifyParent = true, ?string $futureRebuildFromDate = null): void
+    protected function saveOverrides(ExerciseOverrides $overrides, bool $notifyParent = true, ?string $futureRebuildFromDate = null, bool $snapshotLockedWeeks = true): void
     {
         $span = PlanGridProfiler::start('PlanExerciseGrid.saveOverrides', $this->profileContext([
             'notify_parent' => $notifyParent,
@@ -2156,9 +2222,19 @@ class PlanExerciseGrid extends Component
         ]));
 
         try {
-            PlanGridProfiler::measure('PlanExerciseGrid.saveOverrides.snapshotLockedWeeks', $this->profileContext(), function () use ($overrides): void {
-                $this->snapshotLockedWeeks($overrides, $this->previewGrid);
-            });
+            if ($snapshotLockedWeeks) {
+                PlanGridProfiler::measure('PlanExerciseGrid.saveOverrides.snapshotLockedWeeks', $this->profileContext(), function () use ($overrides): void {
+                    $this->snapshotLockedWeeks($overrides, $this->previewGrid);
+                });
+            }
+
+            $overrides->historicalGridOverrides = $this->normalizeHistoricalOverridesForGroupedSessions(
+                $overrides->historicalGridOverrides,
+            );
+            $overrides->gridOverrides = GridOverrideNormalizer::pruneToSessionCounts(
+                $overrides->gridOverrides,
+                $this->resolvedWeekSessionCounts(),
+            );
 
             $exerciseProgram = PlanGridProfiler::measure('PlanExerciseGrid.saveOverrides.loadExerciseProgram', $this->profileContext(), function (): ExerciseProgram {
                 return ExerciseProgram::query()->findOrFail($this->planId);
@@ -2378,6 +2454,180 @@ class PlanExerciseGrid extends Component
 
         $overrides->historicalGridOverrides = $historicalGridOverrides;
         $overrides->gridOverrides = $this->stripLockedHistoryFromCurrentOverrides($overrides->gridOverrides);
+    }
+
+    /** @param array{cells?: array<int, array<string, mixed>>, sessions?: array<int, array<string, mixed>>} $historicalGridOverrides */
+    protected function normalizeHistoricalOverridesForGroupedSessions(array $historicalGridOverrides): array
+    {
+        $preview = $this->getEffectiveConfig()['preview'] ?? [];
+        $groupingMode = SessionGroupingMode::normalizeMode((string) ($preview['groupingMode'] ?? SessionGroupingMode::defaultMode()));
+
+        if ($groupingMode !== SessionGroupingMode::Groups->value) {
+            return $historicalGridOverrides;
+        }
+
+        $strategyMap = SessionGroupBuilder::buildStrategyMap(
+            weekCount: $this->previewGrid->weekCount,
+            sessionCounts: $this->previewGrid->weekSessionCounts,
+            groupingMode: $groupingMode,
+            groupSize: SessionGroupingMode::normalizeGroupSize(
+                (int) ($preview['groupSize'] ?? SessionGroupingMode::defaultGroupSize($groupingMode)),
+                $groupingMode,
+            ),
+        );
+
+        $sessionsByGroup = collect($strategyMap['orderedSessions'] ?? [])
+            ->filter(fn (array $session): bool => (bool) ($this->lockedSessionsByWeek[(int) $session['week']][(int) $session['session']] ?? false))
+            ->groupBy(fn (array $session): int => (int) $session['group']);
+
+        foreach ($sessionsByGroup as $groupSessions) {
+            $sessions = $groupSessions->values()->all();
+
+            if (count($sessions) <= 1) {
+                continue;
+            }
+
+            foreach ($this->groupedHistoricalSessionValues($historicalGridOverrides, $sessions) as $field => $value) {
+                foreach ($sessions as $session) {
+                    $historicalGridOverrides = $this->putSessionOverride(
+                        $historicalGridOverrides,
+                        (int) $session['week'],
+                        (int) $session['session'],
+                        (string) $field,
+                        $value,
+                    );
+                }
+            }
+
+            foreach ($this->groupedHistoricalCellValues($historicalGridOverrides, $sessions) as $set => $fields) {
+                foreach ($fields as $field => $value) {
+                    foreach ($sessions as $session) {
+                        $historicalGridOverrides = $this->putCellOverride(
+                            $historicalGridOverrides,
+                            (int) $session['week'],
+                            (int) $session['session'],
+                            (int) $set,
+                            (string) $field,
+                            $value,
+                        );
+                    }
+                }
+            }
+        }
+
+        return $historicalGridOverrides;
+    }
+
+    /** @return list<array{week:int, session:int, sessionNumber:int, group:int}> */
+    protected function lockedHistoricalTargetsForSession(int $weekIndex, int $sessionIndex): array
+    {
+        if (! $this->isSessionLocked($weekIndex, $sessionIndex)) {
+            return [];
+        }
+
+        $preview = $this->getEffectiveConfig()['preview'] ?? [];
+        $groupingMode = SessionGroupingMode::normalizeMode((string) ($preview['groupingMode'] ?? SessionGroupingMode::defaultMode()));
+
+        if ($groupingMode !== SessionGroupingMode::Groups->value) {
+            return [[
+                'week' => $weekIndex,
+                'session' => $sessionIndex,
+                'sessionNumber' => $sessionIndex + 1,
+                'group' => $sessionIndex + 1,
+            ]];
+        }
+
+        $strategyMap = SessionGroupBuilder::buildStrategyMap(
+            weekCount: $this->previewGrid->weekCount,
+            sessionCounts: $this->previewGrid->weekSessionCounts,
+            groupingMode: $groupingMode,
+            groupSize: SessionGroupingMode::normalizeGroupSize(
+                (int) ($preview['groupSize'] ?? SessionGroupingMode::defaultGroupSize($groupingMode)),
+                $groupingMode,
+            ),
+        );
+
+        $editedSession = collect($strategyMap['orderedSessions'] ?? [])
+            ->first(fn (array $session): bool => (int) $session['week'] === $weekIndex
+                && (int) $session['session'] === $sessionIndex);
+
+        if (! is_array($editedSession)) {
+            return [[
+                'week' => $weekIndex,
+                'session' => $sessionIndex,
+                'sessionNumber' => $sessionIndex + 1,
+                'group' => $sessionIndex + 1,
+            ]];
+        }
+
+        $group = (int) $editedSession['group'];
+
+        return collect($strategyMap['orderedSessions'] ?? [])
+            ->filter(fn (array $session): bool => (int) $session['group'] === $group)
+            ->filter(fn (array $session): bool => $this->isSessionLocked((int) $session['week'], (int) $session['session']))
+            ->map(fn (array $session): array => [
+                'week' => (int) $session['week'],
+                'session' => (int) $session['session'],
+                'sessionNumber' => (int) $session['sessionNumber'],
+                'group' => (int) $session['group'],
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array{cells?: array<int, array<string, mixed>>, sessions?: array<int, array<string, mixed>>}  $historicalGridOverrides
+     * @param  list<array{week:int, session:int, sessionNumber:int, group:int}>  $sessions
+     * @return array<string, mixed>
+     */
+    protected function groupedHistoricalSessionValues(array $historicalGridOverrides, array $sessions): array
+    {
+        $values = [];
+
+        foreach ($sessions as $session) {
+            $sessionOverride = collect($historicalGridOverrides['sessions'] ?? [])
+                ->first(fn (array $override): bool => (int) ($override['week'] ?? -1) === (int) $session['week']
+                    && (int) ($override['session'] ?? -1) === (int) $session['session']);
+
+            foreach (($sessionOverride['data'] ?? []) as $field => $value) {
+                $values[$field] ??= $value;
+            }
+        }
+
+        return $values;
+    }
+
+    /**
+     * @param  array{cells?: array<int, array<string, mixed>>, sessions?: array<int, array<string, mixed>>}  $historicalGridOverrides
+     * @param  list<array{week:int, session:int, sessionNumber:int, group:int}>  $sessions
+     * @return array<int, array<string, mixed>>
+     */
+    protected function groupedHistoricalCellValues(array $historicalGridOverrides, array $sessions): array
+    {
+        $values = [];
+
+        foreach ($sessions as $session) {
+            foreach ($historicalGridOverrides['cells'] ?? [] as $cellOverride) {
+                if (
+                    (int) ($cellOverride['week'] ?? -1) !== (int) $session['week']
+                    || (int) ($cellOverride['session'] ?? -1) !== (int) $session['session']
+                ) {
+                    continue;
+                }
+
+                $set = (int) ($cellOverride['set'] ?? -1);
+
+                if ($set < 0) {
+                    continue;
+                }
+
+                foreach (($cellOverride['data'] ?? []) as $field => $value) {
+                    $values[$set][$field] ??= $value;
+                }
+            }
+        }
+
+        return $values;
     }
 
     protected function sessionCountForWeek(int $weekIndex): int

@@ -53,6 +53,32 @@ it('applies deload grouping across session buckets', function () {
         ->and($state->getResolvedSessionValue('sets', 2, 1, 4))->toBe(3);
 });
 
+it('ignores set count overrides for sessions outside the resolved week session count', function () {
+    $data = [
+        'sets' => ['deload' => 'none', 'default' => 4, 'label' => 'Set'],
+        'settings' => [],
+    ];
+
+    $overrides = \App\Data\Exercise\Preview\GridOverrides::fromConfig([
+        'sessions' => [
+            ['week' => 0, 'session' => 1, 'data' => ['sets' => 5]],
+            ['week' => 1, 'session' => 0, 'data' => ['sets' => 3]],
+        ],
+        'cells' => [],
+    ]);
+
+    $orchestrator = new StrategyOrchestrator(
+        $data,
+        weeks: 2,
+        overrides: $overrides,
+        sessionCounts: [1, 1],
+    );
+    $state = $orchestrator->execute();
+
+    expect($state->getSetsPerWeek())->toBe([4, 4])
+        ->and($state->maxSets())->toBe(4);
+});
+
 it('populates automatic reps grid', function () {
     $data = [
         'sets' => ['deload' => 'none', 'default' => 4, 'label' => 'Set'],

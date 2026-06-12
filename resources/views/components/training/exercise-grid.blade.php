@@ -61,6 +61,9 @@
         $actualDiffersFromPlanned = static fn (mixed $plannedValue, mixed $actualValue): bool => $actualValue !== null
             && $actualValue !== '-'
             && (string) $actualValue !== (string) $plannedValue;
+        $formatGridValue = static fn (string $field, mixed $value): mixed => $field === 'reps'
+            ? (\App\Data\Exercise\Settings\RepsSetting::formatAthleteValue($value) ?? $value)
+            : $value;
     @endphp
     <div class="{{ $showHeader ? 'space-y-2 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4' : 'space-y-2' }}">
         @if ($showHeader)
@@ -289,12 +292,12 @@
                                                         data-mask="{{ $weekCol->inputMeta->mask }}"
                                                     @endif
                                                     @click="startEditing()">
-                                                    <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $weekCell['value'] }}</span>
+                                                    <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $formatGridValue($weekCol->field, $weekCell['value']) }}</span>
                                                     <x-training.exercise-grid-input :meta="$weekCol->inputMeta" :value="$weekCell['value']" size="xs" type="text" />
                                                 </td>
                                             @else
                                                 <td wire:key="{{ $weekPlannedRenderKey }}" style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $splitSetSubcellWidthClass }} {{ $weekPlannedColor }} {{ $collapsedPlannedLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
-                                                    {{ $weekCell['value'] }}
+                                                    {{ $formatGridValue($weekCol->field, $weekCell['value']) }}
                                                 </td>
                                             @endif
                                             @if ($weekActualEditable)
@@ -312,12 +315,12 @@
                                                         data-mask="{{ $weekCol->inputMeta->mask }}"
                                                     @endif
                                                     @click="startEditing()">
-                                                    <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $weekActualValue ?? '-' }}</span>
+                                                    <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $formatGridValue($weekCol->field, $weekActualValue ?? '-') }}</span>
                                                     <x-training.exercise-grid-input :meta="$weekCol->inputMeta" :value="$weekActualValue === '-' ? '' : $weekActualValue" size="xs" type="text" />
                                                 </td>
                                             @else
                                                 <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $splitSetSubcellWidthClass }} {{ $weekActualColor }} {{ $collapsedGroupLocked || $weekActualValue === null || $weekActualValue === '-' ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
-                                                    {{ $weekActualValue ?? '-' }}
+                                                    {{ $formatGridValue($weekCol->field, $weekActualValue ?? '-') }}
                                                 </td>
                                             @endif
                                         @elseif ($weekCell['editable'])
@@ -340,6 +343,7 @@
                                                     @include('components.training.partials.planned-actual-value', [
                                                         'plannedValue' => $weekCell['value'],
                                                         'actualValue' => $weekActualValue,
+                                                        'field' => $weekCol->field,
                                                         'mode' => $showActualValues ? $valueDisplayMode : 'planned',
                                                     ])
                                                 </span>
@@ -350,6 +354,7 @@
                                                 @include('components.training.partials.planned-actual-value', [
                                                     'plannedValue' => $weekCell['value'],
                                                     'actualValue' => $weekActualValue,
+                                                    'field' => $weekCol->field,
                                                     'mode' => $showActualValues ? $valueDisplayMode : 'planned',
                                                 ])
                                             </td>
@@ -486,12 +491,12 @@
                                                             data-mask="{{ $row->inputMeta->mask }}"
                                                         @endif
                                                         @click="startEditing()">
-                                                        <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $cell['value'] }}</span>
+                                                        <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $formatGridValue($row->field, $cell['value']) }}</span>
                                                         <x-training.exercise-grid-input :meta="$row->inputMeta" :value="$cell['value']" size="sm" />
                                                     </td>
                                                 @else
                                                     <td wire:key="{{ $cellPlannedRenderKey }}" style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $splitSetSubcellWidthClass }} {{ $cellPlannedColor }} {{ $collapsedPlannedLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
-                                                        {{ $cell['value'] }}
+                                                        {{ $formatGridValue($row->field, $cell['value']) }}
                                                     </td>
                                                 @endif
                                                 @if ($cellActualEditable)
@@ -512,12 +517,12 @@
                                                             data-mask="{{ $row->inputMeta->mask }}"
                                                         @endif
                                                         @click="startEditing()">
-                                                        <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $cellActualValue ?? '-' }}</span>
+                                                        <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $formatGridValue($row->field, $cellActualValue ?? '-') }}</span>
                                                         <x-training.exercise-grid-input :meta="$row->inputMeta" :value="$cellActualValue === '-' ? '' : $cellActualValue" size="sm" />
                                                     </td>
                                                 @else
                                                     <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $splitSetSubcellWidthClass }} {{ $cellActualColor }} {{ $collapsedGroupLocked || $cellActualValue === null || $cellActualValue === '-' ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
-                                                        {{ $cellActualValue ?? '-' }}
+                                                        {{ $formatGridValue($row->field, $cellActualValue ?? '-') }}
                                                     </td>
                                                 @endif
                                             @elseif ($cell['editable'])
@@ -541,6 +546,7 @@
                                                         @include('components.training.partials.planned-actual-value', [
                                                             'plannedValue' => $cell['value'],
                                                             'actualValue' => $cellActualValue,
+                                                            'field' => $row->field,
                                                             'mode' => $showActualValues ? $valueDisplayMode : 'planned',
                                                         ])
                                                     </span>
@@ -551,6 +557,7 @@
                                                     @include('components.training.partials.planned-actual-value', [
                                                         'plannedValue' => $cell['value'],
                                                         'actualValue' => $cellActualValue,
+                                                        'field' => $row->field,
                                                         'mode' => $showActualValues ? $valueDisplayMode : 'planned',
                                                     ])
                                                 </td>
@@ -582,6 +589,7 @@
                                                             @include('components.training.partials.planned-actual-value', [
                                                                 'plannedValue' => $weekCell['value'],
                                                                 'actualValue' => $showActualValues ? data_get($actualSessionValues, $weekCol->field . '.' . $week . '.' . $session, '-') : null,
+                                                                'field' => $weekCol->field,
                                                                 'mode' => $showActualValues ? $valueDisplayMode : 'planned',
                                                             ])
                                                         </span>
@@ -593,6 +601,7 @@
                                                     @include('components.training.partials.planned-actual-value', [
                                                         'plannedValue' => $weekCell['value'],
                                                         'actualValue' => $showActualValues ? data_get($actualSessionValues, $weekCol->field . '.' . $week . '.' . $session, '-') : null,
+                                                        'field' => $weekCol->field,
                                                         'mode' => $showActualValues ? $valueDisplayMode : 'planned',
                                                     ])
                                                 </td>
@@ -714,12 +723,12 @@
                                                         data-mask="{{ $weekCol->inputMeta->mask }}"
                                                     @endif
                                                     @click="startEditing()">
-                                                    <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $weekCell['value'] }}</span>
+                                                    <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $formatGridValue($weekCol->field, $weekCell['value']) }}</span>
                                                     <x-training.exercise-grid-input :meta="$weekCol->inputMeta" :value="$weekCell['value']" size="xs" type="text" />
                                                 </td>
                                             @else
                                                 <td wire:key="{{ $weekPlannedRenderKey }}" style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $splitSetSubcellWidthClass }} {{ $weekPlannedColor }} {{ $plannedSessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
-                                                    {{ $weekCell['value'] }}
+                                                    {{ $formatGridValue($weekCol->field, $weekCell['value']) }}
                                                 </td>
                                             @endif
                                             @if ($weekActualEditable)
@@ -737,12 +746,12 @@
                                                         data-mask="{{ $weekCol->inputMeta->mask }}"
                                                     @endif
                                                     @click="startEditing()">
-                                                    <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $weekActualValue ?? '-' }}</span>
+                                                    <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $formatGridValue($weekCol->field, $weekActualValue ?? '-') }}</span>
                                                     <x-training.exercise-grid-input :meta="$weekCol->inputMeta" :value="$weekActualValue === '-' ? '' : $weekActualValue" size="xs" type="text" />
                                                 </td>
                                             @else
                                                 <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $splitSetSubcellWidthClass }} {{ $weekActualColor }} {{ $sessionLocked || $weekActualValue === null || $weekActualValue === '-' ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
-                                                    {{ $weekActualValue ?? '-' }}
+                                                    {{ $formatGridValue($weekCol->field, $weekActualValue ?? '-') }}
                                                 </td>
                                             @endif
                                         @elseif ($weekCell['editable'])
@@ -765,6 +774,7 @@
                                                     @include('components.training.partials.planned-actual-value', [
                                                         'plannedValue' => $weekCell['value'],
                                                         'actualValue' => $weekActualValue,
+                                                        'field' => $weekCol->field,
                                                         'mode' => $showActualValues ? $valueDisplayMode : 'planned',
                                                     ])
                                                 </span>
@@ -775,6 +785,7 @@
                                                 @include('components.training.partials.planned-actual-value', [
                                                     'plannedValue' => $weekCell['value'],
                                                     'actualValue' => $weekActualValue,
+                                                    'field' => $weekCol->field,
                                                     'mode' => $showActualValues ? $valueDisplayMode : 'planned',
                                                 ])
                                             </td>
@@ -922,12 +933,12 @@
                                                             data-mask="{{ $row->inputMeta->mask }}"
                                                         @endif
                                                         @click="startEditing()">
-                                                        <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $cell['value'] }}</span>
+                                                        <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $formatGridValue($row->field, $cell['value']) }}</span>
                                                         <x-training.exercise-grid-input :meta="$row->inputMeta" :value="$cell['value']" size="sm" />
                                                     </td>
                                                 @else
                                                     <td wire:key="{{ $cellPlannedRenderKey }}" style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $splitSetSubcellWidthClass }} {{ $cellPlannedColor }} {{ $plannedSessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
-                                                        {{ $cell['value'] }}
+                                                        {{ $formatGridValue($row->field, $cell['value']) }}
                                                     </td>
                                                 @endif
                                                 @if ($cellActualEditable)
@@ -948,12 +959,12 @@
                                                             data-mask="{{ $row->inputMeta->mask }}"
                                                         @endif
                                                         @click="startEditing()">
-                                                        <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $cellActualValue ?? '-' }}</span>
+                                                        <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $formatGridValue($row->field, $cellActualValue ?? '-') }}</span>
                                                         <x-training.exercise-grid-input :meta="$row->inputMeta" :value="$cellActualValue === '-' ? '' : $cellActualValue" size="sm" />
                                                     </td>
                                                 @else
                                                     <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $splitSetSubcellWidthClass }} {{ $cellActualColor }} {{ $sessionLocked || $cellActualValue === null || $cellActualValue === '-' ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
-                                                        {{ $cellActualValue ?? '-' }}
+                                                        {{ $formatGridValue($row->field, $cellActualValue ?? '-') }}
                                                     </td>
                                                 @endif
                                             @elseif ($cell['editable'])
@@ -977,6 +988,7 @@
                                                         @include('components.training.partials.planned-actual-value', [
                                                             'plannedValue' => $cell['value'],
                                                             'actualValue' => $cellActualValue,
+                                                            'field' => $row->field,
                                                             'mode' => $showActualValues ? $valueDisplayMode : 'planned',
                                                         ])
                                                     </span>
@@ -987,6 +999,7 @@
                                                     @include('components.training.partials.planned-actual-value', [
                                                         'plannedValue' => $cell['value'],
                                                         'actualValue' => $cellActualValue,
+                                                        'field' => $row->field,
                                                         'mode' => $showActualValues ? $valueDisplayMode : 'planned',
                                                     ])
                                                 </td>
@@ -1017,13 +1030,13 @@
                                                                 data-mask="{{ $weekCol->inputMeta->mask }}"
                                                             @endif
                                                             @click="startEditing()">
-                                                            <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $weekCell['value'] }}</span>
+                                                            <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $formatGridValue($weekCol->field, $weekCell['value']) }}</span>
                                                             <x-training.exercise-grid-input :meta="$weekCol->inputMeta" :value="$weekCell['value']" size="xs" type="text" />
                                                         </td>
                                                     @else
                                                         <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $splitSetSubcellWidthClass }} {{ $weekCell['color'] }} {{ $plannedSessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}"
                                                             rowspan="{{ count($grid->rows) }}">
-                                                            {{ $weekCell['value'] }}
+                                                            {{ $formatGridValue($weekCol->field, $weekCell['value']) }}
                                                         </td>
                                                     @endif
                                                     @if ($weekActualEditable)
@@ -1042,13 +1055,13 @@
                                                                 data-mask="{{ $weekCol->inputMeta->mask }}"
                                                             @endif
                                                             @click="startEditing()">
-                                                            <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $weekActualValue ?? '-' }}</span>
+                                                            <span x-show="!editing" class="block px-3 py-2 cursor-pointer">{{ $formatGridValue($weekCol->field, $weekActualValue ?? '-') }}</span>
                                                             <x-training.exercise-grid-input :meta="$weekCol->inputMeta" :value="$weekActualValue === '-' ? '' : $weekActualValue" size="xs" type="text" />
                                                         </td>
                                                     @else
                                                         <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center align-middle {{ $weekCell['color'] }} {{ $sessionLocked || $weekActualValue === null || $weekActualValue === '-' ? 'text-zinc-400 dark:text-zinc-500' : '' }}"
                                                             rowspan="{{ count($grid->rows) }}">
-                                                            {{ $weekActualValue ?? '-' }}
+                                                            {{ $formatGridValue($weekCol->field, $weekActualValue ?? '-') }}
                                                         </td>
                                                     @endif
                                         @elseif ($weekCell['editable'])
@@ -1072,6 +1085,7 @@
                                                             @include('components.training.partials.planned-actual-value', [
                                                                 'plannedValue' => $weekCell['value'],
                                                                 'actualValue' => $weekActualValue,
+                                                                'field' => $weekCol->field,
                                                                 'mode' => $showActualValues ? $valueDisplayMode : 'planned',
                                                             ])
                                                         </span>
@@ -1083,6 +1097,7 @@
                                                         @include('components.training.partials.planned-actual-value', [
                                                             'plannedValue' => $weekCell['value'],
                                                             'actualValue' => $weekActualValue,
+                                                            'field' => $weekCol->field,
                                                             'mode' => $showActualValues ? $valueDisplayMode : 'planned',
                                                         ])
                                                     </td>

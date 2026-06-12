@@ -347,10 +347,17 @@
                                         <span class="block truncate">{{ $entry->program->name }}</span>
                                     </button>
                                 </div>
-                                <button type="button" wire:click.stop="openEditProgram({{ $entry->id }})"
-                                    class="ml-auto shrink-0 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
-                                    <flux:icon.pencil class="size-3.5" />
-                                </button>
+                                <flux:dropdown position="bottom" align="end">
+                                    <flux:button variant="ghost" size="xs" icon="ellipsis" class="ml-auto shrink-0 !p-1" />
+                                    <flux:menu>
+                                        <flux:menu.item icon="pencil" wire:click="openEditProgram({{ $entry->id }})">
+                                            {{ __('Edit') }}
+                                        </flux:menu.item>
+                                        <flux:menu.item icon="copy" wire:click="openDuplicateProgram({{ $entry->id }})">
+                                            {{ __('Duplicate') }}
+                                        </flux:menu.item>
+                                    </flux:menu>
+                                </flux:dropdown>
                             </div>
                             @if ($exercises->isNotEmpty())
                                 <div x-show="programExpanded[{{ $entry->id }}]" x-cloak class="mt-1 ml-10 flex min-w-0 flex-col gap-1">

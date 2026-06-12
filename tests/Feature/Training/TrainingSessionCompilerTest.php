@@ -369,6 +369,54 @@ it('reuses cached slot timelines and metric lookups across repeated compiles in 
         ->and($metricQueries)->toBe(2);
 });
 
+it('preserves program exercise pivot sort when the same exercise appears in multiple sections', function () {
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Strength']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $exercise = Exercise::factory()->create([
+        'name' => 'Front Squat',
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 8, 'applyPer' => 'session'],
+        ],
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'type' => 'warm_up',
+        'group' => 'C',
+        'sort' => 0,
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'type' => 'main',
+        'group' => 'A',
+        'sort' => 0,
+    ]);
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2026-04-28 09:00:00'),
+    ]);
+
+    $slotExercises = $slot->fresh('exercises')
+        ->exercises
+        ->keyBy(fn ($slotExercise): string => $slotExercise->type.'-'.$slotExercise->group);
+
+    expect($slotExercises['warm_up-C']->sort)->toBe(0)
+        ->and($slotExercises['main-A']->sort)->toBe(0);
+});
+
 it('excludes automatic metric-dependent exercises when required athlete metrics are missing', function () {
     $athlete = User::factory()->athlete()->create();
     $group = UserGroup::create(['name' => 'Test Group']);

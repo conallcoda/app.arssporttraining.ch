@@ -164,11 +164,11 @@ it('stores canonical split-rep metadata alongside the display value', function (
         ->and($repsValue?->plannedCanonicalValue())->toBe([
             'kind' => 'reps',
             'format' => 'split',
-            'display' => '12_12',
+            'display' => '12L_12R',
             'total' => 24,
             'parts' => [12, 12],
             'is_bilateral' => true,
-            'bilateral_execution' => 'consecutive',
+            'bilateral_execution' => 'alternating',
         ]);
 });
 

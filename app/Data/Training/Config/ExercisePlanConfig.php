@@ -342,6 +342,27 @@ class ExercisePlanConfig extends AbstractConfig
         return $changed;
     }
 
+    /** @param array<int, int> $weekSessionCounts */
+    public function pruneCurrentGridOverridesToSessionCounts(array $weekSessionCounts): bool
+    {
+        $this->hydrateOverrideValues();
+        $changed = false;
+
+        foreach (array_keys($this->exercises) as $programExerciseId) {
+            $overrides = $this->defaultExerciseOverrides((int) $programExerciseId);
+            $changed = $this->pruneOverrideBucketToSessionCounts($overrides, $weekSessionCounts) || $changed;
+        }
+
+        foreach ($this->allUserExerciseOverrides() as $userId => $overridesByExercise) {
+            foreach (array_keys($overridesByExercise) as $programExerciseId) {
+                $overrides = $this->userExerciseOverrides((int) $userId, (int) $programExerciseId);
+                $changed = $this->pruneOverrideBucketToSessionCounts($overrides, $weekSessionCounts) || $changed;
+            }
+        }
+
+        return $changed;
+    }
+
     public function hasDefaultOverrides(): bool
     {
         $this->hydrateOverrideValues();
@@ -389,6 +410,21 @@ class ExercisePlanConfig extends AbstractConfig
         return tap(ExerciseOverrides::from($overrides->toArray()), function (ExerciseOverrides $copiedOverrides) use ($startsAtDate): void {
             $copiedOverrides->startsAtDate = $startsAtDate ?? $copiedOverrides->startsAtDate;
         });
+    }
+
+    /** @param array<int, int> $weekSessionCounts */
+    private function pruneOverrideBucketToSessionCounts(ExerciseOverrides $overrides, array $weekSessionCounts): bool
+    {
+        $before = GridOverrideNormalizer::normalize($overrides->gridOverrides);
+        $after = GridOverrideNormalizer::pruneToSessionCounts($before, $weekSessionCounts);
+
+        if ($before === $after) {
+            return false;
+        }
+
+        $overrides->gridOverrides = $after;
+
+        return true;
     }
 
     private function hydrateOverrideValues(): void

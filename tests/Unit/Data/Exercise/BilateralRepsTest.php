@@ -2,7 +2,6 @@
 
 use App\Data\Exercise\BilateralReps;
 use App\Data\Exercise\Settings\RepsSetting;
-use Coda\FormKit\ConditionEvaluator;
 
 describe('parse', function () {
     it('parses plain integer', function () {
@@ -162,21 +161,27 @@ describe('isValid', function () {
 });
 
 describe('athlete canonical value', function () {
-    it('includes consecutive bilateral execution metadata for bilateral reps by default', function () {
+    it('formats split reps with side labels for display', function () {
+        expect(RepsSetting::formatAthleteValue('6_6'))->toBe('6L_6R')
+            ->and(RepsSetting::formatAthleteValue('8'))->toBe('8')
+            ->and(RepsSetting::formatAthleteValue('8-10'))->toBe('8-10');
+    });
+
+    it('infers alternating bilateral execution metadata for split reps', function () {
         expect(RepsSetting::athleteCanonicalValue('6_6'))->toMatchArray([
             'kind' => 'reps',
             'format' => 'split',
-            'display' => '6_6',
+            'display' => '6L_6R',
             'total' => 12,
             'parts' => [6, 6],
             'is_bilateral' => true,
-            'bilateral_execution' => RepsSetting::BILATERAL_EXECUTION_CONSECUTIVE,
+            'bilateral_execution' => RepsSetting::BILATERAL_EXECUTION_ALTERNATING,
         ]);
     });
 
-    it('includes configured alternating bilateral execution metadata', function () {
+    it('ignores legacy bilateral execution config for split reps', function () {
         expect(RepsSetting::athleteCanonicalValue('6_6', [
-            'bilateralExecution' => RepsSetting::BILATERAL_EXECUTION_ALTERNATING,
+            'bilateralExecution' => RepsSetting::BILATERAL_EXECUTION_CONSECUTIVE,
         ]))->toMatchArray([
             'is_bilateral' => true,
             'bilateral_execution' => RepsSetting::BILATERAL_EXECUTION_ALTERNATING,
@@ -192,17 +197,11 @@ describe('athlete canonical value', function () {
 });
 
 describe('reps setting form fields', function () {
-    it('only shows bilateral order when default reps are bilateral', function () {
-        $field = collect(RepsSetting::fields())->firstWhere('name', 'bilateralExecution');
-        $evaluator = new ConditionEvaluator;
-
-        expect($field?->showExpression)->toBe('default matches "/^\\\\d+_\\\\d+$/"')
-            ->and($evaluator->evaluate($field->showExpression, ['default' => '5_5']))->toBeTrue()
-            ->and($evaluator->evaluate($field->showExpression, ['default' => '5']))->toBeFalse()
-            ->and($evaluator->evaluate($field->showExpression, ['default' => '']))->toBeFalse();
+    it('does not expose bilateral order as a separate setting', function () {
+        expect(collect(RepsSetting::fields())->firstWhere('name', 'bilateralExecution'))->toBeNull();
     });
 
-    it('updates default reps live so bilateral order visibility can react', function () {
+    it('updates default reps live so dependent settings can react', function () {
         $field = collect(RepsSetting::fields())->firstWhere('name', 'default');
 
         expect($field?->live)->toBeTrue();

@@ -113,13 +113,13 @@ class ProgramPreviewBuilder
             ));
         $authoringProgram = new AuthoringProgramData(
             exercises: $sortedExercises
-                ->map(function (Exercise $exercise, int $index) use ($programConfig, $userId): AuthoringExerciseData {
+                ->map(function (Exercise $exercise) use ($programConfig, $userId): AuthoringExerciseData {
                     $programExerciseId = (int) $exercise->pivot->id;
                     $resolvedOverrides = $programConfig->resolveExercise($exercise->config, $programExerciseId, $userId);
 
                     return new AuthoringExerciseData(
                         exerciseId: $exercise->id,
-                        sort: $index,
+                        sort: (int) ($exercise->pivot->sort ?? 0),
                         group: $exercise->pivot->group,
                         type: $exercise->pivot->type ?? 'main',
                         effectiveConfig: $resolvedOverrides->effectiveConfig,

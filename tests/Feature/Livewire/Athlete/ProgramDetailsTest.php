@@ -165,7 +165,7 @@ it('shows all exercises in the selected program', function () {
         ->assertSee('/dashboard/schedule/2026-03-30', false);
 });
 
-it('shows a small bilateral reps note on the athlete dashboard', function () {
+it('shows formatted split reps without a bilateral hint on the athlete dashboard', function () {
     config()->set('athlete.dashboard_today_override', '03.04.2026');
 
     $athlete = User::factory()->athlete()->create();
@@ -211,7 +211,8 @@ it('shows a small bilateral reps note on the athlete dashboard', function () {
         ->get('/programs/2026-04-03/'.$trainingProgram->id)
         ->assertOk()
         ->assertSee('Keep the hips level.')
-        ->assertSee('Alternate sides each rep, for example 1 left, 1 right, repeat until both sides are complete.');
+        ->assertSee('6L_6R')
+        ->assertDontSee('Alternate sides each rep, for example 1 left, 1 right, repeat until both sides are complete.');
 });
 
 it('hides exercises that depend on missing automatic metrics on the athlete dashboard', function () {

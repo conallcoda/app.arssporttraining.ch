@@ -5,16 +5,37 @@ namespace App\Training;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Training\TrainingProgramSlotStatusEnum;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 
 class TrainingSessionEditGuard
 {
+    /**
+     * Plan edits are future-only because scheduled slots are only rebuilt for future datetimes.
+     */
+    public function applyPlanEditLockConstraints(Builder $query): Builder
+    {
+        return $query->where('datetime', '<=', now());
+    }
+
+    /**
+     * @return array<string, true>
+     */
+    public function planEditLockedDateTimeLookup(Builder $query): array
+    {
+        return $this->applyPlanEditLockConstraints($query)
+            ->select('datetime')
+            ->distinct()
+            ->pluck('datetime')
+            ->mapWithKeys(fn ($datetime): array => [Carbon::parse($datetime)->toDateTimeString() => true])
+            ->all();
+    }
+
     /**
      * Marks slots as immutable only once they are in the past and have some recorded outcome.
      */
     public function applyImmutableSlotConstraints(Builder $query): Builder
     {
-        return $query
-            ->where('datetime', '<=', now())
+        return $this->applyPlanEditLockConstraints($query)
             ->where(function (Builder $query): void {
                 $query
                     ->whereIn('status', [

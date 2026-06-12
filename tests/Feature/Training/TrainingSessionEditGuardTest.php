@@ -45,3 +45,36 @@ it('counts only recorded slots as immutable', function () {
         ->and($guard->countImmutableSlotsForOccurrence($trainingProgram->id, '2030-04-10 09:00:00', $athlete->id))->toBe(0)
         ->and($guard->countImmutableSlotsForOccurrence($trainingProgram->id, '2030-04-11 09:00:00', $athlete->id))->toBe(1);
 });
+
+it('locks all non-future slots for plan editing', function () {
+    Carbon::setTestNow('2030-04-12 12:00:00');
+
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $athlete = User::factory()->athlete()->create();
+    $exerciseProgram = ExerciseProgram::factory()->create();
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $exerciseProgram->id,
+    ]);
+
+    TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-04-10 09:00:00'),
+        'status' => TrainingProgramSlotStatusEnum::Pending,
+    ]);
+
+    TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-04-13 09:00:00'),
+        'status' => TrainingProgramSlotStatusEnum::Pending,
+    ]);
+
+    $lookup = app(TrainingSessionEditGuard::class)->planEditLockedDateTimeLookup(
+        TrainingProgramSlot::query()->where('training_program_id', $trainingProgram->id),
+    );
+
+    expect($lookup)->toHaveKey('2030-04-10 09:00:00')
+        ->and($lookup)->not->toHaveKey('2030-04-13 09:00:00');
+});

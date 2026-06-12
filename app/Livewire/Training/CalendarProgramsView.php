@@ -54,6 +54,8 @@ class CalendarProgramsView extends Component
 
     public ?int $editingTrainingProgramId = null;
 
+    public ?int $duplicatingTrainingProgramId = null;
+
     public ?int $pendingMetricDeleteId = null;
 
     public bool $metricsLoaded = false;
@@ -1748,6 +1750,7 @@ class CalendarProgramsView extends Component
         $programData = ExerciseProgramData::fromModel($trainingProgram->program);
 
         $this->editingTrainingProgramId = $trainingProgramId;
+        $this->duplicatingTrainingProgramId = null;
 
         $this->dispatch('open-edit-program', data: [
             ...$programData->toArray(),
@@ -1756,9 +1759,34 @@ class CalendarProgramsView extends Component
         ]);
     }
 
+    public function openDuplicateProgram(int $trainingProgramId): void
+    {
+        $trainingProgram = TrainingProgram::with('program.exerciseCategory', 'program.exercises')->findOrFail($trainingProgramId);
+
+        $programData = ExerciseProgramData::fromModel($trainingProgram->program);
+
+        $this->editingTrainingProgramId = null;
+        $this->duplicatingTrainingProgramId = $trainingProgramId;
+
+        $this->dispatch('open-edit-program', data: [
+            ...$programData->toArray(),
+            'id' => null,
+            'name' => '',
+            'status' => $trainingProgram->statusValue(),
+            '_show_training_program_status' => true,
+            '_duplicate_source_training_program_id' => $trainingProgramId,
+        ], title: __('Duplicate Program'), focusField: 'name');
+    }
+
     #[On('edit-program.submitted')]
     public function handleEditProgramSubmitted(array $data): void
     {
+        if (! empty($data['_duplicate_source_training_program_id'])) {
+            $this->handleDuplicateProgramSubmitted($data);
+
+            return;
+        }
+
         if ($this->editingTrainingProgramId === null) {
             return;
         }
@@ -1776,6 +1804,57 @@ class CalendarProgramsView extends Component
 
         $this->editingTrainingProgramId = null;
         unset($this->programs, $this->groupedPrograms);
+    }
+
+    protected function handleDuplicateProgramSubmitted(array $data): void
+    {
+        $sourceTrainingProgramId = $this->duplicatingTrainingProgramId
+            ?? (int) ($data['_duplicate_source_training_program_id'] ?? 0);
+
+        if ($sourceTrainingProgramId <= 0) {
+            return;
+        }
+
+        $sourceTrainingProgram = TrainingProgram::with('program')->findOrFail($sourceTrainingProgramId);
+
+        DB::transaction(function () use ($sourceTrainingProgram, $data): void {
+            $clone = $sourceTrainingProgram->program->duplicate();
+            $ownerId = isset($data['owner_id']) && $data['owner_id'] !== '' && (int) $data['owner_id'] > 0
+                ? (int) $data['owner_id']
+                : null;
+            $categoryId = isset($data['exercise_category_id']) && $data['exercise_category_id'] !== ''
+                ? (int) $data['exercise_category_id']
+                : null;
+
+            $clone->update([
+                'name' => $data['name'] ?? '',
+                'type' => $data['type'] ?? $clone->type,
+                'exercise_category_id' => $categoryId,
+                'owner_id' => $ownerId,
+                'warm_up_program_id' => null,
+                'warm_down_program_id' => null,
+            ]);
+
+            $clone->tags()->sync($data['internalTags'] ?? []);
+
+            $maxSort = TrainingProgram::where('group_id', $sourceTrainingProgram->group_id)->max('sort') ?? -1;
+
+            $trainingProgram = TrainingProgram::create([
+                'group_id' => $sourceTrainingProgram->group_id,
+                'exercise_program_id' => $clone->id,
+                'sort' => $maxSort + 1,
+                'status' => TrainingProgram::normalizeStatus($data['status'] ?? null),
+                'owner_id' => $sourceTrainingProgram->owner_id,
+            ]);
+
+            $clone->update([
+                'parent_type' => TrainingProgram::class,
+                'parent_id' => $trainingProgram->id,
+            ]);
+        });
+
+        $this->duplicatingTrainingProgramId = null;
+        unset($this->programs, $this->groupedPrograms, $this->programCellSlots, $this->athleteSlotOrder);
     }
 
     #[On('edit-program.delete-requested')]

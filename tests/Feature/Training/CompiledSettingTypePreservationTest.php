@@ -64,11 +64,11 @@ it('preserves string-shaped planned values during materialization', function () 
         ->and($values['reps']->planned_json_value)->toBe([
             'kind' => 'reps',
             'format' => 'split',
-            'display' => '12_12',
+            'display' => '12L_12R',
             'total' => 24,
             'parts' => [12, 12],
             'is_bilateral' => true,
-            'bilateral_execution' => 'consecutive',
+            'bilateral_execution' => 'alternating',
         ])
         ->and($values['duration']->planned_value_type)->toBe('int')
         ->and($values['duration']->planned_int_value)->toBe(60)

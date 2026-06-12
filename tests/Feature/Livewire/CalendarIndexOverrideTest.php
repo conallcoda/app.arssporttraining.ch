@@ -5,6 +5,7 @@ use App\Livewire\Training\CalendarIndex;
 use App\Livewire\Training\CalendarProgramsView;
 use App\Livewire\Training\CalendarScheduleView;
 use App\Models\Exercise\ExerciseProgram;
+use App\Models\Exercise\ExerciseProgramExercise;
 use App\Models\Tag;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramBlock;
@@ -148,6 +149,97 @@ it('persists archived status through the edit program flow', function () {
         ->and($program->fresh()->name)->toBe('1A Strength Updated');
 });
 
+it('duplicates a calendar program as a fresh clone with all exercise sections', function () {
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Three Amigos']);
+    $category = Tag::factory()->withScope('exercise_category')->create();
+    $programTag = Tag::factory()->withScope('program_internal')->create();
+    $warmUpExercise = \App\Models\Exercise\Exercise::factory()->create(['name' => 'Warm Up Drill']);
+    $mainExercise = \App\Models\Exercise\Exercise::factory()->create(['name' => 'Main Lift']);
+    $warmDownExercise = \App\Models\Exercise\Exercise::factory()->create(['name' => 'Cool Down Reset']);
+
+    $program = ExerciseProgram::factory()->create([
+        'name' => '1A Strength',
+        'exercise_category_id' => $category->id,
+        'owner_id' => $coach->id,
+    ]);
+    $program->tags()->attach($programTag->id);
+
+    $sourcePivots = collect([
+        ExerciseProgramExercise::create([
+            'exercise_program_id' => $program->id,
+            'exercise_id' => $warmUpExercise->id,
+            'sort' => 0,
+            'type' => 'warm_up',
+        ]),
+        ExerciseProgramExercise::create([
+            'exercise_program_id' => $program->id,
+            'exercise_id' => $mainExercise->id,
+            'sort' => 0,
+            'type' => 'main',
+        ]),
+        ExerciseProgramExercise::create([
+            'exercise_program_id' => $program->id,
+            'exercise_id' => $warmDownExercise->id,
+            'sort' => 0,
+            'type' => 'warm_down',
+        ]),
+    ]);
+
+    $sourceTrainingProgram = TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+        'status' => TrainingProgram::STATUS_ARCHIVED,
+    ]);
+
+    Livewire::actingAs($coach)
+        ->test(CalendarProgramsView::class, [
+            'groupId' => $group->id,
+            'calendarSettings' => calendarWeekSettings(),
+            'weekStartsOn' => (int) config('training.week_starts_on', Carbon::MONDAY),
+            'weekEndsOn' => ((int) config('training.week_starts_on', Carbon::MONDAY) + 6) % 7,
+        ])
+        ->call('openDuplicateProgram', $sourceTrainingProgram->id)
+        ->assertDispatched('open-edit-program', function ($event, $params) use ($sourceTrainingProgram) {
+            return ($params['title'] ?? null) === 'Duplicate Program'
+                && ($params['data']['name'] ?? null) === ''
+                && array_key_exists('id', $params['data'])
+                && $params['data']['id'] === null
+                && ($params['data']['_duplicate_source_training_program_id'] ?? null) === $sourceTrainingProgram->id;
+        })
+        ->call('handleEditProgramSubmitted', [
+            '_duplicate_source_training_program_id' => $sourceTrainingProgram->id,
+            'name' => '1B Strength',
+            'type' => 'program',
+            'exercise_category_id' => $category->id,
+            'owner_id' => $coach->id,
+            'internalTags' => [$programTag->id],
+            'status' => TrainingProgram::STATUS_ACTIVE,
+        ]);
+
+    $duplicateTrainingProgram = TrainingProgram::query()
+        ->where('group_id', $group->id)
+        ->where('id', '!=', $sourceTrainingProgram->id)
+        ->firstOrFail();
+    $duplicateProgram = ExerciseProgram::with('internalTags')->findOrFail($duplicateTrainingProgram->exercise_program_id);
+    $duplicatePivots = ExerciseProgramExercise::query()
+        ->where('exercise_program_id', $duplicateProgram->id)
+        ->orderBy('type')
+        ->orderBy('sort')
+        ->get();
+
+    expect($duplicateProgram->name)->toBe('1B Strength')
+        ->and($duplicateProgram->parent_type)->toBe(TrainingProgram::class)
+        ->and((int) $duplicateProgram->parent_id)->toBe($duplicateTrainingProgram->id)
+        ->and($duplicateProgram->exercise_category_id)->toBe($category->id)
+        ->and($duplicateProgram->internalTags->pluck('id')->all())->toBe([$programTag->id])
+        ->and($duplicateTrainingProgram->status)->toBeNull()
+        ->and($duplicatePivots)->toHaveCount(3)
+        ->and($duplicatePivots->pluck('type')->sort()->values()->all())->toBe(['main', 'warm_down', 'warm_up'])
+        ->and($duplicatePivots->pluck('exercise_id')->sort()->values()->all())->toBe($sourcePivots->pluck('exercise_id')->sort()->values()->all())
+        ->and($duplicatePivots->pluck('id')->intersect($sourcePivots->pluck('id'))->isEmpty())->toBeTrue();
+});
+
 it('can remove a group program from user view', function () {
     $coach = User::factory()->coach()->create();
     $group = UserGroup::create(['name' => 'Three Amigos']);
@@ -248,7 +340,7 @@ it('blocks removing a group program once a past session has recorded data', func
     expect(TrainingProgram::find($groupTp->id))->not->toBeNull();
 });
 
-it('marks only recorded past sessions as locked in plan schedule info', function () {
+it('marks all non-future sessions as locked in plan schedule info', function () {
     Carbon::setTestNow('2026-03-08 12:00:00');
 
     $coach = User::factory()->coach()->create();
@@ -292,7 +384,7 @@ it('marks only recorded past sessions as locked in plan schedule info', function
             'planProgram' => (string) $trainingProgram->id,
         ]);
 
-    expect($component->get('planScheduleInfo')['lockedSessionsByWeek'] ?? [])->toBe([[false, true]]);
+    expect($component->get('planScheduleInfo')['lockedSessionsByWeek'] ?? [])->toBe([[true, true]]);
 });
 
 it('creates individual slots per user in group mode', function () {

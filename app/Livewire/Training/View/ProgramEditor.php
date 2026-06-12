@@ -14,6 +14,7 @@ use App\Models\Users\User;
 use App\Support\Profiling\PlanGridProfiler;
 use App\Support\Training\ExerciseProgramSelectorPreviewService;
 use App\Support\Training\ProgramExerciseOrder;
+use App\Support\Training\WeekSessionCountResolver;
 use App\Training\ExerciseGroupLabeler;
 use App\Training\ExerciseProgramSectionMutationService;
 use App\Training\TrainingSessionRebuildDispatcher;
@@ -462,6 +463,15 @@ class ProgramEditor extends Component
 
         $config = $this->exerciseProgram->config;
         $config->weeks = $this->weeks;
+        $config->pruneCurrentGridOverridesToSessionCounts(
+            WeekSessionCountResolver::resolveForWeeks(
+                weeks: $this->weeks,
+                fallbackSessionsPerWeek: $this->sessionsPerWeek,
+                weekSessions: $this->weekSessions,
+                weekSessionDates: $this->weekSessionDates,
+                lockedSessionsByWeek: $this->lockedSessionsByWeek,
+            ),
+        );
         $this->exerciseProgram->config = $config;
         $this->exerciseProgram->saveQuietly();
         unset($this->planConfigArray);

@@ -749,6 +749,69 @@ it('captures locked session values in the historical session snapshot bag for mi
         ->toBe(90);
 });
 
+it('normalizes historical values across locked sessions in the same fixed group', function () {
+    $coach = User::factory()->coach()->create();
+    $coach->config->set('settings.session_grouping', [
+        'mode' => 'groups',
+        'groupSize' => 2,
+    ]);
+    $coach->save();
+
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['rest'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'rest' => ['default' => 60, 'applyPer' => 'week'],
+            'preview' => ['weeks' => 1, 'sessionsPerWeek' => 2],
+        ],
+    ]);
+
+    $program = ExerciseProgram::factory()->create();
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $config = $program->config;
+    $overrides = $config->defaultExerciseOverrides($pivot->id);
+    $overrides->historicalGridOverrides = [
+        'cells' => [],
+        'sessions' => [
+            ['week' => 0, 'session' => 0, 'data' => ['rest' => 30]],
+            ['week' => 0, 'session' => 1, 'data' => ['rest' => 90]],
+        ],
+    ];
+    $config->setDefaultExerciseOverrides($pivot->id, $overrides);
+    $program->config = $config;
+    $program->save();
+
+    Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'weeks' => 1,
+        'sessionsPerWeek' => 2,
+        'lockedSessionsByWeek' => [
+            [true, true],
+        ],
+        'valueDisplayMode' => 'actual',
+    ])->call('updateSessionOverride', 0, 0, 'rest', 30);
+
+    $savedOverrides = $program->fresh()->config->defaultExerciseOverrides($pivot->id);
+    $historicalSessions = collect($savedOverrides->historicalGridOverrides['sessions'] ?? []);
+
+    expect($historicalSessions
+        ->firstWhere(fn (array $session) => ($session['week'] ?? null) === 0 && ($session['session'] ?? null) === 0)['data']['rest'] ?? null)
+        ->toBe(30)
+        ->and($historicalSessions
+            ->firstWhere(fn (array $session) => ($session['week'] ?? null) === 0 && ($session['session'] ?? null) === 1)['data']['rest'] ?? null)
+        ->toBe(30);
+});
+
 it('applies to all only across sessions that exist in the edited week', function () {
     $exercise = Exercise::factory()->create([
         'config' => [

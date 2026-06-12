@@ -91,7 +91,8 @@ it('does not show a bilateral reps hint in the plan exercise grid header', funct
         ],
     ])
         ->assertDontSee('Alternate sides each rep')
-        ->assertDontSee('Complete all reps on one side first');
+        ->assertDontSee('Complete all reps on one side first')
+        ->assertSee('7L_9R');
 });
 
 it('shows historical sessions even when they match the other sessions', function () {

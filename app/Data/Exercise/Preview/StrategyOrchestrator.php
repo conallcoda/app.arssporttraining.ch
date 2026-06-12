@@ -76,6 +76,7 @@ class StrategyOrchestrator
 
         if ($this->overrides !== null) {
             $setsPerWeek = $state->getSetsPerWeek();
+            $sessionCounts = $this->resolveSessionCounts();
 
             foreach ($this->overrides->sessions as $override) {
                 if (! isset($override->data['sets'])) {
@@ -83,8 +84,13 @@ class StrategyOrchestrator
                 }
 
                 $week = $override->week;
+                $session = $override->session;
 
                 if ($week < 0 || $week >= $this->weeks) {
+                    continue;
+                }
+
+                if ($session < 0 || $session >= ($sessionCounts[$week] ?? 1)) {
                     continue;
                 }
 

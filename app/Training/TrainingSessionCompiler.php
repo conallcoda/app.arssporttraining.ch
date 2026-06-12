@@ -71,13 +71,13 @@ class TrainingSessionCompiler
             exercises: $this->programExerciseOrder
             ->sortProgramExercises($program->exercises)
             ->values()
-            ->map(function (Exercise $exercise, int $index) use ($programConfig, $slot) {
+            ->map(function (Exercise $exercise) use ($programConfig, $slot) {
                 $programExerciseId = (int) $exercise->pivot->id;
                 $resolvedOverrides = $programConfig->resolveExercise($exercise->config, $programExerciseId, $slot->user_id);
 
                 return new AuthoringExerciseData(
                     exerciseId: $exercise->id,
-                    sort: $index,
+                    sort: (int) ($exercise->pivot->sort ?? 0),
                     group: $exercise->pivot->group,
                     type: $exercise->pivot->type ?? 'main',
                     effectiveConfig: $resolvedOverrides->effectiveConfig,

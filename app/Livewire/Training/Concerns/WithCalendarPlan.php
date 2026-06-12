@@ -690,13 +690,8 @@ trait WithCalendarPlan
             $weekSessionDates = [];
             $expandedWeeks = [];
             $lockedSessionsByWeek = [];
-            $immutableSessionDateTimes = app(TrainingSessionEditGuard::class)
-                ->applyImmutableSlotConstraints((clone $slotQuery))
-                ->select('datetime')
-                ->distinct()
-                ->pluck('datetime')
-                ->map(fn ($datetime) => Carbon::parse($datetime)->toDateTimeString())
-                ->flip();
+            $planEditLockedDateTimes = app(TrainingSessionEditGuard::class)
+                ->planEditLockedDateTimeLookup((clone $slotQuery));
 
             foreach ($scheduledWeeks as $i => $weekInfo) {
                 $monday = Carbon::now()->setISODate($weekInfo['year'], $weekInfo['week'], 1);
@@ -709,7 +704,7 @@ trait WithCalendarPlan
                     ->map(fn (Carbon $sessionDatetime) => $sessionDatetime->toDateString())
                     ->all();
                 $lockedSessionsByWeek[$i] = collect($weekInfo['sessions'])
-                    ->map(fn (Carbon $sessionDatetime) => $immutableSessionDateTimes->has($sessionDatetime->toDateTimeString()))
+                    ->map(fn (Carbon $sessionDatetime) => isset($planEditLockedDateTimes[$sessionDatetime->toDateTimeString()]))
                     ->all();
 
                 if (in_array(true, $lockedSessionsByWeek[$i], true)) {

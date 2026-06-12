@@ -169,6 +169,35 @@ class GridOverrideNormalizer
         return $entries;
     }
 
+    /**
+     * @param  array{sessions?: array<int, mixed>, cells?: array<int, mixed>}  $overrides
+     * @param  array<int, int>  $weekSessionCounts
+     * @return array{sessions: array, cells: array}
+     */
+    public static function pruneToSessionCounts(array $overrides, array $weekSessionCounts): array
+    {
+        $isValidCoordinate = static function (array $entry) use ($weekSessionCounts): bool {
+            $week = (int) ($entry['week'] ?? -1);
+            $session = (int) ($entry['session'] ?? -1);
+
+            return $week >= 0
+                && array_key_exists($week, $weekSessionCounts)
+                && $session >= 0
+                && $session < max(1, (int) $weekSessionCounts[$week]);
+        };
+
+        return [
+            'sessions' => collect($overrides['sessions'] ?? [])
+                ->filter(fn (mixed $entry): bool => is_array($entry) && $isValidCoordinate($entry))
+                ->values()
+                ->all(),
+            'cells' => collect($overrides['cells'] ?? [])
+                ->filter(fn (mixed $entry): bool => is_array($entry) && $isValidCoordinate($entry))
+                ->values()
+                ->all(),
+        ];
+    }
+
     private static function isSessionLevelField(string $field, ?array $config = null): bool
     {
         if ($field === 'sets') {

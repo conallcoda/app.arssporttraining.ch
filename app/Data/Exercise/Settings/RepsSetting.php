@@ -47,7 +47,7 @@ class RepsSetting extends AbstractSetting
         }
 
         return [
-            ['label' => $this->default.' reps', 'modalField' => static::fieldsetKey()],
+            ['label' => static::formatAthleteValue($this->default).' reps', 'modalField' => static::fieldsetKey()],
         ];
     }
 
@@ -94,14 +94,6 @@ class RepsSetting extends AbstractSetting
                 ->label('Label')
                 ->placeholder('Reps')
                 ->default(''),
-            Fields\RadioSegmented::make('bilateralExecution')
-                ->label('Bilateral Order')
-                ->options([
-                    self::BILATERAL_EXECUTION_CONSECUTIVE => 'One side then other',
-                    self::BILATERAL_EXECUTION_ALTERNATING => 'Alternating',
-                ])
-                ->default(self::BILATERAL_EXECUTION_CONSECUTIVE)
-                ->show('default matches "/^\\\\d+_\\\\d+$/"'),
             ApplyPerField::make(ApplyPerScope::FORM_SET)
                 ->show('mode == "manual"'),
         ];
@@ -163,12 +155,7 @@ class RepsSetting extends AbstractSetting
 
     public static function normalizeBilateralExecution(?string $execution): string
     {
-        return in_array($execution, [
-            self::BILATERAL_EXECUTION_CONSECUTIVE,
-            self::BILATERAL_EXECUTION_ALTERNATING,
-        ], true)
-            ? $execution
-            : self::BILATERAL_EXECUTION_CONSECUTIVE;
+        return self::BILATERAL_EXECUTION_ALTERNATING;
     }
 
     public static function bilateralExecutionHint(?string $execution): string
@@ -227,13 +214,26 @@ class RepsSetting extends AbstractSetting
         return [
             'kind' => 'reps',
             'format' => 'split',
-            'display' => $value,
+            'display' => static::formatAthleteValue($value),
             'total' => array_sum($parts),
             'parts' => $parts,
             'is_bilateral' => $isBilateral,
             'bilateral_execution' => $isBilateral
-                ? static::normalizeBilateralExecution($config['bilateralExecution'] ?? null)
+                ? static::normalizeBilateralExecution(null)
                 : null,
         ];
+    }
+
+    public static function formatAthleteValue(mixed $value, ?string $unit = null, array $config = []): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (! is_string($value) || ! preg_match('/^(?<left>\d+)_(?<right>\d+)$/', trim($value), $matches)) {
+            return parent::formatAthleteValue($value, $unit, $config);
+        }
+
+        return $matches['left'].'L_'.$matches['right'].'R';
     }
 }
