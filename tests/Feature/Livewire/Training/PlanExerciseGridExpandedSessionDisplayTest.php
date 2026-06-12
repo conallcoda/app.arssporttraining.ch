@@ -782,7 +782,8 @@ it('keeps grouped preview buckets and hides reset for locked groups when the gro
         ->and(array_keys($component->get('previewMenuOptions')))->toContain('group:0', 'group:1')
         ->and($component->get('previewMenuOptions')['group:0'] ?? [])->toHaveCount(2)
         ->and($component->get('resetMenuOptions')['group:0'] ?? null)->toBeFalse()
-        ->and($component->get('resetMenuOptions')['group:1'] ?? null)->toBeTrue();
+        ->and($component->get('resetMenuOptions')['group:1'] ?? null)->toBeTrue()
+        ->and($component->html())->not->toContain("resetDisplayBucket('group:0')");
 });
 
 it('hides reset for historical grouped sessions even when lock metadata is missing', function () {
@@ -852,7 +853,8 @@ it('hides reset for historical grouped sessions even when lock metadata is missi
         ->and($component->get('previewMenuOptions')['group:0'] ?? [])->toHaveCount(2)
         ->and($component->get('previewMenuOptions')['group:1'] ?? [])->toHaveCount(2)
         ->and($component->get('resetMenuOptions')['group:0'] ?? null)->toBeFalse()
-        ->and($component->get('resetMenuOptions')['group:1'] ?? null)->toBeTrue();
+        ->and($component->get('resetMenuOptions')['group:1'] ?? null)->toBeTrue()
+        ->and($component->html())->not->toContain("resetDisplayBucket('group:0')");
 });
 
 it('refreshes an open plan grid after coach settings change', function () {

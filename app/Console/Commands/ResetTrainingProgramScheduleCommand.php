@@ -51,10 +51,15 @@ class ResetTrainingProgramScheduleCommand extends Command
             return self::FAILURE;
         }
 
-        $offsetDays = (int) CarbonImmutable::parse($firstSlotDate)->startOfDay()->diffInDays($firstSessionDate, false);
+        $lastSlotDate = TrainingProgramSlot::query()
+            ->where('training_program_id', $trainingProgramId)
+            ->max('scheduled_date');
 
-        $reset = function () use ($trainingProgram, $trainingProgramId, $blockId, $offsetDays, $dryRun): array {
-            $blockSummary = $this->offsetBlock($blockId, $offsetDays, $dryRun);
+        $offsetDays = (int) CarbonImmutable::parse($firstSlotDate)->startOfDay()->diffInDays($firstSessionDate, false);
+        $lastSessionDate = CarbonImmutable::parse($lastSlotDate)->startOfDay()->addDays($offsetDays);
+
+        $reset = function () use ($trainingProgram, $trainingProgramId, $blockId, $offsetDays, $firstSessionDate, $lastSessionDate, $dryRun): array {
+            $blockSummary = $this->offsetBlock($blockId, $offsetDays, $firstSessionDate, $lastSessionDate, $dryRun);
             $slotSummary = $this->resetAndOffsetSlots($trainingProgramId, $offsetDays, $dryRun);
             $historicalOverridesCleared = $this->clearHistoricalOverrides($trainingProgram->program, $dryRun);
 
@@ -81,8 +86,13 @@ class ResetTrainingProgramScheduleCommand extends Command
     }
 
     /** @return array{block_start_before: ?string, block_start_after: ?string, block_end_before: ?string, block_end_after: ?string} */
-    private function offsetBlock(int $blockId, int $offsetDays, bool $dryRun): array
-    {
+    private function offsetBlock(
+        int $blockId,
+        int $offsetDays,
+        CarbonImmutable $firstSessionDate,
+        CarbonImmutable $lastSessionDate,
+        bool $dryRun,
+    ): array {
         $block = TrainingProgramBlock::query()->find($blockId);
 
         if (! $block instanceof TrainingProgramBlock) {
@@ -99,6 +109,14 @@ class ResetTrainingProgramScheduleCommand extends Command
 
         $block->start = $block->start?->copy()->addDays($offsetDays);
         $block->end = $block->end?->copy()->addDays($offsetDays);
+
+        if ($block->start === null || $block->start->gt($firstSessionDate)) {
+            $block->start = $firstSessionDate;
+        }
+
+        if ($block->end === null || $block->end->lt($lastSessionDate)) {
+            $block->end = $lastSessionDate;
+        }
 
         if (! $dryRun) {
             $block->saveQuietly();

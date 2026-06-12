@@ -45,7 +45,7 @@
         $hasPreviewActions = $showPreview && collect($previewMenuOptions)->contains(
             fn ($options): bool => ! empty($options ?? [])
         );
-        $canResetBucket = fn (string $key): bool => $resetMenuOptions === [] || (bool) ($resetMenuOptions[$key] ?? false);
+        $canResetBucket = fn (string $key): bool => (bool) ($resetMenuOptions[$key] ?? false);
         $showCopyColumn = ! $splitActualColumns && (bool) ($grid->showCopyMenu ?? false) && ($hasCopyActions || $hasPreviewActions);
         $baseRows = $splitActualColumns
             ? array_values(array_filter(

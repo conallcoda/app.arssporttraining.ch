@@ -193,3 +193,47 @@ it('reschedules slots without colliding with later slots in the same program', f
     expect(TrainingProgramSlot::query()->orderBy('datetime')->pluck('scheduled_date')->map->toDateString()->all())
         ->toBe(['2026-06-14', '2026-06-16', '2026-06-26', '2026-06-28']);
 });
+
+it('extends the shifted block dates to cover the rescheduled program timeline', function () {
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Team Alpha']);
+    $exerciseProgram = ExerciseProgram::factory()->create();
+    $trainingProgram = TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $exerciseProgram->id,
+        'sort' => 0,
+    ]);
+
+    $block = TrainingProgramBlock::create([
+        'group_id' => $group->id,
+        'type' => 'category',
+        'start' => '2026-06-04',
+        'end' => '2026-06-10',
+        'note' => 'Short block',
+        'active' => true,
+    ]);
+
+    foreach (['2026-06-02', '2026-06-16'] as $date) {
+        TrainingProgramSlot::withoutEvents(fn () => TrainingProgramSlot::create([
+            'training_program_id' => $trainingProgram->id,
+            'user_id' => $athlete->id,
+            'datetime' => $date.' 09:00:00',
+            'scheduled_date' => $date,
+        ]));
+    }
+
+    $this->artisan('training:reset-program-schedule', [
+        'trainingProgramId' => $trainingProgram->id,
+        '--block' => $block->id,
+        '--first-session' => '2026-06-14',
+    ])->assertExitCode(0)
+        ->expectsOutputToContain('Block start: 2026-06-04 -> 2026-06-14')
+        ->expectsOutputToContain('Block end: 2026-06-10 -> 2026-06-28');
+
+    $block->refresh();
+
+    expect($block->start?->toDateString())->toBe('2026-06-14')
+        ->and($block->end?->toDateString())->toBe('2026-06-28')
+        ->and(TrainingProgramSlot::query()->orderBy('datetime')->pluck('scheduled_date')->map->toDateString()->all())
+        ->toBe(['2026-06-14', '2026-06-28']);
+});
