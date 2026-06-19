@@ -161,12 +161,16 @@ class ExercisePlanConfig extends AbstractConfig
     {
         [$defaultOverrides, $userOverrides] = $this->effectiveExerciseOverrides($programExerciseId, $userId);
         $effectiveConfig = EffectiveExerciseConfig::resolve($baseConfig, $defaultOverrides, $userOverrides);
+        $overrideLayer = EffectiveExerciseConfig::filterGridOverridesForConfig(
+            EffectiveExerciseConfig::resolveForLayer($baseConfig, $defaultOverrides, $userOverrides),
+            $effectiveConfig,
+        );
 
         return new ResolvedExerciseOverrides(
             defaultOverrides: $defaultOverrides,
             userOverrides: $userOverrides,
             effectiveConfig: $effectiveConfig,
-            overrideLayer: EffectiveExerciseConfig::resolveForLayer($baseConfig, $defaultOverrides, $userOverrides),
+            overrideLayer: $overrideLayer,
             effectiveStartsAtDate: $userOverrides?->startsAtDate ?? $defaultOverrides->startsAtDate,
             disabled: EffectiveExerciseConfig::resolveDisabled($defaultOverrides, $userOverrides),
         );

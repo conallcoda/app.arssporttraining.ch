@@ -231,6 +231,100 @@ it('stores canonical split-duration metadata alongside normalized storage values
         ]);
 });
 
+it('materializes drop-set reps weight and duration without running automatic one rep max weight', function () {
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Drop Set Strength']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $exercise = Exercise::factory()->create([
+        'name' => 'Goblet Squat Drop Set',
+        'config' => [
+            'settings' => ['reps', 'weight', 'duration'],
+            'sets' => [
+                'type' => 'drop',
+                'default' => 1,
+                'label' => 'Set',
+                'deload' => 'none',
+            ],
+            'reps' => [
+                'mode' => 'automatic',
+                'default' => '3x12',
+                'applyPer' => 'session',
+            ],
+            'weight' => [
+                'mode' => 'automatic',
+                'oneRepMaxModifier' => 90,
+                'default' => '6,5,4',
+                'applyPer' => 'session',
+            ],
+            'duration' => [
+                'unit' => 'mm:ss',
+                'default' => '0:30,0:20,0:10',
+                'applyPer' => 'session',
+            ],
+        ],
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+    ]);
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-04-17 09:00:00'),
+    ])->fresh();
+
+    $values = $slot->exercises()
+        ->with('sets.values')
+        ->firstOrFail()
+        ->sets
+        ->firstOrFail()
+        ->values;
+
+    $repsValue = $values->firstWhere('setting_key', 'reps');
+    $weightValue = $values->firstWhere('setting_key', 'weight');
+    $durationValue = $values->firstWhere('setting_key', 'duration');
+
+    expect($values->pluck('setting_key')->all())->not->toContain('oneRepMax')
+        ->and($repsValue?->planned_value_type)->toBe('string')
+        ->and($repsValue?->planned_string_value)->toBe('12,12,12')
+        ->and($repsValue?->plannedCanonicalValue())->toMatchArray([
+            'kind' => 'reps',
+            'format' => 'drop_set',
+            'display' => '3x12',
+            'total' => 36,
+            'parts' => [12, 12, 12],
+            'is_bilateral' => false,
+        ])
+        ->and($weightValue?->planned_value_type)->toBe('string')
+        ->and($weightValue?->planned_string_value)->toBe('6,5,4')
+        ->and($weightValue?->plannedCanonicalValue())->toMatchArray([
+            'kind' => 'weight',
+            'format' => 'drop_set',
+            'display' => '6,5,4',
+            'unit' => 'kg',
+            'parts' => [6.0, 5.0, 4.0],
+        ])
+        ->and($durationValue?->planned_value_type)->toBe('string')
+        ->and($durationValue?->planned_string_value)->toBe('30,20,10')
+        ->and($durationValue?->plannedCanonicalValue())->toMatchArray([
+            'kind' => 'duration',
+            'format' => 'drop_set',
+            'display' => '0:30,0:20,0:10',
+            'unit' => 'mm:ss',
+            'seconds' => 60,
+            'parts' => [30, 20, 10],
+            'is_bilateral' => false,
+        ]);
+});
+
 it('materializes blank manual settings so athletes can record them later', function () {
     $athlete = User::factory()->athlete()->create();
     $group = UserGroup::create(['name' => 'Test Group']);

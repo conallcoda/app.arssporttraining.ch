@@ -2,6 +2,7 @@
 
 namespace App\Data\Exercise\Preview;
 
+use App\Data\Exercise\DropSet;
 use App\Data\Exercise\ExerciseSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Exercise\Strategies\HeartRate\HeartRateZoneCellColors;
@@ -77,6 +78,7 @@ class ExercisePreviewBuilder
             }
 
             $settings = $data['settings'] ?? [];
+            $setsConfig = is_array($data['sets'] ?? null) ? $data['sets'] : [];
 
             usort($settings, function (string $a, string $b) {
                 $priorityA = array_search($a, self::PRIORITY);
@@ -127,6 +129,7 @@ class ExercisePreviewBuilder
 
             foreach ($settings as $setting) {
                 $config = $data[$setting] ?? [];
+                $config['_sets'] = $setsConfig;
                 $applyPer = ApplyPerScope::normalize($config['applyPer'] ?? null);
 
                 if ($applyPer === ApplyPerScope::SESSION) {
@@ -457,11 +460,13 @@ class ExercisePreviewBuilder
 
         $mode = $config['mode'] ?? 'manual';
 
-        if ($mode === 'automatic') {
+        if ($mode === 'automatic' && ! DropSet::isEnabled($config)) {
             $cells = self::fillGrid($weeks, $setsPerWeek, '-');
         } else {
             $rawDefault = $config['default'] ?? null;
-            $defaultWeight = ($rawDefault === null || $rawDefault === '') ? '-' : (float) $rawDefault;
+            $defaultWeight = ($rawDefault === null || $rawDefault === '')
+                ? '-'
+                : (DropSet::isEnabled($config) ? $rawDefault : (float) $rawDefault);
             $cells = self::fillGrid($weeks, $setsPerWeek, $defaultWeight);
         }
 

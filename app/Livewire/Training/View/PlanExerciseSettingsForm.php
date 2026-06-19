@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Training\View;
 
+use App\Data\Exercise\DropSet;
 use App\Data\Exercise\ExerciseConfig;
 use App\Data\Exercise\Preview\OverrideManager;
 use App\Data\Exercise\Preview\SessionGroupingConfig;
@@ -11,6 +12,7 @@ use Coda\FormKit\Form;
 use Coda\FormKit\FormFieldsetGroup;
 use Flux\Flux;
 use Illuminate\View\View;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 
@@ -143,11 +145,24 @@ class PlanExerciseSettingsForm extends FormModal
         $this->data['config']['overrides'] = OverrideManager::reset();
     }
 
+    public function updatedDataConfigSetsType(): void
+    {
+        unset($this->fieldsets);
+    }
+
     public function submit(): void
     {
-        $this->validate($this->buildValidationRulesFromFieldsets(), [
-            'required' => __('This field is required.'),
-        ], $this->buildValidationAttributesFromFieldsets());
+        $this->normalizeDropSetConfig();
+
+        try {
+            $this->validate($this->buildValidationRulesFromFieldsets(), [
+                'required' => __('This field is required.'),
+            ], $this->buildValidationAttributesFromFieldsets());
+        } catch (ValidationException $exception) {
+            $this->selectFieldsetTabForValidationErrors($exception->validator->errors()->keys());
+
+            throw $exception;
+        }
 
         $this->data['config']['preview'] = SessionGroupingConfig::normalizeFormData(
             $this->data['config']['preview'] ?? [],
@@ -162,6 +177,22 @@ class PlanExerciseSettingsForm extends FormModal
             'exerciseId' => $this->contextExerciseId,
             'userId' => $this->contextUserId,
         ]);
+    }
+
+    private function normalizeDropSetConfig(): void
+    {
+        if (! DropSet::isEnabled($this->data['config'] ?? [])) {
+            return;
+        }
+
+        if (isset($this->data['config']['reps']) && is_array($this->data['config']['reps'])) {
+            $this->data['config']['reps']['mode'] = 'manual';
+        }
+
+        if (isset($this->data['config']['weight']) && is_array($this->data['config']['weight'])) {
+            $this->data['config']['weight']['mode'] = 'manual';
+            $this->data['config']['weight']['oneRepMaxModifier'] = null;
+        }
     }
 
     public function render(): View

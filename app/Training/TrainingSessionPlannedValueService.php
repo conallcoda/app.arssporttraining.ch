@@ -174,10 +174,16 @@ class TrainingSessionPlannedValueService
     {
         $config = $exercise->exercise?->config;
         $setting = $config?->{$settingKey};
-
-        return is_object($setting) && method_exists($setting, 'toArray')
+        $sets = $config?->sets;
+        $settingConfig = is_object($setting) && method_exists($setting, 'toArray')
             ? $setting->toArray()
             : [];
+
+        $settingConfig['_sets'] = is_object($sets) && method_exists($sets, 'toArray')
+            ? $sets->toArray()
+            : [];
+
+        return $settingConfig;
     }
 
     /**

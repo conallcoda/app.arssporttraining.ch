@@ -2,6 +2,7 @@
 
 namespace App\Data\Exercise\Settings;
 
+use App\Data\Exercise\DropSet;
 use App\Data\Exercise\Preview\CellInputMeta;
 use App\Data\Exercise\SplitDuration;
 use App\Form\Fields\Exercise\ApplyPerField;
@@ -27,12 +28,15 @@ class DurationSetting extends AbstractSetting
     public static function inputMeta(array $config = []): CellInputMeta
     {
         $unit = static::normalizeUnit($config['unit'] ?? 'seconds');
+        $pattern = DropSet::isEnabled($config)
+            ? DropSet::commaPattern('duration')
+            : self::DURATION_PATTERN;
 
         if ($unit === 'mm:ss') {
             return new CellInputMeta(
                 inputType: 'text',
                 maxlength: 15,
-                pattern: self::DURATION_PATTERN,
+                pattern: $pattern,
             );
         }
 
@@ -41,7 +45,7 @@ class DurationSetting extends AbstractSetting
             inputStep: '1',
             maxlength: 15,
             min: 0,
-            pattern: self::DURATION_PATTERN,
+            pattern: $pattern,
         );
     }
 
@@ -60,8 +64,10 @@ class DurationSetting extends AbstractSetting
         ];
     }
 
-    public static function fields(): array
+    public static function fields(array $data = []): array
     {
+        $dropSet = DropSet::isEnabled($data['config'] ?? $data);
+
         return [
             Fields\RadioSegmented::make('unit')
                 ->label('Unit')
@@ -81,7 +87,11 @@ class DurationSetting extends AbstractSetting
                     'minutes' => 'm',
                     'mm:ss' => 'mm:ss',
                 ])
-                ->rules(['nullable', 'regex:/^'.self::DURATION_PATTERN.'$/'])
+                ->rules(fn (array $data): array => [
+                    'nullable',
+                    'regex:/^'.($dropSet ? DropSet::commaPattern('duration') : self::DURATION_PATTERN).'$/',
+                    ...($dropSet ? [DropSet::partCountRule('duration', DropSet::expectedPartCount($data))] : []),
+                ])
                 ->live(),
             ApplyPerField::make(),
         ];
@@ -111,6 +121,11 @@ class DurationSetting extends AbstractSetting
         }
 
         $unit = static::normalizeUnit($config['unit'] ?? 'seconds');
+
+        if (DropSet::isEnabled($config)) {
+            return static::normalizeDropSetValue($value, $unit);
+        }
+
         $duration = SplitDuration::parse($value, $unit);
 
         if ($duration !== null) {
@@ -127,6 +142,15 @@ class DurationSetting extends AbstractSetting
         }
 
         $unit = static::normalizeUnit($config['unit'] ?? $unit ?? 'seconds');
+
+        if (DropSet::isEnabled($config) || (is_string($value) && str_contains($value, ','))) {
+            $parts = static::dropSetParts($value, $unit);
+
+            if ($parts !== null) {
+                return implode(',', array_map(fn (int $part): string => static::formatDurationPart($part, $unit), $parts));
+            }
+        }
+
         $duration = SplitDuration::parse($value, $unit);
 
         if ($duration !== null) {
@@ -138,6 +162,10 @@ class DurationSetting extends AbstractSetting
 
     public static function athleteValueType(mixed $value, array $config = []): ?string
     {
+        if (DropSet::isEnabled($config) && is_string($value) && str_contains($value, ',')) {
+            return 'string';
+        }
+
         if (is_string($value) && str_contains($value, '_')) {
             return 'string';
         }
@@ -148,6 +176,21 @@ class DurationSetting extends AbstractSetting
     public static function athleteCanonicalValue(mixed $value, array $config = []): ?array
     {
         $unit = static::normalizeUnit($config['unit'] ?? 'seconds');
+
+        $dropParts = static::dropSetParts($value, $unit);
+
+        if ($dropParts !== null) {
+            return [
+                'kind' => 'duration',
+                'format' => 'drop_set',
+                'display' => implode(',', array_map(fn (int $part): string => static::formatDurationPart($part, $unit), $dropParts)),
+                'unit' => $unit,
+                'seconds' => array_sum($dropParts),
+                'parts' => $dropParts,
+                'is_bilateral' => false,
+            ];
+        }
+
         $duration = SplitDuration::parse($value, $unit);
 
         if ($duration === null) {
@@ -163,6 +206,60 @@ class DurationSetting extends AbstractSetting
             'parts' => $duration->parts,
             'is_bilateral' => $duration->isSplit(),
         ];
+    }
+
+    private static function normalizeDropSetValue(mixed $value, string $unit): mixed
+    {
+        $parts = static::dropSetParts($value, $unit);
+
+        if ($parts === null) {
+            return $value;
+        }
+
+        if ($unit === 'mm:ss') {
+            return implode(',', $parts);
+        }
+
+        return is_string($value) ? trim($value) : $value;
+    }
+
+    /**
+     * @return list<int>|null
+     */
+    private static function dropSetParts(mixed $value, string $unit): ?array
+    {
+        if (! is_string($value) || ! preg_match('/^'.DropSet::commaPattern('duration').'$/', trim($value))) {
+            return null;
+        }
+
+        $parts = [];
+
+        foreach (explode(',', trim($value)) as $part) {
+            if (str_contains($part, ':')) {
+                [$minutes, $seconds] = array_pad(explode(':', $part, 2), 2, '0');
+                $parts[] = ((int) $minutes * 60) + (int) $seconds;
+
+                continue;
+            }
+
+            $numeric = (int) $part;
+            $parts[] = $unit === 'minutes' ? $numeric * 60 : $numeric;
+        }
+
+        return $parts;
+    }
+
+    private static function formatDurationPart(int $part, string $unit): string
+    {
+        if ($unit === 'mm:ss') {
+            return sprintf('%d:%02d', intdiv($part, 60), $part % 60);
+        }
+
+        if ($unit === 'minutes') {
+            return (string) intdiv($part, 60);
+        }
+
+        return (string) $part;
     }
 
     private static function normalizeUnit(?string $unit): string

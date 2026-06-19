@@ -2,6 +2,7 @@
 
 namespace App\Data\Exercise\Settings;
 
+use App\Data\Exercise\DropSet;
 use App\Form\Fields\Sets;
 use App\Data\Exercise\Preview\SessionGroupingMode;
 use Coda\FormKit\Fields;
@@ -10,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 class SetsSetting extends AbstractSetting
 {
     public function __construct(
+        public string $type = DropSet::SET_TYPE_NORMAL,
         public string $deload = 'none',
         public ?int $deloadBy = 1,
         public ?string $label = 'Set',
@@ -24,6 +26,14 @@ class SetsSetting extends AbstractSetting
         $cycleLabel = SessionGroupingMode::cycleLabel($groupingMode);
 
         return [
+            Fields\RadioSegmented::make('type')
+                ->label('Set Type')
+                ->options([
+                    DropSet::SET_TYPE_NORMAL => 'Normal Set',
+                    DropSet::SET_TYPE_DROP => 'Drop Set',
+                ])
+                ->default(DropSet::SET_TYPE_NORMAL)
+                ->live(),
             Fields\RadioSegmented::make('deload')
                 ->label('Deload')
                 ->options([

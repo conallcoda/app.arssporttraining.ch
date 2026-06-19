@@ -2,6 +2,7 @@
 
 namespace App\Support\Training;
 
+use App\Data\Exercise\DropSet;
 use App\Data\Exercise\ExerciseSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 
@@ -40,7 +41,8 @@ class ExerciseMetricAvailability
 
     public function requiresAutomaticWeight(array $effectiveConfig): bool
     {
-        return in_array(ExerciseSetting::Weight->value, $effectiveConfig['settings'] ?? [], true)
+        return ! DropSet::isEnabled($effectiveConfig)
+            && in_array(ExerciseSetting::Weight->value, $effectiveConfig['settings'] ?? [], true)
             && ($effectiveConfig['weight']['mode'] ?? 'manual') === 'automatic';
     }
 

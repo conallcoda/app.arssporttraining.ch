@@ -83,7 +83,7 @@ class ExerciseConfig extends AbstractData
             $form->fieldset(
                 $settingClass::getName(),
                 fn (array $data) => in_array($settingKey, $data['config']['settings'] ?? [])
-                    ? ['fields' => $settingClass::fields(), 'prefix' => "data.config.{$settingKey}"]
+                    ? ['fields' => self::settingFields($settingClass, $data), 'prefix' => "data.config.{$settingKey}"]
                     : null,
             );
             $settingNames[] = $settingClass::getName();
@@ -92,5 +92,17 @@ class ExerciseConfig extends AbstractData
         $form->fieldsetTabs($settingNames, 'Settings', sortByDataKey: 'config.settings', headerFields: [
             $settingsField,
         ], headerPrefix: 'data.config');
+    }
+
+    /**
+     * @param  class-string<Settings\AbstractSetting>  $settingClass
+     */
+    private static function settingFields(string $settingClass, array $data): array
+    {
+        $method = new \ReflectionMethod($settingClass, 'fields');
+
+        return $method->getNumberOfParameters() > 0
+            ? $settingClass::fields($data)
+            : $settingClass::fields();
     }
 }

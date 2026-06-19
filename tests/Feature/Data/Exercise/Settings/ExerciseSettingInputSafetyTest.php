@@ -1,11 +1,13 @@
 <?php
 
-use App\Data\Exercise\Settings\RestSetting;
+use App\Data\Exercise\DropSet;
+use App\Data\Exercise\ExerciseConfig;
 use App\Data\Exercise\Settings\DurationSetting;
 use App\Data\Exercise\Settings\RepsSetting;
+use App\Data\Exercise\Settings\RestSetting;
 use App\Data\Exercise\Settings\SetsSetting;
 use App\Data\Exercise\Settings\TempoSetting;
-use App\Data\Exercise\ExerciseConfig;
+use App\Data\Exercise\Settings\WeightSetting;
 use App\Data\Training\Config\ExerciseOverrides;
 use Coda\FormKit\Field;
 use Illuminate\Support\Facades\Validator;
@@ -229,4 +231,59 @@ it('allows split durations and stores canonical duration metadata', function () 
             'parts' => [600, 600],
             'is_bilateral' => true,
         ]);
+});
+
+it('only allows drop-set syntax when the set type explicitly opts in', function () {
+    $normalConfig = [
+        'settings' => ['reps', 'weight', 'duration'],
+        'sets' => ['type' => DropSet::SET_TYPE_NORMAL],
+        'reps' => ['mode' => 'manual'],
+        'weight' => ['mode' => 'manual'],
+        'duration' => ['unit' => 'mm:ss'],
+    ];
+    $dropConfig = [
+        'settings' => ['reps', 'weight', 'duration'],
+        'sets' => ['type' => DropSet::SET_TYPE_DROP],
+        'reps' => ['mode' => 'automatic', 'default' => '3x12'],
+        'weight' => ['mode' => 'automatic'],
+        'duration' => ['unit' => 'mm:ss'],
+    ];
+
+    $normalRepsRules = Field::buildValidationRules(RepsSetting::fields(['config' => $normalConfig]), 'data.config.reps.');
+    $dropRepsRules = Field::buildValidationRules(RepsSetting::fields(['config' => $dropConfig]), 'data.config.reps.');
+    $normalWeightRules = Field::buildValidationRules(WeightSetting::fields(['config' => $normalConfig]), 'data.config.weight.');
+    $dropWeightRules = Field::buildValidationRules(WeightSetting::fields(['config' => $dropConfig]), 'data.config.weight.', ['config' => $dropConfig]);
+    $dropDurationRules = Field::buildValidationRules(DurationSetting::fields(['config' => $dropConfig]), 'data.config.duration.', ['config' => $dropConfig]);
+
+    expect(collect(RepsSetting::fields(['config' => $dropConfig]))->pluck('name')->all())->not->toContain('mode', 'stepDownInterval', 'decrement', 'minimum')
+        ->and(collect(WeightSetting::fields(['config' => $dropConfig]))->pluck('name')->all())->not->toContain('mode', 'oneRepMaxModifier')
+        ->and(collect(RepsSetting::fields(['config' => $normalConfig]))->pluck('name')->all())->toContain('mode')
+        ->and(collect(WeightSetting::fields(['config' => $normalConfig]))->pluck('name')->all())->toContain('mode', 'oneRepMaxModifier')
+        ->and(Validator::make([
+            'data' => ['config' => ['reps' => ['default' => '12,12,12']]],
+        ], $normalRepsRules)->errors()->has('data.config.reps.default'))->toBeTrue()
+        ->and(Validator::make([
+            'data' => ['config' => ['reps' => ['default' => '12,12,12']]],
+        ], $dropRepsRules)->passes())->toBeTrue()
+        ->and(Validator::make([
+            'data' => ['config' => ['reps' => ['default' => '3x12']]],
+        ], $dropRepsRules)->passes())->toBeTrue()
+        ->and(Validator::make([
+            'data' => ['config' => ['weight' => ['default' => '6,5,4']]],
+        ], $normalWeightRules)->errors()->has('data.config.weight.default'))->toBeTrue()
+        ->and(Validator::make([
+            'data' => ['config' => ['weight' => ['default' => '6,5,4']]],
+        ], $dropWeightRules)->passes())->toBeTrue()
+        ->and(Validator::make([
+            'data' => ['config' => ['weight' => ['default' => '6,5']]],
+        ], $dropWeightRules)->errors()->has('data.config.weight.default'))->toBeTrue()
+        ->and(Validator::make([
+            'data' => ['config' => ['duration' => ['default' => '0:30,0:20,0:10']]],
+        ], $dropDurationRules)->passes())->toBeTrue()
+        ->and(Validator::make([
+            'data' => ['config' => ['duration' => ['default' => '0:30,0:20']]],
+        ], $dropDurationRules)->errors()->has('data.config.duration.default'))->toBeTrue()
+        ->and(Validator::make([
+            'data' => ['config' => ['duration' => ['default' => '0:99,0:20']]],
+        ], $dropDurationRules)->errors()->has('data.config.duration.default'))->toBeTrue();
 });

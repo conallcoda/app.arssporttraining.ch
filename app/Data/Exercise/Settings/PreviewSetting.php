@@ -2,6 +2,7 @@
 
 namespace App\Data\Exercise\Settings;
 
+use App\Data\Exercise\DropSet;
 use App\Data\Exercise\Preview\SessionGroupingMode;
 use Coda\FormKit\Fields;
 use Illuminate\Support\Facades\Auth;
@@ -47,7 +48,8 @@ class PreviewSetting extends AbstractSetting
                 ->suffix('session(s)');
         }
 
-        $hasAutomaticWeight = in_array('weight', $data['config']['settings'] ?? [])
+        $hasAutomaticWeight = ! DropSet::isEnabled($data['config'] ?? [])
+            && in_array('weight', $data['config']['settings'] ?? [])
             && ($data['config']['weight']['mode'] ?? 'manual') === 'automatic';
 
         if ($hasAutomaticWeight) {

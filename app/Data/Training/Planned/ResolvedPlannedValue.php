@@ -10,5 +10,6 @@ final readonly class ResolvedPlannedValue
         public ?string $unit = null,
         public string $applyPer = 'set',
         public ?ResolvedPlannedProvenance $provenance = null,
+        public array $config = [],
     ) {}
 }

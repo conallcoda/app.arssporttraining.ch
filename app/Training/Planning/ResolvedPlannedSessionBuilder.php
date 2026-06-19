@@ -170,6 +170,8 @@ class ResolvedPlannedSessionBuilder
 
                 foreach ($this->orderedSettings($effectiveConfig['settings'] ?? []) as $setting) {
                     $config = $effectiveConfig[$setting] ?? [];
+                    $valueConfig = $config;
+                    $valueConfig['_sets'] = is_array($effectiveConfig['sets'] ?? null) ? $effectiveConfig['sets'] : [];
                     $applyPer = ApplyPerScope::normalize($config['applyPer'] ?? null);
                     $value = $applyPer === ApplyPerScope::SESSION
                         ? $this->resolveSessionFieldValue($state, $config, $setting, $weekIndex, $sessionIndex)
@@ -187,6 +189,7 @@ class ResolvedPlannedSessionBuilder
                         provenance: $applyPer === ApplyPerScope::SESSION
                             ? $this->resolveSessionValueProvenance($setting, $weekIndex, $sessionIndex, null, $effectiveConfig, $overrideLayer, $baseConfig, $defaultOverrides, $userOverrides)
                             : $this->resolveSessionValueProvenance($setting, $weekIndex, $sessionIndex, $setIndex, $effectiveConfig, $overrideLayer, $baseConfig, $defaultOverrides, $userOverrides),
+                        config: $valueConfig,
                     );
                 }
 

@@ -2,6 +2,7 @@
 
 namespace App\Data\Exercise\Preview;
 
+use App\Data\Exercise\DropSet;
 use App\Data\Exercise\Settings\RepsSetting;
 use App\Data\Exercise\Settings\SetsSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
@@ -115,12 +116,13 @@ class StrategyOrchestrator
         $config = $this->data['reps'] ?? [];
         $mode = $config['mode'] ?? 'manual';
         $applyPer = ApplyPerScope::normalize($config['applyPer'] ?? null);
+        $dropSet = DropSet::isEnabled($this->data);
 
         if ($applyPer === ApplyPerScope::SESSION) {
             return;
         }
 
-        if ($mode === 'automatic') {
+        if (! $dropSet && $mode === 'automatic') {
             $strategy = $this->automaticStrategies()->makeRepsStrategy($config);
 
             if ($strategy === null) {
@@ -146,6 +148,7 @@ class StrategyOrchestrator
         $requiresConcreteReps = RepsSetting::requiresConcretePlanningReps($this->data);
         $defaultReps = match (true) {
             $rawDefault === null || $rawDefault === '' => $requiresConcreteReps ? 10 : '-',
+            $dropSet => DropSet::normalizeRepsValue($rawDefault),
             is_string($rawDefault) && str_contains($rawDefault, '_') => $rawDefault,
             is_string($rawDefault) && str_contains($rawDefault, '-') => $rawDefault,
             default => (int) $rawDefault,
@@ -165,7 +168,7 @@ class StrategyOrchestrator
         $mode = $config['mode'] ?? 'manual';
         $applyPer = ApplyPerScope::normalize($config['applyPer'] ?? null);
 
-        if ($applyPer === ApplyPerScope::SESSION || $mode !== 'automatic' || $this->measuredData === null) {
+        if (DropSet::isEnabled($this->data) || $applyPer === ApplyPerScope::SESSION || $mode !== 'automatic' || $this->measuredData === null) {
             return;
         }
 

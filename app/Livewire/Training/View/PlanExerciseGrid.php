@@ -3,6 +3,7 @@
 namespace App\Livewire\Training\View;
 
 use App\Data\Coach\Settings\SessionGroupingSetting;
+use App\Data\Exercise\DropSet;
 use App\Data\Exercise\ExerciseConfig;
 use App\Data\Exercise\ExerciseSetting;
 use App\Data\Exercise\Preview\ExercisePreviewBuilder;
@@ -1661,10 +1662,16 @@ class PlanExerciseGrid extends Component
     protected function resolveSettingConfig(string $field): array
     {
         $config = $this->getExerciseConfig()->{$field} ?? null;
-
-        return is_object($config) && method_exists($config, 'toArray')
+        $sets = $this->getExerciseConfig()->sets ?? null;
+        $settingConfig = is_object($config) && method_exists($config, 'toArray')
             ? $config->toArray()
             : [];
+
+        $settingConfig['_sets'] = is_object($sets) && method_exists($sets, 'toArray')
+            ? $sets->toArray()
+            : [];
+
+        return $settingConfig;
     }
 
     protected function normalizeActualScalar(mixed $value): string
@@ -1795,7 +1802,7 @@ class PlanExerciseGrid extends Component
         ]));
 
         try {
-            if (! $this->isValidPlanningValue($field, $value)) {
+            if (! $this->isValidPlanningValue($field, $value, $weekIndex, $setIndex, $session)) {
                 return;
             }
 
@@ -1880,7 +1887,7 @@ class PlanExerciseGrid extends Component
                 return;
             }
 
-            if (! $this->isValidPlanningValue($field, $value)) {
+            if (! $this->isValidPlanningValue($field, $value, $weekIndex, null, $session)) {
                 return;
             }
 
@@ -1940,18 +1947,81 @@ class PlanExerciseGrid extends Component
         }
     }
 
-    private function isValidPlanningValue(string $field, mixed $value): bool
+    private function isValidPlanningValue(string $field, mixed $value, ?int $weekIndex = null, ?int $setIndex = null, ?int $session = null): bool
     {
-        if ($field !== 'reps' || RepsSetting::isValidPlanningValue($value, $this->getEffectiveConfig())) {
+        $config = $this->getEffectiveConfig();
+
+        if ($field === 'reps' && ! RepsSetting::isValidPlanningValue($value, $config)) {
+            Flux::toast(
+                text: DropSet::isEnabled($config)
+                    ? __('Drop-set reps must use comma-separated values or a 3x12 style value.')
+                    : __('Reps must be a single number or bilateral value while automatic calculations are enabled.'),
+                variant: 'danger',
+            );
+
+            return false;
+        }
+
+        if (! is_string($value) || ! str_contains($value, ',')) {
+            return true;
+        }
+
+        if (! DropSet::isEnabled($config) || ! in_array($field, ['reps', 'weight', 'duration'], true)) {
+            Flux::toast(
+                text: __('Comma-separated values are only available for drop-set reps, weight, and duration.'),
+                variant: 'danger',
+            );
+
+            return false;
+        }
+
+        $settingClass = ExerciseSetting::tryFrom($field)?->settingClass();
+
+        if (! is_string($settingClass) || ! is_subclass_of($settingClass, AbstractSetting::class)) {
+            return false;
+        }
+
+        $fieldConfig = $config[$field] ?? [];
+        $fieldConfig['_sets'] = $config['sets'] ?? [];
+        $meta = $settingClass::inputMeta($fieldConfig);
+
+        if ($meta->pattern !== null && preg_match('/^'.$meta->pattern.'$/', trim($value))) {
+            $expected = $this->expectedDropSetPartCount($weekIndex, $setIndex, $session);
+            $actual = DropSet::partCount($field, $value);
+
+            if ($expected !== null && $actual !== null && $actual !== $expected) {
+                Flux::toast(
+                    text: __('Drop-set values must have :count parts.', ['count' => $expected]),
+                    variant: 'danger',
+                );
+
+                return false;
+            }
+
             return true;
         }
 
         Flux::toast(
-            text: __('Reps must be a single number or bilateral value while automatic calculations are enabled.'),
+            text: __('Please enter a valid drop-set value.'),
             variant: 'danger',
         );
 
         return false;
+    }
+
+    private function expectedDropSetPartCount(?int $weekIndex, ?int $setIndex, ?int $session): ?int
+    {
+        if ($weekIndex !== null && $setIndex !== null) {
+            $repsRow = collect($this->displayGrid->rows)->firstWhere('field', 'reps');
+            $repsValue = $repsRow?->getCellValue($weekIndex, $setIndex, $session ?? 0);
+            $count = DropSet::partCount('reps', $repsValue);
+
+            if ($count !== null) {
+                return $count;
+            }
+        }
+
+        return DropSet::expectedPartCount($this->getEffectiveConfig());
     }
 
     protected function buildDefaultsGrid(): PreviewGrid
@@ -2365,6 +2435,10 @@ class PlanExerciseGrid extends Component
     protected function planRevisionFieldConfigMap(): array
     {
         $map = [];
+        $sets = $this->getExerciseConfig()->sets ?? null;
+        $setsConfig = is_object($sets) && method_exists($sets, 'toArray')
+            ? $sets->toArray()
+            : [];
 
         foreach (ExerciseSetting::cases() as $setting) {
             $field = $setting->value;
@@ -2373,6 +2447,7 @@ class PlanExerciseGrid extends Component
             $map[$field] = is_object($config) && method_exists($config, 'toArray')
                 ? $config->toArray()
                 : [];
+            $map[$field]['_sets'] = $setsConfig;
         }
 
         return $map;

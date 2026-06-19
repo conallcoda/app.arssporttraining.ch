@@ -53,6 +53,72 @@ it('opens exercise-specific session grouping fields in the plan exercise setting
         ->assertSee('Grouping');
 });
 
+it('switches to the first settings tab with validation errors when saving drop-set settings', function () {
+    Livewire::test(PlanExerciseSettingsForm::class)
+        ->call('openForExercise', [
+            'exerciseId' => 1,
+            'programExerciseId' => 1,
+            'exerciseName' => 'Goblet Squat',
+            'config' => [
+                'settings' => ['reps', 'weight', 'tempo', 'rest'],
+                'sets' => ['type' => 'drop', 'default' => 1, 'label' => 'Set', 'deload' => 'none'],
+                'reps' => ['mode' => 'manual', 'default' => '10,10,10'],
+                'weight' => ['mode' => 'manual', 'default' => 5],
+                'tempo' => ['default' => '3010'],
+                'rest' => ['default' => 60],
+                'preview' => ['weeks' => 1, 'sessionsPerWeek' => 1],
+                'overrides' => ['sessions' => [], 'cells' => []],
+            ],
+        ])
+        ->set('activeFieldsetTab', 'reps')
+        ->call('submit')
+        ->assertHasErrors(['data.config.weight.default' => 'regex'])
+        ->assertSet('activeFieldsetTab', 'weight')
+        ->assertSee('The default weight field format is invalid.');
+});
+
+it('requires drop-set weight defaults to match the reps part count', function () {
+    Livewire::test(PlanExerciseSettingsForm::class)
+        ->call('openForExercise', [
+            'exerciseId' => 1,
+            'programExerciseId' => 1,
+            'exerciseName' => 'Goblet Squat',
+            'config' => [
+                'settings' => ['reps', 'weight', 'tempo', 'rest'],
+                'sets' => ['type' => 'drop', 'default' => 1, 'label' => 'Set', 'deload' => 'none'],
+                'reps' => ['mode' => 'manual', 'default' => '3x12'],
+                'weight' => ['mode' => 'manual', 'default' => '12,12'],
+                'tempo' => ['default' => '3010'],
+                'rest' => ['default' => 60],
+                'preview' => ['weeks' => 1, 'sessionsPerWeek' => 1],
+                'overrides' => ['sessions' => [], 'cells' => []],
+            ],
+        ])
+        ->set('activeFieldsetTab', 'reps')
+        ->call('submit')
+        ->assertHasErrors(['data.config.weight.default'])
+        ->assertSet('activeFieldsetTab', 'weight')
+        ->assertSee('The default weight field must have 3 drop-set parts.');
+});
+
+it('binds plan exercise settings tabs to the active validation tab state', function () {
+    Livewire::test(PlanExerciseSettingsForm::class)
+        ->call('openForExercise', [
+            'exerciseId' => 1,
+            'programExerciseId' => 1,
+            'exerciseName' => 'Goblet Squat',
+            'config' => [
+                'settings' => ['reps', 'weight'],
+                'sets' => ['type' => 'drop', 'default' => 1, 'label' => 'Set', 'deload' => 'none'],
+                'reps' => ['default' => '10,10,10'],
+                'weight' => ['default' => '6,5,4'],
+                'preview' => ['weeks' => 1, 'sessionsPerWeek' => 1],
+                'overrides' => ['sessions' => [], 'cells' => []],
+            ],
+        ])
+        ->assertSeeHtml('wire:model.live="activeFieldsetTab"');
+});
+
 it('validates empty exercise-specific session grouping group size', function () {
     Livewire::test(PlanExerciseSettingsForm::class)
         ->call('openForExercise', [
@@ -108,4 +174,27 @@ it('normalizes none exercise-specific session grouping before dispatching settin
             return ($params['data']['config']['preview']['groupingMode'] ?? null) === SessionGroupingMode::None->value
                 && ($params['data']['config']['preview']['groupSize'] ?? null) === 1;
         });
+});
+
+it('forces hidden automatic modes back to manual when saving drop-set settings', function () {
+    Livewire::test(PlanExerciseSettingsForm::class)
+        ->call('openForExercise', [
+            'exerciseId' => 1,
+            'programExerciseId' => 1,
+            'exerciseName' => 'Drop Set Squat',
+            'config' => [
+                'settings' => ['reps', 'weight'],
+                'sets' => ['type' => 'drop', 'default' => 1, 'label' => 'Set', 'deload' => 'none'],
+                'reps' => ['mode' => 'automatic', 'default' => '3x12'],
+                'weight' => ['mode' => 'automatic', 'oneRepMaxModifier' => 90, 'default' => '6,5,4'],
+                'preview' => ['weeks' => 1, 'sessionsPerWeek' => 1],
+                'overrides' => ['sessions' => [], 'cells' => []],
+            ],
+        ])
+        ->call('submit')
+        ->assertHasNoErrors()
+        ->assertSet('data.config.reps.mode', 'manual')
+        ->assertSet('data.config.weight.mode', 'manual')
+        ->assertSet('data.config.weight.oneRepMaxModifier', null)
+        ->assertDispatched('plan-exercise-settings.saved');
 });

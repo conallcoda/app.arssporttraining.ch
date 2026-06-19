@@ -9,6 +9,7 @@ use App\Data\Exercise\ExerciseSetting;
 use App\Data\Exercise\Preview\CellInputMeta;
 use App\Data\Exercise\Settings\DurationSetting;
 use App\Data\Exercise\Settings\RepsSetting;
+use App\Data\Exercise\Settings\WeightSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Training\Compiler\AuthoringExerciseData;
 use App\Data\Training\Compiler\AuthoringProgramData;
@@ -335,27 +336,29 @@ class TrainingSessionCompiler
 
     private function compileValue(ResolvedPlannedValue $value): CompiledTrainingSetValue
     {
-        $normalizedValue = $this->normalizeCompiledValue($value->settingKey, $value->value, ['unit' => $value->unit]);
+        $config = array_merge($value->config, ['unit' => $value->unit]);
+        $normalizedValue = $this->normalizeCompiledValue($value->settingKey, $value->value, $config);
 
         return new CompiledTrainingSetValue(
             settingKey: $value->settingKey,
-            plannedValueType: $this->resolveValueType($value->settingKey, $normalizedValue),
+            plannedValueType: $this->resolveValueType($value->settingKey, $normalizedValue, $config),
             plannedValue: $normalizedValue,
-            plannedCanonicalValue: $this->resolveCanonicalValue($value->settingKey, $normalizedValue, ['unit' => $value->unit]),
+            plannedCanonicalValue: $this->resolveCanonicalValue($value->settingKey, $normalizedValue, $config),
             unit: $value->unit,
         );
     }
 
     private function normalizeCompiledValue(string $setting, mixed $value, array $config): mixed
     {
-        if ($setting !== 'duration') {
-            return $value;
-        }
-
-        return DurationSetting::normalizeAthleteValue($value, $config);
+        return match ($setting) {
+            'duration' => DurationSetting::normalizeAthleteValue($value, $config),
+            'reps' => RepsSetting::normalizeAthleteValue($value, $config),
+            'weight' => WeightSetting::normalizeAthleteValue($value, $config),
+            default => $value,
+        };
     }
 
-    private function resolveValueType(string $setting, mixed $value): ?string
+    private function resolveValueType(string $setting, mixed $value, array $config = []): ?string
     {
         if ($value === null) {
             return null;
@@ -367,7 +370,7 @@ class TrainingSessionCompiler
 
         $enum = ExerciseSetting::tryFrom($setting);
         $settingClass = $enum?->settingClass();
-        $inputMeta = $settingClass ? $settingClass::inputMeta() : new CellInputMeta;
+        $inputMeta = $settingClass ? $settingClass::inputMeta($config) : new CellInputMeta;
 
         if (($inputMeta->inputType ?? 'text') === 'text') {
             if ($setting === 'duration' && is_numeric($value)) {
@@ -395,17 +398,18 @@ class TrainingSessionCompiler
     private function resolveCanonicalValue(string $setting, mixed $value, array $config = []): ?array
     {
         return match ($setting) {
-            'reps' => $this->resolveRepsCanonicalValue($value),
+            'reps' => $this->resolveRepsCanonicalValue($value, $config),
             'duration' => DurationSetting::athleteCanonicalValue($value, $config),
+            'weight' => WeightSetting::athleteCanonicalValue($value, $config),
             'heartRate' => $this->resolveBoundedRangeCanonicalValue($value, 'heart_rate'),
             'heartRateZone' => $this->resolveBoundedRangeCanonicalValue($value, 'heart_rate_zone'),
             default => null,
         };
     }
 
-    private function resolveRepsCanonicalValue(mixed $value): ?array
+    private function resolveRepsCanonicalValue(mixed $value, array $config = []): ?array
     {
-        return RepsSetting::athleteCanonicalValue($value);
+        return RepsSetting::athleteCanonicalValue($value, $config);
     }
 
     private function resolveBoundedRangeCanonicalValue(mixed $value, string $kind): ?array

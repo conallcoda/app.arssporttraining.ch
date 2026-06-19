@@ -154,15 +154,26 @@ trait FormatsProgramDetailsExerciseValues
     protected function resolveSettingConfig(mixed $exerciseConfig, string $setting): array
     {
         if (is_array($exerciseConfig)) {
-            return is_array($exerciseConfig[$setting] ?? null)
+            $settingConfig = is_array($exerciseConfig[$setting] ?? null)
                 ? $exerciseConfig[$setting]
                 : [];
+            $settingConfig['_sets'] = is_array($exerciseConfig['sets'] ?? null)
+                ? $exerciseConfig['sets']
+                : [];
+
+            return $settingConfig;
         }
 
         $settingData = is_object($exerciseConfig) ? $exerciseConfig->{$setting} ?? null : null;
-
-        return is_object($settingData) && method_exists($settingData, 'toArray')
+        $setsData = is_object($exerciseConfig) ? $exerciseConfig->sets ?? null : null;
+        $settingConfig = is_object($settingData) && method_exists($settingData, 'toArray')
             ? $settingData->toArray()
             : [];
+
+        $settingConfig['_sets'] = is_object($setsData) && method_exists($setsData, 'toArray')
+            ? $setsData->toArray()
+            : [];
+
+        return $settingConfig;
     }
 }

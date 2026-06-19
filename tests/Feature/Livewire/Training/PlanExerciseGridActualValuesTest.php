@@ -119,6 +119,80 @@ it('persists planned override removal when a planned value returns to default', 
     expect(plannedCellValue($freshComponent, 'weight', 0, 0))->toEqual(5);
 });
 
+it('rejects drop-set grid values that do not match the reps part count', function () {
+    [$athlete, $scheduledProgram, $pivot] = buildScheduledProgramContext([
+        'settings' => ['reps', 'weight'],
+        'sets' => ['type' => 'drop', 'default' => 1, 'label' => 'Set', 'deload' => 'none'],
+        'reps' => ['mode' => 'manual', 'default' => '3x12', 'applyPer' => 'set'],
+        'weight' => ['mode' => 'manual', 'default' => '6,5,4', 'applyPer' => 'set'],
+    ]);
+
+    $component = Livewire::test(PlanExerciseGrid::class, [
+        'planId' => $scheduledProgram->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $pivot->exercise_id,
+        'userId' => $athlete->id,
+        'weeks' => 1,
+        'sessionsPerWeek' => 1,
+        'weekSessions' => [1],
+        'weekSessionDates' => [['2026-04-27']],
+        'showActualValueTabs' => true,
+        'valueDisplayMode' => 'planned',
+    ]);
+
+    $component->call('updateCellOverride', 0, 0, 'weight', '12,12', 0, false);
+
+    $savedOverrides = $scheduledProgram->fresh()->config->exerciseOverrides($pivot->id, $athlete->id);
+
+    expect(plannedCellValue($component, 'weight', 0, 0))->toEqual('6,5,4')
+        ->and($savedOverrides->gridOverrides['cells'])->toBeEmpty();
+});
+
+it('filters inherited normal-set grid values when an athlete has drop-set settings', function () {
+    [$athlete, $scheduledProgram, $pivot] = buildScheduledProgramContext([
+        'settings' => ['reps', 'weight'],
+        'sets' => ['type' => 'normal', 'default' => 3, 'label' => 'Set', 'deload' => 'none'],
+        'reps' => ['mode' => 'manual', 'default' => 10, 'applyPer' => 'set'],
+        'weight' => ['mode' => 'manual', 'default' => 5, 'applyPer' => 'set'],
+    ]);
+
+    $config = $scheduledProgram->config;
+    $config->setDefaultExerciseOverrides($pivot->id, ExerciseOverrides::from([
+        'sets' => ['type' => 'normal', 'default' => 3, 'label' => 'Set', 'deload' => 'none'],
+        'gridOverrides' => [
+            'sessions' => [],
+            'cells' => [
+                ['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['reps' => '12']],
+                ['week' => 0, 'session' => 0, 'set' => 1, 'data' => ['reps' => '12']],
+                ['week' => 0, 'session' => 0, 'set' => 2, 'data' => ['reps' => '12']],
+            ],
+        ],
+    ]));
+    $config->setExerciseOverrides($pivot->id, ExerciseOverrides::from([
+        'sets' => ['type' => 'drop', 'default' => 3, 'label' => 'Set', 'deload' => 'none'],
+        'reps' => ['mode' => 'manual', 'default' => '10,10,10', 'applyPer' => 'set'],
+        'weight' => ['mode' => 'manual', 'default' => '10,10,10', 'applyPer' => 'set'],
+        'gridOverrides' => ['sessions' => [], 'cells' => []],
+    ]), $athlete->id);
+    $scheduledProgram->forceFill(['config' => $config])->save();
+
+    $component = Livewire::test(PlanExerciseGrid::class, [
+        'planId' => $scheduledProgram->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $pivot->exercise_id,
+        'userId' => $athlete->id,
+        'weeks' => 1,
+        'sessionsPerWeek' => 1,
+        'weekSessions' => [1],
+        'weekSessionDates' => [['2026-04-27']],
+        'showActualValueTabs' => true,
+        'valueDisplayMode' => 'planned',
+    ]);
+
+    expect(plannedCellValue($component, 'reps', 0, 0))->toEqual('10,10,10')
+        ->and(plannedCellValue($component, 'weight', 0, 0))->toEqual('10,10,10');
+});
+
 it('builds the plan plus actual table without grouping and repeats session scoped values as independent set cells', function () {
     [$athlete, $scheduledProgram, $pivot, $exercise, $trainingProgram] = buildScheduledProgramContext([
         'settings' => ['reps', 'rest'],

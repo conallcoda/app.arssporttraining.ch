@@ -2,6 +2,7 @@
 
 namespace App\Data\Training\Config;
 
+use App\Data\Exercise\DropSet;
 use App\Data\Exercise\ExerciseConfig;
 
 class EffectiveExerciseConfig
@@ -21,6 +22,11 @@ class EffectiveExerciseConfig
             $config = self::applyOverrideLayer($config, $userOverrides);
         }
 
+        $config['overrides'] = self::filterGridOverridesForConfig(
+            $config['overrides'] ?? ['sessions' => [], 'cells' => []],
+            $config,
+        );
+
         return $config;
     }
 
@@ -32,6 +38,21 @@ class EffectiveExerciseConfig
         $layers = array_filter([$base->overrides, $planOverrides?->gridOverrides, $userOverrides?->gridOverrides]);
 
         return self::mergeGridOverrides(...$layers);
+    }
+
+    /** @return array{sessions: array, cells: array} */
+    public static function filterGridOverridesForConfig(array $gridOverrides, array $config): array
+    {
+        if (! DropSet::isEnabled($config)) {
+            return $gridOverrides;
+        }
+
+        $expected = DropSet::expectedPartCount($config);
+
+        return [
+            'sessions' => self::filterDropSetOverrideEntries($gridOverrides['sessions'] ?? [], $expected),
+            'cells' => self::filterDropSetOverrideEntries($gridOverrides['cells'] ?? [], $expected),
+        ];
     }
 
     public static function resolveDisabled(
@@ -112,5 +133,44 @@ class EffectiveExerciseConfig
             'sessions' => array_values($mergedSessions),
             'cells' => array_values($mergedCells),
         ];
+    }
+
+    private static function filterDropSetOverrideEntries(array $entries, ?int $expected): array
+    {
+        $filtered = [];
+
+        foreach ($entries as $entry) {
+            $data = $entry['data'] ?? [];
+            $entryExpected = $expected;
+
+            if (array_key_exists('reps', $data)) {
+                $repsCount = DropSet::partCount('reps', $data['reps']);
+
+                if ($repsCount !== null) {
+                    $entryExpected = $repsCount;
+                }
+            }
+
+            foreach (['reps', 'weight', 'duration'] as $field) {
+                if (! array_key_exists($field, $data)) {
+                    continue;
+                }
+
+                $actual = DropSet::partCount($field, $data[$field]);
+
+                if ($actual === null || ($entryExpected !== null && $actual !== $entryExpected)) {
+                    unset($data[$field]);
+                }
+            }
+
+            if ($data === []) {
+                continue;
+            }
+
+            $entry['data'] = $data;
+            $filtered[] = $entry;
+        }
+
+        return $filtered;
     }
 }

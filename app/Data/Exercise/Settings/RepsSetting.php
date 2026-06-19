@@ -2,6 +2,7 @@
 
 namespace App\Data\Exercise\Settings;
 
+use App\Data\Exercise\DropSet;
 use App\Data\Exercise\Preview\CellInputMeta;
 use App\Form\Fields\Exercise\ApplyPerField;
 use App\Form\Fields\Reps;
@@ -19,6 +20,8 @@ class RepsSetting extends AbstractSetting
 
     private const ATHLETE_PATTERN = '\d+(?:_\d+)?';
 
+    private const DROP_SET_MAX_LENGTH = 31;
+
     public function __construct(
         public string $mode = 'manual',
         public string|int|null $default = 10,
@@ -32,6 +35,14 @@ class RepsSetting extends AbstractSetting
 
     public static function inputMeta(array $config = []): CellInputMeta
     {
+        if (DropSet::isEnabled($config)) {
+            return new CellInputMeta(
+                inputType: 'text',
+                maxlength: self::DROP_SET_MAX_LENGTH,
+                pattern: DropSet::repsPattern(),
+            );
+        }
+
         return new CellInputMeta(
             inputType: 'text',
             maxlength: 7,
@@ -51,8 +62,24 @@ class RepsSetting extends AbstractSetting
         ];
     }
 
-    public static function fields(): array
+    public static function fields(array $data = []): array
     {
+        if (DropSet::isEnabled($data['config'] ?? $data)) {
+            return [
+                Reps::make('default')
+                    ->label('Default Reps')
+                    ->default('12,12,12')
+                    ->maxLength(self::DROP_SET_MAX_LENGTH)
+                    ->rules(['required', 'regex:/^'.DropSet::repsPattern().'$/'])
+                    ->live(),
+                Fields\Text::make('label')
+                    ->label('Label')
+                    ->placeholder('Reps')
+                    ->default(''),
+                ApplyPerField::make(ApplyPerScope::FORM_SET),
+            ];
+        }
+
         return [
             Fields\RadioSegmented::make('mode')
                 ->label('Mode')
@@ -108,11 +135,19 @@ class RepsSetting extends AbstractSetting
 
     public static function athleteRules(array $config = []): array
     {
+        if (DropSet::isEnabled($config)) {
+            return ['required', 'regex:/^'.DropSet::repsPattern().'$/'];
+        }
+
         return ['required', 'regex:/^'.self::ATHLETE_PATTERN.'$/'];
     }
 
     public static function defaultRules(array $data = []): array
     {
+        if (DropSet::isEnabled($data['config'] ?? $data)) {
+            return ['required', 'regex:/^'.DropSet::repsPattern().'$/'];
+        }
+
         $requiresConcreteReps = static::requiresConcretePlanningReps($data);
 
         return [
@@ -127,6 +162,10 @@ class RepsSetting extends AbstractSetting
         $settings = $config['settings'] ?? [];
         $repsMode = (string) ($config['reps']['mode'] ?? $data['mode'] ?? 'manual');
         $weightMode = (string) ($config['weight']['mode'] ?? 'manual');
+
+        if (DropSet::isEnabled($config)) {
+            return false;
+        }
 
         $hasAutomaticWeight = in_array('weight', $settings, true) && $weightMode === 'automatic';
 
@@ -150,7 +189,18 @@ class RepsSetting extends AbstractSetting
             return ! $requiresConcreteReps;
         }
 
+        if (DropSet::isEnabled(is_array($data['config'] ?? null) ? $data['config'] : $data)) {
+            return (bool) preg_match('/^'.DropSet::repsPattern().'$/', $value);
+        }
+
         return (bool) preg_match('/^'.($requiresConcreteReps ? self::ATHLETE_PATTERN : self::PLANNED_PATTERN).'$/', $value);
+    }
+
+    public static function normalizeAthleteValue(mixed $value, array $config = []): mixed
+    {
+        $value = parent::normalizeAthleteValue($value, $config);
+
+        return DropSet::isEnabled($config) ? DropSet::normalizeRepsValue($value) : $value;
     }
 
     public static function normalizeBilateralExecution(?string $execution): string
@@ -203,6 +253,20 @@ class RepsSetting extends AbstractSetting
             ];
         }
 
+        $dropParts = DropSet::repsParts($value);
+
+        if ($dropParts !== null) {
+            return [
+                'kind' => 'reps',
+                'format' => 'drop_set',
+                'display' => DropSet::displayReps($dropParts),
+                'total' => array_sum($dropParts),
+                'parts' => $dropParts,
+                'is_bilateral' => false,
+                'bilateral_execution' => null,
+            ];
+        }
+
         if (! is_string($value) || ! preg_match('/^\d+(?:_\d+)+$/', $value)) {
             return null;
         }
@@ -228,6 +292,12 @@ class RepsSetting extends AbstractSetting
     {
         if ($value === null || $value === '') {
             return null;
+        }
+
+        $dropParts = DropSet::repsParts($value);
+
+        if ($dropParts !== null) {
+            return DropSet::displayReps($dropParts);
         }
 
         if (! is_string($value) || ! preg_match('/^(?<left>\d+)_(?<right>\d+)$/', trim($value), $matches)) {

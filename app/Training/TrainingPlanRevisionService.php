@@ -451,7 +451,7 @@ class TrainingPlanRevisionService
             return $normalized;
         }
 
-        if ($field === 'duration') {
+        if (in_array($field, ['duration', 'reps', 'weight'], true)) {
             $normalized = $settingClass::normalizeAthleteValue($normalized, $config);
         }
 

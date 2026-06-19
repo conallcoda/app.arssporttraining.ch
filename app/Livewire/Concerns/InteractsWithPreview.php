@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Concerns;
 
+use App\Data\Exercise\DropSet;
 use App\Data\Exercise\Preview\ExercisePreviewBuilder;
 use App\Data\Exercise\Preview\GridOverrides;
 use App\Data\Exercise\Preview\OverrideManager;
@@ -42,7 +43,8 @@ trait InteractsWithPreview
 
     protected function resolveDefaultWeeks(): int
     {
-        $hasAutomaticWeight = in_array('weight', $this->data['config']['settings'] ?? [])
+        $hasAutomaticWeight = ! DropSet::isEnabled($this->data['config'] ?? [])
+            && in_array('weight', $this->data['config']['settings'] ?? [])
             && ($this->data['config']['weight']['mode'] ?? 'manual') === 'automatic';
 
         return $hasAutomaticWeight ? 5 : 1;
@@ -290,6 +292,15 @@ trait InteractsWithPreview
 
     public function updatedDataConfigWeightMode(): void
     {
+        $this->normalizeDropSetModes();
+        unset($this->previewGrid, $this->effectiveExpandedWeeks);
+        $this->data['config']['preview']['weeks'] = $this->resolveDefaultWeeks();
+    }
+
+    public function updatedDataConfigSetsType(): void
+    {
+        $this->normalizeDropSetModes();
+        unset($this->fieldsets);
         unset($this->previewGrid, $this->effectiveExpandedWeeks);
         $this->data['config']['preview']['weeks'] = $this->resolveDefaultWeeks();
     }
@@ -297,6 +308,22 @@ trait InteractsWithPreview
     public function updatedDataConfigPreview(): void
     {
         unset($this->previewGrid, $this->effectiveExpandedWeeks);
+    }
+
+    protected function normalizeDropSetModes(): void
+    {
+        if (! DropSet::isEnabled($this->data['config'] ?? [])) {
+            return;
+        }
+
+        if (isset($this->data['config']['reps']) && is_array($this->data['config']['reps'])) {
+            $this->data['config']['reps']['mode'] = 'manual';
+        }
+
+        if (isset($this->data['config']['weight']) && is_array($this->data['config']['weight'])) {
+            $this->data['config']['weight']['mode'] = 'manual';
+            $this->data['config']['weight']['oneRepMaxModifier'] = null;
+        }
     }
 
     protected function weekHasSessionDivergence(PreviewGrid $grid, int $week): bool

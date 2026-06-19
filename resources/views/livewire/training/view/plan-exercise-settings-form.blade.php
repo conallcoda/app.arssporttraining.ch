@@ -16,7 +16,7 @@
             <form id="modal-form-{{ $name }}" wire:submit="submit" class="space-y-4">
                 @foreach ($this->fieldsets as $item)
                     @if ($item instanceof \Coda\FormKit\FormFieldsetGroup)
-                        <x-form-kit::form.fieldset-tabs :group="$item" />
+                        <x-form-kit::form.fieldset-tabs :group="$item" state-path="activeFieldsetTab" />
                     @else
                         <x-form-kit::form.fieldset :fieldset="$item" :prefix="$item->prefix ?? 'data'" :showLegend="true" />
                     @endif

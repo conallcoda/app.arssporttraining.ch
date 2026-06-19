@@ -2,13 +2,16 @@
 
 namespace App\Livewire\Training;
 
+use App\Data\Exercise\DropSet;
 use App\Data\Exercise\ExerciseConfig;
+use App\Data\Exercise\ExerciseSetting;
 use App\Data\Exercise\Preview\ExercisePreviewBuilder;
 use App\Data\Exercise\Preview\GridOverrides;
 use App\Data\Exercise\Preview\OverrideManager;
 use App\Data\Exercise\Preview\PreviewGrid;
 use App\Data\Exercise\Preview\SessionGroupBuilder;
 use App\Data\Exercise\Preview\SessionGroupingMode;
+use App\Data\Exercise\Settings\AbstractSetting;
 use App\Data\Exercise\Settings\RepsSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Livewire\Concerns\InteractsWithDisplayGridCopying;
@@ -20,6 +23,7 @@ use Coda\FormKit\Form;
 use Coda\FormKit\FormFieldsetGroup;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
@@ -221,6 +225,11 @@ class CalendarExerciseSettingsForm extends FormModal
         unset($this->previewGrid, $this->effectiveExpandedWeeks, $this->copyBuckets, $this->copyMenuOptions);
     }
 
+    public function updatedDataConfigSetsType(): void
+    {
+        unset($this->fieldsets, $this->previewGrid, $this->effectiveExpandedWeeks, $this->copyBuckets, $this->copyMenuOptions);
+    }
+
     public function updatedDataConfigSettings(): void
     {
         unset($this->fieldsets, $this->previewGrid);
@@ -232,7 +241,7 @@ class CalendarExerciseSettingsForm extends FormModal
 
     public function updateCellOverride(int $weekIndex, int $setIndex, string $field, mixed $value, int $session = 0, bool $applyToAll = false): void
     {
-        if (! $this->isValidPlanningValue($field, $value)) {
+        if (! $this->isValidPlanningValue($field, $value, $weekIndex, $setIndex, $session)) {
             return;
         }
 
@@ -267,7 +276,7 @@ class CalendarExerciseSettingsForm extends FormModal
 
     public function updateSessionOverride(int $weekIndex, int $session, string $field, mixed $value, bool $applyToAll = false): void
     {
-        if (! $this->isValidPlanningValue($field, $value)) {
+        if (! $this->isValidPlanningValue($field, $value, $weekIndex, null, $session)) {
             return;
         }
 
@@ -296,18 +305,81 @@ class CalendarExerciseSettingsForm extends FormModal
         unset($this->previewGrid, $this->effectiveExpandedWeeks, $this->copyBuckets, $this->copyMenuOptions);
     }
 
-    private function isValidPlanningValue(string $field, mixed $value): bool
+    private function isValidPlanningValue(string $field, mixed $value, ?int $weekIndex = null, ?int $setIndex = null, ?int $session = null): bool
     {
-        if ($field !== 'reps' || RepsSetting::isValidPlanningValue($value, $this->data['config'] ?? [])) {
+        $config = $this->data['config'] ?? [];
+
+        if ($field === 'reps' && ! RepsSetting::isValidPlanningValue($value, $config)) {
+            Flux::toast(
+                text: DropSet::isEnabled($config)
+                    ? __('Drop-set reps must use comma-separated values or a 3x12 style value.')
+                    : __('Reps must be a single number or bilateral value while automatic calculations are enabled.'),
+                variant: 'danger',
+            );
+
+            return false;
+        }
+
+        if (! is_string($value) || ! str_contains($value, ',')) {
+            return true;
+        }
+
+        if (! DropSet::isEnabled($config) || ! in_array($field, ['reps', 'weight', 'duration'], true)) {
+            Flux::toast(
+                text: __('Comma-separated values are only available for drop-set reps, weight, and duration.'),
+                variant: 'danger',
+            );
+
+            return false;
+        }
+
+        $settingClass = ExerciseSetting::tryFrom($field)?->settingClass();
+
+        if (! is_string($settingClass) || ! is_subclass_of($settingClass, AbstractSetting::class)) {
+            return false;
+        }
+
+        $fieldConfig = $config[$field] ?? [];
+        $fieldConfig['_sets'] = $config['sets'] ?? [];
+        $meta = $settingClass::inputMeta($fieldConfig);
+
+        if ($meta->pattern !== null && preg_match('/^'.$meta->pattern.'$/', trim($value))) {
+            $expected = $this->expectedDropSetPartCount($weekIndex, $setIndex, $session);
+            $actual = DropSet::partCount($field, $value);
+
+            if ($expected !== null && $actual !== null && $actual !== $expected) {
+                Flux::toast(
+                    text: __('Drop-set values must have :count parts.', ['count' => $expected]),
+                    variant: 'danger',
+                );
+
+                return false;
+            }
+
             return true;
         }
 
         Flux::toast(
-            text: __('Reps must be a single number or bilateral value while automatic calculations are enabled.'),
+            text: __('Please enter a valid drop-set value.'),
             variant: 'danger',
         );
 
         return false;
+    }
+
+    private function expectedDropSetPartCount(?int $weekIndex, ?int $setIndex, ?int $session): ?int
+    {
+        if ($weekIndex !== null && $setIndex !== null) {
+            $repsRow = collect($this->previewGrid->rows)->firstWhere('field', 'reps');
+            $repsValue = $repsRow?->getCellValue($weekIndex, $setIndex, $session ?? 0);
+            $count = DropSet::partCount('reps', $repsValue);
+
+            if ($count !== null) {
+                return $count;
+            }
+        }
+
+        return DropSet::expectedPartCount($this->data['config'] ?? []);
     }
 
     /** @return array<int, array{week:int, session:int}> */
@@ -348,9 +420,17 @@ class CalendarExerciseSettingsForm extends FormModal
 
     public function submit(): void
     {
-        $this->validate($this->buildValidationRulesFromFieldsets(), [
-            'required' => __('This field is required.'),
-        ], $this->buildValidationAttributesFromFieldsets());
+        $this->normalizeDropSetConfig();
+
+        try {
+            $this->validate($this->buildValidationRulesFromFieldsets(), [
+                'required' => __('This field is required.'),
+            ], $this->buildValidationAttributesFromFieldsets());
+        } catch (ValidationException $exception) {
+            $this->selectFieldsetTabForValidationErrors($exception->validator->errors()->keys());
+
+            throw $exception;
+        }
 
         Flux::modal($this->name)->close();
 
@@ -360,6 +440,22 @@ class CalendarExerciseSettingsForm extends FormModal
             'exerciseProgramId' => $this->contextExerciseProgramId,
             'userId' => $this->contextUserId,
         ]);
+    }
+
+    private function normalizeDropSetConfig(): void
+    {
+        if (! DropSet::isEnabled($this->data['config'] ?? [])) {
+            return;
+        }
+
+        if (isset($this->data['config']['reps']) && is_array($this->data['config']['reps'])) {
+            $this->data['config']['reps']['mode'] = 'manual';
+        }
+
+        if (isset($this->data['config']['weight']) && is_array($this->data['config']['weight'])) {
+            $this->data['config']['weight']['mode'] = 'manual';
+            $this->data['config']['weight']['oneRepMaxModifier'] = null;
+        }
     }
 
     protected function getMeasuredData(): ?WeightProgressionSetting

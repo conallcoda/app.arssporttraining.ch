@@ -765,13 +765,20 @@ class ProgramDetails extends Component
 
     protected function resolveSettingConfig(TrainingProgramSlotExercise $exercise, string $settingKey): array
     {
-        $config = $this->resolveExerciseConfig($exercise)[$settingKey] ?? null;
+        $exerciseConfig = $this->resolveExerciseConfig($exercise);
+        $config = $exerciseConfig[$settingKey] ?? null;
+        $sets = $exerciseConfig['sets'] ?? [];
 
         if (is_array($config)) {
+            $config['_sets'] = is_array($sets) ? $sets : [];
+
             return $config;
         }
 
-        return is_object($config) && method_exists($config, 'toArray') ? $config->toArray() : [];
+        $settingConfig = is_object($config) && method_exists($config, 'toArray') ? $config->toArray() : [];
+        $settingConfig['_sets'] = is_array($sets) ? $sets : [];
+
+        return $settingConfig;
     }
 
     /**
