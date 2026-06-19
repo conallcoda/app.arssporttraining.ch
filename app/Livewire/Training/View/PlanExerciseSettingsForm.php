@@ -11,8 +11,8 @@ use Coda\Cms\Livewire\FormModal;
 use Coda\FormKit\Form;
 use Coda\FormKit\FormFieldsetGroup;
 use Flux\Flux;
-use Illuminate\View\View;
 use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 
@@ -127,8 +127,7 @@ class PlanExerciseSettingsForm extends FormModal
         array $formTypes = [],
         ?string $activeFormType = null,
         array $formTypeData = [],
-    ): void
-    {
+    ): void {
         parent::open($data, $title, $focusField, $focusIndex, $formTypes, $activeFormType, $formTypeData);
 
         unset($this->fieldsets);
@@ -153,6 +152,7 @@ class PlanExerciseSettingsForm extends FormModal
     public function submit(): void
     {
         $this->normalizeDropSetConfig();
+        $this->normalizeCarryOverAthleteValuesConfig();
 
         try {
             $this->validate($this->buildValidationRulesFromFieldsets(), [
@@ -177,6 +177,21 @@ class PlanExerciseSettingsForm extends FormModal
             'exerciseId' => $this->contextExerciseId,
             'userId' => $this->contextUserId,
         ]);
+    }
+
+    private function normalizeCarryOverAthleteValuesConfig(): void
+    {
+        if (! isset($this->data['config']['weight']) || ! is_array($this->data['config']['weight'])) {
+            return;
+        }
+
+        if (($this->data['config']['weight']['carryOverAthleteValues'] ?? true) === false) {
+            $this->data['config']['weight']['carryOverAthleteValues'] = false;
+
+            return;
+        }
+
+        unset($this->data['config']['weight']['carryOverAthleteValues']);
     }
 
     private function normalizeDropSetConfig(): void

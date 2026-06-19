@@ -6,6 +6,7 @@ use App\Data\Exercise\ExerciseSetting;
 use App\Data\Exercise\Settings\AbstractSetting;
 use App\Models\Training\TrainingProgramSlotExercise;
 use App\Models\Training\TrainingProgramSlotSetValue;
+use App\Support\Training\EffectiveSlotExerciseConfigResolver;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 
@@ -13,6 +14,7 @@ class TrainingSessionPlannedValueService
 {
     public function __construct(
         private readonly TrainingSessionStatusService $statusService,
+        private readonly EffectiveSlotExerciseConfigResolver $configResolver,
     ) {}
 
     public function saveExercisePlannedValues(TrainingProgramSlotExercise $exercise, array $submittedValues, bool $onlyProvided = false): bool
@@ -86,7 +88,7 @@ class TrainingSessionPlannedValueService
     /**
      * @return array<string, mixed>
      */
-    private function buildPlannedSnapshotAttributes(
+    public function buildPlannedSnapshotAttributes(
         TrainingProgramSlotExercise $exercise,
         TrainingProgramSlotSetValue $valueRow,
         mixed $submittedValue,
@@ -102,7 +104,7 @@ class TrainingSessionPlannedValueService
     /**
      * @return array<string, mixed>
      */
-    private function buildPlannedSnapshotAttributesForSetting(
+    public function buildPlannedSnapshotAttributesForSetting(
         TrainingProgramSlotExercise $exercise,
         string $settingKey,
         mixed $submittedValue,
@@ -172,16 +174,20 @@ class TrainingSessionPlannedValueService
      */
     private function resolveSettingConfig(TrainingProgramSlotExercise $exercise, string $settingKey): array
     {
-        $config = $exercise->exercise?->config;
-        $setting = $config?->{$settingKey};
-        $sets = $config?->sets;
+        $exerciseConfig = $this->configResolver->resolve($exercise);
+        $setting = $exerciseConfig[$settingKey] ?? null;
+        $sets = $exerciseConfig['sets'] ?? [];
+
+        if (is_array($setting)) {
+            $setting['_sets'] = is_array($sets) ? $sets : [];
+
+            return $setting;
+        }
+
         $settingConfig = is_object($setting) && method_exists($setting, 'toArray')
             ? $setting->toArray()
             : [];
-
-        $settingConfig['_sets'] = is_object($sets) && method_exists($sets, 'toArray')
-            ? $sets->toArray()
-            : [];
+        $settingConfig['_sets'] = is_array($sets) ? $sets : [];
 
         return $settingConfig;
     }

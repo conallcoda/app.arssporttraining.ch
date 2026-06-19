@@ -211,8 +211,7 @@ class CalendarExerciseSettingsForm extends FormModal
         array $formTypes = [],
         ?string $activeFormType = null,
         array $formTypeData = [],
-    ): void
-    {
+    ): void {
         parent::open($data, $title, $focusField, $focusIndex, $formTypes, $activeFormType, $formTypeData);
 
         unset($this->fieldsets, $this->previewGrid);
@@ -421,6 +420,7 @@ class CalendarExerciseSettingsForm extends FormModal
     public function submit(): void
     {
         $this->normalizeDropSetConfig();
+        $this->normalizeCarryOverAthleteValuesConfig();
 
         try {
             $this->validate($this->buildValidationRulesFromFieldsets(), [
@@ -440,6 +440,21 @@ class CalendarExerciseSettingsForm extends FormModal
             'exerciseProgramId' => $this->contextExerciseProgramId,
             'userId' => $this->contextUserId,
         ]);
+    }
+
+    private function normalizeCarryOverAthleteValuesConfig(): void
+    {
+        if (! isset($this->data['config']['weight']) || ! is_array($this->data['config']['weight'])) {
+            return;
+        }
+
+        if (($this->data['config']['weight']['carryOverAthleteValues'] ?? true) === false) {
+            $this->data['config']['weight']['carryOverAthleteValues'] = false;
+
+            return;
+        }
+
+        unset($this->data['config']['weight']['carryOverAthleteValues']);
     }
 
     private function normalizeDropSetConfig(): void
@@ -582,7 +597,7 @@ class CalendarExerciseSettingsForm extends FormModal
     }
 
     /** @param array<int, mixed> $groups
-     *  @return int[]
+     * @return int[]
      */
     protected function forcedExpandedGroupIndexes(PreviewGrid $grid, array $groups): array
     {
@@ -594,7 +609,7 @@ class CalendarExerciseSettingsForm extends FormModal
     }
 
     /** @param array<string, mixed> $preview
-     *  @return int[]
+     * @return int[]
      */
     protected function resolvedExpandedGroupIndexes(PreviewGrid $grid, array $preview): array
     {

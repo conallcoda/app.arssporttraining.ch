@@ -5,8 +5,8 @@ namespace App\Training;
 use App\Data\Exercise\ExerciseSetting;
 use App\Models\Training\TrainingActualValueRevision;
 use App\Models\Training\TrainingProgramSlotExercise;
-use App\Models\Training\TrainingRevisionBatch;
 use App\Models\Training\TrainingProgramSlotSetValue;
+use App\Models\Training\TrainingRevisionBatch;
 use App\Models\Users\UserTypeEnum;
 use App\Support\Training\EffectiveSlotExerciseConfigResolver;
 use Illuminate\Support\Arr;
@@ -18,6 +18,7 @@ class AthleteExerciseValueService
         private readonly TrainingSessionStatusService $statusService,
         private readonly TrainingValueSnapshotCodec $valueCodec,
         private readonly EffectiveSlotExerciseConfigResolver $configResolver,
+        private readonly CarryOverAthleteValuesService $carryOverAthleteValues,
     ) {}
 
     public function saveExerciseValues(TrainingProgramSlotExercise $exercise, array $submittedValues, bool $onlyProvided = false): bool
@@ -77,6 +78,10 @@ class AthleteExerciseValueService
             }
 
             $this->statusService->refreshExerciseState($exercise);
+
+            if ($hasChanges) {
+                $this->carryOverAthleteValues->carryFrom($exercise);
+            }
 
             return $hasChanges;
         });

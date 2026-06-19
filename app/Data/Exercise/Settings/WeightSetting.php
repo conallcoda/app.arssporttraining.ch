@@ -16,6 +16,7 @@ class WeightSetting extends AbstractSetting
         public string $mode = 'manual',
         public ?int $oneRepMaxModifier = 100,
         public int|float|string|null $default = 5,
+        public bool $carryOverAthleteValues = true,
         public string $applyPer = ApplyPerScope::FORM_SET,
     ) {}
 
@@ -103,6 +104,10 @@ class WeightSetting extends AbstractSetting
                 ->rules('nullable|numeric|min:0')
                 ->show('mode == "manual"'),
             ApplyPerField::make()
+                ->show('mode == "manual"'),
+            Fields\SwitchField::make('carryOverAthleteValues')
+                ->label('Carry over athlete values')
+                ->default(true)
                 ->show('mode == "manual"'),
         ];
     }
