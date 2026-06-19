@@ -326,6 +326,7 @@ class TrainingSessionCompiler
                 $exercise->sets,
             ),
             programExerciseId: (int) $exercise->programExerciseId,
+            effectiveConfig: $exercise->effectiveConfig,
         );
     }
 
@@ -458,6 +459,8 @@ class TrainingSessionCompiler
                 'sort' => $exercise->sort,
                 'group' => $exercise->group,
                 'type' => $exercise->type,
+                'programExerciseId' => $exercise->programExerciseId,
+                'effectiveConfig' => $exercise->effectiveConfig,
                 'sets' => array_map(function (CompiledTrainingSet $set): array {
                     return [
                         'setNumber' => $set->setNumber,

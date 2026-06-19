@@ -28,6 +28,7 @@ class ScheduledSessionSnapshotBuilder
             'trainingProgram.program.exercises',
             'exercises.exercise.equipment',
             'exercises.exercise.modifiers',
+            'exercises.settingSnapshot',
             'exercises.sets.values',
         ];
 
@@ -71,6 +72,7 @@ class ScheduledSessionSnapshotBuilder
         $relations = [
             'exercise.equipment',
             'exercise.modifiers',
+            'settingSnapshot',
             'sets.values',
         ];
 

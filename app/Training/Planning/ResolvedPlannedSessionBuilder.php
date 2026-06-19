@@ -210,6 +210,7 @@ class ResolvedPlannedSessionBuilder
                 sets: $sets,
                 setCountProvenance: $setCountProvenance,
                 programExerciseId: $programExerciseId,
+                effectiveConfig: $effectiveConfig,
             );
         } finally {
             PlanGridProfiler::end($span, [

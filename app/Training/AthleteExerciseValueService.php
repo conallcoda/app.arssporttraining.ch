@@ -8,6 +8,7 @@ use App\Models\Training\TrainingProgramSlotExercise;
 use App\Models\Training\TrainingRevisionBatch;
 use App\Models\Training\TrainingProgramSlotSetValue;
 use App\Models\Users\UserTypeEnum;
+use App\Support\Training\EffectiveSlotExerciseConfigResolver;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 
@@ -16,13 +17,14 @@ class AthleteExerciseValueService
     public function __construct(
         private readonly TrainingSessionStatusService $statusService,
         private readonly TrainingValueSnapshotCodec $valueCodec,
+        private readonly EffectiveSlotExerciseConfigResolver $configResolver,
     ) {}
 
     public function saveExerciseValues(TrainingProgramSlotExercise $exercise, array $submittedValues, bool $onlyProvided = false): bool
     {
         return DB::transaction(function () use ($exercise, $submittedValues, $onlyProvided): bool {
             $exercise = TrainingProgramSlotExercise::query()
-                ->with(['slot', 'exercise', 'sets.values'])
+                ->with(['slot', 'exercise', 'settingSnapshot', 'sets.values'])
                 ->lockForUpdate()
                 ->findOrFail($exercise->id);
 
@@ -85,12 +87,22 @@ class AthleteExerciseValueService
      */
     private function resolveSettingConfig(TrainingProgramSlotExercise $exercise, string $settingKey): array
     {
-        $config = $exercise->exercise?->config;
-        $setting = $config?->{$settingKey};
+        $exerciseConfig = $this->configResolver->resolve($exercise);
+        $setting = $exerciseConfig[$settingKey] ?? null;
+        $sets = $exerciseConfig['sets'] ?? [];
 
-        return is_object($setting) && method_exists($setting, 'toArray')
+        if (is_array($setting)) {
+            $setting['_sets'] = is_array($sets) ? $sets : [];
+
+            return $setting;
+        }
+
+        $settingConfig = is_object($setting) && method_exists($setting, 'toArray')
             ? $setting->toArray()
             : [];
+        $settingConfig['_sets'] = is_array($sets) ? $sets : [];
+
+        return $settingConfig;
     }
 
     /**

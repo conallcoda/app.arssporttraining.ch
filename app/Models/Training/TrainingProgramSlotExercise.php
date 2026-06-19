@@ -22,6 +22,7 @@ class TrainingProgramSlotExercise extends Model
         'sort',
         'group',
         'type',
+        'exercise_setting_snapshot_id',
         'status',
         'set_count',
         'completed_set_count',
@@ -55,6 +56,11 @@ class TrainingProgramSlotExercise extends Model
     public function programExercise(): BelongsTo
     {
         return $this->belongsTo(ExerciseProgramExercise::class, 'exercise_program_exercise_id');
+    }
+
+    public function settingSnapshot(): BelongsTo
+    {
+        return $this->belongsTo(ExerciseSettingSnapshot::class, 'exercise_setting_snapshot_id');
     }
 
     public function sets(): HasMany

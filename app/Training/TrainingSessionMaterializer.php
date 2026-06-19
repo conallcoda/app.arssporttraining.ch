@@ -5,6 +5,7 @@ namespace App\Training;
 use App\Data\Training\Compiled\CompiledTrainingExercise;
 use App\Data\Training\Compiled\CompiledTrainingSet;
 use App\Data\Training\Compiled\CompiledTrainingSetValue;
+use App\Models\Training\ExerciseSettingSnapshot;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Training\TrainingProgramSlotExercise;
 use App\Models\Training\TrainingProgramSlotExerciseStatusEnum;
@@ -125,6 +126,7 @@ class TrainingSessionMaterializer
             'sort' => $exercise->sort,
             'group' => $exercise->group,
             'type' => $exercise->type,
+            'exercise_setting_snapshot_id' => $this->createSettingSnapshot($slot, $exercise)->id,
             'status' => TrainingProgramSlotExerciseStatusEnum::Pending,
             'set_count' => count($exercise->sets),
             'completed_set_count' => 0,
@@ -132,6 +134,17 @@ class TrainingSessionMaterializer
             'skipped_set_count' => 0,
             'pending_set_count' => count($exercise->sets),
             'has_any_modification' => false,
+        ]);
+    }
+
+    private function createSettingSnapshot(TrainingProgramSlot $slot, CompiledTrainingExercise $exercise): ExerciseSettingSnapshot
+    {
+        return ExerciseSettingSnapshot::create([
+            'exercise_id' => $exercise->exerciseId,
+            'exercise_program_exercise_id' => $exercise->programExerciseId,
+            'training_program_id' => $slot->training_program_id,
+            'user_id' => $slot->user_id,
+            'config' => $exercise->effectiveConfig,
         ]);
     }
 

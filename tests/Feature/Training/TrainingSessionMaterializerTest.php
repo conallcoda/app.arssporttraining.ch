@@ -90,6 +90,10 @@ it('materializes planned exercises, sets, and values when a slot is created', fu
     $slotExercise = $slot->exercises()->firstOrFail();
     expect($slotExercise->status)->toBe(TrainingProgramSlotExerciseStatusEnum::Pending)
         ->and($slotExercise->exercise_program_exercise_id)->toBe($pivot->id)
+        ->and($slotExercise->exercise_setting_snapshot_id)->not->toBeNull()
+        ->and($slotExercise->settingSnapshot->config['sets']['default'] ?? null)->toBe(3)
+        ->and($slotExercise->settingSnapshot->config['reps']['default'] ?? null)->toBe(6)
+        ->and($slotExercise->settingSnapshot->config['weight']['default'] ?? null)->toBe(82.5)
         ->and($slotExercise->set_count)->toBe(3)
         ->and($slotExercise->pending_set_count)->toBe(3)
         ->and($slotExercise->sets)->toHaveCount(3);

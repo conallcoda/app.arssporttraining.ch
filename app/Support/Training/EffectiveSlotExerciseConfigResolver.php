@@ -11,6 +11,12 @@ class EffectiveSlotExerciseConfigResolver
      */
     public function resolve(TrainingProgramSlotExercise $slotExercise): array
     {
+        $slotExercise->loadMissing('settingSnapshot');
+
+        if (is_array($slotExercise->settingSnapshot?->config) && $slotExercise->settingSnapshot->config !== []) {
+            return $slotExercise->settingSnapshot->config;
+        }
+
         $slotExercise->loadMissing([
             'exercise',
             'programExercise.exercise',

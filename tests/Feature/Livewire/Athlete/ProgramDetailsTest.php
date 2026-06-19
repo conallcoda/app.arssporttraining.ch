@@ -1502,6 +1502,82 @@ it('uses the effective scheduled exercise config for athlete editor fields and s
         ->and($snapshotExercise->settingConfigs['duration']['unit'] ?? null)->toBe('minutes');
 });
 
+it('uses the slot exercise config snapshot when live settings change after materialization', function () {
+    CarbonImmutable::setTestNow('2030-04-03 12:00:00');
+    config()->set('athlete.dashboard_today_override', '03.04.2030');
+
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Friday Strength']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $exercise = Exercise::factory()->create([
+        'name' => 'Goblet squat',
+        'config' => [
+            'settings' => ['reps', 'weight', 'tempo', 'rest'],
+            'sets' => ['type' => 'normal', 'default' => 3, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'set'],
+            'weight' => ['mode' => 'manual', 'default' => 7.5, 'applyPer' => 'set'],
+            'tempo' => ['default' => '3010', 'applyPer' => 'week'],
+            'rest' => ['default' => 30, 'applyPer' => 'week'],
+        ],
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+        'group' => 'A1',
+    ]);
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-04-03 09:00:00'),
+    ])->fresh('exercises.sets.values');
+
+    $slotExercise = $slot->exercises->first();
+    $firstSet = $slotExercise->sets->sortBy('set_number')->first();
+
+    $exercise->update([
+        'config' => [
+            'settings' => ['reps', 'weight', 'tempo', 'rest'],
+            'sets' => ['type' => 'drop', 'default' => 3, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => '3x12', 'applyPer' => 'set'],
+            'weight' => ['mode' => 'manual', 'default' => '12,12,12', 'applyPer' => 'set'],
+            'tempo' => ['default' => '3010', 'applyPer' => 'week'],
+            'rest' => ['default' => 30, 'applyPer' => 'week'],
+        ],
+    ]);
+
+    $viewData = app(ProgramDetailsExerciseViewBuilder::class)->build($slotExercise->fresh('exercise', 'sets.values'), 0, 'A1');
+    $repsRow = collect($viewData->sessionRows)->firstWhere('label', 'Reps');
+    $weightRow = collect($viewData->sessionRows)->firstWhere('label', 'Weight (kg)');
+
+    expect($slotExercise->settingSnapshot->config['sets']['type'] ?? null)->toBe('normal')
+        ->and($repsRow?->values[0] ?? null)->toBe('12')
+        ->and($weightRow?->values[0] ?? null)->toBe('7.5');
+
+    Livewire::actingAs($athlete)
+        ->test(ProgramDetails::class, [
+            'date' => '2030-04-03',
+            'trainingProgram' => $trainingProgram,
+        ])
+        ->call('openExerciseEditor', $slotExercise->id)
+        ->assertSet("editValues.{$firstSet->id}.reps", '12')
+        ->assertSet("editValues.{$firstSet->id}.weight", 7.5)
+        ->call('markExerciseCompleted', $slotExercise->id)
+        ->assertHasNoErrors();
+
+    expect($slotExercise->fresh()->status)->toBe(TrainingProgramSlotExerciseStatusEnum::Completed);
+
+    CarbonImmutable::setTestNow();
+});
+
 it('allows recording future program exercises when can_edit_all is enabled', function () {
     CarbonImmutable::setTestNow('2030-04-03 12:00:00');
     config()->set('athlete.dashboard_today_override', '03.04.2030');

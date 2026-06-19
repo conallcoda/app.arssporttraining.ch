@@ -14,5 +14,6 @@ final readonly class CompiledTrainingExercise
         public string $type,
         public array $sets,
         public int $programExerciseId,
+        public array $effectiveConfig = [],
     ) {}
 }

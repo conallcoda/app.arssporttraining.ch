@@ -15,5 +15,6 @@ final readonly class ResolvedPlannedExercise
         public array $sets,
         public ?ResolvedPlannedProvenance $setCountProvenance = null,
         public ?int $programExerciseId = null,
+        public array $effectiveConfig = [],
     ) {}
 }
