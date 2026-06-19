@@ -26,7 +26,26 @@
         :auto-expand-exercise-id="$autoExpandExerciseId ?? null"
     />
 
-    <flux:modal name="athlete-exercise-editor" class="max-w-2xl" x-on:close="$wire.cancelExerciseEditor()">
+    <flux:modal
+        name="athlete-exercise-editor"
+        class="max-w-2xl"
+        x-data="{
+            focusEditorField(model) {
+                this.$nextTick(() => {
+                    setTimeout(() => {
+                        const name = String(model);
+                        const escaped = window.CSS?.escape ? CSS.escape(name) : name.replaceAll('.', '\\.');
+                        const field = this.$el.querySelector(`[name=&quot;${escaped}&quot;]`);
+
+                        field?.focus();
+                        field?.select?.();
+                    }, 75);
+                });
+            },
+        }"
+        x-on:athlete-exercise-editor-focus.window="focusEditorField($event.detail.model)"
+        x-on:close="$wire.cancelExerciseEditor()"
+    >
         <div class="space-y-5">
             <div class="min-w-0">
                 <flux:heading size="lg">Edit</flux:heading>

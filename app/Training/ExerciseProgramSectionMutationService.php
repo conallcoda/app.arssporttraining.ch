@@ -80,6 +80,31 @@ class ExerciseProgramSectionMutationService
     }
 
     /**
+     * @param  Collection<int, Exercise>  $currentRows
+     * @param  array<int, array<int, bool>>  $lockedSessionsByWeek
+     * @param  array<int, array<int, string|null>>  $weekSessionDates
+     * @return array<int, int>
+     */
+    public function immutableProgramExerciseIds(
+        Collection $currentRows,
+        ExercisePlanConfig $config,
+        array $lockedSessionsByWeek = [],
+        array $weekSessionDates = [],
+    ): array {
+        $immutableDates = $this->immutableSessionDates($lockedSessionsByWeek, $weekSessionDates);
+
+        if ($immutableDates === []) {
+            return [];
+        }
+
+        return $currentRows
+            ->filter(fn (Exercise $exercise): bool => $this->existsInImmutableHistory($exercise, $config, $immutableDates))
+            ->map(fn (Exercise $exercise): int => (int) $exercise->pivot->id)
+            ->values()
+            ->all();
+    }
+
+    /**
      * @param  array<int, array<int, bool>>  $lockedSessionsByWeek
      * @param  array<int, array<int, string|null>>  $weekSessionDates
      * @return array<int, string>

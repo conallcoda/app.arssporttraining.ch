@@ -37,7 +37,7 @@
         $preparedGroups = $grid->groups ?? $grid->weeks ?? [];
         $hasPreparedGroups = count($preparedGroups) > 0;
         $showGroupColumn = $hasPreparedGroups ? ($grid->showGroupColumn ?? $grid->showWeekColumn) : ($collapseWeeks ? $grid->weekCount > 1 : true);
-        $renderGroupColumn = $hasPreparedGroups ? ($grid->renderGroupColumn ?? $showGroupColumn) : $showGroupColumn;
+        $renderGroupColumn = false;
         $showSessionColumn = true;
         $showSessionDates = (bool) ($grid->showSessionDates ?? false);
         $sessionDateLabels = $grid->sessionDateLabels ?? [];
@@ -52,9 +52,12 @@
         );
         $canResetBucket = fn (string $key): bool => (bool) ($resetMenuOptions[$key] ?? false);
         $hasResetActions = collect($resetMenuOptions)->contains(fn (mixed $canReset): bool => (bool) $canReset);
+        $hasGroupToggleActions = collect($preparedGroups)->contains(
+            fn ($group): bool => (bool) ($group->collapsible ?? false)
+        );
         $showCopyColumn = ! $splitActualColumns
             && (
-                ((bool) ($grid->showCopyMenu ?? false) && ($hasCopyActions || $hasPreviewActions || $hasResetActions))
+                ((bool) ($grid->showCopyMenu ?? false) && ($hasCopyActions || $hasPreviewActions || $hasResetActions || $hasGroupToggleActions))
                 || $showPlannedActualToggle
             );
         $baseRows = $splitActualColumns
@@ -279,7 +282,7 @@
                             );
                             $collapsedGroupLocked = ! $groupHasEditableSessions;
                             $applyToAllByDefault = ! $groupExpanded && $groupSessionCount > 1;
-                            $canToggleGroup = $renderGroupColumn && (bool) ($group->collapsible ?? false);
+                            $canToggleGroup = $showGroupColumn && (bool) ($group->collapsible ?? false);
                         @endphp
                         @if (! $groupExpanded && $collapsedSession)
                                 @php
@@ -419,48 +422,16 @@
                                     @endforeach
                                     @if ($showCopyColumn)
                                         <td class="border border-zinc-300 dark:border-zinc-600 px-1 py-1 align-middle text-center">
-                                                    @if (! empty($collapsedCopyOptions['from'] ?? []) || ! empty($collapsedCopyOptions['to'] ?? []) || ($showPreview && ! empty($previewMenuOptions[$collapsedCopyKey] ?? [])) || $canResetBucket($collapsedCopyKey))
-                                                <flux:dropdown position="bottom" align="end">
-                                                    <flux:button variant="ghost" size="xs" icon="ellipsis" class="!p-1" />
-                                                    <flux:menu>
-                                                        @if (! empty($collapsedCopyOptions['from'] ?? []))
-                                                            <flux:menu.submenu :heading="__('Copy From')">
-                                                                @foreach (($collapsedCopyOptions['from'] ?? []) as $option)
-                                                                    <flux:menu.item wire:click="copyDisplayBucket('{{ $option['source'] }}', '{{ $option['target'] }}')">
-                                                                        {{ __($option['label']) }}
-                                                                    </flux:menu.item>
-                                                                @endforeach
-                                                            </flux:menu.submenu>
-                                                        @endif
-                                                        @if (! empty($collapsedCopyOptions['to'] ?? []))
-                                                            <flux:menu.submenu :heading="__('Copy To')">
-                                                                @if (filled($collapsedCopyOptions['toAll'] ?? null))
-                                                                    <flux:menu.item wire:click="copyDisplayBucketToAll('{{ $collapsedCopyOptions['toAll']['source'] }}')">
-                                                                        {{ __($collapsedCopyOptions['toAll']['label']) }}
-                                                                    </flux:menu.item>
-                                                                    <flux:menu.separator />
-                                                                @endif
-                                                                @foreach (($collapsedCopyOptions['to'] ?? []) as $option)
-                                                                    <flux:menu.item wire:click="copyDisplayBucket('{{ $option['source'] }}', '{{ $option['target'] }}')">
-                                                                        {{ __($option['label']) }}
-                                                                    </flux:menu.item>
-                                                                @endforeach
-                                                            </flux:menu.submenu>
-                                                        @endif
-                                                        @if ($showPreview)
-                                                            @include('components.training.partials.preview-menu-item', [
-                                                                'previewSessions' => $previewMenuOptions[$collapsedCopyKey] ?? [],
-                                                            ])
-                                                        @endif
-                                                        @if ($canResetBucket($collapsedCopyKey))
-                                                            <flux:menu.separator />
-                                                            <flux:menu.item icon="rotate-ccw" wire:click="resetDisplayBucket('{{ $collapsedCopyKey }}')">
-                                                                {{ __('Reset') }}
-                                                            </flux:menu.item>
-                                                        @endif
-                                                    </flux:menu>
-                                                </flux:dropdown>
-                                            @endif
+                                            @include('components.training.partials.display-bucket-menu', [
+                                                'bucketKey' => $collapsedCopyKey,
+                                                'copyOptions' => $collapsedCopyOptions,
+                                                'previewSessions' => $previewMenuOptions[$collapsedCopyKey] ?? [],
+                                                'canReset' => $canResetBucket($collapsedCopyKey),
+                                                'showPreview' => $showPreview,
+                                                'canToggleGroup' => $canToggleGroup,
+                                                'groupExpanded' => false,
+                                                'groupIndex' => $group->index,
+                                            ])
                                         </td>
                                     @endif
                                 </tr>
@@ -682,48 +653,16 @@
                                             @if ($showCopyColumn)
                                                 <td class="border border-zinc-300 dark:border-zinc-600 px-1 py-1 align-middle text-center"
                                                     rowspan="{{ count($grid->rows) }}">
-                                            @if (! empty($collapsedCopyOptions['from'] ?? []) || ! empty($collapsedCopyOptions['to'] ?? []) || ($showPreview && ! empty($previewMenuOptions[$collapsedCopyKey] ?? [])) || $canResetBucket($collapsedCopyKey))
-                                                        <flux:dropdown position="bottom" align="end">
-                                                            <flux:button variant="ghost" size="xs" icon="ellipsis" class="!p-1" />
-                                                            <flux:menu>
-                                                                @if (! empty($collapsedCopyOptions['from'] ?? []))
-                                                                    <flux:menu.submenu :heading="__('Copy From')">
-                                                                        @foreach (($collapsedCopyOptions['from'] ?? []) as $option)
-                                                                            <flux:menu.item wire:click="copyDisplayBucket('{{ $option['source'] }}', '{{ $option['target'] }}')">
-                                                                                {{ __($option['label']) }}
-                                                                            </flux:menu.item>
-                                                                        @endforeach
-                                                                    </flux:menu.submenu>
-                                                                @endif
-                                                                @if (! empty($collapsedCopyOptions['to'] ?? []))
-                                                                    <flux:menu.submenu :heading="__('Copy To')">
-                                                                        @if (filled($collapsedCopyOptions['toAll'] ?? null))
-                                                                            <flux:menu.item wire:click="copyDisplayBucketToAll('{{ $collapsedCopyOptions['toAll']['source'] }}')">
-                                                                                {{ __($collapsedCopyOptions['toAll']['label']) }}
-                                                                            </flux:menu.item>
-                                                                            <flux:menu.separator />
-                                                                        @endif
-                                                                        @foreach (($collapsedCopyOptions['to'] ?? []) as $option)
-                                                                            <flux:menu.item wire:click="copyDisplayBucket('{{ $option['source'] }}', '{{ $option['target'] }}')">
-                                                                                {{ __($option['label']) }}
-                                                                            </flux:menu.item>
-                                                                        @endforeach
-                                                                    </flux:menu.submenu>
-                                                                @endif
-                                                                @if ($showPreview)
-                                                                    @include('components.training.partials.preview-menu-item', [
-                                                                        'previewSessions' => $previewMenuOptions[$collapsedCopyKey] ?? [],
-                                                                    ])
-                                                                @endif
-                                                                @if ($canResetBucket($collapsedCopyKey))
-                                                                    <flux:menu.separator />
-                                                                    <flux:menu.item icon="rotate-ccw" wire:click="resetDisplayBucket('{{ $collapsedCopyKey }}')">
-                                                                        {{ __('Reset') }}
-                                                                    </flux:menu.item>
-                                                                @endif
-                                                            </flux:menu>
-                                                        </flux:dropdown>
-                                                    @endif
+                                                    @include('components.training.partials.display-bucket-menu', [
+                                                        'bucketKey' => $collapsedCopyKey,
+                                                        'copyOptions' => $collapsedCopyOptions,
+                                                        'previewSessions' => $previewMenuOptions[$collapsedCopyKey] ?? [],
+                                                        'canReset' => $canResetBucket($collapsedCopyKey),
+                                                        'showPreview' => $showPreview,
+                                                        'canToggleGroup' => $canToggleGroup,
+                                                        'groupExpanded' => false,
+                                                        'groupIndex' => $group->index,
+                                                    ])
                                                 </td>
                                             @endif
                                         @endif
@@ -868,48 +807,16 @@
                                     @endforeach
                                     @if ($showCopyColumn)
                                         <td class="border border-zinc-300 dark:border-zinc-600 px-1 py-1 align-middle text-center">
-                                            @if (! empty($sessionCopyOptions['from'] ?? []) || ! empty($sessionCopyOptions['to'] ?? []) || ($showPreview && ! empty($previewMenuOptions[$sessionCopyKey] ?? [])) || $canResetBucket($sessionCopyKey))
-                                                <flux:dropdown position="bottom" align="end">
-                                                    <flux:button variant="ghost" size="xs" icon="ellipsis" class="!p-1" />
-                                                    <flux:menu>
-                                                        @if (! empty($sessionCopyOptions['from'] ?? []))
-                                                            <flux:menu.submenu :heading="__('Copy From')">
-                                                                @foreach (($sessionCopyOptions['from'] ?? []) as $option)
-                                                                    <flux:menu.item wire:click="copyDisplayBucket('{{ $option['source'] }}', '{{ $option['target'] }}')">
-                                                                        {{ __($option['label']) }}
-                                                                    </flux:menu.item>
-                                                                @endforeach
-                                                            </flux:menu.submenu>
-                                                        @endif
-                                                        @if (! empty($sessionCopyOptions['to'] ?? []))
-                                                            <flux:menu.submenu :heading="__('Copy To')">
-                                                                @if (filled($sessionCopyOptions['toAll'] ?? null))
-                                                                    <flux:menu.item wire:click="copyDisplayBucketToAll('{{ $sessionCopyOptions['toAll']['source'] }}')">
-                                                                        {{ __($sessionCopyOptions['toAll']['label']) }}
-                                                                    </flux:menu.item>
-                                                                    <flux:menu.separator />
-                                                                @endif
-                                                                @foreach (($sessionCopyOptions['to'] ?? []) as $option)
-                                                                    <flux:menu.item wire:click="copyDisplayBucket('{{ $option['source'] }}', '{{ $option['target'] }}')">
-                                                                        {{ __($option['label']) }}
-                                                                    </flux:menu.item>
-                                                                @endforeach
-                                                            </flux:menu.submenu>
-                                                        @endif
-                                                        @if ($showPreview)
-                                                            @include('components.training.partials.preview-menu-item', [
-                                                                'previewSessions' => $previewMenuOptions[$sessionCopyKey] ?? [],
-                                                            ])
-                                                        @endif
-                                                        @if ($canResetBucket($sessionCopyKey))
-                                                            <flux:menu.separator />
-                                                            <flux:menu.item icon="rotate-ccw" wire:click="resetDisplayBucket('{{ $sessionCopyKey }}')">
-                                                                {{ __('Reset') }}
-                                                            </flux:menu.item>
-                                                        @endif
-                                                    </flux:menu>
-                                                </flux:dropdown>
-                                            @endif
+                                            @include('components.training.partials.display-bucket-menu', [
+                                                'bucketKey' => $sessionCopyKey,
+                                                'copyOptions' => $sessionCopyOptions,
+                                                'previewSessions' => $previewMenuOptions[$sessionCopyKey] ?? [],
+                                                'canReset' => $canResetBucket($sessionCopyKey),
+                                                'showPreview' => $showPreview,
+                                                'canToggleGroup' => $canToggleGroup,
+                                                'groupExpanded' => true,
+                                                'groupIndex' => $group->index,
+                                            ])
                                         </td>
                                     @endif
                                 </tr>
@@ -1196,48 +1103,16 @@
                                             @if ($showCopyColumn)
                                                 <td class="border border-zinc-300 dark:border-zinc-600 px-1 py-1 align-middle text-center"
                                                     rowspan="{{ count($grid->rows) }}">
-                                                    @if (! empty($sessionCopyOptions['from'] ?? []) || ! empty($sessionCopyOptions['to'] ?? []) || ($showPreview && ! empty($previewMenuOptions[$sessionCopyKey] ?? [])) || $canResetBucket($sessionCopyKey))
-                                                        <flux:dropdown position="bottom" align="end">
-                                                            <flux:button variant="ghost" size="xs" icon="ellipsis" class="!p-1" />
-                                                            <flux:menu>
-                                                                @if (! empty($sessionCopyOptions['from'] ?? []))
-                                                                    <flux:menu.submenu :heading="__('Copy From')">
-                                                                        @foreach (($sessionCopyOptions['from'] ?? []) as $option)
-                                                                            <flux:menu.item wire:click="copyDisplayBucket('{{ $option['source'] }}', '{{ $option['target'] }}')">
-                                                                                {{ __($option['label']) }}
-                                                                            </flux:menu.item>
-                                                                        @endforeach
-                                                                    </flux:menu.submenu>
-                                                                @endif
-                                                                @if (! empty($sessionCopyOptions['to'] ?? []))
-                                                                    <flux:menu.submenu :heading="__('Copy To')">
-                                                                        @if (filled($sessionCopyOptions['toAll'] ?? null))
-                                                                            <flux:menu.item wire:click="copyDisplayBucketToAll('{{ $sessionCopyOptions['toAll']['source'] }}')">
-                                                                                {{ __($sessionCopyOptions['toAll']['label']) }}
-                                                                            </flux:menu.item>
-                                                                            <flux:menu.separator />
-                                                                        @endif
-                                                                        @foreach (($sessionCopyOptions['to'] ?? []) as $option)
-                                                                            <flux:menu.item wire:click="copyDisplayBucket('{{ $option['source'] }}', '{{ $option['target'] }}')">
-                                                                                {{ __($option['label']) }}
-                                                                            </flux:menu.item>
-                                                                        @endforeach
-                                                                    </flux:menu.submenu>
-                                                                @endif
-                                                                @if ($showPreview)
-                                                                    @include('components.training.partials.preview-menu-item', [
-                                                                        'previewSessions' => $previewMenuOptions[$sessionCopyKey] ?? [],
-                                                                    ])
-                                                                @endif
-                                                                @if ($canResetBucket($sessionCopyKey))
-                                                                    <flux:menu.separator />
-                                                                    <flux:menu.item icon="rotate-ccw" wire:click="resetDisplayBucket('{{ $sessionCopyKey }}')">
-                                                                        {{ __('Reset') }}
-                                                                    </flux:menu.item>
-                                                                @endif
-                                                            </flux:menu>
-                                                        </flux:dropdown>
-                                                    @endif
+                                                    @include('components.training.partials.display-bucket-menu', [
+                                                        'bucketKey' => $sessionCopyKey,
+                                                        'copyOptions' => $sessionCopyOptions,
+                                                        'previewSessions' => $previewMenuOptions[$sessionCopyKey] ?? [],
+                                                        'canReset' => $canResetBucket($sessionCopyKey),
+                                                        'showPreview' => $showPreview,
+                                                        'canToggleGroup' => $canToggleGroup,
+                                                        'groupExpanded' => true,
+                                                        'groupIndex' => $group->index,
+                                                    ])
                                                 </td>
                                             @endif
                                         @endif

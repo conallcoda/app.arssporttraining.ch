@@ -217,8 +217,22 @@
                                                         {{ $set + 1 }}
                                                     </td>
                                                     @foreach ($exercise->sessionRows as $row)
-                                                        <td class="border-r border-t border-zinc-300 px-2 py-1.5 text-center last:border-r-0 dark:border-zinc-600 whitespace-nowrap {{ $row->valueClasses[$set] ?? '' }}">
-                                                            {{ $row->values[$set] ?? '—' }}
+                                                        @php
+                                                            $cellSetId = $row->setIds[$set] ?? null;
+                                                            $cellIsEditable = $athleteEditsEnabled && $canRecordSession && $cellSetId !== null && filled($row->settingKey);
+                                                        @endphp
+                                                        <td class="border-r border-t border-zinc-300 text-center last:border-r-0 dark:border-zinc-600 whitespace-nowrap {{ $cellIsEditable ? 'p-0' : 'px-2 py-1.5' }} {{ $row->valueClasses[$set] ?? '' }}">
+                                                            @if ($cellIsEditable)
+                                                                <button
+                                                                    type="button"
+                                                                    wire:click="openExerciseEditor({{ $exercise->id }}, {{ $cellSetId }}, @js($row->settingKey))"
+                                                                    class="block w-full px-2 py-1.5 text-center"
+                                                                >
+                                                                    {{ $row->values[$set] ?? '—' }}
+                                                                </button>
+                                                            @else
+                                                                {{ $row->values[$set] ?? '—' }}
+                                                            @endif
                                                         </td>
                                                     @endforeach
                                                 </tr>

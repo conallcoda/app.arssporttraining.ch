@@ -60,10 +60,13 @@ class ProgramDetailsExerciseViewBuilder
             $values = [];
             $valueClasses = [];
             $modifiedValues = [];
+            $setIds = [];
             $firstUnit = null;
             $hasSettingRow = false;
 
             foreach ($exerciseSnapshot->sets as $set) {
+                $setIds[] = $set->id;
+
                 $isSkipped = array_key_exists($set->id, $pendingSkippedSetMap)
                     ? (bool) $pendingSkippedSetMap[$set->id]
                     : (string) ($set->status->value ?? $set->status) === TrainingProgramSlotSetStatusEnum::Skipped->value;
@@ -106,10 +109,12 @@ class ProgramDetailsExerciseViewBuilder
 
             $sessionRows[] = new ProgramDetailsSessionRowData(
                 label: $this->resolveSettingLabel($setting, $firstUnit, $exerciseSnapshot->settingConfigs),
+                settingKey: $setting,
                 labelClass: $labelClass,
                 values: $values,
                 valueClasses: $valueClasses,
                 modifiedValues: $modifiedValues,
+                setIds: $setIds,
             );
 
             $colorIndex++;

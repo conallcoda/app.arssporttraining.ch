@@ -489,7 +489,10 @@ it('stops fanning out once a group is manually expanded', function () {
         'expandedWeeks' => [],
     ]);
 
+    $component->assertSee('Expand group');
+
     $component->call('toggleExpandedGroup', 0)
+        ->assertSee('Collapse group')
         ->call('updateSessionOverride', 0, 0, 'rest', 75, false);
 
     $grid = $component->instance()->previewGrid;
@@ -821,7 +824,6 @@ it('keeps grouped preview buckets and hides reset for locked groups when the gro
         'userId' => $athlete->id,
         'weeks' => 2,
         'sessionsPerWeek' => 2,
-        'expandedWeeks' => [0],
         'lockedSessionsByWeek' => [
             [true, true],
             [false, false],
@@ -907,7 +909,7 @@ it('shows reset for unrecorded past grouped sessions when lock metadata is open'
         ->and($component->html())->toContain("resetDisplayBucket('group:0')");
 });
 
-it('refreshes an open plan grid after coach settings change', function () {
+it('keeps the grouped column hidden after coach settings change', function () {
     $coach = User::factory()->coach()->create();
     $coach->config->set('settings.session_grouping', [
         'mode' => 'groups',
@@ -944,7 +946,7 @@ it('refreshes an open plan grid after coach settings change', function () {
         'sessionsPerWeek' => 2,
     ]);
 
-    expect($component->instance()->displayGrid->renderGroupColumn)->toBeTrue();
+    expect($component->instance()->displayGrid->renderGroupColumn)->toBeFalse();
 
     $coach->config->set('settings.session_grouping.showGroupedColumn', false);
     $coach->save();

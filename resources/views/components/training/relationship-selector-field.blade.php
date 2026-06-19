@@ -90,6 +90,10 @@
                             $badgeLabel = $selectedLabel !== ''
                                 ? ($groupLabel ? $groupLabel . ' - ' . $selectedLabel : $selectedLabel)
                                 : 'Selected item';
+                            $removeDisabled = $field->name === 'section_exercises'
+                                && method_exists($this, 'sectionExerciseRowIsProtected')
+                                && $this->sectionExerciseRowIsProtected($item);
+                            $removeDisabledLabel = __('Recorded sessions keep this exercise in the plan.');
                         @endphp
                         <flux:badge
                             rounded
@@ -100,8 +104,14 @@
                             <span class="max-w-[18rem] truncate">{{ $badgeLabel }}</span>
                             <button
                                 type="button"
-                                class="inline-flex items-center text-zinc-400 transition-colors hover:text-zinc-100"
-                                wire:click="removeRelationshipSelectorItem({{ \Illuminate\Support\Js::from($field->name) }}, {{ $index }})"
+                                class="inline-flex items-center text-zinc-400 transition-colors {{ $removeDisabled ? 'cursor-not-allowed opacity-40' : 'hover:text-zinc-100' }}"
+                                @if (! $removeDisabled)
+                                    wire:click="removeRelationshipSelectorItem({{ \Illuminate\Support\Js::from($field->name) }}, {{ $index }})"
+                                @endif
+                                @if ($removeDisabled)
+                                    disabled
+                                    title="{{ $removeDisabledLabel }}"
+                                @endif
                                 aria-label="Remove {{ $badgeLabel }}"
                             >
                                 <flux:icon.x-mark class="size-4" />
@@ -124,6 +134,10 @@
                             $selectedLabel = $selectedRecord
                                 ? $field->resolveRecordLabel($selectedRecord)
                                 : (string) ($selectedValue ?? '');
+                            $removeDisabled = $field->name === 'section_exercises'
+                                && method_exists($this, 'sectionExerciseRowIsProtected')
+                                && $this->sectionExerciseRowIsProtected($item);
+                            $removeDisabledLabel = __('Recorded sessions keep this exercise in the plan.');
                         @endphp
                         @if ($field->sortable)
                             <div class="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-700 dark:bg-zinc-900"
@@ -155,8 +169,19 @@
                                                     </div>
                                                 @endif
                                             </div>
-                                            <flux:button type="button" size="xs" variant="ghost" icon="trash-2"
-                                                wire:click="removeRelationshipSelectorItem({{ \Illuminate\Support\Js::from($field->name) }}, {{ $index }})" />
+                                            <flux:button
+                                                type="button"
+                                                size="xs"
+                                                variant="ghost"
+                                                icon="trash-2"
+                                                @if ($removeDisabled)
+                                                    disabled
+                                                    title="{{ $removeDisabledLabel }}"
+                                                    class="opacity-40"
+                                                @else
+                                                    wire:click="removeRelationshipSelectorItem({{ \Illuminate\Support\Js::from($field->name) }}, {{ $index }})"
+                                                @endif
+                                            />
                                         </div>
 
                                         @if (($field->showInlineSchema ?? true) && ! empty($field->schema))
@@ -252,6 +277,8 @@
                                         'buttonLabelExpr' => 'rowButtonLabel('.\Illuminate\Support\Js::from($clientList['key']).', row)',
                                         'buttonIconOnlyExpr' => 'rowButtonIconOnly('.\Illuminate\Support\Js::from($clientList['key']).', row)',
                                         'buttonClassExpr' => 'rowButtonClasses('.\Illuminate\Support\Js::from($clientList['key']).', row)',
+                                        'buttonDisabledExpr' => 'rowButtonDisabled('.\Illuminate\Support\Js::from($clientList['key']).', row)',
+                                        'buttonTitleExpr' => 'rowButtonDisabledLabel('.\Illuminate\Support\Js::from($clientList['key']).', row)',
                                         'buttonActionExpr' => 'handleButtonClick('.\Illuminate\Support\Js::from($clientList['key']).', row)',
                                         'itemFieldsExpr' => 'rowItemFields('.\Illuminate\Support\Js::from($clientList['key']).')',
                                         'clickEnabled' => ! empty($clientList['rowAction']['name']),

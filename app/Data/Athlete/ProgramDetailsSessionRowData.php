@@ -10,12 +10,15 @@ class ProgramDetailsSessionRowData extends AbstractData
      * @param  string[]  $values
      * @param  string[]  $valueClasses
      * @param  bool[]  $modifiedValues
+     * @param  int[]  $setIds
      */
     public function __construct(
         public string $label,
+        public ?string $settingKey = null,
         public string $labelClass = '',
         public array $values = [],
         public array $valueClasses = [],
         public array $modifiedValues = [],
+        public array $setIds = [],
     ) {}
 }

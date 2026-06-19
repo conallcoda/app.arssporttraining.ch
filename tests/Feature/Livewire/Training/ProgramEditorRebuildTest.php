@@ -261,6 +261,34 @@ it('hydrates persisted section exercise groups into the selector client state an
         ->and($state['selectedItems'][0]['item']['group'])->toBe('B');
 });
 
+it('marks immutable selected exercises as non-removable in selector client state', function () {
+    Carbon::setTestNow('2026-05-15 12:00:00');
+
+    $exercise = Exercise::factory()->create();
+    $program = ExerciseProgram::factory()->create();
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'group' => 'B',
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::test(ProgramEditor::class, [
+        'exerciseProgram' => $program,
+        'planId' => $program->id,
+        'lockedSessionsByWeek' => [[true, false]],
+        'weekSessionDates' => [['2026-05-10', '2026-05-20']],
+    ]);
+
+    $state = $component->instance()->relationshipSelectorClientInitialState('section_exercises', 40);
+
+    expect($state['selectedItems'])->toHaveCount(1)
+        ->and($state['selectedItems'][0]['item']['_remove_disabled'] ?? false)->toBeTrue()
+        ->and($state['selectedItems'][0]['item']['_remove_disabled_label'] ?? null)->toBe('Recorded sessions keep this exercise in the plan.');
+});
+
 it('orders section exercises by group before sort order', function () {
     $exerciseA2 = Exercise::factory()->create();
     $exerciseB1 = Exercise::factory()->create();
@@ -757,6 +785,55 @@ it('shows the same warning toast when a direct removal is blocked by immutable h
         ->where('exercise_program_id', $program->id)
         ->where('type', 'main')
         ->count())->toBe(1);
+});
+
+it('does not reorder or regroup exercises when removing an immutable exercise is blocked', function () {
+    Carbon::setTestNow('2026-05-15 12:00:00');
+
+    $protectedExercise = Exercise::factory()->create();
+    $otherExercise = Exercise::factory()->create();
+    $program = ExerciseProgram::factory()->create();
+
+    $protectedPivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $protectedExercise->id,
+        'sort' => 0,
+        'group' => 'A',
+        'type' => 'main',
+    ]);
+
+    $otherPivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $otherExercise->id,
+        'sort' => 0,
+        'group' => 'B',
+        'type' => 'main',
+    ]);
+
+    $mock = Mockery::mock(TrainingSessionRebuildDispatcher::class);
+    $mock->shouldNotReceive('dispatchFutureSlotsForExerciseProgramChange');
+    app()->instance(TrainingSessionRebuildDispatcher::class, $mock);
+
+    $component = Livewire::test(ProgramEditor::class, [
+        'exerciseProgram' => $program,
+        'planId' => $program->id,
+        'lockedSessionsByWeek' => [[true, false]],
+        'weekSessionDates' => [['2026-05-10', '2026-05-20']],
+    ])
+        ->call('removeRelationshipSelectorItem', 'section_exercises', 0)
+        ->assertDispatched('toast-show', function ($event, $params) {
+            return ($params['slots']['text'] ?? null) === 'Some historical exercises were kept because recorded past sessions can no longer be changed.'
+                && ($params['dataset']['variant'] ?? null) === 'warning';
+        });
+
+    $protectedPivot->refresh();
+    $otherPivot->refresh();
+
+    expect($protectedPivot->sort)->toBe(0)
+        ->and($protectedPivot->group)->toBe('A')
+        ->and($otherPivot->sort)->toBe(0)
+        ->and($otherPivot->group)->toBe('B')
+        ->and($component->get('data.section_exercises'))->toHaveCount(2);
 });
 
 it('deletes unused removed program exercises but keeps pivots referenced by materialized slots', function () {

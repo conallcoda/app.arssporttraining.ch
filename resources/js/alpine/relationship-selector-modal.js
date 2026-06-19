@@ -419,13 +419,15 @@ document.addEventListener('alpine:init', () => {
         },
 
         rowButtonClasses(listKey, row) {
+            const disabledClasses = this.rowButtonDisabled(listKey, row) ? ' pointer-events-none cursor-not-allowed opacity-40' : '';
+
             if (this.rowButtonIconOnly(listKey, row)) {
                 const color = this.rowButtonColor(listKey, row);
 
                 return [
                     'inline-flex items-center justify-center rounded-md p-3 transition-colors',
                     this.iconButtonColorClasses(color),
-                ].join(' ');
+                ].join(' ') + disabledClasses;
             }
 
             const color = this.rowButtonColor(listKey, row);
@@ -433,7 +435,17 @@ document.addEventListener('alpine:init', () => {
             return [
                 'inline-flex items-center rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap shadow-sm transition-colors',
                 this.badgeColorClasses(color),
-            ].join(' ');
+            ].join(' ') + disabledClasses;
+        },
+
+        rowButtonDisabled(listKey, row) {
+            return this.isSelectedRowsList(listKey) && Boolean(row?.item?._remove_disabled);
+        },
+
+        rowButtonDisabledLabel(listKey, row) {
+            return this.rowButtonDisabled(listKey, row)
+                ? (row?.item?._remove_disabled_label || 'This item cannot be removed.')
+                : this.rowButtonLabel(listKey, row);
         },
 
         iconButtonColorClasses(color) {
@@ -582,6 +594,10 @@ document.addEventListener('alpine:init', () => {
         },
 
         async handleButtonClick(listKey, row) {
+            if (this.rowButtonDisabled(listKey, row)) {
+                return;
+            }
+
             await this.runAction(this.listConfig(listKey)?.button?.action, listKey, row);
         },
 
@@ -649,6 +665,10 @@ document.addEventListener('alpine:init', () => {
             const existingIndex = this.selectedItems.findIndex((entry) => String(entry?.item?.[this.valueAttribute] ?? '') === key);
 
             if (existingIndex !== -1) {
+                if (this.selectedItems[existingIndex]?.item?._remove_disabled) {
+                    return;
+                }
+
                 this.selectedItems.splice(existingIndex, 1);
                 this.selectedItems = this.normalizeSelectedItemsFromCurrentOrder();
 
@@ -680,6 +700,8 @@ document.addEventListener('alpine:init', () => {
                     this.fieldName,
                     this.normalizeSelectedItemsFromCurrentOrder().map((entry) => ({
                         ...entry.item,
+                        _remove_disabled: undefined,
+                        _remove_disabled_label: undefined,
                     })),
                 );
             } finally {

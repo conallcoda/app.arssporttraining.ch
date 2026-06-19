@@ -76,6 +76,7 @@ class PlannedProgramDetailsExerciseViewBuilder
 
             $sessionRows[] = new ProgramDetailsSessionRowData(
                 label: $this->resolveSettingLabel($setting, collect($units)->first(fn (?string $unit) => $unit !== null), $exerciseConfig),
+                settingKey: $setting,
                 labelClass: $labelClass,
                 values: $values,
                 valueClasses: $valueClasses,

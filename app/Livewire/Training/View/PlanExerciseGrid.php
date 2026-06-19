@@ -626,7 +626,7 @@ class PlanExerciseGrid extends Component
                 $effectiveConfig['preview']['groupSize'] ?? null,
                 0,
             );
-            $renderGroupedColumn = $this->coachShowsGroupedColumn() && $usesGroupedSessions;
+            $renderGroupedColumn = false;
             $grouping = SessionGroupBuilder::build(
                 weekCount: $grid->weekCount,
                 sessionCounts: $grid->weekSessionCounts,
@@ -643,10 +643,8 @@ class PlanExerciseGrid extends Component
             $forcedExpandedIndexes = $this->forcedExpandedGroupIndexes($grid, $grid->groups);
             foreach ($grid->groups as $group) {
                 $group->forceExpanded = in_array($group->index, $forcedExpandedIndexes, true);
-                $group->collapsible = $renderGroupedColumn && $group->sessionCount > 1 && ! $group->forceExpanded;
-                $group->expanded = $renderGroupedColumn
-                    ? (in_array($group->index, $expandedWeekLookup, true) || $group->forceExpanded)
-                    : $group->forceExpanded;
+                $group->collapsible = $usesGroupedSessions && $group->sessionCount > 1 && ! $group->forceExpanded;
+                $group->expanded = in_array($group->index, $expandedWeekLookup, true) || $group->forceExpanded;
             }
             $grid->groupColumnLabel = $grouping['columnLabel'];
             $grid->showGroupColumn = $usesGroupedSessions;
@@ -1166,11 +1164,6 @@ class PlanExerciseGrid extends Component
     protected function coachShowsDatePerSession(): bool
     {
         return (bool) ($this->coachSessionGroupingSetting()->showDatePerSession ?? false);
-    }
-
-    protected function coachShowsGroupedColumn(): bool
-    {
-        return (bool) ($this->coachSessionGroupingSetting()->showGroupedColumn ?? true);
     }
 
     /** @return array<int, array<int, string>> */

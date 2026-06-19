@@ -442,7 +442,7 @@ class ProgramDetails extends Component
             ->all();
     }
 
-    public function openExerciseEditor(int $slotExerciseId): void
+    public function openExerciseEditor(int $slotExerciseId, ?int $setId = null, ?string $fieldKey = null): void
     {
         abort_if(! $this->canRecordSession, 403);
 
@@ -452,7 +452,18 @@ class ProgramDetails extends Component
         abort_if(! $this->athleteEditsEnabled, 404);
 
         $this->prepareExerciseEditor($exercise);
+
+        $setBelongsToExercise = $setId !== null && $exercise->sets->contains('id', $setId);
+
+        if ($setBelongsToExercise) {
+            $this->activeEditSet = 'set-'.$setId;
+        }
+
         Flux::modal('athlete-exercise-editor')->show();
+
+        if ($setBelongsToExercise && is_string($fieldKey) && preg_match('/^[A-Za-z0-9_]+$/', $fieldKey)) {
+            $this->focusEditField("editValues.{$setId}.{$fieldKey}");
+        }
     }
 
     public function saveExerciseEdits(): void
@@ -463,14 +474,27 @@ class ProgramDetails extends Component
         $exercise = $this->editingExercise;
         abort_unless($exercise instanceof TrainingProgramSlotExercise, 404);
 
+        $this->resetValidation();
+
         $rules = $this->buildEditValidationRules();
 
         if ($rules !== []) {
-            $this->validate(
+            $validator = Validator::make(
+                ['editValues' => $this->editValues],
                 $rules,
                 ['required' => 'This field is required.'],
                 $this->buildEditValidationAttributes()
             );
+
+            if ($validator->fails()) {
+                $errorKeys = array_keys($validator->errors()->messages());
+
+                $this->setErrorBag($validator->errors());
+                $this->activateFirstInvalidEditSet($errorKeys);
+                $this->focusFirstInvalidEditField($errorKeys);
+
+                return;
+            }
         }
 
         $this->editValues = $this->castEmptyStringsToNull($this->editValues);
@@ -966,6 +990,27 @@ class ProgramDetails extends Component
 
             return;
         }
+    }
+
+    /**
+     * @param  array<int, string>  $errorKeys
+     */
+    protected function focusFirstInvalidEditField(array $errorKeys): void
+    {
+        foreach ($errorKeys as $key) {
+            if (! preg_match('/^editValues\.\d+\.[A-Za-z0-9_]+$/', $key)) {
+                continue;
+            }
+
+            $this->focusEditField($key);
+
+            return;
+        }
+    }
+
+    protected function focusEditField(string $model): void
+    {
+        $this->dispatch('athlete-exercise-editor-focus', model: $model);
     }
 
     protected function filterEditableSetValues(array $data): array

@@ -38,6 +38,7 @@ class ProgramEditor extends Component
         InteractsWithFormData::toggleRelationshipSelectorItem as traitToggleRelationshipSelectorItem;
         InteractsWithFormData::applyRelationshipSelectorDraft as traitApplyRelationshipSelectorDraft;
         InteractsWithFormData::applyRelationshipSelectorClientState as traitApplyRelationshipSelectorClientState;
+        InteractsWithFormData::relationshipSelectorClientInitialState as traitRelationshipSelectorClientInitialState;
     }
 
     private const SECTION_TYPES = ['main', 'warm_up', 'warm_down'];
@@ -490,6 +491,12 @@ class ProgramEditor extends Component
             return;
         }
 
+        if ($fieldName === 'section_exercises' && $this->sectionExerciseRowIsProtected($this->data[$fieldName][$index] ?? null)) {
+            $this->toastHistoricalExercisesKept();
+
+            return;
+        }
+
         unset($this->data[$fieldName][$index]);
         $this->data[$fieldName] = app(ProgramExerciseOrder::class)->normalizeRows(array_values($this->data[$fieldName]));
         unset($this->relationshipSearch[$fieldName]);
@@ -556,6 +563,12 @@ class ProgramEditor extends Component
 
     public function removeRelationshipSelectorItem(string $fieldName, int $index): void
     {
+        if ($fieldName === 'section_exercises' && $this->sectionExerciseRowIsProtected($this->data[$fieldName][$index] ?? null)) {
+            $this->toastHistoricalExercisesKept();
+
+            return;
+        }
+
         $this->traitRemoveRelationshipSelectorItem($fieldName, $index);
 
         if ($fieldName !== 'section_exercises') {
@@ -565,6 +578,37 @@ class ProgramEditor extends Component
         $this->data[$fieldName] = app(ProgramExerciseOrder::class)->normalizeRows($this->data[$fieldName] ?? []);
         $this->data[$this->sectionFieldName($this->activeSection)] = $this->data[$fieldName] ?? [];
         $this->saveSectionExercises();
+    }
+
+    public function relationshipSelectorClientInitialState(string $fieldName, int $limit = 40): array
+    {
+        $state = $this->traitRelationshipSelectorClientInitialState($fieldName, $limit);
+
+        if ($fieldName !== 'section_exercises' || empty($state['selectedItems']) || ! is_array($state['selectedItems'])) {
+            return $state;
+        }
+
+        $protectedIds = $this->protectedSectionProgramExerciseIds();
+
+        if ($protectedIds === []) {
+            return $state;
+        }
+
+        $state['selectedItems'] = collect($state['selectedItems'])
+            ->map(function (array $entry) use ($protectedIds): array {
+                $programExerciseId = (int) data_get($entry, 'item.program_exercise_id', 0);
+
+                if ($programExerciseId > 0 && in_array($programExerciseId, $protectedIds, true)) {
+                    $entry['item']['_remove_disabled'] = true;
+                    $entry['item']['_remove_disabled_label'] = __('Recorded sessions keep this exercise in the plan.');
+                }
+
+                return $entry;
+            })
+            ->values()
+            ->all();
+
+        return $state;
     }
 
     public function reorderRelationshipItem(string $fieldName, int $sourceIndex, int $targetIndex): void
@@ -816,10 +860,7 @@ class ProgramEditor extends Component
         $preservedMaterializedCount = count($referencedProgramExerciseIdsToKeep);
 
         if (($normalization['preservedImmutableCount'] ?? 0) > 0 || $preservedMaterializedCount > 0) {
-            Flux::toast(
-                text: __('Some historical exercises were kept because recorded past sessions can no longer be changed.'),
-                variant: 'warning',
-            );
+            $this->toastHistoricalExercisesKept();
         }
 
         return [
@@ -845,6 +886,47 @@ class ProgramEditor extends Component
             ->map(fn (mixed $id): int => (int) $id)
             ->values()
             ->all();
+    }
+
+    public function sectionExerciseRowIsProtected(?array $row): bool
+    {
+        $programExerciseId = (int) ($row['program_exercise_id'] ?? 0);
+
+        return $programExerciseId > 0
+            && in_array($programExerciseId, $this->protectedSectionProgramExerciseIds(), true);
+    }
+
+    /** @return array<int, int> */
+    protected function protectedSectionProgramExerciseIds(): array
+    {
+        $currentRows = $this->exerciseProgram->exercises()
+            ->wherePivot('type', $this->activeSection)
+            ->get()
+            ->keyBy(fn (Exercise $exercise) => (int) $exercise->pivot->id);
+
+        $currentIds = $currentRows->keys()
+            ->map(fn (mixed $id): int => (int) $id)
+            ->values()
+            ->all();
+
+        return collect($this->referencedProgramExerciseIds($currentIds))
+            ->merge(app(ExerciseProgramSectionMutationService::class)->immutableProgramExerciseIds(
+                currentRows: $currentRows,
+                config: $this->exerciseProgram->config,
+                lockedSessionsByWeek: $this->lockedSessionsByWeek,
+                weekSessionDates: $this->weekSessionDates,
+            ))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    protected function toastHistoricalExercisesKept(): void
+    {
+        Flux::toast(
+            text: __('Some historical exercises were kept because recorded past sessions can no longer be changed.'),
+            variant: 'warning',
+        );
     }
 
     protected function setDefaultOverridesForExercise(ExercisePlanConfig $config, int $exerciseId, int $programExerciseId, ?string $startsAtDate = null): void

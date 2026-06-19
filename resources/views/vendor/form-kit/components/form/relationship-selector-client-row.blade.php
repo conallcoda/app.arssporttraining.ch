@@ -9,6 +9,8 @@
     'buttonLabelExpr',
     'buttonIconOnlyExpr' => 'false',
     'buttonClassExpr',
+    'buttonDisabledExpr' => 'false',
+    'buttonTitleExpr' => '',
     'buttonActionExpr',
     'itemFieldsExpr' => '[]',
     'clickEnabled' => false,
@@ -123,10 +125,11 @@
             <button
                 type="button"
                 x-on:click.stop="{{ $buttonActionExpr }}"
+                x-bind:disabled="{{ $buttonDisabledExpr }}"
                 class="flex justify-end"
                 x-bind:class="{{ $buttonClassExpr }}"
                 x-bind:aria-label="{{ $buttonLabelExpr }}"
-                x-bind:title="{{ $buttonLabelExpr }}"
+                x-bind:title="{{ $buttonTitleExpr !== '' ? $buttonTitleExpr : $buttonLabelExpr }}"
             >
                 <template x-if="{{ $buttonIconOnlyExpr }}">
                     <flux:icon.trash-2 class="size-4" />
