@@ -67,6 +67,8 @@ class ProgramDetails extends Component
 
     public ?int $editingExerciseId = null;
 
+    public string $editingExerciseName = '';
+
     public string $activeEditSet = '';
 
     public array $editValues = [];
@@ -418,10 +420,12 @@ class ProgramDetails extends Component
                             return null;
                         }
 
-                        return $settingClass::athleteField(
+                        $field = $settingClass::athleteField(
                             $value->setting_key,
                             $this->resolveSettingConfig($exercise, $value->setting_key)
                         );
+
+                        return $this->applyPlannedValuePlaceholder($field, $settingClass, $value, $exercise);
                     })
                     ->filter()
                     ->values()
@@ -552,21 +556,8 @@ class ProgramDetails extends Component
             ->filter(fn ($exercise): bool => $exercise instanceof TrainingProgramSlotExercise && ! $exercise->status->isSubmitted())
             ->values();
 
-        foreach ($pendingExercises as $exercise) {
-            if (! $exercise instanceof TrainingProgramSlotExercise) {
-                continue;
-            }
-
-            if ($this->pendingSkipDraftSkipsEntireExercise($exercise)) {
-                continue;
-            }
-
-            if (! $this->validateExerciseCompletion($exercise)) {
-                return;
-            }
-        }
-
-        $this->resetEditorState();
+        $blockedExerciseIds = [];
+        $submittedCount = 0;
 
         foreach ($pendingExercises as $exercise) {
             if (! $exercise instanceof TrainingProgramSlotExercise) {
@@ -576,6 +567,13 @@ class ProgramDetails extends Component
             if ($this->pendingSkipDraftSkipsEntireExercise($exercise)) {
                 unset($this->pendingSkippedSets[$exercise->id]);
                 app(TrainingSessionProgressService::class)->markExerciseSkipped($exercise);
+                $submittedCount++;
+
+                continue;
+            }
+
+            if (! $this->validateExerciseCompletion($exercise, showEditor: false)) {
+                $blockedExerciseIds[] = $exercise->id;
 
                 continue;
             }
@@ -583,10 +581,39 @@ class ProgramDetails extends Component
             $this->persistPendingSkippedSets($exercise);
             app(TrainingSessionProgressService::class)->markExerciseCompleted($exercise);
             unset($this->pendingSkippedSets[$exercise->id]);
+            $submittedCount++;
         }
 
-        $this->refreshSessionState();
-        $this->dispatch('athlete-section-action-succeeded', section: $this->activeSection);
+        if ($submittedCount > 0) {
+            $this->resetEditorState();
+            $this->refreshSessionState();
+            $this->dispatch('athlete-section-action-succeeded', section: $this->activeSection);
+        }
+
+        if ($blockedExerciseIds === []) {
+            return;
+        }
+
+        $blockedExercise = $this->currentSlot->exercises->firstWhere('id', $blockedExerciseIds[0]);
+
+        if ($blockedExercise instanceof TrainingProgramSlotExercise) {
+            $this->validateExerciseCompletion($blockedExercise);
+        }
+
+        $blockedCount = count($blockedExerciseIds);
+        $message = $submittedCount > 0
+            ? trans_choice(
+                ':submitted exercise marked done. :blocked exercise needs values before it can be completed.|:submitted exercises marked done. :blocked exercises need values before they can be completed.',
+                $blockedCount,
+                ['submitted' => $submittedCount, 'blocked' => $blockedCount],
+            )
+            : trans_choice(
+                ':blocked exercise needs values before it can be completed.|:blocked exercises need values before they can be completed.',
+                $blockedCount,
+                ['blocked' => $blockedCount],
+            );
+
+        Flux::toast(text: $message, variant: 'warning');
     }
 
     public function markExerciseSkipped(int $slotExerciseId): void
@@ -833,9 +860,41 @@ class ProgramDetails extends Component
         return $value;
     }
 
+    protected function applyPlannedValuePlaceholder(Field $field, string $settingClass, mixed $value, TrainingProgramSlotExercise $exercise): Field
+    {
+        if (! method_exists($field, 'placeholder') || $value->planned_value_type === null) {
+            return $field;
+        }
+
+        $plannedValue = match ($value->planned_value_type) {
+            'int' => $value->planned_int_value,
+            'decimal' => $value->planned_decimal_value !== null ? (float) $value->planned_decimal_value : null,
+            'json' => $value->planned_json_value,
+            default => $value->planned_string_value,
+        };
+
+        if ($plannedValue === null || $plannedValue === '') {
+            return $field;
+        }
+
+        $config = $this->resolveSettingConfig($exercise, $value->setting_key);
+        $placeholder = is_string($settingClass) && is_subclass_of($settingClass, AbstractSetting::class)
+            ? ($settingClass::formatAthleteValue($plannedValue, $value->unit, $config) ?? $plannedValue)
+            : $plannedValue;
+
+        if ($placeholder === null || $placeholder === '') {
+            return $field;
+        }
+
+        $field->placeholder((string) $placeholder);
+
+        return $field;
+    }
+
     protected function resetEditorState(): void
     {
         $this->editingExerciseId = null;
+        $this->editingExerciseName = '';
         $this->activeEditSet = '';
         $this->editValues = [];
         $this->editSkippedSets = [];
@@ -854,6 +913,7 @@ class ProgramDetails extends Component
     protected function prepareExerciseEditor(TrainingProgramSlotExercise $exercise): void
     {
         $this->editingExerciseId = $exercise->id;
+        $this->editingExerciseName = (string) ($exercise->exercise?->name ?? __('Exercise'));
         $this->editValues = $this->buildEditValues($exercise);
         $this->editSkippedSets = $this->pendingSkippedSets[$exercise->id] ?? $this->buildEditSkippedSets($exercise);
         $this->activeEditSet = 'set-'.($exercise->sets->sortBy('set_number')->first()?->id ?? '');
@@ -861,7 +921,7 @@ class ProgramDetails extends Component
         unset($this->editingExercise, $this->editSetTabs, $this->editSetPanels);
     }
 
-    protected function validateExerciseCompletion(TrainingProgramSlotExercise $exercise): bool
+    protected function validateExerciseCompletion(TrainingProgramSlotExercise $exercise, bool $showEditor = true): bool
     {
         $this->prepareExerciseEditor($exercise);
         $this->resetValidation();
@@ -880,9 +940,11 @@ class ProgramDetails extends Component
         );
 
         if ($validator->fails()) {
-            $this->setErrorBag($validator->errors());
-            $this->activateFirstInvalidEditSet(array_keys($validator->errors()->messages()));
-            Flux::modal('athlete-exercise-editor')->show();
+            if ($showEditor) {
+                $this->setErrorBag($validator->errors());
+                $this->activateFirstInvalidEditSet(array_keys($validator->errors()->messages()));
+                Flux::modal('athlete-exercise-editor')->show();
+            }
 
             return false;
         }

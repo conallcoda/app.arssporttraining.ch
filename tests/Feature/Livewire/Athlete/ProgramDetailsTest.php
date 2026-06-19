@@ -692,6 +692,81 @@ it('requires athlete-entered values before marking an active section done', func
     CarbonImmutable::setTestNow();
 });
 
+it('marks valid exercises done and opens the first invalid exercise when marking an active section done', function () {
+    CarbonImmutable::setTestNow('2030-04-03 12:00:00');
+    config()->set('athlete.dashboard_today_override', '03.04.2030');
+    config()->set('athlete.allow_athlete_edits', true);
+
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Friday Strength']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => Exercise::factory()->create([
+            'name' => 'Ready Exercise',
+            'config' => [
+                'settings' => ['reps'],
+                'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+                'reps' => ['mode' => 'manual', 'default' => 8, 'applyPer' => 'session'],
+            ],
+        ])->id,
+        'sort' => 0,
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => Exercise::factory()->create([
+            'name' => 'Needs Weight',
+            'config' => [
+                'settings' => ['reps', 'weight'],
+                'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+                'reps' => ['mode' => 'manual', 'default' => 8, 'applyPer' => 'session'],
+                'weight' => ['mode' => 'manual', 'default' => null, 'applyPer' => 'session'],
+            ],
+        ])->id,
+        'sort' => 1,
+    ]);
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-04-03 09:00:00'),
+    ])->fresh(['exercises.exercise', 'exercises.sets.values']);
+
+    $readyExercise = $slot->exercises->firstWhere('exercise.name', 'Ready Exercise');
+    $invalidExercise = $slot->exercises->firstWhere('exercise.name', 'Needs Weight');
+    $invalidSet = $invalidExercise->sets->first();
+
+    Livewire::actingAs($athlete)
+        ->test(ProgramDetails::class, [
+            'date' => '2030-04-03',
+            'trainingProgram' => $trainingProgram,
+        ])
+        ->call('markActiveSectionCompleted')
+        ->assertDispatched('athlete-section-action-succeeded')
+        ->assertSet('editingExerciseId', $invalidExercise->id)
+        ->assertSet('editingExerciseName', 'Needs Weight')
+        ->assertSet('activeEditSet', 'set-'.$invalidSet->id)
+        ->assertSee('This field is required.');
+
+    $slot = $slot->fresh('exercises.sets.values');
+    $readyExercise = $slot->exercises->firstWhere('id', $readyExercise->id);
+    $invalidExercise = $slot->exercises->firstWhere('id', $invalidExercise->id);
+
+    expect($readyExercise->status)->toBe(TrainingProgramSlotExerciseStatusEnum::Completed)
+        ->and($invalidExercise->status)->toBe(TrainingProgramSlotExerciseStatusEnum::Pending)
+        ->and($slot->status)->toBe(TrainingProgramSlotStatusEnum::PartiallyCompleted)
+        ->and($slot->completed_exercise_count)->toBe(1)
+        ->and($slot->pending_exercise_count)->toBe(1);
+
+    CarbonImmutable::setTestNow();
+});
+
 it('shows blank athlete-entered weight rows in the athlete dashboard grid', function () {
     config()->set('athlete.dashboard_today_override', '03.04.2030');
 
@@ -1020,6 +1095,8 @@ it('saves athlete-edited values, keeps modification flags on completion, and all
             'trainingProgram' => $trainingProgram,
         ])
         ->call('openExerciseEditor', $slotExercise->id)
+        ->assertSet('editingExerciseName', 'Front Squat')
+        ->assertSee('Front Squat')
         ->assertSet("editValues.{$slotSet->id}.reps", 6)
         ->assertSet("editValues.{$slotSet->id}.duration", '1:00')
         ->set("editValues.{$slotSet->id}.reps", '8')
@@ -1047,6 +1124,59 @@ it('saves athlete-edited values, keeps modification flags on completion, and all
         ->and($durationValue->actual_value_type)->toBe('int')
         ->and($durationValue->actual_int_value)->toBe(80)
         ->and($durationValue->is_modified)->toBeTrue();
+
+    CarbonImmutable::setTestNow();
+});
+
+it('accepts scalar numeric duration values from the athlete edit modal', function () {
+    CarbonImmutable::setTestNow('2030-04-03 12:00:00');
+    config()->set('athlete.dashboard_today_override', '03.04.2030');
+    config()->set('athlete.allow_athlete_edits', true);
+
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Friday Strength']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => Exercise::factory()->create([
+            'name' => 'Timed Exercise',
+            'config' => [
+                'settings' => ['duration'],
+                'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+                'duration' => ['unit' => 'seconds', 'default' => 45, 'applyPer' => 'session'],
+            ],
+        ])->id,
+        'sort' => 0,
+    ]);
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-04-03 09:00:00'),
+    ])->fresh('exercises.sets.values');
+
+    $slotExercise = $slot->exercises->first();
+    $slotSet = $slotExercise->sets->first();
+
+    Livewire::actingAs($athlete)
+        ->test(ProgramDetails::class, [
+            'date' => '2030-04-03',
+            'trainingProgram' => $trainingProgram,
+        ])
+        ->call('openExerciseEditor', $slotExercise->id)
+        ->set("editValues.{$slotSet->id}.duration", 35)
+        ->call('saveExerciseEdits')
+        ->assertHasNoErrors();
+
+    $value = $slotSet->fresh('values')->values->firstWhere('setting_key', 'duration');
+
+    expect($value->actual_value_type)->toBe('int')
+        ->and($value->actual_int_value)->toBe(35);
 
     CarbonImmutable::setTestNow();
 });
@@ -1096,6 +1226,10 @@ it('requires athletes to record a concrete rep value when planned reps are a ran
         ->assertSee('8-10')
         ->call('openExerciseEditor', $slotExercise->id)
         ->assertSet("editValues.{$slotSet->id}.reps", '');
+
+    $repsField = collect($component->instance()->editSetPanels[0]['fields'])->firstWhere('name', 'reps');
+
+    expect($repsField?->getPlaceholder())->toBe('8-10');
 
     $component
         ->call('markExerciseCompleted', $slotExercise->id)

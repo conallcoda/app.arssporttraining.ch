@@ -607,6 +607,73 @@ it('toggles planned and actual subcolumns under set columns without replacing se
         ->assertSee('Sets');
 });
 
+it('keeps grouped three-set headers aligned when toggling planned and actual columns', function () {
+    [$athlete, $scheduledProgram, $pivot, $exercise, $trainingProgram] = buildScheduledProgramContext([
+        'settings' => ['reps', 'weight', 'tempo', 'rest'],
+        'sets' => ['default' => 3, 'label' => 'Set', 'deload' => 'none'],
+        'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'set'],
+        'weight' => ['mode' => 'manual', 'default' => 5, 'applyPer' => 'set'],
+        'tempo' => ['default' => '3010', 'applyPer' => 'week'],
+        'rest' => ['default' => 60, 'applyPer' => 'week'],
+        'preview' => [
+            'groupingMode' => \App\Data\Exercise\Preview\SessionGroupingMode::Groups->value,
+            'groupSize' => 2,
+            'copyValuesAutomatically' => true,
+        ],
+    ]);
+
+    foreach (['2026-04-27', '2026-04-30'] as $date) {
+        TrainingProgramSlot::create([
+            'training_program_id' => $trainingProgram->id,
+            'user_id' => $athlete->id,
+            'datetime' => $date.' 09:00:00',
+            'scheduled_date' => $date,
+            'status' => TrainingProgramSlotStatusEnum::Completed,
+            'completed_at' => $date.' 10:00:00',
+        ]);
+    }
+
+    $component = Livewire::test(PlanExerciseGrid::class, [
+        'planId' => $scheduledProgram->id,
+        'scheduledTrainingProgramId' => $trainingProgram->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => $athlete->id,
+        'weeks' => 1,
+        'sessionsPerWeek' => 2,
+        'weekSessions' => [2],
+        'weekSessionDates' => [['2026-04-27', '2026-04-30']],
+        'sessionStatusesByWeek' => [[
+            [
+                'value' => TrainingProgramSlotStatusEnum::Completed->value,
+                'label' => 'Completed',
+                'color' => ['light' => '110 231 183', 'dark' => '52 211 153'],
+            ],
+            [
+                'value' => TrainingProgramSlotStatusEnum::Completed->value,
+                'label' => 'Completed',
+                'color' => ['light' => '110 231 183', 'dark' => '52 211 153'],
+            ],
+        ]],
+        'showActualValueTabs' => true,
+        'valueDisplayMode' => 'planned',
+    ]);
+
+    $component->call('togglePlannedActualInline');
+
+    $html = $component->html();
+
+    expect($html)->toMatch('/>\s*Set 1\s*</')
+        ->and($html)->toMatch('/>\s*Set 2\s*</')
+        ->and($html)->toMatch('/>\s*Set 3\s*</')
+        ->and(preg_match_all('/>\s*Planned\s*</', $html))->toBe(3)
+        ->and(preg_match_all('/>\s*Actual\s*</', $html))->toBe(3)
+        ->and(substr_count($html, 'style="width: 5rem; min-width: 5rem; max-width: 5rem;"'))->toBeGreaterThanOrEqual(12)
+        ->and($html)->toMatch('/>\s*Tempo\s*</')
+        ->and($html)->toMatch('/>\s*Rest \(s\)\s*</')
+        ->and($html)->toMatch('/>\s*Sets\s*</');
+});
+
 it('keeps planned edit and reset availability aligned to recorded session locks', function () {
     [$athlete, $scheduledProgram, $pivot, $exercise, $trainingProgram] = buildScheduledProgramContext([
         'settings' => ['reps', 'weight'],

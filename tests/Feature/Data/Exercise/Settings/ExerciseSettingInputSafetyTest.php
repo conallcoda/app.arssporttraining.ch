@@ -197,9 +197,13 @@ it('allows rep ranges for planning but not athlete recording', function () {
 it('allows split durations and stores canonical duration metadata', function () {
     $defaultField = collect(DurationSetting::fields())->firstWhere('name', 'default');
     $athleteField = DurationSetting::athleteField('duration', ['unit' => 'mm:ss']);
+    $secondsAthleteField = DurationSetting::athleteField('duration', ['unit' => 'seconds']);
     $rules = Field::buildValidationRules(DurationSetting::fields(), 'data.config.duration.');
     $athleteRules = Field::buildValidationRules([
         $athleteField,
+    ], 'editValues.1.');
+    $secondsAthleteRules = Field::buildValidationRules([
+        $secondsAthleteField,
     ], 'editValues.1.');
 
     expect($defaultField?->type)->toBe('text')
@@ -217,6 +221,12 @@ it('allows split durations and stores canonical duration metadata', function () 
         ->and(Validator::make([
             'editValues' => [1 => ['duration' => '10:00_10:00']],
         ], $athleteRules)->passes())->toBeTrue()
+        ->and(Validator::make([
+            'editValues' => [1 => ['duration' => 35]],
+        ], $secondsAthleteRules)->passes())->toBeTrue()
+        ->and(Validator::make([
+            'editValues' => [1 => ['duration' => '35']],
+        ], $secondsAthleteRules)->passes())->toBeTrue()
         ->and(Validator::make([
             'editValues' => [1 => ['duration' => '10:99_10:00']],
         ], $athleteRules)->errors()->has('editValues.1.duration'))->toBeTrue()
@@ -251,6 +261,9 @@ it('only allows drop-set syntax when the set type explicitly opts in', function 
 
     $normalRepsRules = Field::buildValidationRules(RepsSetting::fields(['config' => $normalConfig]), 'data.config.reps.');
     $dropRepsRules = Field::buildValidationRules(RepsSetting::fields(['config' => $dropConfig]), 'data.config.reps.');
+    $dropRepsAthleteRules = Field::buildValidationRules([
+        RepsSetting::athleteField('reps', $dropConfig),
+    ], 'editValues.1.');
     $normalWeightRules = Field::buildValidationRules(WeightSetting::fields(['config' => $normalConfig]), 'data.config.weight.');
     $dropWeightRules = Field::buildValidationRules(WeightSetting::fields(['config' => $dropConfig]), 'data.config.weight.', ['config' => $dropConfig]);
     $dropDurationRules = Field::buildValidationRules(DurationSetting::fields(['config' => $dropConfig]), 'data.config.duration.', ['config' => $dropConfig]);
@@ -268,6 +281,10 @@ it('only allows drop-set syntax when the set type explicitly opts in', function 
         ->and(Validator::make([
             'data' => ['config' => ['reps' => ['default' => '3x12']]],
         ], $dropRepsRules)->passes())->toBeTrue()
+        ->and(Validator::make([
+            'editValues' => [1 => ['reps' => '12,12']],
+        ], $dropRepsAthleteRules)->passes())->toBeTrue()
+        ->and(RepsSetting::normalizeAthleteValue('12,12', $dropConfig))->toBe('12,12,0')
         ->and(Validator::make([
             'data' => ['config' => ['weight' => ['default' => '6,5,4']]],
         ], $normalWeightRules)->errors()->has('data.config.weight.default'))->toBeTrue()

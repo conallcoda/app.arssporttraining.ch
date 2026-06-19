@@ -30,6 +30,11 @@
         <div class="space-y-5">
             <div class="min-w-0">
                 <flux:heading size="lg">Edit</flux:heading>
+                @if (filled($editingExerciseName))
+                    <div class="mt-1 truncate text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                        {{ $editingExerciseName }}
+                    </div>
+                @endif
             </div>
 
             @if ($this->editingExercise)

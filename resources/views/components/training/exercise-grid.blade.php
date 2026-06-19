@@ -230,7 +230,7 @@
                                         variant="ghost"
                                         size="xs"
                                         icon="{{ $plannedActualToggleActive ? 'pencil' : 'eye' }}"
-                                        class="!p-1 {{ $plannedActualToggleActive ? '!text-emerald-500 dark:!text-emerald-400' : '' }}"
+                                        class="!p-1 {{ $plannedActualToggleActive ? '!text-white dark:!text-white' : '' }}"
                                         wire:click="{{ $plannedActualToggleAction }}"
                                         title="{{ $plannedActualToggleActive ? __('Plan only') : __('Plan and actual') }}"
                                         aria-label="{{ $plannedActualToggleActive ? __('Plan only') : __('Plan and actual') }}"
@@ -588,7 +588,7 @@
                                                     </td>
                                                 @endif
                                             @elseif ($cell['editable'] && (! $splitSetActualColumns || ! $collapsedPlannedLocked))
-                                                <td wire:key="{{ $cellPlannedRenderKey }}" class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $plannedSetCellColor }}"
+                                                <td wire:key="{{ $cellPlannedRenderKey }}" @if($splitSetActualColumns) style="{{ $splitSetSubcellWidthStyle }}" @endif class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $splitSetActualColumns ? $splitSetSubcellWidthClass : '' }} {{ $plannedSetCellColor }}"
                                                     x-data="editable_cell"
                                                     data-msg-invalid-number="{{ __('Please enter a valid number') }}"
                                                     data-msg-invalid-value="{{ __('Please enter a valid value') }}"
@@ -1048,7 +1048,7 @@
                                                     </td>
                                                 @endif
                                             @elseif ($cell['editable'] && (! $splitSetActualColumns || ! $plannedSessionLocked))
-                                                <td wire:key="{{ $cellPlannedRenderKey }}" class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $plannedSetCellColor }}"
+                                                <td wire:key="{{ $cellPlannedRenderKey }}" @if($splitSetActualColumns) style="{{ $splitSetSubcellWidthStyle }}" @endif class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $splitSetActualColumns ? $splitSetSubcellWidthClass : '' }} {{ $plannedSetCellColor }}"
                                                     x-data="editable_cell"
                                                     data-msg-invalid-number="{{ __('Please enter a valid number') }}"
                                                     data-msg-invalid-value="{{ __('Please enter a valid value') }}"

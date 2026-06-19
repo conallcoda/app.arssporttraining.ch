@@ -27,7 +27,7 @@
                 </flux:text>
             </div>
         @else
-            <div wire:key="grid-content-{{ $exerciseId }}-{{ $valueDisplayMode }}-{{ $this->configFingerprint }}-{{ $gridRenderVersion }}">
+            <div wire:key="grid-content-{{ $exerciseId }}-{{ $valueDisplayMode }}-{{ $this->showsPlannedActualSetColumns ? 'inline-actual' : 'plan-only' }}-{{ $this->configFingerprint }}-{{ $gridRenderVersion }}">
                 <div class="flex items-start justify-between !-mt-2">
                     <div class="space-y-2 mb-3">
                         @if (! empty($exerciseBadges))

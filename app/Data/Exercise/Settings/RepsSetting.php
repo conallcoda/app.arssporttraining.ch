@@ -136,7 +136,22 @@ class RepsSetting extends AbstractSetting
     public static function athleteRules(array $config = []): array
     {
         if (DropSet::isEnabled($config)) {
-            return ['required', 'regex:/^'.DropSet::repsPattern().'$/'];
+            return [
+                'required',
+                static function (string $attribute, mixed $value, \Closure $fail) use ($config): void {
+                    if (! is_string($value)) {
+                        $fail('The :attribute field format is invalid.');
+
+                        return;
+                    }
+
+                    $parts = static::athleteDropSetParts($value, $config);
+
+                    if ($parts === null) {
+                        $fail('The :attribute field format is invalid.');
+                    }
+                },
+            ];
         }
 
         return ['required', 'regex:/^'.self::ATHLETE_PATTERN.'$/'];
@@ -200,7 +215,41 @@ class RepsSetting extends AbstractSetting
     {
         $value = parent::normalizeAthleteValue($value, $config);
 
-        return DropSet::isEnabled($config) ? DropSet::normalizeRepsValue($value) : $value;
+        if (! DropSet::isEnabled($config)) {
+            return $value;
+        }
+
+        $parts = static::athleteDropSetParts($value, $config);
+
+        return $parts === null ? DropSet::normalizeRepsValue($value) : implode(',', $parts);
+    }
+
+    /**
+     * @return list<int>|null
+     */
+    private static function athleteDropSetParts(mixed $value, array $config): ?array
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $parts = DropSet::repsParts($value);
+
+        if ($parts === null) {
+            return null;
+        }
+
+        $expected = DropSet::expectedPartCount($config);
+
+        if ($expected === null) {
+            return $parts;
+        }
+
+        if (count($parts) > $expected) {
+            return null;
+        }
+
+        return array_pad($parts, $expected, 0);
     }
 
     public static function normalizeBilateralExecution(?string $execution): string

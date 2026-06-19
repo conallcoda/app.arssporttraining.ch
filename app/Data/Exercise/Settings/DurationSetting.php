@@ -106,6 +106,27 @@ class DurationSetting extends AbstractSetting
             ->rules(static::athleteRules($config));
     }
 
+    public static function athleteRules(array $config = []): array
+    {
+        $pattern = DropSet::isEnabled($config)
+            ? DropSet::commaPattern('duration')
+            : self::DURATION_PATTERN;
+
+        return [
+            'required',
+            'max:15',
+            static function (string $attribute, mixed $value, \Closure $fail) use ($pattern): void {
+                if (is_int($value) || is_float($value)) {
+                    $value = (string) $value;
+                }
+
+                if (! is_string($value) || ! preg_match('/^'.$pattern.'$/', trim($value))) {
+                    $fail('The :attribute field format is invalid.');
+                }
+            },
+        ];
+    }
+
     public static function normalizeAthleteValue(mixed $value, array $config = []): mixed
     {
         if ($value === null) {
@@ -168,6 +189,13 @@ class DurationSetting extends AbstractSetting
 
         if (is_string($value) && str_contains($value, '_')) {
             return 'string';
+        }
+
+        $unit = static::normalizeUnit($config['unit'] ?? 'seconds');
+        $duration = SplitDuration::parse($value, $unit);
+
+        if ($duration !== null && ! $duration->isSplit()) {
+            return 'int';
         }
 
         return parent::athleteValueType($value, $config);
