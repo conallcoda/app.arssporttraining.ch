@@ -10,6 +10,7 @@ use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
 use App\Models\Exercise\ExerciseProgramTypeEnum;
+use App\Models\Training\TrainingProgramSlotExercise;
 use App\Models\Users\User;
 use App\Support\Profiling\PlanGridProfiler;
 use App\Support\Training\ExerciseProgramSelectorPreviewService;
@@ -672,20 +673,22 @@ class ProgramEditor extends Component
             ->all();
 
         $programExerciseIdsToRemove = array_diff($currentIds, $newIds);
+        $referencedProgramExerciseIdsToKeep = $this->referencedProgramExerciseIds($programExerciseIdsToRemove);
+        $programExerciseIdsToDelete = array_values(array_diff($programExerciseIdsToRemove, $referencedProgramExerciseIdsToKeep));
 
         $config = $this->exerciseProgram->config;
         $configChanged = false;
         $didChange = false;
         $sourcePivotMaps = [];
 
-        foreach ($programExerciseIdsToRemove as $programExerciseId) {
+        foreach ($programExerciseIdsToDelete as $programExerciseId) {
             $config->removeExerciseOverrides((int) $programExerciseId);
             $config->removeExerciseOverridesForAllUsers((int) $programExerciseId);
             $configChanged = true;
         }
 
         DB::transaction(function () use (
-            $programExerciseIdsToRemove,
+            $programExerciseIdsToDelete,
             $newRows,
             $currentRows,
             $normalization,
@@ -695,7 +698,7 @@ class ProgramEditor extends Component
             &$sourcePivotMaps,
         ): void {
             ExerciseProgramExercise::withoutEvents(function () use (
-                $programExerciseIdsToRemove,
+                $programExerciseIdsToDelete,
                 $newRows,
                 $currentRows,
                 $normalization,
@@ -704,10 +707,10 @@ class ProgramEditor extends Component
                 &$didChange,
                 &$sourcePivotMaps,
             ): void {
-                if ($programExerciseIdsToRemove !== []) {
+                if ($programExerciseIdsToDelete !== []) {
                     ExerciseProgramExercise::query()
                         ->where('exercise_program_id', $this->exerciseProgram->id)
-                        ->whereIn('id', $programExerciseIdsToRemove)
+                        ->whereIn('id', $programExerciseIdsToDelete)
                         ->delete();
                     $didChange = true;
                 }
@@ -806,7 +809,9 @@ class ProgramEditor extends Component
         unset($this->fieldsets, $this->exercises, $this->exerciseGroupLabels);
         $this->loadExerciseData();
 
-        if (($normalization['preservedImmutableCount'] ?? 0) > 0) {
+        $preservedMaterializedCount = count($referencedProgramExerciseIdsToKeep);
+
+        if (($normalization['preservedImmutableCount'] ?? 0) > 0 || $preservedMaterializedCount > 0) {
             Flux::toast(
                 text: __('Some historical exercises were kept because recorded past sessions can no longer be changed.'),
                 variant: 'warning',
@@ -815,7 +820,27 @@ class ProgramEditor extends Component
 
         return [
             'preservedImmutableCount' => (int) ($normalization['preservedImmutableCount'] ?? 0),
+            'preservedMaterializedCount' => $preservedMaterializedCount,
         ];
+    }
+
+    /**
+     * @param  array<int, int>  $programExerciseIds
+     * @return array<int, int>
+     */
+    protected function referencedProgramExerciseIds(array $programExerciseIds): array
+    {
+        if ($programExerciseIds === []) {
+            return [];
+        }
+
+        return TrainingProgramSlotExercise::query()
+            ->whereIn('exercise_program_exercise_id', array_map('intval', $programExerciseIds))
+            ->distinct()
+            ->pluck('exercise_program_exercise_id')
+            ->map(fn (mixed $id): int => (int) $id)
+            ->values()
+            ->all();
     }
 
     protected function setDefaultOverridesForExercise(ExercisePlanConfig $config, int $exerciseId, int $programExerciseId, ?string $startsAtDate = null): void

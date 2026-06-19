@@ -22,5 +22,6 @@ final readonly class AuthoringExerciseData
         public ?ExerciseOverrides $defaultOverrides = null,
         public ?ExerciseOverrides $userOverrides = null,
         public bool $disabled = false,
+        public ?int $programExerciseId = null,
     ) {}
 }

@@ -8,7 +8,11 @@ use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
 use App\Models\Exercise\ExerciseProgramTypeEnum;
 use App\Models\Tag;
+use App\Models\Training\TrainingProgram;
+use App\Models\Training\TrainingProgramSlot;
+use App\Models\Training\TrainingProgramSlotExercise;
 use App\Models\Users\User;
+use App\Models\Users\UserGroup;
 use App\Training\TrainingSessionRebuildDispatcher;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -753,4 +757,65 @@ it('shows the same warning toast when a direct removal is blocked by immutable h
         ->where('exercise_program_id', $program->id)
         ->where('type', 'main')
         ->count())->toBe(1);
+});
+
+it('deletes unused removed program exercises but keeps pivots referenced by materialized slots', function () {
+    $referencedExercise = Exercise::factory()->create();
+    $unusedExercise = Exercise::factory()->create();
+    $program = ExerciseProgram::factory()->create();
+    $group = UserGroup::create(['name' => 'Team Alpha']);
+    $athlete = User::factory()->athlete()->create();
+
+    $referencedPivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $referencedExercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+    $unusedPivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $unusedExercise->id,
+        'sort' => 1,
+        'type' => 'main',
+    ]);
+
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => '2026-05-10 09:00:00',
+    ]);
+    $slot->exercises()
+        ->where('exercise_program_exercise_id', $unusedPivot->id)
+        ->delete();
+    TrainingProgramSlotExercise::query()->create([
+        'training_program_slot_id' => $slot->id,
+        'exercise_id' => $referencedExercise->id,
+        'exercise_program_exercise_id' => $referencedPivot->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $mock = Mockery::mock(TrainingSessionRebuildDispatcher::class);
+    $mock->shouldReceive('dispatchFutureSlotsForExerciseProgramChange')
+        ->once()
+        ->with($program->id);
+    app()->instance(TrainingSessionRebuildDispatcher::class, $mock);
+
+    Livewire::test(ProgramEditor::class, [
+        'exerciseProgram' => $program,
+        'planId' => $program->id,
+    ])
+        ->set('data.section_exercises', [])
+        ->call('saveSectionExercises')
+        ->assertDispatched('toast-show', function ($event, $params) {
+            return ($params['slots']['text'] ?? null) === 'Some historical exercises were kept because recorded past sessions can no longer be changed.'
+                && ($params['dataset']['variant'] ?? null) === 'warning';
+        });
+
+    expect(ExerciseProgramExercise::query()->whereKey($referencedPivot->id)->exists())->toBeTrue()
+        ->and(ExerciseProgramExercise::query()->whereKey($unusedPivot->id)->exists())->toBeFalse();
 });

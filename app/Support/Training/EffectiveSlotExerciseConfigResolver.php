@@ -2,7 +2,6 @@
 
 namespace App\Support\Training;
 
-use App\Models\Exercise\Exercise;
 use App\Models\Training\TrainingProgramSlotExercise;
 
 class EffectiveSlotExerciseConfigResolver
@@ -14,6 +13,7 @@ class EffectiveSlotExerciseConfigResolver
     {
         $slotExercise->loadMissing([
             'exercise',
+            'programExercise.exercise',
             'slot.trainingProgram.program.exercises',
         ]);
 
@@ -30,36 +30,16 @@ class EffectiveSlotExerciseConfigResolver
             return $baseConfigArray;
         }
 
-        $sourceExercise = $program->exercises
-            ->first(fn (Exercise $exercise): bool => $this->exerciseSignature(
-                exerciseId: (int) $exercise->id,
-                sort: (int) ($exercise->pivot->sort ?? 0),
-                group: $exercise->pivot->group,
-                type: (string) ($exercise->pivot->type ?? 'main'),
-            ) === $this->exerciseSignature(
-                exerciseId: (int) ($slotExercise->exercise_id ?? 0),
-                sort: (int) $slotExercise->sort,
-                group: $slotExercise->group,
-                type: (string) ($slotExercise->type ?? 'main'),
-            ));
+        $sourceProgramExercise = $slotExercise->programExercise;
+        $sourceExercise = $sourceProgramExercise?->exercise;
+        $programExerciseId = (int) ($slotExercise->exercise_program_exercise_id ?? 0);
 
-        if (! $sourceExercise instanceof Exercise) {
-            return $baseConfigArray;
-        }
-
-        $programExerciseId = (int) ($sourceExercise->pivot->id ?? 0);
-
-        if ($programExerciseId <= 0) {
+        if ($sourceExercise === null || $programExerciseId <= 0) {
             return $baseConfigArray;
         }
 
         return $programConfig
             ->resolveExercise($sourceExercise->config, $programExerciseId, $slot->user_id)
             ->effectiveConfig;
-    }
-
-    private function exerciseSignature(int $exerciseId, int $sort, ?string $group, string $type): string
-    {
-        return implode(':', [$exerciseId, $sort, $group ?? '', $type]);
     }
 }

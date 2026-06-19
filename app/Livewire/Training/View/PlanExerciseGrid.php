@@ -1482,33 +1482,16 @@ class PlanExerciseGrid extends Component
 
     protected function matchingSlotExercise(TrainingProgramSlot $slot): ?TrainingProgramSlotExercise
     {
-        $matchesExerciseContext = function (TrainingProgramSlotExercise $slotExercise): bool {
-            return (int) $slotExercise->exercise_id === $this->exerciseId
-                && (string) ($slotExercise->type ?? 'main') === $this->programExerciseType
-                && (string) ($slotExercise->group ?? '') === (string) ($this->programExerciseGroup ?? '');
-        };
-
-        return $slot->exercises->first(function (TrainingProgramSlotExercise $slotExercise) use ($matchesExerciseContext): bool {
-            return $matchesExerciseContext($slotExercise)
-                && (int) $slotExercise->sort === $this->programExerciseSort;
-        })
-            ?? $slot->exercises->first($matchesExerciseContext);
+        return $slot->exercises->first(
+            fn (TrainingProgramSlotExercise $slotExercise): bool => (int) ($slotExercise->exercise_program_exercise_id ?? 0) === $this->programExerciseId,
+        );
     }
 
     protected function matchingSnapshotExercise(array $exercises): ?ScheduledExerciseSnapshotData
     {
-        $snapshotExercises = collect($exercises);
-        $matchesExerciseContext = function (ScheduledExerciseSnapshotData $exercise): bool {
-            return (int) $exercise->exerciseId === $this->exerciseId
-                && (string) ($exercise->type ?? 'main') === $this->programExerciseType
-                && (string) ($exercise->group ?? '') === (string) ($this->programExerciseGroup ?? '');
-        };
-
-        return $snapshotExercises->first(function (ScheduledExerciseSnapshotData $exercise) use ($matchesExerciseContext): bool {
-            return $matchesExerciseContext($exercise)
-                && (int) $exercise->sort === $this->programExerciseSort;
-        })
-            ?? $snapshotExercises->first($matchesExerciseContext);
+        return collect($exercises)->first(
+            fn (ScheduledExerciseSnapshotData $exercise): bool => (int) ($exercise->programExerciseId ?? 0) === $this->programExerciseId,
+        );
     }
 
     protected function slotExerciseForWeekSession(int $weekIndex, int $sessionIndex): ?TrainingProgramSlotExercise

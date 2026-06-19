@@ -88,6 +88,7 @@ class TrainingSessionCompiler
                     defaultOverrides: $resolvedOverrides->defaultOverrides,
                     userOverrides: $resolvedOverrides->userOverrides,
                     disabled: (bool) $resolvedOverrides->disabled,
+                    programExerciseId: $programExerciseId,
                 );
             })
             ->values()
@@ -311,6 +312,10 @@ class TrainingSessionCompiler
 
     private function compileExercise(ResolvedPlannedExercise $exercise): CompiledTrainingExercise
     {
+        if ($exercise->programExerciseId === null || $exercise->programExerciseId <= 0) {
+            throw new \LogicException('Compiled training exercises require a program exercise pivot id.');
+        }
+
         return new CompiledTrainingExercise(
             exerciseId: (int) $exercise->exerciseId,
             sort: $exercise->sort,
@@ -320,6 +325,7 @@ class TrainingSessionCompiler
                 fn (ResolvedPlannedSet $set): CompiledTrainingSet => $this->compileSet($set),
                 $exercise->sets,
             ),
+            programExerciseId: (int) $exercise->programExerciseId,
         );
     }
 

@@ -43,6 +43,7 @@ class PlanCompiler
 
                     return [
                         'exerciseId' => $exercise->exerciseId,
+                        'programExerciseId' => $exercise->programExerciseId,
                         'sort' => $exercise->sort,
                         'group' => $exercise->group,
                         'type' => $exercise->type,

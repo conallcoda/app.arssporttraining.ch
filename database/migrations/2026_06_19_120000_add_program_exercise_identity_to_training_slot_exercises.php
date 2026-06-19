@@ -43,6 +43,10 @@ return new class extends Migration
 
     private function backfillUniqueExerciseTypeMatches(): void
     {
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return;
+        }
+
         DB::statement(<<<'SQL'
             UPDATE training_program_slot_exercises AS tpse
             INNER JOIN training_program_slots AS tps
@@ -92,6 +96,10 @@ return new class extends Migration
      */
     private function deleteUnmatchedSlotExercises(): array
     {
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return [];
+        }
+
         $query = DB::table('training_program_slot_exercises as tpse')
             ->join('training_program_slots as tps', 'tps.id', '=', 'tpse.training_program_slot_id')
             ->join('training_programs as tp', 'tp.id', '=', 'tps.training_program_id')

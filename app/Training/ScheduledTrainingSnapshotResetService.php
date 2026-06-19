@@ -126,15 +126,13 @@ class ScheduledTrainingSnapshotResetService
                 return false;
             }
 
-            return (int) $exercise->exercise_id === $compiledExercise->exerciseId
-                && (int) $exercise->sort === $compiledExercise->sort
-                && (string) ($exercise->group ?? '') === (string) ($compiledExercise->group ?? '')
-                && (string) ($exercise->type ?? 'main') === $compiledExercise->type;
+            return (int) ($exercise->exercise_program_exercise_id ?? 0) === $compiledExercise->programExerciseId;
         });
 
         if ($existing instanceof TrainingProgramSlotExercise) {
             $existing->forceFill([
                 'exercise_id' => $compiledExercise->exerciseId,
+                'exercise_program_exercise_id' => $compiledExercise->programExerciseId,
                 'sort' => $compiledExercise->sort,
                 'group' => $compiledExercise->group,
                 'type' => $compiledExercise->type,
@@ -147,6 +145,7 @@ class ScheduledTrainingSnapshotResetService
 
         return $slot->exercises()->create([
             'exercise_id' => $compiledExercise->exerciseId,
+            'exercise_program_exercise_id' => $compiledExercise->programExerciseId,
             'sort' => $compiledExercise->sort,
             'group' => $compiledExercise->group,
             'type' => $compiledExercise->type,

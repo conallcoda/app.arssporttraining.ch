@@ -35,6 +35,7 @@ class ResolvedPlannedSessionBuilder
     /**
      * @param  array<int, array{
      *     exerciseId:int|null,
+     *     programExerciseId:int|null,
      *     sort:int,
      *     group:string|null,
      *     type:string,
@@ -69,6 +70,7 @@ class ResolvedPlannedSessionBuilder
             $exercises = array_values(array_filter(array_map(
                 fn (array $exercise): ?ResolvedPlannedExercise => $this->buildExercise(
                     exerciseId: $exercise['exerciseId'] ?? null,
+                    programExerciseId: $exercise['programExerciseId'] ?? null,
                     sort: (int) ($exercise['sort'] ?? 0),
                     group: $exercise['group'] ?? null,
                     type: (string) ($exercise['type'] ?? 'main'),
@@ -122,6 +124,7 @@ class ResolvedPlannedSessionBuilder
         array $baseConfig = [],
         ?ExerciseOverrides $defaultOverrides = null,
         ?ExerciseOverrides $userOverrides = null,
+        ?int $programExerciseId = null,
     ): ?ResolvedPlannedExercise {
         $span = PlanGridProfiler::start('ResolvedPlannedSessionBuilder.buildExercise', [
             'exercise_id' => $exerciseId,
@@ -206,6 +209,7 @@ class ResolvedPlannedSessionBuilder
                 type: $type,
                 sets: $sets,
                 setCountProvenance: $setCountProvenance,
+                programExerciseId: $programExerciseId,
             );
         } finally {
             PlanGridProfiler::end($span, [

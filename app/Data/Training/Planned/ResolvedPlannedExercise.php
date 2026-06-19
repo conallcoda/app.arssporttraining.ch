@@ -14,5 +14,6 @@ final readonly class ResolvedPlannedExercise
         public string $type,
         public array $sets,
         public ?ResolvedPlannedProvenance $setCountProvenance = null,
+        public ?int $programExerciseId = null,
     ) {}
 }

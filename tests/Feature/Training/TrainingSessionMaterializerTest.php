@@ -1,5 +1,6 @@
 <?php
 
+use App\Data\Training\Config\ExerciseOverrides;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
@@ -10,6 +11,7 @@ use App\Models\Training\TrainingProgramSlotSetStatusEnum;
 use App\Models\Training\TrainingProgramSlotStatusEnum;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
+use App\Support\Training\ScheduledSessionSnapshotBuilder;
 use App\Training\TrainingSessionCompiler;
 use App\Training\TrainingSessionMaterializer;
 use App\Training\TrainingValueSnapshotCodec;
@@ -65,7 +67,7 @@ it('materializes planned exercises, sets, and values when a slot is created', fu
         ],
     ]);
 
-    ExerciseProgramExercise::create([
+    $pivot = ExerciseProgramExercise::create([
         'exercise_program_id' => $program->id,
         'exercise_id' => $exercise->id,
         'sort' => 0,
@@ -87,6 +89,7 @@ it('materializes planned exercises, sets, and values when a slot is created', fu
 
     $slotExercise = $slot->exercises()->firstOrFail();
     expect($slotExercise->status)->toBe(TrainingProgramSlotExerciseStatusEnum::Pending)
+        ->and($slotExercise->exercise_program_exercise_id)->toBe($pivot->id)
         ->and($slotExercise->set_count)->toBe(3)
         ->and($slotExercise->pending_set_count)->toBe(3)
         ->and($slotExercise->sets)->toHaveCount(3);
@@ -111,6 +114,65 @@ it('materializes planned exercises, sets, and values when a slot is created', fu
         ->and($firstSet->values->firstWhere('setting_key', 'tempo')?->planned_string_value)->toBe('3010')
         ->and($firstSet->values->firstWhere('setting_key', 'rest')?->planned_int_value)->toBe(120)
         ->and($firstSet->values->firstWhere('setting_key', 'note')?->planned_string_value)->toBe('Explode up');
+});
+
+it('resolves effective slot exercise config from the stored program exercise id after sort and group drift', function () {
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Identity Strength']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $exercise = Exercise::factory()->create([
+        'name' => 'Bench Press',
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => [
+                'default' => 1,
+                'label' => 'Base Set',
+                'deload' => 'none',
+            ],
+            'reps' => [
+                'mode' => 'manual',
+                'default' => 5,
+                'applyPer' => 'session',
+            ],
+        ],
+    ]);
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'group' => 'A',
+        'type' => 'main',
+    ]);
+
+    $config = $program->config;
+    $config->setDefaultExerciseOverrides($pivot->id, ExerciseOverrides::from([
+        'sets' => ['default' => 1, 'label' => 'Override Set', 'deload' => 'none'],
+    ]));
+    $program->forceFill(['config' => $config])->save();
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-05-01 09:00:00'),
+    ])->fresh('exercises');
+
+    $pivot->forceFill([
+        'sort' => 4,
+        'group' => 'Z',
+    ])->save();
+
+    $snapshot = app(ScheduledSessionSnapshotBuilder::class)->buildExercise(
+        $slot->exercises()->firstOrFail()->fresh(['slot.trainingProgram.program', 'exercise', 'sets.values']),
+    );
+
+    expect($snapshot->programExerciseId)->toBe($pivot->id)
+        ->and($snapshot->setLabel)->toBe('Override Set');
 });
 
 it('stores canonical split-rep metadata alongside the display value', function () {

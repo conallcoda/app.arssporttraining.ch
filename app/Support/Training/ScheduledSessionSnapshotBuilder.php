@@ -89,6 +89,7 @@ class ScheduledSessionSnapshotBuilder
         return new ScheduledExerciseSnapshotData(
             slotExerciseId: (int) $slotExercise->id,
             exerciseId: (int) ($slotExercise->exercise_id ?? $exercise?->id ?? 0),
+            programExerciseId: (int) ($slotExercise->exercise_program_exercise_id ?? 0) ?: null,
             sort: (int) $slotExercise->sort,
             group: $slotExercise->group,
             type: (string) ($slotExercise->type ?? 'main'),
@@ -120,6 +121,7 @@ class ScheduledSessionSnapshotBuilder
         return new ScheduledExerciseSnapshotData(
             slotExerciseId: (int) $slotExercise->id,
             exerciseId: (int) $slotExercise->exercise_id,
+            programExerciseId: (int) ($slotExercise->exercise_program_exercise_id ?? 0) ?: null,
             sort: (int) $slotExercise->sort,
             group: $slotExercise->group,
             type: (string) ($slotExercise->type ?? 'main'),

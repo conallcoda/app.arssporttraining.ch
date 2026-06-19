@@ -18,6 +18,7 @@ class ScheduledExerciseSnapshotData extends AbstractData
     public function __construct(
         public int $slotExerciseId,
         public int $exerciseId,
+        public ?int $programExerciseId,
         public int $sort,
         public ?string $group,
         public string $type,

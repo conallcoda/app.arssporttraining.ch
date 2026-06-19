@@ -254,6 +254,51 @@ it('builds the plan plus actual table without grouping and repeats session scope
         ->and(collect($table['sessions'][0]['rows'])->pluck('field')->contains('sets'))->toBeFalse();
 });
 
+it('matches materialized actual values by program exercise id after slot sort and group drift', function () {
+    [$athlete, $scheduledProgram, $pivot, $exercise, $trainingProgram] = buildScheduledProgramContext([
+        'settings' => ['weight'],
+        'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+        'weight' => ['mode' => 'manual', 'default' => 10, 'applyPer' => 'set'],
+    ]);
+
+    $slot = TrainingProgramSlot::create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => '2026-04-27 09:00:00',
+        'scheduled_date' => '2026-04-27',
+    ])->fresh('exercises.sets.values');
+
+    $slotExercise = $slot->exercises->first();
+    $slotExercise->forceFill([
+        'sort' => 99,
+        'group' => 'Z',
+    ])->save();
+
+    $slotExercise->sets->first()->values->firstWhere('setting_key', 'weight')->update([
+        'actual_value_type' => 'decimal',
+        'actual_decimal_value' => '42.50',
+    ]);
+
+    $component = Livewire::test(PlanExerciseGrid::class, [
+        'planId' => $scheduledProgram->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => $athlete->id,
+        'weeks' => 1,
+        'sessionsPerWeek' => 1,
+        'weekSessions' => [1],
+        'weekSessionDates' => [['2026-04-27']],
+        'showActualValueTabs' => true,
+        'valueDisplayMode' => 'actual',
+        'programExerciseSort' => 0,
+        'programExerciseGroup' => null,
+    ]);
+
+    $weightRow = actualRow(actualTable($component), 0, 'weight');
+
+    expect($weightRow['cells'][0]['actual'])->toBe('42.5');
+});
+
 it('uses the planner resolved value for planned cells in plan plus actual mode', function () {
     [$athlete, $scheduledProgram, $pivot, $exercise, $trainingProgram] = buildScheduledProgramContext([
         'settings' => ['weight'],

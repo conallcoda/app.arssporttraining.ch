@@ -104,13 +104,8 @@ class ProgramPreviewBuilder
             fn (Exercise $exercise): ?string => $exercise->pivot->group,
             fn (Exercise $exercise): int => (int) $exercise->pivot->id,
         );
-        $sourceExercisesBySignature = $sortedExercises
-            ->keyBy(fn (Exercise $exercise): string => $this->exerciseSignature(
-                exerciseId: $exercise->id,
-                sort: (int) ($exercise->pivot->sort ?? 0),
-                group: $exercise->pivot->group,
-                type: (string) ($exercise->pivot->type ?? 'main'),
-            ));
+        $sourceExercisesByProgramExerciseId = $sortedExercises
+            ->keyBy(fn (Exercise $exercise): int => (int) $exercise->pivot->id);
         $authoringProgram = new AuthoringProgramData(
             exercises: $sortedExercises
                 ->map(function (Exercise $exercise) use ($programConfig, $userId): AuthoringExerciseData {
@@ -128,6 +123,7 @@ class ProgramPreviewBuilder
                         defaultOverrides: $resolvedOverrides->defaultOverrides,
                         userOverrides: $resolvedOverrides->userOverrides,
                         disabled: (bool) $resolvedOverrides->disabled,
+                        programExerciseId: $programExerciseId,
                     );
                 })
                 ->all(),
@@ -165,13 +161,8 @@ class ProgramPreviewBuilder
                 );
 
                 $plannedExercises = collect($plannedSession->exercises)
-                    ->map(function (ResolvedPlannedExercise $plannedExercise, int $index) use ($sourceExercisesBySignature, $groupLabels): ?array {
-                        $exercise = $sourceExercisesBySignature->get($this->exerciseSignature(
-                            exerciseId: (int) $plannedExercise->exerciseId,
-                            sort: $plannedExercise->sort,
-                            group: $plannedExercise->group,
-                            type: $plannedExercise->type,
-                        ));
+                    ->map(function (ResolvedPlannedExercise $plannedExercise, int $index) use ($sourceExercisesByProgramExerciseId, $groupLabels): ?array {
+                        $exercise = $sourceExercisesByProgramExerciseId->get((int) $plannedExercise->programExerciseId);
 
                         if (! $exercise instanceof Exercise) {
                             return null;
@@ -284,8 +275,4 @@ class ProgramPreviewBuilder
         ];
     }
 
-    private function exerciseSignature(int $exerciseId, int $sort, ?string $group, string $type): string
-    {
-        return implode(':', [$exerciseId, $sort, $group ?? '', $type]);
-    }
 }

@@ -3,6 +3,7 @@
 namespace App\Models\Training;
 
 use App\Models\Exercise\Exercise;
+use App\Models\Exercise\ExerciseProgramExercise;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,6 +18,7 @@ class TrainingProgramSlotExercise extends Model
     protected $fillable = [
         'training_program_slot_id',
         'exercise_id',
+        'exercise_program_exercise_id',
         'sort',
         'group',
         'type',
@@ -48,6 +50,11 @@ class TrainingProgramSlotExercise extends Model
     public function exercise(): BelongsTo
     {
         return $this->belongsTo(Exercise::class);
+    }
+
+    public function programExercise(): BelongsTo
+    {
+        return $this->belongsTo(ExerciseProgramExercise::class, 'exercise_program_exercise_id');
     }
 
     public function sets(): HasMany

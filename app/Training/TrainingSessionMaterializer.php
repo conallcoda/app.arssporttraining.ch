@@ -121,6 +121,7 @@ class TrainingSessionMaterializer
     {
         return $slot->exercises()->create([
             'exercise_id' => $exercise->exerciseId,
+            'exercise_program_exercise_id' => $exercise->programExerciseId,
             'sort' => $exercise->sort,
             'group' => $exercise->group,
             'type' => $exercise->type,

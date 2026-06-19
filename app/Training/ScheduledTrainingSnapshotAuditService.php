@@ -75,44 +75,34 @@ class ScheduledTrainingSnapshotAuditService
     private function compareExercises(TrainingProgramSlot $slot, CompiledTrainingSession $compiled, array &$mismatches): void
     {
         $storedExercises = $slot->exercises
-            ->keyBy(fn (TrainingProgramSlotExercise $exercise): string => $this->exerciseSignature(
-                exerciseId: (int) $exercise->exercise_id,
-                sort: (int) $exercise->sort,
-                group: $exercise->group,
-                type: (string) ($exercise->type ?? 'main'),
-            ));
+            ->keyBy(fn (TrainingProgramSlotExercise $exercise): int => (int) ($exercise->exercise_program_exercise_id ?? 0));
         $compiledExercises = collect($compiled->exercises)
-            ->keyBy(fn (CompiledTrainingExercise $exercise): string => $this->exerciseSignature(
-                exerciseId: $exercise->exerciseId,
-                sort: $exercise->sort,
-                group: $exercise->group,
-                type: $exercise->type,
-            ));
+            ->keyBy(fn (CompiledTrainingExercise $exercise): int => $exercise->programExerciseId);
 
-        foreach ($compiledExercises as $signature => $compiledExercise) {
-            $storedExercise = $storedExercises->get($signature);
+        foreach ($compiledExercises as $programExerciseId => $compiledExercise) {
+            $storedExercise = $storedExercises->get($programExerciseId);
 
             if (! $storedExercise instanceof TrainingProgramSlotExercise) {
                 $mismatches[] = new ScheduledSnapshotMismatchData(
-                    path: 'exercise:'.$signature,
+                    path: 'programExercise:'.$programExerciseId,
                     kind: 'missing_exercise',
-                    expected: $signature,
+                    expected: $programExerciseId,
                     actual: null,
                 );
 
                 continue;
             }
 
-            $this->compareSets($signature, $storedExercise, $compiledExercise, $mismatches);
+            $this->compareSets((string) $programExerciseId, $storedExercise, $compiledExercise, $mismatches);
         }
 
-        foreach ($storedExercises as $signature => $_storedExercise) {
-            if (! $compiledExercises->has($signature)) {
+        foreach ($storedExercises as $programExerciseId => $_storedExercise) {
+            if (! $compiledExercises->has($programExerciseId)) {
                 $mismatches[] = new ScheduledSnapshotMismatchData(
-                    path: 'exercise:'.$signature,
+                    path: 'programExercise:'.$programExerciseId,
                     kind: 'extra_exercise',
                     expected: null,
-                    actual: $signature,
+                    actual: $programExerciseId,
                 );
             }
         }
@@ -278,15 +268,5 @@ class ScheduledTrainingSnapshotAuditService
         }
 
         return $value;
-    }
-
-    private function exerciseSignature(int $exerciseId, int $sort, ?string $group, string $type): string
-    {
-        return implode('|', [
-            $exerciseId,
-            $sort,
-            $group ?? '',
-            $type,
-        ]);
     }
 }
