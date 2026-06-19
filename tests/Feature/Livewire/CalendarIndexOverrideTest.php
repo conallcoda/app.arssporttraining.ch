@@ -464,7 +464,8 @@ it('marks only recorded sessions as locked in plan schedule info', function () {
 
     $info = $component->get('planScheduleInfo');
 
-    expect($info['lockedSessionsByWeek'] ?? [])->toBe([[false, true, true, false]])
+    expect($info['expandedWeeks'] ?? null)->toBe([])
+        ->and($info['lockedSessionsByWeek'] ?? [])->toBe([[false, true, true, false]])
         ->and($info['sessionStatusesByWeek'][0][0]['value'] ?? null)->toBe(TrainingProgramSlotStatusEnum::Pending->value)
         ->and($info['sessionStatusesByWeek'][0][0]['label'] ?? null)->toBe('Pending')
         ->and($info['sessionStatusesByWeek'][0][1]['value'] ?? null)->toBe(TrainingProgramSlotStatusEnum::PartiallyCompleted->value)

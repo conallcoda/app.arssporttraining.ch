@@ -90,10 +90,6 @@ class DropSet
 
     public static function displayReps(array $parts): string
     {
-        if ($parts !== [] && count(array_unique($parts)) === 1) {
-            return count($parts).'x'.$parts[0];
-        }
-
         return implode(',', $parts);
     }
 

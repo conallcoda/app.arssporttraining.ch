@@ -764,9 +764,6 @@ trait WithCalendarPlan
                     ->map(fn (Carbon $sessionDatetime) => $sessionStatusesByDateTime[$sessionDatetime->toDateTimeString()] ?? null)
                     ->all();
 
-                if (in_array(true, $lockedSessionsByWeek[$i], true)) {
-                    $expandedWeeks[] = $i;
-                }
             }
 
             return [

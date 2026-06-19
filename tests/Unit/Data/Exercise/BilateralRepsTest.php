@@ -167,6 +167,18 @@ describe('athlete canonical value', function () {
             ->and(RepsSetting::formatAthleteValue('8-10'))->toBe('8-10');
     });
 
+    it('formats drop-set reps as comma-separated parts', function () {
+        expect(RepsSetting::formatAthleteValue('12,12,12'))->toBe('12,12,12')
+            ->and(RepsSetting::formatAthleteValue('3x12'))->toBe('12,12,12')
+            ->and(RepsSetting::athleteCanonicalValue('12,12,12'))->toMatchArray([
+                'kind' => 'reps',
+                'format' => 'drop_set',
+                'display' => '12,12,12',
+                'total' => 36,
+                'parts' => [12, 12, 12],
+            ]);
+    });
+
     it('infers alternating bilateral execution metadata for split reps', function () {
         expect(RepsSetting::athleteCanonicalValue('6_6'))->toMatchArray([
             'kind' => 'reps',

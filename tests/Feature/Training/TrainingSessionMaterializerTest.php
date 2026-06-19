@@ -365,7 +365,7 @@ it('materializes drop-set reps weight and duration without running automatic one
         ->and($repsValue?->plannedCanonicalValue())->toMatchArray([
             'kind' => 'reps',
             'format' => 'drop_set',
-            'display' => '3x12',
+            'display' => '12,12,12',
             'total' => 36,
             'parts' => [12, 12, 12],
             'is_bilateral' => false,

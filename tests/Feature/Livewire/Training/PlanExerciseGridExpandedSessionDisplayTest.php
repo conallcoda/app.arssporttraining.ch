@@ -747,13 +747,12 @@ it('shows session dates in the plan grid when enabled in coach settings', functi
             ]);
 });
 
-it('hides the grouped column when disabled in coach settings', function () {
+it('always hides the grouped column while keeping grouped behavior', function () {
     $coach = User::factory()->coach()->create();
     $coach->config->set('settings.session_grouping', [
         'mode' => 'groups',
         'groupSize' => 2,
         'copyValuesAutomatically' => true,
-        'showGroupedColumn' => false,
     ]);
     $coach->save();
 
@@ -788,14 +787,13 @@ it('hides the grouped column when disabled in coach settings', function () {
         ->and($component->instance()->displayGrid->renderGroupColumn)->toBeFalse();
 });
 
-it('keeps grouped preview buckets and hides reset for locked groups when the grouped column is hidden', function () {
+it('keeps grouped preview buckets and hides reset for locked groups without rendering a grouped column', function () {
     $coach = User::factory()->coach()->create();
     $athlete = User::factory()->athlete()->create();
     $coach->config->set('settings.session_grouping', [
         'mode' => 'groups',
         'groupSize' => 2,
         'copyValuesAutomatically' => true,
-        'showGroupedColumn' => false,
     ]);
     $coach->save();
 
@@ -845,7 +843,6 @@ it('shows reset for unrecorded past grouped sessions when lock metadata is open'
         'mode' => 'groups',
         'groupSize' => 2,
         'copyValuesAutomatically' => true,
-        'showGroupedColumn' => false,
     ]);
     $coach->save();
 
@@ -909,13 +906,12 @@ it('shows reset for unrecorded past grouped sessions when lock metadata is open'
         ->and($component->html())->toContain("resetDisplayBucket('group:0')");
 });
 
-it('keeps the grouped column hidden after coach settings change', function () {
+it('keeps the grouped column hidden when grouping is enabled', function () {
     $coach = User::factory()->coach()->create();
     $coach->config->set('settings.session_grouping', [
         'mode' => 'groups',
         'groupSize' => 2,
         'copyValuesAutomatically' => true,
-        'showGroupedColumn' => true,
     ]);
     $coach->save();
 
@@ -945,13 +941,6 @@ it('keeps the grouped column hidden after coach settings change', function () {
         'weeks' => 2,
         'sessionsPerWeek' => 2,
     ]);
-
-    expect($component->instance()->displayGrid->renderGroupColumn)->toBeFalse();
-
-    $coach->config->set('settings.session_grouping.showGroupedColumn', false);
-    $coach->save();
-
-    $component->call('onCoachSettingsSaved');
 
     expect($component->instance()->displayGrid->renderGroupColumn)->toBeFalse();
 });
