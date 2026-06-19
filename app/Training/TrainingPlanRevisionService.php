@@ -451,6 +451,10 @@ class TrainingPlanRevisionService
             return $normalized;
         }
 
+        if ($field === 'duration') {
+            $normalized = $settingClass::normalizeAthleteValue($normalized, $config);
+        }
+
         $canonical = $settingClass::athleteCanonicalValue($normalized, $config);
 
         if (($canonical['format'] ?? null) !== 'scalar' || ! is_numeric((string) $normalized)) {

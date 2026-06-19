@@ -3,12 +3,15 @@
 namespace App\Data\Exercise\Settings;
 
 use App\Data\Exercise\Preview\CellInputMeta;
+use App\Data\Exercise\SplitDuration;
 use App\Form\Fields\Exercise\ApplyPerField;
 use App\Support\Training\ApplyPerScope;
 use Coda\FormKit\Fields;
 
 class DurationSetting extends AbstractSetting
 {
+    private const DURATION_PATTERN = '(?:\d+|\d{1,3}:[0-5]\d)(?:_(?:\d+|\d{1,3}:[0-5]\d))?';
+
     public function __construct(
         public string $unit = 'seconds',
         public int|string|null $default = 60,
@@ -22,20 +25,22 @@ class DurationSetting extends AbstractSetting
 
     public static function inputMeta(array $config = []): CellInputMeta
     {
-        $unit = $config['unit'] ?? 'seconds';
+        $unit = static::normalizeUnit($config['unit'] ?? 'seconds');
 
         if ($unit === 'mm:ss') {
             return new CellInputMeta(
                 inputType: 'text',
-                maxlength: 5,
-                mask: '9:99',
+                maxlength: 15,
+                pattern: self::DURATION_PATTERN,
             );
         }
 
         return new CellInputMeta(
-            inputType: 'number',
+            inputType: 'text',
             inputStep: '1',
+            maxlength: 15,
             min: 0,
+            pattern: self::DURATION_PATTERN,
         );
     }
 
@@ -46,10 +51,11 @@ class DurationSetting extends AbstractSetting
             return [];
         }
 
-        $unitLabel = $this->unit === 'mm:ss' ? '' : (static::resolveUnitLabel($this->toArray()) ?? '');
+        $formatted = static::formatAthleteValue($this->default, null, $this->toArray()) ?? (string) $this->default;
+        $unitLabel = $this->unit === 'mm:ss' || str_contains($formatted, '_') ? '' : (static::resolveUnitLabel($this->toArray()) ?? '');
 
         return [
-            ['label' => $this->default.$unitLabel, 'modalField' => static::fieldsetKey()],
+            ['label' => $formatted.$unitLabel, 'modalField' => static::fieldsetKey()],
         ];
     }
 
@@ -72,9 +78,88 @@ class DurationSetting extends AbstractSetting
                     'minutes' => 1,
                     'mm:ss' => '1:00',
                 ])
-                ->rules(['nullable', 'regex:/^(?:\d+|\d{1,2}:\d{2})$/'])
+                ->rules(['nullable', 'regex:/^'.self::DURATION_PATTERN.'$/'])
                 ->unit('unit'),
             ApplyPerField::make(),
         ];
+    }
+
+    public static function normalizeAthleteValue(mixed $value, array $config = []): mixed
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_string($value)) {
+            $value = trim($value);
+        }
+
+        if ($value === '') {
+            return null;
+        }
+
+        $unit = static::normalizeUnit($config['unit'] ?? 'seconds');
+        $duration = SplitDuration::parse($value, $unit);
+
+        if ($duration !== null) {
+            return $duration->storageValue();
+        }
+
+        return parent::normalizeAthleteValue($value, $config);
+    }
+
+    public static function formatAthleteValue(mixed $value, ?string $unit = null, array $config = []): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $unit = static::normalizeUnit($config['unit'] ?? $unit ?? 'seconds');
+        $duration = SplitDuration::parse($value, $unit);
+
+        if ($duration !== null) {
+            return $duration->display();
+        }
+
+        return parent::formatAthleteValue($value, $unit, $config);
+    }
+
+    public static function athleteValueType(mixed $value, array $config = []): ?string
+    {
+        if (is_string($value) && str_contains($value, '_')) {
+            return 'string';
+        }
+
+        return parent::athleteValueType($value, $config);
+    }
+
+    public static function athleteCanonicalValue(mixed $value, array $config = []): ?array
+    {
+        $unit = static::normalizeUnit($config['unit'] ?? 'seconds');
+        $duration = SplitDuration::parse($value, $unit);
+
+        if ($duration === null) {
+            return null;
+        }
+
+        return [
+            'kind' => 'duration',
+            'format' => $duration->isSplit() ? 'split' : 'scalar',
+            'display' => $duration->display(),
+            'unit' => $unit,
+            'seconds' => $duration->isSplit() ? array_sum($duration->parts) : $duration->parts[0],
+            'parts' => $duration->parts,
+            'is_bilateral' => $duration->isSplit(),
+        ];
+    }
+
+    private static function normalizeUnit(?string $unit): string
+    {
+        return match ($unit) {
+            'm' => 'minutes',
+            's' => 'seconds',
+            'mm:ss' => 'mm:ss',
+            default => $unit ?: 'seconds',
+        };
     }
 }

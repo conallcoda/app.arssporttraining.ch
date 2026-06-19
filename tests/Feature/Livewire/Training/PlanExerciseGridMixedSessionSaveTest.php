@@ -1178,7 +1178,66 @@ it('renders grouped copy menu actions on collapsed plan groups', function () {
         ->and($html)->toContain("resetDisplayBucket('group:0')");
 });
 
-it('copies only the overlapping visible sets for the target session', function () {
+it('copies the source set count and all session fields to the target session', function () {
+    $coach = User::factory()->create();
+
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps', 'rest'],
+            'sets' => ['default' => 4, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+            'rest' => ['default' => 60, 'applyPer' => 'per_session'],
+        ],
+    ]);
+
+    $program = ExerciseProgram::factory()->create();
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'weeks' => 2,
+        'sessionsPerWeek' => 1,
+        'weekSessionDates' => [
+            ['2026-04-27'],
+            ['2026-05-04'],
+        ],
+        'lockedSessionsByWeek' => [
+            [false],
+            [false],
+        ],
+    ]);
+
+    $component->call('updateCellOverride', 0, 0, 'reps', 10, 0, false)
+        ->call('updateCellOverride', 0, 1, 'reps', 11, 0, false)
+        ->call('updateCellOverride', 0, 2, 'reps', 16, 0, false)
+        ->call('updateCellOverride', 0, 3, 'reps', 17, 0, false)
+        ->call('updateSessionOverride', 0, 0, 'rest', 90, false)
+        ->call('updateSessionOverride', 1, 0, 'sets', 3, false)
+        ->call('copyDisplayBucket', 'session:0:0', 'session:1:0');
+
+    $overrides = $program->fresh()->config->defaultExerciseOverrides($pivot->id)->gridOverrides;
+    $cells = collect($overrides['cells'] ?? []);
+    $sessions = collect($overrides['sessions'] ?? []);
+
+    expect($sessions->firstWhere(fn (array $session) => ($session['week'] ?? null) === 1 && ($session['session'] ?? null) === 0)['data']['sets'] ?? null)
+        ->toBeNull()
+        ->and($sessions->firstWhere(fn (array $session) => ($session['week'] ?? null) === 1 && ($session['session'] ?? null) === 0)['data']['rest'] ?? null)->toBe(90)
+        ->and($cells->firstWhere(fn (array $cell) => ($cell['week'] ?? null) === 1 && ($cell['session'] ?? null) === 0 && ($cell['set'] ?? null) === 0)['data']['reps'] ?? null)->toBe(10)
+        ->and($cells->firstWhere(fn (array $cell) => ($cell['week'] ?? null) === 1 && ($cell['session'] ?? null) === 0 && ($cell['set'] ?? null) === 1)['data']['reps'] ?? null)->toBe(11)
+        ->and($cells->firstWhere(fn (array $cell) => ($cell['week'] ?? null) === 1 && ($cell['session'] ?? null) === 0 && ($cell['set'] ?? null) === 2)['data']['reps'] ?? null)->toBe(16)
+        ->and($cells->firstWhere(fn (array $cell) => ($cell['week'] ?? null) === 1 && ($cell['session'] ?? null) === 0 && ($cell['set'] ?? null) === 3)['data']['reps'] ?? null)->toBe(17);
+});
+
+it('clears copied target cells outside the source set count', function () {
     $coach = User::factory()->create();
 
     $exercise = Exercise::factory()->create([
@@ -1215,11 +1274,11 @@ it('copies only the overlapping visible sets for the target session', function (
         ],
     ]);
 
-    $component->call('updateCellOverride', 0, 0, 'reps', 10, 0, false)
+    $component->call('updateSessionOverride', 0, 0, 'sets', 3, false)
+        ->call('updateCellOverride', 0, 0, 'reps', 10, 0, false)
         ->call('updateCellOverride', 0, 1, 'reps', 11, 0, false)
         ->call('updateCellOverride', 0, 2, 'reps', 16, 0, false)
-        ->call('updateCellOverride', 0, 3, 'reps', 17, 0, false)
-        ->call('updateSessionOverride', 1, 0, 'sets', 3, false)
+        ->call('updateCellOverride', 1, 3, 'reps', 20, 0, false)
         ->call('copyDisplayBucket', 'session:0:0', 'session:1:0');
 
     $overrides = $program->fresh()->config->defaultExerciseOverrides($pivot->id)->gridOverrides;

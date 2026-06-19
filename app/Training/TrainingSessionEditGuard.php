@@ -3,6 +3,8 @@
 namespace App\Training;
 
 use App\Models\Training\TrainingProgramSlot;
+use App\Models\Training\TrainingProgramSlotExerciseStatusEnum;
+use App\Models\Training\TrainingProgramSlotSetStatusEnum;
 use App\Models\Training\TrainingProgramSlotStatusEnum;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
@@ -10,11 +12,15 @@ use Illuminate\Support\Carbon;
 class TrainingSessionEditGuard
 {
     /**
-     * Plan edits are future-only because scheduled slots are only rebuilt for future datetimes.
+     * Plan edits are future-only unless a scheduled slot already has recorded data.
      */
     public function applyPlanEditLockConstraints(Builder $query): Builder
     {
-        return $query->where('datetime', '<=', now());
+        return $query->where(function (Builder $query): void {
+            $query
+                ->where('datetime', '<=', now())
+                ->orWhere(fn (Builder $query) => $this->applyRecordedOutcomeConstraints($query));
+        });
     }
 
     /**
@@ -31,24 +37,11 @@ class TrainingSessionEditGuard
     }
 
     /**
-     * Marks slots as immutable only once they are in the past and have some recorded outcome.
+     * Marks slots as immutable once they have some recorded outcome.
      */
     public function applyImmutableSlotConstraints(Builder $query): Builder
     {
-        return $this->applyPlanEditLockConstraints($query)
-            ->where(function (Builder $query): void {
-                $query
-                    ->whereIn('status', [
-                        TrainingProgramSlotStatusEnum::Completed,
-                        TrainingProgramSlotStatusEnum::PartiallyCompleted,
-                        TrainingProgramSlotStatusEnum::Skipped,
-                    ])
-                    ->orWhereNotNull('completed_at')
-                    ->orWhere('has_any_modification', true)
-                    ->orWhere('completed_exercise_count', '>', 0)
-                    ->orWhere('partial_exercise_count', '>', 0)
-                    ->orWhere('skipped_exercise_count', '>', 0);
-            });
+        return $this->applyRecordedOutcomeConstraints($query);
     }
 
     public function hasImmutableSlotsForOccurrence(
@@ -101,7 +94,7 @@ class TrainingSessionEditGuard
     public function immutableSlotMessage(int $count = 1): string
     {
         return trans_choice(
-            'This past session already has recorded data and can no longer be edited.|:count past sessions already have recorded data and can no longer be edited.',
+            'This session already has recorded data and can no longer be edited.|:count sessions already have recorded data and can no longer be edited.',
             $count,
             ['count' => $count],
         );
@@ -110,10 +103,57 @@ class TrainingSessionEditGuard
     public function immutableProgramMessage(int $count): string
     {
         return trans_choice(
-            'This program cannot be changed here because 1 past session already has recorded data.|This program cannot be changed here because :count past sessions already have recorded data.',
+            'This program cannot be changed here because 1 session already has recorded data.|This program cannot be changed here because :count sessions already have recorded data.',
             $count,
             ['count' => $count],
         );
+    }
+
+    private function applyRecordedOutcomeConstraints(Builder $query): Builder
+    {
+        return $query->where(function (Builder $query): void {
+            $query
+                ->whereIn('status', [
+                    TrainingProgramSlotStatusEnum::Completed,
+                    TrainingProgramSlotStatusEnum::PartiallyCompleted,
+                    TrainingProgramSlotStatusEnum::Skipped,
+                ])
+                ->orWhereNotNull('completed_at')
+                ->orWhere('has_any_modification', true)
+                ->orWhere('completed_exercise_count', '>', 0)
+                ->orWhere('partial_exercise_count', '>', 0)
+                ->orWhere('skipped_exercise_count', '>', 0)
+                ->orWhereHas('exercises', function (Builder $query): void {
+                    $query
+                        ->whereIn('status', [
+                            TrainingProgramSlotExerciseStatusEnum::Completed,
+                            TrainingProgramSlotExerciseStatusEnum::PartiallyCompleted,
+                            TrainingProgramSlotExerciseStatusEnum::Skipped,
+                        ])
+                        ->orWhereNotNull('completed_at')
+                        ->orWhere('has_any_modification', true)
+                        ->orWhere('completed_set_count', '>', 0)
+                        ->orWhere('modified_set_count', '>', 0)
+                        ->orWhere('skipped_set_count', '>', 0)
+                        ->orWhereHas('sets', function (Builder $query): void {
+                            $query
+                                ->whereIn('status', [
+                                    TrainingProgramSlotSetStatusEnum::Completed,
+                                    TrainingProgramSlotSetStatusEnum::CompletedWithModification,
+                                    TrainingProgramSlotSetStatusEnum::Skipped,
+                                ])
+                                ->orWhereNotNull('completed_at')
+                                ->orWhereNotNull('skipped_at')
+                                ->orWhere('has_any_modification', true)
+                                ->orWhereHas('values', function (Builder $query): void {
+                                    $query
+                                        ->whereNotNull('actual_value_type')
+                                        ->orWhere('actual_is_explicit', true)
+                                        ->orWhere('is_modified', true);
+                                });
+                        });
+                });
+        });
     }
 
     private function immutableSlotsQuery(): Builder

@@ -299,6 +299,8 @@ trait InteractsWithDisplayGridCopying
                 continue;
             }
 
+            $sourceSetCount = $this->resolvedCopySessionSetCount($previewGrid, (int) $sourceSession['week'], (int) $sourceSession['session']);
+
             $gridOverrides = OverrideManager::copySessionOverrides(
                 $gridOverrides,
                 $previewGrid,
@@ -307,9 +309,8 @@ trait InteractsWithDisplayGridCopying
                 (int) $sourceSession['session'],
                 (int) $targetSession['week'],
                 (int) $targetSession['session'],
-                sourceSetCount: $this->resolvedCopySessionSetCount($previewGrid, (int) $sourceSession['week'], (int) $sourceSession['session']),
-                targetSetCount: $this->resolvedCopySessionSetCount($previewGrid, (int) $targetSession['week'], (int) $targetSession['session']),
-                skipSessionFields: ['sets'],
+                sourceSetCount: $sourceSetCount,
+                targetSetCount: $sourceSetCount,
             );
         }
 

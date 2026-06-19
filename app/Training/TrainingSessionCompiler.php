@@ -7,6 +7,7 @@ use App\Data\Athlete\Metric\Metrics\HeartRateMetric;
 use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
 use App\Data\Exercise\ExerciseSetting;
 use App\Data\Exercise\Preview\CellInputMeta;
+use App\Data\Exercise\Settings\DurationSetting;
 use App\Data\Exercise\Settings\RepsSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Training\Compiler\AuthoringExerciseData;
@@ -340,7 +341,7 @@ class TrainingSessionCompiler
             settingKey: $value->settingKey,
             plannedValueType: $this->resolveValueType($value->settingKey, $normalizedValue),
             plannedValue: $normalizedValue,
-            plannedCanonicalValue: $this->resolveCanonicalValue($value->settingKey, $normalizedValue),
+            plannedCanonicalValue: $this->resolveCanonicalValue($value->settingKey, $normalizedValue, ['unit' => $value->unit]),
             unit: $value->unit,
         );
     }
@@ -351,15 +352,7 @@ class TrainingSessionCompiler
             return $value;
         }
 
-        $unit = $config['unit'] ?? 'seconds';
-
-        if ($unit === 'mm:ss' && is_string($value) && str_contains($value, ':')) {
-            [$minutes, $seconds] = array_pad(explode(':', $value, 2), 2, '0');
-
-            return ((int) $minutes * 60) + (int) $seconds;
-        }
-
-        return $value;
+        return DurationSetting::normalizeAthleteValue($value, $config);
     }
 
     private function resolveValueType(string $setting, mixed $value): ?string
@@ -399,10 +392,11 @@ class TrainingSessionCompiler
         return 'string';
     }
 
-    private function resolveCanonicalValue(string $setting, mixed $value): ?array
+    private function resolveCanonicalValue(string $setting, mixed $value, array $config = []): ?array
     {
         return match ($setting) {
             'reps' => $this->resolveRepsCanonicalValue($value),
+            'duration' => DurationSetting::athleteCanonicalValue($value, $config),
             'heartRate' => $this->resolveBoundedRangeCanonicalValue($value, 'heart_rate'),
             'heartRateZone' => $this->resolveBoundedRangeCanonicalValue($value, 'heart_rate_zone'),
             default => null,

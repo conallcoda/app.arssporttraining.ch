@@ -172,6 +172,65 @@ it('stores canonical split-rep metadata alongside the display value', function (
         ]);
 });
 
+it('stores canonical split-duration metadata alongside normalized storage values', function () {
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Timed Unilateral']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $exercise = Exercise::factory()->create([
+        'name' => 'Side Plank',
+        'config' => [
+            'settings' => ['duration'],
+            'sets' => [
+                'default' => 1,
+                'label' => 'Set',
+                'deload' => 'none',
+            ],
+            'duration' => [
+                'unit' => 'mm:ss',
+                'default' => '10:00_10:00',
+                'applyPer' => 'session',
+            ],
+        ],
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+    ]);
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-04-17 09:00:00'),
+    ])->fresh();
+
+    $durationValue = $slot->exercises()
+        ->with('sets.values')
+        ->firstOrFail()
+        ->sets
+        ->firstOrFail()
+        ->values
+        ->firstWhere('setting_key', 'duration');
+
+    expect($durationValue?->planned_value_type)->toBe('string')
+        ->and($durationValue?->planned_string_value)->toBe('600_600')
+        ->and($durationValue?->plannedCanonicalValue())->toBe([
+            'kind' => 'duration',
+            'format' => 'split',
+            'display' => '10:00L_10:00R',
+            'unit' => 'mm:ss',
+            'seconds' => 1200,
+            'parts' => [600, 600],
+            'is_bilateral' => true,
+        ]);
+});
+
 it('materializes blank manual settings so athletes can record them later', function () {
     $athlete = User::factory()->athlete()->create();
     $group = UserGroup::create(['name' => 'Test Group']);

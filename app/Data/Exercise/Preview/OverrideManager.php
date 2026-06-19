@@ -93,6 +93,10 @@ class OverrideManager
             $defaultRows[$row->field] = $row;
         }
 
+        foreach ($defaultsGrid->weekColumns as $column) {
+            $defaultRows[$column->field] = $column;
+        }
+
         foreach ($grid->rows as $row) {
             if ($row->lastSessionOnly) {
                 continue;
@@ -127,7 +131,8 @@ class OverrideManager
             }
 
             $value = $column->getCellValue($sourceWeek, 0, $sourceSession);
-            $defaultValue = $column->getCellValue($targetWeek, 0, $targetSession);
+            $defaultValue = ($defaultRows[$column->field] ?? null)?->getCellValue($targetWeek, 0, $targetSession)
+                ?? $column->getCellValue($targetWeek, 0, $targetSession);
 
             if ($value === null || $value === '-' || self::valuesMatch($value, $defaultValue, $column->field)) {
                 $overrides = self::removeSessionOverride($overrides, $targetWeek, $targetSession, $column->field);

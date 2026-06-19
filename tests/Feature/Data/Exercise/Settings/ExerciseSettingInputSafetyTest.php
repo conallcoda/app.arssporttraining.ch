@@ -1,6 +1,7 @@
 <?php
 
 use App\Data\Exercise\Settings\RestSetting;
+use App\Data\Exercise\Settings\DurationSetting;
 use App\Data\Exercise\Settings\RepsSetting;
 use App\Data\Exercise\Settings\SetsSetting;
 use App\Data\Exercise\ExerciseConfig;
@@ -158,4 +159,35 @@ it('allows rep ranges for planning but not athlete recording', function () {
         ->and(RepsSetting::requiresAthleteSpecificValue('8-10'))->toBeTrue()
         ->and(RepsSetting::requiresAthleteSpecificValue('-'))->toBeTrue()
         ->and(RepsSetting::requiresAthleteSpecificValue('6_6'))->toBeFalse();
+});
+
+it('allows split durations and stores canonical duration metadata', function () {
+    $rules = Field::buildValidationRules(DurationSetting::fields(), 'data.config.duration.');
+    $athleteRules = Field::buildValidationRules([
+        DurationSetting::athleteField('duration', ['unit' => 'mm:ss']),
+    ], 'editValues.1.');
+
+    expect(Validator::make([
+        'data' => ['config' => ['duration' => ['default' => '10:00_10:00']]],
+    ], $rules)->passes())->toBeTrue()
+        ->and(Validator::make([
+            'data' => ['config' => ['duration' => ['default' => '10:99_10:00']]],
+        ], $rules)->errors()->has('data.config.duration.default'))->toBeTrue()
+        ->and(Validator::make([
+            'editValues' => [1 => ['duration' => '10:00_10:00']],
+        ], $athleteRules)->passes())->toBeTrue()
+        ->and(Validator::make([
+            'editValues' => [1 => ['duration' => '10:99_10:00']],
+        ], $athleteRules)->errors()->has('editValues.1.duration'))->toBeTrue()
+        ->and(DurationSetting::normalizeAthleteValue('10:00_10:00', ['unit' => 'mm:ss']))->toBe('600_600')
+        ->and(DurationSetting::athleteValueType('600_600', ['unit' => 'mm:ss']))->toBe('string')
+        ->and(DurationSetting::athleteCanonicalValue('600_600', ['unit' => 'mm:ss']))->toMatchArray([
+            'kind' => 'duration',
+            'format' => 'split',
+            'display' => '10:00L_10:00R',
+            'unit' => 'mm:ss',
+            'seconds' => 1200,
+            'parts' => [600, 600],
+            'is_bilateral' => true,
+        ]);
 });

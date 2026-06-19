@@ -333,7 +333,7 @@ it('blocks removing a group program once a past session has recorded data', func
         ])
         ->call('removeTrainingProgram', $groupTp->id)
         ->assertDispatched('toast-show', function ($event, $params) {
-            return ($params['slots']['text'] ?? null) === 'This program cannot be changed here because 1 past session already has recorded data.'
+            return ($params['slots']['text'] ?? null) === 'This program cannot be changed here because 1 session already has recorded data.'
                 && ($params['dataset']['variant'] ?? null) === 'danger';
         });
 

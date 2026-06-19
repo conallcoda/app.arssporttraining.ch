@@ -54,7 +54,7 @@ it('does not delete a recorded slot from the schedule view modal and shows a toa
             'start_time' => '09:00',
         ])
         ->assertDispatched('toast-show', function ($event, $params) {
-            return ($params['slots']['text'] ?? null) === 'This past session already has recorded data and can no longer be edited.'
+            return ($params['slots']['text'] ?? null) === 'This session already has recorded data and can no longer be edited.'
                 && ($params['dataset']['variant'] ?? null) === 'danger';
         });
 
@@ -93,7 +93,7 @@ it('does not delete a recorded slot from remove mode and shows a toast', functio
     ])
         ->call('quickRemoveWeekSlot', $trainingProgram->id, '2030-04-10', '09:00')
         ->assertDispatched('toast-show', function ($event, $params) {
-            return ($params['slots']['text'] ?? null) === 'This past session already has recorded data and can no longer be edited.'
+            return ($params['slots']['text'] ?? null) === 'This session already has recorded data and can no longer be edited.'
                 && ($params['dataset']['variant'] ?? null) === 'danger';
         });
 
