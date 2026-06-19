@@ -15,7 +15,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-it('does not rematerialize an already-compiled past slot even when forced', function () {
+it('rematerializes an already-compiled past slot when it has no recorded data', function () {
     Carbon::setTestNow('2026-04-17 12:00:00');
 
     $athlete = User::factory()->athlete()->create();
@@ -80,6 +80,6 @@ it('does not rematerialize an already-compiled past slot even when forced', func
     expect($originalRepsValue?->planned_value_type)->toBe('string')
         ->and($originalRepsValue?->planned_string_value)->toBe('5')
         ->and($repsValue?->planned_value_type)->toBe('string')
-        ->and($repsValue?->planned_string_value)->toBe('5')
-        ->and($slot->compiled_at?->equalTo($originalCompiledAt))->toBeTrue();
+        ->and($repsValue?->planned_string_value)->toBe('8')
+        ->and($slot->compiled_at)->not->toBeNull();
 });

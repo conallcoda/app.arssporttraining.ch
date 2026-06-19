@@ -296,6 +296,7 @@
                         :weekSessionDates="$weekSessionDates"
                         :expandedWeeks="$expandedWeeks"
                         :lockedSessionsByWeek="$lockedSessionsByWeek"
+                        :sessionStatusesByWeek="$sessionStatusesByWeek"
                         :sessionLabels="$sessionLabels"
                         :showActualValueTabs="$showActualValueTabs"
                         :valueDisplayMode="$effectiveValueDisplayMode"

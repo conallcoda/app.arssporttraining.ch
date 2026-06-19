@@ -60,6 +60,8 @@ class ProgramEditor extends Component
 
     public array $lockedSessionsByWeek = [];
 
+    public array $sessionStatusesByWeek = [];
+
     public bool $sessionLabels = false;
 
     public bool $showNameInput = false;
@@ -185,6 +187,7 @@ class ProgramEditor extends Component
         array $weekSessionDates = [],
         array $expandedWeeks = [],
         array $lockedSessionsByWeek = [],
+        array $sessionStatusesByWeek = [],
         bool $sessionLabels = false,
         string $gridLayout = 'side-by-side',
         bool $showActualValueTabs = false,
@@ -228,6 +231,7 @@ class ProgramEditor extends Component
             $this->weekSessionDates = $weekSessionDates;
             $this->expandedWeeks = $expandedWeeks;
             $this->lockedSessionsByWeek = $lockedSessionsByWeek;
+            $this->sessionStatusesByWeek = $sessionStatusesByWeek;
             $this->sessionLabels = $sessionLabels;
             $this->gridLayout = $gridLayout;
             $this->showActualValueTabs = $showActualValueTabs;

@@ -19,6 +19,7 @@ class TrainingSessionMaterializer
     public function __construct(
         private readonly TrainingSessionCompiler $compiler,
         private readonly TrainingValueSnapshotCodec $valueCodec,
+        private readonly TrainingSessionEditGuard $editGuard,
     ) {}
 
     public function materialize(
@@ -99,7 +100,7 @@ class TrainingSessionMaterializer
             return false;
         }
 
-        if ($slot->datetime->lte(now()) && ! $allowImmutableRewrite) {
+        if ($this->editGuard->isImmutableSlot($slot) && ! $allowImmutableRewrite) {
             return true;
         }
 

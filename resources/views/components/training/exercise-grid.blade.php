@@ -76,6 +76,17 @@
 
             return $settingClass::formatAthleteValue($value, config: $config) ?? $value;
         };
+        $renderStatusChip = static function (?array $status): string {
+            if (! is_array($status) || ! filled($status['label'] ?? null) || ! is_array($status['color'] ?? null)) {
+                return '';
+            }
+
+            $light = e($status['color']['light'] ?? '');
+            $dark = e($status['color']['dark'] ?? '');
+            $label = e(__($status['label']));
+
+            return '<span class="status-badge mt-1 inline-flex max-w-[6.75rem] justify-center rounded-md px-1.5 py-0.5 text-[9px] font-medium leading-tight" style="--status-bar-light: '.$light.'; --status-bar-dark: '.$dark.';">'.$label.'</span>';
+        };
     @endphp
     <div class="{{ $showHeader ? 'space-y-2 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4' : 'space-y-2' }}">
         @if ($showHeader)
@@ -133,7 +144,7 @@
                         @if ($renderGroupColumn)
                             <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 w-20">{{ __($groupColumnLabel) }}</th>
                         @endif
-                        <th class="border border-zinc-300 dark:border-zinc-600 px-2 py-2 w-12">{{ __('Session') }}</th>
+                        <th class="border border-zinc-300 dark:border-zinc-600 px-2 py-2 w-28">{{ __('Session') }}</th>
                         @if ($displayRowCount > 0)
                             <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2"></th>
                         @endif
@@ -268,6 +279,7 @@
                                         @foreach ($group->collapsedMetaLines as $line)
                                             <div>{{ $line }}</div>
                                         @endforeach
+                                        {!! $renderStatusChip($group->status ?? null) !!}
                                     </td>
                                         @foreach ($grid->weekColumns as $weekCol)
                                             @php
@@ -451,6 +463,7 @@
                                                 @foreach ($group->collapsedMetaLines as $line)
                                                     <div>{{ $line }}</div>
                                                 @endforeach
+                                                {!! $renderStatusChip($group->status ?? null) !!}
                                             </td>
                                         @endif
                                         <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-medium whitespace-nowrap {{ $row->color }}">
@@ -703,6 +716,7 @@
                                         @if ($showSessionDates && filled($sessionDateLabels[$week][$session] ?? null))
                                             <div class="mt-1 text-[10px] font-normal text-zinc-500 dark:text-zinc-400">{{ $sessionDateLabels[$week][$session] }}</div>
                                         @endif
+                                        {!! $renderStatusChip($sessionEntry->status ?? null) !!}
                                     </td>
                                         @foreach ($grid->weekColumns as $weekCol)
                                             @php
@@ -892,6 +906,7 @@
                                                 @if ($showSessionDates && filled($sessionDateLabels[$week][$session] ?? null))
                                                     <div class="mt-1 text-[10px] font-normal text-zinc-500 dark:text-zinc-400">{{ $sessionDateLabels[$week][$session] }}</div>
                                                 @endif
+                                                {!! $renderStatusChip($sessionEntry->status ?? null) !!}
                                             </td>
                                         @endif
                                         @if ($settingClickable)

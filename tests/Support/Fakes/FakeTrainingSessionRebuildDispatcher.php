@@ -11,6 +11,45 @@ class FakeTrainingSessionRebuildDispatcher extends TrainingSessionRebuildDispatc
      */
     public array $calls = [];
 
+    public function dispatchOpenSlotsForExerciseProgramChange(int $exerciseProgramId, ?int $userId = null, ?string $fromDate = null): void
+    {
+        $this->calls[] = [
+            'method' => __FUNCTION__,
+            'exerciseProgramId' => $exerciseProgramId,
+            'userId' => $userId,
+            'fromDate' => $fromDate,
+        ];
+    }
+
+    public function dispatchOpenSlotsForExerciseProgram(int $exerciseProgramId, ?string $fromDate = null): void
+    {
+        $this->calls[] = [
+            'method' => __FUNCTION__,
+            'exerciseProgramId' => $exerciseProgramId,
+            'fromDate' => $fromDate,
+        ];
+    }
+
+    public function dispatchOpenSlotsForAthleteExerciseProgram(int $userId, int $exerciseProgramId, ?string $fromDate = null): void
+    {
+        $this->calls[] = [
+            'method' => __FUNCTION__,
+            'exerciseProgramId' => $exerciseProgramId,
+            'userId' => $userId,
+            'fromDate' => $fromDate,
+        ];
+    }
+
+    public function dispatchOpenSlotsForTrainingProgramChange(int $trainingProgramId, ?int $userId = null, ?string $fromDate = null): void
+    {
+        $this->calls[] = [
+            'method' => __FUNCTION__,
+            'trainingProgramId' => $trainingProgramId,
+            'userId' => $userId,
+            'fromDate' => $fromDate,
+        ];
+    }
+
     public function dispatchFutureSlotsForExerciseProgramChange(int $exerciseProgramId, ?int $userId = null, ?string $fromDate = null): void
     {
         $this->calls[] = [

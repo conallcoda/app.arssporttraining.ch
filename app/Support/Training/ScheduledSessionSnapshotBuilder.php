@@ -14,9 +14,6 @@ use Illuminate\Support\Facades\Schema;
 
 class ScheduledSessionSnapshotBuilder
 {
-    /** @var array<string, bool> */
-    private static array $mediaTableExists = [];
-
     public function __construct(
         private readonly ProgramExerciseOrder $programExerciseOrder,
         private readonly EffectiveSlotExerciseConfigResolver $effectiveConfigResolver,
@@ -221,8 +218,6 @@ class ScheduledSessionSnapshotBuilder
 
     private function mediaTableExists(): bool
     {
-        $connection = Schema::getConnection()->getName();
-
-        return self::$mediaTableExists[$connection] ??= Schema::hasTable('media');
+        return Schema::hasTable('media');
     }
 }

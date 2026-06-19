@@ -219,7 +219,7 @@ class CarryOverAthleteValuesService
     /**
      * @param  list<array{field: string, set_index: int, value: mixed}>  $targetChanges
      * @param  array<string, array{week: int, session: int}>  $schedulePositions
-     * @return list<array{layer: string, target: string, week: int, session: int, set?: int, field: string, value: mixed}>
+     * @return list<array{target: string, week: int, session: int, set?: int, field: string, value: mixed}>
      */
     private function gridOverrideChangesForTarget(TrainingProgramSlotExercise $target, array $targetChanges, array $schedulePositions): array
     {
@@ -230,7 +230,6 @@ class CarryOverAthleteValuesService
         }
 
         $position = $schedulePositions[$date];
-        $layer = $target->slot->datetime->lte(now()) ? 'historical' : 'current';
         $changes = [];
         $sessionScopedFieldsAdded = [];
 
@@ -244,7 +243,6 @@ class CarryOverAthleteValuesService
 
                 $sessionScopedFieldsAdded[$field] = true;
                 $changes[] = [
-                    'layer' => $layer,
                     'target' => 'session',
                     'week' => $position['week'],
                     'session' => $position['session'],
@@ -256,7 +254,6 @@ class CarryOverAthleteValuesService
             }
 
             $changes[] = [
-                'layer' => $layer,
                 'target' => 'cell',
                 'week' => $position['week'],
                 'session' => $position['session'],
@@ -277,7 +274,7 @@ class CarryOverAthleteValuesService
     }
 
     /**
-     * @param  list<array{layer: string, target: string, week: int, session: int, set?: int, field: string, value: mixed}>  $changes
+     * @param  list<array{target: string, week: int, session: int, set?: int, field: string, value: mixed}>  $changes
      */
     private function persistGridOverrides(TrainingProgramSlotExercise $source, array $changes): void
     {
@@ -293,24 +290,19 @@ class CarryOverAthleteValuesService
             (int) $source->slot->user_id,
         );
         $gridOverrides = GridOverrideNormalizer::normalize($overrides->gridOverrides);
-        $historicalGridOverrides = GridOverrideNormalizer::normalize($overrides->historicalGridOverrides);
 
         foreach ($changes as $change) {
-            $targetOverrides = ($change['layer'] ?? 'current') === 'historical'
-                ? $historicalGridOverrides
-                : $gridOverrides;
-
             if ($change['target'] === 'session') {
-                $targetOverrides['sessions'] = GridOverrideNormalizer::putSessionValue(
-                    $targetOverrides['sessions'] ?? [],
+                $gridOverrides['sessions'] = GridOverrideNormalizer::putSessionValue(
+                    $gridOverrides['sessions'] ?? [],
                     $change['week'],
                     $change['session'],
                     $change['field'],
                     $change['value'],
                 );
             } else {
-                $targetOverrides['cells'] = GridOverrideNormalizer::putCellValue(
-                    $targetOverrides['cells'] ?? [],
+                $gridOverrides['cells'] = GridOverrideNormalizer::putCellValue(
+                    $gridOverrides['cells'] ?? [],
                     $change['week'],
                     $change['session'],
                     (int) ($change['set'] ?? 0),
@@ -318,16 +310,9 @@ class CarryOverAthleteValuesService
                     $change['value'],
                 );
             }
-
-            if (($change['layer'] ?? 'current') === 'historical') {
-                $historicalGridOverrides = $targetOverrides;
-            } else {
-                $gridOverrides = $targetOverrides;
-            }
         }
 
         $overrides->gridOverrides = $gridOverrides;
-        $overrides->historicalGridOverrides = $historicalGridOverrides;
         $config->setExerciseOverrides(
             (int) $source->exercise_program_exercise_id,
             $overrides,

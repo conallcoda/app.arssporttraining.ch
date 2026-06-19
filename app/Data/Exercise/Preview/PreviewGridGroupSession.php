@@ -11,5 +11,6 @@ class PreviewGridGroupSession extends AbstractData
         public int $sessionIndex,
         public int $sessionNumber,
         public bool $locked = false,
+        public ?array $status = null,
     ) {}
 }

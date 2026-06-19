@@ -6,19 +6,17 @@ use App\Models\Training\TrainingProgramSlotStatusEnum;
 
 class SlotStatusPresenter
 {
+    public function label(TrainingProgramSlotStatusEnum|string|null $status): string
+    {
+        return $this->enum($status)->label();
+    }
+
     /**
      * @return array{light: string, dark: string}
      */
     public function color(TrainingProgramSlotStatusEnum|string|null $status): array
     {
-        $value = $status instanceof TrainingProgramSlotStatusEnum
-            ? $status->value
-            : $status;
-
-        $enum = TrainingProgramSlotStatusEnum::tryFrom($value ?? TrainingProgramSlotStatusEnum::Pending->value)
-            ?? TrainingProgramSlotStatusEnum::Pending;
-
-        return $enum->barColor();
+        return $this->enum($status)->barColor();
     }
 
     /**
@@ -49,9 +47,34 @@ class SlotStatusPresenter
 
     /**
      * @param  array<int, TrainingProgramSlotStatusEnum|string|null>  $statuses
+     */
+    public function aggregateValue(array $statuses): string
+    {
+        return $this->aggregateStatus($this->statusCounts($statuses));
+    }
+
+    /**
+     * @param  array<int, TrainingProgramSlotStatusEnum|string|null>  $statuses
+     */
+    public function aggregateLabel(array $statuses): string
+    {
+        return $this->label($this->aggregateValue($statuses));
+    }
+
+    /**
+     * @param  array<int, TrainingProgramSlotStatusEnum|string|null>  $statuses
      * @return array{light: string, dark: string}
      */
     public function aggregateColor(array $statuses): array
+    {
+        return $this->color($this->aggregateValue($statuses));
+    }
+
+    /**
+     * @param  array<int, TrainingProgramSlotStatusEnum|string|null>  $statuses
+     * @return array{completed:int, partial:int, skipped:int, pending:int}
+     */
+    private function statusCounts(array $statuses): array
     {
         $counts = [
             'completed' => 0,
@@ -73,6 +96,16 @@ class SlotStatusPresenter
             };
         }
 
-        return $this->color($this->aggregateStatus($counts));
+        return $counts;
+    }
+
+    private function enum(TrainingProgramSlotStatusEnum|string|null $status): TrainingProgramSlotStatusEnum
+    {
+        $value = $status instanceof TrainingProgramSlotStatusEnum
+            ? $status->value
+            : $status;
+
+        return TrainingProgramSlotStatusEnum::tryFrom($value ?? TrainingProgramSlotStatusEnum::Pending->value)
+            ?? TrainingProgramSlotStatusEnum::Pending;
     }
 }

@@ -11,11 +11,50 @@ class TrainingSessionRebuildService
 {
     public function __construct(
         private readonly TrainingSessionMaterializer $materializer,
+        private readonly TrainingSessionEditGuard $editGuard,
     ) {}
+
+    public function rebuildOpenSlotsForExerciseProgram(int $exerciseProgramId, ?string $fromDate = null): void
+    {
+        $this->rebuildSlots(
+            $this->openSlotsQuery()
+                ->whereHas('trainingProgram', fn (Builder $query) => $query->where('exercise_program_id', $exerciseProgramId))
+                ->when($fromDate !== null, fn (Builder $query) => $this->whereOnOrAfterDate($query, $fromDate))
+        );
+    }
+
+    public function rebuildOpenSlotsForAthleteExerciseProgram(int $userId, int $exerciseProgramId, ?string $fromDate = null): void
+    {
+        $this->rebuildSlots(
+            $this->openSlotsQuery()
+                ->where('user_id', $userId)
+                ->whereHas('trainingProgram', fn (Builder $query) => $query->where('exercise_program_id', $exerciseProgramId))
+                ->when($fromDate !== null, fn (Builder $query) => $this->whereOnOrAfterDate($query, $fromDate))
+        );
+    }
+
+    public function rebuildOpenSlotsForTrainingProgram(int $trainingProgramId, ?string $fromDate = null): void
+    {
+        $this->rebuildSlots(
+            $this->openSlotsQuery()
+                ->where('training_program_id', $trainingProgramId)
+                ->when($fromDate !== null, fn (Builder $query) => $this->whereOnOrAfterDate($query, $fromDate))
+        );
+    }
+
+    public function rebuildOpenSlotsForTrainingProgramAthlete(int $trainingProgramId, int $userId, ?string $fromDate = null): void
+    {
+        $this->rebuildSlots(
+            $this->openSlotsQuery()
+                ->where('training_program_id', $trainingProgramId)
+                ->where('user_id', $userId)
+                ->when($fromDate !== null, fn (Builder $query) => $this->whereOnOrAfterDate($query, $fromDate))
+        );
+    }
 
     public function rebuildFutureSlotsForExerciseProgram(int $exerciseProgramId, ?string $fromDate = null): void
     {
-        $this->rebuildFutureSlots(
+        $this->rebuildSlots(
             $this->futureSlotsQuery()
                 ->whereHas('trainingProgram', fn (Builder $query) => $query->where('exercise_program_id', $exerciseProgramId))
                 ->when($fromDate !== null, fn (Builder $query) => $this->whereOnOrAfterFromDate($query, $fromDate))
@@ -24,7 +63,7 @@ class TrainingSessionRebuildService
 
     public function rebuildFutureSlotsForAthleteExerciseProgram(int $userId, int $exerciseProgramId, ?string $fromDate = null): void
     {
-        $this->rebuildFutureSlots(
+        $this->rebuildSlots(
             $this->futureSlotsQuery()
                 ->where('user_id', $userId)
                 ->whereHas('trainingProgram', fn (Builder $query) => $query->where('exercise_program_id', $exerciseProgramId))
@@ -34,7 +73,7 @@ class TrainingSessionRebuildService
 
     public function rebuildFutureSlotsForTrainingProgram(int $trainingProgramId): void
     {
-        $this->rebuildFutureSlots(
+        $this->rebuildSlots(
             $this->futureSlotsQuery()
                 ->where('training_program_id', $trainingProgramId)
         );
@@ -48,7 +87,7 @@ class TrainingSessionRebuildService
             $threshold = $now;
         }
 
-        $this->rebuildFutureSlots(
+        $this->rebuildSlots(
             $this->futureSlotsQuery()
                 ->where('training_program_id', $trainingProgramId)
                 ->where('user_id', $userId)
@@ -64,7 +103,7 @@ class TrainingSessionRebuildService
             $threshold = $now;
         }
 
-        $this->rebuildFutureSlots(
+        $this->rebuildSlots(
             $this->futureSlotsQuery()
                 ->where('user_id', $userId)
                 ->where('datetime', '>', $threshold)
@@ -80,6 +119,15 @@ class TrainingSessionRebuildService
             ->orderBy('id');
     }
 
+    private function openSlotsQuery(): Builder
+    {
+        return TrainingProgramSlot::query()
+            ->whereNull('cancelled_at')
+            ->whereNot(fn (Builder $query) => $this->editGuard->applyImmutableSlotConstraints($query))
+            ->orderBy('datetime')
+            ->orderBy('id');
+    }
+
     private function whereOnOrAfterFromDate(Builder $query, string $fromDate): Builder
     {
         $threshold = Carbon::parse($fromDate)->startOfDay();
@@ -91,7 +139,12 @@ class TrainingSessionRebuildService
         return $query->where('datetime', '>=', $threshold);
     }
 
-    private function rebuildFutureSlots(Builder $query): void
+    private function whereOnOrAfterDate(Builder $query, string $fromDate): Builder
+    {
+        return $query->where('datetime', '>=', Carbon::parse($fromDate)->startOfDay());
+    }
+
+    private function rebuildSlots(Builder $query): void
     {
         $query
             ->with([

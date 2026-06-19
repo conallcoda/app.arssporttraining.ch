@@ -281,7 +281,7 @@ it('skips already recorded future sessions while updating later unrecorded sessi
         ->and(carryOverPlannedValues($openFutureExercise, 'reps'))->toBe(['14']);
 });
 
-it('writes historical overrides for past unrecorded sessions after the source', function () {
+it('writes current overrides for past unrecorded sessions after the source', function () {
     CarbonImmutable::setTestNow('2030-06-19 12:00:00');
 
     [$athlete, $pivot, $trainingProgram] = carryOverProgram([
@@ -292,11 +292,11 @@ it('writes historical overrides for past unrecorded sessions after the source', 
     ]);
 
     $sourceSlot = carryOverSlot($trainingProgram, $athlete, '2030-06-15 09:00:00');
-    $lockedButUnrecordedSlot = carryOverSlot($trainingProgram, $athlete, '2030-06-17 09:00:00');
+    $pastUnrecordedSlot = carryOverSlot($trainingProgram, $athlete, '2030-06-17 09:00:00');
     $openFutureSlot = carryOverSlot($trainingProgram, $athlete, '2030-06-22 09:00:00');
 
     $sourceExercise = carryOverSlotExercise($sourceSlot, $pivot->id);
-    $lockedButUnrecordedExercise = carryOverSlotExercise($lockedButUnrecordedSlot, $pivot->id);
+    $pastUnrecordedExercise = carryOverSlotExercise($pastUnrecordedSlot, $pivot->id);
     $openFutureExercise = carryOverSlotExercise($openFutureSlot, $pivot->id);
 
     $this->actingAs($athlete);
@@ -307,9 +307,10 @@ it('writes historical overrides for past unrecorded sessions after the source', 
 
     $overrides = carryOverOverrides($trainingProgram, $pivot->id, $athlete->id);
 
-    expect(carryOverPlannedValues($lockedButUnrecordedExercise, 'weight'))->toBe([10.0])
+    expect(carryOverPlannedValues($pastUnrecordedExercise, 'weight'))->toBe([10.0])
         ->and(carryOverPlannedValues($openFutureExercise, 'weight'))->toBe([10.0])
-        ->and(carryOverOverrideCellData($overrides->historicalGridOverrides, 1, 0, 0))->toBe(['reps' => '14', 'weight' => 10])
+        ->and(carryOverOverrideCellData($overrides->historicalGridOverrides, 1, 0, 0))->toBe([])
+        ->and(carryOverOverrideCellData($overrides->gridOverrides, 1, 0, 0))->toBe(['reps' => '14', 'weight' => 10])
         ->and(carryOverOverrideCellData($overrides->gridOverrides, 1, 1, 0))->toBe(['reps' => '14', 'weight' => 10]);
 
     CarbonImmutable::setTestNow();

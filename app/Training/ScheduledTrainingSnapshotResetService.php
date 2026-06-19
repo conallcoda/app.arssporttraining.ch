@@ -2,6 +2,7 @@
 
 namespace App\Training;
 
+use App\Casts\ExercisePlanConfigCast;
 use App\Data\Training\Compiled\CompiledTrainingExercise;
 use App\Data\Training\Compiled\CompiledTrainingSet;
 use App\Models\Exercise\ExercisePlanConfigOverride;
@@ -69,6 +70,7 @@ class ScheduledTrainingSnapshotResetService
 
         $count = (clone $query)->count();
         $query->delete();
+        ExercisePlanConfigCast::flushOverrideRowsCache();
 
         return $count;
     }

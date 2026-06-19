@@ -7,6 +7,7 @@ use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
+use App\Models\Training\TrainingProgramSlotStatusEnum;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -96,6 +97,55 @@ it('does not show a bilateral reps hint in the plan exercise grid header', funct
         ->assertDontSee('Alternate sides each rep')
         ->assertDontSee('Complete all reps on one side first')
         ->assertSee('7L_9R');
+});
+
+it('shows centralized session status chips in the planner session column', function () {
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+        ],
+    ]);
+
+    $program = ExerciseProgram::factory()->create();
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    Livewire::test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'weeks' => 1,
+        'sessionsPerWeek' => 2,
+        'weekSessionDates' => [
+            ['2026-04-27', '2026-04-30'],
+        ],
+        'expandedWeeks' => [0],
+        'sessionStatusesByWeek' => [
+            [
+                [
+                    'value' => TrainingProgramSlotStatusEnum::Pending->value,
+                    'label' => 'Pending',
+                    'color' => ['light' => '228 228 231', 'dark' => '161 161 170'],
+                ],
+                [
+                    'value' => TrainingProgramSlotStatusEnum::PartiallyCompleted->value,
+                    'label' => 'Partially Completed',
+                    'color' => ['light' => '252 211 77', 'dark' => '245 158 11'],
+                ],
+            ],
+        ],
+    ])
+        ->assertSee('Pending')
+        ->assertSee('Partially Completed')
+        ->assertSee('status-badge', false);
 });
 
 it('shows historical sessions even when they match the other sessions', function () {

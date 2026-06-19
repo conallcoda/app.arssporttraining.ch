@@ -94,14 +94,15 @@ it('detects when a stored planned value drifts away from the compiled snapshot',
     ])->save();
 
     $result = app(ScheduledTrainingSnapshotAuditService::class)->audit($slot->fresh());
+    $weightMismatch = collect($result->mismatches)
+        ->first(fn ($mismatch): bool => str_contains($mismatch->path, '.set:1.value:weight.planned_decimal_value'));
 
     expect($result->matches)->toBeFalse()
         ->and($result->classification->kind)->toBe('future_open')
         ->and($result->mismatchCount)->toBeGreaterThan(0)
-        ->and(collect($result->mismatches)->map(fn ($mismatch) => $mismatch->path)->all())
-        ->toContain('exercise:'.$exercise->id.'|0||main.set:1.value:weight.planned_decimal_value')
-        ->and(collect($result->mismatches)->firstWhere('path', 'exercise:'.$exercise->id.'|0||main.set:1.value:weight.planned_decimal_value')?->expected)->toBe(82.5)
-        ->and(collect($result->mismatches)->firstWhere('path', 'exercise:'.$exercise->id.'|0||main.set:1.value:weight.planned_decimal_value')?->actual)->toBe(85.0);
+        ->and($weightMismatch)->not->toBeNull()
+        ->and($weightMismatch?->expected)->toBe(82.5)
+        ->and($weightMismatch?->actual)->toBe(85.0);
 });
 
 it('classifies immutable or edited slots so migration tooling can avoid unsafe rewrites', function () {
@@ -129,7 +130,7 @@ it('classifies immutable or edited slots so migration tooling can avoid unsafe r
         'sort' => 0,
     ]);
 
-    $lockedPastSlot = TrainingProgramSlot::factory()->create([
+    $pastUnrecordedSlot = TrainingProgramSlot::factory()->create([
         'training_program_id' => $trainingProgram->id,
         'user_id' => $athlete->id,
         'datetime' => Carbon::parse('2030-04-03 09:00:00'),
@@ -152,11 +153,11 @@ it('classifies immutable or edited slots so migration tooling can avoid unsafe r
         'is_modified' => true,
     ]);
 
-    $lockedResult = app(ScheduledTrainingSnapshotAuditService::class)->audit($lockedPastSlot->fresh());
-    $ambiguousResult = app(ScheduledTrainingSnapshotAuditService::class)->audit($ambiguousFutureSlot->fresh());
+    $openResult = app(ScheduledTrainingSnapshotAuditService::class)->audit($pastUnrecordedSlot->fresh());
+    $recordedResult = app(ScheduledTrainingSnapshotAuditService::class)->audit($ambiguousFutureSlot->fresh());
 
-    expect($lockedResult->classification->kind)->toBe('locked_past')
-        ->and($lockedResult->classification->reasons)->toContain('datetime_in_past')
-        ->and($ambiguousResult->classification->kind)->toBe('ambiguous_boundary')
-        ->and($ambiguousResult->classification->reasons)->toContain('actual_values_present');
+    expect($openResult->classification->kind)->toBe('future_open')
+        ->and($openResult->classification->reasons)->not->toContain('datetime_in_past')
+        ->and($recordedResult->classification->kind)->toBe('locked_past')
+        ->and($recordedResult->classification->reasons)->toContain('actual_values_present');
 });

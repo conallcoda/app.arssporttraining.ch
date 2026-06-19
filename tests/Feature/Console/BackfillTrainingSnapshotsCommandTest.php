@@ -5,6 +5,7 @@ use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
+use App\Models\Training\TrainingProgramSlotStatusEnum;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use Carbon\Carbon;
@@ -136,6 +137,8 @@ it('skips locked-past mismatches during backfill so history is not silently rewr
         'training_program_id' => $trainingProgram->id,
         'user_id' => $athlete->id,
         'datetime' => Carbon::parse('2030-04-20 09:00:00'),
+        'status' => TrainingProgramSlotStatusEnum::Completed,
+        'completed_at' => Carbon::parse('2030-04-20 10:00:00'),
     ])->fresh('exercises.sets.values');
 
     $slot->exercises->first()->sets->first()->values->firstWhere('setting_key', 'weight')

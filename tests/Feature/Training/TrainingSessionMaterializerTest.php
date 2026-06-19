@@ -13,6 +13,7 @@ use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use App\Support\Training\ScheduledSessionSnapshotBuilder;
 use App\Training\TrainingSessionCompiler;
+use App\Training\TrainingSessionEditGuard;
 use App\Training\TrainingSessionMaterializer;
 use App\Training\TrainingValueSnapshotCodec;
 use Carbon\Carbon;
@@ -660,6 +661,87 @@ it('skips rewriting unchanged future slot materialization during a forced rebuil
             ->all())->toBe($originalSetIds);
 });
 
+it('rebuilds past unrecorded slots but skips recorded slots during forced materialization', function () {
+    Carbon::setTestNow('2030-04-13 12:00:00');
+
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Past Rebuild Strength']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $exercise = Exercise::factory()->create([
+        'name' => 'Back Squat',
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 6, 'applyPer' => 'session'],
+        ],
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-04-12 09:00:00'),
+    ])->fresh();
+
+    $exercise->forceFill([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 8, 'applyPer' => 'session'],
+        ],
+    ])->save();
+
+    app(TrainingSessionMaterializer::class)->materialize($slot, force: true);
+
+    $value = $slot->fresh('exercises.sets.values')
+        ->exercises
+        ->firstOrFail()
+        ->sets
+        ->firstOrFail()
+        ->values
+        ->firstWhere('setting_key', 'reps');
+
+    expect($value?->planned_string_value)->toBe('8');
+
+    $slot->forceFill([
+        'status' => TrainingProgramSlotStatusEnum::Completed,
+        'completed_at' => Carbon::parse('2030-04-12 10:00:00'),
+    ])->save();
+
+    $exercise->forceFill([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 10, 'applyPer' => 'session'],
+        ],
+    ])->save();
+
+    app(TrainingSessionMaterializer::class)->materialize($slot->fresh(), force: true);
+
+    $recordedValue = $slot->fresh('exercises.sets.values')
+        ->exercises
+        ->firstOrFail()
+        ->sets
+        ->firstOrFail()
+        ->values
+        ->firstWhere('setting_key', 'reps');
+
+    expect($recordedValue?->planned_string_value)->toBe('8');
+
+    Carbon::setTestNow();
+});
+
 it('preserves preloaded compilation relations across the locked materialization fetch', function () {
     $athlete = User::factory()->athlete()->create();
     $group = UserGroup::create(['name' => 'Test Group']);
@@ -700,7 +782,11 @@ it('preserves preloaded compilation relations across the locked materialization 
         })
         ->andThrow(new RuntimeException('stop after compile assertion'));
 
-    $materializer = new TrainingSessionMaterializer($compiler, app(TrainingValueSnapshotCodec::class));
+    $materializer = new TrainingSessionMaterializer(
+        $compiler,
+        app(TrainingValueSnapshotCodec::class),
+        app(TrainingSessionEditGuard::class),
+    );
 
     expect(fn () => $materializer->materialize($slot, force: true))
         ->toThrow(RuntimeException::class, 'stop after compile assertion');

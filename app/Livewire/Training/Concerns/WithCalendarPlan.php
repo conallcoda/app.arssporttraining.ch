@@ -13,11 +13,13 @@ use App\Models\Users\UserGroup;
 use App\Support\Profiling\PlanGridProfiler;
 use App\Support\Training\BlockModalPayloadBuilder;
 use App\Support\Training\MetricModalPayloadBuilder;
+use App\Support\Training\SlotStatusPresenter;
 use App\Training\CalendarBlockService;
 use App\Training\ProjectedOneRepMaxService;
 use App\Training\TrainingSessionEditGuard;
 use Carbon\Carbon;
 use Flux\Flux;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
@@ -638,7 +640,7 @@ trait WithCalendarPlan
 
         try {
             if ($this->planProgram === '') {
-                return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false, 'weekLabels' => [], 'weekSessions' => [], 'weekSessionDates' => [], 'expandedWeeks' => [], 'lockedSessionsByWeek' => []];
+                return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false, 'weekLabels' => [], 'weekSessions' => [], 'weekSessionDates' => [], 'expandedWeeks' => [], 'lockedSessionsByWeek' => [], 'sessionStatusesByWeek' => []];
             }
 
             $slotQuery = TrainingProgramSlot::query()
@@ -660,13 +662,51 @@ trait WithCalendarPlan
                 }
             }
 
-            $sessionDatetimes = $slotQuery
-                ->select('datetime')
-                ->distinct()
+            $editGuard = app(TrainingSessionEditGuard::class);
+            $slotRows = (clone $slotQuery)
+                ->select([
+                    'id',
+                    'datetime',
+                    'status',
+                    'completed_at',
+                    'has_any_modification',
+                    'completed_exercise_count',
+                    'partial_exercise_count',
+                    'skipped_exercise_count',
+                ])
+                ->withExists([
+                    'exercises as has_recorded_exercise_rows' => fn (Builder $query): Builder => $editGuard->applyRecordedExerciseOutcomeConstraints($query),
+                ])
                 ->orderBy('datetime')
-                ->pluck('datetime')
-                ->map(fn ($dt) => Carbon::parse($dt))
+                ->orderBy('id')
+                ->get();
+            $slotRowsByDateTime = $slotRows->groupBy(
+                fn (TrainingProgramSlot $slot): string => Carbon::parse($slot->datetime)->toDateTimeString(),
+            );
+            $sessionDatetimes = $slotRowsByDateTime
+                ->keys()
+                ->map(fn (string $dt) => Carbon::parse($dt))
                 ->values();
+            $statusPresenter = app(SlotStatusPresenter::class);
+            $sessionStatusesByDateTime = $slotRowsByDateTime
+                ->map(function (Collection $slots) use ($statusPresenter): array {
+                    $statuses = $slots->pluck('status')->all();
+                    $value = $statusPresenter->aggregateValue($statuses);
+
+                    return [
+                        'value' => $value,
+                        'label' => $statusPresenter->label($value),
+                        'color' => $statusPresenter->color($value),
+                    ];
+                })
+                ->all();
+            $lockedDateTimes = $slotRowsByDateTime
+                ->filter(fn (Collection $slots): bool => $slots->contains(
+                    fn (TrainingProgramSlot $slot): bool => $editGuard->aggregateColumnsIndicateRecordedOutcome($slot),
+                ))
+                ->keys()
+                ->flip()
+                ->all();
 
             $scheduledWeeks = $sessionDatetimes
                 ->groupBy(fn (Carbon $datetime) => $datetime->isoWeekYear().'-'.$datetime->isoWeek())
@@ -680,7 +720,7 @@ trait WithCalendarPlan
 
             $weeks = count($scheduledWeeks);
             if ($weeks === 0) {
-                return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false, 'weekLabels' => [], 'weekSessions' => [], 'weekSessionDates' => [], 'expandedWeeks' => [], 'lockedSessionsByWeek' => []];
+                return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false, 'weekLabels' => [], 'weekSessions' => [], 'weekSessionDates' => [], 'expandedWeeks' => [], 'lockedSessionsByWeek' => [], 'sessionStatusesByWeek' => []];
             }
 
             $sessionsPerWeek = max(1, (int) $scheduledWeeks->map(fn (array $week) => count($week['sessions']))->max());
@@ -690,8 +730,7 @@ trait WithCalendarPlan
             $weekSessionDates = [];
             $expandedWeeks = [];
             $lockedSessionsByWeek = [];
-            $planEditLockedDateTimes = app(TrainingSessionEditGuard::class)
-                ->planEditLockedDateTimeLookup((clone $slotQuery));
+            $sessionStatusesByWeek = [];
 
             foreach ($scheduledWeeks as $i => $weekInfo) {
                 $monday = Carbon::now()->setISODate($weekInfo['year'], $weekInfo['week'], 1);
@@ -704,7 +743,10 @@ trait WithCalendarPlan
                     ->map(fn (Carbon $sessionDatetime) => $sessionDatetime->toDateString())
                     ->all();
                 $lockedSessionsByWeek[$i] = collect($weekInfo['sessions'])
-                    ->map(fn (Carbon $sessionDatetime) => isset($planEditLockedDateTimes[$sessionDatetime->toDateTimeString()]))
+                    ->map(fn (Carbon $sessionDatetime) => isset($lockedDateTimes[$sessionDatetime->toDateTimeString()]))
+                    ->all();
+                $sessionStatusesByWeek[$i] = collect($weekInfo['sessions'])
+                    ->map(fn (Carbon $sessionDatetime) => $sessionStatusesByDateTime[$sessionDatetime->toDateTimeString()] ?? null)
                     ->all();
 
                 if (in_array(true, $lockedSessionsByWeek[$i], true)) {
@@ -721,6 +763,7 @@ trait WithCalendarPlan
                 'weekSessionDates' => $weekSessionDates,
                 'expandedWeeks' => $expandedWeeks,
                 'lockedSessionsByWeek' => $lockedSessionsByWeek,
+                'sessionStatusesByWeek' => $sessionStatusesByWeek,
             ];
         } finally {
             PlanGridProfiler::end($span, [

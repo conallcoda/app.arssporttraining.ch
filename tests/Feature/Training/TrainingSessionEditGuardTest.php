@@ -68,7 +68,7 @@ it('counts only recorded slots as immutable', function () {
         ->and($guard->countImmutableSlotsForOccurrence($trainingProgram->id, '2030-04-14 09:00:00', $athlete->id))->toBe(1);
 });
 
-it('locks all non-future and recorded slots for plan editing', function () {
+it('locks only recorded slots for plan editing', function () {
     Carbon::setTestNow('2030-04-12 12:00:00');
 
     $group = UserGroup::create(['name' => 'Test Group']);
@@ -105,7 +105,7 @@ it('locks all non-future and recorded slots for plan editing', function () {
         TrainingProgramSlot::query()->where('training_program_id', $trainingProgram->id),
     );
 
-    expect($lookup)->toHaveKey('2030-04-10 09:00:00')
+    expect($lookup)->not->toHaveKey('2030-04-10 09:00:00')
         ->and($lookup)->not->toHaveKey('2030-04-13 09:00:00')
         ->and($lookup)->toHaveKey('2030-04-14 09:00:00');
 });

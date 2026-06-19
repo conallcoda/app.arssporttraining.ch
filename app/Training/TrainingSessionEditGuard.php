@@ -12,15 +12,11 @@ use Illuminate\Support\Carbon;
 class TrainingSessionEditGuard
 {
     /**
-     * Plan edits are future-only unless a scheduled slot already has recorded data.
+     * Plan edits are locked only once a scheduled slot has recorded data.
      */
     public function applyPlanEditLockConstraints(Builder $query): Builder
     {
-        return $query->where(function (Builder $query): void {
-            $query
-                ->where('datetime', '<=', now())
-                ->orWhere(fn (Builder $query) => $this->applyRecordedOutcomeConstraints($query));
-        });
+        return $this->applyRecordedOutcomeConstraints($query);
     }
 
     /**
@@ -42,6 +38,36 @@ class TrainingSessionEditGuard
     public function applyImmutableSlotConstraints(Builder $query): Builder
     {
         return $this->applyRecordedOutcomeConstraints($query);
+    }
+
+    public function isImmutableSlot(TrainingProgramSlot $slot): bool
+    {
+        if (! $slot->exists) {
+            return false;
+        }
+
+        return $this->applyImmutableSlotConstraints(
+            TrainingProgramSlot::query()->whereKey($slot->id),
+        )->exists();
+    }
+
+    public function aggregateColumnsIndicateRecordedOutcome(TrainingProgramSlot $slot): bool
+    {
+        $status = $slot->status instanceof TrainingProgramSlotStatusEnum
+            ? $slot->status
+            : TrainingProgramSlotStatusEnum::tryFrom((string) ($slot->status ?? TrainingProgramSlotStatusEnum::Pending->value));
+
+        return in_array($status, [
+            TrainingProgramSlotStatusEnum::Completed,
+            TrainingProgramSlotStatusEnum::PartiallyCompleted,
+            TrainingProgramSlotStatusEnum::Skipped,
+        ], true)
+            || $slot->completed_at !== null
+            || (bool) $slot->has_any_modification
+            || (int) $slot->completed_exercise_count > 0
+            || (int) $slot->partial_exercise_count > 0
+            || (int) $slot->skipped_exercise_count > 0
+            || (bool) ($slot->has_recorded_exercise_rows ?? false);
     }
 
     public function hasImmutableSlotsForOccurrence(
@@ -109,6 +135,45 @@ class TrainingSessionEditGuard
         );
     }
 
+    public function applyRecordedExerciseOutcomeConstraints(Builder $query): Builder
+    {
+        return $query->where(function (Builder $query): void {
+            $query
+                ->whereIn('status', [
+                    TrainingProgramSlotExerciseStatusEnum::Completed,
+                    TrainingProgramSlotExerciseStatusEnum::PartiallyCompleted,
+                    TrainingProgramSlotExerciseStatusEnum::Skipped,
+                ])
+                ->orWhereNotNull('completed_at')
+                ->orWhere('has_any_modification', true)
+                ->orWhere('completed_set_count', '>', 0)
+                ->orWhere('modified_set_count', '>', 0)
+                ->orWhere('skipped_set_count', '>', 0)
+                ->orWhereHas('sets', fn (Builder $query): Builder => $this->applyRecordedSetOutcomeConstraints($query));
+        });
+    }
+
+    public function applyRecordedSetOutcomeConstraints(Builder $query): Builder
+    {
+        return $query->where(function (Builder $query): void {
+            $query
+                ->whereIn('status', [
+                    TrainingProgramSlotSetStatusEnum::Completed,
+                    TrainingProgramSlotSetStatusEnum::CompletedWithModification,
+                    TrainingProgramSlotSetStatusEnum::Skipped,
+                ])
+                ->orWhereNotNull('completed_at')
+                ->orWhereNotNull('skipped_at')
+                ->orWhere('has_any_modification', true)
+                ->orWhereHas('values', function (Builder $query): void {
+                    $query
+                        ->whereNotNull('actual_value_type')
+                        ->orWhere('actual_is_explicit', true)
+                        ->orWhere('is_modified', true);
+                });
+        });
+    }
+
     private function applyRecordedOutcomeConstraints(Builder $query): Builder
     {
         return $query->where(function (Builder $query): void {
@@ -123,36 +188,7 @@ class TrainingSessionEditGuard
                 ->orWhere('completed_exercise_count', '>', 0)
                 ->orWhere('partial_exercise_count', '>', 0)
                 ->orWhere('skipped_exercise_count', '>', 0)
-                ->orWhereHas('exercises', function (Builder $query): void {
-                    $query
-                        ->whereIn('status', [
-                            TrainingProgramSlotExerciseStatusEnum::Completed,
-                            TrainingProgramSlotExerciseStatusEnum::PartiallyCompleted,
-                            TrainingProgramSlotExerciseStatusEnum::Skipped,
-                        ])
-                        ->orWhereNotNull('completed_at')
-                        ->orWhere('has_any_modification', true)
-                        ->orWhere('completed_set_count', '>', 0)
-                        ->orWhere('modified_set_count', '>', 0)
-                        ->orWhere('skipped_set_count', '>', 0)
-                        ->orWhereHas('sets', function (Builder $query): void {
-                            $query
-                                ->whereIn('status', [
-                                    TrainingProgramSlotSetStatusEnum::Completed,
-                                    TrainingProgramSlotSetStatusEnum::CompletedWithModification,
-                                    TrainingProgramSlotSetStatusEnum::Skipped,
-                                ])
-                                ->orWhereNotNull('completed_at')
-                                ->orWhereNotNull('skipped_at')
-                                ->orWhere('has_any_modification', true)
-                                ->orWhereHas('values', function (Builder $query): void {
-                                    $query
-                                        ->whereNotNull('actual_value_type')
-                                        ->orWhere('actual_is_explicit', true)
-                                        ->orWhere('is_modified', true);
-                                });
-                        });
-                });
+                ->orWhereHas('exercises', fn (Builder $query): Builder => $this->applyRecordedExerciseOutcomeConstraints($query));
         });
     }
 

@@ -22,5 +22,6 @@ class PreviewGridGroup extends AbstractData
         public bool $hasLockedSessions = false,
         public array $collapsedMetaLines = [],
         public bool $showCopyMenu = false,
+        public ?array $status = null,
     ) {}
 }

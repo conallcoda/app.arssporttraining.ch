@@ -16,10 +16,6 @@ class ScheduledTrainingSnapshotClassifier
 
         $reasons = [];
 
-        if ($slot->datetime->lte(now())) {
-            $reasons[] = 'datetime_in_past';
-        }
-
         if (in_array($slot->status, [
             TrainingProgramSlotStatusEnum::Completed,
             TrainingProgramSlotStatusEnum::PartiallyCompleted,
@@ -54,7 +50,14 @@ class ScheduledTrainingSnapshotClassifier
 
         $reasons = array_values(array_unique($reasons));
 
-        if (array_intersect($reasons, ['datetime_in_past', 'non_pending_status', 'completed_at_present'])) {
+        if (array_intersect($reasons, [
+            'non_pending_status',
+            'completed_at_present',
+            'actual_values_present',
+            'slot_modified',
+            'exercise_or_set_modified',
+            'exercise_or_set_status_not_pending',
+        ])) {
             return new ScheduledSnapshotClassificationData('locked_past', $reasons);
         }
 

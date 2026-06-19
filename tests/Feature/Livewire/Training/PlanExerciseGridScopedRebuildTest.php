@@ -34,9 +34,10 @@ it('rebuilds only the edited athlete for athlete-specific exercise grid changes'
     $athlete = User::factory()->create();
 
     $mock = Mockery::mock(TrainingSessionRebuildDispatcher::class);
-    $mock->shouldReceive('dispatchFutureSlotsForExerciseProgramChange')
+    $mock->shouldReceive('dispatchOpenSlotsForExerciseProgramChange')
         ->once()
         ->with($program->id, $athlete->id, '2026-04-30');
+    $mock->shouldNotReceive('dispatchFutureSlotsForExerciseProgramChange');
     $mock->shouldNotReceive('dispatchFutureSlotsForExerciseProgram');
     $mock->shouldNotReceive('dispatchFutureSlotsForAthleteExerciseProgram');
     $mock->shouldNotReceive('dispatchFutureSlotsForTrainingProgramChange');
@@ -80,9 +81,10 @@ it('rebuilds only the selected scheduled training program when editing from the 
     ]);
 
     $mock = Mockery::mock(TrainingSessionRebuildDispatcher::class);
-    $mock->shouldReceive('dispatchFutureSlotsForTrainingProgramChange')
+    $mock->shouldReceive('dispatchOpenSlotsForTrainingProgramChange')
         ->once()
         ->with($trainingProgram->id, $athlete->id, '2026-04-30');
+    $mock->shouldNotReceive('dispatchFutureSlotsForTrainingProgramChange');
     $mock->shouldNotReceive('dispatchFutureSlotsForExerciseProgramChange');
     $mock->shouldNotReceive('dispatchFutureSlotsForExerciseProgram');
     $mock->shouldNotReceive('dispatchFutureSlotsForAthleteExerciseProgram');
@@ -122,6 +124,8 @@ it('does not rebuild future slots for locked historical-only exercise grid chang
     $athlete = User::factory()->create();
 
     $mock = Mockery::mock(TrainingSessionRebuildDispatcher::class);
+    $mock->shouldNotReceive('dispatchOpenSlotsForExerciseProgramChange');
+    $mock->shouldNotReceive('dispatchOpenSlotsForTrainingProgramChange');
     $mock->shouldNotReceive('dispatchFutureSlotsForExerciseProgramChange');
     $mock->shouldNotReceive('dispatchFutureSlotsForExerciseProgram');
     $mock->shouldNotReceive('dispatchFutureSlotsForAthleteExerciseProgram');
