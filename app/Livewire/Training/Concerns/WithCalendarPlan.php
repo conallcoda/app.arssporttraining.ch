@@ -9,7 +9,9 @@ use App\Models\Athlete\MetricSubmission;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramBlock;
 use App\Models\Training\TrainingProgramSlot;
+use App\Models\Training\TrainingProgramSlotExercise;
 use App\Models\Training\TrainingProgramSlotExerciseStatusEnum;
+use App\Models\Training\TrainingProgramSlotStatusEnum;
 use App\Models\Users\UserGroup;
 use App\Support\Profiling\PlanGridProfiler;
 use App\Support\Training\BlockModalPayloadBuilder;
@@ -641,7 +643,7 @@ trait WithCalendarPlan
 
         try {
             if ($this->planProgram === '') {
-                return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false, 'weekLabels' => [], 'weekSessions' => [], 'weekSessionDates' => [], 'expandedWeeks' => [], 'lockedSessionsByWeek' => [], 'sessionStatusesByWeek' => []];
+                return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false, 'weekLabels' => [], 'weekSessions' => [], 'weekSessionDates' => [], 'expandedWeeks' => [], 'lockedSessionsByWeek' => [], 'sessionStatusesByWeek' => [], 'exerciseSessionStatusesByWeek' => []];
             }
 
             $slotQuery = TrainingProgramSlot::query()
@@ -715,6 +717,40 @@ trait WithCalendarPlan
                     ];
                 })
                 ->all();
+            $exerciseStatusesByProgramExerciseAndDateTime = $slotRows->isEmpty()
+                ? collect()
+                : TrainingProgramSlotExercise::query()
+                    ->select([
+                        'training_program_slot_exercises.training_program_slot_id',
+                        'training_program_slot_exercises.exercise_program_exercise_id',
+                        'training_program_slot_exercises.status',
+                        'training_program_slots.datetime as slot_datetime',
+                    ])
+                    ->join('training_program_slots', 'training_program_slots.id', '=', 'training_program_slot_exercises.training_program_slot_id')
+                    ->whereIn('training_program_slot_id', $slotRows->pluck('id'))
+                    ->whereNotNull('training_program_slot_exercises.exercise_program_exercise_id')
+                    ->get()
+                    ->groupBy(fn (TrainingProgramSlotExercise $exercise): string => (string) $exercise->exercise_program_exercise_id)
+                    ->map(function (Collection $exercises) use ($statusPresenter): array {
+                        return $exercises
+                            ->groupBy(fn (TrainingProgramSlotExercise $exercise): string => Carbon::parse($exercise->slot_datetime)->toDateTimeString())
+                            ->map(function (Collection $exercises) use ($statusPresenter): array {
+                                $statuses = $exercises
+                                    ->map(fn (TrainingProgramSlotExercise $exercise): string => $exercise->status?->value ?? (string) $exercise->status)
+                                    ->all();
+                                $value = $statusPresenter->aggregateValue($statuses);
+                                if ($value === TrainingProgramSlotStatusEnum::PartiallyCompleted->value) {
+                                    $value = TrainingProgramSlotStatusEnum::Pending->value;
+                                }
+
+                                return [
+                                    'value' => $value,
+                                    'label' => $statusPresenter->label($value),
+                                    'color' => $statusPresenter->color($value),
+                                ];
+                            })
+                            ->all();
+                    });
             $lockedDateTimes = $slotRowsByDateTime
                 ->filter(fn (Collection $slots): bool => $slots->contains(
                     fn (TrainingProgramSlot $slot): bool => $editGuard->aggregateColumnsIndicateRecordedOutcome($slot),
@@ -735,7 +771,7 @@ trait WithCalendarPlan
 
             $weeks = count($scheduledWeeks);
             if ($weeks === 0) {
-                return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false, 'weekLabels' => [], 'weekSessions' => [], 'weekSessionDates' => [], 'expandedWeeks' => [], 'lockedSessionsByWeek' => [], 'sessionStatusesByWeek' => []];
+                return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false, 'weekLabels' => [], 'weekSessions' => [], 'weekSessionDates' => [], 'expandedWeeks' => [], 'lockedSessionsByWeek' => [], 'sessionStatusesByWeek' => [], 'exerciseSessionStatusesByWeek' => []];
             }
 
             $sessionsPerWeek = max(1, (int) $scheduledWeeks->map(fn (array $week) => count($week['sessions']))->max());
@@ -746,6 +782,7 @@ trait WithCalendarPlan
             $expandedWeeks = [];
             $lockedSessionsByWeek = [];
             $sessionStatusesByWeek = [];
+            $exerciseSessionStatusesByWeek = [];
 
             foreach ($scheduledWeeks as $i => $weekInfo) {
                 $monday = Carbon::now()->setISODate($weekInfo['year'], $weekInfo['week'], 1);
@@ -766,6 +803,14 @@ trait WithCalendarPlan
 
             }
 
+            foreach ($exerciseStatusesByProgramExerciseAndDateTime as $programExerciseId => $statusesByDateTime) {
+                foreach ($scheduledWeeks as $i => $weekInfo) {
+                    $exerciseSessionStatusesByWeek['program-exercise-'.$programExerciseId][$i] = collect($weekInfo['sessions'])
+                        ->map(fn (Carbon $sessionDatetime) => $statusesByDateTime[$sessionDatetime->toDateTimeString()] ?? null)
+                        ->all();
+                }
+            }
+
             return [
                 'weeks' => $weeks,
                 'sessionsPerWeek' => $sessionsPerWeek,
@@ -776,6 +821,7 @@ trait WithCalendarPlan
                 'expandedWeeks' => $expandedWeeks,
                 'lockedSessionsByWeek' => $lockedSessionsByWeek,
                 'sessionStatusesByWeek' => $sessionStatusesByWeek,
+                'exerciseSessionStatusesByWeek' => $exerciseSessionStatusesByWeek,
             ];
         } finally {
             PlanGridProfiler::end($span, [

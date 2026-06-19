@@ -63,6 +63,8 @@ class ProgramEditor extends Component
 
     public array $sessionStatusesByWeek = [];
 
+    public array $exerciseSessionStatusesByWeek = [];
+
     public bool $sessionLabels = false;
 
     public bool $showNameInput = false;
@@ -120,6 +122,8 @@ class ProgramEditor extends Component
     public array $relationshipSearch = [];
 
     public string $activeSection = 'main';
+
+    protected ?array $protectedSectionProgramExerciseIdsCache = null;
 
     public ?int $importProgramId = null;
 
@@ -189,6 +193,7 @@ class ProgramEditor extends Component
         array $expandedWeeks = [],
         array $lockedSessionsByWeek = [],
         array $sessionStatusesByWeek = [],
+        array $exerciseSessionStatusesByWeek = [],
         bool $sessionLabels = false,
         string $gridLayout = 'side-by-side',
         bool $showActualValueTabs = false,
@@ -233,6 +238,7 @@ class ProgramEditor extends Component
             $this->expandedWeeks = $expandedWeeks;
             $this->lockedSessionsByWeek = $lockedSessionsByWeek;
             $this->sessionStatusesByWeek = $sessionStatusesByWeek;
+            $this->exerciseSessionStatusesByWeek = $exerciseSessionStatusesByWeek;
             $this->sessionLabels = $sessionLabels;
             $this->gridLayout = $gridLayout;
             $this->showActualValueTabs = $showActualValueTabs;
@@ -259,6 +265,7 @@ class ProgramEditor extends Component
     protected function loadExerciseData(): void
     {
         PlanGridProfiler::measure('ProgramEditor.loadExerciseData', $this->profileContext(), function (): void {
+            $this->protectedSectionProgramExerciseIdsCache = null;
             $this->exerciseProgram->unsetRelation('exercises');
             $this->exerciseProgram->load([
                 'exercises' => fn ($q) => $q->orderByPivot('type')->orderByPivot('sort')->orderByPivot('id'),
@@ -448,6 +455,7 @@ class ProgramEditor extends Component
         }
 
         $this->syncSectionFormData();
+        $this->protectedSectionProgramExerciseIdsCache = null;
         unset($this->fieldsets, $this->exercises, $this->exerciseGroupLabels);
     }
 
@@ -695,6 +703,8 @@ class ProgramEditor extends Component
      */
     public function saveSectionExercises(): array
     {
+        $this->protectedSectionProgramExerciseIdsCache = null;
+
         $currentRows = $this->exerciseProgram->exercises()
             ->wherePivot('type', $this->activeSection)
             ->get()
@@ -856,6 +866,7 @@ class ProgramEditor extends Component
         $this->exerciseProgram->refresh();
         unset($this->fieldsets, $this->exercises, $this->exerciseGroupLabels);
         $this->loadExerciseData();
+        $this->protectedSectionProgramExerciseIdsCache = null;
 
         $preservedMaterializedCount = count($referencedProgramExerciseIdsToKeep);
 
@@ -899,6 +910,10 @@ class ProgramEditor extends Component
     /** @return array<int, int> */
     protected function protectedSectionProgramExerciseIds(): array
     {
+        if (is_array($this->protectedSectionProgramExerciseIdsCache)) {
+            return $this->protectedSectionProgramExerciseIdsCache;
+        }
+
         $currentRows = $this->exerciseProgram->exercises()
             ->wherePivot('type', $this->activeSection)
             ->get()
@@ -909,7 +924,7 @@ class ProgramEditor extends Component
             ->values()
             ->all();
 
-        return collect($this->referencedProgramExerciseIds($currentIds))
+        return $this->protectedSectionProgramExerciseIdsCache = collect($this->referencedProgramExerciseIds($currentIds))
             ->merge(app(ExerciseProgramSectionMutationService::class)->immutableProgramExerciseIds(
                 currentRows: $currentRows,
                 config: $this->exerciseProgram->config,

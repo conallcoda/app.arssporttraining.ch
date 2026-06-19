@@ -146,6 +146,7 @@
                                         :expandedWeeks="$this->planScheduleInfo['expandedWeeks']"
                                         :lockedSessionsByWeek="$this->planScheduleInfo['lockedSessionsByWeek']"
                                         :sessionStatusesByWeek="$this->planScheduleInfo['sessionStatusesByWeek']"
+                                        :exerciseSessionStatusesByWeek="$this->planScheduleInfo['exerciseSessionStatusesByWeek']"
                                         :sessionLabels="true"
                                         :showActualValueTabs="true"
                                         :planMeasuredReps="$this->planMeasuredData['measuredReps']"

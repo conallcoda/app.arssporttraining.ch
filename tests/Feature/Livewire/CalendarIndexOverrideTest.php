@@ -550,6 +550,114 @@ it('derives planner status from each concrete slot before aggregating displayed 
         ->and($info['sessionStatusesByWeek'][0][0]['label'] ?? null)->toBe('Partially Completed');
 });
 
+it('builds exercise-specific plan statuses without partial badges', function () {
+    Carbon::setTestNow('2026-03-08 12:00:00');
+
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Three Amigos']);
+    $user = User::factory()->athlete()->create();
+    $group->members()->attach($user);
+    $category = Tag::factory()->withScope('exercise_category')->create([
+        'name' => 'Strength',
+        'sort_order' => 1,
+    ]);
+    $program = ExerciseProgram::factory()->create([
+        'exercise_category_id' => $category->id,
+    ]);
+    $completedExercise = Exercise::factory()->create(['name' => 'Front Squat']);
+    $pendingExercise = Exercise::factory()->create(['name' => 'Cat & Cow']);
+    $partialExercise = Exercise::factory()->create(['name' => 'Bicycle Recovery']);
+    $completedPivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $completedExercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+    $pendingPivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $pendingExercise->id,
+        'sort' => 1,
+        'type' => 'main',
+    ]);
+    $partialPivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $partialExercise->id,
+        'sort' => 2,
+        'type' => 'main',
+    ]);
+
+    $trainingProgram = TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $slot = TrainingProgramSlot::create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $user->id,
+        'datetime' => '2026-03-03 09:00:00',
+    ]);
+    $slot->forceFill([
+        'status' => TrainingProgramSlotStatusEnum::PartiallyCompleted,
+        'exercise_count' => 3,
+        'completed_exercise_count' => 1,
+        'partial_exercise_count' => 1,
+        'pending_exercise_count' => 1,
+    ])->save();
+    TrainingProgramSlotExercise::query()
+        ->where('training_program_slot_id', $slot->id)
+        ->delete();
+    TrainingProgramSlotExercise::create([
+        'training_program_slot_id' => $slot->id,
+        'exercise_id' => $completedExercise->id,
+        'exercise_program_exercise_id' => $completedPivot->id,
+        'sort' => 0,
+        'type' => 'main',
+        'status' => TrainingProgramSlotExerciseStatusEnum::Completed,
+        'set_count' => 1,
+        'completed_set_count' => 1,
+    ]);
+    TrainingProgramSlotExercise::create([
+        'training_program_slot_id' => $slot->id,
+        'exercise_id' => $pendingExercise->id,
+        'exercise_program_exercise_id' => $pendingPivot->id,
+        'sort' => 1,
+        'type' => 'main',
+        'status' => TrainingProgramSlotExerciseStatusEnum::Pending,
+        'set_count' => 1,
+        'pending_set_count' => 1,
+    ]);
+    TrainingProgramSlotExercise::create([
+        'training_program_slot_id' => $slot->id,
+        'exercise_id' => $partialExercise->id,
+        'exercise_program_exercise_id' => $partialPivot->id,
+        'sort' => 2,
+        'type' => 'main',
+        'status' => TrainingProgramSlotExerciseStatusEnum::PartiallyCompleted,
+        'set_count' => 2,
+        'completed_set_count' => 1,
+        'pending_set_count' => 1,
+    ]);
+
+    $component = Livewire::actingAs($coach)
+        ->test(CalendarIndex::class, [
+            'group' => (string) $group->id,
+            'user' => (string) $user->id,
+            'view' => 'plan',
+            'planCategory' => (string) $category->id,
+            'planProgram' => (string) $trainingProgram->id,
+        ]);
+
+    $info = $component->get('planScheduleInfo');
+
+    expect($info['sessionStatusesByWeek'][0][0]['value'] ?? null)->toBe(TrainingProgramSlotStatusEnum::PartiallyCompleted->value)
+        ->and($info['exerciseSessionStatusesByWeek']['program-exercise-'.$completedPivot->id][0][0]['value'] ?? null)->toBe(TrainingProgramSlotStatusEnum::Completed->value)
+        ->and($info['exerciseSessionStatusesByWeek']['program-exercise-'.$completedPivot->id][0][0]['label'] ?? null)->toBe('Completed')
+        ->and($info['exerciseSessionStatusesByWeek']['program-exercise-'.$pendingPivot->id][0][0]['value'] ?? null)->toBe(TrainingProgramSlotStatusEnum::Pending->value)
+        ->and($info['exerciseSessionStatusesByWeek']['program-exercise-'.$pendingPivot->id][0][0]['label'] ?? null)->toBe('Pending')
+        ->and($info['exerciseSessionStatusesByWeek']['program-exercise-'.$partialPivot->id][0][0]['value'] ?? null)->toBe(TrainingProgramSlotStatusEnum::Pending->value)
+        ->and($info['exerciseSessionStatusesByWeek']['program-exercise-'.$partialPivot->id][0][0]['label'] ?? null)->toBe('Pending');
+});
+
 it('creates individual slots per user in group mode', function () {
     $coach = User::factory()->coach()->create();
     $group = UserGroup::create(['name' => 'Three Amigos']);

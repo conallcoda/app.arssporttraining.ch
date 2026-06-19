@@ -16,6 +16,7 @@ use App\Models\Users\UserGroup;
 use App\Training\TrainingSessionRebuildDispatcher;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -287,6 +288,41 @@ it('marks immutable selected exercises as non-removable in selector client state
     expect($state['selectedItems'])->toHaveCount(1)
         ->and($state['selectedItems'][0]['item']['_remove_disabled'] ?? false)->toBeTrue()
         ->and($state['selectedItems'][0]['item']['_remove_disabled_label'] ?? null)->toBe('Recorded sessions keep this exercise in the plan.');
+});
+
+it('caches protected section exercise ids while rendering selected rows', function () {
+    $program = ExerciseProgram::factory()->create();
+
+    foreach (range(0, 7) as $sort) {
+        $exercise = Exercise::factory()->create();
+
+        ExerciseProgramExercise::create([
+            'exercise_program_id' => $program->id,
+            'exercise_id' => $exercise->id,
+            'sort' => $sort,
+            'type' => 'main',
+        ]);
+    }
+
+    $component = Livewire::test(ProgramEditor::class, [
+        'exerciseProgram' => $program,
+        'planId' => $program->id,
+    ]);
+
+    $rows = $component->instance()->data['section_exercises'];
+
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+
+    foreach ($rows as $row) {
+        $component->instance()->sectionExerciseRowIsProtected($row);
+    }
+
+    $queries = collect(DB::getQueryLog())->pluck('query');
+    DB::disableQueryLog();
+
+    expect($queries->filter(fn (string $sql): bool => str_contains($sql, 'select distinct `exercise_program_exercise_id`'))->count())->toBeLessThanOrEqual(1)
+        ->and($queries->filter(fn (string $sql): bool => str_contains($sql, '`exercise_program_exercises`.`type` = ?'))->count())->toBeLessThanOrEqual(1);
 });
 
 it('orders section exercises by group before sort order', function () {

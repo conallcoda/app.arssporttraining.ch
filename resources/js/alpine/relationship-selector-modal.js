@@ -16,6 +16,7 @@ document.addEventListener('alpine:init', () => {
         activeListKey: '',
         search: '',
         searchDebounce: null,
+        modalState: {},
         selectedItems: [],
         listStates: {},
         loading: false,
@@ -173,6 +174,7 @@ document.addEventListener('alpine:init', () => {
 
                 this.selectedItems = this.normalizeSelectedItemsFromCurrentOrder(Array.isArray(payload?.selectedItems) ? payload.selectedItems : []);
                 this.schemaDefaults = payload?.schemaDefaults ?? this.schemaDefaults;
+                this.modalState = payload?.modalState ?? {};
                 this.limit = Number(payload?.limit ?? this.limit);
                 this.search = '';
                 this.activeListKey = typeof payload?.initialListKey === 'string' && payload.initialListKey !== ''
@@ -482,6 +484,35 @@ document.addEventListener('alpine:init', () => {
             return Array.isArray(this.listConfig(listKey)?.itemFields) ? this.listConfig(listKey).itemFields : [];
         },
 
+        modalStateFieldValue(field) {
+            return this.modalState?.[field?.key] ?? field?.default ?? '';
+        },
+
+        updateModalStateField(field, value) {
+            if (!field?.key) {
+                return;
+            }
+
+            this.modalState = {
+                ...this.modalState,
+                [field.key]: value === '' && field.clearable ? null : value,
+            };
+        },
+
+        modalStateFieldInvalid(field) {
+            if (!field?.required) {
+                return false;
+            }
+
+            const value = this.modalStateFieldValue(field);
+
+            return value === null || value === undefined || String(value).trim() === '';
+        },
+
+        modalStateFieldError(field) {
+            return this.modalStateFieldInvalid(field) ? `${field?.label ?? 'This field'} is required.` : '';
+        },
+
         rowItemFieldValue(listKey, row, itemField) {
             if (!this.isSelectedRowsList(listKey)) {
                 return '';
@@ -637,6 +668,10 @@ document.addEventListener('alpine:init', () => {
                 this.selectedItems = this.normalizeSelectedItemsFromCurrentOrder(response.selectedItems);
             }
 
+            if (response.modalState && typeof response.modalState === 'object') {
+                this.modalState = response.modalState;
+            }
+
             if (typeof response.activeListKey === 'string' && response.activeListKey !== '') {
                 this.activeListKey = response.activeListKey;
             }
@@ -703,6 +738,7 @@ document.addEventListener('alpine:init', () => {
                         _remove_disabled: undefined,
                         _remove_disabled_label: undefined,
                     })),
+                    this.modalState,
                 );
             } finally {
                 this.saving = false;

@@ -296,7 +296,7 @@
                         :weekSessionDates="$weekSessionDates"
                         :expandedWeeks="$expandedWeeks"
                         :lockedSessionsByWeek="$lockedSessionsByWeek"
-                        :sessionStatusesByWeek="$sessionStatusesByWeek"
+                        :sessionStatusesByWeek="$exerciseSessionStatusesByWeek['program-exercise-' . $exercise->pivot->id] ?? []"
                         :sessionLabels="$sessionLabels"
                         :showActualValueTabs="$showActualValueTabs"
                         :valueDisplayMode="$effectiveValueDisplayMode"
