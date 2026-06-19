@@ -63,9 +63,19 @@
         $actualDiffersFromPlanned = static fn (mixed $plannedValue, mixed $actualValue): bool => $actualValue !== null
             && $actualValue !== '-'
             && (string) $actualValue !== (string) $plannedValue;
-        $formatGridValue = static fn (string $field, mixed $value): mixed => $field === 'reps'
-            ? (\App\Data\Exercise\Settings\RepsSetting::formatAthleteValue($value) ?? $value)
-            : $value;
+        $formatGridValue = static function (string $field, mixed $value): mixed {
+            $settingClass = \App\Data\Exercise\ExerciseSetting::tryFrom($field)?->settingClass();
+
+            if (! is_string($settingClass) || ! is_subclass_of($settingClass, \App\Data\Exercise\Settings\AbstractSetting::class)) {
+                return $value;
+            }
+
+            $config = $field === 'duration' && is_string($value) && str_contains($value, ':')
+                ? ['unit' => 'mm:ss']
+                : [];
+
+            return $settingClass::formatAthleteValue($value, config: $config) ?? $value;
+        };
     @endphp
     <div class="{{ $showHeader ? 'space-y-2 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4' : 'space-y-2' }}">
         @if ($showHeader)

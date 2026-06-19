@@ -9,6 +9,8 @@ use Coda\FormKit\Fields;
 
 class TempoSetting extends AbstractSetting
 {
+    private const TEMPO_PATTERN = '[0-9xX]{4}';
+
     public function __construct(
         public ?string $default = '3010',
         public string $applyPer = ApplyPerScope::FORM_SESSION,
@@ -19,7 +21,7 @@ class TempoSetting extends AbstractSetting
         return new CellInputMeta(
             inputType: 'text',
             maxlength: 4,
-            mask: '9999',
+            pattern: self::TEMPO_PATTERN,
         );
     }
 
@@ -29,7 +31,7 @@ class TempoSetting extends AbstractSetting
             Fields\Text::make('default')
                 ->label('Default Tempo')
                 ->default('3010')
-                ->rules('nullable|regex:/^\d{4}$/'),
+                ->rules('nullable|regex:/^'.self::TEMPO_PATTERN.'$/'),
             ApplyPerField::make(ApplyPerScope::FORM_SESSION),
         ];
     }

@@ -6,6 +6,7 @@ use App\Data\Exercise\Preview\CellInputMeta;
 use App\Data\Exercise\SplitDuration;
 use App\Form\Fields\Exercise\ApplyPerField;
 use App\Support\Training\ApplyPerScope;
+use Coda\FormKit\Field;
 use Coda\FormKit\Fields;
 
 class DurationSetting extends AbstractSetting
@@ -71,17 +72,28 @@ class DurationSetting extends AbstractSetting
                 ])
                 ->default('seconds')
                 ->live(),
-            Fields\Duration::make('default')
+            Fields\Text::make('default')
                 ->label('Default Duration')
-                ->defaultMap([
-                    'seconds' => 60,
-                    'minutes' => 1,
-                    'mm:ss' => '1:00',
+                ->default(60)
+                ->maxLength(15)
+                ->suffixMap([
+                    'seconds' => 's',
+                    'minutes' => 'm',
+                    'mm:ss' => 'mm:ss',
                 ])
                 ->rules(['nullable', 'regex:/^'.self::DURATION_PATTERN.'$/'])
-                ->unit('unit'),
+                ->live(),
             ApplyPerField::make(),
         ];
+    }
+
+    public static function athleteField(string $name, array $config = []): Field
+    {
+        return Fields\Text::make($name)
+            ->label(static::athleteLabel($config))
+            ->maxLength(15)
+            ->suffix(static::resolveUnitLabel($config) ?? '')
+            ->rules(static::athleteRules($config));
     }
 
     public static function normalizeAthleteValue(mixed $value, array $config = []): mixed

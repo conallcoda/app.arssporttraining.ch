@@ -4,6 +4,7 @@ use App\Data\Exercise\Settings\RestSetting;
 use App\Data\Exercise\Settings\DurationSetting;
 use App\Data\Exercise\Settings\RepsSetting;
 use App\Data\Exercise\Settings\SetsSetting;
+use App\Data\Exercise\Settings\TempoSetting;
 use App\Data\Exercise\ExerciseConfig;
 use App\Data\Training\Config\ExerciseOverrides;
 use Coda\FormKit\Field;
@@ -101,6 +102,36 @@ it('requires a valid set count because sets are structural', function () {
         ], $rules)->passes())->toBeTrue();
 });
 
+it('allows four-character tempo values made from digits and x', function () {
+    $athleteField = TempoSetting::athleteField('tempo');
+    $rules = Field::buildValidationRules(TempoSetting::fields(), 'data.config.tempo.');
+    $athleteRules = Field::buildValidationRules([
+        $athleteField,
+    ], 'editValues.1.');
+
+    expect($athleteField->maxLength)->toBe(4)
+        ->and(TempoSetting::inputMeta()->pattern)->toBe('[0-9xX]{4}')
+        ->and(TempoSetting::inputMeta()->mask)->toBeNull();
+
+    foreach (['3010', '30X0', 'XXXX', 'X10X', 'xxxx', 'x10x'] as $tempo) {
+        expect(Validator::make([
+            'data' => ['config' => ['tempo' => ['default' => $tempo]]],
+        ], $rules)->passes())->toBeTrue("Expected planning tempo {$tempo} to pass")
+            ->and(Validator::make([
+                'editValues' => [1 => ['tempo' => $tempo]],
+            ], $athleteRules)->passes())->toBeTrue("Expected athlete tempo {$tempo} to pass");
+    }
+
+    foreach (['301', '30100', '30A0', '3-10', ''] as $tempo) {
+        expect(Validator::make([
+            'data' => ['config' => ['tempo' => ['default' => $tempo]]],
+        ], $rules)->errors()->has('data.config.tempo.default'))->toBe($tempo !== '')
+            ->and(Validator::make([
+                'editValues' => [1 => ['tempo' => $tempo]],
+            ], $athleteRules)->errors()->has('editValues.1.tempo'))->toBeTrue();
+    }
+});
+
 it('allows rep ranges for planning but not athlete recording', function () {
     $manualPlanningData = [
         'config' => [
@@ -162,12 +193,20 @@ it('allows rep ranges for planning but not athlete recording', function () {
 });
 
 it('allows split durations and stores canonical duration metadata', function () {
+    $defaultField = collect(DurationSetting::fields())->firstWhere('name', 'default');
+    $athleteField = DurationSetting::athleteField('duration', ['unit' => 'mm:ss']);
     $rules = Field::buildValidationRules(DurationSetting::fields(), 'data.config.duration.');
     $athleteRules = Field::buildValidationRules([
-        DurationSetting::athleteField('duration', ['unit' => 'mm:ss']),
+        $athleteField,
     ], 'editValues.1.');
 
-    expect(Validator::make([
+    expect($defaultField?->type)->toBe('text')
+        ->and($defaultField?->inputType)->toBe('text')
+        ->and($defaultField?->maxLength)->toBe(15)
+        ->and($athleteField->type)->toBe('text')
+        ->and($athleteField->inputType)->toBe('text')
+        ->and($athleteField->maxLength)->toBe(15)
+        ->and(Validator::make([
         'data' => ['config' => ['duration' => ['default' => '10:00_10:00']]],
     ], $rules)->passes())->toBeTrue()
         ->and(Validator::make([
