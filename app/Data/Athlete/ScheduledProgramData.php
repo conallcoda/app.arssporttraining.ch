@@ -36,6 +36,7 @@ class ScheduledProgramData extends AbstractData
             ->values()
             ->map(fn (TrainingProgramSlotExercise $exercise) => [
                 'submitted' => $exercise->status->isSubmitted(),
+                'status' => $exercise->status->value,
                 'color' => $exercise->status->barColor(),
             ])
             ->all();

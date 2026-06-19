@@ -8,6 +8,31 @@
     $segments = collect($segments)->values()->all();
     $recordedCount = count(array_filter($segments, fn (array $segment): bool => (bool) ($segment['submitted'] ?? false)));
     $totalCount = count($segments);
+    $completedCount = count(array_filter($segments, fn (array $segment): bool => ($segment['status'] ?? null) === 'completed'));
+    $skippedCount = count(array_filter($segments, fn (array $segment): bool => ($segment['status'] ?? null) === 'skipped'));
+    $partialCount = count(array_filter($segments, fn (array $segment): bool => ($segment['status'] ?? null) === 'partially_completed'));
+    $pendingCount = max(0, $totalCount - $recordedCount);
+
+    $formatCount = fn (int $count, string $label): string => $count.' '.$label;
+
+    if ($totalCount > 0 && $completedCount === $totalCount) {
+        $progressLabel = "{$completedCount}/{$totalCount} completed";
+    } elseif ($totalCount > 0 && $skippedCount === $totalCount) {
+        $progressLabel = "{$skippedCount}/{$totalCount} skipped";
+    } else {
+        $breakdown = collect([
+            $completedCount > 0 ? $formatCount($completedCount, 'completed') : null,
+            $skippedCount > 0 ? $formatCount($skippedCount, 'skipped') : null,
+            $partialCount > 0 ? $formatCount($partialCount, 'partial') : null,
+            $pendingCount > 0 ? $formatCount($pendingCount, 'pending') : null,
+        ])->filter()->implode(', ');
+
+        $progressLabel = "{$recordedCount}/{$totalCount} recorded";
+
+        if ($breakdown !== '') {
+            $progressLabel .= " ({$breakdown})";
+        }
+    }
 @endphp
 
 <div {{ $attributes->class(['space-y-1', $class]) }}>
@@ -28,6 +53,6 @@
         'text-[11px] font-medium text-zinc-600 dark:text-zinc-300',
         'text-center' => $labelAlign === 'center',
     ])>
-        {{ $recordedCount }}/{{ $totalCount }} recorded
+        {{ $progressLabel }}
     </div>
 </div>

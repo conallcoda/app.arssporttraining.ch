@@ -11,6 +11,7 @@ use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
+use App\Training\TrainingSessionProgressService;
 use Carbon\Carbon;
 use Livewire\Livewire;
 
@@ -188,6 +189,60 @@ it('works with a future date for tomorrow view', function () {
         ->assertSee('AM')
         ->assertSee('09:00')
         ->assertDontSee('Readiness');
+});
+
+it('shows recorded progress for future sessions that have already been recorded', function () {
+    $athlete = User::factory()->athlete()->create();
+    $program = ExerciseProgram::factory()->create(['name' => 'Future Recorded Program']);
+    $futureDate = Carbon::today()->addWeek();
+
+    $slot = createSlotForAthlete($athlete, $this->group, [
+        'exercise_program_id' => $program->id,
+        'datetime' => $futureDate->copy()->setTime(9, 0),
+    ])->fresh('exercises.sets.values');
+
+    app(TrainingSessionProgressService::class)->markExerciseCompleted($slot->exercises->first());
+
+    Livewire::actingAs($athlete)
+        ->test(DaySchedule::class, [
+            'date' => $futureDate->startOfWeek()->format('Y-m-d'),
+            'viewMode' => 'week',
+            'showReadiness' => false,
+        ])
+        ->assertSee('Recorded')
+        ->assertSee('1/1 completed');
+});
+
+it('summarizes mixed recorded progress by completion state', function () {
+    $athlete = User::factory()->athlete()->create();
+    $program = ExerciseProgram::factory()->create(['name' => 'Mixed Future Program']);
+    $futureDate = Carbon::today()->addWeek();
+
+    foreach (['Completed Exercise', 'Second Completed Exercise', 'Skipped Exercise', 'Pending Exercise'] as $index => $name) {
+        $program->exercises()->attach(Exercise::factory()->create(['name' => $name])->id, [
+            'sort' => $index,
+            'type' => 'main',
+        ]);
+    }
+
+    $slot = createSlotForAthlete($athlete, $this->group, [
+        'exercise_program_id' => $program->id,
+        'datetime' => $futureDate->copy()->setTime(9, 0),
+    ])->fresh('exercises.sets.values');
+
+    $slotExercises = $slot->exercises->sortBy('sort')->values();
+
+    app(TrainingSessionProgressService::class)->markExerciseCompleted($slotExercises[0]);
+    app(TrainingSessionProgressService::class)->markExerciseCompleted($slotExercises[1]);
+    app(TrainingSessionProgressService::class)->markExerciseSkipped($slotExercises[2]);
+
+    Livewire::actingAs($athlete)
+        ->test(DaySchedule::class, [
+            'date' => $futureDate->startOfWeek()->format('Y-m-d'),
+            'viewMode' => 'week',
+            'showReadiness' => false,
+        ])
+        ->assertSee('3/4 recorded (2 completed, 1 skipped, 1 pending)');
 });
 
 it('athlete layout stores readiness on submission event', function () {

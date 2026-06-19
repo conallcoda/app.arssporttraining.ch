@@ -3,6 +3,7 @@
 namespace App\Training;
 
 use App\Models\Training\TrainingProgramSlot;
+use App\Models\Training\TrainingProgramSlotStatusEnum;
 use App\Models\Training\TrainingProgramSlotExerciseStatusEnum;
 use App\Models\Training\TrainingProgramSlotSetStatusEnum;
 use Illuminate\Database\Eloquent\Builder;
@@ -167,7 +168,13 @@ class TrainingSessionEditGuard
     {
         return $query->where(function (Builder $query): void {
             $query
-                ->where('has_any_modification', true)
+                ->whereIn('status', [
+                    TrainingProgramSlotStatusEnum::Completed,
+                    TrainingProgramSlotStatusEnum::PartiallyCompleted,
+                    TrainingProgramSlotStatusEnum::Skipped,
+                ])
+                ->orWhereNotNull('completed_at')
+                ->orWhere('has_any_modification', true)
                 ->orWhere('completed_exercise_count', '>', 0)
                 ->orWhere('partial_exercise_count', '>', 0)
                 ->orWhere('skipped_exercise_count', '>', 0)

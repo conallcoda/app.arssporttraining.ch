@@ -115,12 +115,31 @@ class DropSet
 
     public static function expectedPartCount(array $data): ?int
     {
+        if (isset($data['_drop_set_part_count']) && is_numeric($data['_drop_set_part_count'])) {
+            return (int) $data['_drop_set_part_count'];
+        }
+
         $config = is_array($data['config'] ?? null) ? $data['config'] : $data;
 
         return self::partCount('reps', $config['reps']['default'] ?? null);
     }
 
     public static function partCountRule(string $kind, ?int $expected): \Closure
+    {
+        return static function (string $attribute, mixed $value, \Closure $fail) use ($kind, $expected): void {
+            if ($value === null || $value === '' || $expected === null) {
+                return;
+            }
+
+            $actual = self::partCount($kind, $value);
+
+            if ($actual !== null && $actual !== $expected) {
+                $fail('The :attribute field must have '.$expected.' drop-set parts.');
+            }
+        };
+    }
+
+    public static function exactPartCountRule(string $kind, ?int $expected): \Closure
     {
         return static function (string $attribute, mixed $value, \Closure $fail) use ($kind, $expected): void {
             if ($value === null || $value === '' || $expected === null) {

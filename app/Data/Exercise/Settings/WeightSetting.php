@@ -125,6 +125,21 @@ class WeightSetting extends AbstractSetting
             ->rules(static::athleteRules($config));
     }
 
+    public static function athleteRules(array $config = []): array
+    {
+        if (! DropSet::isEnabled($config)) {
+            return parent::athleteRules($config);
+        }
+
+        return [
+            'required',
+            'string',
+            'max:31',
+            'regex:/^'.DropSet::commaPattern('weight').'$/',
+            DropSet::exactPartCountRule('weight', DropSet::expectedPartCount($config)),
+        ];
+    }
+
     public static function normalizeAthleteValue(mixed $value, array $config = []): mixed
     {
         if (! DropSet::isEnabled($config)) {

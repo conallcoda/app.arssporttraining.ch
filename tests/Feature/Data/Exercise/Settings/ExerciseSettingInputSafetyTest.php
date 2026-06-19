@@ -283,7 +283,7 @@ it('only allows drop-set syntax when the set type explicitly opts in', function 
         ], $dropRepsRules)->passes())->toBeTrue()
         ->and(Validator::make([
             'editValues' => [1 => ['reps' => '12,12']],
-        ], $dropRepsAthleteRules)->passes())->toBeTrue()
+        ], $dropRepsAthleteRules)->errors()->has('editValues.1.reps'))->toBeTrue()
         ->and(RepsSetting::normalizeAthleteValue('12,12', $dropConfig))->toBe('12,12,0')
         ->and(Validator::make([
             'data' => ['config' => ['weight' => ['default' => '6,5,4']]],

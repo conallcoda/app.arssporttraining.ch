@@ -1,9 +1,9 @@
 @php
-    $showRecordingState = ! ($day['isFuture'] ?? false);
     $totalSessions = $day['programs']->count();
     $fullyRecordedSessions = $day['programs']->filter(
         fn ($program) => $program->totalExerciseCount > 0 && $program->recordedExerciseCount >= $program->totalExerciseCount
     )->count();
+    $showRecordingState = $totalSessions > 0 && $fullyRecordedSessions === $totalSessions;
 
     if ($totalSessions > 0 && $fullyRecordedSessions === $totalSessions) {
         $dayStatusLabel = 'Recorded';
@@ -70,8 +70,8 @@
                                 </div>
                                 <x-athlete.category-badge :label="$program->categoryName" :color="$program->categoryColor" />
                             </div>
-                            @if (! $program->isFuture)
-                                <x-athlete.recorded-progress :segments="$program->progressSegments" class="max-w-40" />
+                            @if ($program->recordedExerciseCount > 0)
+                                <x-athlete.recorded-progress :segments="$program->progressSegments" />
                             @endif
                         </div>
                         <flux:icon.chevron-right class="mt-1 size-4 shrink-0 text-zinc-400 dark:text-zinc-500" />

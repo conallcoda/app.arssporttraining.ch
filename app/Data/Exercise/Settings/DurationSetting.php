@@ -115,6 +115,7 @@ class DurationSetting extends AbstractSetting
         return [
             'required',
             'max:15',
+            DropSet::exactPartCountRule('duration', DropSet::expectedPartCount($config)),
             static function (string $attribute, mixed $value, \Closure $fail) use ($pattern): void {
                 if (is_int($value) || is_float($value)) {
                     $value = (string) $value;

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Athlete;
 
+use App\Data\Exercise\DropSet;
 use App\Data\Exercise\ExerciseSetting;
 use App\Data\Exercise\Settings\AbstractSetting;
 use App\Data\Exercise\Settings\RepsSetting;
@@ -312,6 +313,7 @@ class ProgramDetails extends Component
             ->values()
             ->map(fn (TrainingProgramSlotExercise $exercise) => [
                 'submitted' => $exercise->status->isSubmitted(),
+                'status' => $exercise->status->value,
                 'color' => $exercise->status->barColor(),
             ])
             ->all();
@@ -640,6 +642,38 @@ class ProgramDetails extends Component
         Flux::toast(text: $message, variant: 'warning');
     }
 
+    public function markActiveSectionSkipped(): void
+    {
+        abort_if($this->previewMode, 403);
+        abort_if(! $this->canRecordSession, 403);
+
+        $exercises = app(ProgramExerciseOrder::class)
+            ->sortSlotExercises(
+                $this->currentSlot->exercises
+                    ->where('type', $this->activeSection)
+                    ->values(),
+                includeType: false,
+            );
+
+        $pendingExercises = $exercises
+            ->filter(fn ($exercise): bool => $exercise instanceof TrainingProgramSlotExercise && ! $exercise->status->isSubmitted())
+            ->values();
+
+        $this->resetEditorState();
+
+        foreach ($pendingExercises as $exercise) {
+            if (! $exercise instanceof TrainingProgramSlotExercise) {
+                continue;
+            }
+
+            unset($this->pendingSkippedSets[$exercise->id]);
+            app(TrainingSessionProgressService::class)->markExerciseSkipped($exercise);
+        }
+
+        $this->refreshSessionState();
+        $this->dispatch('athlete-section-action-succeeded', section: $this->activeSection);
+    }
+
     public function markExerciseSkipped(int $slotExerciseId): void
     {
         abort_if($this->previewMode, 403);
@@ -819,15 +853,18 @@ class ProgramDetails extends Component
         $exerciseConfig = $this->resolveExerciseConfig($exercise);
         $config = $exerciseConfig[$settingKey] ?? null;
         $sets = $exerciseConfig['sets'] ?? [];
+        $expectedPartCount = DropSet::expectedPartCount($exerciseConfig);
 
         if (is_array($config)) {
             $config['_sets'] = is_array($sets) ? $sets : [];
+            $config['_drop_set_part_count'] = $expectedPartCount;
 
             return $config;
         }
 
         $settingConfig = is_object($config) && method_exists($config, 'toArray') ? $config->toArray() : [];
         $settingConfig['_sets'] = is_array($sets) ? $sets : [];
+        $settingConfig['_drop_set_part_count'] = $expectedPartCount;
 
         return $settingConfig;
     }

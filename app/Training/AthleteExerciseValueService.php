@@ -2,6 +2,7 @@
 
 namespace App\Training;
 
+use App\Data\Exercise\DropSet;
 use App\Data\Exercise\ExerciseSetting;
 use App\Models\Training\TrainingActualValueRevision;
 use App\Models\Training\TrainingProgramSlotExercise;
@@ -95,9 +96,11 @@ class AthleteExerciseValueService
         $exerciseConfig = $this->configResolver->resolve($exercise);
         $setting = $exerciseConfig[$settingKey] ?? null;
         $sets = $exerciseConfig['sets'] ?? [];
+        $expectedPartCount = DropSet::expectedPartCount($exerciseConfig);
 
         if (is_array($setting)) {
             $setting['_sets'] = is_array($sets) ? $sets : [];
+            $setting['_drop_set_part_count'] = $expectedPartCount;
 
             return $setting;
         }
@@ -106,6 +109,7 @@ class AthleteExerciseValueService
             ? $setting->toArray()
             : [];
         $settingConfig['_sets'] = is_array($sets) ? $sets : [];
+        $settingConfig['_drop_set_part_count'] = $expectedPartCount;
 
         return $settingConfig;
     }

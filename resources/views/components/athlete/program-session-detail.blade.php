@@ -262,9 +262,12 @@
             @endforelse
 
             @if ($canRecordSession && $hasPendingExercise)
-                <div class="border-t border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-zinc-700 dark:bg-zinc-900/40">
+                <div class="grid grid-cols-2 gap-2 border-t border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-zinc-700 dark:bg-zinc-900/40">
                     <flux:button type="button" variant="primary" class="w-full" wire:click="markActiveSectionCompleted">
                         Mark All Done
+                    </flux:button>
+                    <flux:button type="button" variant="ghost" class="w-full" wire:click="markActiveSectionSkipped">
+                        Mark All Skipped
                     </flux:button>
                 </div>
             @endif

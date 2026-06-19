@@ -138,6 +138,7 @@ class RepsSetting extends AbstractSetting
         if (DropSet::isEnabled($config)) {
             return [
                 'required',
+                DropSet::exactPartCountRule('reps', DropSet::expectedPartCount($config)),
                 static function (string $attribute, mixed $value, \Closure $fail) use ($config): void {
                     if (! is_string($value)) {
                         $fail('The :attribute field format is invalid.');
