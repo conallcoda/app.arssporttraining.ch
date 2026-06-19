@@ -9,6 +9,7 @@ use App\Models\Athlete\MetricSubmission;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramBlock;
 use App\Models\Training\TrainingProgramSlot;
+use App\Models\Training\TrainingProgramSlotExerciseStatusEnum;
 use App\Models\Users\UserGroup;
 use App\Support\Profiling\PlanGridProfiler;
 use App\Support\Training\BlockModalPayloadBuilder;
@@ -669,10 +670,18 @@ trait WithCalendarPlan
                     'datetime',
                     'status',
                     'completed_at',
+                    'exercise_count',
                     'has_any_modification',
                     'completed_exercise_count',
                     'partial_exercise_count',
                     'skipped_exercise_count',
+                    'pending_exercise_count',
+                ])
+                ->withCount([
+                    'exercises as child_exercise_count',
+                    'exercises as child_completed_exercise_count' => fn (Builder $query): Builder => $query->where('status', TrainingProgramSlotExerciseStatusEnum::Completed),
+                    'exercises as child_partial_exercise_count' => fn (Builder $query): Builder => $query->where('status', TrainingProgramSlotExerciseStatusEnum::PartiallyCompleted),
+                    'exercises as child_skipped_exercise_count' => fn (Builder $query): Builder => $query->where('status', TrainingProgramSlotExerciseStatusEnum::Skipped),
                 ])
                 ->withExists([
                     'exercises as has_recorded_exercise_rows' => fn (Builder $query): Builder => $editGuard->applyRecordedExerciseOutcomeConstraints($query),
@@ -688,9 +697,15 @@ trait WithCalendarPlan
                 ->map(fn (string $dt) => Carbon::parse($dt))
                 ->values();
             $statusPresenter = app(SlotStatusPresenter::class);
+            $slotStatusValuesById = $slotRows
+                ->mapWithKeys(fn (TrainingProgramSlot $slot): array => [
+                    (int) $slot->id => $statusPresenter->valueForSlotProgress($slot),
+                ]);
             $sessionStatusesByDateTime = $slotRowsByDateTime
-                ->map(function (Collection $slots) use ($statusPresenter): array {
-                    $statuses = $slots->pluck('status')->all();
+                ->map(function (Collection $slots) use ($slotStatusValuesById, $statusPresenter): array {
+                    $statuses = $slots
+                        ->map(fn (TrainingProgramSlot $slot): string => $slotStatusValuesById[(int) $slot->id])
+                        ->all();
                     $value = $statusPresenter->aggregateValue($statuses);
 
                     return [

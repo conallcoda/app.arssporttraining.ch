@@ -2,6 +2,7 @@
 
 namespace App\Support\Training;
 
+use App\Models\Training\TrainingProgramSlot;
 use App\Models\Training\TrainingProgramSlotStatusEnum;
 
 class SlotStatusPresenter
@@ -51,6 +52,38 @@ class SlotStatusPresenter
     public function aggregateValue(array $statuses): string
     {
         return $this->aggregateStatus($this->statusCounts($statuses));
+    }
+
+    public function valueForSlotProgress(TrainingProgramSlot $slot): string
+    {
+        $hasChildCounts = array_key_exists('child_exercise_count', $slot->getAttributes());
+
+        $total = $hasChildCounts
+            ? (int) ($slot->child_exercise_count ?? 0)
+            : (int) ($slot->exercise_count ?? 0);
+
+        $completed = $hasChildCounts
+            ? (int) ($slot->child_completed_exercise_count ?? 0)
+            : (int) ($slot->completed_exercise_count ?? 0);
+
+        $partial = $hasChildCounts
+            ? (int) ($slot->child_partial_exercise_count ?? 0)
+            : (int) ($slot->partial_exercise_count ?? 0);
+
+        $skipped = $hasChildCounts
+            ? (int) ($slot->child_skipped_exercise_count ?? 0)
+            : (int) ($slot->skipped_exercise_count ?? 0);
+
+        $pending = $hasChildCounts
+            ? max(0, $total - $completed - $partial - $skipped)
+            : (int) ($slot->pending_exercise_count ?? max(0, $total - $completed - $partial - $skipped));
+
+        return $this->aggregateStatus([
+            'completed' => $completed,
+            'partial' => $partial,
+            'skipped' => $skipped,
+            'pending' => $pending,
+        ]);
     }
 
     /**

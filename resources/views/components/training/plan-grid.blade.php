@@ -10,6 +10,11 @@
     'previewMenuOptions' => [],
     'resetMenuOptions' => [],
     'showPreview' => false,
+    'showPlannedActualSetColumns' => false,
+    'showPlannedActualToggle' => false,
+    'plannedActualToggleActive' => false,
+    'plannedActualToggleAction' => null,
+    'actualCellValues' => [],
 ])
 
 <x-training.exercise-grid
@@ -24,6 +29,10 @@
     :previewMenuOptions="$previewMenuOptions"
     :resetMenuOptions="$resetMenuOptions"
     :showPreview="$showPreview"
-    :showActualValues="false"
+    :showPlannedActualSetColumns="$showPlannedActualSetColumns"
+    :showPlannedActualToggle="$showPlannedActualToggle"
+    :plannedActualToggleActive="$plannedActualToggleActive"
+    :plannedActualToggleAction="$plannedActualToggleAction"
+    :actualCellValues="$actualCellValues"
     valueDisplayMode="planned"
 />

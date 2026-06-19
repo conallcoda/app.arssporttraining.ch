@@ -59,7 +59,6 @@ class ExerciseProgramList extends AbstractModelList
             ->whereNull('exercise_programs.parent_id')
             ->whereNull('exercise_programs.parent_type')
             ->with(['exerciseCategory', 'internalTags', 'owner'])
-            ->leftJoin('tags as exercise_category_tags', 'exercise_programs.exercise_category_id', '=', 'exercise_category_tags.id')
             ->select('exercise_programs.*');
     }
 
@@ -68,7 +67,12 @@ class ExerciseProgramList extends AbstractModelList
         $query = parent::buildItemsQuery();
 
         if ($this->sort === '') {
-            $query->orderBy('exercise_category_tags.name')
+            $query->orderBy(
+                Tag::query()
+                    ->select('name')
+                    ->whereColumn('tags.id', 'exercise_programs.exercise_category_id')
+                    ->limit(1)
+            )
                 ->orderBy('exercise_programs.name');
         }
 
@@ -133,7 +137,8 @@ class ExerciseProgramList extends AbstractModelList
             TableFilter::callback('search', function (Builder $query, mixed $value): void {
                 $query->where(function (Builder $query) use ($value): void {
                     $query->where('exercise_programs.name', 'like', '%'.$value.'%')
-                        ->orWhere('exercise_category_tags.name', 'like', '%'.$value.'%');
+                        ->orWhereHas('exerciseCategory', fn (Builder $categoryQuery) => $categoryQuery
+                            ->where('tags.name', 'like', '%'.$value.'%'));
                 });
             })
                 ->field(

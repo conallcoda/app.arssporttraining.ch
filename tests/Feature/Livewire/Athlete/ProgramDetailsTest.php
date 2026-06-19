@@ -523,6 +523,64 @@ it('requires athlete-entered values before marking an exercise done', function (
     CarbonImmutable::setTestNow();
 });
 
+it('materializes planned values as actuals when marking an exercise done', function () {
+    CarbonImmutable::setTestNow('2030-04-03 12:00:00');
+    config()->set('athlete.dashboard_today_override', '03.04.2030');
+
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Friday Strength']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => Exercise::factory()->create([
+            'name' => 'Goblet Squat',
+            'config' => [
+                'settings' => ['reps', 'weight'],
+                'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+                'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'set'],
+                'weight' => ['mode' => 'manual', 'default' => 5, 'applyPer' => 'set'],
+            ],
+        ])->id,
+        'sort' => 0,
+    ]);
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-04-03 09:00:00'),
+    ])->fresh('exercises.sets.values');
+
+    $slotExercise = $slot->exercises->first();
+
+    Livewire::actingAs($athlete)
+        ->test(ProgramDetails::class, [
+            'date' => '2030-04-03',
+            'trainingProgram' => $trainingProgram,
+        ])
+        ->call('markExerciseCompleted', $slotExercise->id)
+        ->assertDispatched('athlete-exercise-action-succeeded');
+
+    $values = $slotExercise->fresh('sets.values')->sets->first()->values;
+    $reps = $values->firstWhere('setting_key', 'reps');
+    $weight = $values->firstWhere('setting_key', 'weight');
+
+    expect($reps->actual_value_type)->toBe('string')
+        ->and($reps->actual_string_value)->toBe('12')
+        ->and($reps->actual_is_explicit)->toBeTrue()
+        ->and($reps->actual_source)->toBe('athlete')
+        ->and($weight->actual_value_type)->toBe('decimal')
+        ->and((float) $weight->actual_decimal_value)->toBe(5.0)
+        ->and($weight->actual_is_explicit)->toBeTrue()
+        ->and($weight->actual_source)->toBe('athlete');
+
+    CarbonImmutable::setTestNow();
+});
+
 it('marks every exercise in the active athlete section done', function () {
     CarbonImmutable::setTestNow('2030-04-03 12:00:00');
     config()->set('athlete.dashboard_today_override', '03.04.2030');

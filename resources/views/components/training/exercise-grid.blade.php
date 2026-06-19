@@ -18,6 +18,10 @@
     'resetMenuOptions' => [],
     'showPreview' => false,
     'showActualValues' => false,
+    'showPlannedActualSetColumns' => false,
+    'showPlannedActualToggle' => false,
+    'plannedActualToggleActive' => false,
+    'plannedActualToggleAction' => null,
     'valueDisplayMode' => 'planned',
     'actualCellValues' => [],
     'actualSessionValues' => [],
@@ -39,6 +43,7 @@
         $sessionDateLabels = $grid->sessionDateLabels ?? [];
         $groupColumnLabel = $grid->groupColumnLabel ?? __('Week');
         $splitActualColumns = $showActualValues && $valueDisplayMode === 'actual';
+        $splitSetActualColumns = ! $splitActualColumns && $showPlannedActualSetColumns;
         $hasCopyActions = collect($copyMenuOptions)->contains(
             fn ($options): bool => ! empty($options['from'] ?? []) || ! empty($options['to'] ?? [])
         );
@@ -46,7 +51,12 @@
             fn ($options): bool => ! empty($options ?? [])
         );
         $canResetBucket = fn (string $key): bool => (bool) ($resetMenuOptions[$key] ?? false);
-        $showCopyColumn = ! $splitActualColumns && (bool) ($grid->showCopyMenu ?? false) && ($hasCopyActions || $hasPreviewActions);
+        $hasResetActions = collect($resetMenuOptions)->contains(fn (mixed $canReset): bool => (bool) $canReset);
+        $showCopyColumn = ! $splitActualColumns
+            && (
+                ((bool) ($grid->showCopyMenu ?? false) && ($hasCopyActions || $hasPreviewActions || $hasResetActions))
+                || $showPlannedActualToggle
+            );
         $baseRows = $splitActualColumns
             ? array_values(array_filter(
                 $grid->rows,
@@ -142,11 +152,11 @@
                 <thead>
                     <tr class="bg-zinc-100 dark:bg-zinc-800">
                         @if ($renderGroupColumn)
-                            <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 w-20">{{ __($groupColumnLabel) }}</th>
+                            <th @if($splitSetActualColumns) rowspan="2" @endif class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 w-20">{{ __($groupColumnLabel) }}</th>
                         @endif
-                        <th class="border border-zinc-300 dark:border-zinc-600 px-2 py-2 w-28">{{ __('Session') }}</th>
+                        <th @if($splitSetActualColumns) rowspan="2" @endif class="border border-zinc-300 dark:border-zinc-600 px-2 py-2 w-28">{{ __('Session') }}</th>
                         @if ($displayRowCount > 0)
-                            <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2"></th>
+                            <th @if($splitSetActualColumns) rowspan="2" @endif class="border border-zinc-300 dark:border-zinc-600 px-3 py-2"></th>
                         @endif
                         @php
                             $labelLen = mb_strlen($grid->setLabel);
@@ -163,7 +173,7 @@
                                 @php
                                     $setHeaderLabel = $grid->setCount > 1 ? $grid->setLabel . ' ' . ($i + 1) : $grid->setLabel;
                                 @endphp
-                                @if ($splitActualColumns)
+                                @if ($splitActualColumns || $splitSetActualColumns)
                                     @if ($settingClickable)
                                         <th colspan="2" style="{{ $splitSetHeaderWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 whitespace-nowrap cursor-pointer hover:brightness-125"
                                             @click="$dispatch('grid-setting-click', { field: 'sets' })">
@@ -204,17 +214,29 @@
                                 @endforeach
                             @else
                                 @if ($settingClickable)
-                                    <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 w-16 whitespace-nowrap cursor-pointer hover:brightness-125"
+                                    <th @if($splitSetActualColumns) rowspan="2" @endif class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 w-16 whitespace-nowrap cursor-pointer hover:brightness-125"
                                         @click="$dispatch('grid-setting-click', { field: '{{ $weekCol->clickField }}' })">
                                 @else
-                                    <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 w-16 whitespace-nowrap">
+                                    <th @if($splitSetActualColumns) rowspan="2" @endif class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 w-16 whitespace-nowrap">
                                 @endif
                                     {{ $weekCol->label }}</th>
                             @endif
                         @endforeach
                         @endif
                         @if ($showCopyColumn)
-                            <th class="border border-zinc-300 dark:border-zinc-600 px-2 py-2 w-12"></th>
+                            <th @if($splitSetActualColumns) rowspan="2" @endif class="border border-zinc-300 dark:border-zinc-600 px-2 py-2 w-12">
+                                @if ($showPlannedActualToggle && filled($plannedActualToggleAction))
+                                    <flux:button
+                                        variant="ghost"
+                                        size="xs"
+                                        icon="{{ $plannedActualToggleActive ? 'pencil' : 'eye' }}"
+                                        class="!p-1 {{ $plannedActualToggleActive ? '!text-emerald-500 dark:!text-emerald-400' : '' }}"
+                                        wire:click="{{ $plannedActualToggleAction }}"
+                                        title="{{ $plannedActualToggleActive ? __('Plan only') : __('Plan and actual') }}"
+                                        aria-label="{{ $plannedActualToggleActive ? __('Plan only') : __('Plan and actual') }}"
+                                    />
+                                @endif
+                            </th>
                         @endif
                     </tr>
                     @if ($splitActualColumns && $displayRowCount > 0)
@@ -224,6 +246,17 @@
                             @endif
                             <th class="border border-zinc-300 dark:border-zinc-600 px-2 py-1"></th>
                             <th class="border border-zinc-300 dark:border-zinc-600 px-3 py-1"></th>
+                            @for ($i = 0; $i < $grid->setCount; $i++)
+                                <th style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-1 py-1 text-[9px] font-medium uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
+                                    {{ __('Planned') }}
+                                </th>
+                                <th style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-1 py-1 text-[9px] font-medium uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
+                                    {{ __('Actual') }}
+                                </th>
+                            @endfor
+                        </tr>
+                    @elseif ($splitSetActualColumns && $displayRowCount > 0)
+                        <tr class="bg-zinc-100 dark:bg-zinc-800">
                             @for ($i = 0; $i < $grid->setCount; $i++)
                                 <th style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-1 py-1 text-[9px] font-medium uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
                                     {{ __('Planned') }}
@@ -386,7 +419,7 @@
                                     @endforeach
                                     @if ($showCopyColumn)
                                         <td class="border border-zinc-300 dark:border-zinc-600 px-1 py-1 align-middle text-center">
-                                            @if (! empty($collapsedCopyOptions['from'] ?? []) || ! empty($collapsedCopyOptions['to'] ?? []) || ($showPreview && ! empty($previewMenuOptions[$collapsedCopyKey] ?? [])))
+                                                    @if (! empty($collapsedCopyOptions['from'] ?? []) || ! empty($collapsedCopyOptions['to'] ?? []) || ($showPreview && ! empty($previewMenuOptions[$collapsedCopyKey] ?? [])) || $canResetBucket($collapsedCopyKey))
                                                 <flux:dropdown position="bottom" align="end">
                                                     <flux:button variant="ghost" size="xs" icon="ellipsis" class="!p-1" />
                                                     <flux:menu>
@@ -488,7 +521,7 @@
                                                 $cellPlannedRenderKey = 'split-planned-cell-collapsed-'
                                                     .$group->index.'-'.$week.'-'.$session.'-'.$row->field.'-'.$set.'-'
                                                     .md5(json_encode([$cell['value'], $cellPlannedEditable, $cellPlannedColor]));
-                                                $cellActualValue = $showActualValues
+                                                $cellActualValue = ($showActualValues || $splitSetActualColumns)
                                                     ? ($isSessionScopedRow
                                                         ? data_get($actualSessionValues, $row->field . '.' . $week . '.' . $session, '-')
                                                         : data_get($actualCellValues, $row->field . '.' . $week . '.' . $session . '.' . $set, '-'))
@@ -497,6 +530,8 @@
                                                     ? $row->resolveCellColor($week, $isSessionScopedRow ? null : $set, true, $session)
                                                     : $cell['color'];
                                                 $cellActualEditable = $splitActualColumns && data_get($editableActualSessionsByWeek, $week . '.' . $session, false);
+                                                $plannedSetCellColor = $splitSetActualColumns && $collapsedPlannedLocked ? $row->color : $cell['color'];
+                                                $plannedSetTextClass = $splitSetActualColumns && $collapsedPlannedLocked ? 'text-zinc-400 dark:text-zinc-500' : '';
                                             @endphp
                                             @if ($splitActualColumns)
                                                 @if ($cellPlannedEditable)
@@ -552,8 +587,8 @@
                                                         {{ $formatGridValue($row->field, $cellActualValue ?? '-') }}
                                                     </td>
                                                 @endif
-                                            @elseif ($cell['editable'])
-                                                <td wire:key="{{ $cellPlannedRenderKey }}" class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $cell['color'] }}"
+                                            @elseif ($cell['editable'] && (! $splitSetActualColumns || ! $collapsedPlannedLocked))
+                                                <td wire:key="{{ $cellPlannedRenderKey }}" class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $plannedSetCellColor }}"
                                                     x-data="editable_cell"
                                                     data-msg-invalid-number="{{ __('Please enter a valid number') }}"
                                                     data-msg-invalid-value="{{ __('Please enter a valid value') }}"
@@ -579,8 +614,13 @@
                                                     </span>
                                                     <x-training.exercise-grid-input :meta="$row->inputMeta" :value="$cell['value']" size="sm" />
                                                 </td>
+                                                @if ($splitSetActualColumns)
+                                                    <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $splitSetSubcellWidthClass }} {{ $row->color }} {{ $cellActualValue === null || $cellActualValue === '-' ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
+                                                        {{ $formatGridValue($row->field, $cellActualValue ?? '-') }}
+                                                    </td>
+                                                @endif
                                             @else
-                                                <td wire:key="{{ $cellPlannedRenderKey }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $cell['color'] }} {{ $collapsedPlannedLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
+                                                <td wire:key="{{ $cellPlannedRenderKey }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $plannedSetCellColor }} {{ $plannedSetTextClass }} {{ $collapsedPlannedLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
                                                     @include('components.training.partials.planned-actual-value', [
                                                         'plannedValue' => $cell['value'],
                                                         'actualValue' => $cellActualValue,
@@ -588,6 +628,11 @@
                                                         'mode' => $showActualValues ? $valueDisplayMode : 'planned',
                                                     ])
                                                 </td>
+                                                @if ($splitSetActualColumns)
+                                                    <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $splitSetSubcellWidthClass }} {{ $row->color }} {{ $cellActualValue === null || $cellActualValue === '-' ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
+                                                        {{ $formatGridValue($row->field, $cellActualValue ?? '-') }}
+                                                    </td>
+                                                @endif
                                             @endif
                                         @endfor
                                         @if ($isFirstRow && ! $splitActualColumns)
@@ -637,7 +682,7 @@
                                             @if ($showCopyColumn)
                                                 <td class="border border-zinc-300 dark:border-zinc-600 px-1 py-1 align-middle text-center"
                                                     rowspan="{{ count($grid->rows) }}">
-                                                    @if (! empty($collapsedCopyOptions['from'] ?? []) || ! empty($collapsedCopyOptions['to'] ?? []) || ($showPreview && ! empty($previewMenuOptions[$collapsedCopyKey] ?? [])))
+                                            @if (! empty($collapsedCopyOptions['from'] ?? []) || ! empty($collapsedCopyOptions['to'] ?? []) || ($showPreview && ! empty($previewMenuOptions[$collapsedCopyKey] ?? [])) || $canResetBucket($collapsedCopyKey))
                                                         <flux:dropdown position="bottom" align="end">
                                                             <flux:button variant="ghost" size="xs" icon="ellipsis" class="!p-1" />
                                                             <flux:menu>
@@ -823,7 +868,7 @@
                                     @endforeach
                                     @if ($showCopyColumn)
                                         <td class="border border-zinc-300 dark:border-zinc-600 px-1 py-1 align-middle text-center">
-                                            @if (! empty($sessionCopyOptions['from'] ?? []) || ! empty($sessionCopyOptions['to'] ?? []) || ($showPreview && ! empty($previewMenuOptions[$sessionCopyKey] ?? [])))
+                                            @if (! empty($sessionCopyOptions['from'] ?? []) || ! empty($sessionCopyOptions['to'] ?? []) || ($showPreview && ! empty($previewMenuOptions[$sessionCopyKey] ?? [])) || $canResetBucket($sessionCopyKey))
                                                 <flux:dropdown position="bottom" align="end">
                                                     <flux:button variant="ghost" size="xs" icon="ellipsis" class="!p-1" />
                                                     <flux:menu>
@@ -936,7 +981,7 @@
                                                 $cellPlannedRenderKey = 'split-planned-cell-expanded-'
                                                     .$group->index.'-'.$week.'-'.$session.'-'.$row->field.'-'.$set.'-'
                                                     .md5(json_encode([$cell['value'], $cellPlannedEditable, $cellPlannedColor]));
-                                                $cellActualValue = $showActualValues
+                                                $cellActualValue = ($showActualValues || $splitSetActualColumns)
                                                     ? ($isSessionScopedRow
                                                         ? data_get($actualSessionValues, $row->field . '.' . $week . '.' . $session, '-')
                                                         : data_get($actualCellValues, $row->field . '.' . $week . '.' . $session . '.' . $set, '-'))
@@ -945,6 +990,8 @@
                                                     ? $row->resolveCellColor($week, $isSessionScopedRow ? null : $set, true, $session)
                                                     : $cell['color'];
                                                 $cellActualEditable = $splitActualColumns && data_get($editableActualSessionsByWeek, $week . '.' . $session, false);
+                                                $plannedSetCellColor = $splitSetActualColumns && $plannedSessionLocked ? $row->color : $cell['color'];
+                                                $plannedSetTextClass = $splitSetActualColumns && $plannedSessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '';
                                             @endphp
                                             @if ($splitActualColumns)
                                                 @if ($cellPlannedEditable)
@@ -1000,8 +1047,8 @@
                                                         {{ $formatGridValue($row->field, $cellActualValue ?? '-') }}
                                                     </td>
                                                 @endif
-                                            @elseif ($cell['editable'])
-                                                <td wire:key="{{ $cellPlannedRenderKey }}" class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $cell['color'] }}"
+                                            @elseif ($cell['editable'] && (! $splitSetActualColumns || ! $plannedSessionLocked))
+                                                <td wire:key="{{ $cellPlannedRenderKey }}" class="border border-zinc-300 dark:border-zinc-600 p-0 text-center {{ $plannedSetCellColor }}"
                                                     x-data="editable_cell"
                                                     data-msg-invalid-number="{{ __('Please enter a valid number') }}"
                                                     data-msg-invalid-value="{{ __('Please enter a valid value') }}"
@@ -1027,8 +1074,13 @@
                                                     </span>
                                                     <x-training.exercise-grid-input :meta="$row->inputMeta" :value="$cell['value']" size="sm" />
                                                 </td>
+                                                @if ($splitSetActualColumns)
+                                                    <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $splitSetSubcellWidthClass }} {{ $row->color }} {{ $cellActualValue === null || $cellActualValue === '-' ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
+                                                        {{ $formatGridValue($row->field, $cellActualValue ?? '-') }}
+                                                    </td>
+                                                @endif
                                             @else
-                                                <td wire:key="{{ $cellPlannedRenderKey }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $cell['color'] }} {{ $plannedSessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
+                                                <td wire:key="{{ $cellPlannedRenderKey }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $plannedSetCellColor }} {{ $plannedSetTextClass }} {{ $plannedSessionLocked ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
                                                     @include('components.training.partials.planned-actual-value', [
                                                         'plannedValue' => $cell['value'],
                                                         'actualValue' => $cellActualValue,
@@ -1036,6 +1088,11 @@
                                                         'mode' => $showActualValues ? $valueDisplayMode : 'planned',
                                                     ])
                                                 </td>
+                                                @if ($splitSetActualColumns)
+                                                    <td style="{{ $splitSetSubcellWidthStyle }}" class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-center {{ $splitSetSubcellWidthClass }} {{ $row->color }} {{ $cellActualValue === null || $cellActualValue === '-' ? 'text-zinc-400 dark:text-zinc-500' : '' }}">
+                                                        {{ $formatGridValue($row->field, $cellActualValue ?? '-') }}
+                                                    </td>
+                                                @endif
                                             @endif
                                         @endfor
                                         @if ($isFirstRow && ! $splitActualColumns)
@@ -1139,7 +1196,7 @@
                                             @if ($showCopyColumn)
                                                 <td class="border border-zinc-300 dark:border-zinc-600 px-1 py-1 align-middle text-center"
                                                     rowspan="{{ count($grid->rows) }}">
-                                                    @if (! empty($sessionCopyOptions['from'] ?? []) || ! empty($sessionCopyOptions['to'] ?? []) || ($showPreview && ! empty($previewMenuOptions[$sessionCopyKey] ?? [])))
+                                                    @if (! empty($sessionCopyOptions['from'] ?? []) || ! empty($sessionCopyOptions['to'] ?? []) || ($showPreview && ! empty($previewMenuOptions[$sessionCopyKey] ?? [])) || $canResetBucket($sessionCopyKey))
                                                         <flux:dropdown position="bottom" align="end">
                                                             <flux:button variant="ghost" size="xs" icon="ellipsis" class="!p-1" />
                                                             <flux:menu>

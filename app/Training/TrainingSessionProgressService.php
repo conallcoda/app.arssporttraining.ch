@@ -5,6 +5,9 @@ namespace App\Training;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Training\TrainingProgramSlotExercise;
 use App\Models\Training\TrainingProgramSlotSet;
+use App\Models\Training\TrainingProgramSlotSetValue;
+use App\Models\Users\UserTypeEnum;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class TrainingSessionProgressService
@@ -44,6 +47,8 @@ class TrainingSessionProgressService
                     'completed_at' => $now,
                     'skipped_at' => null,
                 ])->save();
+
+                $this->materializePlannedValuesAsActuals($set->fresh('values') ?? $set, $now);
             }
 
             $this->statusService->refreshExerciseState($exercise);
@@ -149,6 +154,49 @@ class TrainingSessionProgressService
                 beforeSlot: $beforeSlot,
             );
         });
+    }
+
+    private function materializePlannedValuesAsActuals(TrainingProgramSlotSet $set, Carbon $recordedAt): void
+    {
+        $set->loadMissing('values');
+
+        foreach ($set->values as $valueRow) {
+            if ($valueRow->actual_value_type !== null || $valueRow->planned_value_type === null) {
+                continue;
+            }
+
+            $valueRow->forceFill($this->plannedActualAttributes($valueRow, $recordedAt))->save();
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function plannedActualAttributes(TrainingProgramSlotSetValue $valueRow, Carbon $recordedAt): array
+    {
+        return [
+            'actual_value_type' => $valueRow->planned_value_type,
+            'actual_int_value' => $valueRow->planned_int_value,
+            'actual_decimal_value' => $valueRow->planned_decimal_value,
+            'actual_string_value' => $valueRow->planned_string_value,
+            'actual_json_value' => $valueRow->planned_json_value,
+            'actual_recorded_by' => auth()->id(),
+            'actual_recorded_at' => $recordedAt,
+            'actual_source' => $this->resolveActualSource(),
+            'actual_is_explicit' => true,
+            'is_modified' => false,
+        ];
+    }
+
+    private function resolveActualSource(): string
+    {
+        $type = auth()->user()?->type;
+
+        return match ($type) {
+            UserTypeEnum::Coach => 'coach',
+            UserTypeEnum::Admin => 'admin',
+            default => 'athlete',
+        };
     }
 
     /**

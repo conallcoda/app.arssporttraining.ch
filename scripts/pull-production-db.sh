@@ -4,7 +4,6 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env.production}"
-SSH_HOST="${SSH_HOST:-coda}"
 LOCAL_DIR="${LOCAL_DIR:-${ROOT_DIR}/import/dumps}"
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 
@@ -19,6 +18,8 @@ set -a
 # shellcheck disable=SC1090
 source "${ENV_FILE}"
 set +a
+
+SSH_HOST="${SSH_HOST:-coda}"
 
 : "${DB_HOST:?DB_HOST is required in ${ENV_FILE}}"
 : "${DB_PORT:=3306}"
@@ -45,6 +46,7 @@ MYSQL_PWD="\${DB_PASSWORD}" mysqldump \
   --single-transaction \
   --quick \
   --skip-lock-tables \
+  --no-tablespaces \
   --default-character-set=utf8mb4 \
   --host="\${DB_HOST}" \
   --port="\${DB_PORT}" \

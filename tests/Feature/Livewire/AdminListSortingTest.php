@@ -209,6 +209,44 @@ it('shows the program category badge from the actual category instead of the sha
     ]]);
 });
 
+it('searches programs by category name as well as program title', function () {
+    $coach = User::factory()->coach()->create();
+
+    $strength = Tag::factory()->create([
+        'scope' => 'exercise_category',
+        'name' => 'Strength',
+    ]);
+
+    $mobility = Tag::factory()->create([
+        'scope' => 'exercise_category',
+        'name' => 'Mobility',
+    ]);
+
+    ExerciseProgram::create([
+        'name' => 'Front Squat',
+        'type' => ExerciseProgramTypeEnum::Program->value,
+        'exercise_category_id' => $strength->id,
+        'owner_id' => $coach->id,
+    ]);
+
+    ExerciseProgram::create([
+        'name' => 'Hip Flow',
+        'type' => ExerciseProgramTypeEnum::Program->value,
+        'exercise_category_id' => $mobility->id,
+        'owner_id' => $coach->id,
+    ]);
+
+    $component = Livewire::actingAs($coach)
+        ->test(ExerciseProgramList::class)
+        ->set('filters.search', 'Strength');
+
+    expect($component->instance()->items->pluck('name')->values()->all())->toBe(['Front Squat']);
+
+    $component->set('filters.search', 'Hip Flow');
+
+    expect($component->instance()->items->pluck('name')->values()->all())->toBe(['Hip Flow']);
+});
+
 it('searches exercises by category, equipment, and modifier names as well as exercise title', function () {
     $coach = User::factory()->coach()->create();
 

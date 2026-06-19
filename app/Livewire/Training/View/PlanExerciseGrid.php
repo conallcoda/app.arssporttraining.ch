@@ -24,6 +24,7 @@ use App\Data\Training\Config\ResolvedExerciseOverrides;
 use App\Data\Training\Snapshot\ScheduledExerciseSnapshotData;
 use App\Data\Training\Snapshot\ScheduledSessionSnapshotData;
 use App\Data\Training\Snapshot\ScheduledSetSnapshotData;
+use App\Data\Training\Snapshot\ScheduledValueSnapshotData;
 use App\Livewire\Concerns\InteractsWithDisplayGridCopying;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
@@ -92,6 +93,8 @@ class PlanExerciseGrid extends Component
     public bool $sessionLabels = false;
 
     public bool $showActualValueTabs = false;
+
+    public bool $showPlannedActualInline = false;
 
     #[Reactive]
     public string $valueDisplayMode = 'planned';
@@ -952,6 +955,19 @@ class PlanExerciseGrid extends Component
             && $this->scheduledTrainingProgramId !== null;
     }
 
+    #[Computed]
+    public function showsPlannedActualSetColumns(): bool
+    {
+        return $this->showsActualValueTabs && $this->showPlannedActualInline;
+    }
+
+    public function togglePlannedActualInline(): void
+    {
+        abort_unless($this->showsActualValueTabs, 403);
+
+        $this->showPlannedActualInline = ! $this->showPlannedActualInline;
+    }
+
     /** @return array<string, array<int, array<int, array<int, string>>>> */
     #[Computed]
     public function actualCellValues(): array
@@ -1335,7 +1351,7 @@ class PlanExerciseGrid extends Component
                 foreach ($snapshotExercise->sets as $set) {
                     $setIndex = max(((int) $set->setNumber) - 1, 0);
 
-                    if ((string) ($set->status->value ?? $set->status) === TrainingProgramSlotSetStatusEnum::Skipped->value) {
+                    if ($this->snapshotSetHasStatus($set, TrainingProgramSlotSetStatusEnum::Skipped)) {
                         foreach ($set->values as $valueRow) {
                             $cellValues[$valueRow->settingKey][$weekIndex][$sessionIndex][$setIndex] = __('Skipped');
                         }
@@ -1344,7 +1360,7 @@ class PlanExerciseGrid extends Component
                     }
 
                     foreach ($set->values as $valueRow) {
-                        $formatted = $this->formatActualValue($valueRow->settingKey, $valueRow->actualValue, $valueRow->unit);
+                        $formatted = $this->formatSnapshotActualDisplayValue($set, $valueRow);
 
                         if ($formatted === null) {
                             continue;
@@ -1584,25 +1600,27 @@ class PlanExerciseGrid extends Component
     {
         if ($field === 'sets') {
             return (string) collect($snapshotExercise->sets)
-                ->reject(fn (ScheduledSetSnapshotData $set): bool => (string) ($set->status->value ?? $set->status) === TrainingProgramSlotSetStatusEnum::Skipped->value)
+                ->reject(fn (ScheduledSetSnapshotData $set): bool => $this->snapshotSetHasStatus($set, TrainingProgramSlotSetStatusEnum::Skipped))
                 ->count();
         }
 
         if ($snapshotExercise->sets !== [] && collect($snapshotExercise->sets)->every(
-            fn (ScheduledSetSnapshotData $set): bool => (string) ($set->status->value ?? $set->status) === TrainingProgramSlotSetStatusEnum::Skipped->value
+            fn (ScheduledSetSnapshotData $set): bool => $this->snapshotSetHasStatus($set, TrainingProgramSlotSetStatusEnum::Skipped)
         )) {
             return __('Skipped');
         }
 
         $formatted = collect($snapshotExercise->sets)
             ->map(function ($set) use ($field): ?string {
-                if ((string) ($set->status->value ?? $set->status) === TrainingProgramSlotSetStatusEnum::Skipped->value) {
+                if ($this->snapshotSetHasStatus($set, TrainingProgramSlotSetStatusEnum::Skipped)) {
                     return __('Skipped');
                 }
 
                 $valueRow = collect($set->values)->firstWhere('settingKey', $field);
 
-                return $this->formatActualValue($field, $valueRow?->actualValue, $valueRow?->unit);
+                return $valueRow instanceof ScheduledValueSnapshotData
+                    ? $this->formatSnapshotActualDisplayValue($set, $valueRow)
+                    : null;
             })
             ->values();
 
@@ -1779,7 +1797,7 @@ class PlanExerciseGrid extends Component
 
         if ($field === 'sets') {
             return (string) collect($snapshotExercise->sets)
-                ->reject(fn (ScheduledSetSnapshotData $set): bool => (string) ($set->status->value ?? $set->status) === TrainingProgramSlotSetStatusEnum::Skipped->value)
+                ->reject(fn (ScheduledSetSnapshotData $set): bool => $this->snapshotSetHasStatus($set, TrainingProgramSlotSetStatusEnum::Skipped))
                 ->count();
         }
 
@@ -1789,14 +1807,37 @@ class PlanExerciseGrid extends Component
             return '-';
         }
 
-        if ((string) ($set->status->value ?? $set->status) === TrainingProgramSlotSetStatusEnum::Skipped->value) {
+        if ($this->snapshotSetHasStatus($set, TrainingProgramSlotSetStatusEnum::Skipped)) {
             return __('Skipped');
         }
 
         $valueRow = collect($set->values)->firstWhere('settingKey', $field);
-        $formatted = $this->formatActualValue($field, $valueRow?->actualValue, $valueRow?->unit);
+        $formatted = $valueRow instanceof ScheduledValueSnapshotData
+            ? $this->formatSnapshotActualDisplayValue($set, $valueRow)
+            : null;
 
         return $formatted ?? '-';
+    }
+
+    protected function formatSnapshotActualDisplayValue(ScheduledSetSnapshotData $set, ScheduledValueSnapshotData $valueRow): ?string
+    {
+        $formatted = $this->formatActualValue($valueRow->settingKey, $valueRow->actualValue, $valueRow->unit);
+
+        if ($formatted !== null) {
+            return $formatted;
+        }
+
+        if (! $this->snapshotSetHasStatus($set, TrainingProgramSlotSetStatusEnum::Completed)
+            && ! $this->snapshotSetHasStatus($set, TrainingProgramSlotSetStatusEnum::CompletedWithModification)) {
+            return null;
+        }
+
+        return $this->formatPlannedValue($valueRow->settingKey, $valueRow->plannedValue, $valueRow->unit);
+    }
+
+    protected function snapshotSetHasStatus(ScheduledSetSnapshotData $set, TrainingProgramSlotSetStatusEnum $status): bool
+    {
+        return (string) ($set->status->value ?? $set->status) === $status->value;
     }
 
     protected function canEditPlanActualPlannedCell(string $field, string $plannedValue, ?TrainingProgramSlotExercise $slotExercise): bool
@@ -2147,33 +2188,12 @@ class PlanExerciseGrid extends Component
 
     protected function isSessionResetLocked(int $weekIndex, int $sessionIndex): bool
     {
-        if ($this->isSessionLocked($weekIndex, $sessionIndex)) {
-            return true;
-        }
-
-        if ($this->scheduledTrainingProgramId === null || $this->userId === null) {
-            return false;
-        }
-
-        $date = $this->resolvedScheduledSessionDate($weekIndex, $sessionIndex);
-
-        if ($date === null) {
-            return false;
-        }
-
-        $slot = $this->resolveScheduledSlotsByDate()[$date] ?? null;
-
-        if ($slot instanceof TrainingProgramSlot) {
-            return $slot->datetime->lessThanOrEqualTo(now());
-        }
-
-        return Carbon::parse($date)->isBefore(now()->startOfDay());
+        return $this->isSessionLocked($weekIndex, $sessionIndex);
     }
 
     protected function shouldRestrictPlannedEditForSession(int $weekIndex, int $sessionIndex): bool
     {
-        return $this->valueDisplayMode !== 'actual'
-            && $this->isSessionLocked($weekIndex, $sessionIndex);
+        return $this->isSessionLocked($weekIndex, $sessionIndex);
     }
 
     public function resetOverrides(): void

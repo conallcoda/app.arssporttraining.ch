@@ -836,7 +836,7 @@ it('keeps grouped preview buckets and hides reset for locked groups when the gro
         ->and($component->html())->not->toContain("resetDisplayBucket('group:0')");
 });
 
-it('hides reset for historical grouped sessions even when lock metadata is missing', function () {
+it('shows reset for unrecorded past grouped sessions when lock metadata is open', function () {
     $coach = User::factory()->coach()->create();
     $athlete = User::factory()->athlete()->create();
     $coach->config->set('settings.session_grouping', [
@@ -902,9 +902,9 @@ it('hides reset for historical grouped sessions even when lock metadata is missi
     expect($component->instance()->displayGrid->renderGroupColumn)->toBeFalse()
         ->and($component->get('previewMenuOptions')['group:0'] ?? [])->toHaveCount(2)
         ->and($component->get('previewMenuOptions')['group:1'] ?? [])->toHaveCount(2)
-        ->and($component->get('resetMenuOptions')['group:0'] ?? null)->toBeFalse()
+        ->and($component->get('resetMenuOptions')['group:0'] ?? null)->toBeTrue()
         ->and($component->get('resetMenuOptions')['group:1'] ?? null)->toBeTrue()
-        ->and($component->html())->not->toContain("resetDisplayBucket('group:0')");
+        ->and($component->html())->toContain("resetDisplayBucket('group:0')");
 });
 
 it('refreshes an open plan grid after coach settings change', function () {

@@ -319,13 +319,18 @@ it('blocks removing a group program once a past session has recorded data', func
         'exercise_program_id' => $program->id,
     ]);
 
-    TrainingProgramSlot::create([
+    $recordedSlot = TrainingProgramSlot::create([
         'training_program_id' => $groupTp->id,
         'user_id' => $user->id,
         'datetime' => '2026-03-03 09:00:00',
         'status' => \App\Models\Training\TrainingProgramSlotStatusEnum::Completed,
         'completed_at' => '2026-03-03 10:00:00',
     ]);
+    $recordedSlot->forceFill([
+        'exercise_count' => 1,
+        'completed_exercise_count' => 1,
+        'pending_exercise_count' => 0,
+    ])->save();
 
     $weekStartsOn = (int) config('training.week_starts_on', Carbon::MONDAY);
 
@@ -373,13 +378,32 @@ it('marks only recorded sessions as locked in plan schedule info', function () {
         'datetime' => '2026-03-03 09:00:00',
     ]);
 
-    TrainingProgramSlot::create([
+    $recordedAggregateSlot = TrainingProgramSlot::create([
         'training_program_id' => $trainingProgram->id,
         'user_id' => $user->id,
         'datetime' => '2026-03-05 09:00:00',
         'status' => TrainingProgramSlotStatusEnum::PartiallyCompleted,
         'has_any_modification' => true,
         'partial_exercise_count' => 1,
+    ]);
+    $recordedAggregateSlot->forceFill([
+        'exercise_count' => 1,
+        'partial_exercise_count' => 1,
+        'pending_exercise_count' => 0,
+        'has_any_modification' => true,
+    ])->save();
+    TrainingProgramSlotExercise::create([
+        'training_program_slot_id' => $recordedAggregateSlot->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+        'status' => TrainingProgramSlotExerciseStatusEnum::PartiallyCompleted,
+        'set_count' => 1,
+        'completed_set_count' => 0,
+        'modified_set_count' => 1,
+        'skipped_set_count' => 0,
+        'pending_set_count' => 0,
+        'has_any_modification' => true,
     ]);
 
     $slotWithRecordedChild = TrainingProgramSlot::create([
@@ -413,6 +437,22 @@ it('marks only recorded sessions as locked in plan schedule info', function () {
         'has_any_modification' => false,
     ]);
 
+    $staleCompletedSlot = TrainingProgramSlot::create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $user->id,
+        'datetime' => '2026-03-07 09:00:00',
+        'status' => TrainingProgramSlotStatusEnum::Completed,
+        'completed_at' => '2026-03-07 10:00:00',
+    ]);
+    $staleCompletedSlot->forceFill([
+        'exercise_count' => 1,
+        'completed_exercise_count' => 0,
+        'partial_exercise_count' => 0,
+        'skipped_exercise_count' => 0,
+        'pending_exercise_count' => 1,
+        'has_any_modification' => false,
+    ])->save();
+
     $component = Livewire::actingAs($coach)
         ->test(CalendarIndex::class, [
             'group' => (string) $group->id,
@@ -424,12 +464,89 @@ it('marks only recorded sessions as locked in plan schedule info', function () {
 
     $info = $component->get('planScheduleInfo');
 
-    expect($info['lockedSessionsByWeek'] ?? [])->toBe([[false, true, true]])
+    expect($info['lockedSessionsByWeek'] ?? [])->toBe([[false, true, true, false]])
         ->and($info['sessionStatusesByWeek'][0][0]['value'] ?? null)->toBe(TrainingProgramSlotStatusEnum::Pending->value)
         ->and($info['sessionStatusesByWeek'][0][0]['label'] ?? null)->toBe('Pending')
         ->and($info['sessionStatusesByWeek'][0][1]['value'] ?? null)->toBe(TrainingProgramSlotStatusEnum::PartiallyCompleted->value)
         ->and($info['sessionStatusesByWeek'][0][1]['label'] ?? null)->toBe('Partially Completed')
-        ->and($info['sessionStatusesByWeek'][0][2]['value'] ?? null)->toBe(TrainingProgramSlotStatusEnum::Pending->value);
+        ->and($info['sessionStatusesByWeek'][0][2]['value'] ?? null)->toBe(TrainingProgramSlotStatusEnum::Pending->value)
+        ->and($info['sessionStatusesByWeek'][0][3]['value'] ?? null)->toBe(TrainingProgramSlotStatusEnum::Pending->value)
+        ->and($info['sessionStatusesByWeek'][0][3]['label'] ?? null)->toBe('Pending');
+});
+
+it('derives planner status from each concrete slot before aggregating displayed sessions', function () {
+    Carbon::setTestNow('2026-03-08 12:00:00');
+
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Three Amigos']);
+    $user1 = User::factory()->athlete()->create();
+    $user2 = User::factory()->athlete()->create();
+    $group->members()->attach([$user1->id, $user2->id]);
+    $category = Tag::factory()->withScope('exercise_category')->create([
+        'name' => 'Strength',
+        'sort_order' => 1,
+    ]);
+    $program = ExerciseProgram::factory()->create([
+        'exercise_category_id' => $category->id,
+    ]);
+    $exercise = Exercise::factory()->create();
+
+    $trainingProgram = TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $completedSlot = TrainingProgramSlot::create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $user1->id,
+        'datetime' => '2026-03-03 09:00:00',
+        'status' => TrainingProgramSlotStatusEnum::Completed,
+    ]);
+    $completedSlot->forceFill([
+        'exercise_count' => 1,
+        'completed_exercise_count' => 1,
+        'pending_exercise_count' => 0,
+    ])->save();
+    TrainingProgramSlotExercise::create([
+        'training_program_slot_id' => $completedSlot->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+        'status' => TrainingProgramSlotExerciseStatusEnum::Completed,
+        'set_count' => 1,
+        'completed_set_count' => 1,
+        'pending_set_count' => 0,
+    ]);
+
+    $staleCompletedSlot = TrainingProgramSlot::create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $user2->id,
+        'datetime' => '2026-03-03 09:00:00',
+        'status' => TrainingProgramSlotStatusEnum::Completed,
+        'completed_at' => '2026-03-03 10:00:00',
+    ]);
+    $staleCompletedSlot->forceFill([
+        'exercise_count' => 1,
+        'completed_exercise_count' => 0,
+        'partial_exercise_count' => 0,
+        'skipped_exercise_count' => 0,
+        'pending_exercise_count' => 1,
+        'has_any_modification' => false,
+    ])->save();
+
+    $component = Livewire::actingAs($coach)
+        ->test(CalendarIndex::class, [
+            'group' => (string) $group->id,
+            'user' => '',
+            'view' => 'plan',
+            'planCategory' => (string) $category->id,
+            'planProgram' => (string) $trainingProgram->id,
+        ]);
+
+    $info = $component->get('planScheduleInfo');
+
+    expect($info['sessionStatusesByWeek'][0][0]['value'] ?? null)->toBe(TrainingProgramSlotStatusEnum::PartiallyCompleted->value)
+        ->and($info['sessionStatusesByWeek'][0][0]['label'] ?? null)->toBe('Partially Completed');
 });
 
 it('creates individual slots per user in group mode', function () {

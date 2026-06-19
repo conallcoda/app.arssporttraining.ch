@@ -111,6 +111,11 @@
                             :previewMenuOptions="$this->previewMenuOptions"
                             :resetMenuOptions="$this->resetMenuOptions"
                             :showPreview="$this->userId !== null"
+                            :showPlannedActualSetColumns="$this->showsPlannedActualSetColumns"
+                            :showPlannedActualToggle="$this->showsActualValueTabs"
+                            :plannedActualToggleActive="$this->showsPlannedActualSetColumns"
+                            plannedActualToggleAction="togglePlannedActualInline"
+                            :actualCellValues="$this->showsPlannedActualSetColumns ? $this->actualCellValues : []"
                         />
                     </div>
                 @endif

@@ -11,6 +11,7 @@ use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use App\Training\TrainingSessionStatusService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
@@ -96,4 +97,58 @@ it('recomputes modification and completion state through a central exercise refr
         ->and($slotExercise->modified_set_count)->toBe(0)
         ->and($slotExercise->has_any_modification)->toBeFalse()
         ->and($slot->has_any_modification)->toBeFalse();
+});
+
+it('backfills planned values into missing actuals for completed sets', function () {
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Friday Strength']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $exercise = Exercise::factory()->create([
+        'name' => 'Goblet Squat',
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'set'],
+        ],
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+    ]);
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+    ])->fresh('exercises.sets.values');
+
+    $set = $slot->exercises->first()->sets->first();
+    $set->forceFill([
+        'status' => TrainingProgramSlotSetStatusEnum::Completed,
+        'completed_at' => '2030-04-03 10:00:00',
+    ])->save();
+
+    $value = $set->values->firstWhere('setting_key', 'reps');
+    $value->forceFill([
+        'actual_value_type' => null,
+        'actual_string_value' => null,
+        'actual_is_explicit' => false,
+        'actual_source' => null,
+    ])->save();
+
+    (require database_path('migrations/2026_06_19_180000_backfill_completed_set_actual_values.php'))->up();
+
+    $value = $value->fresh();
+
+    expect($value->actual_value_type)->toBe('string')
+        ->and($value->actual_string_value)->toBe('12')
+        ->and($value->actual_is_explicit)->toBeTrue()
+        ->and($value->actual_source)->toBe('backfill')
+        ->and(DB::table('training_program_slot_set_values')->where('id', $value->id)->value('actual_recorded_at'))->not->toBeNull();
 });

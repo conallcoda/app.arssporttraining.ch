@@ -35,13 +35,18 @@ it('counts only recorded slots as immutable', function () {
         'status' => TrainingProgramSlotStatusEnum::Pending,
     ]);
 
-    TrainingProgramSlot::factory()->create([
+    $recordedPastSlot = TrainingProgramSlot::factory()->create([
         'training_program_id' => $trainingProgram->id,
         'user_id' => $athlete->id,
         'datetime' => Carbon::parse('2030-04-11 09:00:00'),
         'status' => TrainingProgramSlotStatusEnum::Completed,
         'completed_at' => Carbon::parse('2030-04-11 10:00:00'),
     ]);
+    $recordedPastSlot->forceFill([
+        'exercise_count' => 1,
+        'completed_exercise_count' => 1,
+        'pending_exercise_count' => 0,
+    ])->save();
 
     TrainingProgramSlot::factory()->create([
         'training_program_id' => $trainingProgram->id,
@@ -50,13 +55,18 @@ it('counts only recorded slots as immutable', function () {
         'status' => TrainingProgramSlotStatusEnum::Pending,
     ]);
 
-    TrainingProgramSlot::factory()->create([
+    $recordedFutureSlot = TrainingProgramSlot::factory()->create([
         'training_program_id' => $trainingProgram->id,
         'user_id' => $athlete->id,
         'datetime' => Carbon::parse('2030-04-14 09:00:00'),
         'status' => TrainingProgramSlotStatusEnum::Completed,
         'completed_at' => Carbon::parse('2030-04-12 10:00:00'),
     ]);
+    $recordedFutureSlot->forceFill([
+        'exercise_count' => 1,
+        'completed_exercise_count' => 1,
+        'pending_exercise_count' => 0,
+    ])->save();
 
     $guard = app(TrainingSessionEditGuard::class);
 
@@ -93,13 +103,18 @@ it('locks only recorded slots for plan editing', function () {
         'status' => TrainingProgramSlotStatusEnum::Pending,
     ]);
 
-    TrainingProgramSlot::factory()->create([
+    $recordedFutureSlot = TrainingProgramSlot::factory()->create([
         'training_program_id' => $trainingProgram->id,
         'user_id' => $athlete->id,
         'datetime' => Carbon::parse('2030-04-14 09:00:00'),
         'status' => TrainingProgramSlotStatusEnum::Completed,
         'completed_at' => Carbon::parse('2030-04-12 10:00:00'),
     ]);
+    $recordedFutureSlot->forceFill([
+        'exercise_count' => 1,
+        'completed_exercise_count' => 1,
+        'pending_exercise_count' => 0,
+    ])->save();
 
     $lookup = app(TrainingSessionEditGuard::class)->planEditLockedDateTimeLookup(
         TrainingProgramSlot::query()->where('training_program_id', $trainingProgram->id),

@@ -5,7 +5,6 @@ namespace App\Training;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Training\TrainingProgramSlotExerciseStatusEnum;
 use App\Models\Training\TrainingProgramSlotSetStatusEnum;
-use App\Models\Training\TrainingProgramSlotStatusEnum;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 
@@ -53,17 +52,7 @@ class TrainingSessionEditGuard
 
     public function aggregateColumnsIndicateRecordedOutcome(TrainingProgramSlot $slot): bool
     {
-        $status = $slot->status instanceof TrainingProgramSlotStatusEnum
-            ? $slot->status
-            : TrainingProgramSlotStatusEnum::tryFrom((string) ($slot->status ?? TrainingProgramSlotStatusEnum::Pending->value));
-
-        return in_array($status, [
-            TrainingProgramSlotStatusEnum::Completed,
-            TrainingProgramSlotStatusEnum::PartiallyCompleted,
-            TrainingProgramSlotStatusEnum::Skipped,
-        ], true)
-            || $slot->completed_at !== null
-            || (bool) $slot->has_any_modification
+        return (bool) $slot->has_any_modification
             || (int) $slot->completed_exercise_count > 0
             || (int) $slot->partial_exercise_count > 0
             || (int) $slot->skipped_exercise_count > 0
@@ -178,13 +167,7 @@ class TrainingSessionEditGuard
     {
         return $query->where(function (Builder $query): void {
             $query
-                ->whereIn('status', [
-                    TrainingProgramSlotStatusEnum::Completed,
-                    TrainingProgramSlotStatusEnum::PartiallyCompleted,
-                    TrainingProgramSlotStatusEnum::Skipped,
-                ])
-                ->orWhereNotNull('completed_at')
-                ->orWhere('has_any_modification', true)
+                ->where('has_any_modification', true)
                 ->orWhere('completed_exercise_count', '>', 0)
                 ->orWhere('partial_exercise_count', '>', 0)
                 ->orWhere('skipped_exercise_count', '>', 0)
