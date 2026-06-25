@@ -2,6 +2,7 @@
     $progressSegments = $this->progressSegments;
     $exerciseCategory = $trainingProgram->program->exerciseCategory;
     $programCategoryLabel = $exerciseCategory?->name ?: $exerciseCategory?->short_name;
+    $sectionInstructions = $this->sectionInstructions;
 @endphp
 <div>
     <x-athlete.program-session-detail
@@ -19,6 +20,7 @@
         :shows-section-tabs="$showsSectionTabs"
         :section-tabs="$sectionTabs"
         section-model="activeSection"
+        :section-instructions="$sectionInstructions"
         :program-exercises="$programExercises"
         :is-future-session="$isFutureSession"
         :can-record-session="$canRecordSession"

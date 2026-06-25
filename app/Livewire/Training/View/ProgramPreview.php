@@ -83,6 +83,12 @@ class ProgramPreview extends Component
         return $session;
     }
 
+    #[Computed]
+    public function sectionInstructions(): ?string
+    {
+        return $this->exerciseProgram->config->sectionInstructions($this->activeSection);
+    }
+
     public function openPreviewSession(string $sessionKey): void
     {
         $this->selectedSessionKey = $sessionKey;

@@ -47,7 +47,12 @@ class ExercisePlanConfigCast implements CastsAttributes
             return ExercisePlanConfig::initialize();
         }
 
-        return ExercisePlanConfig::from($configData);
+        $config = ExercisePlanConfig::from($configData);
+        $config->sectionInstructions = is_array($configData['sectionInstructions'] ?? null)
+            ? $configData['sectionInstructions']
+            : [];
+
+        return $config;
     }
 
     public function set(Model $model, string $key, mixed $value, array $attributes): array

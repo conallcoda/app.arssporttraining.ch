@@ -123,6 +123,8 @@ class ProgramEditor extends Component
 
     public string $activeSection = 'main';
 
+    public ?string $sectionInstructions = null;
+
     protected ?array $protectedSectionProgramExerciseIdsCache = null;
 
     public ?int $importProgramId = null;
@@ -275,6 +277,7 @@ class ProgramEditor extends Component
 
             foreach (self::SECTION_TYPES as $type) {
                 $this->data[$this->sectionFieldName($type)] = $this->serializeSectionExercises($type);
+                $this->data[$this->sectionInstructionsFieldName($type)] = $this->exerciseProgram->config->sectionInstructions($type);
             }
 
             $this->syncSectionFormData();
@@ -306,11 +309,17 @@ class ProgramEditor extends Component
     protected function syncSectionFormData(): void
     {
         $this->data['section_exercises'] = $this->data[$this->sectionFieldName($this->activeSection)] ?? [];
+        $this->sectionInstructions = $this->data[$this->sectionInstructionsFieldName($this->activeSection)] ?? null;
     }
 
     protected function sectionFieldName(string $type): string
     {
         return $type.'_exercises';
+    }
+
+    protected function sectionInstructionsFieldName(string $type): string
+    {
+        return $type.'_instructions';
     }
 
     #[Computed]
@@ -446,6 +455,12 @@ class ProgramEditor extends Component
                 $this->saveSectionExercises();
             }
         }
+
+    }
+
+    public function updatedSectionInstructions(?string $value): void
+    {
+        $this->saveSectionInstructions($value);
     }
 
     public function updatedActiveSection(): void
@@ -457,6 +472,31 @@ class ProgramEditor extends Component
         $this->syncSectionFormData();
         $this->protectedSectionProgramExerciseIdsCache = null;
         unset($this->fieldsets, $this->exercises, $this->exerciseGroupLabels);
+    }
+
+    public function saveSectionInstructions(?string $instructions): void
+    {
+        $this->data[$this->sectionInstructionsFieldName($this->activeSection)] = $instructions;
+
+        $exerciseProgram = ExerciseProgram::query()->findOrFail($this->exerciseProgram->id);
+        $config = $exerciseProgram->config;
+        $before = $config->sectionInstructions($this->activeSection);
+        $config->setSectionInstructions($this->activeSection, $instructions);
+        $after = $config->sectionInstructions($this->activeSection);
+
+        if ($before === $after) {
+            $this->sectionInstructions = $after;
+            $this->data[$this->sectionInstructionsFieldName($this->activeSection)] = $after;
+
+            return;
+        }
+
+        $exerciseProgram->config = $config;
+        $exerciseProgram->saveQuietly();
+        $this->exerciseProgram = $exerciseProgram->fresh() ?? $exerciseProgram;
+        $this->sectionInstructions = $after;
+        $this->data[$this->sectionInstructionsFieldName($this->activeSection)] = $after;
+        unset($this->planConfigArray);
     }
 
     public function updatedWeeks(mixed $value): void

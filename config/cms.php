@@ -35,13 +35,11 @@ return [
         '*' => '/admin/programs',
     ],
 
-    'user_switching' => (bool) env('USER_SWITCHING_ENABLED', false),
-
-    'mobile_preview' => (bool) env('MOBILE_PREVIEW_ENABLED', false),
+    'user_switching' => (bool) env('USER_SWITCHING_ADMIN', true),
 
     // Dev-only: when set to an email and APP_ENV is not production, every
-    // request is auto-authenticated as the matching user.
-    'auto_login' => env('ADMIN_AUTO_LOGIN'),
+    // request is auto-authenticated as the matching user. Set false to disable.
+    'auto_login' => env('ADMIN_AUTO_LOGIN', false),
 
     'profile_menu' => [
         'settings' => [

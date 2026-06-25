@@ -14,6 +14,7 @@
     'showsSectionTabs' => false,
     'sectionTabs' => [],
     'sectionModel' => 'activeSection',
+    'sectionInstructions' => null,
     'programExercises' => [],
     'isFutureSession' => true,
     'canRecordSession' => false,
@@ -92,6 +93,17 @@
 
     <div class="w-full md:mx-auto md:max-w-[900px] px-0 py-0">
         <div class="space-y-0">
+            @if (filled($sectionInstructions))
+                <div class="border-b border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900/40">
+                    <div class="mb-1 text-sm font-semibold text-zinc-600 underline underline-offset-2 dark:text-zinc-300">
+                        {{ __('Instructions:') }}
+                    </div>
+                    <flux:text class="whitespace-pre-line text-sm leading-relaxed text-zinc-700 dark:text-zinc-200">
+                        {{ $sectionInstructions }}
+                    </flux:text>
+                </div>
+            @endif
+
             @forelse ($programExercises as $exercise)
                 <x-athlete.section :row="$loop->iteration" class="py-0" content-class="space-y-0 py-3" wire:key="exercise-{{ $exercise->id }}" x-data="{ open: {{ $autoExpandExerciseId === $exercise->id ? 'true' : 'false' }} }" x-on:athlete-exercise-action-succeeded.window="if (($event.detail.exerciseId ?? null) === {{ $exercise->id }}) open = false">
                     <div x-on:click="open = !open" x-on:keydown.enter.prevent="open = !open"

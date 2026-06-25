@@ -22,6 +22,8 @@ class ExercisePlanConfig extends AbstractConfig
         /** @var array<int, array<int, ExerciseOverrides>> */
         public array $userExercises = [],
         public int $weeks = 5,
+        /** @var array<string, string|null> */
+        public array $sectionInstructions = [],
         /** @var array<int, array<string, mixed>> */
         public array $overrideValues = [],
     ) {}
@@ -68,6 +70,26 @@ class ExercisePlanConfig extends AbstractConfig
             'measuredWeight' => $measuredWeight,
             'targetGoal' => $targetGoal,
         ]);
+    }
+
+    public function sectionInstructions(string $section): ?string
+    {
+        $instructions = $this->sectionInstructions[$section] ?? null;
+
+        return is_string($instructions) && trim($instructions) !== '' ? $instructions : null;
+    }
+
+    public function setSectionInstructions(string $section, ?string $instructions): void
+    {
+        $instructions = is_string($instructions) ? trim($instructions) : null;
+
+        if ($instructions === null || $instructions === '') {
+            unset($this->sectionInstructions[$section]);
+
+            return;
+        }
+
+        $this->sectionInstructions[$section] = $instructions;
     }
 
     public function defaultExerciseOverrides(int $programExerciseId): ExerciseOverrides
@@ -392,6 +414,10 @@ class ExercisePlanConfig extends AbstractConfig
 
         $data = $this->toArray();
         unset($data['overrideValues']);
+        $data['sectionInstructions'] = array_filter(
+            $this->sectionInstructions,
+            fn (mixed $instructions): bool => is_string($instructions) && trim($instructions) !== '',
+        );
         $data['exercises'] = $this->stripPersistedOverrideMaps($data['exercises'] ?? []);
         $data['userExercises'] = array_map(
             fn (array $overridesByUser): array => $this->stripPersistedOverrideMaps($overridesByUser),

@@ -7,9 +7,6 @@ use App\Http\Controllers\Training\SlotDetailsController;
 use App\Livewire\Admin\Docs;
 use App\Livewire\Athlete\Calendar;
 use App\Livewire\Athlete\ProgramDetails;
-use App\Livewire\Test\ExerciseCreator;
-use App\Livewire\Test\PortalDemo;
-use App\Livewire\Test\ReadinessForm;
 use Coda\Cms\Registry;
 use Illuminate\Support\Facades\Route;
 
@@ -18,9 +15,6 @@ Route::redirect('/', '/login');
 Route::post('/client-js-log', ClientJsLogController::class)
     ->middleware('throttle:client-js-log')
     ->name('client-js-log');
-
-Route::get('/ping-test', [AthleteDashboardController::class, 'ping'])
-    ->name('ping-test');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/account-setup/{accountSetupUuid}/{token}', [UserAccountSetupController::class, 'create'])
@@ -72,10 +66,4 @@ Route::prefix('admin')->middleware(['auth', 'cms.admin'])->group(function (): vo
     Route::get('/api/slot-member-colors', [SlotDetailsController::class, 'memberColors'])->name('api.slot-member-colors');
     Route::get('/api/program-grid-cells', [SlotDetailsController::class, 'gridCells'])->name('api.program-grid-cells');
     Route::get('/api/user-day-slots', [SlotDetailsController::class, 'userDaySlots'])->name('api.user-day-slots');
-});
-
-Route::middleware('auth')->group(function (): void {
-    Route::get('/test/exercise-creator', ExerciseCreator::class)->name('test.exercise-creator');
-    Route::get('/test/portal-demo', PortalDemo::class)->name('test.portal-demo');
-    Route::get('/test/readiness', ReadinessForm::class)->name('test.readiness');
 });

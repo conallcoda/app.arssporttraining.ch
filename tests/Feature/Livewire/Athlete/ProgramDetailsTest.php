@@ -330,6 +330,56 @@ it('defaults to the warm up tab when the session includes warm up exercises', fu
         ->assertDontSee('Front Squat');
 });
 
+it('shows active section instructions above the first exercise', function () {
+    config()->set('athlete.dashboard_today_override', '03.04.2026');
+
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Friday Strength']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $config = $program->config;
+    $config->setSectionInstructions('warm_up', 'Warm-up section instructions.');
+    $config->setSectionInstructions('main', 'Main section instructions.');
+    $program->config = $config;
+    $program->saveQuietly();
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => Exercise::factory()->create(['name' => 'Jog Prep'])->id,
+        'sort' => 0,
+        'type' => 'warm_up',
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => Exercise::factory()->create(['name' => 'Front Squat'])->id,
+        'sort' => 1,
+        'type' => 'main',
+    ]);
+
+    TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2026-04-03 09:00:00'),
+    ]);
+
+    Livewire::actingAs($athlete)
+        ->test(ProgramDetails::class, [
+            'date' => '2026-04-03',
+            'trainingProgram' => $trainingProgram,
+        ])
+        ->assertSet('activeSection', 'warm_up')
+        ->assertSee('Warm-up section instructions.')
+        ->assertDontSee('Main section instructions.')
+        ->set('activeSection', 'main')
+        ->assertSee('Main section instructions.')
+        ->assertDontSee('Warm-up section instructions.');
+});
+
 it('sorts athlete program exercises by group before sort order within a section', function () {
     config()->set('athlete.dashboard_today_override', '03.04.2026');
 

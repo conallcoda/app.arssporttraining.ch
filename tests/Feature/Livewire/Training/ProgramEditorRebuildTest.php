@@ -54,6 +54,55 @@ it('dispatches a single shared rebuild when reordering section exercises', funct
     ])->call('moveRelationshipItem', 'section_exercises', 1, -1);
 });
 
+it('persists separate instructions for each exercise program section', function () {
+    $program = ExerciseProgram::factory()->create();
+
+    Livewire::test(ProgramEditor::class, [
+        'exerciseProgram' => $program,
+        'planId' => $program->id,
+    ])
+        ->assertSee('Instructions')
+        ->assertSee('wire:model.live.debounce.500ms="sectionInstructions"', false)
+        ->set('sectionInstructions', 'Main work instructions')
+        ->set('activeSection', 'warm_up')
+        ->set('sectionInstructions', 'Warm-up instructions')
+        ->set('activeSection', 'warm_down')
+        ->set('sectionInstructions', 'Cool-down instructions');
+
+    $config = $program->fresh()->config;
+    $rawConfig = json_decode(DB::table('exercise_programs')->where('id', $program->id)->value('config'), true);
+
+    expect($config->sectionInstructions('main'))->toBe('Main work instructions')
+        ->and($config->sectionInstructions('warm_up'))->toBe('Warm-up instructions')
+        ->and($config->sectionInstructions('warm_down'))->toBe('Cool-down instructions')
+        ->and($rawConfig['sectionInstructions'] ?? [])->toBe([
+            'main' => 'Main work instructions',
+            'warm_up' => 'Warm-up instructions',
+            'warm_down' => 'Cool-down instructions',
+        ]);
+});
+
+it('persists section instructions for scheduled planned programs', function () {
+    $program = ExerciseProgram::factory()->create();
+    $group = UserGroup::query()->create(['name' => 'Scheduled Group']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    Livewire::test(ProgramEditor::class, [
+        'exerciseProgram' => $program,
+        'planId' => $program->id,
+        'scheduledTrainingProgramId' => $trainingProgram->id,
+        'showActualValueTabs' => true,
+    ])
+        ->set('activeSection', 'warm_up')
+        ->set('sectionInstructions', 'Scheduled warm-up instructions');
+
+    expect($trainingProgram->fresh()->program->config->sectionInstructions('warm_up'))
+        ->toBe('Scheduled warm-up instructions');
+});
+
 it('persists drag-and-drop reordering for section exercises', function () {
     $firstExercise = Exercise::factory()->create();
     $secondExercise = Exercise::factory()->create();

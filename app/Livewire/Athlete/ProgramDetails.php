@@ -291,6 +291,12 @@ class ProgramDetails extends Component
             ->contains(fn (string $key): bool => $key !== 'main');
     }
 
+    #[Computed]
+    public function sectionInstructions(): ?string
+    {
+        return $this->trainingProgram->program->config->sectionInstructions($this->activeSection);
+    }
+
     private function resolveInitialSection(TrainingProgram $trainingProgram): string
     {
         foreach (self::SECTION_ORDER as $section) {

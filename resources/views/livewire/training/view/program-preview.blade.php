@@ -18,6 +18,7 @@
             :shows-section-tabs="count($selectedSession['sectionTabs']) > 1"
             :section-tabs="$selectedSession['sectionTabs']"
             section-model="activeSection"
+            :section-instructions="$this->sectionInstructions"
             :program-exercises="$selectedSession['exercisesBySection'][$activeSection] ?? []"
             :is-future-session="$selectedSession['isFutureSession']"
             :athlete-edits-enabled="false"

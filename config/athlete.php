@@ -3,16 +3,36 @@
 return [
     /*
     |--------------------------------------------------------------------------
-    | Allow All Athlete Editing
+    | Athlete Future Editing
     |--------------------------------------------------------------------------
     |
-    | Master toggle for athlete-entered data across date-sensitive athlete
-    | flows. Set to true to allow editing for past, today, and future dates by
-    | default. Set to false to deny all of them by default. Set to null to keep
-    | each feature's built-in default unless overridden below.
+    | Master toggle for athlete-entered data on future dates. When false,
+    | athlete edit flows are limited to today and past dates by default.
     |
     */
-    'can_edit_all' => true,
+    'edit_future' => (bool) env('ATHLETE_EDIT_FUTURE', false),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Athlete User Switching
+    |--------------------------------------------------------------------------
+    |
+    | Kept separate from admin user switching so the athlete dashboard can stay
+    | locked to the authenticated athlete even when admin switching is enabled.
+    |
+    */
+    'user_switching' => (bool) env('USER_SWITCHING_ATHLETE', false),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Legacy Athlete Editing Toggle
+    |--------------------------------------------------------------------------
+    |
+    | Optional hard override retained for tests and direct config overrides.
+    | Leave null to use the edit_future policy below.
+    |
+    */
+    'can_edit_all' => null,
 
     /*
     |--------------------------------------------------------------------------
@@ -48,7 +68,7 @@ return [
     | Set to null to use the actual current date.
     |
     */
-    'dashboard_today_override' => null,
+    'dashboard_today_override' => env('ATHLETE_DASHBOARD_TODAY_OVERRIDE'),
 
     /*
     |--------------------------------------------------------------------------
@@ -59,7 +79,7 @@ return [
     | readiness has been filled in. Set to false to always show training.
     |
     */
-    'require_readiness_for_training_visibility' => true,
+    'require_readiness_for_training_visibility' => (bool) env('ATHLETE_REQUIRE_READINESS_FOR_TRAINING_VISIBILITY', true),
 
     /*
     |--------------------------------------------------------------------------
@@ -70,6 +90,6 @@ return [
     | dashboard before and after marking an exercise done.
     |
     */
-    'allow_athlete_edits' => true,
+    'allow_athlete_edits' => (bool) env('ATHLETE_ALLOW_EXERCISE_VALUE_EDITING', true),
 
 ];

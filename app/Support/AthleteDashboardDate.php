@@ -59,6 +59,14 @@ class AthleteDashboardDate
             return $globalValue;
         }
 
+        if ($relation === 'future') {
+            $editFuture = config('athlete.edit_future');
+
+            if (is_bool($editFuture)) {
+                return $editFuture;
+            }
+        }
+
         return static::defaultEditability($scope, $relation);
     }
 
@@ -99,4 +107,5 @@ class AthleteDashboardDate
             default => false,
         };
     }
+
 }

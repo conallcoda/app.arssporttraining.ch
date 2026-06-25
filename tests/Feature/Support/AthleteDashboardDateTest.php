@@ -7,6 +7,7 @@ it('uses the built-in feature defaults when can_edit_all and granular overrides 
     CarbonImmutable::setTestNow('2030-04-03 12:00:00');
     config()->set('athlete.dashboard_today_override', '03.04.2030');
     config()->set('athlete.can_edit_all', null);
+    config()->set('athlete.edit_future', null);
 
     expect(AthleteDashboardDate::canSubmitReadinessForDate('2030-04-02'))->toBeTrue()
         ->and(AthleteDashboardDate::canSubmitReadinessForDate('2030-04-03'))->toBeTrue()
@@ -14,6 +15,27 @@ it('uses the built-in feature defaults when can_edit_all and granular overrides 
         ->and(AthleteDashboardDate::canRecordProgramExercisesForDate('2030-04-02'))->toBeTrue()
         ->and(AthleteDashboardDate::canRecordProgramExercisesForDate('2030-04-03'))->toBeTrue()
         ->and(AthleteDashboardDate::canRecordProgramExercisesForDate('2030-04-04'))->toBeFalse();
+
+    CarbonImmutable::setTestNow();
+});
+
+it('uses the configured athlete future editing policy for date-sensitive athlete edits', function () {
+    CarbonImmutable::setTestNow('2030-04-03 12:00:00');
+    config()->set('athlete.dashboard_today_override', '03.04.2030');
+    config()->set('athlete.can_edit_all', null);
+    config()->set('athlete.edit_future', false);
+
+    expect(AthleteDashboardDate::canSubmitReadinessForDate('2030-04-02'))->toBeTrue()
+        ->and(AthleteDashboardDate::canSubmitReadinessForDate('2030-04-03'))->toBeTrue()
+        ->and(AthleteDashboardDate::canSubmitReadinessForDate('2030-04-04'))->toBeFalse()
+        ->and(AthleteDashboardDate::canRecordProgramExercisesForDate('2030-04-02'))->toBeTrue()
+        ->and(AthleteDashboardDate::canRecordProgramExercisesForDate('2030-04-03'))->toBeTrue()
+        ->and(AthleteDashboardDate::canRecordProgramExercisesForDate('2030-04-04'))->toBeFalse();
+
+    config()->set('athlete.edit_future', true);
+
+    expect(AthleteDashboardDate::canSubmitReadinessForDate('2030-04-04'))->toBeTrue()
+        ->and(AthleteDashboardDate::canRecordProgramExercisesForDate('2030-04-04'))->toBeTrue();
 
     CarbonImmutable::setTestNow();
 });

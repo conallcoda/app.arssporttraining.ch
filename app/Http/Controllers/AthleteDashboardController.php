@@ -4,15 +4,9 @@ namespace App\Http\Controllers;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 
 class AthleteDashboardController
 {
-    public function ping(): Response
-    {
-        return response('ok', 200);
-    }
-
     public function calendarLegacy(Request $request)
     {
         return redirect()->route('athlete.dashboard.train', [

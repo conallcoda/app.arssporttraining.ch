@@ -19,21 +19,6 @@
         <script src="{{ asset('client-js-logger.js') }}"></script>
     @endif
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    @if (request()->has('_preview'))
-        <script>
-            document.addEventListener('click', function (e) {
-                const link = e.target.closest('a[href]');
-                if (!link) return;
-                const url = new URL(link.href, window.location.origin);
-                if (url.origin === window.location.origin && !url.searchParams.has('_preview')) {
-                    e.preventDefault();
-                    url.searchParams.set('_preview', '1');
-                    window.location.href = url.toString();
-                }
-            });
-
-        </script>
-    @endif
 </head>
 
 <body class="athlete-shell min-h-screen bg-zinc-100 antialiased dark:bg-zinc-800" data-athlete-shell>
@@ -47,16 +32,10 @@
 
             <flux:spacer />
 
-            @if (! request()->has('_preview'))
-                @if (config('cms.user_switching'))
-                    <div class="hidden sm:flex">
-                        <livewire:cms.user-switcher />
-                    </div>
-                @endif
-
-                @if (config('cms.mobile_preview'))
-                    <x-cms::mobile-preview-toggle />
-                @endif
+            @if (config('athlete.user_switching') && config('cms.user_switching'))
+                <div class="hidden sm:flex">
+                    <livewire:cms.user-switcher />
+                </div>
             @endif
 
             <x-cms::theme-toggle />
