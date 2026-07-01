@@ -1,0 +1,27 @@
+{
+    "name": "coda/schema-kit",
+    "description": "Shared schema definitions for entities, facets, views, and identity metadata",
+    "type": "library",
+    "autoload": {
+        "psr-4": {
+            "Coda\\SchemaKit\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Coda\\SchemaKit\\Tests\\": "tests/"
+        }
+    },
+    "require": {
+        "php": "^8.2",
+        "illuminate/database": "^12.0 || ^13.0",
+        "illuminate/support": "^12.0 || ^13.0"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Coda\\SchemaKit\\SchemaKitServiceProvider"
+            ]
+        }
+    }
+}
