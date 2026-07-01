@@ -674,7 +674,9 @@ it('marks every exercise in the active athlete section done', function () {
         ->assertSee('Mark All Done')
         ->call('markActiveSectionCompleted')
         ->assertDispatched('athlete-section-action-succeeded')
-        ->assertDontSee('Mark All Done');
+        ->assertDontSee('Mark All Done')
+        ->assertSee('Mark All Pending')
+        ->assertSee('Mark All Skipped');
 
     $slot = $slot->fresh('exercises.sets');
 
@@ -738,7 +740,9 @@ it('marks every pending exercise in the active athlete section skipped', functio
         ->assertSee('Mark All Skipped')
         ->call('markActiveSectionSkipped')
         ->assertDispatched('athlete-section-action-succeeded')
-        ->assertDontSee('Mark All Skipped');
+        ->assertDontSee('Mark All Skipped')
+        ->assertSee('Mark All Done')
+        ->assertSee('Mark All Pending');
 
     $slot = $slot->fresh('exercises.sets');
     $mainExercises = $slot->exercises->where('type', 'main');
@@ -749,6 +753,80 @@ it('marks every pending exercise in the active athlete section skipped', functio
         ->and($warmUpExercise?->status)->toBe(TrainingProgramSlotExerciseStatusEnum::Pending)
         ->and($slot->skipped_exercise_count)->toBe(2)
         ->and($slot->pending_exercise_count)->toBe(1);
+
+    CarbonImmutable::setTestNow();
+});
+
+it('lets an athlete bulk change a skipped active section to done or pending', function () {
+    CarbonImmutable::setTestNow('2030-04-03 12:00:00');
+    config()->set('athlete.dashboard_today_override', '03.04.2030');
+
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Friday Strength']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $exerciseConfig = [
+        'settings' => ['reps'],
+        'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+        'reps' => ['mode' => 'manual', 'default' => 8, 'applyPer' => 'session'],
+    ];
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => Exercise::factory()->create(['name' => 'Drop Jump', 'config' => $exerciseConfig])->id,
+        'sort' => 0,
+    ]);
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => Exercise::factory()->create(['name' => 'Box Jump', 'config' => $exerciseConfig])->id,
+        'sort' => 1,
+    ]);
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-04-03 09:00:00'),
+    ])->fresh('exercises.sets');
+
+    $component = Livewire::actingAs($athlete)
+        ->test(ProgramDetails::class, [
+            'date' => '2030-04-03',
+            'trainingProgram' => $trainingProgram,
+        ])
+        ->call('markActiveSectionSkipped')
+        ->assertSee('Mark All Done')
+        ->assertSee('Mark All Pending');
+
+    $component
+        ->call('markActiveSectionCompleted')
+        ->assertDispatched('athlete-section-action-succeeded')
+        ->assertSee('Mark All Pending')
+        ->assertSee('Mark All Skipped');
+
+    $slot = $slot->fresh('exercises.sets');
+
+    expect($slot->exercises)
+        ->each(fn ($exercise) => $exercise->status->toBe(TrainingProgramSlotExerciseStatusEnum::Completed))
+        ->and($slot->status)->toBe(TrainingProgramSlotStatusEnum::Completed)
+        ->and($slot->completed_exercise_count)->toBe(2);
+
+    $component
+        ->call('markActiveSectionSkipped')
+        ->call('markActiveSectionPending')
+        ->assertDispatched('athlete-section-action-succeeded')
+        ->assertSee('Mark All Done')
+        ->assertSee('Mark All Skipped');
+
+    $slot = $slot->fresh('exercises.sets');
+
+    expect($slot->exercises)
+        ->each(fn ($exercise) => $exercise->status->toBe(TrainingProgramSlotExerciseStatusEnum::Pending))
+        ->and($slot->status)->toBe(TrainingProgramSlotStatusEnum::Pending)
+        ->and($slot->pending_exercise_count)->toBe(2);
 
     CarbonImmutable::setTestNow();
 });
@@ -1344,7 +1422,8 @@ it('requires athletes to record a concrete rep value when planned reps are a ran
         ->call('openExerciseEditor', $slotExercise->id)
         ->assertSet("editValues.{$slotSet->id}.reps", '');
 
-    $repsField = collect($component->instance()->editSetPanels[0]['fields'])->firstWhere('name', 'reps');
+    $editSetPanels = $component->get('editSetPanels');
+    $repsField = collect($editSetPanels[0]['fields'])->firstWhere('name', 'reps');
 
     expect($repsField?->getPlaceholder())->toBe('8-10');
 
@@ -1928,6 +2007,10 @@ it('renders the same athlete exercise view data from slot models and scheduled s
 });
 
 it('uses the effective scheduled exercise config for athlete editor fields and snapshots', function () {
+    CarbonImmutable::setTestNow('2030-04-03 12:00:00');
+    config()->set('athlete.dashboard_today_override', '03.04.2030');
+    config()->set('athlete.allow_athlete_edits', true);
+
     $athlete = User::factory()->athlete()->create();
     $group = UserGroup::create(['name' => 'Test Group']);
     $program = ExerciseProgram::factory()->create(['name' => 'Bike Session']);
@@ -1983,18 +2066,21 @@ it('uses the effective scheduled exercise config for athlete editor fields and s
         ])
         ->call('openExerciseEditor', $slotExercise->id);
 
-    $instance = $component->instance();
-    $durationField = collect($instance->editSetPanels[0]['fields'])->firstWhere('name', 'duration');
+    $editSetPanels = $component->get('editSetPanels');
+    $editSetTabs = $component->get('editSetTabs');
+    $durationField = collect($editSetPanels[0]['fields'])->firstWhere('name', 'duration');
     $snapshot = app(ScheduledSessionSnapshotBuilder::class)->build($slot->fresh());
     $snapshotExercise = collect($snapshot->exercises)->firstWhere('slotExerciseId', $slotExercise->id);
 
     expect($durationField)->not->toBeNull()
         ->and($durationField->type)->toBe('text')
         ->and($durationField->resolveSuffix())->toBe('m')
-        ->and($instance->editSetTabs[0]['label'])->toBe('Round 1')
+        ->and($editSetTabs[0]['label'])->toBe('Round 1')
         ->and($snapshotExercise)->not->toBeNull()
         ->and($snapshotExercise->setLabel)->toBe('Round')
         ->and($snapshotExercise->settingConfigs['duration']['unit'] ?? null)->toBe('minutes');
+
+    CarbonImmutable::setTestNow();
 });
 
 it('uses the slot exercise config snapshot when live settings change after materialization', function () {

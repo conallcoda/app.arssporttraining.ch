@@ -65,6 +65,45 @@
                             @endif
                         @endif
 
+                        @if ($this->exerciseContent['instructions'] || $this->exerciseContent['videoUrl'] || ! empty($this->exerciseContent['photoUrls']))
+                            <div class="flex items-center gap-3">
+                                @if ($this->exerciseContent['instructions'])
+                                    <div class="relative" x-data="{ open: false }">
+                                        <button type="button"
+                                            x-on:click.stop="open = !open"
+                                            class="inline-flex size-9 items-center justify-center rounded-md bg-zinc-200 text-zinc-700 transition hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600"
+                                            aria-label="View instructions">
+                                            <flux:icon.information-circle class="size-5" />
+                                        </button>
+
+                                        <div x-show="open" x-cloak
+                                            x-on:click.outside="open = false"
+                                            class="absolute left-0 top-full z-30 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-zinc-200 bg-white p-3 text-sm leading-6 text-zinc-700 shadow-lg dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+                                            <div class="whitespace-pre-line">{{ $this->exerciseContent['instructions'] }}</div>
+                                        </div>
+                                    </div>
+                                @endif
+
+                                @if ($this->exerciseContent['videoUrl'])
+                                    <button type="button"
+                                        x-on:click="$dispatch('open-youtube-player', { url: @js($this->exerciseContent['videoUrl']) })"
+                                        class="inline-flex size-9 items-center justify-center rounded-md bg-zinc-200 text-zinc-700 transition hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600"
+                                        aria-label="Watch video">
+                                        <flux:icon.play-circle class="size-5" />
+                                    </button>
+                                @endif
+
+                                @if (! empty($this->exerciseContent['photoUrls']))
+                                    <button type="button"
+                                        x-on:click="$dispatch('open-exercise-gallery', { images: @js($this->exerciseContent['photoUrls']), index: 0 })"
+                                        class="inline-flex size-9 items-center justify-center rounded-md bg-zinc-200 text-zinc-700 transition hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600"
+                                        aria-label="View gallery">
+                                        <flux:icon.camera class="size-5" />
+                                    </button>
+                                @endif
+                            </div>
+                        @endif
+
                         @if (! $this->requiresMeasuredData || $this->hasMeasuredData)
                             @if ($this->previewGrid->summary)
                                 @php

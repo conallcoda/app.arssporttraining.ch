@@ -2,6 +2,9 @@
 
 use App\Data\Exercise\Preview\SessionGroupingMode;
 use App\Livewire\Training\View\PlanExerciseSettingsForm;
+use App\Models\Exercise\Exercise;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
 
 it('uses field labels in validation messages for exercise settings', function () {
@@ -51,6 +54,72 @@ it('opens exercise-specific session grouping fields in the plan exercise setting
         ->assertSet('data.config.preview.groupingMode', 'week')
         ->assertSet('data.config.preview.groupSize', 1)
         ->assertSee('Grouping');
+});
+
+it('edits exercise instructions alongside settings in the plan exercise settings form', function () {
+    Livewire::test(PlanExerciseSettingsForm::class)
+        ->call('openForExercise', [
+            'exerciseId' => 1,
+            'programExerciseId' => 1,
+            'exerciseName' => 'Split Squat',
+            'videoUrl' => 'https://example.com/base-video',
+            'instructions' => 'Keep the front knee stacked.',
+            'config' => [
+                'settings' => ['reps'],
+                'sets' => ['default' => 4, 'label' => 'Set', 'deload' => 'none'],
+                'reps' => ['mode' => 'manual', 'default' => 10],
+                'preview' => ['weeks' => 1, 'sessionsPerWeek' => 1],
+                'overrides' => ['sessions' => [], 'cells' => []],
+            ],
+        ])
+        ->assertSet('data.videoUrl', 'https://example.com/base-video')
+        ->assertSet('data.instructions', 'Keep the front knee stacked.')
+        ->assertSee('Settings')
+        ->assertSee('Instructions')
+        ->set('activeModalTab', 'instructions')
+        ->assertSee('Photos')
+        ->assertSee('Video URL')
+        ->set('data.videoUrl', 'https://example.com/program-video')
+        ->set('data.instructions', 'Program-specific cue.')
+        ->call('submit')
+        ->assertHasNoErrors()
+        ->assertDispatched('plan-exercise-settings.saved', function ($event, $params) {
+            return ($params['data']['videoUrl'] ?? null) === 'https://example.com/program-video'
+                && ($params['data']['instructions'] ?? null) === 'Program-specific cue.';
+        });
+});
+
+it('saves exercise photos from the plan exercise settings form', function () {
+    if (! Schema::hasTable('media')) {
+        (include base_path('vendor/coda/cms/database/migrations/0001_01_01_000100_create_media_table.php'))->up();
+    }
+
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 4, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 10],
+        ],
+    ]);
+
+    Livewire::test(PlanExerciseSettingsForm::class)
+        ->call('openForExercise', [
+            'exerciseId' => $exercise->id,
+            'programExerciseId' => 1,
+            'exerciseName' => 'Split Squat',
+            'config' => [
+                'settings' => ['reps'],
+                'sets' => ['default' => 4, 'label' => 'Set', 'deload' => 'none'],
+                'reps' => ['mode' => 'manual', 'default' => 10],
+                'preview' => ['weeks' => 1, 'sessionsPerWeek' => 1],
+                'overrides' => ['sessions' => [], 'cells' => []],
+            ],
+        ])
+        ->set('mediaUploads.photos', [UploadedFile::fake()->image('split-squat.jpg')])
+        ->call('submit')
+        ->assertHasNoErrors();
+
+    expect($exercise->fresh()->getMedia('photos'))->toHaveCount(1);
 });
 
 it('switches to the first settings tab with validation errors when saving drop-set settings', function () {

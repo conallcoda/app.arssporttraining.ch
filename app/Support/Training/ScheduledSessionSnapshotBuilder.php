@@ -95,8 +95,8 @@ class ScheduledSessionSnapshotBuilder
             name: $exercise?->name ?? 'Exercise',
             equipmentBadges: $exercise?->equipment?->pluck('name')->filter()->values()->all() ?? [],
             modifierBadges: $exercise?->modifiers?->pluck('name')->filter()->values()->all() ?? [],
-            instructions: $exercise?->instructions,
-            videoUrl: $exercise?->video_url,
+            instructions: $this->resolveInstructions($slotExercise, $exercise?->instructions),
+            videoUrl: $this->resolveVideoUrl($slotExercise, $exercise?->video_url),
             photoUrls: $photoUrls,
             setLabel: (string) ($effectiveConfig['sets']['label'] ?? $exercise?->config->sets->label ?? 'Set'),
             settingConfigs: $this->extractSettingConfigs($effectiveConfig),
@@ -109,6 +109,51 @@ class ScheduledSessionSnapshotBuilder
             statusLabel: $slotExercise->status->label(),
             statusColor: $slotExercise->status->barColor(),
         );
+    }
+
+    private function resolveInstructions(TrainingProgramSlotExercise $slotExercise, ?string $baseInstructions): ?string
+    {
+        return $this->resolveContentOverride(
+            slotExercise: $slotExercise,
+            baseValue: $baseInstructions,
+            property: 'effectiveInstructions',
+        );
+    }
+
+    private function resolveVideoUrl(TrainingProgramSlotExercise $slotExercise, ?string $baseVideoUrl): ?string
+    {
+        return $this->resolveContentOverride(
+            slotExercise: $slotExercise,
+            baseValue: $baseVideoUrl,
+            property: 'effectiveVideoUrl',
+        );
+    }
+
+    private function resolveContentOverride(TrainingProgramSlotExercise $slotExercise, ?string $baseValue, string $property): ?string
+    {
+        $slotExercise->loadMissing([
+            'programExercise.exercise',
+            'slot.trainingProgram.program.exercises',
+        ]);
+
+        $slot = $slotExercise->slot;
+        $program = $slot?->trainingProgram?->program;
+        $programConfig = $program?->config;
+        $sourceProgramExercise = $slotExercise->programExercise;
+        $sourceExercise = $sourceProgramExercise?->exercise;
+        $programExerciseId = (int) ($slotExercise->exercise_program_exercise_id ?? 0);
+
+        if ($slot === null || $program === null || $sourceExercise === null || $programExerciseId <= 0) {
+            return $baseInstructions;
+        }
+
+        if (! is_object($programConfig) || ! method_exists($programConfig, 'resolveExercise')) {
+            return $baseInstructions;
+        }
+
+        return $programConfig
+            ->resolveExercise($sourceExercise->config, $programExerciseId, $slot->user_id)
+            ->{$property} ?? $baseValue;
     }
 
     public function buildPlanGridExercise(TrainingProgramSlotExercise $slotExercise): ScheduledExerciseSnapshotData

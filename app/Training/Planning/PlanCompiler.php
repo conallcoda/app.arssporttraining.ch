@@ -52,6 +52,8 @@ class PlanCompiler
                         'baseConfig' => $exercise->baseConfig,
                         'defaultOverrides' => $exercise->defaultOverrides,
                         'userOverrides' => $exercise->userOverrides,
+                        'effectiveVideoUrl' => $exercise->effectiveVideoUrl,
+                        'effectiveInstructions' => $exercise->effectiveInstructions,
                         'measuredData' => $context->weightProgression,
                         'maxHR' => $context->maxHR,
                         'iatPercent' => $context->iatPercent,

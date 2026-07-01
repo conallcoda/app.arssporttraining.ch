@@ -83,6 +83,30 @@ it('bumps the parent grid render version when exercise overrides change', functi
     expect($component->instance()->gridRenderVersion)->toBe(1);
 });
 
+it('refreshes parent config without remounting grids when exercise content overrides change', function () {
+    $coach = User::factory()->coach()->create();
+    $program = ExerciseProgram::factory()->create();
+
+    $component = Livewire::actingAs($coach)->test(ProgramEditor::class, [
+        'exerciseProgram' => $program,
+        'planId' => $program->id,
+        'showActualValueTabs' => true,
+    ]);
+
+    $originalConfig = $component->instance()->planConfigArray;
+
+    $programConfig = $program->fresh()->config;
+    $programConfig->setSectionInstructions('main', 'Refreshed parent config');
+    $program->config = $programConfig;
+    $program->save();
+
+    $component->call('onExerciseContentOverridesChanged');
+
+    expect($component->instance()->gridRenderVersion)->toBe(0)
+        ->and($component->instance()->planConfigArray)->not->toBe($originalConfig)
+        ->and($component->instance()->planConfigArray['sectionInstructions']['main'] ?? null)->toBe('Refreshed parent config');
+});
+
 it('renders program preview sessions and opens athlete-style session details', function () {
     $coach = User::factory()->coach()->create();
     $athlete = User::factory()->athlete()->create();

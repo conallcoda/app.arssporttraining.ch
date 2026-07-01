@@ -18,9 +18,9 @@ class TrainingSessionProgressService
         private readonly TrainingStateRevisionService $stateRevisionService,
     ) {}
 
-    public function markExerciseCompleted(TrainingProgramSlotExercise $exercise): void
+    public function markExerciseCompleted(TrainingProgramSlotExercise $exercise, bool $completeSkippedSets = false): void
     {
-        DB::transaction(function () use ($exercise): void {
+        DB::transaction(function () use ($exercise, $completeSkippedSets): void {
             $exercise = TrainingProgramSlotExercise::query()
                 ->with(['slot', 'sets.values'])
                 ->lockForUpdate()
@@ -35,7 +35,7 @@ class TrainingSessionProgressService
             $now = now();
 
             foreach ($exercise->sets as $set) {
-                if ($set->skipped_at !== null) {
+                if ($set->skipped_at !== null && ! $completeSkippedSets) {
                     $set->forceFill([
                         'completed_at' => null,
                     ])->save();
@@ -87,6 +87,36 @@ class TrainingSessionProgressService
             $this->recordProgressStateChanges(
                 owner: $exercise,
                 action: 'mark_exercise_skipped',
+                beforeSets: $beforeSets,
+                beforeExercise: $beforeExercise,
+                beforeSlot: $beforeSlot,
+            );
+        });
+    }
+
+    public function markExercisePending(TrainingProgramSlotExercise $exercise): void
+    {
+        DB::transaction(function () use ($exercise): void {
+            $exercise = TrainingProgramSlotExercise::query()
+                ->with(['slot', 'sets.values'])
+                ->lockForUpdate()
+                ->findOrFail($exercise->id);
+
+            $beforeExercise = $this->stateSnapshot($exercise);
+            $beforeSlot = $this->stateSnapshot($exercise->slot);
+            $beforeSets = $exercise->sets->mapWithKeys(
+                fn (TrainingProgramSlotSet $set): array => [$set->id => $this->stateSnapshot($set)]
+            )->all();
+
+            $exercise->sets()->update([
+                'completed_at' => null,
+                'skipped_at' => null,
+            ]);
+
+            $this->statusService->refreshExerciseState($exercise);
+            $this->recordProgressStateChanges(
+                owner: $exercise,
+                action: 'mark_exercise_pending',
                 beforeSets: $beforeSets,
                 beforeExercise: $beforeExercise,
                 beforeSlot: $beforeSlot,

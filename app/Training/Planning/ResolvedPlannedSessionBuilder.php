@@ -44,6 +44,8 @@ class ResolvedPlannedSessionBuilder
      *     baseConfig?:array,
      *     defaultOverrides?:?ExerciseOverrides,
      *     userOverrides?:?ExerciseOverrides,
+     *     effectiveVideoUrl?:?string,
+     *     effectiveInstructions?:?string,
      *     measuredData:?WeightProgressionSetting,
      *     maxHR:?int,
      *     iatPercent:?int
@@ -79,6 +81,8 @@ class ResolvedPlannedSessionBuilder
                     baseConfig: $exercise['baseConfig'] ?? [],
                     defaultOverrides: $exercise['defaultOverrides'] ?? null,
                     userOverrides: $exercise['userOverrides'] ?? null,
+                    effectiveVideoUrl: $exercise['effectiveVideoUrl'] ?? null,
+                    effectiveInstructions: $exercise['effectiveInstructions'] ?? null,
                     weekIndex: $weekIndex,
                     sessionIndex: $sessionIndex,
                     weeks: $weeks,
@@ -125,6 +129,8 @@ class ResolvedPlannedSessionBuilder
         ?ExerciseOverrides $defaultOverrides = null,
         ?ExerciseOverrides $userOverrides = null,
         ?int $programExerciseId = null,
+        ?string $effectiveVideoUrl = null,
+        ?string $effectiveInstructions = null,
     ): ?ResolvedPlannedExercise {
         $span = PlanGridProfiler::start('ResolvedPlannedSessionBuilder.buildExercise', [
             'exercise_id' => $exerciseId,
@@ -211,6 +217,8 @@ class ResolvedPlannedSessionBuilder
                 setCountProvenance: $setCountProvenance,
                 programExerciseId: $programExerciseId,
                 effectiveConfig: $effectiveConfig,
+                effectiveVideoUrl: $effectiveVideoUrl,
+                effectiveInstructions: $effectiveInstructions,
             );
         } finally {
             PlanGridProfiler::end($span, [

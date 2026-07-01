@@ -22,6 +22,8 @@ class ExerciseOverrides extends AbstractData
     public function __construct(
         /** @var string[]|null */
         public ?array $settings = null,
+        public ?string $videoUrl = null,
+        public ?string $instructions = null,
         public ?string $startsAtDate = null,
         public ?SetsSetting $sets = null,
         public ?RepsSetting $reps = null,
@@ -48,6 +50,40 @@ class ExerciseOverrides extends AbstractData
         $this->baselineGridOverrides = $this->baselineGridOverrides === null
             ? null
             : GridOverrideNormalizer::normalize($this->baselineGridOverrides);
+    }
+
+    public static function from(mixed ...$payloads): static
+    {
+        $instance = parent::from(...$payloads);
+
+        foreach ($payloads as $payload) {
+            if (is_array($payload)) {
+                if (array_key_exists('videoUrl', $payload)) {
+                    $instance->videoUrl = is_string($payload['videoUrl']) ? $payload['videoUrl'] : null;
+                }
+
+                if (array_key_exists('instructions', $payload)) {
+                    $instance->instructions = is_string($payload['instructions']) ? $payload['instructions'] : null;
+                }
+
+                continue;
+            }
+
+            if ($payload instanceof self) {
+                $instance->videoUrl = $payload->videoUrl;
+                $instance->instructions = $payload->instructions;
+            }
+        }
+
+        return $instance;
+    }
+
+    public function toArray(): array
+    {
+        return array_replace(parent::toArray(), [
+            'videoUrl' => $this->videoUrl,
+            'instructions' => $this->instructions,
+        ]);
     }
 
     public function hasSettingOverride(string $setting): bool

@@ -1006,6 +1006,14 @@ class ProgramEditor extends Component
         $this->gridRenderVersion++;
     }
 
+    #[On('exercise-content-overrides-changed')]
+    public function onExerciseContentOverridesChanged(): void
+    {
+        $this->exerciseProgram->refresh();
+        unset($this->planConfigArray);
+        $this->skipRender();
+    }
+
     protected function dispatchSharedProgramRebuild(): void
     {
         app(TrainingSessionRebuildDispatcher::class)

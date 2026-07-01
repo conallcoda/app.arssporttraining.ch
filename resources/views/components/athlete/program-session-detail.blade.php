@@ -29,8 +29,36 @@
             'label' => $tab['label'],
         ])
         ->all();
-    $hasPendingExercise = collect($programExercises)
-        ->contains(fn ($exercise): bool => ! $exercise->status->isSubmitted());
+    $sectionStatuses = collect($programExercises)
+        ->map(fn ($exercise): string => (string) ($exercise->status->value ?? $exercise->status))
+        ->values();
+    $sectionStatus = match (true) {
+        $sectionStatuses->isEmpty() => 'empty',
+        $sectionStatuses->every(fn (string $status): bool => $status === 'pending') => 'pending',
+        $sectionStatuses->every(fn (string $status): bool => $status === 'skipped') => 'skipped',
+        $sectionStatuses->every(fn (string $status): bool => $status === 'completed') => 'completed',
+        default => 'mixed',
+    };
+    $sectionBulkActions = match ($sectionStatus) {
+        'pending' => [
+            ['label' => 'Mark All Done', 'variant' => 'primary', 'action' => 'markActiveSectionCompleted'],
+            ['label' => 'Mark All Skipped', 'variant' => 'ghost', 'action' => 'markActiveSectionSkipped'],
+        ],
+        'skipped' => [
+            ['label' => 'Mark All Done', 'variant' => 'primary', 'action' => 'markActiveSectionCompleted'],
+            ['label' => 'Mark All Pending', 'variant' => 'ghost', 'action' => 'markActiveSectionPending'],
+        ],
+        'completed' => [
+            ['label' => 'Mark All Pending', 'variant' => 'ghost', 'action' => 'markActiveSectionPending'],
+            ['label' => 'Mark All Skipped', 'variant' => 'ghost', 'action' => 'markActiveSectionSkipped'],
+        ],
+        'mixed' => [
+            ['label' => 'Mark All Done', 'variant' => 'primary', 'action' => 'markActiveSectionCompleted'],
+            ['label' => 'Mark All Pending', 'variant' => 'ghost', 'action' => 'markActiveSectionPending'],
+            ['label' => 'Mark All Skipped', 'variant' => 'ghost', 'action' => 'markActiveSectionSkipped'],
+        ],
+        default => [],
+    };
 @endphp
 
 <div>
@@ -273,14 +301,17 @@
                 </x-athlete.section>
             @endforelse
 
-            @if ($canRecordSession && $hasPendingExercise)
-                <div class="grid grid-cols-2 gap-2 border-t border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-zinc-700 dark:bg-zinc-900/40">
-                    <flux:button type="button" variant="primary" class="w-full" wire:click="markActiveSectionCompleted">
-                        Mark All Done
-                    </flux:button>
-                    <flux:button type="button" variant="ghost" class="w-full" wire:click="markActiveSectionSkipped">
-                        Mark All Skipped
-                    </flux:button>
+            @if ($canRecordSession && $sectionBulkActions !== [])
+                <div @class([
+                    'grid gap-2 border-t border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-zinc-700 dark:bg-zinc-900/40',
+                    'grid-cols-2' => count($sectionBulkActions) === 2,
+                    'grid-cols-1 sm:grid-cols-3' => count($sectionBulkActions) === 3,
+                ])>
+                    @foreach ($sectionBulkActions as $action)
+                        <flux:button type="button" :variant="$action['variant']" class="w-full" wire:click="{{ $action['action'] }}">
+                            {{ $action['label'] }}
+                        </flux:button>
+                    @endforeach
                 </div>
             @endif
         </div>

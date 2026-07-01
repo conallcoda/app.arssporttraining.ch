@@ -124,6 +124,8 @@ class ProgramPreviewBuilder
                         userOverrides: $resolvedOverrides->userOverrides,
                         disabled: (bool) $resolvedOverrides->disabled,
                         programExerciseId: $programExerciseId,
+                        effectiveVideoUrl: $resolvedOverrides->effectiveVideoUrl,
+                        effectiveInstructions: $resolvedOverrides->effectiveInstructions,
                     );
                 })
                 ->all(),

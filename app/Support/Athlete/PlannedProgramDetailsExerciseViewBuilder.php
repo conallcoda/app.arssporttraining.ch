@@ -93,9 +93,9 @@ class PlannedProgramDetailsExerciseViewBuilder
             name: $exercise->name ?? 'Exercise',
             equipmentBadges: $exercise->equipment?->pluck('name')->filter()->values()->all() ?? [],
             modifierBadges: $exercise->modifiers?->pluck('name')->filter()->values()->all() ?? [],
-            instructions: $exercise->instructions,
+            instructions: $plannedExercise->effectiveInstructions ?? $exercise->instructions,
             bilateralRepsHint: $bilateralRepsHint,
-            videoUrl: $exercise->video_url,
+            videoUrl: $plannedExercise->effectiveVideoUrl ?? $exercise->video_url,
             photoUrls: Schema::hasTable('media')
                 ? $exercise->getMedia('photos')->map(fn ($media) => $media->getUrl())->values()->all()
                 : [],

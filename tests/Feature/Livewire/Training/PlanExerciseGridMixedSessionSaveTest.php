@@ -8,6 +8,7 @@ use App\Models\Training\TrainingPlanValueRevision;
 use App\Models\Training\TrainingRevisionBatch;
 use App\Models\Users\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -51,6 +52,208 @@ it('saves future session overrides in a week that also has locked sessions', fun
         ->not->toBeNull()
         ->and(collect($overrides['cells'] ?? [])->firstWhere(fn (array $cell) => ($cell['week'] ?? null) === 0 && ($cell['session'] ?? null) === 1 && ($cell['set'] ?? null) === 0)['data']['reps'] ?? null)
         ->toBe(14);
+});
+
+it('opens the exercise settings modal with inherited exercise instructions', function () {
+    $program = ExerciseProgram::factory()->create();
+    $exercise = Exercise::factory()->create([
+        'video_url' => 'https://example.com/base-video',
+        'instructions' => 'Keep the torso tall.',
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+        ],
+    ]);
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    Livewire::test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'weeks' => 1,
+        'sessionsPerWeek' => 1,
+    ])
+        ->call('openSettingsForm')
+        ->assertDispatched('open-plan-exercise-settings', function ($event, $params) {
+            return ($params['data']['videoUrl'] ?? null) === 'https://example.com/base-video'
+                && ($params['data']['instructions'] ?? null) === 'Keep the torso tall.';
+        });
+});
+
+it('shows exercise instructions and media actions above the program exercise table', function () {
+    if (! Schema::hasTable('media')) {
+        (include base_path('vendor/coda/cms/database/migrations/0001_01_01_000100_create_media_table.php'))->up();
+    }
+
+    $program = ExerciseProgram::factory()->create();
+    $exercise = Exercise::factory()->create([
+        'video_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        'instructions' => "Keep the torso tall.\nDrive the knees out.",
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+        ],
+    ]);
+    $photoPath = tempnam(sys_get_temp_dir(), 'exercise-photo-');
+    file_put_contents($photoPath, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII='));
+    $exercise->addMedia($photoPath)
+        ->usingName('goblet-squat.jpg')
+        ->usingFileName('goblet-squat.png')
+        ->toMediaCollection('photos');
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    Livewire::test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'exerciseName' => $exercise->name,
+        'exerciseConfigArray' => $exercise->config->toArray(),
+        'userId' => null,
+        'weeks' => 1,
+        'sessionsPerWeek' => 1,
+    ])
+        ->assertSee('View instructions')
+        ->assertSee("Keep the torso tall.\nDrive the knees out.")
+        ->assertSee('whitespace-pre-line', false)
+        ->assertSee('Watch video')
+        ->assertSee('View gallery');
+});
+
+it('keeps only the current exercise plan config in each grid payload', function () {
+    $program = ExerciseProgram::factory()->create();
+    $firstExercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+        ],
+    ]);
+    $secondExercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 10, 'applyPer' => 'session'],
+        ],
+    ]);
+    $firstPivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $firstExercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+    $secondPivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $secondExercise->id,
+        'sort' => 1,
+        'type' => 'main',
+    ]);
+    $planConfigArray = [
+        'target' => ['measuredReps' => 1, 'measuredWeight' => 50, 'targetGoal' => 10],
+        'exercises' => [
+            $firstPivot->id => ['instructions' => 'Keep this one.'],
+            $secondPivot->id => ['instructions' => 'Drop this one.'],
+        ],
+        'userExercises' => [
+            10 => [
+                $firstPivot->id => ['instructions' => 'Keep athlete override.'],
+                $secondPivot->id => ['instructions' => 'Drop athlete override.'],
+            ],
+            11 => [
+                $firstPivot->id => ['instructions' => 'Drop other athlete.'],
+            ],
+        ],
+        'overrideValues' => [
+            ['programExerciseId' => $firstPivot->id, 'userId' => null, 'settingKey' => 'reps', 'value' => 8],
+            ['programExerciseId' => $secondPivot->id, 'userId' => null, 'settingKey' => 'reps', 'value' => 9],
+            ['programExerciseId' => $firstPivot->id, 'userId' => 10, 'settingKey' => 'reps', 'value' => 10],
+            ['programExerciseId' => $firstPivot->id, 'userId' => 11, 'settingKey' => 'reps', 'value' => 11],
+        ],
+    ];
+
+    $component = Livewire::test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'programExerciseId' => $firstPivot->id,
+        'exerciseId' => $firstExercise->id,
+        'userId' => 10,
+        'weeks' => 1,
+        'sessionsPerWeek' => 1,
+        'planConfigArray' => $planConfigArray,
+    ]);
+
+    expect($component->instance()->planConfigArray['exercises'])->toHaveKey($firstPivot->id)
+        ->and($component->instance()->planConfigArray['exercises'])->not->toHaveKey($secondPivot->id)
+        ->and($component->instance()->planConfigArray['userExercises'])->toHaveKey(10)
+        ->and($component->instance()->planConfigArray['userExercises'])->not->toHaveKey(11)
+        ->and($component->instance()->planConfigArray['userExercises'][10])->toHaveKey($firstPivot->id)
+        ->and($component->instance()->planConfigArray['userExercises'][10])->not->toHaveKey($secondPivot->id)
+        ->and($component->instance()->planConfigArray['overrideValues'])->toHaveCount(2);
+});
+
+it('saves program-specific exercise content from the settings modal', function () {
+    $program = ExerciseProgram::factory()->create();
+    $exercise = Exercise::factory()->create([
+        'video_url' => 'https://example.com/base-video',
+        'instructions' => 'Base cue.',
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+        ],
+    ]);
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    Livewire::test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'weeks' => 1,
+        'sessionsPerWeek' => 1,
+    ])
+        ->call('onSettingsSaved', [
+            'programExerciseId' => $pivot->id,
+            'exerciseId' => $exercise->id,
+            'userId' => null,
+            'videoUrl' => 'https://example.com/program-video',
+            'instructions' => 'Program-specific cue.',
+            'config' => [
+                'settings' => ['reps'],
+                'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+                'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+                'preview' => ['weeks' => 1, 'sessionsPerWeek' => 1],
+                'overrides' => ['sessions' => [], 'cells' => []],
+            ],
+        ])
+        ->assertNotDispatched('exercise-overrides-changed')
+        ->assertDispatched('exercise-content-overrides-changed')
+        ->call('openSettingsForm')
+        ->assertDispatched('open-plan-exercise-settings', function ($event, $params) {
+            return ($params['data']['videoUrl'] ?? null) === 'https://example.com/program-video'
+                && ($params['data']['instructions'] ?? null) === 'Program-specific cue.';
+        });
+
+    $overrides = $program->fresh()->config->defaultExerciseOverrides($pivot->id);
+
+    expect($overrides->videoUrl)->toBe('https://example.com/program-video')
+        ->and($overrides->instructions)->toBe('Program-specific cue.');
 });
 
 it('records a plan revision batch when a coach creates a grid override', function () {

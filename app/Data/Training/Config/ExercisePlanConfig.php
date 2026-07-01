@@ -28,6 +28,31 @@ class ExercisePlanConfig extends AbstractConfig
         public array $overrideValues = [],
     ) {}
 
+    public static function from(mixed ...$payloads): static
+    {
+        $instance = parent::from(...$payloads);
+
+        foreach ($payloads as $payload) {
+            if ($payload instanceof self) {
+                $payload = $payload->toArray();
+            }
+
+            if (! is_array($payload)) {
+                continue;
+            }
+
+            $instance->applyContentOverridePayload($payload['exercises'] ?? []);
+
+            foreach (($payload['userExercises'] ?? []) as $userId => $overridesByExercise) {
+                if (is_array($overridesByExercise)) {
+                    $instance->applyContentOverridePayload($overridesByExercise, (int) $userId);
+                }
+            }
+        }
+
+        return $instance;
+    }
+
     public static function initialize(): self
     {
         return self::from([
@@ -194,6 +219,8 @@ class ExercisePlanConfig extends AbstractConfig
             effectiveConfig: $effectiveConfig,
             overrideLayer: $overrideLayer,
             effectiveStartsAtDate: $userOverrides?->startsAtDate ?? $defaultOverrides->startsAtDate,
+            effectiveVideoUrl: $userOverrides?->videoUrl ?? $defaultOverrides->videoUrl,
+            effectiveInstructions: $userOverrides?->instructions ?? $defaultOverrides->instructions,
             disabled: EffectiveExerciseConfig::resolveDisabled($defaultOverrides, $userOverrides),
         );
     }
@@ -405,6 +432,20 @@ class ExercisePlanConfig extends AbstractConfig
     public function resetAll(): void
     {
         $this->resetDefaults();
+    }
+
+    /** @return array<string, mixed> */
+    public function toArray(): array
+    {
+        $this->hydrateOverrideValues();
+
+        return array_replace(parent::toArray(), [
+            'exercises' => $this->serializeOverrideMap($this->exercises),
+            'userExercises' => array_map(
+                fn (array $overridesByExercise): array => $this->serializeOverrideMap($overridesByExercise),
+                $this->userExercises,
+            ),
+        ]);
     }
 
     /** @return array<string, mixed> */
@@ -657,5 +698,84 @@ class ExercisePlanConfig extends AbstractConfig
         }
 
         return $cleaned;
+    }
+
+    /**
+     * @param  array<int|string, mixed>  $overridesByExercise
+     * @return array<int|string, array<string, mixed>>
+     */
+    private function serializeOverrideMap(array $overridesByExercise): array
+    {
+        $serialized = [];
+
+        foreach ($overridesByExercise as $programExerciseId => $overrides) {
+            $serialized[$programExerciseId] = $overrides instanceof ExerciseOverrides
+                ? $overrides->toArray()
+                : ExerciseOverrides::from($overrides)->toArray();
+        }
+
+        return $serialized;
+    }
+
+    /** @param array<int|string, mixed> $overridesByExercise */
+    private function applyContentOverridePayload(array $overridesByExercise, ?int $userId = null): void
+    {
+        foreach ($overridesByExercise as $programExerciseId => $payload) {
+            if (! is_array($payload)) {
+                continue;
+            }
+
+            $content = [];
+
+            if (array_key_exists('videoUrl', $payload)) {
+                $content['videoUrl'] = is_string($payload['videoUrl']) ? $payload['videoUrl'] : null;
+            }
+
+            if (array_key_exists('instructions', $payload)) {
+                $content['instructions'] = is_string($payload['instructions']) ? $payload['instructions'] : null;
+            }
+
+            if ($content === []) {
+                continue;
+            }
+
+            $programExerciseId = (int) $programExerciseId;
+
+            if ($userId === null) {
+                $current = $this->exercises[$programExerciseId] ?? [];
+
+                if ($current instanceof ExerciseOverrides) {
+                    if (array_key_exists('videoUrl', $content)) {
+                        $current->videoUrl = $content['videoUrl'];
+                    }
+
+                    if (array_key_exists('instructions', $content)) {
+                        $current->instructions = $content['instructions'];
+                    }
+
+                    continue;
+                }
+
+                $this->exercises[$programExerciseId] = array_replace(is_array($current) ? $current : [], $content);
+
+                continue;
+            }
+
+            $current = $this->userExercises[$userId][$programExerciseId] ?? [];
+
+            if ($current instanceof ExerciseOverrides) {
+                if (array_key_exists('videoUrl', $content)) {
+                    $current->videoUrl = $content['videoUrl'];
+                }
+
+                if (array_key_exists('instructions', $content)) {
+                    $current->instructions = $content['instructions'];
+                }
+
+                continue;
+            }
+
+            $this->userExercises[$userId][$programExerciseId] = array_replace(is_array($current) ? $current : [], $content);
+        }
     }
 }

@@ -140,6 +140,33 @@ it('exposes override rows as a flat list separate from the persisted json shape'
         ->and($rehydrated->defaultExerciseOverrides(100)->historicalGridOverrides['cells'][0]['data']['reps'] ?? null)->toBe(10);
 });
 
+it('persists exercise-level content overrides in the json config shape', function () {
+    $config = ExercisePlanConfig::from([
+        'target' => ['measuredReps' => 1, 'measuredWeight' => 50, 'targetGoal' => 10],
+    ]);
+
+    $config->setDefaultExerciseOverrides(100, ExerciseOverrides::from([
+        'videoUrl' => 'https://example.com/video',
+        'instructions' => 'Keep the ribs down.',
+    ]));
+    $config->setUserExerciseOverrides(10, 100, ExerciseOverrides::from([
+        'instructions' => 'Athlete-specific cue.',
+    ]));
+
+    $array = $config->toArray();
+    $persisted = $config->toPersistedArray();
+    $rehydrated = ExercisePlanConfig::from($persisted);
+
+    expect($array['exercises'][100]['videoUrl'] ?? null)->toBe('https://example.com/video')
+        ->and($array['exercises'][100]['instructions'] ?? null)->toBe('Keep the ribs down.')
+        ->and($persisted['exercises'][100]['videoUrl'] ?? null)->toBe('https://example.com/video')
+        ->and($persisted['exercises'][100]['instructions'] ?? null)->toBe('Keep the ribs down.')
+        ->and($persisted['userExercises'][10][100]['instructions'] ?? null)->toBe('Athlete-specific cue.')
+        ->and($rehydrated->defaultExerciseOverrides(100)->videoUrl)->toBe('https://example.com/video')
+        ->and($rehydrated->defaultExerciseOverrides(100)->instructions)->toBe('Keep the ribs down.')
+        ->and($rehydrated->userExerciseOverrides(10, 100)->instructions)->toBe('Athlete-specific cue.');
+});
+
 it('keeps a concrete exercise-level session grouping override without needing plan grouping', function () {
     $config = ExercisePlanConfig::from([]);
 

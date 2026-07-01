@@ -51,6 +51,7 @@ use Carbon\Carbon;
 use Coda\Cms\Livewire\Concerns\InteractsWithParentView;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Reactive;
@@ -190,10 +191,10 @@ class PlanExerciseGrid extends Component
 
         try {
             $this->planId = $planId;
-            $this->planConfigArray = $planConfigArray;
             $this->programExerciseId = $programExerciseId;
             $this->exerciseId = $exerciseId;
             $this->userId = $userId;
+            $this->planConfigArray = $this->slicePlanConfigArray($planConfigArray);
             $this->scheduledTrainingProgramId = $scheduledTrainingProgramId;
             $this->weeks = $weeks;
             $this->sessionsPerWeek = $sessionsPerWeek;
@@ -1080,6 +1081,17 @@ class PlanExerciseGrid extends Component
         return PlanGridProfiler::measure('PlanExerciseGrid.resolvedExerciseOverrides', $this->profileContext(), function (): ResolvedExerciseOverrides {
             return $this->getPlanConfig()->resolveExercise($this->getExerciseConfig(), $this->programExerciseId, $this->userId);
         });
+    }
+
+    /** @return array{instructions: ?string, videoUrl: ?string, photoUrls: array<int, string>} */
+    #[Computed]
+    public function exerciseContent(): array
+    {
+        return [
+            'instructions' => $this->resolvedExerciseOverrides->effectiveInstructions ?? $this->baseExerciseInstructions(),
+            'videoUrl' => $this->resolvedExerciseOverrides->effectiveVideoUrl ?? $this->baseExerciseVideoUrl(),
+            'photoUrls' => $this->baseExercisePhotoUrls(),
+        ];
     }
 
     protected function resolveExerciseOverrides(): ResolvedExerciseOverrides
@@ -2220,8 +2232,13 @@ class PlanExerciseGrid extends Component
             'exerciseId' => $this->exerciseId,
             'userId' => $this->userId,
             'exerciseName' => $this->exerciseName,
+            'photoUrls' => $this->baseExercisePhotoUrls(),
+            'videoUrl' => $this->resolvedExerciseOverrides->effectiveVideoUrl ?? $this->baseExerciseVideoUrl(),
+            'instructions' => $this->resolvedExerciseOverrides->effectiveInstructions ?? $this->baseExerciseInstructions(),
             'focusField' => $focusField,
         ]);
+
+        $this->skipRender();
     }
 
     public function openGroupingForm(): void
@@ -2272,8 +2289,21 @@ class PlanExerciseGrid extends Component
         }
 
         $settingsConfig = $data['config'] ?? [];
+        $videoUrl = $this->normalizeContentText($data['videoUrl'] ?? null);
+        $instructions = $this->normalizeInstructions($data['instructions'] ?? null);
         $parentConfig = $this->getParentConfig();
-        $overrides = $this->getCurrentOverrides();
+        $previousOverrides = ExerciseOverrides::from($this->getCurrentOverrides()->toArray());
+        $overrides = ExerciseOverrides::from($previousOverrides->toArray());
+
+        $parentVideoUrl = $this->parentVideoUrl();
+        $overrides->videoUrl = $this->contentTextMatchesParent($videoUrl, $parentVideoUrl)
+            ? null
+            : $videoUrl;
+
+        $parentInstructions = $this->parentInstructions();
+        $overrides->instructions = $this->contentTextMatchesParent($instructions, $parentInstructions)
+            ? null
+            : $instructions;
 
         $overrides->settings = ($settingsConfig['settings'] ?? null) == ($parentConfig['settings'] ?? null)
             ? null
@@ -2332,9 +2362,100 @@ class PlanExerciseGrid extends Component
             ? null
             : $formGrouping;
 
-        $this->saveOverrides($overrides, snapshotLockedWeeks: false);
-        $this->bumpGridRenderVersion();
-        unset($this->configFingerprint, $this->previewGrid, $this->displayGrid, $this->settingBadges, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions, $this->resetMenuOptions, $this->groupingBadge);
+        $gridAffectingChange = $this->gridAffectingOverrideSignature($previousOverrides) !== $this->gridAffectingOverrideSignature($overrides);
+
+        $this->saveOverrides($overrides, notifyParent: $gridAffectingChange, snapshotLockedWeeks: false);
+
+        if ($gridAffectingChange) {
+            $this->bumpGridRenderVersion();
+            unset($this->configFingerprint, $this->previewGrid, $this->displayGrid, $this->settingBadges, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions, $this->resetMenuOptions, $this->groupingBadge);
+        } else {
+            unset($this->resolvedExerciseOverrides);
+            $this->dispatch('exercise-content-overrides-changed');
+            $this->skipRender();
+        }
+    }
+
+    private function gridAffectingOverrideSignature(ExerciseOverrides $overrides): array
+    {
+        $data = $overrides->toArray();
+
+        unset($data['videoUrl'], $data['instructions']);
+
+        return $data;
+    }
+
+    private function parentVideoUrl(): ?string
+    {
+        if ($this->userId !== null) {
+            return $this->resolvedExerciseOverrides->defaultOverrides->videoUrl ?? $this->baseExerciseVideoUrl();
+        }
+
+        return $this->baseExerciseVideoUrl();
+    }
+
+    private function parentInstructions(): ?string
+    {
+        if ($this->userId !== null) {
+            return $this->resolvedExerciseOverrides->defaultOverrides->instructions ?? $this->baseExerciseInstructions();
+        }
+
+        return $this->baseExerciseInstructions();
+    }
+
+    private function baseExerciseVideoUrl(): ?string
+    {
+        $videoUrl = Exercise::query()
+            ->whereKey($this->exerciseId)
+            ->value('video_url');
+
+        return $this->normalizeContentText($videoUrl);
+    }
+
+    private function baseExerciseInstructions(): ?string
+    {
+        $instructions = Exercise::query()
+            ->whereKey($this->exerciseId)
+            ->value('instructions');
+
+        return is_string($instructions) && trim($instructions) !== ''
+            ? trim($instructions)
+            : null;
+    }
+
+    private function baseExercisePhotoUrls(): array
+    {
+        if (! Schema::hasTable('media')) {
+            return [];
+        }
+
+        $exercise = Exercise::query()->find($this->exerciseId);
+
+        if (! $exercise) {
+            return [];
+        }
+
+        return $exercise->getMedia('photos')->map(fn ($media) => $media->getUrl())->values()->all();
+    }
+
+    private function contentTextMatchesParent(?string $value, ?string $parentValue): bool
+    {
+        return $value === $parentValue
+            || ($value === '' && $parentValue === null);
+    }
+
+    private function normalizeInstructions(mixed $instructions): ?string
+    {
+        return $this->normalizeContentText($instructions);
+    }
+
+    private function normalizeContentText(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        return trim($value);
     }
 
     private function sessionGroupingFromPreview(array $preview): SessionGroupingConfig
@@ -2427,7 +2548,7 @@ class PlanExerciseGrid extends Component
             });
 
             PlanGridProfiler::measure('PlanExerciseGrid.saveOverrides.refreshComponentConfig', $this->profileContext(), function () use ($config): void {
-                $this->planConfigArray = $config->toArray();
+                $this->planConfigArray = $this->slicePlanConfigArray($config->toArray());
                 unset($this->planConfigArray['overrideValues']);
                 unset($this->planConfig, $this->resolvedExerciseOverrides);
             });
@@ -2455,6 +2576,58 @@ class PlanExerciseGrid extends Component
         unset($data['historicalGridOverrides'], $data['baselineGridOverrides']);
 
         return $data;
+    }
+
+    private function slicePlanConfigArray(array $config): array
+    {
+        if ($config === []) {
+            return [];
+        }
+
+        $programExerciseId = (int) $this->programExerciseId;
+        $userId = $this->userId !== null ? (int) $this->userId : null;
+
+        $config['exercises'] = array_filter(
+            $config['exercises'] ?? [],
+            fn (int|string $key): bool => (int) $key === $programExerciseId,
+            ARRAY_FILTER_USE_KEY,
+        );
+
+        $userExercises = [];
+
+        foreach (($config['userExercises'] ?? []) as $candidateUserId => $overridesByExercise) {
+            if ($userId === null || (int) $candidateUserId !== $userId || ! is_array($overridesByExercise)) {
+                continue;
+            }
+
+            $filtered = array_filter(
+                $overridesByExercise,
+                fn (int|string $key): bool => (int) $key === $programExerciseId,
+                ARRAY_FILTER_USE_KEY,
+            );
+
+            if ($filtered !== []) {
+                $userExercises[$candidateUserId] = $filtered;
+            }
+        }
+
+        $config['userExercises'] = $userExercises;
+        $config['overrideValues'] = array_values(array_filter(
+            $config['overrideValues'] ?? [],
+            function (array $row) use ($programExerciseId, $userId): bool {
+                if ((int) ($row['programExerciseId'] ?? 0) !== $programExerciseId) {
+                    return false;
+                }
+
+                $rowUserId = array_key_exists('userId', $row) && $row['userId'] !== null
+                    ? (int) $row['userId']
+                    : null;
+
+                return $rowUserId === null || ($userId !== null && $rowUserId === $userId);
+            },
+        ));
+
+        return $config;
     }
 
     protected function dispatchOpenRebuild(int $exerciseProgramId, ?int $userId, ?string $fromDate = null): void
@@ -2523,6 +2696,8 @@ class PlanExerciseGrid extends Component
     {
         foreach ([
             'settings',
+            'videoUrl',
+            'instructions',
             'startsAtDate',
             'sets',
             'reps',

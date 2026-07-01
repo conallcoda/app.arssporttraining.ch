@@ -11,6 +11,8 @@ final readonly class ResolvedExerciseOverrides
         /** @var array{cells: array, weeks: array} */
         public array $overrideLayer,
         public ?string $effectiveStartsAtDate,
+        public ?string $effectiveVideoUrl,
+        public ?string $effectiveInstructions,
         public bool $disabled,
     ) {}
 }

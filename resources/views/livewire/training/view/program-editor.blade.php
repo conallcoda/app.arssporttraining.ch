@@ -364,4 +364,6 @@
             </div>
         </flux:modal>
     @endif
+
+    <x-athlete.exercise-gallery-modal />
 </div>

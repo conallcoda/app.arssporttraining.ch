@@ -16,5 +16,7 @@ final readonly class ResolvedPlannedExercise
         public ?ResolvedPlannedProvenance $setCountProvenance = null,
         public ?int $programExerciseId = null,
         public array $effectiveConfig = [],
+        public ?string $effectiveVideoUrl = null,
+        public ?string $effectiveInstructions = null,
     ) {}
 }

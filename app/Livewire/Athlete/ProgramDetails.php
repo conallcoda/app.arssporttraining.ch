@@ -9,6 +9,7 @@ use App\Data\Exercise\Settings\RepsSetting;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Training\TrainingProgramSlotExercise;
+use App\Models\Training\TrainingProgramSlotExerciseStatusEnum;
 use App\Models\Training\TrainingProgramSlotSetStatusEnum;
 use App\Support\Athlete\ProgramDetailsExerciseViewBuilder;
 use App\Support\AthleteDashboardDate;
@@ -563,7 +564,10 @@ class ProgramDetails extends Component
         }
 
         $this->persistPendingSkippedSets($exercise);
-        app(TrainingSessionProgressService::class)->markExerciseCompleted($exercise);
+        app(TrainingSessionProgressService::class)->markExerciseCompleted(
+            $exercise,
+            completeSkippedSets: $exercise->status === TrainingProgramSlotExerciseStatusEnum::Skipped,
+        );
         unset($this->pendingSkippedSets[$slotExerciseId]);
 
         $this->resetEditorState();
@@ -576,16 +580,11 @@ class ProgramDetails extends Component
         abort_if($this->previewMode, 403);
         abort_if(! $this->canRecordSession, 403);
 
-        $exercises = app(ProgramExerciseOrder::class)
-            ->sortSlotExercises(
-                $this->currentSlot->exercises
-                    ->where('type', $this->activeSection)
-                    ->values(),
-                includeType: false,
-            );
+        $exercises = $this->activeSectionSlotExercises();
 
         $pendingExercises = $exercises
-            ->filter(fn ($exercise): bool => $exercise instanceof TrainingProgramSlotExercise && ! $exercise->status->isSubmitted())
+            ->filter(fn ($exercise): bool => $exercise instanceof TrainingProgramSlotExercise
+                && $exercise->status !== TrainingProgramSlotExerciseStatusEnum::Completed)
             ->values();
 
         $blockedExerciseIds = [];
@@ -611,7 +610,10 @@ class ProgramDetails extends Component
             }
 
             $this->persistPendingSkippedSets($exercise);
-            app(TrainingSessionProgressService::class)->markExerciseCompleted($exercise);
+            app(TrainingSessionProgressService::class)->markExerciseCompleted(
+                $exercise,
+                completeSkippedSets: $exercise->status === TrainingProgramSlotExerciseStatusEnum::Skipped,
+            );
             unset($this->pendingSkippedSets[$exercise->id]);
             $submittedCount++;
         }
@@ -653,16 +655,11 @@ class ProgramDetails extends Component
         abort_if($this->previewMode, 403);
         abort_if(! $this->canRecordSession, 403);
 
-        $exercises = app(ProgramExerciseOrder::class)
-            ->sortSlotExercises(
-                $this->currentSlot->exercises
-                    ->where('type', $this->activeSection)
-                    ->values(),
-                includeType: false,
-            );
+        $exercises = $this->activeSectionSlotExercises();
 
         $pendingExercises = $exercises
-            ->filter(fn ($exercise): bool => $exercise instanceof TrainingProgramSlotExercise && ! $exercise->status->isSubmitted())
+            ->filter(fn ($exercise): bool => $exercise instanceof TrainingProgramSlotExercise
+                && $exercise->status !== TrainingProgramSlotExerciseStatusEnum::Skipped)
             ->values();
 
         $this->resetEditorState();
@@ -674,6 +671,31 @@ class ProgramDetails extends Component
 
             unset($this->pendingSkippedSets[$exercise->id]);
             app(TrainingSessionProgressService::class)->markExerciseSkipped($exercise);
+        }
+
+        $this->refreshSessionState();
+        $this->dispatch('athlete-section-action-succeeded', section: $this->activeSection);
+    }
+
+    public function markActiveSectionPending(): void
+    {
+        abort_if($this->previewMode, 403);
+        abort_if(! $this->canRecordSession, 403);
+
+        $exercises = $this->activeSectionSlotExercises()
+            ->filter(fn ($exercise): bool => $exercise instanceof TrainingProgramSlotExercise
+                && $exercise->status !== TrainingProgramSlotExerciseStatusEnum::Pending)
+            ->values();
+
+        $this->resetEditorState();
+
+        foreach ($exercises as $exercise) {
+            if (! $exercise instanceof TrainingProgramSlotExercise) {
+                continue;
+            }
+
+            unset($this->pendingSkippedSets[$exercise->id]);
+            app(TrainingSessionProgressService::class)->markExercisePending($exercise);
         }
 
         $this->refreshSessionState();
@@ -693,6 +715,17 @@ class ProgramDetails extends Component
 
         $this->refreshSessionState();
         $this->dispatch('athlete-exercise-action-succeeded', exerciseId: $slotExerciseId);
+    }
+
+    protected function activeSectionSlotExercises()
+    {
+        return app(ProgramExerciseOrder::class)
+            ->sortSlotExercises(
+                $this->currentSlot->exercises
+                    ->where('type', $this->activeSection)
+                    ->values(),
+                includeType: false,
+            );
     }
 
     protected function shouldRefreshAuxiliarySections(TrainingProgramSlot $slot): bool

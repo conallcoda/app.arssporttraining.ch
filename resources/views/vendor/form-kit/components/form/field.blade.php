@@ -822,7 +822,7 @@
                                         @if ($hasEditors)
                                             <flux:button type="button" variant="ghost" size="xs" icon="pencil" wire:click="openExistingMediaEditor('{{ $field->name }}', {{ $media['id'] }})" />
                                         @endif
-                                        <flux:button type="button" variant="ghost" size="xs" icon="trash-2" wire:click="removeExistingMedia('{{ $field->name }}', {{ $media['id'] }})" class="text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400" />
+                                        <flux:button type="button" variant="ghost" size="xs" icon="trash-2" wire:click="removeExistingMedia('{{ $field->name }}', {{ $media['id'] }})" class="bg-zinc-800/85 text-white shadow-sm ring-1 ring-white/20 hover:bg-zinc-700 hover:text-white dark:bg-zinc-800/90 dark:text-white dark:hover:bg-zinc-700" />
                                     </div>
                                 </div>
                             @else
@@ -838,7 +838,7 @@
                                         @if ($hasEditors)
                                             <flux:button type="button" variant="ghost" size="xs" icon="pencil" wire:click="openExistingMediaEditor('{{ $field->name }}', {{ $media['id'] }})" />
                                         @endif
-                                        <flux:button type="button" variant="ghost" size="xs" icon="trash-2" wire:click="removeExistingMedia('{{ $field->name }}', {{ $media['id'] }})" class="text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400" />
+                                        <flux:button type="button" variant="ghost" size="xs" icon="trash-2" wire:click="removeExistingMedia('{{ $field->name }}', {{ $media['id'] }})" class="bg-zinc-800/85 text-white shadow-sm ring-1 ring-white/20 hover:bg-zinc-700 hover:text-white dark:bg-zinc-800/90 dark:text-white dark:hover:bg-zinc-700" />
                                     </div>
                                 </div>
                             @endif
@@ -874,7 +874,7 @@
                                                 @if ($hasEditors)
                                                     <flux:button type="button" variant="ghost" size="xs" icon="pencil" wire:click="openNewMediaEditor('{{ $field->name }}', {{ $index }})" />
                                                 @endif
-                                                <flux:button type="button" variant="ghost" size="xs" icon="trash-2" wire:click="removeNewUpload('{{ $field->name }}', {{ $index }})" class="text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400" />
+                                                <flux:button type="button" variant="ghost" size="xs" icon="trash-2" wire:click="removeNewUpload('{{ $field->name }}', {{ $index }})" class="bg-zinc-800/85 text-white shadow-sm ring-1 ring-white/20 hover:bg-zinc-700 hover:text-white dark:bg-zinc-800/90 dark:text-white dark:hover:bg-zinc-700" />
                                             </div>
                                         </div>
                                     @else
@@ -890,7 +890,7 @@
                                                 @if ($hasEditors)
                                                     <flux:button type="button" variant="ghost" size="xs" icon="pencil" wire:click="openNewMediaEditor('{{ $field->name }}', {{ $index }})" />
                                                 @endif
-                                                <flux:button type="button" variant="ghost" size="xs" icon="trash-2" wire:click="removeNewUpload('{{ $field->name }}', {{ $index }})" class="text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400" />
+                                                <flux:button type="button" variant="ghost" size="xs" icon="trash-2" wire:click="removeNewUpload('{{ $field->name }}', {{ $index }})" class="bg-zinc-800/85 text-white shadow-sm ring-1 ring-white/20 hover:bg-zinc-700 hover:text-white dark:bg-zinc-800/90 dark:text-white dark:hover:bg-zinc-700" />
                                             </div>
                                         </div>
                                     @endif
@@ -935,7 +935,7 @@
                                             @if ($hasEditors)
                                                 <flux:button type="button" variant="ghost" size="xs" icon="pencil" wire:click="openNewMediaEditor('{{ $field->name }}', 0)" />
                                             @endif
-                                            <flux:button type="button" variant="ghost" size="xs" icon="trash-2" wire:click="removeNewUpload('{{ $field->name }}', 0)" class="text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400" />
+                                            <flux:button type="button" variant="ghost" size="xs" icon="trash-2" wire:click="removeNewUpload('{{ $field->name }}', 0)" class="bg-zinc-800/85 text-white shadow-sm ring-1 ring-white/20 hover:bg-zinc-700 hover:text-white dark:bg-zinc-800/90 dark:text-white dark:hover:bg-zinc-700" />
                                         </div>
                                     </div>
                                 @else
@@ -951,7 +951,7 @@
                                             @if ($hasEditors)
                                                 <flux:button type="button" variant="ghost" size="xs" icon="pencil" wire:click="openNewMediaEditor('{{ $field->name }}', 0)" />
                                             @endif
-                                            <flux:button type="button" variant="ghost" size="xs" icon="trash-2" wire:click="removeNewUpload('{{ $field->name }}', 0)" class="text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400" />
+                                            <flux:button type="button" variant="ghost" size="xs" icon="trash-2" wire:click="removeNewUpload('{{ $field->name }}', 0)" class="bg-zinc-800/85 text-white shadow-sm ring-1 ring-white/20 hover:bg-zinc-700 hover:text-white dark:bg-zinc-800/90 dark:text-white dark:hover:bg-zinc-700" />
                                         </div>
                                     </div>
                                 @endif

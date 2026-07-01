@@ -23,5 +23,7 @@ final readonly class AuthoringExerciseData
         public ?ExerciseOverrides $userOverrides = null,
         public bool $disabled = false,
         public ?int $programExerciseId = null,
+        public ?string $effectiveVideoUrl = null,
+        public ?string $effectiveInstructions = null,
     ) {}
 }
