@@ -1,0 +1,15 @@
+@import 'tailwindcss';
+@plugin '@tailwindcss/typography';
+@import '../../vendor/livewire/flux/dist/flux.css';
+@import '../../node_modules/treeselectjs/dist/treeselectjs.css';
+@import '../../vendor/coda/cms/resources/css/cms.css';
+
+@source '../views';
+@source '../../vendor/coda/cms/resources/views';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+
+@theme {
+    --font-sans: Inter, sans-serif;
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
