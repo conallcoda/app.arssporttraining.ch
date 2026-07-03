@@ -19,18 +19,19 @@ use Illuminate\Support\Str;
 
 class AthleteMetricList extends AbstractModelList
 {
-    public int $athleteId;
+    public int $athleteId = 0;
 
     public ?string $forcedMetric = null;
 
     public bool $showTabs = true;
 
-    public function mount(
-        int $athleteId = 0,
-        ?string $forcedMetric = null,
-        bool $showTabs = true,
-        bool $prefixUrl = false,
-    ): void {
+    public function mount(...$routeParameters): void
+    {
+        $athleteId = (int) ($routeParameters['athleteId'] ?? $routeParameters[0] ?? 0);
+        $forcedMetric = $routeParameters['forcedMetric'] ?? null;
+        $showTabs = (bool) ($routeParameters['showTabs'] ?? true);
+        $prefixUrl = (bool) ($routeParameters['prefixUrl'] ?? false);
+
         $this->athleteId = $athleteId ?: (int) request()->route('athleteId');
         $this->forcedMetric = MetricEnum::tryFrom((string) $forcedMetric)?->value;
         $this->showTabs = $showTabs;
@@ -45,7 +46,7 @@ class AthleteMetricList extends AbstractModelList
             $this->selectedTab = $selectedTab;
         }
 
-        parent::mount();
+        parent::mount(...$routeParameters);
     }
 
     protected function getEntityName(): string
