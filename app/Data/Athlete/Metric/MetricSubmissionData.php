@@ -5,6 +5,7 @@ namespace App\Data\Athlete\Metric;
 use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
 use App\Models\Athlete\MetricSubmission;
 use App\Models\Users\User;
+use App\Training\TrainingSessionRebuildService;
 use Coda\Cms\Data\AbstractData;
 use Coda\FormKit\Concerns\InteractsWithForms;
 use Coda\FormKit\Contracts\HasForms;
@@ -94,7 +95,25 @@ class MetricSubmissionData extends AbstractData implements HasForms
             ]);
         }
 
+        $this->rebuildAffectedTrainingSlots($submission);
+
         return $submission;
+    }
+
+    private function rebuildAffectedTrainingSlots(MetricSubmission $submission): void
+    {
+        if (! in_array($submission->metric, [MetricEnum::OneRepMax, MetricEnum::HeartRate], true)) {
+            return;
+        }
+
+        if ($submission->user_id === null) {
+            return;
+        }
+
+        app(TrainingSessionRebuildService::class)->rebuildOpenSlotsForAthlete(
+            (int) $submission->user_id,
+            $submission->recorded_at?->format('Y-m-d'),
+        );
     }
 
     public static function getForm(): Form

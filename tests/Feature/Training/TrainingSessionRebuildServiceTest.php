@@ -1,10 +1,17 @@
 <?php
 
+use App\Data\Athlete\Metric\MetricEnum;
+use App\Data\Athlete\Metric\MetricSubmissionData;
+use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
 use App\Data\Exercise\Preview\SessionGroupingConfig;
+use App\Models\Athlete\MetricSubmission;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
+use App\Models\Tag;
 use App\Models\Training\TrainingProgram;
+use App\Models\Training\TrainingProgramBlock;
+use App\Models\Training\TrainingProgramBlockTypeEnum;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Training\TrainingProgramSlotStatusEnum;
 use App\Models\Users\User;
@@ -258,3 +265,153 @@ it('rebuilds future slots from the full plan timeline when grouping affects delo
 
     expect($futureSlot->fresh('exercises.sets')->exercises->firstOrFail()->sets)->toHaveCount(4);
 });
+
+it('rebuilds all open athlete program slots after metric values are rewritten', function () {
+    Carbon::setTestNow('2030-01-01 12:00:00');
+
+    $athlete = User::factory()->athlete()->create();
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $category = Tag::factory()->withScope('training_category')->create(['name' => 'Strength']);
+
+    $exercise = Exercise::factory()->create([
+        'name' => 'Front Squat',
+        'config' => [
+            'settings' => ['reps', 'weight', 'tempo', 'rest'],
+            'sets' => ['default' => 4, 'label' => 'Set', 'deload' => 'odd', 'deloadBy' => 1],
+            'reps' => [
+                'mode' => 'automatic',
+                'default' => 14,
+                'stepDownInterval' => 2,
+                'decrement' => 2,
+                'minimum' => 1,
+                'applyPer' => 'per_set',
+            ],
+            'weight' => [
+                'mode' => 'automatic',
+                'oneRepMaxModifier' => 85,
+                'default' => 5,
+                'applyPer' => 'per_set',
+            ],
+            'tempo' => ['default' => '3010', 'applyPer' => 'week'],
+            'rest' => ['default' => 60, 'applyPer' => 'week'],
+            'preview' => ['weeks' => 5, 'sessionsPerWeek' => 1, 'groupingMode' => 'none', 'groupSize' => 1],
+        ],
+    ]);
+
+    $programA = ExerciseProgram::factory()->create([
+        'name' => 'Strength A',
+        'exercise_category_id' => $category->id,
+    ]);
+    $programB = ExerciseProgram::factory()->create([
+        'name' => 'Strength B',
+        'exercise_category_id' => $category->id,
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $programA->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $programB->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $trainingProgramA = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $programA->id,
+    ]);
+    $trainingProgramB = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $programB->id,
+    ]);
+
+    TrainingProgramBlock::create([
+        'group_id' => $group->id,
+        'user_id' => $athlete->id,
+        'category_id' => $category->id,
+        'type' => TrainingProgramBlockTypeEnum::Category,
+        'start' => '2030-02-01',
+        'end' => '2030-03-08',
+        'note' => 'Strength Block',
+        'active' => true,
+        'config' => ['goal' => 10, 'autoRecord1rm' => true],
+    ]);
+
+    $metric = MetricSubmission::create([
+        'user_id' => $athlete->id,
+        'metric' => MetricEnum::OneRepMax,
+        'recorded_by' => $coach->id,
+        'recorded_at' => '2030-01-15',
+        'owner_type' => User::class,
+        'owner_id' => $coach->id,
+    ]);
+    $metric->values()->createMany([
+        ['field' => 'measuredReps', 'value' => '1'],
+        ['field' => 'measuredWeight', 'value' => '20'],
+        ['field' => 'estimated1RM', 'value' => '20'],
+    ]);
+
+    $slotA = null;
+    $slotB = null;
+
+    foreach (['2030-02-05', '2030-02-12', '2030-02-19', '2030-02-26', '2030-03-05'] as $date) {
+        $slot = TrainingProgramSlot::factory()->create([
+            'training_program_id' => $trainingProgramA->id,
+            'user_id' => $athlete->id,
+            'datetime' => Carbon::parse($date.' 09:00:00'),
+        ]);
+
+        $slotA ??= $slot;
+    }
+
+    foreach (['2030-02-07', '2030-02-14', '2030-02-21', '2030-02-28', '2030-03-07'] as $date) {
+        $slot = TrainingProgramSlot::factory()->create([
+            'training_program_id' => $trainingProgramB->id,
+            'user_id' => $athlete->id,
+            'datetime' => Carbon::parse($date.' 09:00:00'),
+        ]);
+
+        $slotB ??= $slot;
+    }
+
+    $beforeA = slotWeights($slotA);
+    $beforeB = slotWeights($slotB);
+
+    (new MetricSubmissionData(
+        id: $metric->id,
+        user_id: $athlete->id,
+        metric: MetricEnum::OneRepMax,
+        recorded_by: $coach->id,
+        recorded_at: '2030-01-15',
+        data: new OneRepMaxMetric(measuredReps: 1, measuredWeight: 47),
+    ))->persist();
+
+    $afterA = slotWeights($slotA);
+    $afterB = slotWeights($slotB);
+
+    expect($afterA)->toBe($afterB)
+        ->and($afterA)->not->toBe($beforeA)
+        ->and($afterB)->not->toBe($beforeB)
+        ->and($afterA[0])->toBeGreaterThan($beforeA[0])
+        ->and($afterB[0])->toBeGreaterThan($beforeB[0]);
+
+    Carbon::setTestNow();
+});
+
+function slotWeights(TrainingProgramSlot $slot): array
+{
+    return $slot
+        ->fresh('exercises.sets.values')
+        ->exercises
+        ->firstOrFail()
+        ->sets
+        ->sortBy('set_number')
+        ->map(fn ($set): float => (float) $set->values->firstWhere('setting_key', 'weight')->planned_decimal_value)
+        ->values()
+        ->all();
+}

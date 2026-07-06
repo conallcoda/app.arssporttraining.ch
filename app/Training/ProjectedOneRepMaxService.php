@@ -28,6 +28,8 @@ class ProjectedOneRepMaxService
             ->forMetric(MetricEnum::OneRepMax)
             ->whereNotIn('user_id', $athleteIds)
             ->delete();
+
+        $this->rebuildAffectedTrainingSlots($block);
     }
 
     public function syncForAthlete(TrainingProgramBlock $block, int $userId): void
@@ -104,6 +106,8 @@ class ProjectedOneRepMaxService
     public function removeForBlock(TrainingProgramBlock $block): void
     {
         MetricSubmission::forBlock($block->id)->delete();
+
+        $this->rebuildAffectedTrainingSlots($block);
     }
 
     public function removeForBlockAndUser(TrainingProgramBlock $block, int $userId): void
@@ -111,6 +115,13 @@ class ProjectedOneRepMaxService
         MetricSubmission::forBlock($block->id)
             ->forAthlete($userId)
             ->delete();
+
+        $this->rebuildAffectedTrainingSlots($block);
+    }
+
+    private function rebuildAffectedTrainingSlots(TrainingProgramBlock $block): void
+    {
+        app(TrainingSessionRebuildService::class)->rebuildOpenSlotsForCategoryBlock($block);
     }
 
     /** @return list<int> */
