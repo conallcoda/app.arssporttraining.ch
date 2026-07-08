@@ -1,4 +1,14 @@
 <div class="mt-auto pt-2 flex gap-0.5 justify-end border-t border-zinc-200 dark:border-zinc-700 -mx-4 -mb-4 px-4 py-2">
+    @if (! empty($alternateImageUrl))
+        <flux:button
+            type="button"
+            variant="ghost"
+            size="xs"
+            icon="rotate-ccw"
+            x-on:click="cmsCardImageMode = cmsCardImageMode === 'alternate' ? 'primary' : 'alternate'"
+        />
+    @endif
+
     @foreach ($this->rowActions as $action)
         @if (! $action->isVisible($item))
             @continue

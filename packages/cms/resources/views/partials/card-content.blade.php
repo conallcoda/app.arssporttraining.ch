@@ -6,6 +6,7 @@
     $cardClass = $cardClass ?? '!p-0 overflow-hidden flex flex-col';
     $bodyClass = $bodyClass ?? 'p-4 flex-1 flex flex-col gap-3';
     $imageField = $definition?->imageField;
+    $alternateImageField = $definition?->alternateImageField;
     $titleField = $definition?->titleField;
     $subtitleField = $definition?->subtitleField;
     $metaFields = $definition?->metaFields ?? [];
@@ -36,10 +37,11 @@
         'cards' => $legacyCards,
     ])
 @else
-    <flux:card wire:key="{{ $resolvedWireKey }}" class="{{ $cardClass }}">
+    <flux:card wire:key="{{ $resolvedWireKey }}" class="{{ $cardClass }}" x-data="{ cmsCardImageMode: 'primary' }">
         @if ($imageField)
             @php
                 $imageUrl = $imageField->resolveValue($record);
+                $alternateImageUrl = $alternateImageField?->resolveValue($record);
                 $aspect = data_get($imageField, 'aspect', 'square');
                 $fit = data_get($imageField, 'fit', 'cover');
                 $insetImage = (bool) data_get($imageField, 'insetImage', false);
@@ -59,10 +61,10 @@
                 @if ($imageUrl)
                     @if ($insetImage)
                         <div class="w-full h-full {{ $imageInsetClass }} flex items-center justify-center">
-                            <img src="{{ $imageUrl }}" alt="" class="w-full h-full {{ $fitClass }} transition-transform duration-200 ease-out group-hover/image:scale-105" loading="lazy" />
+                            <img src="{{ $imageUrl }}" x-bind:src="cmsCardImageMode === 'alternate' ? @js($alternateImageUrl) : @js($imageUrl)" alt="" class="w-full h-full {{ $fitClass }} transition-transform duration-200 ease-out group-hover/image:scale-105" loading="lazy" />
                         </div>
                     @else
-                        <img src="{{ $imageUrl }}" alt="" class="w-full h-full {{ $fitClass }} transition-transform duration-200 ease-out group-hover/image:scale-105" loading="lazy" />
+                        <img src="{{ $imageUrl }}" x-bind:src="cmsCardImageMode === 'alternate' ? @js($alternateImageUrl) : @js($imageUrl)" alt="" class="w-full h-full {{ $fitClass }} transition-transform duration-200 ease-out group-hover/image:scale-105" loading="lazy" />
                     @endif
 
                     @if ($lightboxEnabled)
@@ -96,6 +98,7 @@
                     'metaFields' => $metaFields,
                     'badgeFields' => $badgeFields,
                     'imageField' => $imageField,
+                    'alternateImageField' => $alternateImageField,
                 ])
             @else
                 @if ($badgeFields !== [])
@@ -153,7 +156,11 @@
             @endif
 
             @if ($footerView)
-                @include($footerView, $footerData)
+                @include($footerView, [
+                    ...$footerData,
+                    'alternateImageField' => $alternateImageField,
+                    'alternateImageUrl' => $alternateImageField?->resolveValue($record),
+                ])
             @endif
         </div>
         </flux:card>

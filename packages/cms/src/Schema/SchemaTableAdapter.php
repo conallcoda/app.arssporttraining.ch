@@ -133,6 +133,10 @@ class SchemaTableAdapter
                 $table->cardUrlUsing($cards->getUrlUsing());
             }
 
+            if ($cards->getAlternateImageField() !== null) {
+                $table->cardAlternateImageField($cards->getAlternateImageField());
+            }
+
             if ($cards->hasLightbox()) {
                 $table->cardLightbox();
             }
@@ -167,11 +171,13 @@ class SchemaTableAdapter
             if (is_string($config)) {
                 if ($config === '@id') {
                     $columns[] = Id::make();
+
                     continue;
                 }
 
                 if ($config === '@identity') {
                     $columns[] = $this->identityColumn($resolved, ['label' => 'Title']);
+
                     continue;
                 }
 

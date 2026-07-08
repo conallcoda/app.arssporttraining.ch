@@ -2,7 +2,6 @@
 
 namespace Coda\Cms\Display;
 
-use Coda\Cms\Display\DisplayField;
 use Coda\Cms\Display\DisplayFields\Image as ImageField;
 
 class CardDefinition
@@ -12,6 +11,8 @@ class CardDefinition
     public ?CardField $subtitleField = null;
 
     public ?CardField $imageField = null;
+
+    public ?CardField $alternateImageField = null;
 
     /** @var CardField[] */
     public array $metaFields = [];
@@ -48,6 +49,13 @@ class CardDefinition
     public function image(string|CardField $field): static
     {
         $this->imageField = $this->normalizeField($field);
+
+        return $this;
+    }
+
+    public function alternateImage(string|CardField $field): static
+    {
+        $this->alternateImageField = $this->normalizeField($field);
 
         return $this;
     }

@@ -29,6 +29,7 @@
         'titleField' => $cardDefinition?->titleField,
         'bodyFields' => $cardDefinition?->bodyFields ?? [],
         'imageField' => $cardDefinition?->imageField,
+        'alternateImageField' => $cardDefinition?->alternateImageField,
     ])
 @else
     @if ($manualSortingEnabled)
@@ -93,6 +94,7 @@
             'titleField' => $cardDefinition?->titleField,
             'bodyFields' => $cardDefinition?->bodyFields ?? [],
             'imageField' => $cardDefinition?->imageField,
+            'alternateImageField' => $cardDefinition?->alternateImageField,
         ])
     @endif
 @endif

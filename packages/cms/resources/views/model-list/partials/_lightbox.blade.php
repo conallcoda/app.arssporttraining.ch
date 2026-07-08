@@ -1,8 +1,12 @@
 @php
     $lightboxImageUrls = [];
+    $lightboxAlternateImageUrls = [];
     foreach ($this->items as $lightboxModel) {
         $lightboxItem = $this->dataFromModel($lightboxModel);
         $lightboxImageUrls[] = $imageField ? ($lightboxItem->{$imageField->field} ?? null) : null;
+        $lightboxAlternateImageUrls[] = $alternateImageField
+            ? ($lightboxItem->{$alternateImageField->field} ?? null)
+            : null;
     }
     $lightboxCount = count($lightboxImageUrls);
 @endphp
@@ -10,6 +14,7 @@
 <div wire:key="lightbox-{{ $loadedPages }}"
     x-data="cmsLightbox({
         imageUrls: {{ Js::from($lightboxImageUrls) }},
+        alternateImageUrls: {{ Js::from($lightboxAlternateImageUrls) }},
         count: {{ $lightboxCount }},
     })"
     x-on:open-lightbox.window="open($event.detail.index)"
@@ -44,7 +49,7 @@
 
     <div class="absolute inset-0 flex items-center justify-center p-12 pointer-events-none">
         <div class="relative max-w-[90vw] max-h-[90vh] pointer-events-auto" x-on:click.stop>
-            <img :src="imageUrls[currentIndex]" alt=""
+            <img :src="currentImageUrl()" alt=""
                 class="block max-w-[90vw] max-h-[90vh] object-contain rounded" />
 
             @foreach ($this->items as $lightboxIdx => $lightboxModel)
@@ -65,8 +70,16 @@
                         @endforeach
                     </div>
 
-                    @if (count($this->rowActions) > 0 || count($this->rowMenuActions) > 0)
+                    @if ($alternateImageField || count($this->rowActions) > 0 || count($this->rowMenuActions) > 0)
                         <div class="absolute top-3 right-3 flex gap-1">
+                            <flux:button
+                                x-show="hasAlternateImage()"
+                                variant="filled"
+                                size="xs"
+                                icon="rotate-ccw"
+                                x-on:click="toggleImageMode()"
+                            />
+
                             @foreach ($this->rowActions as $action)
                                 @if (! $action->isVisible($lightboxItem))
                                     @continue

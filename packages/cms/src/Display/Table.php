@@ -33,6 +33,8 @@ class Table
 
     protected ?Closure $cardUrlUsing = null;
 
+    protected ?string $cardAlternateImageField = null;
+
     protected bool $cardLightbox = false;
 
     protected bool $showViewToggle = true;
@@ -159,6 +161,10 @@ class Table
     public function getCardDefinition(): ?CardDefinition
     {
         if ($this->cardDefinition !== null) {
+            if ($this->cardAlternateImageField !== null) {
+                $this->cardDefinition->alternateImage($this->cardAlternateImageField);
+            }
+
             return $this->cardDefinition;
         }
 
@@ -166,11 +172,17 @@ class Table
             return null;
         }
 
-        return CardDefinition::fromDisplayFields(
+        $definition = CardDefinition::fromDisplayFields(
             $this->cardFields,
             $this->cardTitleField,
             $this->cardView,
         );
+
+        if ($this->cardAlternateImageField !== null) {
+            $definition->alternateImage($this->cardAlternateImageField);
+        }
+
+        return $definition;
     }
 
     public function cardLayout(string $layout): static
@@ -275,6 +287,18 @@ class Table
         $this->cardUrlUsing = $resolver instanceof Closure ? $resolver : ($resolver !== null ? $resolver(...) : null);
 
         return $this;
+    }
+
+    public function cardAlternateImageField(?string $field): static
+    {
+        $this->cardAlternateImageField = $field;
+
+        return $this;
+    }
+
+    public function getCardAlternateImageField(): ?string
+    {
+        return $this->cardAlternateImageField;
     }
 
     public function cardLightbox(bool $enabled = true): static

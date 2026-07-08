@@ -29,11 +29,13 @@ final class CardLayout
 
     private ?Closure $urlUsing = null;
 
+    private ?string $alternateImageField = null;
+
     private bool $lightbox = false;
 
     public static function make(): static
     {
-        return new static;
+        return new self;
     }
 
     public function fields(array $fields): static
@@ -113,6 +115,13 @@ final class CardLayout
         return $this;
     }
 
+    public function alternateImageField(?string $field): static
+    {
+        $this->alternateImageField = $field;
+
+        return $this;
+    }
+
     public function lightbox(bool $enabled = true): static
     {
         $this->lightbox = $enabled;
@@ -173,6 +182,11 @@ final class CardLayout
     public function getUrlUsing(): ?Closure
     {
         return $this->urlUsing;
+    }
+
+    public function getAlternateImageField(): ?string
+    {
+        return $this->alternateImageField;
     }
 
     public function hasLightbox(): bool
