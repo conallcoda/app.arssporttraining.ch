@@ -5,9 +5,11 @@ use App\Data\Athlete\Metric\Metrics\HeartRateMetric;
 use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
 use App\Data\Athlete\Metric\Metrics\ReadinessMetric;
 use App\Data\Athlete\Metric\MetricSubmissionData;
+use App\Livewire\Database\AthleteMetricList;
 use App\Models\Users\User;
 use App\Support\AthleteMetrics\OneRepMaxExamplePreviewBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
@@ -120,6 +122,45 @@ it('renders the one rep max tab with a five week strength preview', function () 
         ->assertSee('Session')
         ->assertDontSee('Tempo')
         ->assertDontSee('Rest (s)');
+});
+
+it('renders a forced metric list without duplicate metric tabs', function () {
+    $coach = User::factory()->coach()->create();
+    $athlete = User::factory()->athlete()->create();
+
+    storeAthleteMetric(
+        athlete: $athlete,
+        coach: $coach,
+        metric: MetricEnum::OneRepMax,
+        recordedAt: '2026-04-28',
+        data: new OneRepMaxMetric(
+            measuredReps: 1,
+            measuredWeight: 50,
+        ),
+    );
+
+    storeAthleteMetric(
+        athlete: $athlete,
+        coach: $coach,
+        metric: MetricEnum::HeartRate,
+        recordedAt: '2026-04-29',
+        data: new HeartRateMetric(
+            heartRate: 193,
+            anaerobicThreshold: 90,
+        ),
+    );
+
+    Livewire::actingAs($coach)
+        ->test(AthleteMetricList::class, [
+            'athleteId' => $athlete->id,
+            'forcedMetric' => MetricEnum::HeartRate->value,
+            'showTabs' => false,
+            'prefixUrl' => true,
+        ])
+        ->assertSee('193 HR - 90% IAT')
+        ->assertDontSee('1RM')
+        ->assertDontSee('Readiness')
+        ->assertDontSee('50kg');
 });
 
 it('applies the selected preview goal when building the 1rm example grid', function () {

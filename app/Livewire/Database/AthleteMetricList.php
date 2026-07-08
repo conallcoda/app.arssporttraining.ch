@@ -27,10 +27,12 @@ class AthleteMetricList extends AbstractModelList
 
     public function mount(...$routeParameters): void
     {
-        $athleteId = (int) ($routeParameters['athleteId'] ?? $routeParameters[0] ?? 0);
-        $forcedMetric = $routeParameters['forcedMetric'] ?? null;
-        $showTabs = (bool) ($routeParameters['showTabs'] ?? true);
-        $prefixUrl = (bool) ($routeParameters['prefixUrl'] ?? false);
+        $parameters = $this->normalizeMountParameters($routeParameters);
+
+        $athleteId = (int) ($parameters['athleteId'] ?? $parameters[0] ?? 0);
+        $forcedMetric = $parameters['forcedMetric'] ?? $parameters[1] ?? null;
+        $showTabs = (bool) ($parameters['showTabs'] ?? $parameters[2] ?? true);
+        $prefixUrl = (bool) ($parameters['prefixUrl'] ?? $parameters[3] ?? false);
 
         $this->athleteId = $athleteId ?: (int) request()->route('athleteId');
         $this->forcedMetric = MetricEnum::tryFrom((string) $forcedMetric)?->value;
@@ -46,7 +48,32 @@ class AthleteMetricList extends AbstractModelList
             $this->selectedTab = $selectedTab;
         }
 
-        parent::mount(...$routeParameters);
+        parent::mount(...$parameters);
+    }
+
+    protected function normalizeMountParameters(array $routeParameters): array
+    {
+        if (isset($routeParameters[0]) && is_array($routeParameters[0])) {
+            $routeParameters = array_merge($routeParameters[0], $routeParameters);
+            unset($routeParameters[0]);
+        }
+
+        foreach ([
+            'athlete-id' => 'athleteId',
+            'athlete_id' => 'athleteId',
+            'forced-metric' => 'forcedMetric',
+            'forced_metric' => 'forcedMetric',
+            'show-tabs' => 'showTabs',
+            'show_tabs' => 'showTabs',
+            'prefix-url' => 'prefixUrl',
+            'prefix_url' => 'prefixUrl',
+        ] as $from => $to) {
+            if (array_key_exists($from, $routeParameters) && ! array_key_exists($to, $routeParameters)) {
+                $routeParameters[$to] = $routeParameters[$from];
+            }
+        }
+
+        return $routeParameters;
     }
 
     protected function getEntityName(): string
