@@ -3,6 +3,7 @@
 use App\Http\Controllers\AthleteDashboardController;
 use App\Http\Controllers\Auth\UserAccountSetupController;
 use App\Http\Controllers\ClientJsLogController;
+use App\Http\Controllers\Training\ProgramSectionExerciseController;
 use App\Http\Controllers\Training\SlotDetailsController;
 use App\Livewire\Admin\Docs;
 use App\Livewire\Athlete\Calendar;
@@ -66,4 +67,7 @@ Route::prefix('admin')->middleware(['auth', 'cms.admin'])->group(function (): vo
     Route::get('/api/slot-member-colors', [SlotDetailsController::class, 'memberColors'])->name('api.slot-member-colors');
     Route::get('/api/program-grid-cells', [SlotDetailsController::class, 'gridCells'])->name('api.program-grid-cells');
     Route::get('/api/user-day-slots', [SlotDetailsController::class, 'userDaySlots'])->name('api.user-day-slots');
+
+    Route::delete('/programs/{exerciseProgram}/sections/{section}/exercises/{programExercise}', [ProgramSectionExerciseController::class, 'destroy'])
+        ->name('training.programs.sections.exercises.destroy');
 });

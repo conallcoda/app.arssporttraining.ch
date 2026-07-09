@@ -220,6 +220,16 @@ class ProgramEditor extends Component
 
         try {
             $this->exerciseProgram = $exerciseProgram;
+            $requestedSection = request()->query('section');
+
+            if (
+                $exerciseProgram->type === ExerciseProgramTypeEnum::Program
+                && is_string($requestedSection)
+                && in_array($requestedSection, self::SECTION_TYPES, true)
+            ) {
+                $this->activeSection = $requestedSection;
+            }
+
             if ($exerciseProgram->type !== ExerciseProgramTypeEnum::Program) {
                 $this->activeSection = 'main';
             }

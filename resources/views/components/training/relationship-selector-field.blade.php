@@ -94,6 +94,16 @@
                                 && method_exists($this, 'sectionExerciseRowIsProtected')
                                 && $this->sectionExerciseRowIsProtected($item);
                             $removeDisabledLabel = __('Recorded sessions keep this exercise in the plan.');
+                            $programExerciseId = (int) ($item['program_exercise_id'] ?? 0);
+                            $leanSectionExerciseDeleteUrl = $field->name === 'section_exercises'
+                                && $programExerciseId > 0
+                                && isset($this->exerciseProgram, $this->activeSection)
+                                ? route('training.programs.sections.exercises.destroy', [
+                                    'exerciseProgram' => $this->exerciseProgram,
+                                    'section' => $this->activeSection,
+                                    'programExercise' => $programExerciseId,
+                                ])
+                                : null;
                         @endphp
                         <flux:badge
                             rounded
@@ -102,20 +112,39 @@
                             wire:key="{{ $field->name }}-selector-badge-{{ $item['_key'] ?? $index }}"
                         >
                             <span class="max-w-[18rem] truncate">{{ $badgeLabel }}</span>
-                            <button
-                                type="button"
-                                class="inline-flex items-center text-zinc-400 transition-colors {{ $removeDisabled ? 'cursor-not-allowed opacity-40' : 'hover:text-zinc-100' }}"
-                                @if (! $removeDisabled)
-                                    wire:click="removeRelationshipSelectorItem({{ \Illuminate\Support\Js::from($field->name) }}, {{ $index }})"
-                                @endif
-                                @if ($removeDisabled)
-                                    disabled
-                                    title="{{ $removeDisabledLabel }}"
-                                @endif
-                                aria-label="Remove {{ $badgeLabel }}"
-                            >
-                                <flux:icon.x-mark class="size-4" />
-                            </button>
+                            @if ($leanSectionExerciseDeleteUrl && ! $removeDisabled)
+                                <form
+                                    method="POST"
+                                    action="{{ $leanSectionExerciseDeleteUrl }}"
+                                    class="inline-flex"
+                                >
+                                    @csrf
+                                    @method('DELETE')
+                                    <input type="hidden" name="redirect" value="{{ url()->current() }}">
+                                    <button
+                                        type="submit"
+                                        class="inline-flex items-center text-zinc-400 transition-colors hover:text-zinc-100"
+                                        aria-label="Remove {{ $badgeLabel }}"
+                                    >
+                                        <flux:icon.x-mark class="size-4" />
+                                    </button>
+                                </form>
+                            @else
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center text-zinc-400 transition-colors {{ $removeDisabled ? 'cursor-not-allowed opacity-40' : 'hover:text-zinc-100' }}"
+                                    @if (! $removeDisabled)
+                                        wire:click="removeRelationshipSelectorItem({{ \Illuminate\Support\Js::from($field->name) }}, {{ $index }})"
+                                    @endif
+                                    @if ($removeDisabled)
+                                        disabled
+                                        title="{{ $removeDisabledLabel }}"
+                                    @endif
+                                    aria-label="Remove {{ $badgeLabel }}"
+                                >
+                                    <flux:icon.x-mark class="size-4" />
+                                </button>
+                            @endif
                         </flux:badge>
                     @endforeach
                 </div>
