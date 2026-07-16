@@ -199,16 +199,11 @@ Recommended:
 - Use current `gridOverrides` for every eligible target.
 - Keep target eligibility based on recorded actuals/status, not date.
 
-### 7. `app/Training/ScheduledTrainingSnapshotClassifier.php`
+### 7. Historical Snapshot Audit Tooling
 
-Current classifier adds `datetime_in_past` and returns `locked_past` when date is in the past.
+The retired snapshot audit tooling added `datetime_in_past` and returned `locked_past` when date was in the past.
 
-This affects audit/backfill/repair tooling:
-
-- `ScheduledTrainingSnapshotBackfillService`
-- `ScheduledTrainingSnapshotCompareService`
-- `FixTrainingSnapshotDriftCommand`
-- `BackfillTrainingSnapshotsCommand`
+This affected the temporary audit/backfill/repair commands and services that were removed after the materialized runtime stabilized.
 
 Recommended:
 
@@ -267,11 +262,9 @@ This may intentionally remain future-only, because metric submissions are date-b
 
 This probably remains future-oriented for schedule edits, but audit carefully if open past slots should also reflect changed schedule structure.
 
-### Reset/repair commands
+### Historical reset/repair commands
 
-`ScheduledTrainingSnapshotResetService` can reset broadly and preserves actual state more carefully than the materializer. Confirm its behavior still matches the new invariant.
-
-`ScheduledTrainingSnapshotRepairService` intentionally allows immutable rewrite. Keep it as an explicit repair tool, but tests should prove normal paths do not rewrite recorded sessions.
+The broad reset and explicit repair tooling has been retired. Normal paths should continue to prove they do not rewrite recorded sessions.
 
 ## Test Plan
 
@@ -309,18 +302,6 @@ Add a companion test:
 3. Change/carry-over from 15.06.
 4. Assert 17.06 is not changed in config overrides or materialized planned snapshot.
 
-### Audit/backfill tests
-
-Update/add tests for:
-
-- `ScheduledTrainingSnapshotClassifierTest` or existing `ScheduledTrainingSnapshotAuditServiceTest`.
-- `ScheduledTrainingSnapshotBackfillServiceTest`.
-
-Expected:
-
-- Unrecorded past drift is repairable/open.
-- Recorded past drift is locked/skipped unless explicit repair is used.
-
 ### Focused command/tests to run
 
 ```bash
@@ -332,9 +313,6 @@ php artisan test tests/Feature/Livewire/Training/PlanExerciseGridFutureBoundaryT
 php artisan test tests/Feature/Training/CarryOverAthleteValuesServiceTest.php
 php artisan test tests/Feature/Training/TrainingSessionMaterializerTest.php
 php artisan test tests/Feature/Training/TrainingSessionRebuildServiceTest.php
-php artisan test tests/Feature/Training/ScheduledTrainingSnapshotAuditServiceTest.php
-php artisan test tests/Feature/Console/BackfillTrainingSnapshotsCommandTest.php
-php artisan test tests/Feature/Console/FixTrainingSnapshotDriftCommandTest.php
 php artisan test tests/Feature/Livewire/Athlete/ProgramDetailsTest.php
 ```
 

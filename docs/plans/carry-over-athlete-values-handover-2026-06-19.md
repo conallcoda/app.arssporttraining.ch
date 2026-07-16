@@ -355,7 +355,6 @@ The dangerous regressions are:
 Before starting this feature in a new session, useful commands:
 
 ```bash
-php artisan training:audit-slot-exercise-identity --show=3
 php artisan test tests/Feature/Training/TrainingSessionMaterializerTest.php tests/Feature/Livewire/Training/PlanExerciseGridActualValuesTest.php tests/Feature/Livewire/Training/ProgramEditorRebuildTest.php tests/Feature/Training/ResolvedPlannedSessionBuilderTest.php tests/Unit/Training/PlanCompilerTest.php
 ```
 

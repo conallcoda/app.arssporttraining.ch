@@ -1,5 +1,6 @@
 <?php
 
+use App\Data\Training\Config\ExerciseOverrides;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
@@ -44,6 +45,127 @@ it('imports a program by duplicating it', function () {
     expect($tp->exercise_program_id)->not->toBe($program->id);
     expect($tp->program->name)->toBe('Strength A');
     expect($tp->program->exercises)->toHaveCount(1);
+});
+
+it('imports a program with table-backed grid overrides remapped to cloned exercise pivots', function () {
+    $group = UserGroup::create(['name' => 'Team Alpha']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Bike Intervals']);
+    $exercise = Exercise::factory()->create(['name' => 'Bike']);
+
+    $sourcePivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $config = $program->config;
+    $overrides = $config->defaultExerciseOverrides($sourcePivot->id);
+    $overrides->gridOverrides = [
+        'sessions' => [
+            ['week' => 0, 'session' => 0, 'data' => ['sets' => '11']],
+        ],
+        'cells' => [
+            ['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['duration' => '30']],
+            ['week' => 0, 'session' => 0, 'set' => 1, 'data' => ['duration' => '300', 'heartRateZone' => 1]],
+        ],
+    ];
+    $config->setDefaultExerciseOverrides($sourcePivot->id, $overrides);
+    $program->config = $config;
+    $program->save();
+
+    $trainingProgram = TrainingProgram::importProgram($program->fresh(), $group->id);
+    $clonedProgram = $trainingProgram->program->fresh();
+    $clonedPivot = $clonedProgram->exercises()->first()?->pivot?->id;
+    $clonedOverrides = $clonedProgram->config->defaultExerciseOverrides((int) $clonedPivot);
+
+    expect($clonedPivot)->not->toBeNull()
+        ->and($clonedPivot)->not->toBe($sourcePivot->id)
+        ->and($clonedOverrides->gridOverrides['sessions'][0]['data']['sets'] ?? null)->toBe('11')
+        ->and($clonedOverrides->gridOverrides['cells'][0]['data']['duration'] ?? null)->toBe('30')
+        ->and($clonedOverrides->gridOverrides['cells'][1]['data']['duration'] ?? null)->toBe('300')
+        ->and($clonedOverrides->gridOverrides['cells'][1]['data']['heartRateZone'] ?? null)->toBe(1)
+        ->and($clonedOverrides->baselineGridOverrides['sessions'][0]['data']['sets'] ?? null)->toBe('11')
+        ->and($clonedProgram->planConfigOverrides()
+            ->where('program_exercise_id', $clonedPivot)
+            ->where('scope', 'current')
+            ->count())->toBe(4);
+});
+
+it('repairs imported calendar programs missing copied override rows', function () {
+    $group = UserGroup::create(['name' => 'Team Alpha']);
+    $sourceProgram = ExerciseProgram::factory()->create(['name' => 'Bike Intervals']);
+    $exercise = Exercise::factory()->create(['name' => 'Bike']);
+
+    $sourcePivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $sourceProgram->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $sourceConfig = $sourceProgram->config;
+    $sourceOverrides = $sourceConfig->defaultExerciseOverrides($sourcePivot->id);
+    $sourceOverrides->gridOverrides = [
+        'sessions' => [
+            ['week' => 0, 'session' => 0, 'data' => ['sets' => '11']],
+        ],
+        'cells' => [
+            ['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['duration' => '30']],
+            ['week' => 0, 'session' => 0, 'set' => 1, 'data' => ['duration' => '300']],
+        ],
+    ];
+    $sourceConfig->setDefaultExerciseOverrides($sourcePivot->id, $sourceOverrides);
+    $sourceProgram->config = $sourceConfig;
+    $sourceProgram->save();
+
+    $brokenClone = ExerciseProgram::factory()->create(['name' => 'Bike Intervals']);
+    $clonedPivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $brokenClone->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $athlete = User::factory()->athlete()->create();
+    $trainingProgram = TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $brokenClone->id,
+    ]);
+    TrainingProgramSlot::create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => '2026-07-21 09:00:00',
+    ]);
+    TrainingProgramSlot::create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => '2026-07-28 09:00:00',
+    ]);
+    TrainingProgramSlot::create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => '2026-08-04 09:00:00',
+    ]);
+
+    $this->artisan('training:repair-imported-program-overrides', [
+        'sourceProgramId' => $sourceProgram->id,
+        '--no-rebuild' => true,
+    ])->assertSuccessful();
+
+    $repairedOverrides = $brokenClone->fresh()->config->defaultExerciseOverrides($clonedPivot->id);
+
+    expect($repairedOverrides->gridOverrides['sessions'][0]['data']['sets'] ?? null)->toBe('11')
+        ->and($repairedOverrides->gridOverrides['cells'][0]['data']['duration'] ?? null)->toBe('30')
+        ->and($repairedOverrides->gridOverrides['cells'][1]['data']['duration'] ?? null)->toBe('300')
+        ->and($repairedOverrides->gridOverrides['sessions'][2]['week'] ?? null)->toBe(2)
+        ->and($repairedOverrides->gridOverrides['cells'][4]['week'] ?? null)->toBe(2)
+        ->and($repairedOverrides->gridOverrides['cells'][5]['data']['duration'] ?? null)->toBe('300')
+        ->and($repairedOverrides->baselineGridOverrides['sessions'][0]['data']['sets'] ?? null)->toBe('11')
+        ->and($brokenClone->fresh()->planConfigOverrides()
+            ->where('program_exercise_id', $clonedPivot->id)
+            ->where('scope', 'current')
+            ->count())->toBe(9);
 });
 
 it('keeps exercise-level grouping overrides without materializing a program-level grouping on import', function () {

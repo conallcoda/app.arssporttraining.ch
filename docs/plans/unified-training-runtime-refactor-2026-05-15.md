@@ -98,7 +98,6 @@ These are the invariants the refactor must preserve.
 - `app/Training/TrainingSessionCompiler.php`
 - `app/Training/TrainingSessionMaterializer.php`
 - `app/Training/TrainingSessionRebuildService.php`
-- `app/Training/ScheduledTrainingSnapshotResetService.php`
 - `app/Observers/TrainingProgramSlotObserver.php`
 
 ### Scheduled Runtime Reads
@@ -124,7 +123,6 @@ These are the invariants the refactor must preserve.
 - `app/Models/Training/TrainingPlanValueRevision.php`
 - `app/Models/Training/TrainingStateRevision.php`
 - `app/Models/Training/TrainingActualValueRevision.php`
-- `app/Console/Commands/ResetScheduledTrainingSnapshotsCommand.php`
 
 ## Existing Test Harness To Preserve
 
@@ -135,7 +133,6 @@ These tests already encode important behavior and should remain green throughout
 - `tests/Feature/Training/TrainingSessionCompilerTest.php`
 - `tests/Feature/Training/TrainingSessionMaterializerTest.php`
 - `tests/Feature/Training/PastSlotFreezeTest.php`
-- `tests/Feature/Training/ScheduledTrainingSnapshotResetServiceTest.php`
 - `tests/Feature/Training/ResolvedPlannedSessionBuilderTest.php`
 - `tests/Feature/Training/CompiledSettingTypePreservationTest.php`
 - `tests/Feature/Training/AutomaticHeartRateCompilationTest.php`
@@ -382,8 +379,7 @@ Scope:
 Status:
 
 - started on 2026-05-15 with read-only parity tooling
-- added `ScheduledTrainingSnapshotAuditService` to compare stored materialized slot rows against a fresh compile at the persisted snapshot-column level
-- added `training:snapshot-audit` as the first migration/audit command surface
+- added a temporary audit service/command layer to compare stored materialized slot rows against a fresh compile at the persisted snapshot-column level
 - added verification for both:
   - matching stored snapshots
   - intentional planned-value drift detection
@@ -420,12 +416,13 @@ Risk:
 Status:
 
 - started on 2026-05-15 and partially completed
-- added slot classification through `ScheduledTrainingSnapshotClassifier`:
+- retired on 2026-07-10 along with the temporary snapshot audit/backfill/repair command layer
+- added temporary slot classification for:
   - `locked_past`
   - `future_open`
   - `ambiguous_boundary`
 - extended `training:snapshot-audit` to report classification and classification counts
-- added `training:snapshot-backfill`:
+- added a temporary snapshot backfill command:
   - dry-run by default
   - scoped by training program, athlete, date range, or explicit slot ids
   - rematerializes only eligible `future_open` mismatches when `--force` is used
@@ -489,7 +486,8 @@ Risk:
 Status:
 
 - started on 2026-05-15 with explicit repair tooling
-- added `training:snapshot-repair`:
+- retired on 2026-07-10 along with the temporary snapshot audit/backfill/repair command layer
+- added a temporary snapshot repair command:
   - requires explicit `--slot-id`
   - requires `--force`
   - can intentionally rematerialize locked or ambiguous sessions
@@ -569,15 +567,15 @@ These translators let us compare:
 - what the compiler would produce now
 - whether the session should be preserved, rebuilt, or flagged
 
-### Required Migration Commands
+### Historical Migration Commands
 
-We should add explicit commands/services for:
+These commands/services were part of the cutover plan and were removed on 2026-07-10 after the temporary maintenance layer was retired:
 
 - `training:snapshot-audit`
   - scan scheduled sessions and classify them
   - report missing rows, inconsistent status state, malformed value typing, and render parity mismatches
 
-- `training:snapshot-backfill`
+- snapshot backfill command
   - backfill canonical snapshot shape where missing
   - support `--future-only`, `--program=`, `--user=`, `--from=`, `--to=`
 
@@ -585,7 +583,7 @@ We should add explicit commands/services for:
   - compare old scheduled rendering vs new canonical snapshot rendering
   - compare compiler output vs stored future snapshots
 
-- `training:snapshot-repair`
+- snapshot repair command
   - intentionally rematerialize only scoped sessions
   - require explicit targeting for locked/past sessions
 

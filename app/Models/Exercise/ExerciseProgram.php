@@ -94,16 +94,8 @@ class ExerciseProgram extends Model implements Taggable
 
     public function duplicate(): self
     {
+        $sourceConfig = $this->config;
         $clone = $this->replicate(['id']);
-
-        $config = $clone->config;
-        foreach (array_keys($config->exercises) as $programExerciseId) {
-            $overrides = $config->defaultExerciseOverrides((int) $programExerciseId);
-            if ($overrides->hasAnyGridOverrides()) {
-                $overrides->baselineGridOverrides = $overrides->gridOverrides;
-                $config->setDefaultExerciseOverrides((int) $programExerciseId, $overrides);
-            }
-        }
 
         $clone->save();
 
@@ -126,6 +118,28 @@ class ExerciseProgram extends Model implements Taggable
         $cloneConfig = $clone->config;
         $cloneConfig->remapDefaultExerciseOverrides($pivotIdMap);
         $cloneConfig->remapUserExerciseOverrides($pivotIdMap);
+        $cloneConfig->copyMappedExerciseOverridesFrom($sourceConfig, $pivotIdMap);
+
+        foreach ($pivotIdMap as $targetPivotId) {
+            $overrides = $cloneConfig->defaultExerciseOverrides((int) $targetPivotId);
+
+            if ($overrides->hasAnyGridOverrides()) {
+                $overrides->baselineGridOverrides = $overrides->gridOverrides;
+                $cloneConfig->setDefaultExerciseOverrides((int) $targetPivotId, $overrides);
+            }
+        }
+
+        foreach ($cloneConfig->allUserExerciseOverrides() as $userId => $overridesByExercise) {
+            foreach (array_keys($overridesByExercise) as $programExerciseId) {
+                $overrides = $cloneConfig->userExerciseOverrides((int) $userId, (int) $programExerciseId);
+
+                if ($overrides->hasAnyGridOverrides()) {
+                    $overrides->baselineGridOverrides = $overrides->gridOverrides;
+                    $cloneConfig->setUserExerciseOverrides((int) $userId, (int) $programExerciseId, $overrides);
+                }
+            }
+        }
+
         $clone->config = $cloneConfig;
         $clone->save();
         app(ExerciseProgramSelectorPreviewService::class)->syncProgram($clone->id);
