@@ -106,13 +106,14 @@ class CarryOverAthleteValuesService
     }
 
     /**
-     * @return array<string, list<mixed>>
+     * @return array<string, array<int, mixed>>
      */
     private function sourceValuesByField(TrainingProgramSlotExercise $source): array
     {
         $values = [];
+        $hasModifiedValue = [];
 
-        foreach ($source->sets->sortBy('set_number')->values() as $set) {
+        foreach ($source->sets->sortBy('set_number')->values() as $setIndex => $set) {
             foreach (self::CARRIED_FIELDS as $field) {
                 $valueRow = $set->values->firstWhere('setting_key', $field);
 
@@ -126,22 +127,23 @@ class CarryOverAthleteValuesService
                     continue;
                 }
 
-                if ($this->valuesEquivalent($actual, $this->valueCodec->extractPlannedValue($valueRow))) {
-                    continue;
-                }
+                $values[$field][(int) $setIndex] = $actual;
 
-                $values[$field][] = $actual;
+                if (! $this->valuesEquivalent($actual, $this->valueCodec->extractPlannedValue($valueRow))) {
+                    $hasModifiedValue[$field] = true;
+                }
             }
         }
 
-        return array_filter($values, fn (array $fieldValues): bool => $fieldValues !== []);
+        return array_filter(
+            $values,
+            fn (array $fieldValues, string $field): bool => $fieldValues !== [] && ($hasModifiedValue[$field] ?? false),
+            ARRAY_FILTER_USE_BOTH,
+        );
     }
 
     /**
-     * @param  array<string, list<mixed>>  $sourceValues
-     */
-    /**
-     * @param  array<string, list<mixed>>  $sourceValues
+     * @param  array<string, array<int, mixed>>  $sourceValues
      * @return list<array{field: string, set_index: int, value: mixed}>
      */
     private function applyToTarget(TrainingProgramSlotExercise $target, array $sourceValues): array
@@ -157,7 +159,7 @@ class CarryOverAthleteValuesService
                     continue;
                 }
 
-                $sourceValue = $fieldValues[min($setIndex, count($fieldValues) - 1)] ?? null;
+                $sourceValue = $fieldValues[$setIndex] ?? $this->lastSourceValue($fieldValues);
 
                 if ($sourceValue === null || $sourceValue === '') {
                     continue;
@@ -184,6 +186,20 @@ class CarryOverAthleteValuesService
         }
 
         return $changes;
+    }
+
+    /**
+     * @param  array<int, mixed>  $fieldValues
+     */
+    private function lastSourceValue(array $fieldValues): mixed
+    {
+        if ($fieldValues === []) {
+            return null;
+        }
+
+        ksort($fieldValues);
+
+        return end($fieldValues);
     }
 
     /**

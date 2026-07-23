@@ -153,6 +153,41 @@ it('carries only athlete-entered values that differ from the coach plan across s
         ->and(carryOverOverrideSessionData($gridOverrides, 1, 0))->toBe(['rest' => 90, 'tempo' => '2010']);
 });
 
+it('preserves source set positions when only a later set differs from the plan', function () {
+    [$athlete, $pivot, $trainingProgram] = carryOverProgram([
+        'settings' => ['reps', 'weight'],
+        'sets' => ['default' => 4, 'label' => 'Set', 'deload' => 'none'],
+        'reps' => ['mode' => 'manual', 'default' => 8, 'applyPer' => 'set'],
+        'weight' => ['mode' => 'manual', 'default' => 14, 'applyPer' => 'set'],
+    ]);
+
+    $sourceSlot = carryOverSlot($trainingProgram, $athlete, '2030-04-01 09:00:00');
+    $futureSlot = carryOverSlot($trainingProgram, $athlete, '2030-04-08 09:00:00');
+
+    $sourceExercise = carryOverSlotExercise($sourceSlot, $pivot->id);
+    $futureExercise = carryOverSlotExercise($futureSlot, $pivot->id);
+    $sourceSets = $sourceExercise->sets->sortBy('set_number')->values();
+
+    $this->actingAs($athlete);
+
+    app(AthleteExerciseValueService::class)->saveExerciseValues($sourceExercise, [
+        $sourceSets[0]->id => ['weight' => 14, 'reps' => 10],
+        $sourceSets[1]->id => ['weight' => 14, 'reps' => 10],
+        $sourceSets[2]->id => ['weight' => 14, 'reps' => 8],
+        $sourceSets[3]->id => ['weight' => 0, 'reps' => 0],
+    ], onlyProvided: true);
+
+    expect(carryOverPlannedValues($futureExercise, 'reps'))->toBe(['10', '10', '8', '0'])
+        ->and(carryOverPlannedValues($futureExercise, 'weight'))->toBe([14.0, 14.0, 14.0, 0.0]);
+
+    $gridOverrides = carryOverGridOverrides($trainingProgram, $pivot->id, $athlete->id);
+
+    expect(carryOverOverrideCellData($gridOverrides, 1, 0, 0))->toBe(['reps' => '10', 'weight' => 14])
+        ->and(carryOverOverrideCellData($gridOverrides, 1, 0, 1))->toBe(['reps' => '10', 'weight' => 14])
+        ->and(carryOverOverrideCellData($gridOverrides, 1, 0, 2))->toBe(['reps' => '8', 'weight' => 14])
+        ->and(carryOverOverrideCellData($gridOverrides, 1, 0, 3))->toBe(['reps' => '0', 'weight' => 0]);
+});
+
 it('repeats the last source value for extra future sets and treats missing carry-over config as enabled', function () {
     [$athlete, $pivot, $trainingProgram] = carryOverProgram([
         'settings' => ['reps', 'weight'],
