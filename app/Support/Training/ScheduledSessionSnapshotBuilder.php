@@ -144,11 +144,11 @@ class ScheduledSessionSnapshotBuilder
         $programExerciseId = (int) ($slotExercise->exercise_program_exercise_id ?? 0);
 
         if ($slot === null || $program === null || $sourceExercise === null || $programExerciseId <= 0) {
-            return $baseInstructions;
+            return $baseValue;
         }
 
         if (! is_object($programConfig) || ! method_exists($programConfig, 'resolveExercise')) {
-            return $baseInstructions;
+            return $baseValue;
         }
 
         return $programConfig

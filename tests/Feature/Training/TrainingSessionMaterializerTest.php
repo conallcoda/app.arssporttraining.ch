@@ -180,6 +180,59 @@ it('resolves effective slot exercise config from the stored program exercise id 
         ->and($snapshot->setLabel)->toBe('Override Set');
 });
 
+it('falls back to base exercise content when no program exercise identity is available', function () {
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Friday Strength']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $exercise = Exercise::factory()->create([
+        'name' => 'Front Squat',
+        'instructions' => 'Brace, sit between the hips, and drive up.',
+        'video_url' => 'https://example.com/front-squat',
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => [
+                'default' => 1,
+                'label' => 'Set',
+                'deload' => 'none',
+            ],
+            'reps' => [
+                'mode' => 'manual',
+                'default' => 6,
+                'applyPer' => 'session',
+            ],
+        ],
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'group' => 'A',
+        'type' => 'main',
+    ]);
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2030-05-01 09:00:00'),
+    ])->fresh('exercises');
+
+    $slotExercise = $slot->exercises()->firstOrFail();
+    $slotExercise->forceFill(['exercise_program_exercise_id' => null])->save();
+
+    $snapshot = app(ScheduledSessionSnapshotBuilder::class)->buildExercise(
+        $slotExercise->fresh(['slot.trainingProgram.program', 'exercise', 'sets.values']),
+    );
+
+    expect($snapshot->instructions)->toBe('Brace, sit between the hips, and drive up.')
+        ->and($snapshot->videoUrl)->toBe('https://example.com/front-squat');
+});
+
 it('stores canonical split-rep metadata alongside the display value', function () {
     $athlete = User::factory()->athlete()->create();
     $group = UserGroup::create(['name' => 'Test Group']);
