@@ -275,6 +275,64 @@ class RepairConfirmedCarryOverValuesCommand extends Command
                     ]),
                 ],
             ],
+            [
+                'key' => 'armando-split-squat-atg',
+                'label' => 'Armando Stöhr / Split Squat ATG / training program 1',
+                'training_program_id' => 1,
+                'exercise_program_id' => 109,
+                'user_id' => 20,
+                'program_exercise_id' => 580,
+                'targets' => [
+                    [
+                        'date' => '2026-06-19',
+                        'week_index' => 5,
+                        'session_index' => 1,
+                        'values' => [
+                            'reps' => ['25', '10', '10', '10'],
+                            'weight' => [100, 5, 5, 5],
+                        ],
+                    ],
+                    [
+                        'date' => '2026-06-22',
+                        'week_index' => 6,
+                        'session_index' => 0,
+                        'values' => [
+                            'reps' => ['25', '10', '10', '10'],
+                            'weight' => [100, 5, 5, 5],
+                        ],
+                    ],
+                    [
+                        'date' => '2026-06-26',
+                        'week_index' => 6,
+                        'session_index' => 1,
+                        'values' => [
+                            'reps' => ['25', '10', '10', '10'],
+                            'weight' => [100, 5, 5, 5],
+                        ],
+                    ],
+                ],
+            ],
+            [
+                'key' => 'elmar-push-bench-press',
+                'label' => 'Elmar / Push Bench Press BB / training program 144',
+                'training_program_id' => 144,
+                'exercise_program_id' => 296,
+                'user_id' => 33,
+                'program_exercise_id' => 1800,
+                'targets' => collect([
+                    ['2026-07-30', 1],
+                    ['2026-08-06', 2],
+                    ['2026-08-13', 3],
+                    ['2026-08-20', 4],
+                ])->map(fn (array $target): array => [
+                    'date' => $target[0],
+                    'week_index' => $target[1],
+                    'session_index' => 0,
+                    'values' => [
+                        'weight' => [38, 40, 40, 40],
+                    ],
+                ])->all(),
+            ],
         ];
     }
 

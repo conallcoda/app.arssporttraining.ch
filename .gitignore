@@ -26,3 +26,4 @@ _archive/
 wildcards
 import_original
 import/database
+.DS_STORE
