@@ -1,8 +1,8 @@
 <?php
 
-use App\Livewire\Training\View\ProgramEditor;
 use App\Data\Exercise\Settings\RepsSetting;
 use App\Data\Training\Config\ExerciseOverrides;
+use App\Livewire\Training\View\ProgramEditor;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
@@ -62,7 +62,7 @@ it('persists separate instructions for each exercise program section', function 
         'planId' => $program->id,
     ])
         ->assertSee('Instructions')
-        ->assertSee('wire:model.live.debounce.500ms="sectionInstructions"', false)
+        ->assertSee('wire:model.live.blur="sectionInstructions"', false)
         ->set('sectionInstructions', 'Main work instructions')
         ->set('activeSection', 'warm_up')
         ->set('sectionInstructions', 'Warm-up instructions')
@@ -309,6 +309,73 @@ it('hydrates persisted section exercise groups into the selector client state an
     expect($state['initialListKey'])->toBe('selected')
         ->and($state['selectedItems'])->toHaveCount(1)
         ->and($state['selectedItems'][0]['item']['group'])->toBe('B');
+});
+
+it('keeps disabled exercise groups while presenting those exercises last and read-only', function () {
+    $firstExercise = Exercise::factory()->create(['name' => 'First active exercise']);
+    $disabledExercise = Exercise::factory()->create(['name' => 'Disabled exercise']);
+    $lastExercise = Exercise::factory()->create(['name' => 'Last active exercise']);
+    $program = ExerciseProgram::factory()->create();
+
+    $firstPivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $firstExercise->id,
+        'sort' => 0,
+        'group' => 'A',
+        'type' => 'main',
+    ]);
+    $disabledPivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $disabledExercise->id,
+        'sort' => 0,
+        'group' => 'B',
+        'type' => 'main',
+    ]);
+    $lastPivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $lastExercise->id,
+        'sort' => 0,
+        'group' => 'C',
+        'type' => 'main',
+    ]);
+
+    $config = $program->config;
+    $config->setDefaultExerciseOverrides($disabledPivot->id, ExerciseOverrides::from([
+        'disabled' => true,
+    ]));
+    $program->config = $config;
+    $program->saveQuietly();
+
+    $component = Livewire::test(ProgramEditor::class, [
+        'exerciseProgram' => $program->fresh(),
+        'planId' => $program->id,
+    ]);
+
+    expect(collect($component->get('data.section_exercises'))->pluck('program_exercise_id')->all())->toBe([
+        $firstPivot->id,
+        $lastPivot->id,
+        $disabledPivot->id,
+    ]);
+
+    $state = $component->instance()->relationshipSelectorClientInitialState('section_exercises', 40);
+    $disabledItem = collect($state['selectedItems'])
+        ->first(fn (array $entry): bool => (int) $entry['item']['program_exercise_id'] === $disabledPivot->id);
+
+    expect($disabledItem['item']['group'])->toBe('B')
+        ->and($disabledItem['item']['_exercise_disabled'] ?? false)->toBeTrue()
+        ->and($disabledItem['item']['_readonly'] ?? false)->toBeTrue()
+        ->and(data_get($state, 'selectedItems.2.item.program_exercise_id'))->toBe($disabledPivot->id);
+
+    $component->call(
+        'applyRelationshipSelectorClientState',
+        'section_exercises',
+        collect($state['selectedItems'])->pluck('item')->all(),
+    );
+
+    $component
+        ->assertSeeInOrder(['A - First active exercise', 'C - Last active exercise', 'Disabled exercise']);
+
+    expect($disabledPivot->fresh()->group)->toBe('B');
 });
 
 it('marks immutable selected exercises as non-removable in selector client state', function () {

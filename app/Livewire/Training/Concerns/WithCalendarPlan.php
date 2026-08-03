@@ -5,6 +5,7 @@ namespace App\Livewire\Training\Concerns;
 use App\Data\Athlete\Metric\MetricEnum;
 use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
 use App\Data\Athlete\Metric\MetricSubmissionData;
+use App\Exceptions\DuplicateManualMetricSubmission;
 use App\Models\Athlete\MetricSubmission;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramBlock;
@@ -18,6 +19,7 @@ use App\Support\Training\BlockModalPayloadBuilder;
 use App\Support\Training\MetricModalPayloadBuilder;
 use App\Support\Training\SlotStatusPresenter;
 use App\Training\CalendarBlockService;
+use App\Training\EffectiveOneRepMaxSubmissionResolver;
 use App\Training\ProjectedOneRepMaxService;
 use App\Training\TrainingSessionEditGuard;
 use Carbon\Carbon;
@@ -278,6 +280,10 @@ trait WithCalendarPlan
 
     protected function findLatestSubmission(int $userId, MetricEnum $metric, string $cutoffDate): ?MetricSubmission
     {
+        if ($metric === MetricEnum::OneRepMax) {
+            return app(EffectiveOneRepMaxSubmissionResolver::class)->resolve($userId, $cutoffDate);
+        }
+
         $query = MetricSubmission::query()
             ->forAthlete($userId)
             ->forMetric($metric)
@@ -285,9 +291,7 @@ trait WithCalendarPlan
             ->orderByDesc('recorded_at')
             ->with('values');
 
-        if ($metric === MetricEnum::HeartRate) {
-            $query->manual();
-        }
+        $query->manual();
 
         return $query->first();
     }
@@ -498,7 +502,7 @@ trait WithCalendarPlan
                 ->whereIn('user_id', $memberIds)
                 ->forMetric(MetricEnum::OneRepMax)
                 ->where('recorded_at', '<=', $cutoffDate)
-                ->orderByDesc('recorded_at')
+                ->tap(fn (Builder $query) => app(EffectiveOneRepMaxSubmissionResolver::class)->applyOrdering($query))
                 ->with('values')
                 ->get()
                 ->groupBy('user_id')
@@ -888,7 +892,7 @@ trait WithCalendarPlan
             $submission->delete();
         }
 
-        unset($this->planMeasuredData, $this->planHeartRateData, $this->planGroupMemberMetrics);
+        unset($this->planMeasuredData, $this->planHeartRateData, $this->plan1rmLabel, $this->planHeartRateLabel, $this->planGroupMemberMetrics);
     }
 
     #[On('calendar-metric-form.submitted')]
@@ -912,14 +916,20 @@ trait WithCalendarPlan
                 data: $metricClass::from($data['data'] ?? []),
             );
 
-            $submission->persist();
+            try {
+                $submission->persist();
+            } catch (DuplicateManualMetricSubmission $exception) {
+                Flux::toast(text: __($exception->getMessage()), variant: 'warning');
+
+                return;
+            }
 
             if ($metric === MetricEnum::OneRepMax) {
                 app(ProjectedOneRepMaxService::class)->syncForAthleteBlocks($targetUserId);
             }
         }
 
-        unset($this->planMeasuredData, $this->planHeartRateData, $this->planGroupMemberMetrics);
+        unset($this->planMeasuredData, $this->planHeartRateData, $this->plan1rmLabel, $this->planHeartRateLabel, $this->planGroupMemberMetrics);
     }
 
     #[On('block.submitted')]

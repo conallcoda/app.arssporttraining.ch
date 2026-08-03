@@ -11,6 +11,7 @@
     'buttonClassExpr',
     'buttonDisabledExpr' => 'false',
     'buttonTitleExpr' => '',
+    'readonlyExpr' => 'false',
     'buttonActionExpr',
     'itemFieldsExpr' => '[]',
     'clickEnabled' => false,
@@ -30,6 +31,7 @@
     class="flex items-stretch gap-3 text-sm transition-colors"
     x-bind:class="[
         ({{ $selectedExpr }} && !isSelectedRowsList({{ $listExpr }})) ? 'bg-blue-50 dark:bg-blue-500/10' : '',
+        ({{ $readonlyExpr }}) ? 'bg-zinc-500/5 opacity-50' : '',
         {{ $clickEnabled ? 'true' : 'false' }} ? 'cursor-pointer' : 'cursor-default'
     ].filter(Boolean).join(' ')"
 >
@@ -102,6 +104,7 @@
                         class="w-full appearance-none rounded-md border border-white/20 bg-white/5 px-3 py-2 pr-9 text-sm font-medium leading-5 text-zinc-100 shadow-sm transition focus:outline-none focus:ring-0 dark:bg-white/5"
                         x-on:click.stop
                         x-on:change.stop="updateRowItemField({{ $listExpr }}, row, itemField, $event.target.value)"
+                        x-bind:disabled="{{ $readonlyExpr }}"
                     >
                         <option
                             x-bind:value="''"

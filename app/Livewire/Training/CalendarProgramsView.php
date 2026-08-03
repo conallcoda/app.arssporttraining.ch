@@ -6,12 +6,13 @@ use App\Data\Athlete\Metric\MetricEnum;
 use App\Data\Athlete\Metric\Metrics\HeartRateMetric;
 use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
 use App\Data\Athlete\Metric\Metrics\ReadinessMetric;
-use App\Data\Athlete\Metric\ReadinessMetricData;
 use App\Data\Athlete\Metric\MetricSubmissionData;
+use App\Data\Athlete\Metric\ReadinessMetricData;
 use App\Data\Training\Calendar\CalendarSettingsData;
-use App\Data\Training\Config\ExerciseOverrides;
 use App\Data\Training\Config\EffectiveExerciseConfig;
+use App\Data\Training\Config\ExerciseOverrides;
 use App\Data\Training\ExerciseProgramData;
+use App\Exceptions\DuplicateManualMetricSubmission;
 use App\Models\Athlete\MetricSubmission;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Tag;
@@ -19,6 +20,7 @@ use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramBlock;
 use App\Models\Training\TrainingProgramBlockTypeEnum;
 use App\Models\Training\TrainingProgramSlot;
+use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use App\Support\Training\BlockModalPayloadBuilder;
 use App\Support\Training\MetricModalPayloadBuilder;
@@ -27,10 +29,11 @@ use App\Training\CalendarBlockService;
 use App\Training\CalendarDateService;
 use App\Training\ProjectedOneRepMaxService;
 use App\Training\TrainingPlanRevisionService;
-use App\Training\TrainingStateRevisionService;
 use App\Training\TrainingSessionEditGuard;
 use App\Training\TrainingSessionRebuildDispatcher;
+use App\Training\TrainingStateRevisionService;
 use Carbon\Carbon;
+use Coda\Cms\Support\ColorPalette;
 use Flux\Flux;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -38,7 +41,6 @@ use Illuminate\View\View;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Component;
-use Coda\Cms\Support\ColorPalette;
 
 class CalendarProgramsView extends Component
 {
@@ -624,6 +626,7 @@ class CalendarProgramsView extends Component
             ->forAthlete($this->userId)
             ->with('values')
             ->whereBetween('recorded_at', [$start->format('Y-m-d'), $end->format('Y-m-d')])
+            ->orderBy('id')
             ->get();
 
         $map = [];
@@ -632,7 +635,7 @@ class CalendarProgramsView extends Component
             $dateKey = $submission->recorded_at->format('Y-m-d');
             $metricKey = $submission->metric->value;
             $cellKey = "{$metricKey}-{$dateKey}";
-            $isProjected = $submission->owner_type !== null;
+            $isProjected = $submission->owner_type === TrainingProgramBlock::class;
 
             if ($isProjected && isset($map[$cellKey]) && ! ($map[$cellKey]['isProjected'] ?? false)) {
                 continue;
@@ -685,6 +688,8 @@ class CalendarProgramsView extends Component
             ->whereBetween('recorded_at', [$start->format('Y-m-d'), $end->format('Y-m-d')])
             ->get();
 
+        $submissions = $this->effectiveSameDayOneRepMaxSubmissions($submissions);
+
         $memberCount = $memberIds->count();
         $map = [];
 
@@ -704,7 +709,7 @@ class CalendarProgramsView extends Component
                 ];
             }
 
-            $isProjected = $submission->owner_type !== null;
+            $isProjected = $submission->owner_type === TrainingProgramBlock::class;
 
             $map[$cellKey]['count']++;
             $map[$cellKey]['entries'][] = [
@@ -719,6 +724,26 @@ class CalendarProgramsView extends Component
         }
 
         return $map;
+    }
+
+    private function effectiveSameDayOneRepMaxSubmissions(Collection $submissions): Collection
+    {
+        $oneRepMaxSubmissions = $submissions
+            ->filter(fn (MetricSubmission $submission) => $submission->metric === MetricEnum::OneRepMax)
+            ->groupBy(fn (MetricSubmission $submission) => $submission->user_id.'-'.$submission->recorded_at->format('Y-m-d'))
+            ->map(function (Collection $sameDaySubmissions): MetricSubmission {
+                return $sameDaySubmissions
+                    ->filter(fn (MetricSubmission $submission) => $submission->owner_type === null || $submission->owner_type === User::class)
+                    ->sortByDesc('id')
+                    ->first()
+                    ?? $sameDaySubmissions->sortByDesc('id')->first();
+            });
+
+        return $submissions
+            ->reject(fn (MetricSubmission $submission) => $submission->metric === MetricEnum::OneRepMax)
+            ->concat($oneRepMaxSubmissions)
+            ->sortBy('id')
+            ->values();
     }
 
     #[Computed]
@@ -1051,7 +1076,13 @@ class CalendarProgramsView extends Component
                 data: $metricClass::from($data['data'] ?? []),
             );
 
-            $submission->persist();
+            try {
+                $submission->persist();
+            } catch (DuplicateManualMetricSubmission $exception) {
+                Flux::toast(text: __($exception->getMessage()), variant: 'warning');
+
+                return;
+            }
 
             if ($metric === MetricEnum::OneRepMax) {
                 $projectedService = app(ProjectedOneRepMaxService::class);

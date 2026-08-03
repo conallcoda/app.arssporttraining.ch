@@ -310,10 +310,17 @@ class ProgramEditor extends Component
                 '_key' => uniqid('item_', true),
                 'sort' => $exercise->pivot->sort ?? 0,
                 'group' => $exercise->pivot->group,
+                '_exercise_disabled' => $this->exerciseProgram->config->effectiveDisabled(
+                    (int) $exercise->pivot->id,
+                    $this->userId,
+                ),
             ])
             ->all();
 
-        return app(ProgramExerciseOrder::class)->normalizeRows($rows);
+        return collect(app(ProgramExerciseOrder::class)->normalizeRows($rows))
+            ->sortBy(fn (array $row): int => ! empty($row['_exercise_disabled']) ? 1 : 0)
+            ->values()
+            ->all();
     }
 
     protected function syncSectionFormData(): void
@@ -648,13 +655,17 @@ class ProgramEditor extends Component
 
         $protectedIds = $this->protectedSectionProgramExerciseIds();
 
-        if ($protectedIds === []) {
-            return $state;
-        }
-
         $state['selectedItems'] = collect($state['selectedItems'])
             ->map(function (array $entry) use ($protectedIds): array {
                 $programExerciseId = (int) data_get($entry, 'item.program_exercise_id', 0);
+                $exerciseDisabled = $programExerciseId > 0
+                    && $this->exerciseProgram->config->effectiveDisabled($programExerciseId, $this->userId);
+
+                if ($exerciseDisabled) {
+                    $entry['item']['_exercise_disabled'] = true;
+                    $entry['item']['_readonly'] = true;
+                    $entry['item']['_readonly_label'] = __('Disabled exercises are read-only.');
+                }
 
                 if ($programExerciseId > 0 && in_array($programExerciseId, $protectedIds, true)) {
                     $entry['item']['_remove_disabled'] = true;
@@ -663,6 +674,7 @@ class ProgramEditor extends Component
 
                 return $entry;
             })
+            ->sortBy(fn (array $entry): int => ! empty($entry['item']['_exercise_disabled']) ? 1 : 0)
             ->values()
             ->all();
 
@@ -957,6 +969,14 @@ class ProgramEditor extends Component
             && in_array($programExerciseId, $this->protectedSectionProgramExerciseIds(), true);
     }
 
+    public function sectionExerciseRowIsDisabled(?array $row): bool
+    {
+        $programExerciseId = (int) ($row['program_exercise_id'] ?? 0);
+
+        return $programExerciseId > 0
+            && $this->exerciseProgram->config->effectiveDisabled($programExerciseId, $this->userId);
+    }
+
     /** @return array<int, int> */
     protected function protectedSectionProgramExerciseIds(): array
     {
@@ -1012,6 +1032,7 @@ class ProgramEditor extends Component
     public function onExerciseOverridesChanged(): void
     {
         $this->exerciseProgram->refresh();
+        $this->loadExerciseData();
         unset($this->planConfigArray, $this->exercises, $this->exerciseGroupLabels, $this->exerciseBadgesByPivotId);
         $this->gridRenderVersion++;
     }

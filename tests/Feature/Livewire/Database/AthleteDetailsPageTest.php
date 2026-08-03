@@ -6,6 +6,7 @@ use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
 use App\Data\Athlete\Metric\Metrics\ReadinessMetric;
 use App\Data\Athlete\Metric\MetricSubmissionData;
 use App\Livewire\Database\AthleteMetricList;
+use App\Models\Athlete\MetricSubmission;
 use App\Models\Users\User;
 use App\Support\AthleteMetrics\OneRepMaxExamplePreviewBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -161,6 +162,77 @@ it('renders a forced metric list without duplicate metric tabs', function () {
         ->assertDontSee('1RM')
         ->assertDontSee('Readiness')
         ->assertDontSee('50kg');
+});
+
+it('forwards optional focus arguments when editing an athlete metric', function () {
+    $coach = User::factory()->coach()->create();
+    $athlete = User::factory()->athlete()->create();
+
+    $submission = (new MetricSubmissionData(
+        user_id: $athlete->id,
+        metric: MetricEnum::OneRepMax,
+        recorded_by: $coach->id,
+        recorded_at: '2026-04-28',
+        data: new OneRepMaxMetric(measuredReps: 1, measuredWeight: 50),
+    ))->persist();
+
+    $component = Livewire::actingAs($coach)->test(AthleteMetricList::class, [
+        'athleteId' => $athlete->id,
+        'forcedMetric' => MetricEnum::OneRepMax->value,
+        'showTabs' => false,
+        'prefixUrl' => true,
+    ]);
+
+    $eventName = 'open-'.$component->instance()->editModalName;
+
+    $component
+        ->call('startEdit', $submission->id, 'data.measuredWeight', 0)
+        ->assertDispatched($eventName, function ($event, $params): bool {
+            return $params['focusField'] === 'data.measuredWeight'
+                && $params['focusIndex'] === 0;
+        });
+});
+
+it('warns instead of adding another manual 1RM on the same day', function () {
+    $coach = User::factory()->coach()->create();
+    $athlete = User::factory()->athlete()->create();
+
+    (new MetricSubmissionData(
+        user_id: $athlete->id,
+        metric: MetricEnum::OneRepMax,
+        recorded_by: $coach->id,
+        recorded_at: '2026-08-01',
+        data: new OneRepMaxMetric(measuredReps: 1, measuredWeight: 50),
+    ))->persist();
+
+    Livewire::actingAs($coach)
+        ->test(AthleteMetricList::class, [
+            'athleteId' => $athlete->id,
+            'forcedMetric' => MetricEnum::OneRepMax->value,
+            'showTabs' => false,
+            'prefixUrl' => true,
+        ])
+        ->call('handleFormSubmitted', [
+            'recorded_at' => '2026-08-01',
+            'data' => [
+                'measuredReps' => 10,
+                'measuredWeight' => 24,
+            ],
+        ])
+        ->assertDispatched('toast-show', function ($event, $params): bool {
+            return ($params['dataset']['variant'] ?? null) === 'warning'
+                && str_contains($params['slots']['text'] ?? '', 'already a manual metric');
+        });
+
+    $submission = MetricSubmission::query()
+        ->forAthlete($athlete->id)
+        ->forMetric(MetricEnum::OneRepMax)
+        ->manual()
+        ->with('values')
+        ->sole();
+
+    expect($submission->getFieldValue('measuredReps'))->toBe('1')
+        ->and($submission->getFieldValue('measuredWeight'))->toBe('50');
 });
 
 it('applies the selected preview goal when building the 1rm example grid', function () {

@@ -33,7 +33,7 @@
             <flux:field>
                 <flux:label>{{ __('Instructions') }}</flux:label>
                 <flux:textarea
-                    wire:model.live.debounce.500ms="sectionInstructions"
+                    wire:model.live.blur="sectionInstructions"
                     rows="4"
                     :placeholder="__('Add instructions for this section...')"
                 />

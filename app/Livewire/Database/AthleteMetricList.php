@@ -5,6 +5,7 @@ namespace App\Livewire\Database;
 use App\Data\Athlete\Metric\MetricEnum;
 use App\Data\Athlete\Metric\MetricSubmissionData;
 use App\Display\DisplayFields\MetricSummary;
+use App\Exceptions\DuplicateManualMetricSubmission;
 use App\Models\Athlete\MetricSubmission;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Display\DisplayFields\Date;
@@ -13,6 +14,7 @@ use Coda\Cms\Display\Table;
 use Coda\Cms\Livewire\AbstractModelList;
 use Coda\FormKit\Action;
 use Coda\FormKit\Form;
+use Flux\Flux;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -197,7 +199,16 @@ class AthleteMetricList extends AbstractModelList
         return 'max-w-[83.333%] overflow-x-hidden';
     }
 
-    public function startEdit(int $id): void
+    public function handleFormSubmitted(array $data): void
+    {
+        try {
+            parent::handleFormSubmitted($data);
+        } catch (DuplicateManualMetricSubmission $exception) {
+            Flux::toast(text: __($exception->getMessage()), variant: 'warning');
+        }
+    }
+
+    public function startEdit(int $id, ?string $focusField = null, ?int $focusIndex = null): void
     {
         $this->edit = $id;
 
@@ -205,7 +216,13 @@ class AthleteMetricList extends AbstractModelList
         $data = $this->dataFromModel($model)->toArray();
         $metricLabel = $model->metric->label();
 
-        $this->dispatch("open-{$this->editModalName}", data: $data, title: __('Edit Metric')." ({$metricLabel})");
+        $this->dispatch(
+            "open-{$this->editModalName}",
+            data: $data,
+            title: __('Edit Metric')." ({$metricLabel})",
+            focusField: $focusField,
+            focusIndex: $focusIndex,
+        );
     }
 
     protected function getTable(): Table

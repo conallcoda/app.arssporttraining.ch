@@ -1,4 +1,4 @@
-<div>
+<div x-data="horizontal_scroll_position" x-on:scroll.capture="remember($event)">
     <x-cms::section :title="($groupLabel ? $groupLabel . ' - ' : '') . $exerciseName">
         @if ($this->isDisabled)
             <div class="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-6 text-center space-y-3">

@@ -150,7 +150,7 @@
             </div>
         @endif
 
-        <div class="overflow-x-auto text-sm">
+        <div class="overflow-x-auto text-sm" data-preserve-horizontal-scroll>
             <table class="border-collapse border border-zinc-300 dark:border-zinc-600 table-fixed">
                 <thead>
                     <tr class="bg-zinc-100 dark:bg-zinc-800">

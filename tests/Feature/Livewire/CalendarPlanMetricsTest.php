@@ -405,6 +405,63 @@ it('excludes soft deleted submissions from metric summary dates', function () {
     expect($dates)->not->toHaveKey('2026-04-28');
 });
 
+it('shows the manual 1RM once when a same-day automatic projection also exists', function () {
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $user = User::factory()->athlete()->create();
+    $coach = User::factory()->coach()->create();
+    $group->members()->attach($user);
+
+    $manual = createSubmissionWithValues([
+        'user_id' => $user->id,
+        'metric' => MetricEnum::OneRepMax,
+        'recorded_by' => $coach->id,
+        'recorded_at' => '2026-08-01',
+        'owner_type' => User::class,
+        'owner_id' => $coach->id,
+    ], [
+        'measuredReps' => '10',
+        'measuredWeight' => '24',
+        'estimated1RM' => '32.4',
+    ]);
+
+    createSubmissionWithValues([
+        'user_id' => $user->id,
+        'metric' => MetricEnum::OneRepMax,
+        'recorded_by' => $coach->id,
+        'recorded_at' => '2026-08-01',
+        'owner_type' => TrainingProgramBlock::class,
+        'owner_id' => 999,
+    ], [
+        'estimated1RM' => '27.4',
+        'goalPercent' => '15',
+    ]);
+
+    $properties = [
+        'groupId' => $group->id,
+        'calendarSettings' => new CalendarSettingsData(
+            start: '2026-08-01',
+            end: '2026-08-02',
+            preset: CalendarDateService::PRESET_CUSTOM,
+        ),
+        'weekStartsOn' => Carbon::MONDAY,
+        'weekEndsOn' => Carbon::SUNDAY,
+    ];
+
+    $individual = Livewire::test(CalendarProgramsView::class, $properties + ['userId' => $user->id]);
+    $individualCell = $individual->instance()->metricCellData['oneRepMax-2026-08-01'];
+
+    $groupView = Livewire::test(CalendarProgramsView::class, $properties + ['userId' => null]);
+    $groupCell = $groupView->instance()->groupMetricCellData['oneRepMax-2026-08-01'];
+
+    expect($individualCell['id'])->toBe($manual->id)
+        ->and($individualCell['label'])->toBe(32)
+        ->and($individualCell['isProjected'])->toBeFalse()
+        ->and($groupCell['count'])->toBe(1)
+        ->and($groupCell['entries'])->toHaveCount(1)
+        ->and($groupCell['entries'][0]['submission_id'])->toBe($manual->id)
+        ->and($groupCell['entries'][0]['isProjected'])->toBeFalse();
+});
+
 it('refreshes calendar metric caches immediately after submitting a metric', function () {
     Carbon::setTestNow('2026-05-02 12:00:00');
 

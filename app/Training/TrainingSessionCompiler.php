@@ -275,15 +275,17 @@ class TrainingSessionCompiler
             return $this->latestMetricCache[$cacheKey];
         }
 
-        $submission = MetricSubmission::query()
-            ->forAthlete($userId)
-            ->forMetric($metric)
-            ->whereDate('recorded_at', '<=', $scheduledDate)
-            ->manual()
-            ->with('values')
-            ->latest('recorded_at')
-            ->latest('id')
-            ->first();
+        $submission = $metric === MetricEnum::OneRepMax
+            ? app(EffectiveOneRepMaxSubmissionResolver::class)->resolve($userId, $scheduledDate)
+            : MetricSubmission::query()
+                ->forAthlete($userId)
+                ->forMetric($metric)
+                ->whereDate('recorded_at', '<=', $scheduledDate)
+                ->manual()
+                ->with('values')
+                ->latest('recorded_at')
+                ->latest('id')
+                ->first();
 
         if (! $submission) {
             return $this->latestMetricCache[$cacheKey] = null;

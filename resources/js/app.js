@@ -8,6 +8,7 @@ import './alpine/calendar-cell-select';
 import './alpine/calendar-slot-popover';
 import './alpine/metric-cell-popover';
 import './alpine/editable-cell';
+import './alpine/horizontal-scroll-position';
 import './alpine/org_chart_parse';
 import './alpine/relationship-selector-modal';
 

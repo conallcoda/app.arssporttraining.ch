@@ -3,6 +3,7 @@
 namespace App\Data\Athlete\Metric;
 
 use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
+use App\Exceptions\DuplicateManualMetricSubmission;
 use App\Models\Athlete\MetricSubmission;
 use App\Models\Users\User;
 use App\Training\TrainingSessionRebuildService;
@@ -53,6 +54,39 @@ class MetricSubmissionData extends AbstractData implements HasForms
 
     public function persist(): MetricSubmission
     {
+        $existingSubmission = $this->id !== null
+            ? MetricSubmission::query()->find($this->id)
+            : null;
+
+        if ($this->metric === MetricEnum::OneRepMax) {
+            $editingProjectedSubmission = $existingSubmission !== null
+                && $existingSubmission->owner_type !== null
+                && $existingSubmission->owner_type !== User::class;
+
+            if ($editingProjectedSubmission) {
+                $this->id = null;
+            }
+
+            if ($this->data instanceof OneRepMaxMetric) {
+                $this->data->goalPercent = null;
+            }
+
+            if ($this->user_id !== null && $this->recorded_at !== null) {
+                $existingManualSubmission = MetricSubmission::query()
+                    ->forAthlete($this->user_id)
+                    ->forMetric(MetricEnum::OneRepMax)
+                    ->manual()
+                    ->whereDate('recorded_at', $this->recorded_at)
+                    ->when($this->id !== null, fn ($query) => $query->whereKeyNot($this->id))
+                    ->orderByDesc('id')
+                    ->first();
+
+                if ($existingManualSubmission !== null) {
+                    throw new DuplicateManualMetricSubmission;
+                }
+            }
+        }
+
         if (
             $this->id === null
             && $this->metric === MetricEnum::Readiness

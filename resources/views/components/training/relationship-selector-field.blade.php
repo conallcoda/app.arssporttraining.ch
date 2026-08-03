@@ -61,7 +61,17 @@
         @if (is_array($items) && count($items) > 0)
             @if (($field->inlineSelectionDisplay ?? 'default') === 'badges')
                 @php
-                    $inlineGroupObjects = collect($items)
+                    $inlineItems = collect($items)
+                        ->map(fn (array $item, int $index): array => ['item' => $item, 'index' => $index])
+                        ->sortBy(fn (array $entry): int => $field->name === 'section_exercises'
+                            && method_exists($this, 'sectionExerciseRowIsDisabled')
+                            && $this->sectionExerciseRowIsDisabled($entry['item']) ? 1 : 0)
+                        ->values();
+                    $inlineGroupObjects = $inlineItems
+                        ->reject(fn (array $entry): bool => $field->name === 'section_exercises'
+                            && method_exists($this, 'sectionExerciseRowIsDisabled')
+                            && $this->sectionExerciseRowIsDisabled($entry['item']))
+                        ->pluck('item')
                         ->map(fn (array $item): object => (object) $item)
                         ->all();
                     $inlineGroupLabels = \App\Training\ExerciseGroupLabeler::label(
@@ -76,8 +86,10 @@
                     );
                 @endphp
                 <div class="flex flex-wrap gap-2" wire:key="{{ $field->name }}-selector-badges-{{ $itemsKey }}">
-                    @foreach ($items as $index => $item)
+                    @foreach ($inlineItems as $entry)
                         @php
+                            $item = $entry['item'];
+                            $index = $entry['index'];
                             $selectedValue = $item[$field->valueAttribute] ?? null;
                             $selectedRecord = $selectedValue !== null
                                 ? $selectedRecords->get((string) $selectedValue)
@@ -87,13 +99,23 @@
                                 : (string) ($selectedValue ?? '');
                             $groupLabel = $inlineGroupLabels[(string) ($item['_key'] ?? '')] ?? null;
                             $badgeColor = $inlineGroupColors[(string) ($item['_key'] ?? '')] ?? 'zinc';
+                            $exerciseDisabled = $field->name === 'section_exercises'
+                                && method_exists($this, 'sectionExerciseRowIsDisabled')
+                                && $this->sectionExerciseRowIsDisabled($item);
+                            if ($exerciseDisabled) {
+                                $groupLabel = null;
+                                $badgeColor = 'zinc';
+                            }
                             $badgeLabel = $selectedLabel !== ''
                                 ? ($groupLabel ? $groupLabel . ' - ' . $selectedLabel : $selectedLabel)
                                 : 'Selected item';
-                            $removeDisabled = $field->name === 'section_exercises'
+                            $removeProtected = $field->name === 'section_exercises'
                                 && method_exists($this, 'sectionExerciseRowIsProtected')
                                 && $this->sectionExerciseRowIsProtected($item);
-                            $removeDisabledLabel = __('Recorded sessions keep this exercise in the plan.');
+                            $removeDisabled = $removeProtected || $exerciseDisabled;
+                            $removeDisabledLabel = $exerciseDisabled
+                                ? __('Disabled exercises are read-only.')
+                                : __('Recorded sessions keep this exercise in the plan.');
                             $programExerciseId = (int) ($item['program_exercise_id'] ?? 0);
                             $leanSectionExerciseDeleteUrl = $field->name === 'section_exercises'
                                 && $programExerciseId > 0
@@ -308,6 +330,7 @@
                                         'buttonClassExpr' => 'rowButtonClasses('.\Illuminate\Support\Js::from($clientList['key']).', row)',
                                         'buttonDisabledExpr' => 'rowButtonDisabled('.\Illuminate\Support\Js::from($clientList['key']).', row)',
                                         'buttonTitleExpr' => 'rowButtonDisabledLabel('.\Illuminate\Support\Js::from($clientList['key']).', row)',
+                                        'readonlyExpr' => 'rowIsReadonly('.\Illuminate\Support\Js::from($clientList['key']).', row)',
                                         'buttonActionExpr' => 'handleButtonClick('.\Illuminate\Support\Js::from($clientList['key']).', row)',
                                         'itemFieldsExpr' => 'rowItemFields('.\Illuminate\Support\Js::from($clientList['key']).')',
                                         'clickEnabled' => ! empty($clientList['rowAction']['name']),

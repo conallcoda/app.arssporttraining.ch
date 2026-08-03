@@ -1,8 +1,10 @@
 <?php
 
+use App\Data\Athlete\Metric\MetricEnum;
 use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
 use App\Data\Athlete\Metric\MetricSubmissionData;
 use App\Data\Training\Blocks\BlockConfig;
+use App\Exceptions\DuplicateManualMetricSubmission;
 use App\Models\Athlete\MetricSubmission;
 use App\Models\Training\TrainingProgramBlock;
 use App\Models\Users\User;
@@ -248,4 +250,109 @@ it('does not create projection when block has no end date', function () {
     $service->syncForBlock($block);
 
     expect(MetricSubmission::projected()->count())->toBe(0);
+});
+
+it('uses a same-day manual override at the boundary between projected blocks', function () {
+    [$group, $athletes, $coach] = createGroupWithAthletes(1);
+    $athlete = $athletes[0];
+
+    createManual1rm($athlete, 19, reps: 8, date: '2026-06-17');
+
+    $blockOne = TrainingProgramBlock::create([
+        'group_id' => $group->id,
+        'type' => 'category',
+        'start' => '2026-06-22',
+        'end' => '2026-08-01',
+        'note' => 'Strength Block 1',
+        'config' => new BlockConfig(goal: 15, autoRecord1rm: true),
+        'active' => true,
+    ]);
+
+    $blockTwo = TrainingProgramBlock::create([
+        'group_id' => $group->id,
+        'type' => 'category',
+        'start' => '2026-08-01',
+        'end' => '2026-09-05',
+        'note' => 'Strength Block 2',
+        'config' => new BlockConfig(goal: 10, autoRecord1rm: true),
+        'active' => true,
+    ]);
+
+    $service = app(ProjectedOneRepMaxService::class);
+    $service->syncForAthleteBlocks($athlete->id);
+
+    $blockOneProjection = MetricSubmission::forBlock($blockOne->id)
+        ->forAthlete($athlete->id)
+        ->with('values')
+        ->firstOrFail();
+
+    expect((float) $blockOneProjection->getFieldValue('estimated1RM'))->toBe(27.4)
+        ->and((float) MetricSubmission::forBlock($blockTwo->id)->firstOrFail()->getFieldValue('estimated1RM'))->toBe(30.1);
+
+    $manualOverride = MetricSubmissionData::fromModel($blockOneProjection);
+    $manualOverride->recorded_by = $coach->id;
+    $manualOverride->data->measuredReps = 10;
+    $manualOverride->data->measuredWeight = 24;
+    $savedManual = $manualOverride->persist();
+
+    $service->syncForAthleteBlocks($athlete->id);
+
+    $sameDaySubmissions = MetricSubmission::query()
+        ->forAthlete($athlete->id)
+        ->forMetric(MetricEnum::OneRepMax)
+        ->whereDate('recorded_at', '2026-08-01')
+        ->get();
+
+    expect($savedManual->id)->not->toBe($blockOneProjection->id)
+        ->and($sameDaySubmissions)->toHaveCount(2)
+        ->and($sameDaySubmissions->filter(fn (MetricSubmission $submission) => $submission->owner_type === TrainingProgramBlock::class))->toHaveCount(1)
+        ->and($sameDaySubmissions->filter(fn (MetricSubmission $submission) => $submission->owner_type === User::class))->toHaveCount(1)
+        ->and((float) $savedManual->getFieldValue('estimated1RM'))->toBe(32.4)
+        ->and($savedManual->getFieldValue('goalPercent'))->toBeNull()
+        ->and((float) MetricSubmission::forBlock($blockOne->id)->firstOrFail()->getFieldValue('estimated1RM'))->toBe(27.4)
+        ->and((float) MetricSubmission::forBlock($blockTwo->id)->firstOrFail()->getFieldValue('estimated1RM'))->toBe(35.6);
+
+    $secondEdit = MetricSubmissionData::fromModel($blockOneProjection->fresh('values'));
+    $secondEdit->recorded_by = $coach->id;
+    $secondEdit->data->measuredReps = 10;
+    $secondEdit->data->measuredWeight = 24;
+
+    expect(fn () => $secondEdit->persist())
+        ->toThrow(DuplicateManualMetricSubmission::class);
+
+    expect(MetricSubmission::query()
+        ->forAthlete($athlete->id)
+        ->forMetric(MetricEnum::OneRepMax)
+        ->whereDate('recorded_at', '2026-08-01')
+        ->count())->toBe(2);
+});
+
+it('keeps only one automatic 1RM per athlete and date', function () {
+    [$group, $athletes] = createGroupWithAthletes(1);
+    $athlete = $athletes[0];
+    createManual1rm($athlete, 100, date: '2026-01-01');
+
+    $firstBlock = createStrengthBlock($group, goal: 10);
+    $secondBlock = TrainingProgramBlock::create([
+        'group_id' => $group->id,
+        'type' => 'category',
+        'start' => '2026-02-15',
+        'end' => '2026-03-01',
+        'note' => 'Second projection on the same day',
+        'config' => new BlockConfig(goal: 20, autoRecord1rm: true),
+        'active' => true,
+    ]);
+
+    $service = app(ProjectedOneRepMaxService::class);
+    $service->syncForBlock($firstBlock);
+    $service->syncForBlock($secondBlock);
+
+    $automatic = MetricSubmission::query()
+        ->projected()
+        ->forAthlete($athlete->id)
+        ->whereDate('recorded_at', '2026-03-01')
+        ->get();
+
+    expect($automatic)->toHaveCount(1)
+        ->and($automatic->first()->owner_id)->toBe($secondBlock->id);
 });

@@ -10,6 +10,10 @@ use App\Training\Reference\OneRepMaxConversion;
 
 class ProjectedOneRepMaxService
 {
+    public function __construct(
+        private readonly EffectiveOneRepMaxSubmissionResolver $effectiveOneRepMax,
+    ) {}
+
     public function syncForBlock(TrainingProgramBlock $block): void
     {
         if (! $block->config?->autoRecord1rm || $block->config->goal === null || $block->end === null) {
@@ -57,6 +61,14 @@ class ProjectedOneRepMaxService
             ]
         );
 
+        MetricSubmission::query()
+            ->projected()
+            ->forAthlete($userId)
+            ->forMetric(MetricEnum::OneRepMax)
+            ->whereDate('recorded_at', $block->end)
+            ->whereKeyNot($submission->id)
+            ->delete();
+
         $submission->values()->delete();
 
         $values = [
@@ -88,6 +100,9 @@ class ProjectedOneRepMaxService
                     $q->whereIn('group_id', $groupIds)->whereNull('user_id')->whereNull('parent_id');
                 })->orWhere('user_id', $userId);
             })
+            ->orderBy('start')
+            ->orderBy('end')
+            ->orderBy('id')
             ->get()
             ->filter(fn (TrainingProgramBlock $block) => $block->config?->autoRecord1rm && $block->config->goal !== null);
 
@@ -150,12 +165,7 @@ class ProjectedOneRepMaxService
 
     private function findBase1rm(int $userId, $blockStart): ?float
     {
-        $submission = MetricSubmission::forAthlete($userId)
-            ->forMetric(MetricEnum::OneRepMax)
-            ->where('recorded_at', '<=', $blockStart)
-            ->latest('recorded_at')
-            ->with('values')
-            ->first();
+        $submission = $this->effectiveOneRepMax->resolve($userId, $blockStart);
 
         if ($submission === null) {
             return null;

@@ -4,6 +4,7 @@ use App\Data\Athlete\Metric\MetricEnum;
 use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
 use App\Data\Athlete\Metric\Metrics\ReadinessMetric;
 use App\Data\Athlete\Metric\MetricSubmissionData;
+use App\Exceptions\DuplicateManualMetricSubmission;
 use App\Models\Athlete\MetricSubmission;
 use App\Models\Users\User;
 use App\Training\Reference\OneRepMaxConversion;
@@ -100,6 +101,28 @@ it('updates a submission and replaces old values', function () {
     expect($values['measuredReps'])->toBe('3');
     expect($values['measuredWeight'])->toBe('120');
     expect($submission->values()->count())->toBe($originalValueCount);
+});
+
+it('rejects another manual 1RM on the same day without changing the existing one', function () {
+    $athlete = User::factory()->athlete()->create();
+
+    $first = (new MetricSubmissionData(
+        user_id: $athlete->id,
+        recorded_at: '2026-03-10',
+        data: new OneRepMaxMetric(measuredReps: 5, measuredWeight: 100),
+    ))->persist();
+
+    expect(fn () => (new MetricSubmissionData(
+        user_id: $athlete->id,
+        recorded_at: '2026-03-10',
+        data: new OneRepMaxMetric(measuredReps: 10, measuredWeight: 24),
+    ))->persist())->toThrow(DuplicateManualMetricSubmission::class);
+
+    $first->refresh()->load('values');
+
+    expect(MetricSubmission::query()->forAthlete($athlete->id)->manual()->count())->toBe(1)
+        ->and($first->getFieldValue('measuredReps'))->toBe('5')
+        ->and($first->getFieldValue('measuredWeight'))->toBe('100');
 });
 
 it('soft deletes a submission', function () {

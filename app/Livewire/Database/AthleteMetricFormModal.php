@@ -5,6 +5,7 @@ namespace App\Livewire\Database;
 use App\Data\Athlete\Metric\MetricEnum;
 use App\Data\Athlete\Metric\MetricSubmissionData;
 use App\Data\Athlete\Metric\ReadinessMetricData;
+use App\Exceptions\DuplicateManualMetricSubmission;
 use App\Support\AthleteMetrics\HeartRatePreviewBuilder;
 use App\Support\Readiness\ReadinessMetricService;
 use App\Support\Readiness\ReadinessSurvey;
@@ -230,7 +231,11 @@ class AthleteMetricFormModal extends FormModal
             $this->validateReadinessData();
         }
 
-        parent::submit();
+        try {
+            parent::submit();
+        } catch (DuplicateManualMetricSubmission $exception) {
+            Flux::toast(text: __($exception->getMessage()), variant: 'warning');
+        }
     }
 
     public function render(): View

@@ -102,6 +102,13 @@ document.addEventListener('alpine:init', () => {
             });
 
             return [...prepared].sort((left, right) => {
+                const readonlyComparison = Number(this.rowIsReadonly(this.selectedRowsListKey(), left))
+                    - Number(this.rowIsReadonly(this.selectedRowsListKey(), right));
+
+                if (readonlyComparison !== 0) {
+                    return readonlyComparison;
+                }
+
                 const groupComparison = this.compareGroups(left?.item?.group, right?.item?.group);
 
                 if (groupComparison !== 0) {
@@ -441,13 +448,22 @@ document.addEventListener('alpine:init', () => {
         },
 
         rowButtonDisabled(listKey, row) {
-            return this.isSelectedRowsList(listKey) && Boolean(row?.item?._remove_disabled);
+            return this.isSelectedRowsList(listKey)
+                && (Boolean(row?.item?._remove_disabled) || this.rowIsReadonly(listKey, row));
         },
 
         rowButtonDisabledLabel(listKey, row) {
-            return this.rowButtonDisabled(listKey, row)
-                ? (row?.item?._remove_disabled_label || 'This item cannot be removed.')
-                : this.rowButtonLabel(listKey, row);
+            if (!this.rowButtonDisabled(listKey, row)) {
+                return this.rowButtonLabel(listKey, row);
+            }
+
+            return row?.item?._remove_disabled_label
+                || row?.item?._readonly_label
+                || 'This item cannot be changed.';
+        },
+
+        rowIsReadonly(listKey, row) {
+            return this.isSelectedRowsList(listKey) && Boolean(row?.item?._readonly);
         },
 
         iconButtonColorClasses(color) {
@@ -524,7 +540,7 @@ document.addEventListener('alpine:init', () => {
         },
 
         updateRowItemField(listKey, row, itemField, value) {
-            if (!this.isSelectedRowsList(listKey) || !itemField?.key) {
+            if (!this.isSelectedRowsList(listKey) || !itemField?.key || this.rowIsReadonly(listKey, row)) {
                 return;
             }
 
@@ -571,6 +587,10 @@ document.addEventListener('alpine:init', () => {
             const rows = this.rowsFor(listKey);
 
             if (targetIndex < 0 || targetIndex >= rows.length) {
+                return false;
+            }
+
+            if (this.rowIsReadonly(listKey, rows[rowIndex]) || this.rowIsReadonly(listKey, rows[targetIndex])) {
                 return false;
             }
 
@@ -737,6 +757,9 @@ document.addEventListener('alpine:init', () => {
                         ...entry.item,
                         _remove_disabled: undefined,
                         _remove_disabled_label: undefined,
+                        _readonly: undefined,
+                        _readonly_label: undefined,
+                        _exercise_disabled: undefined,
                     })),
                     this.modalState,
                 );
