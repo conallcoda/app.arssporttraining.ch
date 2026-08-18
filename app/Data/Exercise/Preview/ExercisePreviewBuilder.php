@@ -100,6 +100,8 @@ class ExercisePreviewBuilder
                 (int) ($data['preview']['groupSize'] ?? SessionGroupingMode::defaultGroupSize()),
                 $groupingMode,
             );
+            $usesChronologicalSessions = SessionGroupingMode::normalizeMode($groupingMode)
+                === SessionGroupingMode::None->value;
             $plannedSessionValues = self::buildPlannedSessionValueMaps(
                 data: $data,
                 overrideLayer: $overrides?->toArray() ?? ['sessions' => [], 'cells' => []],
@@ -144,12 +146,12 @@ class ExercisePreviewBuilder
                 $colorIndex++;
 
                 if ($setting === 'weight') {
-                    $weightRows = self::buildWeightRows($config, $color, $overrideColor, $weeks, $setsPerWeek, $state, $plannedSessionValues, $displayProvenanceValues, $applicableWeeks, $applicableSessions, $sessionCounts, $lockedWeekMap, $lockedSessionsByWeek, $historicalOverrides, $preserveLockedValuesForUnavailable);
+                    $weightRows = self::buildWeightRows($config, $color, $overrideColor, $weeks, $setsPerWeek, $state, $plannedSessionValues, $displayProvenanceValues, $applicableWeeks, $applicableSessions, $sessionCounts, $lockedWeekMap, $lockedSessionsByWeek, $historicalOverrides, $preserveLockedValuesForUnavailable, $usesChronologicalSessions);
                     foreach ($weightRows as $row) {
                         $rows[] = $row;
                     }
                 } else {
-                    $rows[] = self::buildRow($setting, $config, $color, $overrideColor, $weeks, $setsPerWeek, $state, $plannedSessionValues, $displayProvenanceValues, $applicableWeeks, $applicableSessions, $sessionCounts, $lockedWeekMap, $lockedSessionsByWeek, $historicalOverrides, $preserveLockedValuesForUnavailable);
+                    $rows[] = self::buildRow($setting, $config, $color, $overrideColor, $weeks, $setsPerWeek, $state, $plannedSessionValues, $displayProvenanceValues, $applicableWeeks, $applicableSessions, $sessionCounts, $lockedWeekMap, $lockedSessionsByWeek, $historicalOverrides, $preserveLockedValuesForUnavailable, $usesChronologicalSessions);
                 }
             }
 
@@ -245,7 +247,7 @@ class ExercisePreviewBuilder
     }
 
     /** @param array<int, int> $setsPerWeek */
-    private static function buildRow(string $setting, array $config, string $color, string $overrideColor, int $weeks, array $setsPerWeek, GridState $state, array $plannedSessionValues, array $displayProvenanceValues, array $applicableWeeks, array $applicableSessions, array $sessionCounts, array $lockedWeekMap, array $lockedSessionsByWeek = [], ?GridOverrides $historicalOverrides = null, bool $preserveLockedValuesForUnavailable = true): PreviewGridRow
+    private static function buildRow(string $setting, array $config, string $color, string $overrideColor, int $weeks, array $setsPerWeek, GridState $state, array $plannedSessionValues, array $displayProvenanceValues, array $applicableWeeks, array $applicableSessions, array $sessionCounts, array $lockedWeekMap, array $lockedSessionsByWeek = [], ?GridOverrides $historicalOverrides = null, bool $preserveLockedValuesForUnavailable = true, bool $usesChronologicalSessions = false): PreviewGridRow
     {
         $defaultGrid = $state->hasGrid($setting)
             ? $state->getGrid($setting)
@@ -273,8 +275,7 @@ class ExercisePreviewBuilder
                     continue;
                 }
 
-                $resolved = $state->getResolvedCellValue($setting, $week, $set)
-                    ?? self::plannedCellValue($plannedSessionValues, $setting, $week, 0, $set);
+                $resolved = self::resolvePreviewCellValue($state, $plannedSessionValues, $setting, $week, null, $set, $usesChronologicalSessions);
                 $cells[$week][$set] = $resolved ?? ($defaultGrid[$week][$set] ?? '-');
                 $overrideMap[$week][$set] = self::plannedCellIsHighlighted($displayProvenanceValues, $setting, $week, 0, $set);
                 $provenanceMap[$week][$set] = self::plannedCellProvenance($plannedSessionValues, $setting, $week, 0, $set);
@@ -302,8 +303,7 @@ class ExercisePreviewBuilder
                         continue;
                     }
 
-                    $sessionResolved = $state->getResolvedCellValue($setting, $week, $set, $session)
-                        ?? self::plannedCellValue($plannedSessionValues, $setting, $week, $session, $set);
+                    $sessionResolved = self::resolvePreviewCellValue($state, $plannedSessionValues, $setting, $week, $session, $set, $usesChronologicalSessions);
                     $sessionCells[$week][$session][$set] = $sessionResolved ?? ($defaultGrid[$week][$set] ?? '-');
                     $sessionOverrideMap[$week][$session][$set] = self::plannedCellIsHighlighted($displayProvenanceValues, $setting, $week, $session, $set);
                     $sessionProvenanceMap[$week][$session][$set] = self::plannedCellProvenance($plannedSessionValues, $setting, $week, $session, $set);
@@ -313,7 +313,7 @@ class ExercisePreviewBuilder
 
         $inputMeta = self::resolveInputMeta($setting, $config);
         $editableMap = self::buildEditableMap($setting, $weeks, $state->maxSets(), $state, $applicableWeeks);
-        [$cellColorMap, $cellOverrideColorMap, $sessionCellColorMap, $sessionCellOverrideColorMap] = self::buildCellColorMaps($setting, $cells, $sessionCells, $state);
+        [$cellColorMap, $cellOverrideColorMap, $sessionCellColorMap, $sessionCellOverrideColorMap] = self::buildCellColorMaps($setting, $cells, $sessionCells, $state, $plannedSessionValues, $usesChronologicalSessions);
 
         return new PreviewGridRow(
             field: $setting,
@@ -340,7 +340,7 @@ class ExercisePreviewBuilder
      * @param  array<int, int>  $setsPerWeek
      * @return PreviewGridRow[]
      */
-    private static function buildWeightRows(array $config, string $color, string $overrideColor, int $weeks, array $setsPerWeek, GridState $state, array $plannedSessionValues, array $displayProvenanceValues, array $applicableWeeks, array $applicableSessions, array $sessionCounts, array $lockedWeekMap, array $lockedSessionsByWeek = [], ?GridOverrides $historicalOverrides = null, bool $preserveLockedValuesForUnavailable = true): array
+    private static function buildWeightRows(array $config, string $color, string $overrideColor, int $weeks, array $setsPerWeek, GridState $state, array $plannedSessionValues, array $displayProvenanceValues, array $applicableWeeks, array $applicableSessions, array $sessionCounts, array $lockedWeekMap, array $lockedSessionsByWeek = [], ?GridOverrides $historicalOverrides = null, bool $preserveLockedValuesForUnavailable = true, bool $usesChronologicalSessions = false): array
     {
         $rows = [];
         $inputMeta = self::resolveInputMeta('weight', $config);
@@ -367,8 +367,7 @@ class ExercisePreviewBuilder
                         continue;
                     }
 
-                    $resolved = $state->getResolvedCellValue('weight', $week, $set)
-                        ?? self::plannedCellValue($plannedSessionValues, 'weight', $week, 0, $set);
+                    $resolved = self::resolvePreviewCellValue($state, $plannedSessionValues, 'weight', $week, null, $set, $usesChronologicalSessions);
                     $weightCells[$week][$set] = $resolved ?? ($state->getCellValue('weight', $week, $set) ?? '-');
                     $weightOverrides[$week][$set] = self::plannedCellIsHighlighted($displayProvenanceValues, 'weight', $week, 0, $set);
                     $weightProvenanceMap[$week][$set] = self::plannedCellProvenance($plannedSessionValues, 'weight', $week, 0, $set);
@@ -396,8 +395,7 @@ class ExercisePreviewBuilder
                             continue;
                         }
 
-                        $sessionResolved = $state->getResolvedCellValue('weight', $week, $set, $session)
-                            ?? self::plannedCellValue($plannedSessionValues, 'weight', $week, $session, $set);
+                        $sessionResolved = self::resolvePreviewCellValue($state, $plannedSessionValues, 'weight', $week, $session, $set, $usesChronologicalSessions);
                         $weightSessionCells[$week][$session][$set] = $sessionResolved ?? ($state->getCellValue('weight', $week, $set) ?? '-');
                         $weightSessionOverrides[$week][$session][$set] = self::plannedCellIsHighlighted($displayProvenanceValues, 'weight', $week, $session, $set);
                         $weightSessionProvenanceMap[$week][$session][$set] = self::plannedCellProvenance($plannedSessionValues, 'weight', $week, $session, $set);
@@ -489,8 +487,7 @@ class ExercisePreviewBuilder
                     continue;
                 }
 
-                $resolved = $state->getResolvedCellValue('weight', $week, $set)
-                    ?? self::plannedCellValue($plannedSessionValues, 'weight', $week, 0, $set);
+                $resolved = self::resolvePreviewCellValue($state, $plannedSessionValues, 'weight', $week, null, $set, $usesChronologicalSessions);
                 if ($resolved !== null) {
                     $cells[$week][$set] = $resolved;
                 }
@@ -519,8 +516,7 @@ class ExercisePreviewBuilder
                         continue;
                     }
 
-                    $sessionResolved = $state->getResolvedCellValue('weight', $week, $set, $session)
-                        ?? self::plannedCellValue($plannedSessionValues, 'weight', $week, $session, $set);
+                    $sessionResolved = self::resolvePreviewCellValue($state, $plannedSessionValues, 'weight', $week, $session, $set, $usesChronologicalSessions);
                     $sessionCells[$week][$session][$set] = $sessionResolved ?? $cells[$week][$set];
                     $sessionOverrideMap[$week][$session][$set] = self::plannedCellIsHighlighted($displayProvenanceValues, 'weight', $week, $session, $set);
                     $sessionProvenanceMap[$week][$session][$set] = self::plannedCellProvenance($plannedSessionValues, 'weight', $week, $session, $set);
@@ -856,7 +852,7 @@ class ExercisePreviewBuilder
      *     array<int, array<int, array<int, string>>>
      * }
      */
-    private static function buildCellColorMaps(string $setting, array $cells, array $sessionCells, GridState $state): array
+    private static function buildCellColorMaps(string $setting, array $cells, array $sessionCells, GridState $state, array $plannedSessionValues = [], bool $usesChronologicalSessions = false): array
     {
         $colorMap = [];
         $overrideColorMap = [];
@@ -884,8 +880,8 @@ class ExercisePreviewBuilder
         foreach ($sessionCells as $week => $sessions) {
             foreach ($sessions as $session => $weekCells) {
                 foreach ($weekCells as $set => $value) {
-                    $sessionDerivedColor = self::resolveSessionDerivedColor($setting, $state, $week, $session, $set);
-                    $sessionDerivedOverrideColor = self::resolveSessionDerivedOverrideColor($setting, $state, $week, $session, $set);
+                    $sessionDerivedColor = self::resolveSessionDerivedColor($setting, $state, $week, $session, $set, $plannedSessionValues, $usesChronologicalSessions);
+                    $sessionDerivedOverrideColor = self::resolveSessionDerivedOverrideColor($setting, $state, $week, $session, $set, $plannedSessionValues, $usesChronologicalSessions);
 
                     $color = $state->getSessionCellColor($setting, $week, $session, $set)
                         ?? $sessionDerivedColor
@@ -911,13 +907,16 @@ class ExercisePreviewBuilder
         return [$colorMap, $overrideColorMap, $sessionColorMap, $sessionOverrideColorMap];
     }
 
-    private static function resolveSessionDerivedColor(string $setting, GridState $state, int $week, int $session, int $set): ?string
+    private static function resolveSessionDerivedColor(string $setting, GridState $state, int $week, int $session, int $set, array $plannedSessionValues = [], bool $usesChronologicalSessions = false): ?string
     {
         if ($setting !== 'heartRate') {
             return null;
         }
 
-        $zone = $state->getResolvedCellValue('heartRateZone', $week, $set, $session);
+        $zone = $usesChronologicalSessions
+            ? self::plannedCellValue($plannedSessionValues, 'heartRateZone', $week, $session, $set)
+            : null;
+        $zone ??= $state->getResolvedCellValue('heartRateZone', $week, $set, $session);
 
         if ($zone === null) {
             return null;
@@ -926,13 +925,16 @@ class ExercisePreviewBuilder
         return (new HeartRateZoneCellColors)->cellColor('heartRateZone', $zone);
     }
 
-    private static function resolveSessionDerivedOverrideColor(string $setting, GridState $state, int $week, int $session, int $set): ?string
+    private static function resolveSessionDerivedOverrideColor(string $setting, GridState $state, int $week, int $session, int $set, array $plannedSessionValues = [], bool $usesChronologicalSessions = false): ?string
     {
         if ($setting !== 'heartRate') {
             return null;
         }
 
-        $zone = $state->getResolvedCellValue('heartRateZone', $week, $set, $session);
+        $zone = $usesChronologicalSessions
+            ? self::plannedCellValue($plannedSessionValues, 'heartRateZone', $week, $session, $set)
+            : null;
+        $zone ??= $state->getResolvedCellValue('heartRateZone', $week, $set, $session);
 
         if ($zone === null) {
             return null;
@@ -994,6 +996,8 @@ class ExercisePreviewBuilder
             ]);
             $planCompiler = app(PlanCompiler::class);
 
+            $slotIndex = 0;
+
             for ($week = 0; $week < $weeks; $week++) {
                 for ($session = 0; $session < ($sessionCounts[$week] ?? 1); $session++) {
                     $resolved = $planCompiler->compile(
@@ -1007,8 +1011,10 @@ class ExercisePreviewBuilder
                             weightProgression: $measuredData,
                             maxHR: $maxHR,
                             iatPercent: $iatPercent,
+                            slotIndex: $slotIndex,
                         ),
                     );
+                    $slotIndex++;
                     $exercise = $resolved->exercises[0] ?? null;
 
                     if (! $exercise instanceof ResolvedPlannedExercise) {
@@ -1043,6 +1049,16 @@ class ExercisePreviewBuilder
     private static function plannedCellValue(array $plannedSessionValues, string $setting, int $week, int $session, int $set): mixed
     {
         return $plannedSessionValues['values'][$week][$session][$setting][$set] ?? null;
+    }
+
+    private static function resolvePreviewCellValue(GridState $state, array $plannedSessionValues, string $setting, int $week, ?int $session, int $set, bool $usesChronologicalSessions): mixed
+    {
+        $plannedValue = self::plannedCellValue($plannedSessionValues, $setting, $week, $session ?? 0, $set);
+        $stateValue = $state->getResolvedCellValue($setting, $week, $set, $session);
+
+        return $usesChronologicalSessions
+            ? ($plannedValue ?? $stateValue)
+            : ($stateValue ?? $plannedValue);
     }
 
     private static function plannedFieldValue(array $plannedSessionValues, string $setting, int $week, int $session): mixed

@@ -5,6 +5,7 @@ namespace App\Training\Planning;
 use App\Data\Exercise\ExerciseSetting;
 use App\Data\Exercise\Preview\GridOverrides;
 use App\Data\Exercise\Preview\GridState;
+use App\Data\Exercise\Preview\SessionGroupingMode;
 use App\Data\Exercise\Preview\StrategyOrchestrator;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Training\Config\ExerciseOverrides;
@@ -59,6 +60,7 @@ class ResolvedPlannedSessionBuilder
         array $exerciseConfigs,
         int $weeks,
         array $sessionCounts = [],
+        int $slotIndex = 0,
     ): ResolvedPlannedSession {
         $span = PlanGridProfiler::start('ResolvedPlannedSessionBuilder.build', [
             'week' => $weekIndex,
@@ -70,27 +72,41 @@ class ResolvedPlannedSessionBuilder
 
         try {
             $exercises = array_values(array_filter(array_map(
-                fn (array $exercise): ?ResolvedPlannedExercise => $this->buildExercise(
-                    exerciseId: $exercise['exerciseId'] ?? null,
-                    programExerciseId: $exercise['programExerciseId'] ?? null,
-                    sort: (int) ($exercise['sort'] ?? 0),
-                    group: $exercise['group'] ?? null,
-                    type: (string) ($exercise['type'] ?? 'main'),
-                    effectiveConfig: $exercise['effectiveConfig'] ?? [],
-                    overrideLayer: $exercise['overrideLayer'] ?? ['sessions' => [], 'cells' => []],
-                    baseConfig: $exercise['baseConfig'] ?? [],
-                    defaultOverrides: $exercise['defaultOverrides'] ?? null,
-                    userOverrides: $exercise['userOverrides'] ?? null,
-                    effectiveVideoUrl: $exercise['effectiveVideoUrl'] ?? null,
-                    effectiveInstructions: $exercise['effectiveInstructions'] ?? null,
-                    weekIndex: $weekIndex,
-                    sessionIndex: $sessionIndex,
-                    weeks: $weeks,
-                    sessionCounts: $sessionCounts,
-                    measuredData: $exercise['measuredData'] ?? null,
-                    maxHR: $exercise['maxHR'] ?? null,
-                    iatPercent: $exercise['iatPercent'] ?? null,
-                ),
+                function (array $exercise) use ($weekIndex, $sessionIndex, $slotIndex, $weeks, $sessionCounts): ?ResolvedPlannedExercise {
+                    $effectiveConfig = $exercise['effectiveConfig'] ?? [];
+                    $groupingMode = SessionGroupingMode::normalizeMode(
+                        (string) data_get($effectiveConfig, 'preview.groupingMode'),
+                    );
+                    $usesChronologicalSessions = $groupingMode === SessionGroupingMode::None->value;
+                    $resolvedWeekIndex = $usesChronologicalSessions ? $slotIndex : $weekIndex;
+                    $resolvedSessionIndex = $usesChronologicalSessions ? 0 : $sessionIndex;
+                    $resolvedWeeks = max($weeks, $resolvedWeekIndex + 1);
+                    $resolvedSessionCounts = $usesChronologicalSessions
+                        ? array_fill(0, $resolvedWeeks, 1)
+                        : $sessionCounts;
+
+                    return $this->buildExercise(
+                        exerciseId: $exercise['exerciseId'] ?? null,
+                        programExerciseId: $exercise['programExerciseId'] ?? null,
+                        sort: (int) ($exercise['sort'] ?? 0),
+                        group: $exercise['group'] ?? null,
+                        type: (string) ($exercise['type'] ?? 'main'),
+                        effectiveConfig: $effectiveConfig,
+                        overrideLayer: $exercise['overrideLayer'] ?? ['sessions' => [], 'cells' => []],
+                        baseConfig: $exercise['baseConfig'] ?? [],
+                        defaultOverrides: $exercise['defaultOverrides'] ?? null,
+                        userOverrides: $exercise['userOverrides'] ?? null,
+                        effectiveVideoUrl: $exercise['effectiveVideoUrl'] ?? null,
+                        effectiveInstructions: $exercise['effectiveInstructions'] ?? null,
+                        weekIndex: $resolvedWeekIndex,
+                        sessionIndex: $resolvedSessionIndex,
+                        weeks: $resolvedWeeks,
+                        sessionCounts: $resolvedSessionCounts,
+                        measuredData: $exercise['measuredData'] ?? null,
+                        maxHR: $exercise['maxHR'] ?? null,
+                        iatPercent: $exercise['iatPercent'] ?? null,
+                    );
+                },
                 $exerciseConfigs,
             )));
 
@@ -363,7 +379,9 @@ class ResolvedPlannedSessionBuilder
 
         $config = $effectiveConfig[$setting] ?? [];
 
-        return (($config['mode'] ?? 'manual') === 'automatic' || $setting === 'oneRepMax')
+        $mode = (string) ($config['mode'] ?? 'manual');
+
+        return (str_starts_with($mode, 'automatic') || $setting === 'oneRepMax')
             ? 'strategy'
             : 'config';
     }

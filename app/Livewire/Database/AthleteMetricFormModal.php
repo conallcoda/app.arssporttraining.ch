@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Database;
 
+use App\Data\Athlete\Metric\AbstractMetric;
 use App\Data\Athlete\Metric\MetricEnum;
 use App\Data\Athlete\Metric\MetricSubmissionData;
 use App\Data\Athlete\Metric\ReadinessMetricData;
@@ -77,6 +78,7 @@ class AthleteMetricFormModal extends FormModal
     public function updateMetric(string $metric): void
     {
         $this->metric = $metric;
+        $this->forgetMetricComputedProperties();
         $this->syncModalWidth();
 
         if ($this->isReadinessMetric) {
@@ -106,6 +108,7 @@ class AthleteMetricFormModal extends FormModal
         array $formTypes = [],
         ?string $activeFormType = null,
         array $formTypeData = [],
+        ?string $actionName = null,
     ): void {
         $this->groupMode = (bool) ($data['_group_mode'] ?? false);
         $this->availableAthletes = $data['_available_athletes'] ?? [];
@@ -125,11 +128,17 @@ class AthleteMetricFormModal extends FormModal
             $this->metric = $queryTab;
         }
 
+        $this->forgetMetricComputedProperties();
         $this->setMetricContext();
         $this->syncModalWidth();
         $this->readinessModalTab = $this->isReadinessMetric && ! empty($data['id']) ? 'breakdown' : 'data';
 
-        parent::open($data, $title, $focusField, $focusIndex, $formTypes, $activeFormType, $formTypeData);
+        $metricState = $this->normalizeMetricState($data['data'] ?? []);
+        $data['data'] = $this->isReadinessMetric
+            ? $this->normalizeReadinessState($metricState)
+            : $metricState;
+
+        parent::open($data, $title, $focusField, $focusIndex, $formTypes, $activeFormType, $formTypeData, $actionName);
 
         if ($this->isReadinessMetric) {
             $this->initializeReadinessData();
@@ -185,8 +194,22 @@ class AthleteMetricFormModal extends FormModal
     protected function initializeReadinessData(array $incomingData = []): void
     {
         $existingData = $incomingData['data'] ?? $this->data['data'] ?? [];
-        $this->data['data'] = array_merge(ReadinessSurvey::defaultState(), $existingData);
+        $this->data['data'] = $this->normalizeReadinessState($existingData);
         $this->hydrateReadinessBaseline();
+    }
+
+    protected function normalizeReadinessState(mixed $state): array
+    {
+        return array_merge(ReadinessSurvey::defaultState(), $this->normalizeMetricState($state));
+    }
+
+    protected function normalizeMetricState(mixed $state): array
+    {
+        if ($state instanceof AbstractMetric) {
+            return $state->toArray();
+        }
+
+        return is_array($state) ? $state : [];
     }
 
     protected function hydrateReadinessBaseline(): void
@@ -268,5 +291,18 @@ class AthleteMetricFormModal extends FormModal
         $this->maxWidth = $this->isReadinessMetric
             ? self::READINESS_MODAL_MAX_WIDTH
             : self::MODAL_MAX_WIDTH;
+    }
+
+    protected function forgetMetricComputedProperties(): void
+    {
+        unset(
+            $this->isReadinessMetric,
+            $this->isHeartRateMetric,
+            $this->showReadinessBreakdownTab,
+            $this->readinessViewData,
+            $this->heartRatePreviewSections,
+            $this->formConfig,
+            $this->fieldsets,
+        );
     }
 }

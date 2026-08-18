@@ -104,6 +104,13 @@ class OverrideManager
 
             for ($set = 0; $set < $copyableSetCount; $set++) {
                 $value = $row->getCellValue($sourceWeek, $set, $sourceSession);
+                $sourceProvenance = $row->getCellProvenance($sourceWeek, $set, $sourceSession);
+
+                if ($sourceProvenance?->kind === 'strategy') {
+                    $overrides = self::removeCellOverride($overrides, $targetWeek, $targetSession, $set, $row->field);
+
+                    continue;
+                }
 
                 if ($value === null || $value === '-') {
                     $overrides = self::removeCellOverride($overrides, $targetWeek, $targetSession, $set, $row->field);
@@ -127,6 +134,14 @@ class OverrideManager
 
         foreach ($grid->weekColumns as $column) {
             if (in_array($column->field, $skipSessionFields, true)) {
+                continue;
+            }
+
+            $sourceProvenance = $column->getCellProvenance($sourceWeek, 0, $sourceSession);
+
+            if ($sourceProvenance?->kind === 'strategy') {
+                $overrides = self::removeSessionOverride($overrides, $targetWeek, $targetSession, $column->field);
+
                 continue;
             }
 

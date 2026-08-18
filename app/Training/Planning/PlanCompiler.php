@@ -77,6 +77,7 @@ class PlanCompiler
                 exerciseConfigs: $exerciseConfigs,
                 weeks: $weeks,
                 sessionCounts: $context->resolvedSessionCounts($weeks),
+                slotIndex: $context->slotIndex,
             );
         } finally {
             PlanGridProfiler::end($span, [

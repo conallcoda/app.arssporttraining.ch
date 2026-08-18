@@ -29,12 +29,13 @@ class ExerciseProgramFormModal extends FormModal
         array $formTypes = [],
         ?string $activeFormType = null,
         array $formTypeData = [],
+        ?string $actionName = null,
     ): void
     {
         $this->showTrainingProgramStatus = (bool) ($data['_show_training_program_status'] ?? false);
         unset($data['_show_training_program_status']);
 
-        parent::open($data, $title, $focusField, $focusIndex, $formTypes, $activeFormType, $formTypeData);
+        parent::open($data, $title, $focusField, $focusIndex, $formTypes, $activeFormType, $formTypeData, $actionName);
     }
 
     #[Computed]

@@ -76,8 +76,10 @@ class BlockForm extends FormModal
         array $formTypes = [],
         ?string $activeFormType = null,
         array $formTypeData = [],
+        ?string $actionName = null,
     ): void
     {
+        $this->activeActionName = $actionName;
         $this->groupId = $data['groupId'] ?? null;
         $this->userId = $data['userId'] ?? null;
         $this->editingBlockId = $data['blockId'] ?? null;

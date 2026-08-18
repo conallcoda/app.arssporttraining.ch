@@ -148,8 +148,9 @@ class PlanExerciseSettingsForm extends FormModal
         array $formTypes = [],
         ?string $activeFormType = null,
         array $formTypeData = [],
+        ?string $actionName = null,
     ): void {
-        parent::open($data, $title, $focusField, $focusIndex, $formTypes, $activeFormType, $formTypeData);
+        parent::open($data, $title, $focusField, $focusIndex, $formTypes, $activeFormType, $formTypeData, $actionName);
 
         unset($this->fieldsets);
         $this->data = array_replace_recursive($this->buildDefaultsFromFieldsets(), $this->data);

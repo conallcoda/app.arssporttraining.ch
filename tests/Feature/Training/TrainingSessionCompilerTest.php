@@ -1,5 +1,7 @@
 <?php
 
+use App\Data\Athlete\Metric\MetricEnum;
+use App\Data\Exercise\Preview\SessionGroupingConfig;
 use App\Models\Athlete\MetricSubmission;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
@@ -33,7 +35,7 @@ it('keeps sessions in the same calendar week on the same resolved training week'
             'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
             'reps' => ['mode' => 'manual', 'default' => 6, 'applyPer' => 'session'],
             'rest' => ['default' => 60, 'applyPer' => 'week'],
-            'preview' => ['weeks' => 2, 'sessionsPerWeek' => 2],
+            'preview' => ['weeks' => 2, 'sessionsPerWeek' => 2, 'groupingMode' => 'week', 'groupSize' => 1],
         ],
     ]);
 
@@ -45,6 +47,11 @@ it('keeps sessions in the same calendar week on the same resolved training week'
 
     $config = $program->config;
     $overrides = $config->defaultExerciseOverrides($pivot->id);
+    $overrides->sessionGrouping = SessionGroupingConfig::from([
+        'mode' => 'week',
+        'groupSize' => 1,
+        'copyValuesAutomatically' => true,
+    ]);
     $overrides->gridOverrides = [
         'cells' => [],
         'weeks' => [
@@ -83,6 +90,168 @@ it('keeps sessions in the same calendar week on the same resolved training week'
     expect($firstRest?->planned_int_value)->toBe(60)
         ->and($secondRest?->planned_int_value)->toBe(60)
         ->and($thirdRest?->planned_int_value)->toBe(90);
+});
+
+it('resolves ungrouped scheduled sessions as one chronological sequence across calendar weeks', function () {
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Conditioning']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['duration'],
+            'sets' => ['default' => 1, 'label' => 'Interval', 'deload' => 'none'],
+            'duration' => ['unit' => 'seconds', 'default' => 20, 'applyPer' => 'set'],
+            'preview' => [
+                'weeks' => 5,
+                'sessionsPerWeek' => 1,
+                'groupingMode' => 'none',
+                'groupSize' => 1,
+                'copyValuesAutomatically' => false,
+            ],
+        ],
+    ]);
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+    ]);
+
+    $config = $program->config;
+    $overrides = $config->defaultExerciseOverrides($pivot->id);
+    $overrides->sessionGrouping = SessionGroupingConfig::from([
+        'mode' => 'none',
+        'groupSize' => 1,
+        'copyValuesAutomatically' => false,
+    ]);
+    $overrides->gridOverrides = [
+        'sessions' => [],
+        'cells' => collect(range(0, 4))
+            ->map(fn (int $session): array => [
+                'week' => $session,
+                'session' => 0,
+                'set' => 0,
+                'data' => ['duration' => (string) (($session + 1) * 10)],
+            ])
+            ->all(),
+    ];
+    $config->setDefaultExerciseOverrides($pivot->id, $overrides);
+    $program->config = $config;
+    $program->save();
+
+    $slots = collect([
+        '2026-08-04 09:00:00',
+        '2026-08-06 09:00:00',
+        '2026-08-12 09:00:00',
+        '2026-08-13 09:00:00',
+        '2026-08-18 09:00:00',
+    ])->map(fn (string $dateTime) => TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse($dateTime),
+    ]));
+
+    $durations = $slots->map(function (TrainingProgramSlot $slot): int {
+        return (int) $slot->fresh('exercises.sets.values')
+            ->exercises->firstOrFail()
+            ->sets->firstOrFail()
+            ->values->firstWhere('setting_key', 'duration')?->planned_int_value;
+    })->all();
+
+    expect($durations)->toBe([10, 20, 30, 40, 50]);
+});
+
+it('resolves mixed ungrouped and week-grouped exercises independently', function () {
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Mixed grouping']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $ungroupedExercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['duration'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'duration' => ['unit' => 'seconds', 'default' => 5, 'applyPer' => 'set'],
+        ],
+    ]);
+    $weekExercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['duration'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'duration' => ['unit' => 'seconds', 'default' => 5, 'applyPer' => 'set'],
+        ],
+    ]);
+
+    $ungroupedPivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $ungroupedExercise->id,
+        'sort' => 0,
+    ]);
+    $weekPivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $weekExercise->id,
+        'sort' => 1,
+    ]);
+
+    $config = $program->config;
+    $ungroupedOverrides = $config->defaultExerciseOverrides($ungroupedPivot->id);
+    $ungroupedOverrides->sessionGrouping = SessionGroupingConfig::from([
+        'mode' => 'none',
+        'groupSize' => 1,
+        'copyValuesAutomatically' => false,
+    ]);
+    $ungroupedOverrides->gridOverrides = [
+        'sessions' => [],
+        'cells' => [
+            ['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['duration' => '10']],
+            ['week' => 1, 'session' => 0, 'set' => 0, 'data' => ['duration' => '20']],
+        ],
+    ];
+    $config->setDefaultExerciseOverrides($ungroupedPivot->id, $ungroupedOverrides);
+
+    $weekOverrides = $config->defaultExerciseOverrides($weekPivot->id);
+    $weekOverrides->sessionGrouping = SessionGroupingConfig::from([
+        'mode' => 'week',
+        'groupSize' => 1,
+        'copyValuesAutomatically' => true,
+    ]);
+    $weekOverrides->gridOverrides = [
+        'sessions' => [],
+        'cells' => [
+            ['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['duration' => '30']],
+            ['week' => 0, 'session' => 1, 'set' => 0, 'data' => ['duration' => '40']],
+        ],
+    ];
+    $config->setDefaultExerciseOverrides($weekPivot->id, $weekOverrides);
+    $program->config = $config;
+    $program->save();
+
+    TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2026-08-04 09:00:00'),
+    ]);
+    $secondSlot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2026-08-06 09:00:00'),
+    ]);
+
+    $exercises = $secondSlot->fresh('exercises.sets.values')->exercises->keyBy('exercise_id');
+    $durationFor = fn (int $exerciseId): int => (int) $exercises[$exerciseId]
+        ->sets->firstOrFail()
+        ->values->firstWhere('setting_key', 'duration')?->planned_int_value;
+
+    expect($durationFor($ungroupedExercise->id))->toBe(20)
+        ->and($durationFor($weekExercise->id))->toBe(40);
 });
 
 it('compiles automatic progression using the full active block session shape', function () {
@@ -144,7 +313,7 @@ it('compiles automatic progression using the full active block session shape', f
 
     $metric = MetricSubmission::query()->create([
         'user_id' => $athlete->id,
-        'metric' => \App\Data\Athlete\Metric\MetricEnum::OneRepMax,
+        'metric' => MetricEnum::OneRepMax,
         'recorded_by' => $coach->id,
         'recorded_at' => '2026-05-09',
         'owner_type' => null,
@@ -246,7 +415,7 @@ it('uses the active block baseline metric when compiling automatic weights', fun
 
     $baselineMetric = MetricSubmission::query()->create([
         'user_id' => $athlete->id,
-        'metric' => \App\Data\Athlete\Metric\MetricEnum::OneRepMax,
+        'metric' => MetricEnum::OneRepMax,
         'recorded_by' => $coach->id,
         'recorded_at' => '2026-04-20',
         'owner_type' => null,
@@ -260,7 +429,7 @@ it('uses the active block baseline metric when compiling automatic weights', fun
 
     $laterMetric = MetricSubmission::query()->create([
         'user_id' => $athlete->id,
-        'metric' => \App\Data\Athlete\Metric\MetricEnum::OneRepMax,
+        'metric' => MetricEnum::OneRepMax,
         'recorded_by' => $coach->id,
         'recorded_at' => '2026-04-28',
         'owner_type' => null,
@@ -312,7 +481,7 @@ it('reuses cached slot timelines and metric lookups across repeated compiles in 
 
     $oneRepMax = MetricSubmission::query()->create([
         'user_id' => $athlete->id,
-        'metric' => \App\Data\Athlete\Metric\MetricEnum::OneRepMax,
+        'metric' => MetricEnum::OneRepMax,
         'recorded_by' => $coach->id,
         'recorded_at' => '2026-04-20',
         'owner_type' => null,
@@ -326,7 +495,7 @@ it('reuses cached slot timelines and metric lookups across repeated compiles in 
 
     $heartRate = MetricSubmission::query()->create([
         'user_id' => $athlete->id,
-        'metric' => \App\Data\Athlete\Metric\MetricEnum::HeartRate,
+        'metric' => MetricEnum::HeartRate,
         'recorded_by' => $coach->id,
         'recorded_at' => '2026-04-20',
         'owner_type' => null,

@@ -18,6 +18,7 @@ final readonly class PlanningContextData
         public ?WeightProgressionSetting $weightProgression = null,
         public ?int $maxHR = null,
         public ?int $iatPercent = null,
+        public int $slotIndex = 0,
     ) {}
 
     public function resolvedWeekCount(): int

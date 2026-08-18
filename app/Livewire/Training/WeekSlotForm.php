@@ -69,9 +69,11 @@ class WeekSlotForm extends FormModal
         array $formTypes = [],
         ?string $activeFormType = null,
         array $formTypeData = [],
+        ?string $actionName = null,
     ): void
     {
         $this->activeTitle = $title;
+        $this->activeActionName = $actionName;
         $this->groupId = $data['groupId'] ?? null;
         $this->userId = $data['userId'] ?? null;
         $this->slotDate = $data['date'] ?? null;

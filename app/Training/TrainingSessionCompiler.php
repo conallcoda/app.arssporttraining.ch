@@ -103,6 +103,7 @@ class TrainingSessionCompiler
             weightProgression: $weightProgression,
             maxHR: $heartRateMetric?->heartRate,
             iatPercent: $heartRateMetric?->anaerobicThreshold,
+            slotIndex: (int) $sessionContext['slotIndex'],
         );
         $plannedSession = $this->planCompiler->compile($authoringProgram, $planningContext);
         $compiledExercises = array_map(

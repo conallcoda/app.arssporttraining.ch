@@ -10,14 +10,13 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
-        "coda/cms": "*",
-        "coda/form-kit": "*",
+        "coda/cms": "dev-main",
+        "coda/form-kit": "dev-main",
         "codeat3/blade-fluentui-system-icons": "^1.35",
         "laravel/fortify": "^1.0",
         "laravel/framework": "^12.0",
         "laravel/telescope": "^5.20",
         "laravel/tinker": "^2.10.1",
-        "maatwebsite/excel": "^3.1",
         "mallardduck/blade-lucide-icons": "^1.23",
         "spatie/laravel-medialibrary": "^11.21",
         "spatie/laravel-options": "^1.2",
@@ -51,9 +50,6 @@
         }
     },
     "scripts": {
-        "cms-packages": [
-            "./scripts/cms-packages.sh"
-        ],
         "production:optimize": [
             "bash ./scripts/production-optimize.sh"
         ],
@@ -95,7 +91,11 @@
         ],
         "pre-package-uninstall": [
             "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
-        ]
+        ],
+        "coda:status": "@php scripts/coda-packages.php status",
+        "coda:link": "@php scripts/coda-packages.php link",
+        "coda:unlink": "@php scripts/coda-packages.php unlink",
+        "deploy": "@php scripts/coda-packages.php deploy"
     },
     "extra": {
         "laravel": {
@@ -104,7 +104,10 @@
     },
     "config": {
         "optimize-autoloader": true,
-        "preferred-install": "dist",
+        "preferred-install": {
+            "coda/*": "source",
+            "*": "dist"
+        },
         "sort-packages": true,
         "allow-plugins": {
             "pestphp/pest-plugin": true,
@@ -114,33 +117,29 @@
     "minimum-stability": "dev",
     "prefer-stable": true,
     "repositories": {
-        "form-kit": {
-            "type": "path",
-            "url": "packages/form-kit",
-            "options": {
-                "symlink": false
-            }
+        "api-kit": {
+            "type": "vcs",
+            "url": "git@github.com:conallcoda/coda-api-kit.git"
+        },
+        "auth-kit": {
+            "type": "vcs",
+            "url": "git@github.com:conallcoda/coda-auth-kit.git"
         },
         "cms": {
-            "type": "path",
-            "url": "packages/cms",
-            "options": {
-                "symlink": false
-            }
+            "type": "vcs",
+            "url": "git@github.com:conallcoda/coda-cms.git"
         },
         "expression-kit": {
-            "type": "path",
-            "url": "packages/expression-kit",
-            "options": {
-                "symlink": false
-            }
+            "type": "vcs",
+            "url": "git@github.com:conallcoda/coda-expression-kit.git"
+        },
+        "form-kit": {
+            "type": "vcs",
+            "url": "git@github.com:conallcoda/coda-form-kit.git"
         },
         "schema-kit": {
-            "type": "path",
-            "url": "packages/schema-kit",
-            "options": {
-                "symlink": false
-            }
+            "type": "vcs",
+            "url": "git@github.com:conallcoda/coda-schema-kit.git"
         },
         "flux-pro": {
             "type": "composer",

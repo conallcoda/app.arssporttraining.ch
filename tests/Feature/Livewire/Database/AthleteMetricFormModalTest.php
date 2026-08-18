@@ -8,6 +8,25 @@ use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
+it('normalizes the default metric data object when opening the one rep max form', function () {
+    $coach = User::factory()->coach()->create();
+    $athlete = User::factory()->athlete()->create();
+
+    Livewire::actingAs($coach)
+        ->test(AthleteMetricFormModal::class, [
+            'name' => 'calendar-metric-form',
+            'title' => 'Add Metric',
+            'formDataClass' => MetricSubmissionData::class,
+        ])
+        ->call('open', [
+            'metric' => 'oneRepMax',
+            'user_id' => $athlete->id,
+            'recorded_at' => '2026-04-29',
+        ], 'Add Metric (1RM)')
+        ->assertSet('data.data.measuredReps', 1)
+        ->assertSet('data.data.measuredWeight', 50);
+});
+
 it('renders the shared readiness form inside the athlete metric modal', function () {
     $coach = User::factory()->coach()->create();
     $athlete = User::factory()->athlete()->create();
