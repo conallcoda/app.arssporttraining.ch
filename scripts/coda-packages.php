@@ -138,6 +138,26 @@ function lockedCodaPackages(string $project): array
     return $locked;
 }
 
+/** @return array<string, string|null> */
+function lockedCodaReferences(string $project): array
+{
+    $lockFile = $project.'/composer.lock';
+    if (! is_file($lockFile)) {
+        return [];
+    }
+
+    $lock = json_decode((string) file_get_contents($lockFile), true, flags: JSON_THROW_ON_ERROR);
+    $references = [];
+    foreach ([...($lock['packages'] ?? []), ...($lock['packages-dev'] ?? [])] as $package) {
+        $name = $package['name'] ?? null;
+        if (is_string($name) && str_starts_with($name, 'coda/')) {
+            $references[$name] = $package['source']['reference'] ?? $package['dist']['reference'] ?? null;
+        }
+    }
+
+    return $references;
+}
+
 function relativeLinkTarget(string $source, string $destinationDirectory): string
 {
     $sourceParts = explode(DIRECTORY_SEPARATOR, trim($source, DIRECTORY_SEPARATOR));
@@ -274,15 +294,6 @@ function status(string $project): void
     }
 }
 
-function confirm(string $prompt): bool
-{
-    if (! stream_isatty(STDIN)) {
-        return false;
-    }
-    fwrite(STDOUT, $prompt.' [y/N] ');
-    return in_array(strtolower(trim((string) fgets(STDIN))), ['y', 'yes'], true);
-}
-
 function assertPackageRepositories(): void
 {
     foreach (packages() as $package) {
@@ -306,6 +317,29 @@ function dirtyPackages(): array
     ));
 }
 
+/**
+ * @param  list<array{name: string, path: string, composer_name: string}>  $dirty
+ * @return list<array{name: string, path: string, composer_name: string}>
+ */
+function packagesRequiringLockRefresh(string $project, array $dirty): array
+{
+    $dirtyNames = array_fill_keys(array_column($dirty, 'composer_name'), true);
+    $lockedReferences = lockedCodaReferences($project);
+
+    return array_values(array_filter(
+        packages(),
+        function (array $package) use ($dirtyNames, $lockedReferences): bool {
+            $name = $package['composer_name'];
+            if (! array_key_exists($name, $lockedReferences)) {
+                return false;
+            }
+
+            return isset($dirtyNames[$name])
+                || git($package['path'], ['rev-parse', 'HEAD'], true) !== $lockedReferences[$name];
+        },
+    ));
+}
+
 function runConsumerChecks(): void
 {
     foreach (consumerPaths() as $consumer) {
@@ -324,22 +358,24 @@ function runConsumerChecks(): void
 function deploy(string $project, array $arguments): void
 {
     $dryRun = in_array('--dry-run', $arguments, true);
-    $skipChecks = in_array('--skip-checks', $arguments, true);
-    $yes = in_array('--yes', $arguments, true);
+    $runChecks = in_array('--check', $arguments, true) || in_array('--with-checks', $arguments, true);
     $message = null;
     foreach ($arguments as $index => $argument) {
         if (str_starts_with($argument, '--message=')) {
             $message = substr($argument, strlen('--message='));
         } elseif ($argument === '--message' || $argument === '-m') {
             $message = $arguments[$index + 1] ?? null;
+        } elseif (! str_starts_with($argument, '-') && ! in_array($arguments[$index - 1] ?? null, ['--message', '-m'], true)) {
+            $message ??= $argument;
         }
     }
     if (! is_string($message) || trim($message) === '') {
-        fail('Deploy requires --message="...".');
+        fail('Deploy requires a commit message, for example: composer deploy "Describe the release".');
     }
 
     assertPackageRepositories();
     $dirty = dirtyPackages();
+    $lockRefreshes = packagesRequiringLockRefresh($project, $dirty);
     $appGitRoot = gitRoot($project);
     $appBranch = git($appGitRoot, ['branch', '--show-current'], true);
     git($appGitRoot, ['remote', 'get-url', 'origin'], true);
@@ -352,24 +388,17 @@ function deploy(string $project, array $arguments): void
         $summary = git($package['path'], ['status', '--short'], true);
         fwrite(STDOUT, preg_replace('/^/m', '      ', $summary)."\n");
     }
+    fwrite(STDOUT, "  lock refreshes: ".count($lockRefreshes)."\n");
+    foreach ($lockRefreshes as $package) {
+        fwrite(STDOUT, "    - {$package['composer_name']}\n");
+    }
 
     if ($dryRun) {
         fwrite(STDOUT, "Dry run complete; nothing changed.\n");
         return;
     }
-    if (! $yes && ! confirm('Commit and push these packages, then deploy the application?')) {
-        fail('Deployment cancelled.');
-    }
 
-    composer($project, [
-        'update',
-        'coda/*',
-        '--with-all-dependencies',
-        '--minimal-changes',
-        '--dry-run',
-    ]);
-
-    if (! $skipChecks) {
+    if ($runChecks) {
         runConsumerChecks();
     }
 
@@ -379,29 +408,28 @@ function deploy(string $project, array $arguments): void
         git($package['path'], ['push', '--set-upstream', 'origin', 'main']);
     }
 
-    unlinkPackages($project, false);
-    try {
-        composer($project, [
-            'update',
-            'coda/*',
-            '--with-all-dependencies',
-            '--minimal-changes',
-        ]);
-        if (! $skipChecks) {
-            run(['php', 'artisan', 'test'], $project);
-            if (is_file($project.'/package.json')) {
-                run(['npm', 'run', 'build'], $project);
-            }
+    if ($lockRefreshes !== []) {
+        unlinkPackages($project, false);
+        try {
+            composer($project, [
+                'update',
+                ...array_column($lockRefreshes, 'composer_name'),
+                '--with-all-dependencies',
+                '--minimal-changes',
+                '--no-interaction',
+            ]);
+        } finally {
+            linkPackages($project);
         }
-
-        git($appGitRoot, ['add', '--all']);
-        if (git($appGitRoot, ['status', '--porcelain'], true) !== '') {
-            git($appGitRoot, ['commit', '-m', $message]);
-        }
-        git($appGitRoot, ['push', '--set-upstream', 'origin', $appBranch]);
-    } finally {
-        linkPackages($project);
+    } else {
+        fwrite(STDOUT, "Coda package locks are current; skipping Composer update.\n");
     }
+
+    git($appGitRoot, ['add', '--all']);
+    if (git($appGitRoot, ['status', '--porcelain'], true) !== '') {
+        git($appGitRoot, ['commit', '-m', $message]);
+    }
+    git($appGitRoot, ['push', '--set-upstream', 'origin', $appBranch]);
 }
 
 set_time_limit(0);

@@ -277,12 +277,12 @@
             "source": {
                 "type": "git",
                 "url": "git@github.com:conallcoda/coda-cms.git",
-                "reference": "6b9da1c2d564db76c724caf955387c4db1897738"
+                "reference": "2358276a0f53c9b9b48cbefce6316ea602e07e26"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/conallcoda/coda-cms/zipball/6b9da1c2d564db76c724caf955387c4db1897738",
-                "reference": "6b9da1c2d564db76c724caf955387c4db1897738",
+                "url": "https://api.github.com/repos/conallcoda/coda-cms/zipball/2358276a0f53c9b9b48cbefce6316ea602e07e26",
+                "reference": "2358276a0f53c9b9b48cbefce6316ea602e07e26",
                 "shasum": ""
             },
             "require": {
@@ -324,7 +324,7 @@
                 }
             },
             "description": "Generic CMS framework for Laravel Livewire applications",
-            "time": "2026-08-07T19:49:10+00:00"
+            "time": "2026-08-16T13:24:44+00:00"
         },
         {
             "name": "coda/expression-kit",
@@ -361,12 +361,12 @@
             "source": {
                 "type": "git",
                 "url": "git@github.com:conallcoda/coda-form-kit.git",
-                "reference": "3391763db2946183f47d43a956e3d82576508a9f"
+                "reference": "57197c67c5af3f780720e54e592b9057bcf2b893"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/conallcoda/coda-form-kit/zipball/3391763db2946183f47d43a956e3d82576508a9f",
-                "reference": "3391763db2946183f47d43a956e3d82576508a9f",
+                "url": "https://api.github.com/repos/conallcoda/coda-form-kit/zipball/57197c67c5af3f780720e54e592b9057bcf2b893",
+                "reference": "57197c67c5af3f780720e54e592b9057bcf2b893",
                 "shasum": ""
             },
             "require": {
@@ -397,7 +397,7 @@
                 }
             },
             "description": "Framework-agnostic form field definitions with FluxUI rendering",
-            "time": "2026-08-07T19:49:10+00:00"
+            "time": "2026-08-16T13:24:47+00:00"
         },
         {
             "name": "coda/schema-kit",
@@ -405,18 +405,19 @@
             "source": {
                 "type": "git",
                 "url": "git@github.com:conallcoda/coda-schema-kit.git",
-                "reference": "eb33a1b033be7b3fc67ef837854f3adf19f464e1"
+                "reference": "5dfc2630863b34edc223004ce4b7dd62324de51a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/conallcoda/coda-schema-kit/zipball/eb33a1b033be7b3fc67ef837854f3adf19f464e1",
-                "reference": "eb33a1b033be7b3fc67ef837854f3adf19f464e1",
+                "url": "https://api.github.com/repos/conallcoda/coda-schema-kit/zipball/5dfc2630863b34edc223004ce4b7dd62324de51a",
+                "reference": "5dfc2630863b34edc223004ce4b7dd62324de51a",
                 "shasum": ""
             },
             "require": {
                 "illuminate/database": "^12.0 || ^13.0",
                 "illuminate/support": "^12.0 || ^13.0",
-                "php": "^8.2"
+                "php": "^8.2",
+                "spatie/laravel-sluggable": "^3.0"
             },
             "default-branch": true,
             "type": "library",
@@ -438,7 +439,7 @@
                 }
             },
             "description": "Shared schema definitions for entities, facets, views, and identity metadata",
-            "time": "2026-08-07T19:49:10+00:00"
+            "time": "2026-08-16T13:24:49+00:00"
         },
         {
             "name": "codeat3/blade-fluentui-system-icons",
