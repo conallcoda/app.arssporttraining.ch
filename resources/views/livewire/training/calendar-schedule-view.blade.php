@@ -14,6 +14,17 @@
                     @endforeach
                 </flux:select>
 
+                <flux:time-picker
+                    class="w-36 shrink-0"
+                    size="sm"
+                    wire:model.live="quickTime"
+                    :placeholder="__('Time')"
+                    time-format="24-hour"
+                    :interval="15"
+                    clearable
+                    :invalid="$errors->has('quickTime')"
+                />
+
                 @if ($this->quickAthleteOptions->isNotEmpty())
                     <flux:select variant="listbox" searchable multiple size="sm" wire:model.live="quickSelectedAthletes" :placeholder="__('Athletes...')" :invalid="$errors->has('quickSelectedAthletes')">
                         @foreach ($this->quickAthleteOptions as $athlete)

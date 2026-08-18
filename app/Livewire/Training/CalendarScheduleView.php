@@ -34,6 +34,8 @@ class CalendarScheduleView extends Component
 
     public ?int $quickProgramId = null;
 
+    public ?string $quickTime = null;
+
     public array $quickSelectedAthletes = [];
 
     public ?string $pendingCopySourceWeekStart = null;
@@ -125,6 +127,7 @@ class CalendarScheduleView extends Component
             $this->quickSelectedAthletes = array_map('strval', $this->quickAthleteOptions->pluck('id')->all());
         } else {
             $this->quickProgramId = null;
+            $this->quickTime = null;
             $this->quickSelectedAthletes = [];
         }
     }
@@ -165,6 +168,11 @@ class CalendarScheduleView extends Component
         $this->resetErrorBag('quickProgramId');
     }
 
+    public function updatedQuickTime(): void
+    {
+        $this->resetErrorBag('quickTime');
+    }
+
     public function updatedQuickSelectedAthletes(): void
     {
         $this->resetErrorBag('quickSelectedAthletes');
@@ -188,7 +196,9 @@ class CalendarScheduleView extends Component
             return;
         }
 
-        $startTime = $period === 'pm' ? '14:00' : '09:00';
+        $startTime = filled($this->quickTime)
+            ? $this->quickTime
+            : ($period === 'pm' ? '14:00' : '09:00');
         $datetime = $date.' '.$startTime.':00';
         $trainingProgramId = $this->quickProgramId;
 

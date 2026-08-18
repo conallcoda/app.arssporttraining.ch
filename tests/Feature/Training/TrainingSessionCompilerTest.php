@@ -92,7 +92,7 @@ it('keeps sessions in the same calendar week on the same resolved training week'
         ->and($thirdRest?->planned_int_value)->toBe(90);
 });
 
-it('resolves ungrouped scheduled sessions as one chronological sequence across calendar weeks', function () {
+it('repeats finite ungrouped session templates after the last authored session', function () {
     $athlete = User::factory()->athlete()->create();
     $group = UserGroup::create(['name' => 'Test Group']);
     $program = ExerciseProgram::factory()->create(['name' => 'Conditioning']);
@@ -150,6 +150,8 @@ it('resolves ungrouped scheduled sessions as one chronological sequence across c
         '2026-08-12 09:00:00',
         '2026-08-13 09:00:00',
         '2026-08-18 09:00:00',
+        '2026-08-20 09:00:00',
+        '2026-08-25 09:00:00',
     ])->map(fn (string $dateTime) => TrainingProgramSlot::factory()->create([
         'training_program_id' => $trainingProgram->id,
         'user_id' => $athlete->id,
@@ -163,7 +165,76 @@ it('resolves ungrouped scheduled sessions as one chronological sequence across c
             ->values->firstWhere('setting_key', 'duration')?->planned_int_value;
     })->all();
 
-    expect($durations)->toBe([10, 20, 30, 40, 50]);
+    expect($durations)->toBe([10, 20, 30, 40, 50, 10, 20]);
+});
+
+it('does not repeat ungrouped automatic progression after the authored preview length', function () {
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Progression']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => [
+                'mode' => 'automatic',
+                'default' => 10,
+                'stepDownInterval' => 1,
+                'decrement' => 2,
+                'minimum' => 1,
+                'applyPer' => 'set',
+            ],
+            'preview' => [
+                'weeks' => 2,
+                'sessionsPerWeek' => 1,
+                'groupingMode' => 'none',
+                'groupSize' => 1,
+                'copyValuesAutomatically' => false,
+            ],
+        ],
+    ]);
+
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+    ]);
+
+    $config = $program->config;
+    $overrides = $config->defaultExerciseOverrides($pivot->id);
+    $overrides->sessionGrouping = SessionGroupingConfig::from([
+        'mode' => 'none',
+        'groupSize' => 1,
+        'copyValuesAutomatically' => false,
+    ]);
+    $config->setDefaultExerciseOverrides($pivot->id, $overrides);
+    $program->config = $config;
+    $program->save();
+
+    $slots = collect([
+        '2026-08-04 09:00:00',
+        '2026-08-06 09:00:00',
+        '2026-08-12 09:00:00',
+    ])->map(fn (string $dateTime) => TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse($dateTime),
+    ]));
+
+    $compiler = app(TrainingSessionCompiler::class);
+    $reps = $slots->map(function (TrainingProgramSlot $slot) use ($compiler): int {
+        $exercise = collect($compiler->compile($slot->fresh())->exercises)->firstOrFail();
+        $value = collect($exercise->sets[0]->values)->firstWhere('settingKey', 'reps');
+
+        return (int) $value?->plannedValue;
+    })->all();
+
+    expect($reps)->toBe([10, 8, 6]);
 });
 
 it('resolves mixed ungrouped and week-grouped exercises independently', function () {

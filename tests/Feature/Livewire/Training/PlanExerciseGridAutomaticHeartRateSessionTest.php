@@ -38,7 +38,7 @@ it('displays ungrouped strategy values by chronological slot rather than calenda
 
     $grid = ExercisePreviewBuilder::build(
         data: $data,
-        weeks: 2,
+        weeks: 3,
         overrides: $overrides,
         sessionsPerWeek: 2,
         maxHR: 193,
@@ -46,15 +46,16 @@ it('displays ungrouped strategy values by chronological slot rather than calenda
         weekSessionDates: [
             ['2026-08-18', '2026-08-20'],
             ['2026-08-25', '2026-08-27'],
+            ['2026-09-01', '2026-09-03'],
         ],
-        explicitWeekSessionCounts: [2, 2],
+        explicitWeekSessionCounts: [2, 2, 2],
     );
 
     $durationRow = collect($grid->rows)->firstWhere('field', 'duration');
     $heartRateRow = collect($grid->rows)->firstWhere('field', 'heartRate');
     $zoneRow = collect($grid->rows)->firstWhere('field', 'heartRateZone');
 
-    foreach ([[0, 0], [0, 1], [1, 0], [1, 1]] as [$week, $session]) {
+    foreach ([[0, 0], [0, 1], [1, 0], [1, 1], [2, 0], [2, 1]] as [$week, $session]) {
         expect($durationRow->getCellValue($week, 1, $session))->toBe('40')
             ->and($heartRateRow->getCellValue($week, 1, $session))->toBe('125-144')
             ->and($zoneRow->getCellValue($week, 1, $session))->toBe('1')

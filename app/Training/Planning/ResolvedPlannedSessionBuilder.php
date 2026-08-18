@@ -78,7 +78,9 @@ class ResolvedPlannedSessionBuilder
                         (string) data_get($effectiveConfig, 'preview.groupingMode'),
                     );
                     $usesChronologicalSessions = $groupingMode === SessionGroupingMode::None->value;
-                    $resolvedWeekIndex = $usesChronologicalSessions ? $slotIndex : $weekIndex;
+                    $resolvedWeekIndex = $usesChronologicalSessions
+                        ? $this->resolveUngroupedSessionIndex($effectiveConfig, $slotIndex)
+                        : $weekIndex;
                     $resolvedSessionIndex = $usesChronologicalSessions ? 0 : $sessionIndex;
                     $resolvedWeeks = max($weeks, $resolvedWeekIndex + 1);
                     $resolvedSessionCounts = $usesChronologicalSessions
@@ -408,6 +410,55 @@ class ResolvedPlannedSessionBuilder
             if (($override['week'] ?? null) === $week
                 && ($override['session'] ?? null) === $session
                 && isset($override['data'][$setting])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function resolveUngroupedSessionIndex(array $effectiveConfig, int $slotIndex): int
+    {
+        $authoredSessionCount = $this->authoredUngroupedSessionCount($effectiveConfig);
+
+        if ($slotIndex < $authoredSessionCount || $this->hasLongitudinalProgression($effectiveConfig)) {
+            return $slotIndex;
+        }
+
+        return $slotIndex % $authoredSessionCount;
+    }
+
+    private function authoredUngroupedSessionCount(array $effectiveConfig): int
+    {
+        $lastOverrideIndex = -1;
+
+        foreach (['sessions', 'cells'] as $overrideType) {
+            foreach (data_get($effectiveConfig, 'overrides.'.$overrideType, []) as $override) {
+                $lastOverrideIndex = max($lastOverrideIndex, (int) ($override['week'] ?? -1));
+            }
+        }
+
+        return max(
+            1,
+            (int) data_get($effectiveConfig, 'preview.weeks', 1),
+            $lastOverrideIndex + 1,
+        );
+    }
+
+    private function hasLongitudinalProgression(array $effectiveConfig): bool
+    {
+        if ((string) data_get($effectiveConfig, 'sets.deload', 'none') !== 'none') {
+            return true;
+        }
+
+        foreach ($effectiveConfig['settings'] ?? [] as $setting) {
+            if ($setting === 'oneRepMax') {
+                return true;
+            }
+
+            $mode = strtolower((string) data_get($effectiveConfig, $setting.'.mode', 'manual'));
+
+            if ($setting !== 'heartRate' && str_starts_with($mode, 'automatic')) {
                 return true;
             }
         }

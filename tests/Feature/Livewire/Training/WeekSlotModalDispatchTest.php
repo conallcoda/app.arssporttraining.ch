@@ -86,7 +86,8 @@ it('renders edit mode cells with quick-create actions', function () {
             'weekStartsOn' => $weekStartsOn,
             'weekEditMode' => 'edit',
         ])
-        ->assertSeeHtml('quickCreateWeekSlot');
+        ->assertSeeHtml('quickCreateWeekSlot')
+        ->assertSeeHtml('wire:model.live.self="quickTime"');
 });
 
 it('renders remove mode slot cards with quick-remove actions', function () {

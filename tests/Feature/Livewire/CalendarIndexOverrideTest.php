@@ -879,7 +879,7 @@ it('quick creates a slot for a single user in user mode', function () {
         'exercise_program_id' => $program->id,
     ]);
 
-    Livewire::actingAs($coach)
+    $component = Livewire::actingAs($coach)
         ->test(CalendarScheduleView::class, [
             'groupId' => $group->id,
             'userId' => $user->id,
@@ -887,8 +887,23 @@ it('quick creates a slot for a single user in user mode', function () {
             'weekStartsOn' => (int) config('training.week_starts_on', Carbon::MONDAY),
             'weekEditMode' => 'edit',
         ])
+        ->assertSet('quickTime', null)
         ->set('quickProgramId', $tp->id)
         ->call('quickCreateWeekSlot', '2026-03-02', 'am');
 
-    expect(TrainingProgramSlot::where('training_program_id', $tp->id)->where('user_id', $user->id)->count())->toBe(1);
+    expect(TrainingProgramSlot::where([
+        'training_program_id' => $tp->id,
+        'user_id' => $user->id,
+        'datetime' => '2026-03-02 09:00:00',
+    ])->exists())->toBeTrue();
+
+    $component
+        ->set('quickTime', '07:30')
+        ->call('quickCreateWeekSlot', '2026-03-03', 'pm');
+
+    expect(TrainingProgramSlot::where([
+        'training_program_id' => $tp->id,
+        'user_id' => $user->id,
+        'datetime' => '2026-03-03 07:30:00',
+    ])->exists())->toBeTrue();
 });
