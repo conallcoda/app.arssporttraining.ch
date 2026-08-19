@@ -2,6 +2,7 @@
 
 namespace App\Data\Exercise;
 
+use App\Support\Training\GridOverrideNormalizer;
 use Coda\Cms\Data\AbstractData;
 use Coda\FormKit\Fields;
 use Coda\FormKit\Form;
@@ -27,7 +28,7 @@ class ExerciseConfig extends AbstractData
         public ?Settings\WeightSetting $weight = null,
         public Settings\PreviewSetting $preview = new Settings\PreviewSetting,
     ) {
-        $this->overrides = \App\Support\Training\GridOverrideNormalizer::normalize($this->overrides, [
+        $this->overrides = GridOverrideNormalizer::normalize($this->overrides, [
             'preview' => $this->preview->toArray(),
         ]);
 
@@ -82,9 +83,13 @@ class ExerciseConfig extends AbstractData
         foreach (ExerciseSetting::settingMap() as $settingKey => $settingClass) {
             $form->fieldset(
                 $settingClass::getName(),
-                fn (array $data) => in_array($settingKey, $data['config']['settings'] ?? [])
-                    ? ['fields' => self::settingFields($settingClass, $data), 'prefix' => "data.config.{$settingKey}"]
-                    : null,
+                function (array $data) use ($settingKey, $settingClass) {
+                    $data = self::normalizeFormData($data);
+
+                    return in_array($settingKey, $data['config']['settings'] ?? [], true)
+                        ? ['fields' => self::settingFields($settingClass, $data), 'prefix' => "data.config.{$settingKey}"]
+                        : null;
+                },
             );
             $settingNames[] = $settingClass::getName();
         }
@@ -92,6 +97,15 @@ class ExerciseConfig extends AbstractData
         $form->fieldsetTabs($settingNames, 'Settings', sortByDataKey: 'config.settings', headerFields: [
             $settingsField,
         ], headerPrefix: 'data.config');
+    }
+
+    private static function normalizeFormData(array $data): array
+    {
+        if (($data['config'] ?? null) instanceof self) {
+            $data['config'] = $data['config']->toArray();
+        }
+
+        return $data;
     }
 
     /**

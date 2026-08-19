@@ -2,13 +2,14 @@
 
 use App\Data\Exercise\ExerciseConfig;
 use App\Data\Exercise\ExerciseData;
+use App\Data\Exercise\Settings\PreviewSetting;
 use App\Livewire\Database\ExerciseForm;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseTemplate;
 use App\Models\Tag;
 use App\Models\Users\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
 
@@ -117,6 +118,23 @@ it('binds exercise fieldset tabs to the active validation tab state', function (
             'template' => null,
         ])
         ->assertSeeHtml('wire:model.live="activeFieldsetTab"');
+});
+
+it('resolves exercise setting fieldsets when config is a data object', function () {
+    $config = new ExerciseConfig(settings: ['reps']);
+
+    expect(fn () => ExerciseData::getForm()->resolveFieldsets(['config' => $config]))
+        ->not->toThrow(Error::class);
+});
+
+it('resolves preview fields when config is a data object', function () {
+    $config = new ExerciseConfig(settings: ['weight']);
+    $config->weight->mode = 'automatic';
+
+    expect(fn () => PreviewSetting::fields(['config' => $config]))
+        ->not->toThrow(TypeError::class)
+        ->and(fn () => (new ExerciseForm)->formConfig()->resolveFieldsets(['config' => $config]))
+        ->not->toThrow(TypeError::class);
 });
 
 it('clears validation errors when reopening a fresh exercise modal', function () {

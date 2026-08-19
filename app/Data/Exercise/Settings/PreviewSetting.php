@@ -3,6 +3,7 @@
 namespace App\Data\Exercise\Settings;
 
 use App\Data\Exercise\DropSet;
+use App\Data\Exercise\ExerciseConfig;
 use App\Data\Exercise\Preview\SessionGroupingMode;
 use Coda\FormKit\Fields;
 use Illuminate\Support\Facades\Auth;
@@ -23,6 +24,16 @@ class PreviewSetting extends AbstractSetting
 
     public static function fields(array $data = []): array
     {
+        $config = $data['config'] ?? [];
+
+        if ($config instanceof ExerciseConfig) {
+            $config = $config->toArray();
+        }
+
+        if (! is_array($config)) {
+            $config = [];
+        }
+
         $groupingMode = SessionGroupingMode::normalizeMode(
             (string) (Auth::user()?->config->get('settings.session_grouping.mode', SessionGroupingMode::defaultMode()) ?? SessionGroupingMode::defaultMode())
         );
@@ -48,9 +59,9 @@ class PreviewSetting extends AbstractSetting
                 ->suffix('session(s)');
         }
 
-        $hasAutomaticWeight = ! DropSet::isEnabled($data['config'] ?? [])
-            && in_array('weight', $data['config']['settings'] ?? [])
-            && ($data['config']['weight']['mode'] ?? 'manual') === 'automatic';
+        $hasAutomaticWeight = ! DropSet::isEnabled($config)
+            && in_array('weight', $config['settings'] ?? [], true)
+            && ($config['weight']['mode'] ?? 'manual') === 'automatic';
 
         if ($hasAutomaticWeight) {
             $fields = array_merge($fields, WeightProgressionSetting::fields());
