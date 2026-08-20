@@ -61,6 +61,7 @@ class ResolvedPlannedSessionBuilder
         int $weeks,
         array $sessionCounts = [],
         int $slotIndex = 0,
+        bool $useSlotIndexForGroupedSessions = false,
     ): ResolvedPlannedSession {
         $span = PlanGridProfiler::start('ResolvedPlannedSessionBuilder.build', [
             'week' => $weekIndex,
@@ -72,17 +73,24 @@ class ResolvedPlannedSessionBuilder
 
         try {
             $exercises = array_values(array_filter(array_map(
-                function (array $exercise) use ($weekIndex, $sessionIndex, $slotIndex, $weeks, $sessionCounts): ?ResolvedPlannedExercise {
+                function (array $exercise) use ($weekIndex, $sessionIndex, $slotIndex, $weeks, $sessionCounts, $useSlotIndexForGroupedSessions): ?ResolvedPlannedExercise {
                     $effectiveConfig = $exercise['effectiveConfig'] ?? [];
                     $groupingMode = SessionGroupingMode::normalizeMode(
                         (string) data_get($effectiveConfig, 'preview.groupingMode'),
                     );
-                    $usesChronologicalSessions = $groupingMode === SessionGroupingMode::None->value;
-                    $resolvedWeekIndex = $usesChronologicalSessions
-                        ? $this->resolveUngroupedSessionIndex($effectiveConfig, $slotIndex)
-                        : $weekIndex;
+                    $usesGroupedSlotIndex = $useSlotIndexForGroupedSessions
+                        && $groupingMode === SessionGroupingMode::Groups->value;
+                    $usesChronologicalSessions = $groupingMode === SessionGroupingMode::None->value
+                        || $usesGroupedSlotIndex;
+                    $resolvedWeekIndex = match (true) {
+                        $usesGroupedSlotIndex => $slotIndex,
+                        $groupingMode === SessionGroupingMode::None->value => $this->resolveUngroupedSessionIndex($effectiveConfig, $slotIndex),
+                        default => $weekIndex,
+                    };
                     $resolvedSessionIndex = $usesChronologicalSessions ? 0 : $sessionIndex;
-                    $resolvedWeeks = max($weeks, $resolvedWeekIndex + 1);
+                    $resolvedWeeks = $usesGroupedSlotIndex
+                        ? max(array_sum($sessionCounts), $resolvedWeekIndex + 1)
+                        : max($weeks, $resolvedWeekIndex + 1);
                     $resolvedSessionCounts = $usesChronologicalSessions
                         ? array_fill(0, $resolvedWeeks, 1)
                         : $sessionCounts;

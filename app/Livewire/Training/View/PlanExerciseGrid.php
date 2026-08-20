@@ -85,6 +85,8 @@ class PlanExerciseGrid extends Component
 
     public array $weekSessionDates = [];
 
+    public array $weekSessionDateRanges = [];
+
     public array $expandedWeeks = [];
 
     public array $lockedSessionsByWeek = [];
@@ -162,9 +164,11 @@ class PlanExerciseGrid extends Component
         array $weekLabels = [],
         array $weekSessions = [],
         array $weekSessionDates = [],
+        array $weekSessionDateRanges = [],
         array $expandedWeeks = [],
         array $lockedSessionsByWeek = [],
         array $sessionStatusesByWeek = [],
+        array $calendarWeekSchedule = [],
         bool $sessionLabels = false,
         bool $showActualValueTabs = false,
         string $valueDisplayMode = 'planned',
@@ -206,6 +210,7 @@ class PlanExerciseGrid extends Component
             $this->weekLabels = $weekLabels;
             $this->weekSessions = $weekSessions;
             $this->weekSessionDates = $weekSessionDates;
+            $this->weekSessionDateRanges = $weekSessionDateRanges;
             $this->expandedWeeks = $expandedWeeks;
             $this->lockedSessionsByWeek = $lockedSessionsByWeek;
             $this->sessionStatusesByWeek = $sessionStatusesByWeek;
@@ -236,9 +241,34 @@ class PlanExerciseGrid extends Component
             if ($this->scheduledTrainingProgramId === null) {
                 $this->scheduledTrainingProgramId = $this->resolveScheduledTrainingProgramId($planId);
             }
+
+            $this->applyCalendarWeekScheduleIfNeeded($calendarWeekSchedule);
         } finally {
             PlanGridProfiler::end($span);
         }
+    }
+
+    protected function applyCalendarWeekScheduleIfNeeded(array $calendarWeekSchedule): void
+    {
+        $groupingMode = SessionGroupingMode::normalizeMode(
+            (string) data_get($this->getEffectiveConfig(), 'preview.groupingMode'),
+        );
+
+        if ($groupingMode !== SessionGroupingMode::Week->value || $calendarWeekSchedule === []) {
+            return;
+        }
+
+        $this->weeks = max(1, (int) ($calendarWeekSchedule['weeks'] ?? 1));
+        $this->sessionsPerWeek = max(1, (int) ($calendarWeekSchedule['sessionsPerWeek'] ?? 1));
+        $this->weekLabels = $calendarWeekSchedule['weekLabels'] ?? [];
+        $this->weekSessions = $calendarWeekSchedule['weekSessions'] ?? [];
+        $this->weekSessionDates = $calendarWeekSchedule['weekSessionDates'] ?? [];
+        $this->weekSessionDateRanges = $calendarWeekSchedule['weekSessionDateRanges'] ?? [];
+        $this->expandedWeeks = $calendarWeekSchedule['expandedWeeks'] ?? [];
+        $this->lockedSessionsByWeek = $calendarWeekSchedule['lockedSessionsByWeek'] ?? [];
+        $this->sessionStatusesByWeek = $calendarWeekSchedule['exerciseSessionStatusesByWeek']['program-exercise-'.$this->programExerciseId]
+            ?? $calendarWeekSchedule['sessionStatusesByWeek']
+            ?? [];
     }
 
     public function previewSession(int $week, int $session): void
@@ -657,11 +687,20 @@ class PlanExerciseGrid extends Component
             $grid->sessionDateLabels = $this->sessionDateLabels();
             if ($grid->showSessionDates) {
                 foreach ($grid->groups as $group) {
-                    $group->collapsedMetaLines = collect($group->sessions ?? [])
-                        ->map(fn ($session): ?string => $grid->sessionDateLabels[$session->weekIndex][$session->sessionIndex] ?? null)
-                        ->filter(fn (?string $label): bool => filled($label))
-                        ->values()
-                        ->all();
+                    $dateRanges = collect($group->sessions ?? [])
+                        ->map(fn ($session): ?array => $this->weekSessionDateRanges[$session->weekIndex][$session->sessionIndex] ?? null)
+                        ->filter(fn (mixed $range): bool => is_array($range) && filled($range['start'] ?? null) && filled($range['end'] ?? null));
+
+                    $group->collapsedMetaLines = $dateRanges->isNotEmpty()
+                        ? [$this->formatConciseDateRange(
+                            (string) $dateRanges->min('start'),
+                            (string) $dateRanges->max('end'),
+                        )]
+                        : collect($group->sessions ?? [])
+                            ->map(fn ($session): ?string => $grid->sessionDateLabels[$session->weekIndex][$session->sessionIndex] ?? null)
+                            ->filter(fn (?string $label): bool => filled($label))
+                            ->values()
+                            ->all();
                 }
             }
             $grid->showCopyMenu = true;
@@ -1185,6 +1224,16 @@ class PlanExerciseGrid extends Component
 
         foreach ($this->weekSessionDates as $weekIndex => $datesForWeek) {
             foreach ($datesForWeek as $sessionIndex => $date) {
+                $range = $this->weekSessionDateRanges[$weekIndex][$sessionIndex] ?? null;
+                if (is_array($range) && filled($range['start'] ?? null) && filled($range['end'] ?? null)) {
+                    $labels[$weekIndex][$sessionIndex] = $this->formatConciseDateRange(
+                        (string) $range['start'],
+                        (string) $range['end'],
+                    );
+
+                    continue;
+                }
+
                 if (! is_string($date) || $date === '') {
                     continue;
                 }
@@ -1194,6 +1243,22 @@ class PlanExerciseGrid extends Component
         }
 
         return $labels;
+    }
+
+    protected function formatConciseDateRange(string $start, string $end): string
+    {
+        $startDate = Carbon::parse($start);
+        $endDate = Carbon::parse($end);
+
+        if ($startDate->isSameDay($endDate)) {
+            return $startDate->format('j.n');
+        }
+
+        if ($startDate->year === $endDate->year) {
+            return $startDate->format('j.n').' - '.$endDate->format('j.n');
+        }
+
+        return $startDate->format('j.n.y').' - '.$endDate->format('j.n.y');
     }
 
     /**

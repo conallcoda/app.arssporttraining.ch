@@ -1875,6 +1875,7 @@ class CalendarProgramsView extends Component
                 'exercise_program_id' => $clone->id,
                 'sort' => $maxSort + 1,
                 'status' => TrainingProgram::normalizeStatus($data['status'] ?? null),
+                'planned_session_count' => $sourceTrainingProgram->planned_session_count,
                 'owner_id' => $sourceTrainingProgram->owner_id,
             ]);
 

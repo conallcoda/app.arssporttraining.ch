@@ -82,6 +82,43 @@ it('builds grouped automatic weight progression through the shared planned model
         ->and($exercise->setCountProvenance?->kind)->toBe('strategy');
 });
 
+it('resolves grouped progression from the persisted athlete slot index', function () {
+    $builder = app(ResolvedPlannedSessionBuilder::class);
+
+    $session = $builder->build(
+        weekIndex: 0,
+        sessionIndex: 0,
+        scheduledDate: '2026-02-25',
+        exerciseConfigs: [[
+            'exerciseId' => 12,
+            'sort' => 0,
+            'group' => null,
+            'type' => 'main',
+            'effectiveConfig' => [
+                'settings' => ['reps'],
+                'preview' => ['groupingMode' => 'groups', 'groupSize' => 2],
+                'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+                'reps' => [
+                    'mode' => 'automatic',
+                    'default' => 10,
+                    'stepDownInterval' => 1,
+                    'decrement' => 2,
+                    'minimum' => 1,
+                    'applyPer' => 'session',
+                ],
+            ],
+            'overrideLayer' => ['sessions' => [], 'cells' => []],
+        ]],
+        weeks: 1,
+        sessionCounts: [1],
+        slotIndex: 2,
+        useSlotIndexForGroupedSessions: true,
+    );
+
+    expect($session->weekIndex)->toBe(0)
+        ->and($session->exercises[0]->sets[0]->values[0]->value)->toBe(8);
+});
+
 it('tracks plan and user provenance layers distinctly', function () {
     $builder = app(ResolvedPlannedSessionBuilder::class);
 

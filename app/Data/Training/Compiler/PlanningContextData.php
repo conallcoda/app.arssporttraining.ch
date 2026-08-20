@@ -19,6 +19,7 @@ final readonly class PlanningContextData
         public ?int $maxHR = null,
         public ?int $iatPercent = null,
         public int $slotIndex = 0,
+        public bool $useSlotIndexForGroupedSessions = false,
     ) {}
 
     public function resolvedWeekCount(): int

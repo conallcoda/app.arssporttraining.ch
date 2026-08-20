@@ -57,6 +57,8 @@ class ProgramEditor extends Component
 
     public array $weekSessionDates = [];
 
+    public array $weekSessionDateRanges = [];
+
     public array $expandedWeeks = [];
 
     public array $lockedSessionsByWeek = [];
@@ -64,6 +66,8 @@ class ProgramEditor extends Component
     public array $sessionStatusesByWeek = [];
 
     public array $exerciseSessionStatusesByWeek = [];
+
+    public array $calendarWeekSchedule = [];
 
     public bool $sessionLabels = false;
 
@@ -192,10 +196,12 @@ class ProgramEditor extends Component
         array $weekLabels = [],
         array $weekSessions = [],
         array $weekSessionDates = [],
+        array $weekSessionDateRanges = [],
         array $expandedWeeks = [],
         array $lockedSessionsByWeek = [],
         array $sessionStatusesByWeek = [],
         array $exerciseSessionStatusesByWeek = [],
+        array $calendarWeekSchedule = [],
         bool $sessionLabels = false,
         string $gridLayout = 'side-by-side',
         bool $showActualValueTabs = false,
@@ -247,10 +253,12 @@ class ProgramEditor extends Component
             $this->weekLabels = $weekLabels;
             $this->weekSessions = $weekSessions;
             $this->weekSessionDates = $weekSessionDates;
+            $this->weekSessionDateRanges = $weekSessionDateRanges;
             $this->expandedWeeks = $expandedWeeks;
             $this->lockedSessionsByWeek = $lockedSessionsByWeek;
             $this->sessionStatusesByWeek = $sessionStatusesByWeek;
             $this->exerciseSessionStatusesByWeek = $exerciseSessionStatusesByWeek;
+            $this->calendarWeekSchedule = $calendarWeekSchedule;
             $this->sessionLabels = $sessionLabels;
             $this->gridLayout = $gridLayout;
             $this->showActualValueTabs = $showActualValueTabs;

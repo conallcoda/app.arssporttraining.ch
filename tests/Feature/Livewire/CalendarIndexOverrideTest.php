@@ -550,6 +550,147 @@ it('derives planner status from each concrete slot before aggregating displayed 
         ->and($info['sessionStatusesByWeek'][0][0]['label'] ?? null)->toBe('Partially Completed');
 });
 
+it('builds the group planner from athlete slot indexes instead of distinct datetimes', function () {
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Staggered Group']);
+    $user1 = User::factory()->athlete()->create();
+    $user2 = User::factory()->athlete()->create();
+    $group->members()->attach([$user1->id, $user2->id]);
+    $category = Tag::factory()->withScope('exercise_category')->create(['name' => 'Strength']);
+    $program = ExerciseProgram::factory()->create(['exercise_category_id' => $category->id]);
+    $trainingProgram = TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+        'planned_session_count' => 3,
+    ]);
+
+    TrainingProgramSlot::create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $user1->id,
+        'datetime' => '2028-02-25 09:00:00',
+    ]);
+    TrainingProgramSlot::create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $user1->id,
+        'datetime' => '2028-03-03 09:00:00',
+    ]);
+    TrainingProgramSlot::create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $user2->id,
+        'datetime' => '2028-02-29 14:00:00',
+    ]);
+    TrainingProgramSlot::create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $user2->id,
+        'datetime' => '2028-03-05 14:00:00',
+    ]);
+
+    $component = Livewire::actingAs($coach)->test(CalendarIndex::class, [
+        'group' => (string) $group->id,
+        'user' => '',
+        'view' => 'plan',
+        'planCategory' => (string) $category->id,
+        'planProgram' => (string) $trainingProgram->id,
+    ]);
+
+    $info = $component->get('planScheduleInfo');
+
+    expect($component->get('planSessionCount'))->toBe(3)
+        ->and($info['weeks'])->toBe(3)
+        ->and($info['weekSessions'])->toBe([1, 1, 1])
+        ->and($info['weekSessionDateRanges'][0][0])->toBe([
+            'start' => '2028-02-25',
+            'end' => '2028-02-29',
+        ])
+        ->and($info['weekSessionDateRanges'][1][0])->toBe([
+            'start' => '2028-03-03',
+            'end' => '2028-03-05',
+        ])
+        ->and($info['weekSessionDates'][2][0])->toBe('')
+        ->and($info['calendarWeekSchedule']['weeks'])->toBe(2)
+        ->and($info['calendarWeekSchedule']['weekSessions'])->toBe([1, 2])
+        ->and($info['calendarWeekSchedule']['weekSessionDateRanges'][1][0])->toBe([
+            'start' => '2028-02-29',
+            'end' => '2028-03-03',
+        ]);
+
+    $component->set('planSessionCount', 5)->call('savePlanSessionCount');
+
+    expect($trainingProgram->fresh()->planned_session_count)->toBe(5)
+        ->and($component->get('planScheduleInfo')['weeks'])->toBe(5);
+});
+
+it('keeps explicit group session counts scoped to the selected block', function () {
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Multi-block Group']);
+    $athlete = User::factory()->athlete()->create();
+    $group->members()->attach($athlete);
+    $category = Tag::factory()->withScope('exercise_category')->create(['name' => 'Endurance']);
+    $program = ExerciseProgram::factory()->create(['exercise_category_id' => $category->id]);
+    $trainingProgram = TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+        'planned_session_count' => 14,
+    ]);
+    $block = TrainingProgramBlock::create([
+        'group_id' => $group->id,
+        'category_id' => $category->id,
+        'type' => TrainingProgramBlockTypeEnum::Category,
+        'start' => '2028-06-01',
+        'end' => '2028-06-30',
+        'note' => 'June Block',
+        'active' => true,
+    ]);
+
+    foreach (range(0, 6) as $offset) {
+        TrainingProgramSlot::create([
+            'training_program_id' => $trainingProgram->id,
+            'user_id' => $athlete->id,
+            'datetime' => Carbon::parse('2028-06-03 09:00:00')->addDays($offset * 3),
+        ]);
+    }
+
+    $component = Livewire::actingAs($coach)->test(CalendarIndex::class, [
+        'group' => (string) $group->id,
+        'user' => '',
+        'view' => 'plan',
+        'planCategory' => (string) $category->id,
+        'planBlock' => (string) $block->id,
+        'planProgram' => (string) $trainingProgram->id,
+    ]);
+
+    expect($component->get('planSessionCount'))->toBe(7)
+        ->and($component->get('planScheduleInfo')['weeks'])->toBe(7);
+
+    $component->set('planSessionCount', 10)->call('savePlanSessionCount');
+
+    expect($trainingProgram->fresh()->planned_session_count)->toBe(14)
+        ->and($block->fresh()->config->plannedSessionCounts[$trainingProgram->id] ?? null)->toBe(10)
+        ->and($component->get('planScheduleInfo')['weeks'])->toBe(10);
+});
+
+it('shows one plannable session instead of zero for an unscheduled group program', function () {
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Unscheduled Group']);
+    $category = Tag::factory()->withScope('exercise_category')->create(['name' => 'Strength']);
+    $program = ExerciseProgram::factory()->create(['exercise_category_id' => $category->id]);
+    $trainingProgram = TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $component = Livewire::actingAs($coach)->test(CalendarIndex::class, [
+        'group' => (string) $group->id,
+        'user' => '',
+        'view' => 'plan',
+        'planCategory' => (string) $category->id,
+        'planProgram' => (string) $trainingProgram->id,
+    ]);
+
+    expect($component->get('planSessionCount'))->toBe(1)
+        ->and($component->get('planScheduleInfo')['weeks'])->toBe(1);
+});
+
 it('builds exercise-specific plan statuses without partial badges', function () {
     Carbon::setTestNow('2026-03-08 12:00:00');
 

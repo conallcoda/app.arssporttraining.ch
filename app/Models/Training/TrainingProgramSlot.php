@@ -31,6 +31,7 @@ class TrainingProgramSlot extends Model
         'user_id',
         'datetime',
         'scheduled_date',
+        'session_index',
         'status',
         'compiled_at',
         'compiled_version',
@@ -50,6 +51,7 @@ class TrainingProgramSlot extends Model
         return [
             'datetime' => 'datetime',
             'scheduled_date' => 'date',
+            'session_index' => 'integer',
             'status' => TrainingProgramSlotStatusEnum::class,
             'compiled_at' => 'datetime',
             'has_any_modification' => 'bool',
@@ -75,6 +77,32 @@ class TrainingProgramSlot extends Model
 
     protected static function booted(): void
     {
+        static::creating(function (self $slot): void {
+            if ($slot->session_index !== null) {
+                return;
+            }
+
+            $usedIndexes = static::query()
+                ->where('training_program_id', $slot->training_program_id)
+                ->where('user_id', $slot->user_id)
+                ->whereNotNull('session_index')
+                ->orderBy('session_index')
+                ->pluck('session_index')
+                ->map(fn (mixed $index): int => (int) $index)
+                ->all();
+
+            $nextIndex = 0;
+            foreach ($usedIndexes as $usedIndex) {
+                if ($usedIndex !== $nextIndex) {
+                    break;
+                }
+
+                $nextIndex++;
+            }
+
+            $slot->session_index = $nextIndex;
+        });
+
         static::observe(\App\Observers\TrainingProgramSlotObserver::class);
     }
 }

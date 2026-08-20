@@ -104,6 +104,7 @@ class TrainingSessionCompiler
             maxHR: $heartRateMetric?->heartRate,
             iatPercent: $heartRateMetric?->anaerobicThreshold,
             slotIndex: (int) $sessionContext['slotIndex'],
+            useSlotIndexForGroupedSessions: true,
         );
         $plannedSession = $this->planCompiler->compile($authoringProgram, $planningContext);
         $compiledExercises = array_map(
@@ -125,12 +126,16 @@ class TrainingSessionCompiler
 
         if (! isset($this->sessionContextCache[$cacheKey])) {
             $slots = $this->sessionContextSlots($slot, $scheduledDate);
+            $usesPersistedSessionIndexes = $this->resolveOverlappingCategoryBlock($slot, $scheduledDate) === null;
 
             $contexts = [];
             $slotIndexes = $slots
-                ->pluck('id')
-                ->flip()
-                ->map(fn ($index) => (int) $index)
+                ->values()
+                ->mapWithKeys(fn (TrainingProgramSlot $scheduledSlot, int $index): array => [
+                    (int) $scheduledSlot->id => $usesPersistedSessionIndexes
+                        ? ($scheduledSlot->session_index ?? $index)
+                        : $index,
+                ])
                 ->all();
 
             $weeks = $slots
@@ -202,7 +207,7 @@ class TrainingSessionCompiler
         return $query
             ->orderBy('datetime')
             ->orderBy('id')
-            ->get(['id', 'datetime'])
+            ->get(['id', 'datetime', 'session_index'])
             ->values();
     }
 

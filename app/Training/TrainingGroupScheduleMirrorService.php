@@ -72,6 +72,7 @@ class TrainingGroupScheduleMirrorService
                     'owner_id' => $sourceProgram->owner_id,
                     'sort' => $sourceProgram->sort,
                     'status' => $sourceProgram->status,
+                    'planned_session_count' => $sourceProgram->planned_session_count,
                 ])->save();
 
                 $programIdMap[$sourceProgram->id] = $clone->id;

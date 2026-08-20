@@ -5,6 +5,7 @@ namespace App\Livewire\Training\Concerns;
 use App\Data\Athlete\Metric\MetricEnum;
 use App\Data\Athlete\Metric\Metrics\OneRepMaxMetric;
 use App\Data\Athlete\Metric\MetricSubmissionData;
+use App\Data\Training\Blocks\BlockConfig;
 use App\Exceptions\DuplicateManualMetricSubmission;
 use App\Models\Athlete\MetricSubmission;
 use App\Models\Training\TrainingProgram;
@@ -91,6 +92,23 @@ trait WithCalendarPlan
         $this->syncPlanProgramStatus();
     }
 
+    public function savePlanSessionCount(): void
+    {
+        $program = $this->planSelectedProgram;
+        if (! $program || $this->user !== '') {
+            return;
+        }
+
+        $minimum = max(
+            1,
+            $this->scopedScheduledSessionCount($program),
+        );
+        $this->planSessionCount = max($minimum, min(520, $this->planSessionCount));
+        $this->saveConfiguredPlanSessionCount($program, $this->planSessionCount);
+
+        unset($this->planScheduleInfo);
+    }
+
     protected function syncPlanProgramName(): void
     {
         $program = $this->planSelectedProgram;
@@ -101,6 +119,78 @@ trait WithCalendarPlan
     {
         $program = $this->planSelectedProgram;
         $this->planProgramStatus = $program?->statusValue() ?? TrainingProgram::STATUS_ACTIVE;
+        $this->planSessionCount = $program === null ? 0 : $this->effectivePlanSessionCount($program);
+    }
+
+    protected function effectivePlanSessionCount(TrainingProgram $program, ?int $scheduledSessionCount = null): int
+    {
+        return max(
+            1,
+            $this->configuredPlanSessionCount($program),
+            $scheduledSessionCount ?? $this->scopedScheduledSessionCount($program),
+        );
+    }
+
+    protected function configuredPlanSessionCount(TrainingProgram $program): int
+    {
+        if ($this->planBlock === 'ungrouped') {
+            return (int) ($program->planned_session_count ?? 0);
+        }
+
+        $block = TrainingProgramBlock::find((int) $this->planBlock);
+
+        return (int) ($block?->config?->plannedSessionCounts[$program->id] ?? 0);
+    }
+
+    protected function saveConfiguredPlanSessionCount(TrainingProgram $program, int $count): void
+    {
+        if ($this->planBlock === 'ungrouped') {
+            $program->update(['planned_session_count' => $count]);
+
+            return;
+        }
+
+        $block = TrainingProgramBlock::find((int) $this->planBlock);
+        if (! $block) {
+            return;
+        }
+
+        $config = $block->config ?? new BlockConfig;
+        $config->plannedSessionCounts[$program->id] = $count;
+        $block->config = $config;
+        $block->save();
+    }
+
+    protected function scopedScheduledSessionCount(TrainingProgram $program): int
+    {
+        $query = TrainingProgramSlot::query()
+            ->where('training_program_id', $program->id);
+
+        if ($this->user !== '') {
+            $query->where('user_id', (int) $this->user);
+        }
+
+        if ($this->planBlock === 'ungrouped') {
+            $this->applyUngroupedFilter($query);
+        } else {
+            $block = TrainingProgramBlock::find((int) $this->planBlock);
+            if ($block) {
+                $query->whereBetween('datetime', [
+                    $block->start->copy()->startOfDay(),
+                    ($block->end ?? $block->start)->copy()->endOfDay(),
+                ]);
+            }
+        }
+
+        if ($this->user !== '') {
+            return $query->count();
+        }
+
+        return (int) ((clone $query)
+            ->selectRaw('user_id, COUNT(*) as session_count')
+            ->groupBy('user_id')
+            ->pluck('session_count')
+            ->max() ?? 0);
     }
 
     #[On('navigate-to-plan')]
@@ -647,7 +737,7 @@ trait WithCalendarPlan
 
         try {
             if ($this->planProgram === '') {
-                return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false, 'weekLabels' => [], 'weekSessions' => [], 'weekSessionDates' => [], 'expandedWeeks' => [], 'lockedSessionsByWeek' => [], 'sessionStatusesByWeek' => [], 'exerciseSessionStatusesByWeek' => []];
+                return $this->emptyPlanScheduleInfo();
             }
 
             $slotQuery = TrainingProgramSlot::query()
@@ -673,7 +763,10 @@ trait WithCalendarPlan
             $slotRows = (clone $slotQuery)
                 ->select([
                     'id',
+                    'user_id',
                     'datetime',
+                    'scheduled_date',
+                    'session_index',
                     'status',
                     'completed_at',
                     'exercise_count',
@@ -695,6 +788,12 @@ trait WithCalendarPlan
                 ->orderBy('datetime')
                 ->orderBy('id')
                 ->get();
+            $statusPresenter = app(SlotStatusPresenter::class);
+
+            if ($this->user === '') {
+                return $this->groupPlanScheduleInfo($slotRows, $editGuard, $statusPresenter);
+            }
+
             $slotRowsByDateTime = $slotRows->groupBy(
                 fn (TrainingProgramSlot $slot): string => Carbon::parse($slot->datetime)->toDateTimeString(),
             );
@@ -702,7 +801,6 @@ trait WithCalendarPlan
                 ->keys()
                 ->map(fn (string $dt) => Carbon::parse($dt))
                 ->values();
-            $statusPresenter = app(SlotStatusPresenter::class);
             $slotStatusValuesById = $slotRows
                 ->mapWithKeys(fn (TrainingProgramSlot $slot): array => [
                     (int) $slot->id => $statusPresenter->valueForSlotProgress($slot),
@@ -775,7 +873,7 @@ trait WithCalendarPlan
 
             $weeks = count($scheduledWeeks);
             if ($weeks === 0) {
-                return ['weeks' => 0, 'sessionsPerWeek' => 1, 'scheduled' => false, 'weekLabels' => [], 'weekSessions' => [], 'weekSessionDates' => [], 'expandedWeeks' => [], 'lockedSessionsByWeek' => [], 'sessionStatusesByWeek' => [], 'exerciseSessionStatusesByWeek' => []];
+                return $this->emptyPlanScheduleInfo();
             }
 
             $sessionsPerWeek = max(1, (int) $scheduledWeeks->map(fn (array $week) => count($week['sessions']))->max());
@@ -822,6 +920,7 @@ trait WithCalendarPlan
                 'weekLabels' => $weekLabels,
                 'weekSessions' => $weekSessions,
                 'weekSessionDates' => $weekSessionDates,
+                'weekSessionDateRanges' => [],
                 'expandedWeeks' => $expandedWeeks,
                 'lockedSessionsByWeek' => $lockedSessionsByWeek,
                 'sessionStatusesByWeek' => $sessionStatusesByWeek,
@@ -834,6 +933,258 @@ trait WithCalendarPlan
                 'sessions_per_week' => $sessionsPerWeek ?? null,
             ]);
         }
+    }
+
+    protected function emptyPlanScheduleInfo(): array
+    {
+        return [
+            'weeks' => 0,
+            'sessionsPerWeek' => 1,
+            'scheduled' => false,
+            'weekLabels' => [],
+            'weekSessions' => [],
+            'weekSessionDates' => [],
+            'weekSessionDateRanges' => [],
+            'expandedWeeks' => [],
+            'lockedSessionsByWeek' => [],
+            'sessionStatusesByWeek' => [],
+            'exerciseSessionStatusesByWeek' => [],
+            'calendarWeekSchedule' => [],
+        ];
+    }
+
+    protected function groupPlanScheduleInfo(
+        Collection $slotRows,
+        TrainingSessionEditGuard $editGuard,
+        SlotStatusPresenter $statusPresenter,
+    ): array {
+        foreach ($slotRows->groupBy('user_id') as $athleteSlots) {
+            foreach ($athleteSlots->sortBy([['datetime', 'asc'], ['id', 'asc']])->values() as $fallbackIndex => $slot) {
+                $slot->session_index = $fallbackIndex;
+            }
+        }
+
+        $slotsBySessionIndex = $slotRows
+            ->groupBy(fn (TrainingProgramSlot $slot): int => (int) $slot->session_index);
+        $scheduledSessionCount = $slotsBySessionIndex->isEmpty()
+            ? 0
+            : ((int) $slotsBySessionIndex->keys()->max()) + 1;
+        $plannedSessionCount = $this->planSelectedProgram === null
+            ? 0
+            : $this->effectivePlanSessionCount($this->planSelectedProgram, $scheduledSessionCount);
+
+        if ($plannedSessionCount === 0) {
+            return $this->emptyPlanScheduleInfo();
+        }
+
+        $slotStatusValuesById = $slotRows
+            ->mapWithKeys(fn (TrainingProgramSlot $slot): array => [
+                (int) $slot->id => $statusPresenter->valueForSlotProgress($slot),
+            ]);
+        $exerciseRowsByProgramExercise = $slotRows->isEmpty()
+            ? collect()
+            : TrainingProgramSlotExercise::query()
+                ->select([
+                    'training_program_slot_id',
+                    'exercise_program_exercise_id',
+                    'status',
+                ])
+                ->whereIn('training_program_slot_id', $slotRows->pluck('id'))
+                ->whereNotNull('exercise_program_exercise_id')
+                ->get()
+                ->groupBy(fn (TrainingProgramSlotExercise $exercise): string => (string) $exercise->exercise_program_exercise_id);
+
+        $weekLabels = [];
+        $weekSessions = [];
+        $weekSessionDates = [];
+        $weekSessionDateRanges = [];
+        $lockedSessionsByWeek = [];
+        $sessionStatusesByWeek = [];
+        $exerciseSessionStatusesByWeek = [];
+
+        for ($sessionIndex = 0; $sessionIndex < $plannedSessionCount; $sessionIndex++) {
+            /** @var Collection<int, TrainingProgramSlot> $sessionSlots */
+            $sessionSlots = $slotsBySessionIndex->get($sessionIndex, collect());
+            $dates = $sessionSlots
+                ->map(fn (TrainingProgramSlot $slot): string => ($slot->scheduled_date ?? $slot->datetime)->format('Y-m-d'))
+                ->unique()
+                ->sort()
+                ->values();
+            $startDate = $dates->first();
+            $endDate = $dates->last();
+            $statusValues = $sessionSlots
+                ->map(fn (TrainingProgramSlot $slot): ?string => $slotStatusValuesById[(int) $slot->id] ?? null)
+                ->filter()
+                ->values()
+                ->all();
+
+            $weekLabels[$sessionIndex] = 'Session '.($sessionIndex + 1);
+            $weekSessions[$sessionIndex] = 1;
+            $weekSessionDates[$sessionIndex] = [is_string($startDate) ? $startDate : ''];
+            if (is_string($startDate) && is_string($endDate)) {
+                $weekSessionDateRanges[$sessionIndex][0] = [
+                    'start' => $startDate,
+                    'end' => $endDate,
+                ];
+            }
+            $lockedSessionsByWeek[$sessionIndex] = [
+                $sessionSlots->contains(fn (TrainingProgramSlot $slot): bool => $editGuard->aggregateColumnsIndicateRecordedOutcome($slot)),
+            ];
+            $sessionStatusesByWeek[$sessionIndex] = [
+                $statusValues === []
+                    ? null
+                    : $this->presentAggregatedStatus($statusValues, $statusPresenter),
+            ];
+
+            $slotIdLookup = $sessionSlots->pluck('id')->mapWithKeys(fn (mixed $id): array => [(int) $id => true]);
+            foreach ($exerciseRowsByProgramExercise as $programExerciseId => $exerciseRows) {
+                $exerciseStatuses = $exerciseRows
+                    ->filter(fn (TrainingProgramSlotExercise $exercise): bool => isset($slotIdLookup[(int) $exercise->training_program_slot_id]))
+                    ->map(fn (TrainingProgramSlotExercise $exercise): string => $exercise->status?->value ?? (string) $exercise->status)
+                    ->values()
+                    ->all();
+                $status = $exerciseStatuses === []
+                    ? null
+                    : $this->presentAggregatedStatus($exerciseStatuses, $statusPresenter, partialAsPending: true);
+
+                $exerciseSessionStatusesByWeek['program-exercise-'.$programExerciseId][$sessionIndex] = [$status];
+            }
+        }
+
+        return [
+            'weeks' => $plannedSessionCount,
+            'sessionsPerWeek' => 1,
+            'scheduled' => true,
+            'weekLabels' => $weekLabels,
+            'weekSessions' => $weekSessions,
+            'weekSessionDates' => $weekSessionDates,
+            'weekSessionDateRanges' => $weekSessionDateRanges,
+            'expandedWeeks' => [],
+            'lockedSessionsByWeek' => $lockedSessionsByWeek,
+            'sessionStatusesByWeek' => $sessionStatusesByWeek,
+            'exerciseSessionStatusesByWeek' => $exerciseSessionStatusesByWeek,
+            'calendarWeekSchedule' => $this->groupCalendarWeekScheduleInfo(
+                $slotRows,
+                $exerciseRowsByProgramExercise,
+                $editGuard,
+                $statusPresenter,
+                $slotStatusValuesById,
+            ),
+        ];
+    }
+
+    protected function groupCalendarWeekScheduleInfo(
+        Collection $slotRows,
+        Collection $exerciseRowsByProgramExercise,
+        TrainingSessionEditGuard $editGuard,
+        SlotStatusPresenter $statusPresenter,
+        Collection $slotStatusValuesById,
+    ): array {
+        if ($slotRows->isEmpty()) {
+            return [];
+        }
+
+        $slotsByWeek = $slotRows
+            ->groupBy(fn (TrainingProgramSlot $slot): string => Carbon::parse($slot->datetime)->startOfWeek()->toDateString())
+            ->sortKeys();
+        $weekLabels = [];
+        $weekSessions = [];
+        $weekSessionDates = [];
+        $weekSessionDateRanges = [];
+        $lockedSessionsByWeek = [];
+        $sessionStatusesByWeek = [];
+        $exerciseSessionStatusesByWeek = [];
+
+        foreach ($slotsByWeek->values() as $weekIndex => $weekSlots) {
+            $weekStart = Carbon::parse($weekSlots->first()->datetime)->startOfWeek();
+            $weekEnd = $weekStart->copy()->endOfWeek();
+            $slotsByPosition = collect();
+
+            foreach ($weekSlots->groupBy('user_id') as $athleteSlots) {
+                foreach ($athleteSlots->sortBy([['datetime', 'asc'], ['id', 'asc']])->values() as $position => $slot) {
+                    $slotsByPosition->push(['position' => $position, 'slot' => $slot]);
+                }
+            }
+
+            $slotsByPosition = $slotsByPosition
+                ->groupBy('position')
+                ->map(fn (Collection $rows): Collection => $rows->pluck('slot'))
+                ->sortKeys();
+            $weekLabels[$weekIndex] = 'W'.$weekStart->isoWeek().', '.$weekStart->isoWeekYear()
+                .'<br><span class="text-[10px] font-normal text-zinc-400 dark:text-zinc-500">'
+                .$weekStart->format('d.m').' - '.$weekEnd->format('d.m').'</span>';
+            $weekSessions[$weekIndex] = $slotsByPosition->count();
+
+            foreach ($slotsByPosition->values() as $sessionIndex => $sessionSlots) {
+                $dates = $sessionSlots
+                    ->map(fn (TrainingProgramSlot $slot): string => ($slot->scheduled_date ?? $slot->datetime)->format('Y-m-d'))
+                    ->unique()
+                    ->sort()
+                    ->values();
+                $startDate = (string) $dates->first();
+                $endDate = (string) $dates->last();
+                $statuses = $sessionSlots
+                    ->map(fn (TrainingProgramSlot $slot): ?string => $slotStatusValuesById[(int) $slot->id] ?? null)
+                    ->filter()
+                    ->values()
+                    ->all();
+                $slotIdLookup = $sessionSlots->pluck('id')->mapWithKeys(fn (mixed $id): array => [(int) $id => true]);
+
+                $weekSessionDates[$weekIndex][$sessionIndex] = $startDate;
+                $weekSessionDateRanges[$weekIndex][$sessionIndex] = [
+                    'start' => $startDate,
+                    'end' => $endDate,
+                ];
+                $lockedSessionsByWeek[$weekIndex][$sessionIndex] = $sessionSlots->contains(
+                    fn (TrainingProgramSlot $slot): bool => $editGuard->aggregateColumnsIndicateRecordedOutcome($slot),
+                );
+                $sessionStatusesByWeek[$weekIndex][$sessionIndex] = $statuses === []
+                    ? null
+                    : $this->presentAggregatedStatus($statuses, $statusPresenter);
+
+                foreach ($exerciseRowsByProgramExercise as $programExerciseId => $exerciseRows) {
+                    $exerciseStatuses = $exerciseRows
+                        ->filter(fn (TrainingProgramSlotExercise $exercise): bool => isset($slotIdLookup[(int) $exercise->training_program_slot_id]))
+                        ->map(fn (TrainingProgramSlotExercise $exercise): string => $exercise->status?->value ?? (string) $exercise->status)
+                        ->values()
+                        ->all();
+                    $exerciseSessionStatusesByWeek['program-exercise-'.$programExerciseId][$weekIndex][$sessionIndex] = $exerciseStatuses === []
+                        ? null
+                        : $this->presentAggregatedStatus($exerciseStatuses, $statusPresenter, partialAsPending: true);
+                }
+            }
+        }
+
+        return [
+            'weeks' => $slotsByWeek->count(),
+            'sessionsPerWeek' => max(1, (int) collect($weekSessions)->max()),
+            'weekLabels' => $weekLabels,
+            'weekSessions' => $weekSessions,
+            'weekSessionDates' => $weekSessionDates,
+            'weekSessionDateRanges' => $weekSessionDateRanges,
+            'expandedWeeks' => [],
+            'lockedSessionsByWeek' => $lockedSessionsByWeek,
+            'sessionStatusesByWeek' => $sessionStatusesByWeek,
+            'exerciseSessionStatusesByWeek' => $exerciseSessionStatusesByWeek,
+        ];
+    }
+
+    /** @param list<string> $statuses */
+    protected function presentAggregatedStatus(
+        array $statuses,
+        SlotStatusPresenter $statusPresenter,
+        bool $partialAsPending = false,
+    ): array {
+        $value = $statusPresenter->aggregateValue($statuses);
+        if ($partialAsPending && $value === TrainingProgramSlotStatusEnum::PartiallyCompleted->value) {
+            $value = TrainingProgramSlotStatusEnum::Pending->value;
+        }
+
+        return [
+            'value' => $value,
+            'label' => $statusPresenter->label($value),
+            'color' => $statusPresenter->color($value),
+        ];
     }
 
     protected function getActiveBlockDateRanges(): array

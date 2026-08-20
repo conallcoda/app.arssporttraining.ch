@@ -41,8 +41,16 @@ class TrainingProgram extends Model
         'exercise_program_id',
         'sort',
         'status',
+        'planned_session_count',
         'owner_id',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'planned_session_count' => 'integer',
+        ];
+    }
 
     public static function statusOptions(): array
     {

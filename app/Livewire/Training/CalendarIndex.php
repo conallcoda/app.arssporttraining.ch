@@ -60,6 +60,8 @@ class CalendarIndex extends Component
 
     public string $planProgramStatus = TrainingProgram::STATUS_ACTIVE;
 
+    public int $planSessionCount = 0;
+
     public CalendarSettingsData $calendarSettings;
 
     public int $weekStartsOn;
@@ -87,6 +89,7 @@ class CalendarIndex extends Component
                 $stored = $this->loadPersistedCalendarSettings();
                 if ($stored) {
                     $this->applyCalendarSettings($stored);
+                    $this->syncInitialPlanState();
 
                     return;
                 }
@@ -131,9 +134,20 @@ class CalendarIndex extends Component
             }
 
             $this->syncRangeFromState();
+            $this->syncInitialPlanState();
         } finally {
             PlanGridProfiler::end($span, $this->profileContext());
         }
+    }
+
+    protected function syncInitialPlanState(): void
+    {
+        if ($this->view !== 'plan' || $this->planProgram === '') {
+            return;
+        }
+
+        $this->syncPlanProgramName();
+        $this->syncPlanProgramStatus();
     }
 
     public function updatedView(): void

@@ -747,6 +747,49 @@ it('shows session dates in the plan grid when enabled in coach settings', functi
             ]);
 });
 
+it('shows one concise date range for a collapsed logical session group', function () {
+    $coach = User::factory()->coach()->create();
+    $coach->config->set('settings.session_grouping', [
+        'mode' => 'groups',
+        'groupSize' => 2,
+        'showDatePerSession' => true,
+    ]);
+    $coach->save();
+
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 8, 'applyPer' => 'session'],
+        ],
+    ]);
+    $program = ExerciseProgram::factory()->create();
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'weeks' => 2,
+        'sessionsPerWeek' => 1,
+        'weekSessions' => [1, 1],
+        'weekSessionDates' => [['2028-02-25'], ['2028-02-27']],
+        'weekSessionDateRanges' => [
+            [['start' => '2028-02-25', 'end' => '2028-02-26']],
+            [['start' => '2028-02-27', 'end' => '2028-02-29']],
+        ],
+    ]);
+
+    expect($component->instance()->displayGrid->groups[0]->collapsedMetaLines)
+        ->toBe(['25.2 - 29.2']);
+});
+
 it('always hides the grouped column while keeping grouped behavior', function () {
     $coach = User::factory()->coach()->create();
     $coach->config->set('settings.session_grouping', [
@@ -989,6 +1032,71 @@ it('groups weeks into configurable multi-week buckets in week mode', function ()
         ->and($displayGrid->groups[1]->label)->toBe('W3-W4')
         ->and($displayGrid->groups[1]->sessionRangeLabel)->toBe('5-8');
 });
+
+it('selects logical or calendar group topology from the exercise grouping mode', function (string $groupingMode, int $expectedWeeks, array $expectedSessionCounts) {
+    $coach = User::factory()->coach()->create();
+    $coach->config->set('settings.session_grouping', [
+        'mode' => $groupingMode,
+        'groupSize' => $groupingMode === SessionGroupingMode::Groups->value ? 2 : 1,
+    ]);
+    $coach->save();
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'session'],
+        ],
+    ]);
+    $program = ExerciseProgram::factory()->create();
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'weeks' => 3,
+        'sessionsPerWeek' => 1,
+        'weekSessions' => [1, 1, 1],
+        'weekSessionDates' => [
+            ['2028-02-25'],
+            ['2028-03-03'],
+            [''],
+        ],
+        'calendarWeekSchedule' => [
+            'weeks' => 2,
+            'sessionsPerWeek' => 2,
+            'weekLabels' => ['W8, 2028', 'W9, 2028'],
+            'weekSessions' => [1, 2],
+            'weekSessionDates' => [
+                ['2028-02-25'],
+                ['2028-02-29', '2028-03-05'],
+            ],
+            'weekSessionDateRanges' => [
+                [['start' => '2028-02-25', 'end' => '2028-02-25']],
+                [
+                    ['start' => '2028-02-29', 'end' => '2028-03-03'],
+                    ['start' => '2028-03-05', 'end' => '2028-03-05'],
+                ],
+            ],
+            'lockedSessionsByWeek' => [[false], [false, false]],
+            'sessionStatusesByWeek' => [[], []],
+            'exerciseSessionStatusesByWeek' => [],
+        ],
+    ]);
+
+    expect($component->instance()->previewGrid->weekCount)->toBe($expectedWeeks)
+        ->and($component->instance()->previewGrid->weekSessionCounts)->toBe($expectedSessionCounts);
+})->with([
+    'none uses logical slots' => [SessionGroupingMode::None->value, 3, [1, 1, 1]],
+    'sessions uses logical slots' => [SessionGroupingMode::Groups->value, 3, [1, 1, 1]],
+    'week uses calendar weeks' => [SessionGroupingMode::Week->value, 2, [1, 2]],
+]);
 
 it('renders collapsed grouped cells as editable and applies to the whole bucket by default', function () {
     $coach = User::factory()->coach()->create();
