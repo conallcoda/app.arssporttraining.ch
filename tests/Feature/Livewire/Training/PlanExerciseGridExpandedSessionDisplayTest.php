@@ -550,9 +550,9 @@ it('can group displayed sessions into fixed-size buckets across week boundaries'
         ->and($displayGrid->groups)->toHaveCount(2)
         ->and($displayGrid->groups[0]->label)->toBe('G1')
         ->and(array_map(fn ($session) => [$session->weekIndex, $session->sessionIndex], $displayGrid->groups[0]->sessions))
-            ->toBe([[0, 0], [0, 1], [0, 2]])
+        ->toBe([[0, 0], [0, 1], [0, 2]])
         ->and(array_map(fn ($session) => [$session->weekIndex, $session->sessionIndex], $displayGrid->groups[1]->sessions))
-            ->toBe([[1, 0], [1, 1], [1, 2]]);
+        ->toBe([[1, 0], [1, 1], [1, 2]]);
 });
 
 it('uses coach grouping defaults for existing plan grids when preview grouping is not persisted', function () {
@@ -596,11 +596,11 @@ it('uses coach grouping defaults for existing plan grids when preview grouping i
     expect($displayGrid->groupColumnLabel)->toBe('Group')
         ->and($displayGrid->groups)->toHaveCount(3)
         ->and(array_map(fn ($session) => [$session->weekIndex, $session->sessionIndex], $displayGrid->groups[0]->sessions))
-            ->toBe([[0, 0], [0, 1]])
+        ->toBe([[0, 0], [0, 1]])
         ->and(array_map(fn ($session) => [$session->weekIndex, $session->sessionIndex], $displayGrid->groups[1]->sessions))
-            ->toBe([[1, 0], [2, 0]])
+        ->toBe([[1, 0], [2, 0]])
         ->and(array_map(fn ($session) => [$session->weekIndex, $session->sessionIndex], $displayGrid->groups[2]->sessions))
-            ->toBe([[2, 1]]);
+        ->toBe([[2, 1]]);
 });
 
 it('treats planned groups as fixed-size session buckets in grouped plan grids', function () {
@@ -644,7 +644,7 @@ it('treats planned groups as fixed-size session buckets in grouped plan grids', 
         ->and($displayGrid->groupColumnLabel)->toBe('Group')
         ->and($displayGrid->groups)->toHaveCount(5)
         ->and(array_map(fn ($session) => [$session->weekIndex, $session->sessionIndex], $displayGrid->groups[4]->sessions))
-            ->toBe([[4, 0], [4, 1]]);
+        ->toBe([[4, 0], [4, 1]]);
 });
 
 it('hides the group column when coach session grouping is none', function () {
@@ -688,9 +688,9 @@ it('hides the group column when coach session grouping is none', function () {
     expect($displayGrid->showGroupColumn)->toBeFalse()
         ->and($displayGrid->groups)->toHaveCount(3)
         ->and(array_map(fn ($session) => [$session->weekIndex, $session->sessionIndex], $displayGrid->groups[0]->sessions))
-            ->toBe([[0, 0]])
+        ->toBe([[0, 0]])
         ->and(array_map(fn ($session) => [$session->weekIndex, $session->sessionIndex], $displayGrid->groups[2]->sessions))
-            ->toBe([[1, 0]]);
+        ->toBe([[1, 0]]);
 });
 
 it('shows session dates in the plan grid when enabled in coach settings', function () {
@@ -735,16 +735,16 @@ it('shows session dates in the plan grid when enabled in coach settings', functi
 
     expect($component->instance()->displayGrid->showSessionDates)->toBeTrue()
         ->and($component->instance()->displayGrid->sessionDateLabels)
-            ->toBe([
-                ['27.04.26', '30.04.26'],
-            ])
+        ->toBe([
+            ['27.04.26', '30.04.26'],
+        ])
         ->and($component->instance()->displayGrid->groups[0]->sessionRangeLabel)
-            ->toBe('1-2')
+        ->toBe('1-2')
         ->and($component->instance()->displayGrid->groups[0]->collapsedMetaLines)
-            ->toBe([
-                '27.04.26',
-                '30.04.26',
-            ]);
+        ->toBe([
+            '27.04.26',
+            '30.04.26',
+        ]);
 });
 
 it('shows one concise date range for a collapsed logical session group', function () {
@@ -788,6 +788,66 @@ it('shows one concise date range for a collapsed logical session group', functio
 
     expect($component->instance()->displayGrid->groups[0]->collapsedMetaLines)
         ->toBe(['25.2 - 29.2']);
+});
+
+it('shows athlete dates only for scheduled exercise sessions and labels empty logical sessions as unscheduled', function () {
+    $coach = User::factory()->coach()->create();
+    $coach->config->set('settings.session_grouping', [
+        'mode' => 'groups',
+        'groupSize' => 2,
+        'showDatePerSession' => true,
+    ]);
+    $coach->save();
+    $athlete = User::factory()->athlete()->create();
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 8, 'applyPer' => 'session'],
+        ],
+    ]);
+    $program = ExerciseProgram::factory()->create();
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+    $pending = [
+        'value' => 'pending',
+        'label' => 'Pending',
+        'color' => ['light' => '228 228 231', 'dark' => '161 161 170'],
+    ];
+    $unscheduled = [
+        'value' => 'unscheduled',
+        'label' => 'Unscheduled',
+        'color' => ['light' => '212 212 216', 'dark' => '113 113 122'],
+    ];
+
+    $component = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => $athlete->id,
+        'weeks' => 4,
+        'sessionsPerWeek' => 1,
+        'weekSessions' => [1, 1, 1, 1],
+        'weekSessionDates' => [['2028-02-25'], [''], [''], ['']],
+        'weekSessionDateRanges' => [
+            [['start' => '2028-02-25', 'end' => '2028-02-25']],
+        ],
+        'sessionStatusesByWeek' => [[$pending], [$unscheduled], [$unscheduled], [$unscheduled]],
+    ]);
+    $groups = $component->instance()->displayGrid->groups;
+
+    expect($groups[0]->collapsedMetaLines)->toBe(['25.2'])
+        ->and($groups[0]->status['value'])->toBe('pending')
+        ->and($groups[0]->sessions[1]->status['value'])->toBe('unscheduled')
+        ->and($groups[1]->collapsedMetaLines)->toBe([])
+        ->and($groups[1]->status)->toMatchArray([
+            'value' => 'unscheduled',
+            'label' => 'Unscheduled',
+        ]);
 });
 
 it('always hides the grouped column while keeping grouped behavior', function () {

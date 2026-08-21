@@ -320,7 +320,9 @@ class ResolvedPlannedSessionBuilder
         ?ExerciseOverrides $userOverrides = null,
     ): ResolvedPlannedProvenance {
         $userGridOverrides = $userOverrides?->gridOverrides ?? ['sessions' => [], 'cells' => []];
-        $defaultGridOverrides = $defaultOverrides?->gridOverrides ?? ['sessions' => [], 'cells' => []];
+        $defaultGridOverrides = $userOverrides?->inheritPlanGridOverrides === false
+            ? ['sessions' => [], 'cells' => []]
+            : ($defaultOverrides?->gridOverrides ?? ['sessions' => [], 'cells' => []]);
         $exerciseGridOverrides = $baseConfig['overrides'] ?? $effectiveGridOverrides;
 
         if ($setIndex !== null) {

@@ -132,7 +132,7 @@
                             @if ($this->planScheduleInfo['scheduled'])
                                 <div class="py-4">
                                     <livewire:training.view.program-editor
-                                        :key="'plan-editor-' . $this->planSelectedProgram->id . '-' . $this->planScheduleInfo['weeks'] . '-' . $planBlock"
+                                        :key="$this->planEditorRenderKey()"
                                         :exerciseProgram="$this->planSelectedProgram->program"
                                         :planId="$this->planSelectedProgram->program->id"
                                         :scheduledTrainingProgramId="$this->planSelectedProgram->id"

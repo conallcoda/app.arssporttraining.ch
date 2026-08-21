@@ -1,5 +1,6 @@
 <?php
 
+use App\Data\Training\Config\ExerciseOverrides;
 use App\Livewire\Training\View\PlanExerciseGrid;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
@@ -474,7 +475,7 @@ it('preserves locked session values when editing a future session in the same we
     ]);
 
     $config = $program->config;
-    $config->setDefaultExerciseOverrides($pivot->id, \App\Data\Training\Config\ExerciseOverrides::from([
+    $config->setDefaultExerciseOverrides($pivot->id, ExerciseOverrides::from([
         'gridOverrides' => [
             'cells' => [
                 ['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['reps' => '11_11']],
@@ -531,7 +532,7 @@ it('does not fan a future session edit out to other sessions even when applyToAl
     ]);
 
     $config = $program->config;
-    $config->setDefaultExerciseOverrides($pivot->id, \App\Data\Training\Config\ExerciseOverrides::from([
+    $config->setDefaultExerciseOverrides($pivot->id, ExerciseOverrides::from([
         'gridOverrides' => [
             'cells' => [
                 ['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['reps' => '11_11']],
@@ -902,11 +903,11 @@ it('stores exercise-level grouping from the plan exercise settings modal', funct
     expect($sessionGrouping?->mode)->toBe('week')
         ->and($sessionGrouping?->groupSize)->toBe(1)
         ->and($component->instance()->groupingBadge)
-            ->toBe([
-                'label' => 'Grouped By Weeks (1)',
-                'color' => 'green',
-                'overridden' => true,
-            ]);
+        ->toBe([
+            'label' => 'Grouped By Weeks (1)',
+            'color' => 'green',
+            'overridden' => true,
+        ]);
 });
 
 it('captures locked session values in the historical session snapshot bag for mixed weeks', function () {
@@ -1591,4 +1592,81 @@ it('exercise-level reset removes all overrides for the exercise', function () {
 
     expect($overrides['cells'] ?? [])->toBe([])
         ->and($overrides['sessions'] ?? [])->toBe([]);
+});
+
+it('athlete reset ignores inherited plan grid cells and falls back through plan and athlete settings', function () {
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 8, 'applyPer' => 'per_set'],
+        ],
+    ]);
+    $program = ExerciseProgram::factory()->create();
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+    $athlete = User::factory()->create();
+
+    $config = $program->config;
+    $config->setDefaultExerciseOverrides($pivot->id, ExerciseOverrides::from([
+        'reps' => ['mode' => 'manual', 'default' => 10, 'applyPer' => 'per_set'],
+        'gridOverrides' => [
+            'sessions' => [],
+            'cells' => [
+                ['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['reps' => 7]],
+            ],
+        ],
+    ]));
+    $config->setUserExerciseOverrides($athlete->id, $pivot->id, ExerciseOverrides::from([
+        'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'per_set'],
+        'gridOverrides' => [
+            'sessions' => [],
+            'cells' => [
+                ['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['reps' => 15]],
+            ],
+        ],
+    ]));
+    $program->config = $config;
+    $program->save();
+
+    Livewire::test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => $athlete->id,
+        'weeks' => 1,
+        'sessionsPerWeek' => 1,
+        'lockedSessionsByWeek' => [[false]],
+    ])->call('resetOverrides')
+        ->call('onSettingsSaved', [
+            'programExerciseId' => $pivot->id,
+            'exerciseId' => $exercise->id,
+            'userId' => $athlete->id,
+            'config' => [
+                'settings' => ['reps'],
+                'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+                'reps' => ['mode' => 'manual', 'default' => 14, 'applyPer' => 'per_set'],
+                // The modal receives the effective grid; these inherited cells must not
+                // be copied back into the athlete-owned override layer on save.
+                'overrides' => [
+                    'sessions' => [],
+                    'cells' => [
+                        ['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['reps' => 7]],
+                    ],
+                ],
+            ],
+        ]);
+
+    $freshConfig = $program->fresh()->config;
+    $athleteOverrides = $freshConfig->userExerciseOverrides($athlete->id, $pivot->id);
+    $resolved = $freshConfig->resolveExercise($exercise->config, $pivot->id, $athlete->id);
+
+    expect($athleteOverrides->gridOverrides['cells'])->toBe([])
+        ->and($athleteOverrides->inheritPlanGridOverrides)->toBeFalse()
+        ->and($resolved->effectiveConfig['reps']['default'])->toBe(14)
+        ->and($resolved->effectiveConfig['overrides']['cells'])->toBe([]);
 });

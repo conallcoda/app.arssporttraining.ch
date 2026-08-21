@@ -43,6 +43,7 @@ class ExerciseOverrides extends AbstractData
         public array $historicalGridOverrides = ['sessions' => [], 'cells' => []],
         /** @var array{sessions: array, cells: array}|null */
         public ?array $baselineGridOverrides = null,
+        public ?bool $inheritPlanGridOverrides = null,
         public ?bool $disabled = null,
     ) {
         $this->gridOverrides = GridOverrideNormalizer::normalize($this->gridOverrides);
@@ -66,12 +67,19 @@ class ExerciseOverrides extends AbstractData
                     $instance->instructions = is_string($payload['instructions']) ? $payload['instructions'] : null;
                 }
 
+                if (array_key_exists('inheritPlanGridOverrides', $payload)) {
+                    $instance->inheritPlanGridOverrides = is_bool($payload['inheritPlanGridOverrides'])
+                        ? $payload['inheritPlanGridOverrides']
+                        : null;
+                }
+
                 continue;
             }
 
             if ($payload instanceof self) {
                 $instance->videoUrl = $payload->videoUrl;
                 $instance->instructions = $payload->instructions;
+                $instance->inheritPlanGridOverrides = $payload->inheritPlanGridOverrides;
             }
         }
 
@@ -83,6 +91,7 @@ class ExerciseOverrides extends AbstractData
         return array_replace(parent::toArray(), [
             'videoUrl' => $this->videoUrl,
             'instructions' => $this->instructions,
+            'inheritPlanGridOverrides' => $this->inheritPlanGridOverrides,
         ]);
     }
 

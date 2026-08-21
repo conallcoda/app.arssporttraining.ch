@@ -16,7 +16,11 @@ class EffectiveExerciseConfig
     ): array {
         $config = $base->toArray();
 
-        $config = self::applyOverrideLayer($config, $planOverrides);
+        $config = self::applyOverrideLayer(
+            $config,
+            $planOverrides,
+            includeGridOverrides: $userOverrides?->inheritPlanGridOverrides !== false,
+        );
 
         if ($userOverrides !== null) {
             $config = self::applyOverrideLayer($config, $userOverrides);
@@ -35,7 +39,14 @@ class EffectiveExerciseConfig
         ?ExerciseOverrides $planOverrides = null,
         ?ExerciseOverrides $userOverrides = null,
     ): array {
-        $layers = array_filter([$base->overrides, $planOverrides?->gridOverrides, $userOverrides?->gridOverrides]);
+        $layers = [$base->overrides];
+
+        if ($userOverrides?->inheritPlanGridOverrides !== false) {
+            $layers[] = $planOverrides?->gridOverrides;
+        }
+
+        $layers[] = $userOverrides?->gridOverrides;
+        $layers = array_filter($layers);
 
         return self::mergeGridOverrides(...$layers);
     }
@@ -66,7 +77,7 @@ class EffectiveExerciseConfig
         return $planOverrides->disabled ?? false;
     }
 
-    private static function applyOverrideLayer(array $config, ExerciseOverrides $overrides): array
+    private static function applyOverrideLayer(array $config, ExerciseOverrides $overrides, bool $includeGridOverrides = true): array
     {
         if ($overrides->settings !== null) {
             $config['settings'] = $overrides->settings;
@@ -86,10 +97,12 @@ class EffectiveExerciseConfig
             }
         }
 
-        $config['overrides'] = self::mergeGridOverrides(
-            $config['overrides'] ?? ['sessions' => [], 'cells' => []],
-            $overrides->gridOverrides,
-        );
+        if ($includeGridOverrides) {
+            $config['overrides'] = self::mergeGridOverrides(
+                $config['overrides'] ?? ['sessions' => [], 'cells' => []],
+                $overrides->gridOverrides,
+            );
+        }
 
         return $config;
     }

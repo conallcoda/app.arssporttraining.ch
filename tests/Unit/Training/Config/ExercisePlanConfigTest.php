@@ -193,3 +193,35 @@ it('keeps a concrete exercise-level session grouping override without needing pl
             'copyValuesAutomatically' => false,
         ]);
 });
+
+it('can suppress inherited plan grid cells while retaining plan and athlete settings', function () {
+    $config = ExercisePlanConfig::from([]);
+    $config->setDefaultExerciseOverrides(100, ExerciseOverrides::from([
+        'reps' => ['mode' => 'manual', 'default' => 10, 'applyPer' => 'per_set'],
+        'gridOverrides' => [
+            'sessions' => [],
+            'cells' => [
+                ['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['reps' => 7]],
+            ],
+        ],
+    ]));
+    $config->setUserExerciseOverrides(20, 100, ExerciseOverrides::from([
+        'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'per_set'],
+        'inheritPlanGridOverrides' => false,
+    ]));
+
+    $base = ExerciseConfig::from([
+        'settings' => ['reps'],
+        'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+        'reps' => ['mode' => 'manual', 'default' => 8, 'applyPer' => 'per_set'],
+    ]);
+
+    $resolved = $config->resolveExercise($base, 100, 20);
+    $persisted = $config->toPersistedArray();
+    $rehydrated = ExercisePlanConfig::from($config->toPersistedArray());
+
+    expect($resolved->effectiveConfig['reps']['default'])->toBe(12)
+        ->and($resolved->effectiveConfig['overrides']['cells'])->toBe([])
+        ->and($persisted['userExercises'][20][100]['inheritPlanGridOverrides'] ?? null)->toBeFalse()
+        ->and($rehydrated->userExerciseOverrides(20, 100)->inheritPlanGridOverrides)->toBeFalse();
+});

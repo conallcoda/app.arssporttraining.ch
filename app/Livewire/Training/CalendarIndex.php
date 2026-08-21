@@ -519,6 +519,7 @@ class CalendarIndex extends Component
             $this->selectionType,
             $this->programs,
             $this->groupedPrograms,
+            $this->planScheduleInfo,
         );
 
         if ($this->group !== '') {

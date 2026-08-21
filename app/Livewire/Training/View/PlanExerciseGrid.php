@@ -421,6 +421,10 @@ class PlanExerciseGrid extends Component
         if ($this->userId !== null) {
             $planOverrides = $this->resolvedExerciseOverrides->defaultOverrides;
 
+            if ($this->getCurrentOverrides()->inheritPlanGridOverrides === false) {
+                return $base->overrides;
+            }
+
             return EffectiveExerciseConfig::mergeGridOverrides($base->overrides, $planOverrides->gridOverrides);
         }
 
@@ -687,7 +691,9 @@ class PlanExerciseGrid extends Component
             $grid->sessionDateLabels = $this->sessionDateLabels();
             if ($grid->showSessionDates) {
                 foreach ($grid->groups as $group) {
-                    $dateRanges = collect($group->sessions ?? [])
+                    $scheduledSessions = collect($group->sessions ?? [])
+                        ->reject(fn ($session): bool => ($session->status['value'] ?? null) === 'unscheduled');
+                    $dateRanges = $scheduledSessions
                         ->map(fn ($session): ?array => $this->weekSessionDateRanges[$session->weekIndex][$session->sessionIndex] ?? null)
                         ->filter(fn (mixed $range): bool => is_array($range) && filled($range['start'] ?? null) && filled($range['end'] ?? null));
 
@@ -696,7 +702,7 @@ class PlanExerciseGrid extends Component
                             (string) $dateRanges->min('start'),
                             (string) $dateRanges->max('end'),
                         )]
-                        : collect($group->sessions ?? [])
+                        : $scheduledSessions
                             ->map(fn ($session): ?string => $grid->sessionDateLabels[$session->weekIndex][$session->sessionIndex] ?? null)
                             ->filter(fn (?string $label): bool => filled($label))
                             ->values()
@@ -726,6 +732,7 @@ class PlanExerciseGrid extends Component
 
         foreach ($groups as $group) {
             $statusValues = [];
+            $unscheduledStatus = null;
 
             foreach ($group->sessions ?? [] as $session) {
                 $status = $this->sessionStatusesByWeek[$session->weekIndex][$session->sessionIndex] ?? null;
@@ -735,12 +742,18 @@ class PlanExerciseGrid extends Component
 
                 $session->status = $status;
 
-                if (filled($status['value'] ?? null)) {
+                if (($status['value'] ?? null) === 'unscheduled') {
+                    $unscheduledStatus = $status;
+                } elseif (filled($status['value'] ?? null)) {
                     $statusValues[] = $status['value'];
                 }
             }
 
             if ($statusValues === []) {
+                if (is_array($unscheduledStatus)) {
+                    $group->status = $unscheduledStatus;
+                }
+
                 continue;
             }
 
@@ -2271,6 +2284,10 @@ class PlanExerciseGrid extends Component
         $overrides = $this->getCurrentOverrides();
         $overrides->gridOverrides = OverrideManager::reset();
 
+        if ($this->userId !== null) {
+            $overrides->inheritPlanGridOverrides = false;
+        }
+
         $this->saveOverrides($overrides, snapshotLockedWeeks: false);
         $this->bumpGridRenderVersion();
         unset($this->configFingerprint, $this->previewGrid, $this->displayGrid, $this->planGridTable, $this->resolvedExerciseOverrides);
@@ -2416,7 +2433,7 @@ class PlanExerciseGrid extends Component
             }
         }
 
-        if (isset($settingsConfig['overrides'])) {
+        if ($this->userId === null && isset($settingsConfig['overrides'])) {
             $overrides->gridOverrides = $settingsConfig['overrides'];
         }
 

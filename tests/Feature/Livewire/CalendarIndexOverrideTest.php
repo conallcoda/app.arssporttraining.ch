@@ -1,9 +1,12 @@
 <?php
 
+use App\Data\Exercise\Preview\SessionGroupingConfig;
 use App\Data\Training\Calendar\CalendarSettingsData;
+use App\Data\Training\Config\ExerciseOverrides;
 use App\Livewire\Training\CalendarIndex;
 use App\Livewire\Training\CalendarProgramsView;
 use App\Livewire\Training\CalendarScheduleView;
+use App\Livewire\Training\View\PlanExerciseGrid;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
@@ -160,9 +163,9 @@ it('duplicates a calendar program as a fresh clone with all exercise sections', 
     $group = UserGroup::create(['name' => 'Three Amigos']);
     $category = Tag::factory()->withScope('exercise_category')->create();
     $programTag = Tag::factory()->withScope('program_internal')->create();
-    $warmUpExercise = \App\Models\Exercise\Exercise::factory()->create(['name' => 'Warm Up Drill']);
-    $mainExercise = \App\Models\Exercise\Exercise::factory()->create(['name' => 'Main Lift']);
-    $warmDownExercise = \App\Models\Exercise\Exercise::factory()->create(['name' => 'Cool Down Reset']);
+    $warmUpExercise = Exercise::factory()->create(['name' => 'Warm Up Drill']);
+    $mainExercise = Exercise::factory()->create(['name' => 'Main Lift']);
+    $warmDownExercise = Exercise::factory()->create(['name' => 'Cool Down Reset']);
 
     $program = ExerciseProgram::factory()->create([
         'name' => '1A Strength',
@@ -323,7 +326,7 @@ it('blocks removing a group program once a past session has recorded data', func
         'training_program_id' => $groupTp->id,
         'user_id' => $user->id,
         'datetime' => '2026-03-03 09:00:00',
-        'status' => \App\Models\Training\TrainingProgramSlotStatusEnum::Completed,
+        'status' => TrainingProgramSlotStatusEnum::Completed,
         'completed_at' => '2026-03-03 10:00:00',
     ]);
     $recordedSlot->forceFill([
@@ -465,14 +468,17 @@ it('marks only recorded sessions as locked in plan schedule info', function () {
     $info = $component->get('planScheduleInfo');
 
     expect($info['expandedWeeks'] ?? null)->toBe([])
-        ->and($info['lockedSessionsByWeek'] ?? [])->toBe([[false, true, true, false]])
+        ->and($info['weekSessions'])->toBe([1, 1, 1, 1])
+        ->and($info['lockedSessionsByWeek'] ?? [])->toBe([[false], [true], [true], [false]])
         ->and($info['sessionStatusesByWeek'][0][0]['value'] ?? null)->toBe(TrainingProgramSlotStatusEnum::Pending->value)
         ->and($info['sessionStatusesByWeek'][0][0]['label'] ?? null)->toBe('Pending')
-        ->and($info['sessionStatusesByWeek'][0][1]['value'] ?? null)->toBe(TrainingProgramSlotStatusEnum::PartiallyCompleted->value)
-        ->and($info['sessionStatusesByWeek'][0][1]['label'] ?? null)->toBe('Partially Completed')
-        ->and($info['sessionStatusesByWeek'][0][2]['value'] ?? null)->toBe(TrainingProgramSlotStatusEnum::Pending->value)
-        ->and($info['sessionStatusesByWeek'][0][3]['value'] ?? null)->toBe(TrainingProgramSlotStatusEnum::Pending->value)
-        ->and($info['sessionStatusesByWeek'][0][3]['label'] ?? null)->toBe('Pending');
+        ->and($info['sessionStatusesByWeek'][1][0]['value'] ?? null)->toBe(TrainingProgramSlotStatusEnum::PartiallyCompleted->value)
+        ->and($info['sessionStatusesByWeek'][1][0]['label'] ?? null)->toBe('Partially Completed')
+        ->and($info['sessionStatusesByWeek'][2][0]['value'] ?? null)->toBe(TrainingProgramSlotStatusEnum::Pending->value)
+        ->and($info['sessionStatusesByWeek'][3][0]['value'] ?? null)->toBe(TrainingProgramSlotStatusEnum::Pending->value)
+        ->and($info['sessionStatusesByWeek'][3][0]['label'] ?? null)->toBe('Pending')
+        ->and($info['calendarWeekSchedule']['weekSessions'])->toBe([4])
+        ->and($info['calendarWeekSchedule']['lockedSessionsByWeek'])->toBe([[false, true, true, false]]);
 });
 
 it('derives planner status from each concrete slot before aggregating displayed sessions', function () {
@@ -618,6 +624,165 @@ it('builds the group planner from athlete slot indexes instead of distinct datet
 
     expect($trainingProgram->fresh()->planned_session_count)->toBe(5)
         ->and($component->get('planScheduleInfo')['weeks'])->toBe(5);
+});
+
+it('uses logical session coordinates for a twice-weekly athlete in session grouping mode', function () {
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Twice Weekly Group']);
+    $athlete = User::factory()->athlete()->create();
+    $group->members()->attach($athlete);
+    $category = Tag::factory()->withScope('exercise_category')->create(['name' => 'Strength']);
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 10, 'applyPer' => 'per_set'],
+        ],
+    ]);
+    $program = ExerciseProgram::factory()->create(['exercise_category_id' => $category->id]);
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+    $config = $program->config;
+    $config->setDefaultExerciseOverrides($pivot->id, ExerciseOverrides::from([
+        'sessionGrouping' => SessionGroupingConfig::from([
+            'mode' => 'groups',
+            'groupSize' => 2,
+            'copyValuesAutomatically' => false,
+        ]),
+        'gridOverrides' => [
+            'sessions' => [],
+            'cells' => collect(range(0, 3))
+                ->map(fn (int $session): array => [
+                    'week' => $session,
+                    'session' => 0,
+                    'set' => 0,
+                    'data' => ['reps' => '3'],
+                ])
+                ->all(),
+        ],
+    ]));
+    $program->config = $config;
+    $program->saveQuietly();
+    $trainingProgram = TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    foreach (['2028-08-15 09:00:00', '2028-08-18 09:00:00', '2028-08-22 09:00:00', '2028-08-25 09:00:00'] as $datetime) {
+        TrainingProgramSlot::create([
+            'training_program_id' => $trainingProgram->id,
+            'user_id' => $athlete->id,
+            'datetime' => $datetime,
+        ]);
+    }
+
+    $calendar = Livewire::actingAs($coach)->test(CalendarIndex::class, [
+        'group' => (string) $group->id,
+        'user' => (string) $athlete->id,
+        'view' => 'plan',
+        'planCategory' => (string) $category->id,
+        'planProgram' => (string) $trainingProgram->id,
+    ]);
+    $info = $calendar->get('planScheduleInfo');
+
+    expect($info['weeks'])->toBe(4)
+        ->and($info['weekSessions'])->toBe([1, 1, 1, 1])
+        ->and($info['calendarWeekSchedule']['weeks'])->toBe(2)
+        ->and($info['calendarWeekSchedule']['weekSessions'])->toBe([2, 2]);
+
+    $grid = Livewire::actingAs($coach)->test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'scheduledTrainingProgramId' => $trainingProgram->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => $athlete->id,
+        'weeks' => $info['weeks'],
+        'sessionsPerWeek' => $info['sessionsPerWeek'],
+        'weekLabels' => $info['weekLabels'],
+        'weekSessions' => $info['weekSessions'],
+        'weekSessionDates' => $info['weekSessionDates'],
+        'weekSessionDateRanges' => $info['weekSessionDateRanges'],
+        'lockedSessionsByWeek' => $info['lockedSessionsByWeek'],
+        'sessionStatusesByWeek' => $info['exerciseSessionStatusesByWeek']['program-exercise-'.$pivot->id] ?? [],
+        'calendarWeekSchedule' => $info['calendarWeekSchedule'],
+    ]);
+    $repsRow = collect($grid->instance()->previewGrid->rows)->firstWhere('field', 'reps');
+
+    expect($repsRow)->not->toBeNull()
+        ->and(collect(range(0, 3))->map(fn (int $session) => $repsRow->getCellValue($session, 0, 0))->all())
+        ->toBe(['3', '3', '3', '3']);
+});
+
+it('keeps the parent group session count when an athlete has fewer scheduled slots', function () {
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Uneven Schedule Group']);
+    $selectedAthlete = User::factory()->athlete()->create();
+    $fullyScheduledAthlete = User::factory()->athlete()->create();
+    $group->members()->attach([$selectedAthlete->id, $fullyScheduledAthlete->id]);
+    $category = Tag::factory()->withScope('exercise_category')->create(['name' => 'Strength']);
+    $program = ExerciseProgram::factory()->create(['exercise_category_id' => $category->id]);
+    $exercise = Exercise::factory()->create();
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+    $trainingProgram = TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    TrainingProgramSlot::create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $selectedAthlete->id,
+        'datetime' => '2028-08-15 09:00:00',
+    ]);
+
+    foreach (range(0, 7) as $sessionIndex) {
+        TrainingProgramSlot::create([
+            'training_program_id' => $trainingProgram->id,
+            'user_id' => $fullyScheduledAthlete->id,
+            'datetime' => Carbon::parse('2028-08-15 09:00:00')->addWeeks($sessionIndex),
+        ]);
+    }
+
+    $component = Livewire::actingAs($coach)->test(CalendarIndex::class, [
+        'group' => (string) $group->id,
+        'user' => (string) $selectedAthlete->id,
+        'view' => 'plan',
+        'planCategory' => (string) $category->id,
+        'planProgram' => (string) $trainingProgram->id,
+    ]);
+    $info = $component->get('planScheduleInfo');
+    $athleteEditorKey = $component->instance()->planEditorRenderKey();
+
+    expect($component->get('planSessionCount'))->toBe(8)
+        ->and($info['weeks'])->toBe(8)
+        ->and($info['weekSessions'])->toBe(array_fill(0, 8, 1))
+        ->and($info['weekSessionDates'][0][0])->toBe('2028-08-15')
+        ->and($info['weekSessionDates'][7][0])->toBe('')
+        ->and($info['weekSessionDateRanges'][7] ?? null)->toBeNull()
+        ->and($info['exerciseSessionStatusesByWeek']['program-exercise-'.$pivot->id][0][0]['value'])->toBe('pending')
+        ->and($info['exerciseSessionStatusesByWeek']['program-exercise-'.$pivot->id][1][0])->toMatchArray([
+            'value' => 'unscheduled',
+            'label' => 'Unscheduled',
+        ]);
+
+    $component->set('user', '');
+    $groupInfo = $component->get('planScheduleInfo');
+
+    expect($component->instance()->planEditorRenderKey())->not->toBe($athleteEditorKey)
+        ->and($groupInfo['weeks'])->toBe(8)
+        ->and($groupInfo['weekSessionDateRanges'][0][0])->toBe([
+            'start' => '2028-08-15',
+            'end' => '2028-08-15',
+        ])
+        ->and($groupInfo['weekSessionDates'][7][0])->toBe('2028-10-03');
 });
 
 it('keeps explicit group session counts scoped to the selected block', function () {
