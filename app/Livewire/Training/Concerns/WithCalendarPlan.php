@@ -1175,14 +1175,18 @@ trait WithCalendarPlan
 
         $categoryId = $data['categoryId'] ?? null;
         if ($categoryId !== null) {
-            $conflict = app(CalendarBlockService::class)->findCategoryOverlap(
+            $editingBlockId = isset($data['editing_block_id']) ? (int) $data['editing_block_id'] : null;
+            $parentId = isset($data['parentId']) ? (int) $data['parentId'] : null;
+
+            $conflict = app(CalendarBlockService::class)->findNewCategoryOverlap(
                 groupId: (int) $data['groupId'],
                 categoryId: (int) $categoryId,
                 start: Carbon::parse($data['start']),
                 end: filled($data['end'] ?? null) ? Carbon::parse($data['end']) : null,
                 userId: isset($data['userId']) ? (int) $data['userId'] : null,
-                parentId: isset($data['parentId']) ? (int) $data['parentId'] : null,
-                excludeBlockId: isset($data['editing_block_id']) ? (int) $data['editing_block_id'] : null,
+                parentId: $parentId,
+                excludeBlockId: $editingBlockId,
+                currentBlockId: $editingBlockId ?? $parentId,
             );
 
             if ($conflict) {
@@ -1215,6 +1219,14 @@ trait WithCalendarPlan
             } else {
                 $parentBlock = TrainingProgramBlock::find($parentId);
                 if ($parentBlock) {
+                    if (app(CalendarBlockService::class)->shouldSyncSingleAthleteParentDates($groupId, $userId)) {
+                        $projectedService->removeForBlock($parentBlock);
+                        $parentBlock->update([
+                            'start' => $data['start'],
+                            'end' => $data['end'] ?: null,
+                        ]);
+                    }
+
                     $childBlock = TrainingProgramBlock::create([
                         'group_id' => $groupId,
                         'user_id' => $userId,

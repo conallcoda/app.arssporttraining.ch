@@ -1,15 +1,16 @@
 <?php
 
 use App\Data\Training\Calendar\CalendarSettingsData;
+use App\Livewire\Training\BlockForm;
 use App\Livewire\Training\CalendarIndex;
 use App\Livewire\Training\CalendarProgramsView;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Tag;
-use App\Models\Training\TrainingRevisionBatch;
-use App\Models\Training\TrainingStateRevision;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramBlock;
 use App\Models\Training\TrainingProgramBlockTypeEnum;
+use App\Models\Training\TrainingRevisionBatch;
+use App\Models\Training\TrainingStateRevision;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use Carbon\Carbon;
@@ -107,6 +108,102 @@ it('dispatches athlete override payload when editing a category block in user mo
                 && $params['data']['groupId'] === $group->id
                 && $params['data']['userId'] === $user->id;
         });
+});
+
+it('confirms before deleting a group block from athlete mode when the group has multiple athletes', function () {
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Three Amigos']);
+    [$athlete, $teammate] = User::factory()->athlete()->count(2)->create();
+    $group->members()->attach([$athlete->id, $teammate->id]);
+
+    Livewire::actingAs($coach)
+        ->test(BlockForm::class)
+        ->set('groupId', $group->id)
+        ->set('userId', $athlete->id)
+        ->set('parentBlockId', 123)
+        ->assertSeeHtml('wire:click="requestGroupBlockDelete"')
+        ->assertSee('Deleting this block will remove it for all athletes in the group.')
+        ->call('requestGroupBlockDelete')
+        ->assertNotDispatched('block.deleted')
+        ->call('deleteGroupBlock')
+        ->assertDispatched('block.deleted', data: [
+            'editing_block_id' => 123,
+            'groupId' => $group->id,
+            'userId' => null,
+            'parentId' => null,
+        ]);
+});
+
+it('deletes a group block directly from athlete mode when the group has one athlete', function () {
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Solo']);
+    $athlete = User::factory()->athlete()->create();
+    $group->members()->attach($athlete);
+
+    Livewire::actingAs($coach)
+        ->test(BlockForm::class)
+        ->set('groupId', $group->id)
+        ->set('userId', $athlete->id)
+        ->set('parentBlockId', 456)
+        ->call('requestGroupBlockDelete')
+        ->assertDispatched('block.deleted', data: [
+            'editing_block_id' => 456,
+            'groupId' => $group->id,
+            'userId' => null,
+            'parentId' => null,
+        ]);
+});
+
+it('syncs group and athlete block dates when athlete mode edits a one-athlete group', function () {
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Solo']);
+    $athlete = User::factory()->athlete()->create();
+    $group->members()->attach($athlete);
+    $category = Tag::factory()->withScope('training_category')->create();
+    $parentBlock = TrainingProgramBlock::create([
+        'group_id' => $group->id,
+        'category_id' => $category->id,
+        'type' => TrainingProgramBlockTypeEnum::Category,
+        'start' => '2026-08-01',
+        'end' => '2026-08-10',
+        'note' => 'Shared block',
+        'active' => true,
+    ]);
+    $weekStartsOn = (int) config('training.week_starts_on', Carbon::MONDAY);
+
+    Livewire::actingAs($coach)
+        ->test(CalendarProgramsView::class, [
+            'groupId' => $group->id,
+            'userId' => $athlete->id,
+            'calendarSettings' => blockWeekSettings('2026-08-10'),
+            'weekStartsOn' => $weekStartsOn,
+            'weekEndsOn' => ($weekStartsOn + 6) % 7,
+        ])
+        ->call('onBlockSubmitted', [
+            'groupId' => $group->id,
+            'userId' => $athlete->id,
+            'parentId' => $parentBlock->id,
+            'editing_block_id' => null,
+            'selected_members' => [],
+            'categoryId' => $category->id,
+            'type' => TrainingProgramBlockTypeEnum::Category->value,
+            'start' => '2026-08-05',
+            'end' => '2026-08-15',
+            'note' => 'Athlete override',
+            'color' => null,
+            'config' => null,
+        ]);
+
+    $parentBlock->refresh();
+    $athleteBlock = TrainingProgramBlock::query()
+        ->where('parent_id', $parentBlock->id)
+        ->where('user_id', $athlete->id)
+        ->firstOrFail();
+
+    expect($parentBlock->start->format('Y-m-d'))->toBe('2026-08-05')
+        ->and($parentBlock->end?->format('Y-m-d'))->toBe('2026-08-15')
+        ->and($athleteBlock->start->format('Y-m-d'))->toBe('2026-08-05')
+        ->and($athleteBlock->end?->format('Y-m-d'))->toBe('2026-08-15');
 });
 
 it('dispatches add-block payload from the calendar index', function () {

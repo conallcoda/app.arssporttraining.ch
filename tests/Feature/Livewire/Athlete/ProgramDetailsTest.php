@@ -2,6 +2,7 @@
 
 use App\Data\Exercise\Settings\DurationSetting;
 use App\Data\Exercise\Settings\SetsSetting;
+use App\Data\Training\Config\ExerciseOverrides;
 use App\Livewire\Athlete\ProgramDetails;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
@@ -328,6 +329,71 @@ it('defaults to the warm up tab when the session includes warm up exercises', fu
         ->assertSet('activeSection', 'warm_up')
         ->assertSee('Jog Prep')
         ->assertDontSee('Front Squat');
+});
+
+it('shows the materialized main section when the warm up is disabled for the athlete', function () {
+    config()->set('athlete.dashboard_today_override', '03.04.2026');
+
+    $coach = User::factory()->coach()->create();
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $program = ExerciseProgram::factory()->create(['name' => 'Friday Strength']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $warmUpPivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => Exercise::factory()->create(['name' => 'Jog Prep'])->id,
+        'sort' => 0,
+        'type' => 'warm_up',
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => Exercise::factory()->create(['name' => 'Front Squat'])->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+
+    $config = $program->config;
+    $config->setUserExerciseOverrides(
+        $athlete->id,
+        $warmUpPivot->id,
+        ExerciseOverrides::from(['disabled' => true]),
+    );
+    $program->config = $config;
+    $program->saveQuietly();
+
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2026-04-03 09:00:00'),
+    ])->fresh('exercises');
+
+    expect($slot->exercises->pluck('type')->all())->toBe(['main']);
+
+    Livewire::actingAs($athlete)
+        ->test(ProgramDetails::class, [
+            'date' => '2026-04-03',
+            'trainingProgram' => $trainingProgram,
+        ])
+        ->assertSet('activeSection', 'main')
+        ->assertSee('Front Squat')
+        ->assertDontSee('No exercises are available for this program.');
+
+    Livewire::actingAs($coach)
+        ->test(ProgramDetails::class, [
+            'date' => '2026-04-03',
+            'trainingProgram' => $trainingProgram,
+            'previewMode' => true,
+            'previewUserId' => $athlete->id,
+            'previewSlotId' => $slot->id,
+        ])
+        ->assertSet('activeSection', 'main')
+        ->assertSee('Front Squat')
+        ->assertDontSee('No exercises are available for this program.');
 });
 
 it('shows active section instructions above the first exercise', function () {

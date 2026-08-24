@@ -77,8 +77,7 @@ class BlockForm extends FormModal
         ?string $activeFormType = null,
         array $formTypeData = [],
         ?string $actionName = null,
-    ): void
-    {
+    ): void {
         $this->activeActionName = $actionName;
         $this->groupId = $data['groupId'] ?? null;
         $this->userId = $data['userId'] ?? null;
@@ -296,6 +295,40 @@ class BlockForm extends FormModal
             'groupId' => $this->groupId,
             'userId' => $this->userId,
             'parentId' => $this->parentBlockId,
+        ]);
+    }
+
+    public function requestGroupBlockDelete(): void
+    {
+        if ($this->parentBlockId === null || $this->userId === null) {
+            return;
+        }
+
+        $memberCount = UserGroup::find($this->groupId)?->members()->count() ?? 0;
+
+        if ($memberCount > 1) {
+            Flux::modal('confirm-delete-group-block')->show();
+
+            return;
+        }
+
+        $this->deleteGroupBlock();
+    }
+
+    public function deleteGroupBlock(): void
+    {
+        if ($this->parentBlockId === null || $this->userId === null) {
+            return;
+        }
+
+        Flux::modal('confirm-delete-group-block')->close();
+        Flux::modal($this->name)->close();
+
+        $this->dispatch("{$this->name}.deleted", data: [
+            'editing_block_id' => $this->parentBlockId,
+            'groupId' => $this->groupId,
+            'userId' => null,
+            'parentId' => null,
         ]);
     }
 

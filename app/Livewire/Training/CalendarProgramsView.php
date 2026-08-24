@@ -1270,6 +1270,16 @@ class CalendarProgramsView extends Component
 
                 $parentBlock = TrainingProgramBlock::find($parentId);
                 if ($parentBlock) {
+                    if (app(CalendarBlockService::class)->shouldSyncSingleAthleteParentDates($groupId, $userId)) {
+                        $projectedService->removeForBlock($parentBlock);
+                        $this->updateBlockDatesWithRevision(
+                            $parentBlock,
+                            $data['start'],
+                            $data['end'] ?: null,
+                            $batch,
+                        );
+                    }
+
                     $childBlock = $this->createBlockWithRevision([
                         'group_id' => $groupId,
                         'user_id' => $userId,
@@ -1381,14 +1391,18 @@ class CalendarProgramsView extends Component
             return false;
         }
 
-        $conflict = app(CalendarBlockService::class)->findCategoryOverlap(
+        $editingBlockId = isset($data['editing_block_id']) ? (int) $data['editing_block_id'] : null;
+        $parentId = isset($data['parentId']) ? (int) $data['parentId'] : null;
+
+        $conflict = app(CalendarBlockService::class)->findNewCategoryOverlap(
             groupId: (int) $data['groupId'],
             categoryId: (int) $categoryId,
             start: Carbon::parse($data['start']),
             end: filled($data['end'] ?? null) ? Carbon::parse($data['end']) : null,
             userId: isset($data['userId']) ? (int) $data['userId'] : null,
-            parentId: isset($data['parentId']) ? (int) $data['parentId'] : null,
-            excludeBlockId: isset($data['editing_block_id']) ? (int) $data['editing_block_id'] : null,
+            parentId: $parentId,
+            excludeBlockId: $editingBlockId,
+            currentBlockId: $editingBlockId ?? $parentId,
         );
 
         if (! $conflict) {
@@ -1541,6 +1555,31 @@ class CalendarProgramsView extends Component
             stateKey: 'block',
             beforeValue: 'active',
             afterValue: 'inactive',
+            beforePayload: $before,
+            afterPayload: $this->blockRevisionPayload($block->fresh()),
+        );
+    }
+
+    protected function updateBlockDatesWithRevision(
+        TrainingProgramBlock $block,
+        string $start,
+        ?string $end,
+        $batch,
+    ): void {
+        $before = $this->blockRevisionPayload($block);
+
+        $block->forceFill([
+            'start' => $start,
+            'end' => $end,
+            'updated_by' => auth()->id(),
+        ])->save();
+
+        app(TrainingStateRevisionService::class)->recordStateChange(
+            batch: $batch,
+            subject: $block->fresh(),
+            stateKey: 'block',
+            beforeValue: $block->active ? 'active' : 'inactive',
+            afterValue: $block->active ? 'active' : 'inactive',
             beforePayload: $before,
             afterPayload: $this->blockRevisionPayload($block->fresh()),
         );

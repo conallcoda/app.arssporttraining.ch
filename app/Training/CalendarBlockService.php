@@ -4,6 +4,7 @@ namespace App\Training;
 
 use App\Models\Training\TrainingProgramBlock;
 use App\Models\Training\TrainingProgramBlockTypeEnum;
+use App\Models\Users\UserGroup;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -18,6 +19,70 @@ class CalendarBlockService
         ?int $parentId = null,
         ?int $excludeBlockId = null,
     ): ?TrainingProgramBlock {
+        return $this->categoryOverlaps(
+            groupId: $groupId,
+            categoryId: $categoryId,
+            start: $start,
+            end: $end,
+            userId: $userId,
+            parentId: $parentId,
+            excludeBlockId: $excludeBlockId,
+        )->first();
+    }
+
+    public function findNewCategoryOverlap(
+        int $groupId,
+        int $categoryId,
+        Carbon $start,
+        ?Carbon $end = null,
+        ?int $userId = null,
+        ?int $parentId = null,
+        ?int $excludeBlockId = null,
+        ?int $currentBlockId = null,
+    ): ?TrainingProgramBlock {
+        $proposedOverlaps = $this->categoryOverlaps(
+            groupId: $groupId,
+            categoryId: $categoryId,
+            start: $start,
+            end: $end,
+            userId: $userId,
+            parentId: $parentId,
+            excludeBlockId: $excludeBlockId,
+        );
+
+        if ($currentBlockId === null) {
+            return $proposedOverlaps->first();
+        }
+
+        $currentBlock = TrainingProgramBlock::find($currentBlockId);
+        if ($currentBlock === null) {
+            return $proposedOverlaps->first();
+        }
+
+        $existingOverlapIds = $this->categoryOverlaps(
+            groupId: $groupId,
+            categoryId: $categoryId,
+            start: $currentBlock->start,
+            end: $currentBlock->end,
+            userId: $userId,
+            parentId: $parentId,
+            excludeBlockId: $excludeBlockId,
+        )->modelKeys();
+
+        return $proposedOverlaps->first(
+            fn (TrainingProgramBlock $block) => ! in_array($block->getKey(), $existingOverlapIds, true)
+        );
+    }
+
+    protected function categoryOverlaps(
+        int $groupId,
+        int $categoryId,
+        Carbon $start,
+        ?Carbon $end = null,
+        ?int $userId = null,
+        ?int $parentId = null,
+        ?int $excludeBlockId = null,
+    ): Collection {
         $end ??= $start->copy();
 
         $query = TrainingProgramBlock::query()
@@ -42,26 +107,28 @@ class CalendarBlockService
             $query->whereKeyNot($parentId);
         }
 
-        if ($userId === null && $parentId === null) {
+        if ($userId === null) {
             $query->whereNull('user_id')
                 ->whereNull('parent_id');
         } else {
-            $query->where(function ($q) use ($userId) {
-                $q->where(function ($q2) {
-                    $q2->whereNull('user_id')
-                        ->whereNull('parent_id');
-                });
-
-                if ($userId !== null) {
-                    $q->orWhere('user_id', $userId);
-                }
-            });
+            $query->where('user_id', $userId);
         }
 
         return $query
             ->orderBy('start')
             ->orderBy('id')
-            ->first();
+            ->get();
+    }
+
+    public function shouldSyncSingleAthleteParentDates(int $groupId, ?int $userId): bool
+    {
+        if ($userId === null) {
+            return false;
+        }
+
+        $memberIds = UserGroup::find($groupId)?->members()->pluck('users.id');
+
+        return $memberIds?->count() === 1 && $memberIds->first() === $userId;
     }
 
     public function getEffectiveCategoryBlocks(int $groupId, ?int $userId, int $categoryId): Collection

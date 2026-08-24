@@ -1168,11 +1168,16 @@ class ProgramDetails extends Component
 
     public function render(): View
     {
+        // Resolve the available materialized sections before filtering exercises.
+        // The source program can contain a section whose exercises are disabled
+        // for this athlete, so the slot remains the source of truth here.
+        $sectionTabs = $this->sectionTabs;
+
         return view('livewire.athlete.program-details', [
             'trainingProgram' => $this->trainingProgram,
             'currentSlot' => $this->currentSlot,
             'programExercises' => $this->programExercises,
-            'sectionTabs' => $this->sectionTabs,
+            'sectionTabs' => $sectionTabs,
             'showsSectionTabs' => $this->showsSectionTabs,
             'isFutureSession' => $this->isFutureSession,
             'canRecordSession' => $this->canRecordSession,

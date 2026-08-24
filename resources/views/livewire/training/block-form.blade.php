@@ -27,7 +27,18 @@
                 @if (! $parentBlockId && $isEditing)
                     <flux:button variant="ghost" icon="trash" wire:click="deleteBlock" />
                 @endif
+                @if ($parentBlockId && $userId)
+                    <flux:button variant="ghost" icon="trash" wire:click="requestGroupBlockDelete" />
+                @endif
             </div>
         </x-cms::modal.footer>
     </x-cms::modal>
+
+    <x-cms::confirm-modal
+        name="confirm-delete-group-block"
+        :heading="__('Delete block for the whole group?')"
+        :description="__('Deleting this block will remove it for all athletes in the group. This action cannot be reversed.')"
+        :confirmLabel="__('Delete')"
+        action="deleteGroupBlock"
+    />
 </div>

@@ -26,4 +26,5 @@ _archive/
 wildcards
 import_original
 import/database
+/import/dumps/ars_production-*.sql.gz
 .DS_STORE
