@@ -45,6 +45,7 @@ class TrainingPlanRevisionService
         array $after,
         array $fieldConfigMap = [],
         string $action = 'save_grid_overrides',
+        ?string $source = null,
     ): ?TrainingRevisionBatch {
         $beforeRows = $this->flattenGridOverrides($before);
         $afterRows = $this->flattenGridOverrides($after);
@@ -75,7 +76,7 @@ class TrainingPlanRevisionService
             'domain' => 'plan',
             'action' => $action,
             'changed_by' => auth()->id(),
-            'source' => $this->resolvePlanSource(),
+            'source' => $source ?? $this->resolvePlanSource(),
         ]);
 
         foreach ($changes as $change) {
@@ -102,7 +103,7 @@ class TrainingPlanRevisionService
                 'session_index' => (int) ($afterRow['session'] ?? $beforeRow['session'] ?? 0),
                 'set_index' => array_key_exists('set', $afterRow ?? []) ? $afterRow['set'] : ($beforeRow['set'] ?? null),
                 'changed_by' => auth()->id(),
-                'source' => $this->resolvePlanSource(),
+                'source' => $source ?? $this->resolvePlanSource(),
                 'before_value_type' => $beforeEncoded['value_type'],
                 'before_int_value' => $beforeEncoded['int_value'],
                 'before_decimal_value' => $beforeEncoded['decimal_value'],

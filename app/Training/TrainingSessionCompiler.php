@@ -9,25 +9,26 @@ use App\Data\Exercise\ExerciseSetting;
 use App\Data\Exercise\Preview\CellInputMeta;
 use App\Data\Exercise\Settings\DurationSetting;
 use App\Data\Exercise\Settings\RepsSetting;
-use App\Data\Exercise\Settings\WeightSetting;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
-use App\Data\Training\Compiler\AuthoringExerciseData;
-use App\Data\Training\Compiler\AuthoringProgramData;
-use App\Data\Training\Compiler\PlanningContextData;
+use App\Data\Exercise\Settings\WeightSetting;
 use App\Data\Training\Compiled\CompiledTrainingExercise;
 use App\Data\Training\Compiled\CompiledTrainingSession;
 use App\Data\Training\Compiled\CompiledTrainingSet;
 use App\Data\Training\Compiled\CompiledTrainingSetValue;
+use App\Data\Training\Compiler\AuthoringExerciseData;
+use App\Data\Training\Compiler\AuthoringProgramData;
+use App\Data\Training\Compiler\PlanningContextData;
 use App\Data\Training\Planned\ResolvedPlannedExercise;
 use App\Data\Training\Planned\ResolvedPlannedSet;
 use App\Data\Training\Planned\ResolvedPlannedValue;
-use App\Models\Training\TrainingProgramBlock;
 use App\Models\Athlete\MetricSubmission;
 use App\Models\Exercise\Exercise;
+use App\Models\Training\TrainingProgramBlock;
 use App\Models\Training\TrainingProgramSlot;
 use App\Support\Training\ProgramExerciseOrder;
 use App\Training\Planning\PlanCompiler;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 
 class TrainingSessionCompiler
 {
@@ -71,28 +72,28 @@ class TrainingSessionCompiler
         $weightProgression = $this->resolveWeightProgressionData($oneRepMaxMetric, $metricContext['targetGoal']);
         $authoringProgram = new AuthoringProgramData(
             exercises: $this->programExerciseOrder
-            ->sortProgramExercises($program->exercises)
-            ->values()
-            ->map(function (Exercise $exercise) use ($programConfig, $slot) {
-                $programExerciseId = (int) $exercise->pivot->id;
-                $resolvedOverrides = $programConfig->resolveExercise($exercise->config, $programExerciseId, $slot->user_id);
+                ->sortProgramExercises($program->exercises)
+                ->values()
+                ->map(function (Exercise $exercise) use ($programConfig, $slot) {
+                    $programExerciseId = (int) $exercise->pivot->id;
+                    $resolvedOverrides = $programConfig->resolveExercise($exercise->config, $programExerciseId, $slot->user_id);
 
-                return new AuthoringExerciseData(
-                    exerciseId: $exercise->id,
-                    sort: (int) ($exercise->pivot->sort ?? 0),
-                    group: $exercise->pivot->group,
-                    type: $exercise->pivot->type ?? 'main',
-                    effectiveConfig: $resolvedOverrides->effectiveConfig,
-                    overrideLayer: $resolvedOverrides->overrideLayer,
-                    baseConfig: $exercise->config->toArray(),
-                    defaultOverrides: $resolvedOverrides->defaultOverrides,
-                    userOverrides: $resolvedOverrides->userOverrides,
-                    disabled: (bool) $resolvedOverrides->disabled,
-                    programExerciseId: $programExerciseId,
-                );
-            })
-            ->values()
-            ->all(),
+                    return new AuthoringExerciseData(
+                        exerciseId: $exercise->id,
+                        sort: (int) ($exercise->pivot->sort ?? 0),
+                        group: $exercise->pivot->group,
+                        type: $exercise->pivot->type ?? 'main',
+                        effectiveConfig: $resolvedOverrides->effectiveConfig,
+                        overrideLayer: $resolvedOverrides->overrideLayer,
+                        baseConfig: $exercise->config->toArray(),
+                        defaultOverrides: $resolvedOverrides->defaultOverrides,
+                        userOverrides: $resolvedOverrides->userOverrides,
+                        disabled: (bool) $resolvedOverrides->disabled,
+                        programExerciseId: $programExerciseId,
+                    );
+                })
+                ->values()
+                ->all(),
         );
         $planningContext = new PlanningContextData(
             scheduledDate: $scheduledDate,
@@ -118,6 +119,26 @@ class TrainingSessionCompiler
             compiledVersion: sha1(json_encode($this->serializeExercises($compiledExercises), JSON_THROW_ON_ERROR)),
             exercises: $compiledExercises,
         );
+    }
+
+    /**
+     * Return the physical calendar and chronological coordinates used as compiler input.
+     *
+     * @return array{slotIndex: int, weekIndex: int, sessionIndex: int, sessionsPerWeek: int, weekSessionCounts: array<int, int>}
+     */
+    public function sessionContextForSlot(TrainingProgramSlot $slot): array
+    {
+        $scheduledDate = ($slot->scheduled_date ?? $slot->datetime)->format('Y-m-d');
+
+        return $this->resolveSessionContext($slot, $scheduledDate);
+    }
+
+    public function categoryBlockForSlot(TrainingProgramSlot $slot): ?TrainingProgramBlock
+    {
+        $slot->loadMissing('trainingProgram.program');
+        $scheduledDate = ($slot->scheduled_date ?? $slot->datetime)->format('Y-m-d');
+
+        return $this->resolveOverlappingCategoryBlock($slot, $scheduledDate);
     }
 
     private function resolveSessionContext(TrainingProgramSlot $slot, string $scheduledDate): array
@@ -186,9 +207,9 @@ class TrainingSessionCompiler
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, TrainingProgramSlot>
+     * @return Collection<int, TrainingProgramSlot>
      */
-    private function sessionContextSlots(TrainingProgramSlot $slot, string $scheduledDate): \Illuminate\Support\Collection
+    private function sessionContextSlots(TrainingProgramSlot $slot, string $scheduledDate): Collection
     {
         $query = TrainingProgramSlot::query()
             ->where('training_program_id', $slot->training_program_id)
@@ -473,14 +494,14 @@ class TrainingSessionCompiler
                     return [
                         'setNumber' => $set->setNumber,
                         'values' => array_map(fn (CompiledTrainingSetValue $value) => [
-                        'settingKey' => $value->settingKey,
-                        'plannedValueType' => $value->plannedValueType,
-                        'plannedValue' => $value->plannedValue,
-                        'plannedCanonicalValue' => $value->plannedCanonicalValue,
-                        'unit' => $value->unit,
-                    ], $set->values),
-                ];
-            }, $exercise->sets),
+                            'settingKey' => $value->settingKey,
+                            'plannedValueType' => $value->plannedValueType,
+                            'plannedValue' => $value->plannedValue,
+                            'plannedCanonicalValue' => $value->plannedCanonicalValue,
+                            'unit' => $value->unit,
+                        ], $set->values),
+                    ];
+                }, $exercise->sets),
             ];
         }, $exercises);
     }

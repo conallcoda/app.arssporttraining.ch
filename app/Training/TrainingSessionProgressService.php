@@ -4,8 +4,10 @@ namespace App\Training;
 
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Training\TrainingProgramSlotExercise;
+use App\Models\Training\TrainingProgramSlotExerciseStatusEnum;
 use App\Models\Training\TrainingProgramSlotSet;
 use App\Models\Training\TrainingProgramSlotSetValue;
+use App\Models\Training\TrainingProgramSlotStatusEnum;
 use App\Models\Users\UserTypeEnum;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +18,7 @@ class TrainingSessionProgressService
         private readonly TrainingSessionStatusService $statusService,
         private readonly TrainingValueSnapshotCodec $valueCodec,
         private readonly TrainingStateRevisionService $stateRevisionService,
+        private readonly CarryOverAthleteValuesService $carryOverAthleteValues,
     ) {}
 
     public function markExerciseCompleted(TrainingProgramSlotExercise $exercise, bool $completeSkippedSets = false): void
@@ -59,6 +62,15 @@ class TrainingSessionProgressService
                 beforeExercise: $beforeExercise,
                 beforeSlot: $beforeSlot,
             );
+            $completedSlot = $exercise->fresh('slot.exercises')?->slot;
+
+            if ($completedSlot?->status === TrainingProgramSlotStatusEnum::Completed) {
+                foreach ($completedSlot->exercises as $completedExercise) {
+                    if ($completedExercise->status === TrainingProgramSlotExerciseStatusEnum::Completed) {
+                        $this->carryOverAthleteValues->carryFrom($completedExercise);
+                    }
+                }
+            }
         });
     }
 

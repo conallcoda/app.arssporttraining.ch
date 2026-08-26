@@ -5,7 +5,6 @@ namespace App\Training\Planning;
 use App\Data\Exercise\ExerciseSetting;
 use App\Data\Exercise\Preview\GridOverrides;
 use App\Data\Exercise\Preview\GridState;
-use App\Data\Exercise\Preview\SessionGroupingMode;
 use App\Data\Exercise\Preview\StrategyOrchestrator;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Training\Config\ExerciseOverrides;
@@ -32,6 +31,10 @@ class ResolvedPlannedSessionBuilder
         'rest',
         'note',
     ];
+
+    public function __construct(
+        private readonly ExerciseSessionCoordinateResolver $coordinateResolver,
+    ) {}
 
     /**
      * @param  array<int, array{
@@ -75,20 +78,17 @@ class ResolvedPlannedSessionBuilder
             $exercises = array_values(array_filter(array_map(
                 function (array $exercise) use ($weekIndex, $sessionIndex, $slotIndex, $weeks, $sessionCounts, $useSlotIndexForGroupedSessions): ?ResolvedPlannedExercise {
                     $effectiveConfig = $exercise['effectiveConfig'] ?? [];
-                    $groupingMode = SessionGroupingMode::normalizeMode(
-                        (string) data_get($effectiveConfig, 'preview.groupingMode'),
+                    $position = $this->coordinateResolver->resolve(
+                        effectiveConfig: $effectiveConfig,
+                        calendarWeekIndex: $weekIndex,
+                        calendarSessionIndex: $sessionIndex,
+                        slotIndex: $slotIndex,
+                        useSlotIndexForGroupedSessions: $useSlotIndexForGroupedSessions,
                     );
-                    $usesGroupedSlotIndex = $useSlotIndexForGroupedSessions
-                        && $groupingMode === SessionGroupingMode::Groups->value;
-                    $usesChronologicalSessions = $groupingMode === SessionGroupingMode::None->value
-                        || $usesGroupedSlotIndex;
-                    $resolvedWeekIndex = match (true) {
-                        $usesGroupedSlotIndex => $slotIndex,
-                        $groupingMode === SessionGroupingMode::None->value => $this->resolveUngroupedSessionIndex($effectiveConfig, $slotIndex),
-                        default => $weekIndex,
-                    };
-                    $resolvedSessionIndex = $usesChronologicalSessions ? 0 : $sessionIndex;
-                    $resolvedWeeks = $usesGroupedSlotIndex
+                    $resolvedWeekIndex = $position['week'];
+                    $resolvedSessionIndex = $position['session'];
+                    $usesChronologicalSessions = $position['usesChronologicalSessions'];
+                    $resolvedWeeks = $position['usesGroupedSlotIndex']
                         ? max(array_sum($sessionCounts), $resolvedWeekIndex + 1)
                         : max($weeks, $resolvedWeekIndex + 1);
                     $resolvedSessionCounts = $usesChronologicalSessions
@@ -420,55 +420,6 @@ class ResolvedPlannedSessionBuilder
             if (($override['week'] ?? null) === $week
                 && ($override['session'] ?? null) === $session
                 && isset($override['data'][$setting])) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private function resolveUngroupedSessionIndex(array $effectiveConfig, int $slotIndex): int
-    {
-        $authoredSessionCount = $this->authoredUngroupedSessionCount($effectiveConfig);
-
-        if ($slotIndex < $authoredSessionCount || $this->hasLongitudinalProgression($effectiveConfig)) {
-            return $slotIndex;
-        }
-
-        return $slotIndex % $authoredSessionCount;
-    }
-
-    private function authoredUngroupedSessionCount(array $effectiveConfig): int
-    {
-        $lastOverrideIndex = -1;
-
-        foreach (['sessions', 'cells'] as $overrideType) {
-            foreach (data_get($effectiveConfig, 'overrides.'.$overrideType, []) as $override) {
-                $lastOverrideIndex = max($lastOverrideIndex, (int) ($override['week'] ?? -1));
-            }
-        }
-
-        return max(
-            1,
-            (int) data_get($effectiveConfig, 'preview.weeks', 1),
-            $lastOverrideIndex + 1,
-        );
-    }
-
-    private function hasLongitudinalProgression(array $effectiveConfig): bool
-    {
-        if ((string) data_get($effectiveConfig, 'sets.deload', 'none') !== 'none') {
-            return true;
-        }
-
-        foreach ($effectiveConfig['settings'] ?? [] as $setting) {
-            if ($setting === 'oneRepMax') {
-                return true;
-            }
-
-            $mode = strtolower((string) data_get($effectiveConfig, $setting.'.mode', 'manual'));
-
-            if ($setting !== 'heartRate' && str_starts_with($mode, 'automatic')) {
                 return true;
             }
         }

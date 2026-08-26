@@ -5,13 +5,17 @@ namespace App\Training;
 use App\Data\Exercise\ExerciseSetting;
 use App\Data\Exercise\Settings\AbstractSetting;
 use App\Models\Exercise\ExerciseProgram;
+use App\Models\Training\TrainingPlanValueRevision;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Training\TrainingProgramSlotExercise;
+use App\Models\Training\TrainingProgramSlotExerciseStatusEnum;
 use App\Models\Training\TrainingProgramSlotSet;
 use App\Models\Training\TrainingProgramSlotSetValue;
+use App\Models\Training\TrainingProgramSlotStatusEnum;
 use App\Support\Training\ApplyPerScope;
 use App\Support\Training\EffectiveSlotExerciseConfigResolver;
 use App\Support\Training\GridOverrideNormalizer;
+use App\Training\Planning\ExerciseSessionCoordinateResolver;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -25,13 +29,16 @@ class CarryOverAthleteValuesService
         private readonly TrainingSessionPlannedValueService $plannedValueService,
         private readonly TrainingSessionStatusService $statusService,
         private readonly TrainingValueSnapshotCodec $valueCodec,
+        private readonly TrainingSessionCompiler $sessionCompiler,
+        private readonly ExerciseSessionCoordinateResolver $coordinateResolver,
+        private readonly TrainingPlanRevisionService $revisionService,
     ) {}
 
     public function carryFrom(TrainingProgramSlotExercise $source): bool
     {
         return DB::transaction(function () use ($source): bool {
             $source = TrainingProgramSlotExercise::query()
-                ->with(['slot', 'exercise', 'settingSnapshot', 'sets.values'])
+                ->with(['slot.trainingProgram.program', 'exercise', 'settingSnapshot', 'sets.values'])
                 ->lockForUpdate()
                 ->findOrFail($source->id);
 
@@ -47,37 +54,55 @@ class CarryOverAthleteValuesService
 
             $changed = false;
             $gridOverrideChanges = [];
-            $schedulePositions = $this->schedulePositions($source);
+            $effectiveConfig = $this->currentEffectiveConfig($source);
+            $block = $this->sessionCompiler->categoryBlockForSlot($source->slot);
+            $nextCompletedAt = $this->nextCompletedSourceDateTime(
+                $source,
+                $block?->start,
+                $block !== null ? ($block->end ?? $block->start) : null,
+            );
 
-            $targets = TrainingProgramSlotExercise::query()
-                ->where('exercise_program_exercise_id', $source->exercise_program_exercise_id)
-                ->whereHas('slot', fn ($query) => $query
-                    ->where('training_program_id', $source->slot->training_program_id)
-                    ->where('user_id', $source->slot->user_id)
-                    ->whereNull('cancelled_at')
-                    ->where('datetime', '>', $source->slot->datetime)
-                )
-                ->with(['slot', 'exercise', 'settingSnapshot', 'sets.values'])
-                ->orderBy(
-                    DB::raw('(select datetime from training_program_slots where training_program_slots.id = training_program_slot_exercises.training_program_slot_id)')
-                )
+            $targetSlots = TrainingProgramSlot::query()
+                ->where('training_program_id', $source->slot->training_program_id)
+                ->where('user_id', $source->slot->user_id)
+                ->whereNull('cancelled_at')
+                ->where('datetime', '>', $source->slot->datetime)
+                ->where('datetime', '>', now())
+                ->when($block !== null, fn ($query) => $query->whereBetween('datetime', [
+                    $block->start->copy()->startOfDay(),
+                    ($block->end ?? $block->start)->copy()->endOfDay(),
+                ]))
+                ->when($nextCompletedAt !== null, fn ($query) => $query->where('datetime', '<', $nextCompletedAt))
+                ->with(['exercises' => fn ($query) => $query
+                    ->where('exercise_program_exercise_id', $source->exercise_program_exercise_id)
+                    ->with(['exercise', 'settingSnapshot', 'sets.values'])])
+                ->orderBy('datetime')
+                ->orderBy('id')
                 ->get();
 
-            foreach ($targets as $target) {
-                if ($this->hasRecordedActuals($target)) {
+            foreach ($targetSlots as $targetSlot) {
+                $target = $targetSlot->exercises->first();
+
+                if ($target instanceof TrainingProgramSlotExercise && $this->hasRecordedActuals($target)) {
                     continue;
                 }
 
-                $targetChanges = $this->applyToTarget($target, $sourceValues);
+                $position = $this->positionForSlot($targetSlot, $effectiveConfig);
+                $targetChanges = $target instanceof TrainingProgramSlotExercise
+                    ? $this->applyToTarget($source, $target, $sourceValues, $effectiveConfig, $position)
+                    : $this->changesForUncompiledTarget($source, $sourceValues, $effectiveConfig, $position);
                 $targetChanged = $targetChanges !== [];
                 $changed = $targetChanged || $changed;
 
                 if ($targetChanged) {
                     $gridOverrideChanges = array_merge(
                         $gridOverrideChanges,
-                        $this->gridOverrideChangesForTarget($target, $targetChanges, $schedulePositions),
+                        $this->gridOverrideChangesForPosition($effectiveConfig, $position, $targetChanges),
                     );
-                    $this->statusService->refreshExerciseState($target);
+
+                    if ($target instanceof TrainingProgramSlotExercise) {
+                        $this->statusService->refreshExerciseState($target);
+                    }
                 }
             }
 
@@ -99,19 +124,20 @@ class CarryOverAthleteValuesService
             return false;
         }
 
-        $effectiveConfig = $this->configResolver->resolve($source);
+        $effectiveConfig = $this->currentEffectiveConfig($source);
 
-        return data_get($effectiveConfig, 'weight.mode', 'manual') === 'manual'
+        return $source->status === TrainingProgramSlotExerciseStatusEnum::Completed
+            && $source->slot->status === TrainingProgramSlotStatusEnum::Completed
+            && data_get($effectiveConfig, 'weight.mode', 'manual') === 'manual'
             && data_get($effectiveConfig, 'weight.carryOverAthleteValues', true) !== false;
     }
 
     /**
-     * @return array<string, array<int, mixed>>
+     * @return array<string, array<int, array{value: mixed, recorded_at: Carbon}>>
      */
     private function sourceValuesByField(TrainingProgramSlotExercise $source): array
     {
         $values = [];
-        $hasModifiedValue = [];
 
         foreach ($source->sets->sortBy('set_number')->values() as $setIndex => $set) {
             foreach (self::CARRIED_FIELDS as $field) {
@@ -127,27 +153,65 @@ class CarryOverAthleteValuesService
                     continue;
                 }
 
-                $values[$field][(int) $setIndex] = $actual;
-
-                if (! $this->valuesEquivalent($actual, $this->valueCodec->extractPlannedValue($valueRow))) {
-                    $hasModifiedValue[$field] = true;
+                if (! $valueRow->actual_recorded_at instanceof Carbon) {
+                    continue;
                 }
+
+                $values[$field][(int) $setIndex] = [
+                    'value' => $actual,
+                    'recorded_at' => $valueRow->actual_recorded_at,
+                ];
             }
         }
 
-        return array_filter(
-            $values,
-            fn (array $fieldValues, string $field): bool => $fieldValues !== [] && ($hasModifiedValue[$field] ?? false),
-            ARRAY_FILTER_USE_BOTH,
-        );
+        return array_filter($values, fn (array $fieldValues): bool => $fieldValues !== []);
     }
 
     /**
-     * @param  array<string, array<int, mixed>>  $sourceValues
-     * @return list<array{field: string, set_index: int, value: mixed}>
+     * @param  array<string, array<int, array{value: mixed, recorded_at: Carbon}>>  $sourceValues
+     * @param  array{week: int, session: int, usesChronologicalSessions: bool, usesGroupedSlotIndex: bool}  $position
+     * @return list<array{field: string, set_index: int, value: mixed, recorded_at: Carbon}>
      */
-    private function applyToTarget(TrainingProgramSlotExercise $target, array $sourceValues): array
-    {
+    private function changesForUncompiledTarget(
+        TrainingProgramSlotExercise $source,
+        array $sourceValues,
+        array $effectiveConfig,
+        array $position,
+    ): array {
+        $changes = [];
+
+        foreach ($sourceValues as $field => $fieldValues) {
+            foreach ($fieldValues as $setIndex => $entry) {
+                $revisionSet = $this->isSessionScoped($effectiveConfig, $field) ? null : (int) $setIndex;
+
+                if ($this->hasLaterCoachPlan($source, $field, $position, $revisionSet, $entry['recorded_at'])) {
+                    continue;
+                }
+
+                $changes[] = [
+                    'field' => $field,
+                    'set_index' => (int) $setIndex,
+                    'value' => $entry['value'],
+                    'recorded_at' => $entry['recorded_at'],
+                ];
+            }
+        }
+
+        return $changes;
+    }
+
+    /**
+     * @param  array<string, array<int, array{value: mixed, recorded_at: Carbon}>>  $sourceValues
+     * @param  array{week: int, session: int, usesChronologicalSessions: bool, usesGroupedSlotIndex: bool}  $position
+     * @return list<array{field: string, set_index: int, value: mixed, recorded_at: Carbon}>
+     */
+    private function applyToTarget(
+        TrainingProgramSlotExercise $source,
+        TrainingProgramSlotExercise $target,
+        array $sourceValues,
+        array $effectiveConfig,
+        array $position,
+    ): array {
         $changes = [];
         $sets = $target->sets->sortBy('set_number')->values();
 
@@ -159,9 +223,16 @@ class CarryOverAthleteValuesService
                     continue;
                 }
 
-                $sourceValue = $fieldValues[$setIndex] ?? $this->lastSourceValue($fieldValues);
+                $sourceEntry = $fieldValues[$setIndex] ?? $this->lastSourceValue($fieldValues);
+                $sourceValue = $sourceEntry['value'] ?? null;
 
                 if ($sourceValue === null || $sourceValue === '') {
+                    continue;
+                }
+
+                $revisionSet = $this->isSessionScoped($effectiveConfig, $field) ? null : (int) $setIndex;
+
+                if ($this->hasLaterCoachPlan($source, $field, $position, $revisionSet, $sourceEntry['recorded_at'])) {
                     continue;
                 }
 
@@ -175,6 +246,7 @@ class CarryOverAthleteValuesService
                     'field' => $field,
                     'set_index' => (int) $setIndex,
                     'value' => $sourceValue,
+                    'recorded_at' => $sourceEntry['recorded_at'],
                 ];
 
                 if (! $this->rowNeedsUpdate($valueRow, $attributes)) {
@@ -189,9 +261,9 @@ class CarryOverAthleteValuesService
     }
 
     /**
-     * @param  array<int, mixed>  $fieldValues
+     * @param  array<int, array{value: mixed, recorded_at: Carbon}>  $fieldValues
      */
-    private function lastSourceValue(array $fieldValues): mixed
+    private function lastSourceValue(array $fieldValues): ?array
     {
         if ($fieldValues === []) {
             return null;
@@ -199,60 +271,25 @@ class CarryOverAthleteValuesService
 
         ksort($fieldValues);
 
-        return end($fieldValues);
+        $last = end($fieldValues);
+
+        return is_array($last) ? $last : null;
     }
 
     /**
-     * @return array<string, array{week: int, session: int}>
-     */
-    private function schedulePositions(TrainingProgramSlotExercise $source): array
-    {
-        $slots = TrainingProgramSlot::query()
-            ->where('training_program_id', $source->slot->training_program_id)
-            ->where('user_id', $source->slot->user_id)
-            ->whereNull('cancelled_at')
-            ->orderBy('datetime')
-            ->orderBy('id')
-            ->get(['datetime']);
-
-        $positions = [];
-
-        $slots
-            ->groupBy(fn ($slot): string => Carbon::parse($slot->datetime)->isoWeekYear().'-'.Carbon::parse($slot->datetime)->isoWeek())
-            ->values()
-            ->each(function (Collection $weekSlots, int $weekIndex) use (&$positions): void {
-                $weekSlots->values()->each(function ($slot, int $sessionIndex) use (&$positions, $weekIndex): void {
-                    $positions[Carbon::parse($slot->datetime)->toDateString()] = [
-                        'week' => $weekIndex,
-                        'session' => $sessionIndex,
-                    ];
-                });
-            });
-
-        return $positions;
-    }
-
-    /**
-     * @param  list<array{field: string, set_index: int, value: mixed}>  $targetChanges
-     * @param  array<string, array{week: int, session: int}>  $schedulePositions
+     * @param  array{week: int, session: int, usesChronologicalSessions: bool, usesGroupedSlotIndex: bool}  $position
+     * @param  list<array{field: string, set_index: int, value: mixed, recorded_at: Carbon}>  $targetChanges
      * @return list<array{target: string, week: int, session: int, set?: int, field: string, value: mixed}>
      */
-    private function gridOverrideChangesForTarget(TrainingProgramSlotExercise $target, array $targetChanges, array $schedulePositions): array
+    private function gridOverrideChangesForPosition(array $effectiveConfig, array $position, array $targetChanges): array
     {
-        $date = $target->slot?->datetime?->toDateString();
-
-        if ($date === null || ! isset($schedulePositions[$date])) {
-            return [];
-        }
-
-        $position = $schedulePositions[$date];
         $changes = [];
         $sessionScopedFieldsAdded = [];
 
         foreach ($targetChanges as $change) {
             $field = $change['field'];
 
-            if ($this->isSessionScoped($target, $field)) {
+            if ($this->isSessionScoped($effectiveConfig, $field)) {
                 if (isset($sessionScopedFieldsAdded[$field])) {
                     continue;
                 }
@@ -282,11 +319,107 @@ class CarryOverAthleteValuesService
         return $changes;
     }
 
-    private function isSessionScoped(TrainingProgramSlotExercise $target, string $field): bool
+    /** @return array{week: int, session: int, usesChronologicalSessions: bool, usesGroupedSlotIndex: bool} */
+    private function positionForSlot(TrainingProgramSlot $slot, array $effectiveConfig): array
     {
-        $config = $this->configResolver->resolve($target);
+        $context = $this->sessionCompiler->sessionContextForSlot($slot);
 
-        return ApplyPerScope::normalize(data_get($config, $field.'.applyPer')) === ApplyPerScope::SESSION;
+        return $this->coordinateResolver->resolve(
+            effectiveConfig: $effectiveConfig,
+            calendarWeekIndex: $context['weekIndex'],
+            calendarSessionIndex: $context['sessionIndex'],
+            slotIndex: $context['slotIndex'],
+            useSlotIndexForGroupedSessions: true,
+        );
+    }
+
+    private function isSessionScoped(array $effectiveConfig, string $field): bool
+    {
+        return ApplyPerScope::normalize(data_get($effectiveConfig, $field.'.applyPer')) === ApplyPerScope::SESSION;
+    }
+
+    /**
+     * @param  array{week: int, session: int, usesChronologicalSessions: bool, usesGroupedSlotIndex: bool}  $position
+     */
+    private function hasLaterCoachPlan(
+        TrainingProgramSlotExercise $source,
+        string $field,
+        array $position,
+        ?int $setIndex,
+        Carbon $actualRecordedAt,
+    ): bool {
+        $exerciseProgramId = (int) ($source->slot?->trainingProgram?->exercise_program_id ?? 0);
+
+        if ($exerciseProgramId <= 0) {
+            return false;
+        }
+
+        return TrainingPlanValueRevision::query()
+            ->where('program_exercise_id', $source->exercise_program_exercise_id)
+            ->where(fn ($query) => $query
+                ->whereNull('user_id')
+                ->orWhere('user_id', $source->slot?->user_id))
+            ->where('setting_key', $field)
+            ->where('week_index', $position['week'])
+            ->where('session_index', $position['session'])
+            ->when(
+                $setIndex === null,
+                fn ($query) => $query->whereNull('set_index'),
+                fn ($query) => $query->where('set_index', $setIndex),
+            )
+            ->whereIn('source', ['coach', 'admin'])
+            ->where('created_at', '>', $actualRecordedAt)
+            ->where(function ($query) use ($exerciseProgramId): void {
+                $query->where(function ($query) use ($exerciseProgramId): void {
+                    $query->where('owner_type', ExerciseProgram::class)
+                        ->where('owner_id', $exerciseProgramId);
+                })->orWhere('owner_type', TrainingProgramSlotExercise::class);
+            })
+            ->exists();
+    }
+
+    private function nextCompletedSourceDateTime(
+        TrainingProgramSlotExercise $source,
+        ?Carbon $blockStart,
+        ?Carbon $blockEnd,
+    ): ?Carbon {
+        $next = TrainingProgramSlotExercise::query()
+            ->where('exercise_program_exercise_id', $source->exercise_program_exercise_id)
+            ->where('status', TrainingProgramSlotExerciseStatusEnum::Completed)
+            ->whereHas('slot', fn ($query) => $query
+                ->where('training_program_id', $source->slot?->training_program_id)
+                ->where('user_id', $source->slot?->user_id)
+                ->where('status', TrainingProgramSlotStatusEnum::Completed)
+                ->whereNull('cancelled_at')
+                ->where('datetime', '>', $source->slot?->datetime)
+                ->when($blockStart !== null, fn ($query) => $query->where('datetime', '>=', $blockStart->copy()->startOfDay()))
+                ->when($blockEnd !== null, fn ($query) => $query->where('datetime', '<=', $blockEnd->copy()->endOfDay())))
+            ->with('slot:id,datetime')
+            ->get()
+            ->sortBy(fn (TrainingProgramSlotExercise $exercise) => $exercise->slot?->datetime)
+            ->first();
+
+        return $next?->slot?->datetime;
+    }
+
+    /** @return array<string, mixed> */
+    private function currentEffectiveConfig(TrainingProgramSlotExercise $source): array
+    {
+        $program = $source->slot?->trainingProgram?->program;
+        $programConfig = $program?->config;
+
+        if ($program === null
+            || $source->exercise === null
+            || ! is_object($programConfig)
+            || ! method_exists($programConfig, 'resolveExercise')) {
+            return $this->configResolver->resolve($source);
+        }
+
+        return $programConfig->resolveExercise(
+            $source->exercise->config,
+            (int) $source->exercise_program_exercise_id,
+            (int) $source->slot->user_id,
+        )->effectiveConfig;
     }
 
     /**
@@ -306,6 +439,7 @@ class CarryOverAthleteValuesService
             (int) $source->slot->user_id,
         );
         $gridOverrides = GridOverrideNormalizer::normalize($overrides->gridOverrides);
+        $beforeGridOverrides = $gridOverrides;
 
         foreach ($changes as $change) {
             if ($change['target'] === 'session') {
@@ -337,6 +471,16 @@ class CarryOverAthleteValuesService
 
         $exerciseProgram->config = $config;
         $exerciseProgram->saveQuietly();
+
+        $this->revisionService->recordGridOverrideChanges(
+            owner: $exerciseProgram,
+            programExerciseId: (int) $source->exercise_program_exercise_id,
+            userId: (int) $source->slot->user_id,
+            before: $beforeGridOverrides,
+            after: $gridOverrides,
+            action: 'carry_over_athlete_values',
+            source: 'system',
+        );
     }
 
     private function hasRecordedActuals(TrainingProgramSlotExercise $exercise): bool
@@ -358,15 +502,6 @@ class CarryOverAthleteValuesService
             && is_subclass_of($settingClass, AbstractSetting::class)
             && $valueRow->actual_value_type !== null
             && (bool) $valueRow->actual_is_explicit;
-    }
-
-    private function valuesEquivalent(mixed $left, mixed $right): bool
-    {
-        if (is_float($left) || is_float($right)) {
-            return (float) $left === (float) $right;
-        }
-
-        return $left === $right;
     }
 
     /**

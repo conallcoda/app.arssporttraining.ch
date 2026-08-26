@@ -19,7 +19,6 @@ class AthleteExerciseValueService
         private readonly TrainingSessionStatusService $statusService,
         private readonly TrainingValueSnapshotCodec $valueCodec,
         private readonly EffectiveSlotExerciseConfigResolver $configResolver,
-        private readonly CarryOverAthleteValuesService $carryOverAthleteValues,
     ) {}
 
     public function saveExerciseValues(TrainingProgramSlotExercise $exercise, array $submittedValues, bool $onlyProvided = false): bool
@@ -79,10 +78,6 @@ class AthleteExerciseValueService
             }
 
             $this->statusService->refreshExerciseState($exercise);
-
-            if ($hasChanges) {
-                $this->carryOverAthleteValues->carryFrom($exercise);
-            }
 
             return $hasChanges;
         });

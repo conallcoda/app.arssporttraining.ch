@@ -4,14 +4,18 @@ use App\Data\Exercise\Settings\WeightSetting;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
+use App\Models\Training\TrainingPlanValueRevision;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Training\TrainingProgramSlotExercise;
 use App\Models\Training\TrainingProgramSlotSetValue;
+use App\Models\Training\TrainingRevisionBatch;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use App\Training\AthleteExerciseValueService;
 use App\Training\CarryOverAthleteValuesService;
+use App\Training\TrainingSessionMaterializer;
+use App\Training\TrainingSessionProgressService;
 use App\Training\TrainingValueSnapshotCodec;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -54,7 +58,7 @@ it('carries athlete-entered weights and reps to future planned values without wr
 
     $this->actingAs($athlete);
 
-    app(AthleteExerciseValueService::class)->saveExerciseValues($sourceExercise, [
+    carryOverSaveAndComplete($sourceExercise, [
         $sourceSets[0]->id => ['weight' => 42.5, 'reps' => 6],
         $sourceSets[1]->id => ['weight' => 45, 'reps' => 7],
         $sourceSets[2]->id => ['weight' => 47.5, 'reps' => 8],
@@ -84,7 +88,156 @@ it('carries athlete-entered weights and reps to future planned values without wr
         ->and(carryOverOverrideCellData($gridOverrides, 1, 0, 2))->toBe(['reps' => '8', 'weight' => 47.5]);
 });
 
-it('carries only athlete-entered values that differ from the coach plan across supported fields', function () {
+it('does not carry athlete values until the source session is completed', function () {
+    [$athlete, $pivot, $trainingProgram] = carryOverProgram([
+        'settings' => ['reps', 'weight'],
+        'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+        'reps' => ['mode' => 'manual', 'default' => 5, 'applyPer' => 'set'],
+        'weight' => ['mode' => 'manual', 'default' => 40, 'applyPer' => 'set'],
+    ]);
+    $sourceSlot = carryOverSlot($trainingProgram, $athlete, '2030-04-01 09:00:00');
+    $futureSlot = carryOverSlot($trainingProgram, $athlete, '2030-04-08 09:00:00');
+    $sourceExercise = carryOverSlotExercise($sourceSlot, $pivot->id);
+    $futureExercise = carryOverSlotExercise($futureSlot, $pivot->id);
+
+    $this->actingAs($athlete);
+    app(AthleteExerciseValueService::class)->saveExerciseValues($sourceExercise, [
+        $sourceExercise->sets->first()->id => ['weight' => 50],
+    ], onlyProvided: true);
+
+    expect(carryOverPlannedValues($futureExercise, 'weight'))->toBe([40.0]);
+
+    app(TrainingSessionProgressService::class)->markExerciseCompleted($sourceExercise);
+
+    expect(carryOverPlannedValues($futureExercise, 'weight'))->toBe([50.0]);
+});
+
+it('preserves a target cell explicitly planned by a coach after the athlete actual', function () {
+    CarbonImmutable::setTestNow('2030-04-01 10:00:00');
+    [$athlete, $pivot, $trainingProgram] = carryOverProgram([
+        'settings' => ['reps', 'weight'],
+        'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+        'reps' => ['mode' => 'manual', 'default' => 5, 'applyPer' => 'set'],
+        'weight' => ['mode' => 'manual', 'default' => 40, 'applyPer' => 'set'],
+        'preview' => ['weeks' => 2, 'groupingMode' => 'none'],
+    ]);
+    $sourceSlot = carryOverSlot($trainingProgram, $athlete, '2030-04-01 09:00:00');
+    $futureSlot = carryOverSlot($trainingProgram, $athlete, '2030-04-08 09:00:00');
+    $sourceExercise = carryOverSlotExercise($sourceSlot, $pivot->id);
+    $futureExercise = carryOverSlotExercise($futureSlot, $pivot->id);
+
+    $this->actingAs($athlete);
+    app(AthleteExerciseValueService::class)->saveExerciseValues($sourceExercise, [
+        $sourceExercise->sets->first()->id => ['weight' => 50],
+    ], onlyProvided: true);
+
+    CarbonImmutable::setTestNow('2030-04-01 11:00:00');
+    $futureExercise->sets->first()->values->firstWhere('setting_key', 'weight')->update([
+        'planned_value_type' => 'decimal',
+        'planned_decimal_value' => 55,
+    ]);
+    $batch = TrainingRevisionBatch::create([
+        'owner_type' => ExerciseProgram::class,
+        'owner_id' => $trainingProgram->exercise_program_id,
+        'domain' => 'plan',
+        'action' => 'save_grid_overrides',
+        'source' => 'coach',
+    ]);
+    TrainingPlanValueRevision::create([
+        'batch_id' => $batch->id,
+        'owner_type' => ExerciseProgram::class,
+        'owner_id' => $trainingProgram->exercise_program_id,
+        'program_exercise_id' => $pivot->id,
+        'user_id' => $athlete->id,
+        'setting_key' => 'weight',
+        'week_index' => 1,
+        'session_index' => 0,
+        'set_index' => 0,
+        'source' => 'coach',
+        'after_value_type' => 'decimal',
+        'after_decimal_value' => 55,
+        'unit' => 'kg',
+    ]);
+
+    CarbonImmutable::setTestNow('2030-04-01 12:00:00');
+    app(TrainingSessionProgressService::class)->markExerciseCompleted($sourceExercise);
+
+    expect(carryOverPlannedValues($futureExercise, 'weight'))->toBe([55.0]);
+    CarbonImmutable::setTestNow();
+});
+
+it('does not let a retrospectively completed older session override a newer completed source', function () {
+    [$athlete, $pivot, $trainingProgram] = carryOverProgram([
+        'settings' => ['reps', 'weight'],
+        'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+        'reps' => ['mode' => 'manual', 'default' => 5, 'applyPer' => 'set'],
+        'weight' => ['mode' => 'manual', 'default' => 5, 'applyPer' => 'set'],
+        'preview' => ['weeks' => 3, 'groupingMode' => 'none'],
+    ]);
+    $olderSlot = carryOverSlot($trainingProgram, $athlete, '2030-04-01 09:00:00');
+    $newerSlot = carryOverSlot($trainingProgram, $athlete, '2030-04-08 09:00:00');
+    $futureSlot = carryOverSlot($trainingProgram, $athlete, '2030-04-15 09:00:00');
+    $olderExercise = carryOverSlotExercise($olderSlot, $pivot->id);
+    $newerExercise = carryOverSlotExercise($newerSlot, $pivot->id);
+    $futureExercise = carryOverSlotExercise($futureSlot, $pivot->id);
+
+    $this->actingAs($athlete);
+    carryOverSaveAndComplete($newerExercise, [
+        $newerExercise->sets->first()->id => ['weight' => 20],
+    ], onlyProvided: true);
+    carryOverSaveAndComplete($olderExercise, [
+        $olderExercise->sets->first()->id => ['weight' => 10],
+    ], onlyProvided: true);
+
+    expect(carryOverPlannedValues($futureExercise, 'weight'))->toBe([20.0]);
+});
+
+it('stores carry-over overrides at chronological coordinates for ungrouped and fixed-group sessions', function (string $groupingMode) {
+    [$athlete, $pivot, $trainingProgram] = carryOverProgram([
+        'settings' => ['reps', 'weight'],
+        'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+        'reps' => ['mode' => 'manual', 'default' => 5, 'applyPer' => 'set'],
+        'weight' => ['mode' => 'manual', 'default' => 40, 'applyPer' => 'set'],
+        'preview' => [
+            'weeks' => 4,
+            'sessionsPerWeek' => 1,
+            'groupingMode' => $groupingMode,
+            'groupSize' => $groupingMode === 'groups' ? 2 : 1,
+            'copyValuesAutomatically' => false,
+        ],
+    ]);
+
+    $sourceSlot = carryOverSlot($trainingProgram, $athlete, '2030-04-01 09:00:00');
+    $futureSlots = collect([
+        '2030-04-03 09:00:00',
+        '2030-04-08 09:00:00',
+        '2030-04-10 09:00:00',
+    ])->map(fn (string $dateTime) => carryOverSlot($trainingProgram, $athlete, $dateTime));
+
+    $sourceExercise = carryOverSlotExercise($sourceSlot, $pivot->id);
+
+    $this->actingAs($athlete);
+
+    carryOverSaveAndComplete($sourceExercise, [
+        $sourceExercise->sets->first()->id => ['weight' => 50, 'reps' => 7],
+    ], onlyProvided: true);
+
+    foreach ($futureSlots as $futureSlot) {
+        $futureExercise = carryOverSlotExercise($futureSlot, $pivot->id);
+
+        expect(carryOverPlannedValues($futureExercise, 'weight'))->toBe([50.0])
+            ->and(carryOverPlannedValues($futureExercise, 'reps'))->toBe(['7']);
+    }
+
+    $gridOverrides = carryOverGridOverrides($trainingProgram, $pivot->id, $athlete->id);
+
+    expect(carryOverOverrideCellData($gridOverrides, 0, 1, 0))->toBe([])
+        ->and(carryOverOverrideCellData($gridOverrides, 1, 0, 0))->toBe(['reps' => '7', 'weight' => 50])
+        ->and(carryOverOverrideCellData($gridOverrides, 2, 0, 0))->toBe(['reps' => '7', 'weight' => 50])
+        ->and(carryOverOverrideCellData($gridOverrides, 3, 0, 0))->toBe(['reps' => '7', 'weight' => 50]);
+})->with(['none', 'groups']);
+
+it('carries explicit athlete values even when they equal the source plan', function () {
     [$athlete, $pivot, $trainingProgram] = carryOverProgram([
         'settings' => ['reps', 'weight', 'rest', 'tempo'],
         'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
@@ -129,7 +282,7 @@ it('carries only athlete-entered values that differ from the coach plan across s
 
     $this->actingAs($athlete);
 
-    app(AthleteExerciseValueService::class)->saveExerciseValues($sourceExercise, [
+    carryOverSaveAndComplete($sourceExercise, [
         $sourceSet->id => [
             'reps' => 5,
             'weight' => 50,
@@ -142,15 +295,64 @@ it('carries only athlete-entered values that differ from the coach plan across s
         ->and(carryOverPlannedValues($sourceExercise, 'weight'))->toBe([40.0])
         ->and(carryOverPlannedValues($sourceExercise, 'rest'))->toBe([60])
         ->and(carryOverPlannedValues($sourceExercise, 'tempo'))->toBe(['3010'])
-        ->and(carryOverPlannedValues($futureExercise, 'reps'))->toBe(['9'])
+        ->and(carryOverPlannedValues($futureExercise, 'reps'))->toBe(['5'])
         ->and(carryOverPlannedValues($futureExercise, 'weight'))->toBe([50.0])
         ->and(carryOverPlannedValues($futureExercise, 'rest'))->toBe([90])
         ->and(carryOverPlannedValues($futureExercise, 'tempo'))->toBe(['2010']);
 
     $gridOverrides = carryOverGridOverrides($trainingProgram, $pivot->id, $athlete->id);
 
-    expect(carryOverOverrideCellData($gridOverrides, 1, 0, 0))->toBe(['weight' => 50])
+    expect(carryOverOverrideCellData($gridOverrides, 1, 0, 0))->toBe(['reps' => '5', 'weight' => 50])
         ->and(carryOverOverrideSessionData($gridOverrides, 1, 0))->toBe(['rest' => 90, 'tempo' => '2010']);
+});
+
+it('persists carry-over values for a scheduled future slot before it is compiled', function () {
+    [$athlete, $pivot, $trainingProgram] = carryOverProgram([
+        'settings' => ['reps', 'weight'],
+        'sets' => ['default' => 3, 'label' => 'Set', 'deload' => 'none'],
+        'reps' => ['mode' => 'manual', 'default' => 8, 'applyPer' => 'set'],
+        'weight' => ['mode' => 'manual', 'default' => 5, 'applyPer' => 'set'],
+        'preview' => [
+            'weeks' => 2,
+            'sessionsPerWeek' => 1,
+            'groupingMode' => 'none',
+            'groupSize' => 1,
+            'copyValuesAutomatically' => false,
+        ],
+    ]);
+
+    $sourceSlot = carryOverSlot($trainingProgram, $athlete, '2030-04-01 09:00:00');
+    $futureSlot = TrainingProgramSlot::withoutEvents(fn () => TrainingProgramSlot::create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => '2030-04-08 09:00:00',
+        'scheduled_date' => '2030-04-08',
+        'session_index' => 1,
+    ]));
+    $sourceExercise = carryOverSlotExercise($sourceSlot, $pivot->id);
+    $sourceSets = $sourceExercise->sets->sortBy('set_number')->values();
+
+    expect($futureSlot->exercises()->count())->toBe(0);
+
+    $this->actingAs($athlete);
+
+    carryOverSaveAndComplete($sourceExercise, [
+        $sourceSets[0]->id => ['weight' => 80, 'reps' => 8],
+        $sourceSets[1]->id => ['weight' => 85, 'reps' => 8],
+        $sourceSets[2]->id => ['weight' => 90, 'reps' => 8],
+    ], onlyProvided: true);
+
+    $gridOverrides = carryOverGridOverrides($trainingProgram, $pivot->id, $athlete->id);
+
+    expect(carryOverOverrideCellData($gridOverrides, 1, 0, 0))->toBe(['reps' => '8', 'weight' => 80])
+        ->and(carryOverOverrideCellData($gridOverrides, 1, 0, 1))->toBe(['reps' => '8', 'weight' => 85])
+        ->and(carryOverOverrideCellData($gridOverrides, 1, 0, 2))->toBe(['reps' => '8', 'weight' => 90]);
+
+    app(TrainingSessionMaterializer::class)->materialize($futureSlot);
+    $futureExercise = carryOverSlotExercise($futureSlot, $pivot->id);
+
+    expect(carryOverPlannedValues($futureExercise, 'weight'))->toBe([80.0, 85.0, 90.0])
+        ->and(carryOverPlannedValues($futureExercise, 'reps'))->toBe(['8', '8', '8']);
 });
 
 it('preserves source set positions when only a later set differs from the plan', function () {
@@ -170,7 +372,7 @@ it('preserves source set positions when only a later set differs from the plan',
 
     $this->actingAs($athlete);
 
-    app(AthleteExerciseValueService::class)->saveExerciseValues($sourceExercise, [
+    carryOverSaveAndComplete($sourceExercise, [
         $sourceSets[0]->id => ['weight' => 14, 'reps' => 10],
         $sourceSets[1]->id => ['weight' => 14, 'reps' => 10],
         $sourceSets[2]->id => ['weight' => 14, 'reps' => 8],
@@ -214,7 +416,7 @@ it('repeats the last source value for extra future sets and treats missing carry
 
     $this->actingAs($athlete);
 
-    app(AthleteExerciseValueService::class)->saveExerciseValues($sourceExercise, [
+    carryOverSaveAndComplete($sourceExercise, [
         $sourceSets[0]->id => ['weight' => 42.5, 'reps' => 6],
         $sourceSets[1]->id => ['weight' => 45, 'reps' => 7],
     ], onlyProvided: true);
@@ -246,7 +448,7 @@ it('does not carry values when the toggle is disabled or the future exercise alr
 
     $this->actingAs($athlete);
 
-    app(AthleteExerciseValueService::class)->saveExerciseValues($disabledSourceExercise, [
+    carryOverSaveAndComplete($disabledSourceExercise, [
         $disabledSourceSet->id => ['weight' => 60, 'reps' => 9],
     ], onlyProvided: true);
 
@@ -274,7 +476,7 @@ it('does not carry values when the toggle is disabled or the future exercise alr
 
     $this->actingAs($athlete);
 
-    app(AthleteExerciseValueService::class)->saveExerciseValues($sourceExercise, [
+    carryOverSaveAndComplete($sourceExercise, [
         $sourceSet->id => ['weight' => 62.5, 'reps' => 10],
     ], onlyProvided: true);
 
@@ -306,7 +508,7 @@ it('skips already recorded future sessions while updating later unrecorded sessi
 
     $this->actingAs($athlete);
 
-    app(AthleteExerciseValueService::class)->saveExerciseValues($retroExercise, [
+    carryOverSaveAndComplete($retroExercise, [
         $retroExercise->sets->first()->id => ['weight' => 10, 'reps' => 14],
     ], onlyProvided: true);
 
@@ -316,7 +518,7 @@ it('skips already recorded future sessions while updating later unrecorded sessi
         ->and(carryOverPlannedValues($openFutureExercise, 'reps'))->toBe(['14']);
 });
 
-it('writes current overrides for past unrecorded sessions after the source', function () {
+it('does not carry into past unrecorded sessions after a retrospective completion', function () {
     CarbonImmutable::setTestNow('2030-06-19 12:00:00');
 
     [$athlete, $pivot, $trainingProgram] = carryOverProgram([
@@ -336,17 +538,17 @@ it('writes current overrides for past unrecorded sessions after the source', fun
 
     $this->actingAs($athlete);
 
-    app(AthleteExerciseValueService::class)->saveExerciseValues($sourceExercise, [
+    carryOverSaveAndComplete($sourceExercise, [
         $sourceExercise->sets->first()->id => ['weight' => 10, 'reps' => 14],
     ], onlyProvided: true);
 
     $overrides = carryOverOverrides($trainingProgram, $pivot->id, $athlete->id);
 
-    expect(carryOverPlannedValues($pastUnrecordedExercise, 'weight'))->toBe([10.0])
+    expect(carryOverPlannedValues($pastUnrecordedExercise, 'weight'))->toBe([7.5])
         ->and(carryOverPlannedValues($openFutureExercise, 'weight'))->toBe([10.0])
         ->and(carryOverOverrideCellData($overrides->historicalGridOverrides, 1, 0, 0))->toBe([])
-        ->and(carryOverOverrideCellData($overrides->gridOverrides, 1, 0, 0))->toBe(['reps' => '14', 'weight' => 10])
-        ->and(carryOverOverrideCellData($overrides->gridOverrides, 1, 1, 0))->toBe(['reps' => '14', 'weight' => 10]);
+        ->and(carryOverOverrideCellData($overrides->gridOverrides, 1, 0, 0))->toBe([])
+        ->and(carryOverOverrideCellData($overrides->gridOverrides, 2, 0, 0))->toBe(['reps' => '14', 'weight' => 10]);
 
     CarbonImmutable::setTestNow();
 });
@@ -401,9 +603,12 @@ it('matches future exercises by program exercise id instead of exercise id sort 
 
     $this->actingAs($athlete);
 
-    app(AthleteExerciseValueService::class)->saveExerciseValues($sourceExercise, [
+    carryOverSaveAndComplete($sourceExercise, [
         $sourceSet->id => ['weight' => 70, 'reps' => 11],
     ], onlyProvided: true);
+    app(TrainingSessionProgressService::class)->markExerciseCompleted(
+        carryOverSlotExercise($sourceSlot, $duplicatePivot->id),
+    );
 
     expect(carryOverPlannedValues($futureSourceExercise, 'weight'))->toBe([70.0])
         ->and(carryOverPlannedValues($futureSourceExercise, 'reps'))->toBe(['11'])
@@ -429,6 +634,21 @@ function carryOverProgram(array $exerciseConfig): array
     $pivot = $trainingProgram->program->fresh(['exercises'])->exercises->first()->pivot;
 
     return [$athlete, $pivot, $trainingProgram];
+}
+
+function carryOverSaveAndComplete(
+    TrainingProgramSlotExercise $exercise,
+    array $submittedValues,
+    bool $onlyProvided = false,
+): bool {
+    $changed = app(AthleteExerciseValueService::class)->saveExerciseValues(
+        $exercise,
+        $submittedValues,
+        $onlyProvided,
+    );
+    app(TrainingSessionProgressService::class)->markExerciseCompleted($exercise);
+
+    return $changed;
 }
 
 function carryOverSlot(TrainingProgram $trainingProgram, User $athlete, string $dateTime): TrainingProgramSlot
