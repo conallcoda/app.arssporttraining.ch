@@ -5,7 +5,9 @@ namespace App\Training;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramBlock;
 use App\Models\Training\TrainingProgramSlot;
+use App\Models\Users\UserGroup;
 use App\Support\Training\ProgramExerciseOrder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class TrainingGroupScheduleMirrorService
@@ -24,6 +26,17 @@ class TrainingGroupScheduleMirrorService
     public function mirror(int $sourceGroupId, int $targetGroupId, bool $replace = false): array
     {
         return DB::transaction(function () use ($sourceGroupId, $targetGroupId, $replace): array {
+            $targetGroup = UserGroup::query()->findOrFail($targetGroupId);
+            $audit = app(TrainingScheduleAuditService::class);
+            $beforeSlots = $this->targetGroupSlots($targetGroupId);
+            $beforeDefinitions = $this->targetGroupDefinitionPayload($targetGroupId);
+            $batch = $audit->start($targetGroup, 'mirror_group_schedule', [
+                'source_group_id' => $sourceGroupId,
+                'target_group_id' => $targetGroupId,
+                'replace' => $replace,
+                'before_slot_ids' => $beforeSlots->pluck('id')->map(fn ($id): int => (int) $id)->all(),
+            ]);
+
             if ($replace) {
                 $this->clearTargetGroup($targetGroupId);
             }
@@ -94,12 +107,77 @@ class TrainingGroupScheduleMirrorService
                 $this->cloneSlotSnapshot($sourceSlot, $clone, $pivotIdMap);
             }
 
-            return [
+            $result = [
                 'mirrored_programs' => count($programIdMap),
                 'mirrored_blocks' => count($blockIdMap),
                 'mirrored_slots' => $sourceSlots->count(),
             ];
+
+            $audit->recordChanges($batch, $beforeSlots, $this->targetGroupSlots($targetGroupId));
+            app(TrainingModelAuditService::class)->recordPayloadChange(
+                owner: $targetGroup,
+                domain: 'definition',
+                action: 'mirror_group_definitions',
+                stateKey: 'definition',
+                beforePayload: $beforeDefinitions,
+                afterPayload: $this->targetGroupDefinitionPayload($targetGroupId),
+                context: [
+                    'source_group_id' => $sourceGroupId,
+                    'target_group_id' => $targetGroupId,
+                    'replace' => $replace,
+                ],
+            );
+
+            return $result;
         });
+    }
+
+    /** @return Collection<int, TrainingProgramSlot> */
+    private function targetGroupSlots(int $groupId): Collection
+    {
+        return TrainingProgramSlot::query()
+            ->whereHas('trainingProgram', fn ($query) => $query->where('group_id', $groupId))
+            ->orderBy('id')
+            ->get();
+    }
+
+    /** @return array<string, mixed> */
+    private function targetGroupDefinitionPayload(int $groupId): array
+    {
+        return [
+            'programs' => TrainingProgram::query()
+                ->with('program')
+                ->where('group_id', $groupId)
+                ->orderBy('id')
+                ->get()
+                ->map(fn (TrainingProgram $program): array => [
+                    'id' => (int) $program->id,
+                    'exercise_program_id' => (int) $program->exercise_program_id,
+                    'name' => $program->program?->name,
+                    'sort' => (int) $program->sort,
+                    'status' => $program->status,
+                    'planned_session_count' => $program->planned_session_count,
+                    'owner_id' => $program->owner_id,
+                ])
+                ->all(),
+            'blocks' => TrainingProgramBlock::query()
+                ->where('group_id', $groupId)
+                ->orderBy('id')
+                ->get()
+                ->map(fn (TrainingProgramBlock $block): array => [
+                    'id' => (int) $block->id,
+                    'user_id' => $block->user_id,
+                    'category_id' => $block->category_id,
+                    'parent_id' => $block->parent_id,
+                    'type' => $block->type?->value ?? (string) $block->type,
+                    'start' => $block->start?->format('Y-m-d'),
+                    'end' => $block->end?->format('Y-m-d'),
+                    'note' => $block->note,
+                    'color' => $block->color,
+                    'active' => (bool) $block->active,
+                ])
+                ->all(),
+        ];
     }
 
     private function clearTargetGroup(int $targetGroupId): void
@@ -115,7 +193,8 @@ class TrainingGroupScheduleMirrorService
 
         TrainingProgramBlock::query()
             ->where('group_id', $targetGroupId)
-            ->delete();
+            ->get()
+            ->each(fn (TrainingProgramBlock $block) => $block->delete());
     }
 
     /**

@@ -166,6 +166,8 @@ class AthleteExerciseValueService
 
     private function createRevisionBatch(TrainingProgramSlotExercise $exercise): TrainingRevisionBatch
     {
+        $auditContext = app(TrainingAuditContext::class);
+
         return TrainingRevisionBatch::create([
             'owner_type' => TrainingProgramSlotExercise::class,
             'owner_id' => $exercise->id,
@@ -173,6 +175,10 @@ class AthleteExerciseValueService
             'action' => 'record_actuals',
             'changed_by' => auth()->id(),
             'source' => $this->resolveActualSource(),
+            'reason' => $auditContext->reason([
+                'training_program_slot_id' => $exercise->training_program_slot_id,
+                'training_program_slot_exercise_id' => $exercise->id,
+            ]),
         ]);
     }
 

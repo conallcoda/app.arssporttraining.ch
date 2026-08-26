@@ -4,20 +4,28 @@ namespace App\Training;
 
 use App\Models\Training\TrainingRevisionBatch;
 use App\Models\Training\TrainingStateRevision;
-use App\Models\Users\UserTypeEnum;
 use Illuminate\Database\Eloquent\Model;
 
 class TrainingStateRevisionService
 {
-    public function createBatch(Model $owner, string $action): TrainingRevisionBatch
-    {
+    /** @param array<string, mixed> $context */
+    public function createBatch(
+        Model $owner,
+        string $action,
+        string $domain = 'state',
+        array $context = [],
+        ?string $source = null,
+    ): TrainingRevisionBatch {
+        $auditContext = app(TrainingAuditContext::class);
+
         return TrainingRevisionBatch::create([
             'owner_type' => $owner::class,
             'owner_id' => $owner->getKey(),
-            'domain' => 'state',
+            'domain' => $domain,
             'action' => $action,
             'changed_by' => auth()->id(),
-            'source' => $this->resolveSource(),
+            'source' => $source ?? $auditContext->source(),
+            'reason' => $auditContext->reason($context),
         ]);
     }
 
@@ -48,18 +56,7 @@ class TrainingStateRevisionService
             'before_payload' => $beforePayload === [] ? null : $beforePayload,
             'after_payload' => $afterPayload === [] ? null : $afterPayload,
             'changed_by' => auth()->id(),
-            'source' => $this->resolveSource(),
+            'source' => $batch->source ?? app(TrainingAuditContext::class)->source(),
         ]);
-    }
-
-    private function resolveSource(): string
-    {
-        $type = auth()->user()?->type;
-
-        return match ($type) {
-            UserTypeEnum::Coach => 'coach',
-            UserTypeEnum::Admin => 'admin',
-            default => 'athlete',
-        };
     }
 }

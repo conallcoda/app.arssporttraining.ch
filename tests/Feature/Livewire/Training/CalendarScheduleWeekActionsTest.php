@@ -5,6 +5,9 @@ use App\Livewire\Training\CalendarScheduleView;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
+use App\Models\Training\TrainingProgramSlotStatusEnum;
+use App\Models\Training\TrainingRevisionBatch;
+use App\Models\Training\TrainingStateRevision;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use Carbon\Carbon;
@@ -234,6 +237,95 @@ it('copies the current week to the next selected weeks after confirmation', func
             'user_id' => $athlete->id,
             'datetime' => '2030-04-15 09:00:00',
         ])->exists())->toBeTrue();
+});
+
+it('does not copy over a partially completed target week and audits the rejection', function () {
+    Carbon::setTestNow('2030-04-10 12:00:00');
+
+    [$coach, $athlete, $group] = scheduleWeekActionContext();
+    $sourceProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => ExerciseProgram::factory()->create(['name' => 'Source Week'])->id,
+    ]);
+    $targetProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => ExerciseProgram::factory()->create(['name' => 'Protected Target'])->id,
+    ]);
+
+    TrainingProgramSlot::factory()->create([
+        'training_program_id' => $sourceProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => '2030-04-15 09:00:00',
+    ]);
+    $protectedSlot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $targetProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => '2030-04-22 09:00:00',
+        'status' => TrainingProgramSlotStatusEnum::PartiallyCompleted,
+        'exercise_count' => 2,
+        'completed_exercise_count' => 1,
+        'pending_exercise_count' => 1,
+    ]);
+
+    $this->actingAs($coach);
+
+    Livewire::test(CalendarScheduleView::class, [
+        'groupId' => $group->id,
+        'userId' => $athlete->id,
+        'calendarSettings' => new CalendarSettingsData(start: '2030-04-14', end: '2030-05-05', preset: null),
+        'weekStartsOn' => Carbon::MONDAY,
+    ])
+        ->call('requestCopyWeekSlotsForward', '2030-04-15', 1)
+        ->call('confirmCopyWeekSlotsForward');
+
+    $batch = TrainingRevisionBatch::query()->where('action', 'copy_schedule_forward')->latest('id')->first();
+    $revision = TrainingStateRevision::query()->where('batch_id', $batch?->id)->first();
+
+    expect($protectedSlot->fresh())->not->toBeNull()
+        ->and(TrainingProgramSlot::query()->where([
+            'training_program_id' => $sourceProgram->id,
+            'user_id' => $athlete->id,
+            'datetime' => '2030-04-22 09:00:00',
+        ])->exists())->toBeFalse()
+        ->and($batch?->domain)->toBe('schedule')
+        ->and($batch?->changed_by)->toBe($coach->id)
+        ->and($revision?->subject_id)->toBe($protectedSlot->id)
+        ->and($revision?->after_payload['mutation_rejected'] ?? false)->toBeTrue();
+});
+
+it('does not clear a week containing a partially completed session', function () {
+    Carbon::setTestNow('2030-04-10 12:00:00');
+
+    [$coach, $athlete, $group] = scheduleWeekActionContext();
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => ExerciseProgram::factory()->create(['name' => 'Protected Week'])->id,
+    ]);
+    $protectedSlot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => '2030-04-11 09:00:00',
+        'status' => TrainingProgramSlotStatusEnum::PartiallyCompleted,
+        'exercise_count' => 2,
+        'completed_exercise_count' => 1,
+        'pending_exercise_count' => 1,
+    ]);
+
+    $this->actingAs($coach);
+
+    Livewire::test(CalendarScheduleView::class, [
+        'groupId' => $group->id,
+        'userId' => $athlete->id,
+        'calendarSettings' => new CalendarSettingsData(start: '2030-04-07', end: '2030-04-27', preset: null),
+        'weekStartsOn' => Carbon::MONDAY,
+    ])->call('clearWeekSchedule', '2030-04-08');
+
+    $batch = TrainingRevisionBatch::query()->where('action', 'clear_schedule_week')->latest('id')->first();
+    $revision = TrainingStateRevision::query()->where('batch_id', $batch?->id)->first();
+
+    expect($protectedSlot->fresh())->not->toBeNull()
+        ->and($revision?->subject_id)->toBe($protectedSlot->id)
+        ->and($revision?->after_payload['mutation_rejected'] ?? false)->toBeTrue();
 });
 
 function scheduleWeekActionContext(): array

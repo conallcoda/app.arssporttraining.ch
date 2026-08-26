@@ -11,6 +11,7 @@ use App\Models\Exercise\ExerciseProgramExercise;
 use App\Models\Exercise\ExerciseProgramTypeEnum;
 use App\Support\Training\ExerciseProgramSelectorPreviewService;
 use App\Support\Training\ProgramExerciseOrder;
+use App\Training\TrainingModelAuditService;
 use Carbon\Carbon;
 use Coda\Cms\Data\AbstractData;
 use Coda\Cms\Form\Fields\Tags;
@@ -96,6 +97,11 @@ class ExerciseProgramData extends AbstractData implements HasForms
 
     public function persist(): void
     {
+        $existingProgram = $this->id === null
+            ? null
+            : ExerciseProgram::query()->with(['exercises', 'internalTags'])->find($this->id);
+        $beforeDefinition = $existingProgram ? $this->auditPayload($existingProgram) : [];
+
         $program = ExerciseProgram::updateOrCreate(
             ['id' => $this->id],
             [
@@ -113,6 +119,41 @@ class ExerciseProgramData extends AbstractData implements HasForms
         app(ExerciseProgramSelectorPreviewService::class)->syncProgram($program->id);
 
         $program->tags()->sync($this->internalTags);
+
+        $program->load(['exercises', 'internalTags']);
+        app(TrainingModelAuditService::class)->recordPayloadChange(
+            owner: $program,
+            domain: 'definition',
+            action: 'persist_exercise_program',
+            stateKey: 'definition',
+            beforePayload: $beforeDefinition,
+            afterPayload: $this->auditPayload($program),
+        );
+    }
+
+    /** @return array<string, mixed> */
+    private function auditPayload(ExerciseProgram $program): array
+    {
+        return [
+            'id' => (int) $program->id,
+            'name' => $program->name,
+            'type' => $program->type?->value ?? (string) $program->type,
+            'exercise_category_id' => $program->exercise_category_id,
+            'owner_id' => $program->owner_id,
+            'sort' => (int) $program->sort,
+            'exercises' => $program->exercises
+                ->map(fn ($exercise): array => [
+                    'program_exercise_id' => (int) $exercise->pivot->id,
+                    'exercise_id' => (int) $exercise->id,
+                    'sort' => (int) ($exercise->pivot->sort ?? 0),
+                    'group' => $exercise->pivot->group,
+                    'type' => $exercise->pivot->type ?? 'main',
+                ])
+                ->sortBy('sort')
+                ->values()
+                ->all(),
+            'internal_tag_ids' => $program->internalTags->pluck('id')->map(fn ($id): int => (int) $id)->sort()->values()->all(),
+        ];
     }
 
     protected function syncExercises(ExerciseProgram $program): void

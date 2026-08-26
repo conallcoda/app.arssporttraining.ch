@@ -18,6 +18,7 @@ use App\Support\Training\ProgramExerciseOrder;
 use App\Support\Training\WeekSessionCountResolver;
 use App\Training\ExerciseGroupLabeler;
 use App\Training\ExerciseProgramSectionMutationService;
+use App\Training\TrainingModelAuditService;
 use App\Training\TrainingSessionRebuildDispatcher;
 use Coda\Cms\Livewire\Concerns\InteractsWithFormData;
 use Coda\FormKit\Form;
@@ -518,6 +519,14 @@ class ProgramEditor extends Component
 
         $exerciseProgram->config = $config;
         $exerciseProgram->saveQuietly();
+        app(TrainingModelAuditService::class)->recordPayloadChange(
+            owner: $exerciseProgram,
+            domain: 'definition',
+            action: 'update_section_instructions',
+            stateKey: 'definition',
+            beforePayload: ['section' => $this->activeSection, 'instructions' => $before],
+            afterPayload: ['section' => $this->activeSection, 'instructions' => $after],
+        );
         $this->exerciseProgram = $exerciseProgram->fresh() ?? $exerciseProgram;
         $this->sectionInstructions = $after;
         $this->data[$this->sectionInstructionsFieldName($this->activeSection)] = $after;
@@ -541,6 +550,7 @@ class ProgramEditor extends Component
         $this->weeks = (int) $value;
 
         $config = $this->exerciseProgram->config;
+        $beforeWeeks = (int) $config->weeks;
         $config->weeks = $this->weeks;
         $config->pruneCurrentGridOverridesToSessionCounts(
             WeekSessionCountResolver::resolveForWeeks(
@@ -553,6 +563,14 @@ class ProgramEditor extends Component
         );
         $this->exerciseProgram->config = $config;
         $this->exerciseProgram->saveQuietly();
+        app(TrainingModelAuditService::class)->recordPayloadChange(
+            owner: $this->exerciseProgram,
+            domain: 'definition',
+            action: 'update_program_weeks',
+            stateKey: 'definition',
+            beforePayload: ['weeks' => $beforeWeeks],
+            afterPayload: ['weeks' => $this->weeks],
+        );
         unset($this->planConfigArray);
         app(TrainingSessionRebuildDispatcher::class)
             ->dispatchFutureSlotsForExerciseProgramChange($this->exerciseProgram->id);
@@ -779,6 +797,7 @@ class ProgramEditor extends Component
             ->wherePivot('type', $this->activeSection)
             ->get()
             ->keyBy(fn (Exercise $exercise) => (int) $exercise->pivot->id);
+        $beforeDefinition = $this->sectionDefinitionAuditPayload($this->exerciseProgram, $currentRows);
 
         $normalization = app(ExerciseProgramSectionMutationService::class)->normalize(
             currentRows: $currentRows,
@@ -934,6 +953,24 @@ class ProgramEditor extends Component
         }
 
         $this->exerciseProgram->refresh();
+
+        if ($didChange || $configChanged) {
+            $afterRows = $this->exerciseProgram->exercises()
+                ->wherePivot('type', $this->activeSection)
+                ->get()
+                ->keyBy(fn (Exercise $exercise) => (int) $exercise->pivot->id);
+
+            app(TrainingModelAuditService::class)->recordPayloadChange(
+                owner: $this->exerciseProgram,
+                domain: 'definition',
+                action: 'save_program_section',
+                stateKey: 'definition',
+                beforePayload: $beforeDefinition,
+                afterPayload: $this->sectionDefinitionAuditPayload($this->exerciseProgram, $afterRows),
+                context: ['section' => $this->activeSection],
+            );
+        }
+
         unset($this->fieldsets, $this->exercises, $this->exerciseGroupLabels);
         $this->loadExerciseData();
         $this->protectedSectionProgramExerciseIdsCache = null;
@@ -947,6 +984,29 @@ class ProgramEditor extends Component
         return [
             'preservedImmutableCount' => (int) ($normalization['preservedImmutableCount'] ?? 0),
             'preservedMaterializedCount' => $preservedMaterializedCount,
+        ];
+    }
+
+    /**
+     * @param  Collection<int, Exercise>  $rows
+     * @return array<string, mixed>
+     */
+    protected function sectionDefinitionAuditPayload(ExerciseProgram $program, Collection $rows): array
+    {
+        return [
+            'section' => $this->activeSection,
+            'exercises' => $rows
+                ->map(fn (Exercise $exercise): array => [
+                    'program_exercise_id' => (int) $exercise->pivot->id,
+                    'exercise_id' => (int) $exercise->id,
+                    'sort' => (int) ($exercise->pivot->sort ?? 0),
+                    'group' => $exercise->pivot->group,
+                    'type' => $exercise->pivot->type ?? $this->activeSection,
+                ])
+                ->sortBy('sort')
+                ->values()
+                ->all(),
+            'config' => $program->config?->toArray(),
         ];
     }
 

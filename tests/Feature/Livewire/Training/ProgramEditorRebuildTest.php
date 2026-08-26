@@ -11,6 +11,8 @@ use App\Models\Tag;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Training\TrainingProgramSlotExercise;
+use App\Models\Training\TrainingRevisionBatch;
+use App\Models\Training\TrainingStateRevision;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use App\Training\TrainingSessionRebuildDispatcher;
@@ -52,6 +54,17 @@ it('dispatches a single shared rebuild when reordering section exercises', funct
         'exerciseProgram' => $program,
         'planId' => $program->id,
     ])->call('moveRelationshipItem', 'section_exercises', 1, -1);
+
+    $batch = TrainingRevisionBatch::query()
+        ->where('action', 'save_program_section')
+        ->latest('id')
+        ->first();
+    $revision = TrainingStateRevision::query()->where('batch_id', $batch?->id)->first();
+
+    expect($batch?->domain)->toBe('definition')
+        ->and(json_decode($batch?->reason ?? '{}', true)['section'] ?? null)->toBe('main')
+        ->and($revision?->before_payload['exercises'][0]['exercise_id'] ?? null)->toBe($firstExercise->id)
+        ->and($revision?->after_payload['exercises'][0]['exercise_id'] ?? null)->toBe($secondExercise->id);
 });
 
 it('persists separate instructions for each exercise program section', function () {

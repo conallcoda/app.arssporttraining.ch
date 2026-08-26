@@ -77,6 +77,10 @@ class TrainingPlanRevisionService
             'action' => $action,
             'changed_by' => auth()->id(),
             'source' => $source ?? $this->resolvePlanSource(),
+            'reason' => app(TrainingAuditContext::class)->reason([
+                'program_exercise_id' => $programExerciseId,
+                'user_id' => $userId,
+            ]),
         ]);
 
         foreach ($changes as $change) {
@@ -151,6 +155,10 @@ class TrainingPlanRevisionService
             'action' => $action,
             'changed_by' => auth()->id(),
             'source' => $this->resolvePlanSource(),
+            'reason' => app(TrainingAuditContext::class)->reason([
+                'program_exercise_id' => $programExerciseId,
+                'user_id' => $userId,
+            ]),
         ]);
 
         foreach ($changes as $change) {

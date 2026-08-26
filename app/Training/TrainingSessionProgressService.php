@@ -324,6 +324,23 @@ class TrainingSessionProgressService
             return $base + [
                 'skipped_at' => $subject->skipped_at?->toIso8601String(),
                 'has_any_modification' => (bool) $subject->has_any_modification,
+                'values' => $subject->values
+                    ->map(fn (TrainingProgramSlotSetValue $value): array => [
+                        'id' => (int) $value->id,
+                        'setting_key' => $value->setting_key,
+                        'actual_value_type' => $value->actual_value_type,
+                        'actual_int_value' => $value->actual_int_value,
+                        'actual_decimal_value' => $value->actual_decimal_value,
+                        'actual_string_value' => $value->actual_string_value,
+                        'actual_json_value' => $value->actual_json_value,
+                        'actual_is_explicit' => (bool) $value->actual_is_explicit,
+                        'actual_recorded_by' => $value->actual_recorded_by,
+                        'actual_recorded_at' => $value->actual_recorded_at?->toIso8601String(),
+                        'actual_source' => $value->actual_source,
+                        'is_modified' => (bool) $value->is_modified,
+                    ])
+                    ->values()
+                    ->all(),
             ];
         }
 

@@ -1309,6 +1309,22 @@ it('records state revision batches when an athlete completes and skips exercises
             ->where('after_value', TrainingProgramSlotStatusEnum::Completed->value)
             ->exists())->toBeTrue();
 
+    $completionBatch = TrainingRevisionBatch::query()
+        ->where('action', 'mark_exercise_completed')
+        ->latest('id')
+        ->first();
+    $completedSetRevision = TrainingStateRevision::query()
+        ->where('batch_id', $completionBatch?->id)
+        ->where('subject_type', TrainingProgramSlotSet::class)
+        ->where('subject_id', $completedSet->id)
+        ->first();
+    $completionContext = json_decode($completionBatch?->reason ?? '{}', true);
+
+    expect($completionBatch?->source)->toBe('athlete')
+        ->and($completionContext['operation_id'] ?? null)->not->toBeNull()
+        ->and($completedSetRevision?->after_payload['values'][0]['actual_value_type'] ?? null)->not->toBeNull()
+        ->and($completedSetRevision?->after_payload['values'][0]['actual_recorded_by'] ?? null)->toBe($athlete->id);
+
     CarbonImmutable::setTestNow();
 });
 
@@ -1925,6 +1941,7 @@ it('stores an explicit actual value without marking it modified when an athlete 
 
     $batch = TrainingRevisionBatch::query()->latest('id')->first();
     $revision = TrainingActualValueRevision::query()->latest('id')->first();
+    $actualContext = json_decode($batch?->reason ?? '{}', true);
 
     expect($value->actual_value_type)->toBe('string')
         ->and($value->actual_string_value)->toBe('6')
@@ -1932,6 +1949,10 @@ it('stores an explicit actual value without marking it modified when an athlete 
         ->and($value->actual_recorded_by)->toBe($athlete->id)
         ->and($value->is_modified)->toBeFalse()
         ->and($batch?->domain)->toBe('actual')
+        ->and($batch?->source)->toBe('athlete')
+        ->and($actualContext['operation_id'] ?? null)->not->toBeNull()
+        ->and($actualContext['training_program_slot_id'] ?? null)->toBe($slot->id)
+        ->and($actualContext['training_program_slot_exercise_id'] ?? null)->toBe($slotExercise->id)
         ->and($revision?->training_program_slot_set_value_id)->toBe($value->id)
         ->and($revision?->was_explicit)->toBeFalse()
         ->and($revision?->is_explicit)->toBeTrue()

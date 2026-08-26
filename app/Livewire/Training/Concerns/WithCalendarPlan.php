@@ -1309,7 +1309,9 @@ trait WithCalendarPlan
             foreach ($children as $child) {
                 $projectedService->removeForBlock($child);
             }
-            TrainingProgramBlock::where('parent_id', $editingBlockId)->delete();
+            TrainingProgramBlock::where('parent_id', $editingBlockId)
+                ->get()
+                ->each(fn (TrainingProgramBlock $block) => $block->delete());
             TrainingProgramBlock::destroy($editingBlockId);
         } elseif ($userId !== null) {
             TrainingProgramBlock::destroy($editingBlockId);
@@ -1319,7 +1321,8 @@ trait WithCalendarPlan
                 ->where('type', $existingBlock->type)
                 ->where('start', $existingBlock->start)
                 ->where('note', $existingBlock->note)
-                ->delete();
+                ->get()
+                ->each(fn (TrainingProgramBlock $block) => $block->delete());
         }
 
         unset($this->planBlockGoal, $this->planHasBlock, $this->planBlockOptions, $this->planMeasuredData, $this->planHeartRateData, $this->planGroupMemberMetrics);

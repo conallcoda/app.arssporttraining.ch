@@ -20,6 +20,8 @@ use App\Models\Training\TrainingProgramSlotExerciseStatusEnum;
 use App\Models\Training\TrainingProgramSlotSet;
 use App\Models\Training\TrainingProgramSlotSetStatusEnum;
 use App\Models\Training\TrainingProgramSlotStatusEnum;
+use App\Models\Training\TrainingRevisionBatch;
+use App\Models\Training\TrainingStateRevision;
 use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use Carbon\Carbon;
@@ -1031,8 +1033,119 @@ it('deselecting a user removes their slot', function () {
             'original_start_time' => '09:00',
         ]);
 
+    $batch = TrainingRevisionBatch::query()->where('action', 'submit_occurrence')->latest('id')->first();
+    $revision = TrainingStateRevision::query()->where('batch_id', $batch?->id)->first();
+
     expect(TrainingProgramSlot::where('user_id', $user1->id)->exists())->toBeTrue();
-    expect(TrainingProgramSlot::where('user_id', $user2->id)->exists())->toBeFalse();
+    expect(TrainingProgramSlot::where('user_id', $user2->id)->exists())->toBeFalse()
+        ->and($revision?->subject_id)->not->toBeNull()
+        ->and($revision?->before_value)->toBe('present')
+        ->and($revision?->after_value)->toBe('deleted');
+});
+
+it('does not deselect an athlete from a partially completed occurrence and audits the rejection', function () {
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Protected Schedule']);
+    $athlete = User::factory()->athlete()->create();
+    $group->members()->attach($athlete);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => ExerciseProgram::factory()->create()->id,
+    ]);
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => '2026-03-02 09:00:00',
+        'status' => TrainingProgramSlotStatusEnum::PartiallyCompleted,
+        'exercise_count' => 2,
+        'completed_exercise_count' => 1,
+        'pending_exercise_count' => 1,
+    ]);
+
+    $weekStartsOn = (int) config('training.week_starts_on', Carbon::MONDAY);
+
+    Livewire::actingAs($coach)
+        ->test(CalendarProgramsView::class, [
+            'groupId' => $group->id,
+            'calendarSettings' => calendarWeekSettings(),
+            'weekStartsOn' => $weekStartsOn,
+            'weekEndsOn' => ($weekStartsOn + 6) % 7,
+        ])
+        ->call('onWeekSlotSubmitted', [
+            'training_program_id' => $trainingProgram->id,
+            'date' => '2026-03-02',
+            'start_time' => '09:00',
+            'selected_members' => [],
+            'deselected_members' => [$athlete->id],
+            'original_training_program_id' => $trainingProgram->id,
+            'original_start_time' => '09:00',
+        ]);
+
+    $batch = TrainingRevisionBatch::query()->where('action', 'submit_occurrence')->latest('id')->first();
+    $revision = TrainingStateRevision::query()->where('batch_id', $batch?->id)->first();
+    $context = json_decode($batch?->reason ?? '{}', true);
+
+    expect($slot->fresh())->not->toBeNull()
+        ->and($batch)->not->toBeNull()
+        ->and($batch?->domain)->toBe('schedule')
+        ->and($batch?->changed_by)->toBe($coach->id)
+        ->and($context['outcome'] ?? null)->toBe('rejected')
+        ->and($context['rejection_reason'] ?? null)->toBe('recorded_session')
+        ->and($revision?->subject_id)->toBe($slot->id)
+        ->and($revision?->after_payload['mutation_rejected'] ?? false)->toBeTrue()
+        ->and($revision?->after_payload['rejection_reason'] ?? null)->toBe('recorded_session');
+});
+
+it('does not move a completed occurrence and audits the rejection', function () {
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Protected Schedule']);
+    $athlete = User::factory()->athlete()->create();
+    $group->members()->attach($athlete);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => ExerciseProgram::factory()->create()->id,
+    ]);
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => '2026-03-02 09:00:00',
+        'status' => TrainingProgramSlotStatusEnum::Completed,
+        'completed_at' => '2026-03-02 10:00:00',
+        'exercise_count' => 2,
+        'completed_exercise_count' => 2,
+        'pending_exercise_count' => 0,
+    ]);
+
+    $weekStartsOn = (int) config('training.week_starts_on', Carbon::MONDAY);
+
+    Livewire::actingAs($coach)
+        ->test(CalendarProgramsView::class, [
+            'groupId' => $group->id,
+            'userId' => $athlete->id,
+            'calendarSettings' => calendarWeekSettings(),
+            'weekStartsOn' => $weekStartsOn,
+            'weekEndsOn' => ($weekStartsOn + 6) % 7,
+        ])
+        ->call('onWeekSlotSubmitted', [
+            'training_program_id' => $trainingProgram->id,
+            'date' => '2026-03-02',
+            'start_time' => '14:00',
+            'selected_members' => [],
+            'deselected_members' => [],
+            'original_training_program_id' => $trainingProgram->id,
+            'original_start_time' => '09:00',
+        ]);
+
+    $batch = TrainingRevisionBatch::query()->where('action', 'submit_occurrence')->latest('id')->first();
+    $revision = TrainingStateRevision::query()->where('batch_id', $batch?->id)->first();
+
+    expect($slot->fresh())->not->toBeNull()
+        ->and(TrainingProgramSlot::query()->where([
+            'training_program_id' => $trainingProgram->id,
+            'user_id' => $athlete->id,
+            'datetime' => '2026-03-02 14:00:00',
+        ])->exists())->toBeFalse()
+        ->and($revision?->after_payload['mutation_rejected'] ?? false)->toBeTrue();
 });
 
 it('removes all user slots in group mode', function () {

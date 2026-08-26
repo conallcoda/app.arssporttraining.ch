@@ -7,6 +7,7 @@ use App\Models\Concerns\HasPlanConfigOverrides;
 use App\Models\Tag;
 use App\Observers\ExerciseProgramObserver;
 use App\Support\Training\ExerciseProgramSelectorPreviewService;
+use App\Training\TrainingModelAuditService;
 use Coda\Cms\Models\Concerns\HasOwner;
 use Coda\Cms\Models\Concerns\HasQueryBuilder;
 use Coda\Cms\Models\Concerns\HasTags;
@@ -144,8 +145,25 @@ class ExerciseProgram extends Model implements Taggable
         $clone->save();
         app(ExerciseProgramSelectorPreviewService::class)->syncProgram($clone->id);
 
+        $clone->load('exercises');
+        app(TrainingModelAuditService::class)->recordPayloadChange(
+            owner: $clone,
+            domain: 'definition',
+            action: 'duplicate_exercise_program',
+            stateKey: 'definition',
+            beforePayload: [],
+            afterPayload: [
+                'source_exercise_program_id' => (int) $this->id,
+                'target_exercise_program_id' => (int) $clone->id,
+                'program_exercise_id_map' => $pivotIdMap,
+                'exercise_ids' => $clone->exercises->pluck('id')->map(fn ($id): int => (int) $id)->all(),
+                'config' => $clone->config?->toArray(),
+            ],
+        );
+
         return $clone;
     }
+
     protected static function booted(): void
     {
         static::observe(ExerciseProgramObserver::class);

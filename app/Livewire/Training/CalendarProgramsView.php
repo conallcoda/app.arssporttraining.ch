@@ -29,6 +29,7 @@ use App\Training\CalendarBlockService;
 use App\Training\CalendarDateService;
 use App\Training\ProjectedOneRepMaxService;
 use App\Training\TrainingPlanRevisionService;
+use App\Training\TrainingScheduleAuditService;
 use App\Training\TrainingSessionEditGuard;
 use App\Training\TrainingSessionRebuildDispatcher;
 use App\Training\TrainingStateRevisionService;
@@ -1718,8 +1719,67 @@ class CalendarProgramsView extends Component
         $programChanged = $originalProgramId !== null && (int) $originalProgramId !== $trainingProgramId;
         $timeChanged = $originalDatetime !== null && $originalDatetime !== $datetime;
 
-        $selectedMembers = $data['selected_members'] ?? [];
-        $deselectedMembers = $data['deselected_members'] ?? [];
+        $selectedMembers = array_values(array_unique(array_map('intval', $data['selected_members'] ?? [])));
+        $deselectedMembers = array_values(array_unique(array_map('intval', $data['deselected_members'] ?? [])));
+        $affectedUserIds = empty($selectedMembers) && empty($deselectedMembers) && $this->userId !== null
+            ? [$this->userId]
+            : array_values(array_unique([...$selectedMembers, ...$deselectedMembers]));
+        $programIds = array_values(array_unique(array_filter([
+            $trainingProgramId,
+            $originalProgramId === null ? null : (int) $originalProgramId,
+        ])));
+        $datetimes = array_values(array_unique(array_filter([$datetime, $originalDatetime])));
+        $auditQuery = TrainingProgramSlot::query()
+            ->whereIn('training_program_id', $programIds)
+            ->whereIn('user_id', $affectedUserIds)
+            ->whereIn('datetime', $datetimes);
+        $beforeSlots = (clone $auditQuery)->get();
+        $guard = app(TrainingSessionEditGuard::class);
+        $protectedSlots = collect();
+
+        if (($programChanged || $timeChanged) && $originalProgramId !== null && $originalDatetime !== null) {
+            $protectedSlots = $protectedSlots->merge($guard->applyImmutableSlotConstraints(
+                TrainingProgramSlot::query()
+                    ->where('training_program_id', (int) $originalProgramId)
+                    ->whereIn('user_id', $affectedUserIds)
+                    ->where('datetime', $originalDatetime),
+            )->get());
+        }
+
+        if ($deselectedMembers !== []) {
+            $protectedSlots = $protectedSlots->merge($guard->applyImmutableSlotConstraints(
+                TrainingProgramSlot::query()
+                    ->where('training_program_id', $trainingProgramId)
+                    ->whereIn('user_id', $deselectedMembers)
+                    ->where('datetime', $datetime),
+            )->get());
+        }
+
+        $audit = app(TrainingScheduleAuditService::class);
+        $batch = $audit->start(
+            TrainingProgram::query()->findOrFail($trainingProgramId),
+            'submit_occurrence',
+            [
+                'component' => self::class,
+                'group_id' => $this->groupId,
+                'filtered_user_id' => $this->userId,
+                'training_program_id' => $trainingProgramId,
+                'datetime' => $datetime,
+                'original_training_program_id' => $originalProgramId,
+                'original_datetime' => $originalDatetime,
+                'selected_members' => $selectedMembers,
+                'deselected_members' => $deselectedMembers,
+                'before_slot_ids' => $beforeSlots->pluck('id')->map(fn (mixed $id): int => (int) $id)->all(),
+            ],
+        );
+
+        if ($protectedSlots->isNotEmpty()) {
+            $protectedSlots = $protectedSlots->unique('id')->values();
+            $audit->recordRejected($batch, $protectedSlots, 'recorded_session');
+            Flux::toast(text: $guard->immutableSlotMessage($protectedSlots->count()), variant: 'danger');
+
+            return;
+        }
 
         if (empty($selectedMembers) && empty($deselectedMembers) && $this->userId !== null) {
             if ($programChanged || $timeChanged) {
@@ -1763,6 +1823,8 @@ class CalendarProgramsView extends Component
             }
         }
 
+        $audit->recordChanges($batch, $beforeSlots, (clone $auditQuery)->get());
+
         unset($this->programCellSlots, $this->athleteSlotOrder);
 
         $this->dispatch('grid-cells-changed');
@@ -1773,25 +1835,39 @@ class CalendarProgramsView extends Component
     {
         $trainingProgramId = (int) $data['training_program_id'];
         $datetime = $data['date'].' '.$data['start_time'].':00';
+        $userIds = $this->userId !== null
+            ? [$this->userId]
+            : UserGroup::query()->find($this->groupId)?->members()->pluck('users.id')->map(fn (mixed $id): int => (int) $id)->all() ?? [];
+        $slotsQuery = TrainingProgramSlot::query()
+            ->where('training_program_id', $trainingProgramId)
+            ->whereIn('user_id', $userIds)
+            ->where('datetime', $datetime);
+        $beforeSlots = (clone $slotsQuery)->get();
+        $guard = app(TrainingSessionEditGuard::class);
+        $protectedSlots = $guard->applyImmutableSlotConstraints(clone $slotsQuery)->get();
+        $audit = app(TrainingScheduleAuditService::class);
+        $batch = $audit->start(
+            TrainingProgram::query()->findOrFail($trainingProgramId),
+            'delete_occurrence',
+            [
+                'component' => self::class,
+                'group_id' => $this->groupId,
+                'filtered_user_id' => $this->userId,
+                'datetime' => $datetime,
+                'user_ids' => $userIds,
+                'before_slot_ids' => $beforeSlots->pluck('id')->map(fn (mixed $id): int => (int) $id)->all(),
+            ],
+        );
 
-        if ($this->userId !== null) {
-            TrainingProgramSlot::query()
-                ->where('training_program_id', $trainingProgramId)
-                ->where('user_id', $this->userId)
-                ->where('datetime', $datetime)
-                ->whereNull('completed_at')
-                ->delete();
-        } else {
-            $group = UserGroup::with('members')->find($this->groupId);
-            if ($group !== null) {
-                TrainingProgramSlot::query()
-                    ->where('training_program_id', $trainingProgramId)
-                    ->whereIn('user_id', $group->members->pluck('id'))
-                    ->where('datetime', $datetime)
-                    ->whereNull('completed_at')
-                    ->delete();
-            }
+        if ($protectedSlots->isNotEmpty()) {
+            $audit->recordRejected($batch, $protectedSlots, 'recorded_session');
+            Flux::toast(text: $guard->immutableSlotMessage($protectedSlots->count()), variant: 'danger');
+
+            return;
         }
+
+        (clone $slotsQuery)->whereNull('completed_at')->delete();
+        $audit->recordChanges($batch, $beforeSlots, (clone $slotsQuery)->get());
 
         unset($this->programCellSlots, $this->athleteSlotOrder);
 
@@ -1991,7 +2067,9 @@ class CalendarProgramsView extends Component
             foreach ($children as $child) {
                 $projectedService->removeForBlock($child);
             }
-            TrainingProgramBlock::where('parent_id', $block->id)->delete();
+            TrainingProgramBlock::where('parent_id', $block->id)
+                ->get()
+                ->each(fn (TrainingProgramBlock $child) => $child->delete());
 
             $projectedService->removeForBlock($block);
             $block->delete();
