@@ -521,7 +521,117 @@ it('uses the active block baseline metric when compiling automatic weights', fun
     $weightValue = $slot->fresh('exercises.sets.values')
         ->exercises->first()->sets->first()->values->firstWhere('setting_key', 'weight');
 
-    expect((float) $weightValue?->planned_decimal_value)->toBe(74.0);
+    expect((float) $weightValue?->planned_decimal_value)->toBe(64.0);
+});
+
+it('materializes grouped 1rm weights from the authored total before all slots are scheduled', function () {
+    Carbon::setTestNow('2026-08-20 12:00:00');
+
+    $athlete = User::factory()->athlete()->create();
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Test Group']);
+    $category = Tag::factory()->withScope('training_category')->create(['name' => 'Strength']);
+    $program = ExerciseProgram::factory()->create([
+        'name' => 'Eight Session Strength Plan',
+        'exercise_category_id' => $category->id,
+        'config' => ['weeks' => 4],
+    ]);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+    $exercise = Exercise::factory()->create([
+        'name' => 'Front Squat',
+        'config' => [
+            'settings' => ['reps', 'weight'],
+            'sets' => ['default' => 3, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => [
+                'mode' => 'automatic',
+                'default' => 7,
+                'stepDownInterval' => 2,
+                'decrement' => 2,
+                'minimum' => 1,
+                'applyPer' => 'session',
+            ],
+            'weight' => ['mode' => 'automatic', 'oneRepMaxModifier' => 85, 'applyPer' => 'session'],
+            'preview' => ['groupingMode' => 'groups', 'groupSize' => 2],
+        ],
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+    ]);
+
+    TrainingProgramBlock::create([
+        'group_id' => $group->id,
+        'user_id' => null,
+        'category_id' => $category->id,
+        'type' => TrainingProgramBlockTypeEnum::Category,
+        'start' => '2026-08-17',
+        'end' => '2026-11-15',
+        'note' => 'Strength Block',
+        'active' => true,
+        'config' => ['goal' => 3, 'autoRecord1rm' => false],
+    ]);
+
+    $metric = MetricSubmission::query()->create([
+        'user_id' => $athlete->id,
+        'metric' => MetricEnum::OneRepMax,
+        'recorded_by' => $coach->id,
+        'recorded_at' => '2026-08-08',
+        'owner_type' => null,
+        'owner_id' => null,
+    ]);
+    $metric->values()->createMany([
+        ['field' => 'measuredReps', 'value' => '1'],
+        ['field' => 'measuredWeight', 'value' => '117.5'],
+        ['field' => 'estimated1RM', 'value' => '117.5'],
+    ]);
+
+    $firstSlot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => Carbon::parse('2026-08-21 09:00:00'),
+    ]);
+
+    $storedWeights = fn (TrainingProgramSlot $slot): array => $slot
+        ->fresh('exercises.sets.values')
+        ->exercises
+        ->firstOrFail()
+        ->sets
+        ->map(fn ($set): float => (float) $set->values->firstWhere('setting_key', 'weight')->planned_decimal_value)
+        ->all();
+
+    expect($storedWeights($firstSlot))->toBe([71.5, 76.5, 81.5]);
+
+    $firstSlot->forceFill(['completed_exercise_count' => 1])->saveQuietly();
+
+    foreach ([
+        '2026-08-25 09:00:00',
+        '2026-09-01 14:00:00',
+        '2026-09-04 14:00:00',
+        '2026-09-08 14:00:00',
+        '2026-09-11 14:00:00',
+        '2026-09-15 14:00:00',
+        '2026-09-18 14:00:00',
+    ] as $datetime) {
+        TrainingProgramSlot::factory()->create([
+            'training_program_id' => $trainingProgram->id,
+            'user_id' => $athlete->id,
+            'datetime' => Carbon::parse($datetime),
+        ]);
+    }
+
+    $compiled = app(TrainingSessionCompiler::class)->compile($firstSlot->fresh());
+    $compiledExercise = collect($compiled->exercises)->firstWhere('exerciseId', $exercise->id);
+    $recompiledWeights = collect($compiledExercise->sets)
+        ->map(fn ($set): float => (float) collect($set->values)->firstWhere('settingKey', 'weight')->plannedValue)
+        ->all();
+
+    expect($storedWeights($firstSlot))->toBe($recompiledWeights)
+        ->and($recompiledWeights)->toBe([71.5, 76.5, 81.5]);
 });
 
 it('reuses cached slot timelines and metric lookups across repeated compiles in one rebuild run', function () {

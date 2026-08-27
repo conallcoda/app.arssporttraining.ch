@@ -79,6 +79,7 @@ class PlanCompiler
                 sessionCounts: $context->resolvedSessionCounts($weeks),
                 slotIndex: $context->slotIndex,
                 useSlotIndexForGroupedSessions: $context->useSlotIndexForGroupedSessions,
+                plannedWeekCount: $context->plannedWeekCount,
             );
         } finally {
             PlanGridProfiler::end($span, [

@@ -39,16 +39,15 @@ class WeekSlotModalPayloadBuilder
     /**
      * @return array<string, mixed>
      */
-    public function forProgramPrefill(int $trainingProgramId, string $date, int $groupId, ?int $preselectedUserId): array
+    public function forProgramPrefill(int $trainingProgramId, string $date, int $groupId, ?int $userId): array
     {
         return [
             'date' => $date,
             'start_time' => '09:00',
             'training_program_id' => $trainingProgramId,
             'groupId' => $groupId,
-            'userId' => null,
+            'userId' => $userId,
             'prefill' => true,
-            'preselectedUserId' => $preselectedUserId,
         ];
     }
 }

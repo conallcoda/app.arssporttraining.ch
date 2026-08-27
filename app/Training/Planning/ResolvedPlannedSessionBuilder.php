@@ -5,6 +5,7 @@ namespace App\Training\Planning;
 use App\Data\Exercise\ExerciseSetting;
 use App\Data\Exercise\Preview\GridOverrides;
 use App\Data\Exercise\Preview\GridState;
+use App\Data\Exercise\Preview\SessionGroupingMode;
 use App\Data\Exercise\Preview\StrategyOrchestrator;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Training\Config\ExerciseOverrides;
@@ -65,6 +66,7 @@ class ResolvedPlannedSessionBuilder
         array $sessionCounts = [],
         int $slotIndex = 0,
         bool $useSlotIndexForGroupedSessions = false,
+        ?int $plannedWeekCount = null,
     ): ResolvedPlannedSession {
         $span = PlanGridProfiler::start('ResolvedPlannedSessionBuilder.build', [
             'week' => $weekIndex,
@@ -76,7 +78,7 @@ class ResolvedPlannedSessionBuilder
 
         try {
             $exercises = array_values(array_filter(array_map(
-                function (array $exercise) use ($weekIndex, $sessionIndex, $slotIndex, $weeks, $sessionCounts, $useSlotIndexForGroupedSessions): ?ResolvedPlannedExercise {
+                function (array $exercise) use ($weekIndex, $sessionIndex, $slotIndex, $weeks, $sessionCounts, $useSlotIndexForGroupedSessions, $plannedWeekCount): ?ResolvedPlannedExercise {
                     $effectiveConfig = $exercise['effectiveConfig'] ?? [];
                     $position = $this->coordinateResolver->resolve(
                         effectiveConfig: $effectiveConfig,
@@ -88,8 +90,12 @@ class ResolvedPlannedSessionBuilder
                     $resolvedWeekIndex = $position['week'];
                     $resolvedSessionIndex = $position['session'];
                     $usesChronologicalSessions = $position['usesChronologicalSessions'];
+                    $plannedSessionCount = $this->plannedSessionCount(
+                        $effectiveConfig,
+                        $plannedWeekCount,
+                    );
                     $resolvedWeeks = $position['usesGroupedSlotIndex']
-                        ? max(array_sum($sessionCounts), $resolvedWeekIndex + 1)
+                        ? max($plannedSessionCount, array_sum($sessionCounts), $resolvedWeekIndex + 1)
                         : max($weeks, $resolvedWeekIndex + 1);
                     $resolvedSessionCounts = $usesChronologicalSessions
                         ? array_fill(0, $resolvedWeeks, 1)
@@ -131,6 +137,14 @@ class ResolvedPlannedSessionBuilder
                 'resolved_exercise_count' => isset($exercises) ? count($exercises) : null,
             ]);
         }
+    }
+
+    private function plannedSessionCount(array $effectiveConfig, ?int $plannedWeekCount): int
+    {
+        $preview = $effectiveConfig['preview'] ?? [];
+        $weeks = max(1, $plannedWeekCount ?? (int) ($preview['weeks'] ?? 1));
+
+        return $weeks * SessionGroupingMode::resolvePreviewSessionCount($preview, 1);
     }
 
     /**

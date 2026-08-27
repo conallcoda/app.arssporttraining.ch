@@ -3,11 +3,12 @@
 use App\Data\Training\Calendar\CalendarSettingsData;
 use App\Livewire\Training\CalendarProgramsView;
 use App\Livewire\Training\CalendarScheduleView;
+use App\Livewire\Training\WeekSlotForm;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
-use App\Models\Users\UserGroup;
 use App\Models\Users\User;
+use App\Models\Users\UserGroup;
 use Carbon\Carbon;
 use Livewire\Livewire;
 
@@ -68,9 +69,113 @@ it('dispatches prefilled slot payloads from the programs view', function () {
             'start_time' => '09:00',
             'training_program_id' => 12,
             'groupId' => 4,
+            'userId' => 8,
+            'prefill' => true,
+        ]);
+});
+
+it('requires confirmation before dispatching group occurrence removals', function () {
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Removal Confirmation']);
+    [$nino, $finn] = User::factory()->athlete()->count(2)->create();
+    $group->members()->attach([$nino->id, $finn->id]);
+    $program = ExerciseProgram::factory()->create();
+    $trainingProgram = TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    foreach ([$nino, $finn] as $athlete) {
+        TrainingProgramSlot::create([
+            'training_program_id' => $trainingProgram->id,
+            'user_id' => $athlete->id,
+            'datetime' => '2026-03-10 09:00:00',
+        ]);
+    }
+
+    $component = Livewire::actingAs($coach)
+        ->test(WeekSlotForm::class)
+        ->call('open', data: [
+            'date' => '2026-03-10',
+            'start_time' => '09:00',
+            'training_program_id' => $trainingProgram->id,
+            'groupId' => $group->id,
+            'userId' => null,
+        ])
+        ->assertSet('originalSelectedMembers', [(string) $nino->id, (string) $finn->id])
+        ->set('selectedMembers', [(string) $nino->id])
+        ->call('submit')
+        ->assertNotDispatched('week-slot.submitted')
+        ->assertSet('pendingSubmission.deselected_members', [$finn->id])
+        ->assertSee($finn->name)
+        ->call('confirmGroupRemovals');
+
+    $component->assertDispatched('week-slot.submitted', function (string $name, array $params) use ($nino, $finn): bool {
+        $data = $params['data'] ?? [];
+
+        return $data['selected_members'] === [$nino->id]
+            && $data['deselected_members'] === [$finn->id]
+            && $data['original_selected_members'] === [$nino->id, $finn->id]
+            && $data['operation_mode'] === 'edit'
+            && $data['removals_confirmed'] === true;
+    });
+});
+
+it('treats unchecked athletes as untouched when creating a group occurrence', function () {
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Safe Group Create']);
+    [$nino, $finn] = User::factory()->athlete()->count(2)->create();
+    $group->members()->attach([$nino->id, $finn->id]);
+    $trainingProgram = TrainingProgram::create([
+        'group_id' => $group->id,
+        'exercise_program_id' => ExerciseProgram::factory()->create()->id,
+    ]);
+
+    $component = Livewire::actingAs($coach)
+        ->test(WeekSlotForm::class)
+        ->call('open', data: [
+            'date' => '2026-03-10',
+            'start_time' => '09:00',
+            'training_program_id' => $trainingProgram->id,
+            'groupId' => $group->id,
             'userId' => null,
             'prefill' => true,
-            'preselectedUserId' => 8,
+        ])
+        ->set('selectedMembers', [(string) $nino->id])
+        ->call('submit')
+        ->assertSet('pendingSubmission', []);
+
+    $component->assertDispatched('week-slot.submitted', function (string $name, array $params) use ($nino): bool {
+        $data = $params['data'] ?? [];
+
+        return $data['selected_members'] === [$nino->id]
+            && $data['deselected_members'] === []
+            && $data['original_selected_members'] === []
+            && $data['operation_mode'] === 'create'
+            && $data['removals_confirmed'] === false;
+    });
+});
+
+it('requires confirmation before dispatching a full occurrence deletion', function () {
+    $coach = User::factory()->coach()->create();
+
+    Livewire::actingAs($coach)
+        ->test(WeekSlotForm::class)
+        ->set('data', [
+            'training_program_id' => 12,
+            'start_time' => '09:00',
+        ])
+        ->set('slotDate', '2026-03-10')
+        ->set('isEditing', true)
+        ->call('deleteSlot')
+        ->assertSet('deleteConfirmationPending', true)
+        ->assertNotDispatched('week-slot.deleted')
+        ->call('confirmDeleteSlot')
+        ->assertDispatched('week-slot.deleted', data: [
+            'training_program_id' => 12,
+            'start_time' => '09:00',
+            'date' => '2026-03-10',
+            'deletion_confirmed' => true,
         ]);
 });
 

@@ -8,6 +8,7 @@ use App\Models\Training\TrainingProgramSlot;
 use App\Models\Users\UserGroup;
 use App\Support\Training\WeekSlotModalPayloadBuilder;
 use App\Training\CalendarDateService;
+use App\Training\TrainingOccurrenceMemberScope;
 use App\Training\TrainingScheduleAuditService;
 use App\Training\TrainingSessionEditGuard;
 use App\Training\TrainingSessionMaterializer;
@@ -609,11 +610,46 @@ class CalendarScheduleView extends Component
         $programChanged = $originalProgramId !== null && (int) $originalProgramId !== $trainingProgramId;
         $timeChanged = $originalDatetime !== null && $originalDatetime !== $datetime;
 
-        $selectedMembers = array_values(array_unique(array_map('intval', $data['selected_members'] ?? [])));
-        $deselectedMembers = array_values(array_unique(array_map('intval', $data['deselected_members'] ?? [])));
-        $affectedUserIds = empty($selectedMembers) && empty($deselectedMembers) && $this->userId !== null
-            ? [$this->userId]
-            : array_values(array_unique([...$selectedMembers, ...$deselectedMembers]));
+        $memberScope = app(TrainingOccurrenceMemberScope::class)->resolve(
+            filteredUserId: $this->userId,
+            groupId: $this->groupId,
+            originalTrainingProgramId: $originalProgramId === null ? null : (int) $originalProgramId,
+            originalDatetime: $originalDatetime,
+            selectedMembers: $data['selected_members'] ?? [],
+            deselectedMembers: $data['deselected_members'] ?? [],
+            removalsConfirmed: (bool) ($data['removals_confirmed'] ?? false),
+        );
+
+        if ($memberScope['removal_confirmation_missing']) {
+            $rejectedSlots = TrainingProgramSlot::query()
+                ->where('training_program_id', (int) $originalProgramId)
+                ->whereIn('user_id', $memberScope['requested_removal_user_ids'])
+                ->where('datetime', $originalDatetime)
+                ->get();
+            app(TrainingScheduleAuditService::class)->reject(
+                owner: TrainingProgram::query()->findOrFail($trainingProgramId),
+                action: 'submit_occurrence',
+                slots: $rejectedSlots,
+                reason: 'removal_confirmation_required',
+                context: [
+                    'component' => self::class,
+                    'group_id' => $this->groupId,
+                    'filtered_user_id' => $this->userId,
+                    'training_program_id' => $trainingProgramId,
+                    'datetime' => $datetime,
+                    'original_training_program_id' => $originalProgramId,
+                    'original_datetime' => $originalDatetime,
+                    'requested_removal_user_ids' => $memberScope['requested_removal_user_ids'],
+                ],
+            );
+            Flux::toast(text: __('Confirm athlete removals before saving this occurrence.'), variant: 'danger');
+
+            return;
+        }
+
+        $selectedMembers = $memberScope['selected_members'];
+        $deselectedMembers = $memberScope['deselected_members'];
+        $affectedUserIds = $memberScope['affected_user_ids'];
         $programIds = array_values(array_unique(array_filter([
             $trainingProgramId,
             $originalProgramId === null ? null : (int) $originalProgramId,
@@ -671,7 +707,7 @@ class CalendarScheduleView extends Component
             return;
         }
 
-        if (empty($selectedMembers) && empty($deselectedMembers) && $this->userId !== null) {
+        if ($this->userId !== null) {
             if ($programChanged || $timeChanged) {
                 TrainingProgramSlot::query()
                     ->where('training_program_id', (int) $originalProgramId)
@@ -747,6 +783,13 @@ class CalendarScheduleView extends Component
                 'before_slot_ids' => $beforeSlots->pluck('id')->map(fn (mixed $id): int => (int) $id)->all(),
             ],
         );
+
+        if (! (bool) ($data['deletion_confirmed'] ?? false)) {
+            $audit->recordRejected($batch, $beforeSlots, 'deletion_confirmation_required');
+            Flux::toast(text: __('Confirm the occurrence removal before continuing.'), variant: 'danger');
+
+            return;
+        }
 
         if ($protectedSlots->isNotEmpty()) {
             $audit->recordRejected($batch, $protectedSlots, 'recorded_session');

@@ -31,8 +31,7 @@ it('builds week slot modal payloads', function () {
         'start_time' => '09:00',
         'training_program_id' => 12,
         'groupId' => 4,
-        'userId' => null,
+        'userId' => 8,
         'prefill' => true,
-        'preselectedUserId' => 8,
     ]);
 });

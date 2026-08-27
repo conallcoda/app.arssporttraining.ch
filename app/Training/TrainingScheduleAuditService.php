@@ -90,6 +90,23 @@ class TrainingScheduleAuditService
         }
     }
 
+    /**
+     * @param  Collection<int, TrainingProgramSlot>  $slots
+     * @param  array<string, mixed>  $context
+     */
+    public function reject(
+        Model $owner,
+        string $action,
+        Collection $slots,
+        string $reason,
+        array $context = [],
+    ): TrainingRevisionBatch {
+        $batch = $this->start($owner, $action, $context);
+        $this->recordRejected($batch, $slots, $reason);
+
+        return $batch;
+    }
+
     /** @return array<string, mixed> */
     public function snapshot(TrainingProgramSlot $slot): array
     {

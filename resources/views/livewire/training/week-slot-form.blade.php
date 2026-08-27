@@ -40,4 +40,22 @@
             </div>
         </x-cms::modal.footer>
     </x-cms::modal>
+
+    <x-cms::confirm-modal
+        name="confirm-week-slot-removals"
+        :heading="$this->pendingRemovalHeading()"
+        :description="$this->pendingRemovalDescription()"
+        :confirmLabel="__('Remove')"
+        variant="danger"
+        action="confirmGroupRemovals"
+    />
+
+    <x-cms::confirm-modal
+        name="confirm-week-slot-delete"
+        :heading="$this->pendingDeleteHeading()"
+        :description="$this->pendingDeleteDescription()"
+        :confirmLabel="__('Remove')"
+        variant="danger"
+        action="confirmDeleteSlot"
+    />
 </div>

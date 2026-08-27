@@ -106,6 +106,7 @@ class TrainingSessionCompiler
             iatPercent: $heartRateMetric?->anaerobicThreshold,
             slotIndex: (int) $sessionContext['slotIndex'],
             useSlotIndexForGroupedSessions: true,
+            plannedWeekCount: max(1, (int) $programConfig->weeks),
         );
         $plannedSession = $this->planCompiler->compile($authoringProgram, $planningContext);
         $compiledExercises = array_map(

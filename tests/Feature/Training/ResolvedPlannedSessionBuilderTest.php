@@ -119,6 +119,56 @@ it('resolves grouped progression from the persisted athlete slot index', functio
         ->and($session->exercises[0]->sets[0]->values[0]->value)->toBe(8);
 });
 
+it('uses the authored grouped session total before every slot is scheduled', function () {
+    $builder = app(ResolvedPlannedSessionBuilder::class);
+    $exerciseConfigs = [[
+        'exerciseId' => 12,
+        'sort' => 0,
+        'group' => null,
+        'type' => 'main',
+        'effectiveConfig' => [
+            'settings' => ['reps', 'weight'],
+            'preview' => ['groupingMode' => 'groups', 'groupSize' => 2],
+            'sets' => ['default' => 3, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => [
+                'mode' => 'automatic',
+                'default' => 7,
+                'stepDownInterval' => 2,
+                'decrement' => 2,
+                'minimum' => 1,
+                'applyPer' => 'session',
+            ],
+            'weight' => ['mode' => 'automatic', 'oneRepMaxModifier' => 85, 'applyPer' => 'session'],
+        ],
+        'overrideLayer' => ['sessions' => [], 'cells' => []],
+        'measuredData' => new WeightProgressionSetting(measuredReps: 1, measuredWeight: 117.5, targetGoal: 3),
+    ]];
+
+    $buildFirstSession = function (array $sessionCounts) use ($builder, $exerciseConfigs): array {
+        $session = $builder->build(
+            weekIndex: 0,
+            sessionIndex: 0,
+            scheduledDate: '2026-08-21',
+            exerciseConfigs: $exerciseConfigs,
+            weeks: 1,
+            sessionCounts: $sessionCounts,
+            slotIndex: 0,
+            useSlotIndexForGroupedSessions: true,
+            plannedWeekCount: 4,
+        );
+
+        return collect($session->exercises[0]->sets)
+            ->map(fn ($set): float => (float) collect($set->values)->firstWhere('settingKey', 'weight')->value)
+            ->all();
+    };
+
+    $firstSlotOnly = $buildFirstSession([1]);
+    $allEightSlots = $buildFirstSession(array_fill(0, 8, 1));
+
+    expect($firstSlotOnly)->toBe([71.5, 76.5, 81.5])
+        ->and($firstSlotOnly)->toBe($allEightSlots);
+});
+
 it('tracks plan and user provenance layers distinctly', function () {
     $builder = app(ResolvedPlannedSessionBuilder::class);
 

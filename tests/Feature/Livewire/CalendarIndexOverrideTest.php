@@ -1029,6 +1029,7 @@ it('deselecting a user removes their slot', function () {
             'start_time' => '09:00',
             'selected_members' => [$user1->id],
             'deselected_members' => [$user2->id],
+            'removals_confirmed' => true,
             'original_training_program_id' => $tp->id,
             'original_start_time' => '09:00',
         ]);
@@ -1041,6 +1042,50 @@ it('deselecting a user removes their slot', function () {
         ->and($revision?->subject_id)->not->toBeNull()
         ->and($revision?->before_value)->toBe('present')
         ->and($revision?->after_value)->toBe('deleted');
+});
+
+it('rejects an unconfirmed group occurrence removal without changing any slots', function () {
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Confirmation Required']);
+    [$nino, $finn] = User::factory()->athlete()->count(2)->create();
+    $group->members()->attach([$nino->id, $finn->id]);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => ExerciseProgram::factory()->create()->id,
+    ]);
+    $slots = collect([$nino, $finn])->map(fn (User $athlete) => TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => '2026-03-02 09:00:00',
+    ]));
+    $weekStartsOn = (int) config('training.week_starts_on', Carbon::MONDAY);
+
+    Livewire::actingAs($coach)
+        ->test(CalendarProgramsView::class, [
+            'groupId' => $group->id,
+            'calendarSettings' => calendarWeekSettings(),
+            'weekStartsOn' => $weekStartsOn,
+            'weekEndsOn' => ($weekStartsOn + 6) % 7,
+        ])
+        ->call('onWeekSlotSubmitted', [
+            'training_program_id' => $trainingProgram->id,
+            'date' => '2026-03-02',
+            'start_time' => '09:00',
+            'selected_members' => [$nino->id],
+            'deselected_members' => [$finn->id],
+            'removals_confirmed' => false,
+            'original_training_program_id' => $trainingProgram->id,
+            'original_start_time' => '09:00',
+        ]);
+
+    $batch = TrainingRevisionBatch::query()->where('action', 'submit_occurrence')->latest('id')->first();
+    $revision = TrainingStateRevision::query()->where('batch_id', $batch?->id)->first();
+    $context = json_decode($batch?->reason ?? '{}', true);
+
+    expect($slots->every(fn (TrainingProgramSlot $slot): bool => $slot->fresh() !== null))->toBeTrue()
+        ->and($context['outcome'] ?? null)->toBe('rejected')
+        ->and($context['rejection_reason'] ?? null)->toBe('removal_confirmation_required')
+        ->and($revision?->after_payload['mutation_rejected'] ?? false)->toBeTrue();
 });
 
 it('does not deselect an athlete from a partially completed occurrence and audits the rejection', function () {
@@ -1077,6 +1122,7 @@ it('does not deselect an athlete from a partially completed occurrence and audit
             'start_time' => '09:00',
             'selected_members' => [],
             'deselected_members' => [$athlete->id],
+            'removals_confirmed' => true,
             'original_training_program_id' => $trainingProgram->id,
             'original_start_time' => '09:00',
         ]);
@@ -1146,6 +1192,105 @@ it('does not move a completed occurrence and audits the rejection', function () 
             'datetime' => '2026-03-02 14:00:00',
         ])->exists())->toBeFalse()
         ->and($revision?->after_payload['mutation_rejected'] ?? false)->toBeTrue();
+});
+
+it('keeps an athlete-prefilled add scoped to that athlete even with stale group selections', function () {
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Scoped Schedule']);
+    $nino = User::factory()->athlete()->create();
+    $finn = User::factory()->athlete()->create();
+    $group->members()->attach([$nino->id, $finn->id]);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => ExerciseProgram::factory()->create()->id,
+    ]);
+    $finnSlot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $finn->id,
+        'datetime' => '2026-03-02 09:00:00',
+    ]);
+    $weekStartsOn = (int) config('training.week_starts_on', Carbon::MONDAY);
+
+    Livewire::actingAs($coach)
+        ->test(CalendarProgramsView::class, [
+            'groupId' => $group->id,
+            'userId' => $nino->id,
+            'calendarSettings' => calendarWeekSettings(),
+            'weekStartsOn' => $weekStartsOn,
+            'weekEndsOn' => ($weekStartsOn + 6) % 7,
+        ])
+        ->call('onWeekSlotSubmitted', [
+            'training_program_id' => $trainingProgram->id,
+            'date' => '2026-03-02',
+            'start_time' => '09:00',
+            // This simulates the dangerous payload produced by the old modal.
+            'selected_members' => [$nino->id],
+            'deselected_members' => [$finn->id],
+            'original_training_program_id' => null,
+            'original_start_time' => null,
+        ]);
+
+    $batch = TrainingRevisionBatch::query()->where('action', 'submit_occurrence')->latest('id')->first();
+    $context = json_decode($batch?->reason ?? '{}', true);
+
+    expect($finnSlot->fresh())->not->toBeNull()
+        ->and(TrainingProgramSlot::query()->where([
+            'training_program_id' => $trainingProgram->id,
+            'user_id' => $nino->id,
+            'datetime' => '2026-03-02 09:00:00',
+        ])->exists())->toBeTrue()
+        ->and($context['filtered_user_id'] ?? null)->toBe($nino->id)
+        ->and($context['selected_members'] ?? null)->toBe([])
+        ->and($context['deselected_members'] ?? null)->toBe([]);
+});
+
+it('never treats unchecked athletes as removals when creating a group occurrence', function () {
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Safe Group Create']);
+    $nino = User::factory()->athlete()->create();
+    $finn = User::factory()->athlete()->create();
+    $group->members()->attach([$nino->id, $finn->id]);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => ExerciseProgram::factory()->create()->id,
+    ]);
+    $finnSlot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $finn->id,
+        'datetime' => '2026-03-02 09:00:00',
+    ]);
+    $weekStartsOn = (int) config('training.week_starts_on', Carbon::MONDAY);
+
+    Livewire::actingAs($coach)
+        ->test(CalendarProgramsView::class, [
+            'groupId' => $group->id,
+            'calendarSettings' => calendarWeekSettings(),
+            'weekStartsOn' => $weekStartsOn,
+            'weekEndsOn' => ($weekStartsOn + 6) % 7,
+        ])
+        ->call('onWeekSlotSubmitted', [
+            'training_program_id' => $trainingProgram->id,
+            'date' => '2026-03-02',
+            'start_time' => '09:00',
+            'selected_members' => [$nino->id],
+            // Even a stale or forged create payload cannot turn this into a removal.
+            'deselected_members' => [$finn->id],
+            'removals_confirmed' => true,
+            'original_training_program_id' => null,
+            'original_start_time' => null,
+        ]);
+
+    $batch = TrainingRevisionBatch::query()->where('action', 'submit_occurrence')->latest('id')->first();
+    $context = json_decode($batch?->reason ?? '{}', true);
+
+    expect($finnSlot->fresh())->not->toBeNull()
+        ->and(TrainingProgramSlot::query()->where([
+            'training_program_id' => $trainingProgram->id,
+            'user_id' => $nino->id,
+            'datetime' => '2026-03-02 09:00:00',
+        ])->exists())->toBeTrue()
+        ->and($context['selected_members'] ?? null)->toBe([$nino->id])
+        ->and($context['deselected_members'] ?? null)->toBe([]);
 });
 
 it('removes all user slots in group mode', function () {

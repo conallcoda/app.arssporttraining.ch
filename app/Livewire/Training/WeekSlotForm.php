@@ -29,6 +29,12 @@ class WeekSlotForm extends FormModal
 
     public array $selectedMembers = [];
 
+    public array $originalSelectedMembers = [];
+
+    public array $pendingSubmission = [];
+
+    public bool $deleteConfirmationPending = false;
+
     public function mount(
         string $name = 'week-slot',
         string $title = 'add-slot-default',
@@ -59,8 +65,6 @@ class WeekSlotForm extends FormModal
         );
     }
 
-    public ?int $preselectedUserId = null;
-
     public function open(
         array $data = [],
         ?string $title = null,
@@ -70,14 +74,12 @@ class WeekSlotForm extends FormModal
         ?string $activeFormType = null,
         array $formTypeData = [],
         ?string $actionName = null,
-    ): void
-    {
+    ): void {
         $this->activeTitle = $title;
         $this->activeActionName = $actionName;
         $this->groupId = $data['groupId'] ?? null;
         $this->userId = $data['userId'] ?? null;
         $this->slotDate = $data['date'] ?? null;
-        $this->preselectedUserId = $data['preselectedUserId'] ?? null;
 
         $isPrefill = $data['prefill'] ?? false;
         $this->isEditing = ! $isPrefill && isset($data['training_program_id']) && $data['training_program_id'] !== null;
@@ -92,6 +94,8 @@ class WeekSlotForm extends FormModal
             'training_program_id' => $data['training_program_id'] ?? null,
             'start_time' => $data['start_time'] ?? '09:00',
         ];
+        $this->pendingSubmission = [];
+        $this->deleteConfirmationPending = false;
 
         $this->loadMembers();
 
@@ -102,6 +106,7 @@ class WeekSlotForm extends FormModal
     {
         $this->members = [];
         $this->selectedMembers = [];
+        $this->originalSelectedMembers = [];
 
         if ($this->groupId === null || $this->userId !== null) {
             return;
@@ -119,12 +124,6 @@ class WeekSlotForm extends FormModal
 
         $allMemberIds = array_column($this->members, 'id');
 
-        if ($this->preselectedUserId !== null) {
-            $this->selectedMembers = [(string) $this->preselectedUserId];
-
-            return;
-        }
-
         if (! $this->isEditing || $this->data['training_program_id'] === null) {
             $this->selectedMembers = array_map('strval', $allMemberIds);
 
@@ -141,6 +140,7 @@ class WeekSlotForm extends FormModal
             ->all();
 
         $this->selectedMembers = array_map('strval', $usersWithSlot);
+        $this->originalSelectedMembers = $this->selectedMembers;
     }
 
     public function submit(): void
@@ -152,28 +152,131 @@ class WeekSlotForm extends FormModal
             'required' => __('This field is required.'),
         ]);
 
-        Flux::modal($this->name)->close();
-
         $allMemberIds = array_map('strval', array_column($this->members, 'id'));
-        $deselectedMembers = array_values(array_diff($allMemberIds, $this->selectedMembers));
-
-        $this->dispatch("{$this->name}.submitted", data: [
+        $selectedMembers = array_values(array_intersect(
+            array_map('strval', $this->selectedMembers),
+            $allMemberIds,
+        ));
+        $removedMembers = $this->isEditing
+            ? array_values(array_diff($this->originalSelectedMembers, $selectedMembers))
+            : [];
+        $payload = [
             ...$this->data,
             'date' => $this->slotDate,
-            'deselected_members' => array_map('intval', $deselectedMembers),
-            'selected_members' => array_map('intval', $this->selectedMembers),
+            'operation_mode' => $this->isEditing ? 'edit' : 'create',
+            'deselected_members' => array_map('intval', $removedMembers),
+            'selected_members' => array_map('intval', $selectedMembers),
+            'original_selected_members' => array_map('intval', $this->originalSelectedMembers),
             'original_training_program_id' => $this->originalTrainingProgramId,
             'original_start_time' => $this->originalStartTime,
+            'removals_confirmed' => false,
+        ];
+
+        if ($removedMembers !== []) {
+            $this->pendingSubmission = $payload;
+            Flux::modal('confirm-week-slot-removals')->show();
+
+            return;
+        }
+
+        $this->dispatchSubmission($payload);
+    }
+
+    public function confirmGroupRemovals(): void
+    {
+        if ($this->pendingSubmission === []) {
+            return;
+        }
+
+        $payload = [
+            ...$this->pendingSubmission,
+            'removals_confirmed' => true,
+        ];
+        $this->pendingSubmission = [];
+
+        Flux::modal('confirm-week-slot-removals')->close();
+        $this->dispatchSubmission($payload);
+    }
+
+    public function pendingRemovalHeading(): string
+    {
+        $count = count($this->pendingSubmission['deselected_members'] ?? []);
+
+        return trans_choice(
+            'Remove :count pending session?|Remove :count pending sessions?',
+            $count,
+            ['count' => $count],
+        );
+    }
+
+    public function pendingRemovalDescription(): string
+    {
+        $removedIds = array_map('intval', $this->pendingSubmission['deselected_members'] ?? []);
+        $names = collect($this->members)
+            ->filter(fn (array $member): bool => in_array((int) $member['id'], $removedIds, true))
+            ->pluck('name')
+            ->join(', ');
+
+        return __('This will remove the pending session for :athletes. Recorded sessions remain protected.', [
+            'athletes' => $names,
         ]);
+    }
+
+    /** @param array<string, mixed> $payload */
+    protected function dispatchSubmission(array $payload): void
+    {
+        Flux::modal($this->name)->close();
+        $this->dispatch("{$this->name}.submitted", data: $payload);
     }
 
     public function deleteSlot(): void
     {
+        $this->deleteConfirmationPending = true;
+        Flux::modal('confirm-week-slot-delete')->show();
+    }
+
+    public function confirmDeleteSlot(): void
+    {
+        if (! $this->deleteConfirmationPending) {
+            return;
+        }
+
+        $this->deleteConfirmationPending = false;
+        Flux::modal('confirm-week-slot-delete')->close();
         Flux::modal($this->name)->close();
 
         $this->dispatch("{$this->name}.deleted", data: [
             ...$this->data,
             'date' => $this->slotDate,
+            'deletion_confirmed' => true,
+        ]);
+    }
+
+    public function pendingDeleteHeading(): string
+    {
+        $count = max(1, count($this->originalSelectedMembers));
+
+        return trans_choice(
+            'Remove this pending session?|Remove :count pending sessions?',
+            $count,
+            ['count' => $count],
+        );
+    }
+
+    public function pendingDeleteDescription(): string
+    {
+        if ($this->userId !== null || $this->originalSelectedMembers === []) {
+            return __('This will remove this pending session. Recorded sessions remain protected.');
+        }
+
+        $originalIds = array_map('intval', $this->originalSelectedMembers);
+        $names = collect($this->members)
+            ->filter(fn (array $member): bool => in_array((int) $member['id'], $originalIds, true))
+            ->pluck('name')
+            ->join(', ');
+
+        return __('This will remove the pending occurrence for: :athletes. Recorded sessions remain protected.', [
+            'athletes' => $names,
         ]);
     }
 

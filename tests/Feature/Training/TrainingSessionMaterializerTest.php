@@ -1,10 +1,15 @@
 <?php
 
+use App\Data\Athlete\Metric\MetricEnum;
 use App\Data\Training\Config\ExerciseOverrides;
+use App\Models\Athlete\MetricSubmission;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
+use App\Models\Tag;
 use App\Models\Training\TrainingProgram;
+use App\Models\Training\TrainingProgramBlock;
+use App\Models\Training\TrainingProgramBlockTypeEnum;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Training\TrainingProgramSlotExerciseStatusEnum;
 use App\Models\Training\TrainingProgramSlotSetStatusEnum;
@@ -491,13 +496,13 @@ it('materializes blank manual settings so athletes can record them later', funct
         ->and($weightValue?->planned_string_value)->toBeNull();
 });
 
-it('rebuilds sibling future slots when later sessions change the block session shape', function () {
+it('keeps sibling weights stable when later planned sessions are scheduled', function () {
     Carbon::setTestNow(Carbon::parse('2026-05-01 09:00:00'));
 
     $athlete = User::factory()->athlete()->create();
     $coach = User::factory()->coach()->create();
     $group = UserGroup::create(['name' => 'Test Group']);
-    $category = \App\Models\Tag::factory()->withScope('training_category')->create(['name' => 'Strength']);
+    $category = Tag::factory()->withScope('training_category')->create(['name' => 'Strength']);
     $program = ExerciseProgram::factory()->create([
         'name' => 'Strength',
         'exercise_category_id' => $category->id,
@@ -536,11 +541,11 @@ it('rebuilds sibling future slots when later sessions change the block session s
         'sort' => 0,
     ]);
 
-    \App\Models\Training\TrainingProgramBlock::create([
+    TrainingProgramBlock::create([
         'group_id' => $group->id,
         'user_id' => null,
         'category_id' => $category->id,
-        'type' => \App\Models\Training\TrainingProgramBlockTypeEnum::Category,
+        'type' => TrainingProgramBlockTypeEnum::Category,
         'start' => '2026-05-09',
         'end' => '2026-06-08',
         'note' => 'Strength Block',
@@ -548,9 +553,9 @@ it('rebuilds sibling future slots when later sessions change the block session s
         'config' => ['goal' => 5, 'autoRecord1rm' => false],
     ]);
 
-    $metric = \App\Models\Athlete\MetricSubmission::query()->create([
+    $metric = MetricSubmission::query()->create([
         'user_id' => $athlete->id,
-        'metric' => \App\Data\Athlete\Metric\MetricEnum::OneRepMax,
+        'metric' => MetricEnum::OneRepMax,
         'recorded_by' => $coach->id,
         'recorded_at' => '2026-05-09',
         'owner_type' => null,
@@ -574,7 +579,7 @@ it('rebuilds sibling future slots when later sessions change the block session s
         ->values()
         ->all();
 
-    expect($initialWeights)->toBe([46.5, 49.0, 51.5]);
+    expect($initialWeights)->toBe([44.0, 46.5, 49.0]);
 
     TrainingProgramSlot::factory()->create([
         'training_program_id' => $trainingProgram->id,
@@ -601,7 +606,7 @@ it('rebuilds sibling future slots when later sessions change the block session s
         ->values()
         ->all();
 
-    expect($rebuiltWeights)->toBe([44.0, 46.5, 49.0]);
+    expect($rebuiltWeights)->toBe($initialWeights);
 
     Carbon::setTestNow();
 });
