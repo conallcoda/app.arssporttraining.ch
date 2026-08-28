@@ -3,9 +3,11 @@
 namespace App\Training;
 
 use App\Models\Training\TrainingProgramSlot;
-use App\Models\Training\TrainingProgramSlotStatusEnum;
+use App\Models\Training\TrainingProgramSlotExercise;
 use App\Models\Training\TrainingProgramSlotExerciseStatusEnum;
+use App\Models\Training\TrainingProgramSlotSet;
 use App\Models\Training\TrainingProgramSlotSetStatusEnum;
+use App\Models\Training\TrainingProgramSlotStatusEnum;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 
@@ -58,6 +60,39 @@ class TrainingSessionEditGuard
             || (int) $slot->partial_exercise_count > 0
             || (int) $slot->skipped_exercise_count > 0
             || (bool) ($slot->has_recorded_exercise_rows ?? false);
+    }
+
+    public function aggregateColumnsIndicateRecordedExerciseOutcome(TrainingProgramSlotExercise $exercise): bool
+    {
+        if (in_array($exercise->status, [
+            TrainingProgramSlotExerciseStatusEnum::Completed,
+            TrainingProgramSlotExerciseStatusEnum::PartiallyCompleted,
+            TrainingProgramSlotExerciseStatusEnum::Skipped,
+        ], true)
+            || $exercise->completed_at !== null
+            || (bool) $exercise->has_any_modification
+            || (int) $exercise->completed_set_count > 0
+            || (int) $exercise->modified_set_count > 0
+            || (int) $exercise->skipped_set_count > 0) {
+            return true;
+        }
+
+        return $exercise->sets->contains(function (TrainingProgramSlotSet $set): bool {
+            if (in_array($set->status, [
+                TrainingProgramSlotSetStatusEnum::Completed,
+                TrainingProgramSlotSetStatusEnum::CompletedWithModification,
+                TrainingProgramSlotSetStatusEnum::Skipped,
+            ], true)
+                || $set->completed_at !== null
+                || $set->skipped_at !== null
+                || (bool) $set->has_any_modification) {
+                return true;
+            }
+
+            return $set->values->contains(fn ($value): bool => $value->actual_value_type !== null
+                || (bool) $value->actual_is_explicit
+                || (bool) $value->is_modified);
+        });
     }
 
     public function hasImmutableSlotsForOccurrence(

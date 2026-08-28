@@ -1670,3 +1670,55 @@ it('athlete reset ignores inherited plan grid cells and falls back through plan 
         ->and($resolved->effectiveConfig['reps']['default'])->toBe(14)
         ->and($resolved->effectiveConfig['overrides']['cells'])->toBe([]);
 });
+
+it('athlete session reset ignores inherited plan grid cells for only that session', function () {
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 8, 'applyPer' => 'per_set'],
+        ],
+    ]);
+    $program = ExerciseProgram::factory()->create();
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+    $athlete = User::factory()->create();
+
+    $config = $program->config;
+    $config->setDefaultExerciseOverrides($pivot->id, ExerciseOverrides::from([
+        'gridOverrides' => [
+            'sessions' => [],
+            'cells' => [
+                ['week' => 0, 'session' => 0, 'set' => 0, 'data' => ['reps' => 7]],
+                ['week' => 0, 'session' => 1, 'set' => 0, 'data' => ['reps' => 6]],
+            ],
+        ],
+    ]));
+    $program->config = $config;
+    $program->save();
+
+    Livewire::test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => $athlete->id,
+        'weeks' => 1,
+        'sessionsPerWeek' => 2,
+        'expandedWeeks' => [0],
+        'lockedSessionsByWeek' => [[false, false]],
+    ])->call('resetDisplayBucket', 'session:0:0');
+
+    $freshConfig = $program->fresh()->config;
+    $athleteOverrides = $freshConfig->userExerciseOverrides($athlete->id, $pivot->id);
+    $resolved = $freshConfig->resolveExercise($exercise->config, $pivot->id, $athlete->id);
+    $cells = collect($resolved->effectiveConfig['overrides']['cells']);
+
+    expect($athleteOverrides->ignoredPlanGridOverrideSessions)->toBe(['0:0'])
+        ->and($athleteOverrides->inheritPlanGridOverrides)->toBeNull()
+        ->and($cells->firstWhere(fn (array $cell): bool => $cell['week'] === 0 && $cell['session'] === 0))->toBeNull()
+        ->and($cells->firstWhere(fn (array $cell): bool => $cell['week'] === 0 && $cell['session'] === 1)['data']['reps'])->toBe(6);
+});

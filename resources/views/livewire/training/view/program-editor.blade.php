@@ -357,6 +357,7 @@
                         :preview-mode="true"
                         :preview-training-program-id="$previewTrainingProgramId"
                         :preview-user-id="$userId"
+                        :record-mode="false"
                         :initial-session-key="$previewInitialSessionKey"
                         :initial-section="$previewInitialSection"
                         :initial-exercise-id="$previewInitialExerciseId"
@@ -365,6 +366,14 @@
                 @endif
             </div>
         </flux:modal>
+
+
+        <livewire:training.view.program-record-editor
+            :key="'program-record-editor-' . $scheduledTrainingProgramId . '-' . $userId"
+            :exercise-program="$exerciseProgram"
+            :scheduled-training-program-id="$scheduledTrainingProgramId"
+            :user-id="$userId"
+        />
     @endif
 
     <x-athlete.exercise-gallery-modal />

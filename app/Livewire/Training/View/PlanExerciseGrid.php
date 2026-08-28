@@ -35,6 +35,8 @@ use App\Models\Training\TrainingProgramSlotExercise;
 use App\Models\Training\TrainingProgramSlotSet;
 use App\Models\Training\TrainingProgramSlotSetStatusEnum;
 use App\Models\Training\TrainingProgramSlotSetValue;
+use App\Models\Users\UserTypeEnum;
+use App\Support\AthleteDashboardDate;
 use App\Support\Profiling\PlanGridProfiler;
 use App\Support\Training\ApplyPerScope;
 use App\Support\Training\ExerciseMetricAvailability;
@@ -44,7 +46,9 @@ use App\Support\Training\SlotStatusPresenter;
 use App\Support\Training\WeekSessionCountResolver;
 use App\Training\AthleteExerciseValueService;
 use App\Training\TrainingPlanRevisionService;
+use App\Training\TrainingSessionEditGuard;
 use App\Training\TrainingSessionPlannedValueService;
+use App\Training\TrainingSessionProgressService;
 use App\Training\TrainingSessionRebuildDispatcher;
 use ArrayObject;
 use Carbon\Carbon;
@@ -122,7 +126,15 @@ class PlanExerciseGrid extends Component
 
     public int $gridRenderVersion = 0;
 
+    public ?string $pendingRecordAction = null;
+
+    public ?int $pendingRecordWeek = null;
+
+    public ?int $pendingRecordSession = null;
+
     protected ?array $loadedScheduledSlotsByDate = null;
+
+    protected ?bool $canManageSessionRecordsCache = null;
 
     protected ?array $loadedScheduledSnapshotsByDate = null;
 
@@ -243,6 +255,7 @@ class PlanExerciseGrid extends Component
             }
 
             $this->applyCalendarWeekScheduleIfNeeded($calendarWeekSchedule);
+            $this->syncExerciseSessionLocks();
         } finally {
             PlanGridProfiler::end($span);
         }
@@ -292,6 +305,351 @@ class PlanExerciseGrid extends Component
         );
     }
 
+    #[Computed]
+    public function recordMenuOptions(): array
+    {
+        if (! $this->showsRecordEditingMode()
+            || $this->userId === null
+            || $this->scheduledTrainingProgramId === null
+            || ! $this->canManageSessionRecords()) {
+            return [];
+        }
+
+        return collect($this->previewMenuOptions)
+            ->map(fn (array $sessions): array => collect($sessions)
+                ->filter(fn (array $session): bool => $this->canRecordWeekSession(
+                    (int) $session['week'],
+                    (int) $session['session'],
+                ))
+                ->map(function (array $session): array {
+                    $exercise = $this->slotExerciseForWeekSession(
+                        (int) $session['week'],
+                        (int) $session['session'],
+                    );
+
+                    return $session + [
+                        'status' => $exercise?->status?->value ?? 'pending',
+                    ];
+                })
+                ->values()
+                ->all())
+            ->filter()
+            ->all();
+    }
+
+    public function requestRecordAction(int $week, int $session, string $action): void
+    {
+        abort_unless(in_array($action, ['edit', 'skipped', 'completed', 'pending'], true), 422);
+        abort_unless($this->showsRecordEditingMode(), 403);
+        abort_unless($this->canManageSessionRecords(), 403);
+        abort_unless($this->canRecordWeekSession($week, $session), 403);
+
+        $exercise = $this->slotExerciseForWeekSession($week, $session);
+        abort_unless($exercise instanceof TrainingProgramSlotExercise, 404);
+        abort_unless($this->recordActionAllowedForExercise($action, $exercise), 422);
+
+        if (in_array($action, ['edit', 'pending'], true)) {
+            $this->performRecordAction($week, $session, $action);
+
+            return;
+        }
+
+        if ($this->exerciseHasStoredActualValues($exercise)) {
+            $this->pendingRecordAction = $action;
+            $this->pendingRecordWeek = $week;
+            $this->pendingRecordSession = $session;
+            Flux::modal($this->recordConfirmationModalName())->show();
+
+            return;
+        }
+
+        $this->performRecordAction($week, $session, $action);
+    }
+
+    public function confirmRecordAction(): void
+    {
+        abort_unless($this->showsRecordEditingMode(), 403);
+        abort_unless($this->canManageSessionRecords(), 403);
+        abort_unless($this->pendingRecordAction !== null, 422);
+        abort_unless($this->pendingRecordWeek !== null && $this->pendingRecordSession !== null, 422);
+
+        $action = $this->pendingRecordAction;
+        $week = $this->pendingRecordWeek;
+        $session = $this->pendingRecordSession;
+
+        $this->clearPendingRecordAction();
+        Flux::modal($this->recordConfirmationModalName())->close();
+
+        $this->performRecordAction($week, $session, $action);
+    }
+
+    public function cancelRecordAction(): void
+    {
+        $this->clearPendingRecordAction();
+        Flux::modal($this->recordConfirmationModalName())->close();
+    }
+
+    public function recordConfirmationModalName(): string
+    {
+        return 'confirm-record-action-'.$this->programExerciseId;
+    }
+
+    public function pendingRecordActionLabel(): string
+    {
+        return match ($this->pendingRecordAction) {
+            'skipped' => __('Mark as Skipped'),
+            'completed' => __('Mark as Completed'),
+            'pending' => __('Mark as Pending'),
+            default => __('Continue'),
+        };
+    }
+
+    protected function performRecordAction(int $week, int $session, string $action): void
+    {
+        abort_unless(in_array($action, ['edit', 'skipped', 'completed', 'pending'], true), 422);
+        abort_unless($this->showsRecordEditingMode(), 403);
+        abort_unless($this->canManageSessionRecords(), 403);
+        abort_unless($this->canRecordWeekSession($week, $session), 403);
+
+        $exercise = $this->slotExerciseForWeekSession($week, $session);
+        abort_unless($exercise instanceof TrainingProgramSlotExercise, 404);
+        abort_unless($this->recordActionAllowedForExercise($action, $exercise), 422);
+
+        if ($action === 'edit') {
+            $this->dispatch(
+                'open-program-record-at-session',
+                sessionKey: (string) $exercise->training_program_slot_id,
+                section: $this->programExerciseType,
+                exerciseId: $this->exerciseId,
+                exerciseSort: $this->programExerciseSort,
+            );
+
+            return;
+        }
+
+        $progress = app(TrainingSessionProgressService::class);
+
+        match ($action) {
+            'skipped' => $progress->markExerciseSkipped($exercise, clearActualValues: true),
+            'completed' => $progress->markExerciseCompleted($exercise, clearActualValues: true),
+            'pending' => $progress->markExercisePending($exercise, clearActualValues: true),
+        };
+
+        $this->syncDisplayedSessionStatus($week, $session, $exercise->fresh());
+
+        if ($action === 'pending') {
+            $this->lockedSessionsByWeek[$week][$session] = false;
+            $this->restoreHistoricalPlanForPendingSession($week, $session);
+        }
+
+        $this->refreshRecordedSessionData();
+        Flux::toast(text: __('Session record updated.'), variant: 'success');
+    }
+
+    protected function syncDisplayedSessionStatus(int $week, int $session, TrainingProgramSlotExercise $exercise): void
+    {
+        $status = $exercise->status?->value ?? 'pending';
+        $presenter = app(SlotStatusPresenter::class);
+
+        $this->sessionStatusesByWeek[$week][$session] = [
+            'value' => $status,
+            'label' => $presenter->label($status),
+            'color' => $presenter->color($status),
+        ];
+
+        unset($this->displayGrid, $this->recordMenuOptions);
+    }
+
+    protected function restoreHistoricalPlanForPendingSession(int $week, int $session): void
+    {
+        $overrides = $this->getCurrentOverrides();
+        $before = $overrides->historicalGridOverrides;
+        $current = $overrides->gridOverrides;
+
+        foreach ($before['cells'] ?? [] as $cellOverride) {
+            if ((int) ($cellOverride['week'] ?? -1) !== $week || (int) ($cellOverride['session'] ?? -1) !== $session) {
+                continue;
+            }
+
+            $set = (int) ($cellOverride['set'] ?? 0);
+
+            foreach ((array) ($cellOverride['data'] ?? []) as $field => $value) {
+                if ($this->planningValuesEquivalent($value, $this->getEffectiveCellDefault((string) $field, $week, $set, $session))) {
+                    continue;
+                }
+
+                $current = $this->putCellOverride($current, $week, $session, $set, (string) $field, $value);
+            }
+        }
+
+        foreach ($before['sessions'] ?? [] as $sessionOverride) {
+            if ((int) ($sessionOverride['week'] ?? -1) !== $week || (int) ($sessionOverride['session'] ?? -1) !== $session) {
+                continue;
+            }
+
+            foreach ((array) ($sessionOverride['data'] ?? []) as $field => $value) {
+                if ($this->planningValuesEquivalent($value, $this->getEffectiveSessionDefault((string) $field, $week, $session))) {
+                    continue;
+                }
+
+                $current = $this->putSessionOverride($current, $week, $session, (string) $field, $value);
+            }
+        }
+
+        $after = [
+            'sessions' => collect($before['sessions'] ?? [])
+                ->reject(fn (array $override): bool => (int) ($override['week'] ?? -1) === $week
+                    && (int) ($override['session'] ?? -1) === $session)
+                ->values()
+                ->all(),
+            'cells' => collect($before['cells'] ?? [])
+                ->reject(fn (array $override): bool => (int) ($override['week'] ?? -1) === $week
+                    && (int) ($override['session'] ?? -1) === $session)
+                ->values()
+                ->all(),
+        ];
+
+        if ($before === $after && $current === $overrides->gridOverrides) {
+            return;
+        }
+
+        $overrides->gridOverrides = $current;
+        $overrides->historicalGridOverrides = $after;
+        $this->saveOverrides($overrides, notifyParent: false, snapshotLockedWeeks: false);
+
+        $exerciseProgram = ExerciseProgram::query()->findOrFail($this->planId);
+
+        app(TrainingPlanRevisionService::class)->recordGridOverrideChanges(
+            owner: $exerciseProgram,
+            programExerciseId: $this->programExerciseId,
+            userId: $this->userId,
+            before: $before,
+            after: $after,
+            fieldConfigMap: $this->planRevisionFieldConfigMap(),
+            action: 'mark_exercise_pending_archive_historical',
+        );
+    }
+
+    protected function planningValuesEquivalent(mixed $left, mixed $right): bool
+    {
+        if (is_numeric($left) && is_numeric($right)) {
+            return (float) $left === (float) $right;
+        }
+
+        return $left === $right || (string) $left === (string) $right;
+    }
+
+    protected function exerciseHasStoredActualValues(TrainingProgramSlotExercise $exercise): bool
+    {
+        return TrainingProgramSlotSetValue::query()
+            ->whereHas('slotSet', fn ($query) => $query->where('training_program_slot_exercise_id', $exercise->id))
+            ->where(function ($query): void {
+                $query->whereNotNull('actual_value_type')
+                    ->orWhereNotNull('actual_int_value')
+                    ->orWhereNotNull('actual_decimal_value')
+                    ->orWhereNotNull('actual_string_value')
+                    ->orWhereNotNull('actual_json_value')
+                    ->orWhereNotNull('actual_recorded_at');
+            })
+            ->exists();
+    }
+
+    protected function recordActionAllowedForExercise(string $action, TrainingProgramSlotExercise $exercise): bool
+    {
+        $status = $exercise->status?->value ?? 'pending';
+
+        return match ($action) {
+            'edit' => true,
+            'skipped' => $status !== 'skipped',
+            'completed' => in_array($status, ['pending', 'skipped'], true),
+            'pending' => $status !== 'pending',
+            default => false,
+        };
+    }
+
+    protected function canManageSessionRecords(): bool
+    {
+        if ($this->canManageSessionRecordsCache !== null) {
+            return $this->canManageSessionRecordsCache;
+        }
+
+        $user = Auth::user();
+
+        return $this->canManageSessionRecordsCache = in_array(
+            $user?->type,
+            [UserTypeEnum::Coach, UserTypeEnum::Admin],
+            true,
+        );
+    }
+
+    protected function canRecordWeekSession(int $week, int $session): bool
+    {
+        $date = $this->weekSessionDates[$week][$session] ?? null;
+
+        return is_string($date)
+            && $date !== ''
+            && AthleteDashboardDate::canRecordProgramExercisesForDate($date);
+    }
+
+    protected function clearPendingRecordAction(): void
+    {
+        $this->pendingRecordAction = null;
+        $this->pendingRecordWeek = null;
+        $this->pendingRecordSession = null;
+    }
+
+    #[On('training-session-record-updated')]
+    public function refreshRecordedSession(int $trainingProgramId, int $programExerciseId): void
+    {
+        if ($this->scheduledTrainingProgramId !== $trainingProgramId
+            || ($programExerciseId !== 0 && $this->programExerciseId !== $programExerciseId)) {
+            return;
+        }
+
+        $this->refreshRecordedSessionData();
+    }
+
+    protected function refreshRecordedSessionData(): void
+    {
+        $this->bumpGridRenderVersion();
+        unset(
+            $this->actualCellValues,
+            $this->actualSessionValues,
+            $this->editableActualSessionsByWeek,
+            $this->slotExercisesByWeekSession,
+            $this->snapshotExercisesByWeekSession,
+            $this->scheduledSlotsByDate,
+            $this->scheduledSnapshotsByDate,
+            $this->planActualGridTable
+        );
+        $this->loadedScheduledSlotsByDate = null;
+        $this->loadedScheduledSnapshotsByDate = null;
+        $this->forgetSharedScheduledDataCache();
+        $this->syncExerciseSessionLocks();
+    }
+
+    protected function syncExerciseSessionLocks(): void
+    {
+        if ($this->scheduledTrainingProgramId === null || $this->userId === null) {
+            return;
+        }
+
+        $guard = app(TrainingSessionEditGuard::class);
+
+        foreach ($this->weekSessionDates as $weekIndex => $datesForWeek) {
+            foreach (array_keys($datesForWeek) as $sessionIndex) {
+                $exercise = $this->slotExerciseForWeekSession((int) $weekIndex, (int) $sessionIndex);
+
+                if (! $exercise instanceof TrainingProgramSlotExercise) {
+                    continue;
+                }
+
+                $this->lockedSessionsByWeek[$weekIndex][$sessionIndex] = $guard
+                    ->aggregateColumnsIndicateRecordedExerciseOutcome($exercise);
+            }
+        }
+    }
+
     protected function previewSlotIdForWeekSession(int $week, int $session): ?int
     {
         $date = $this->weekSessionDates[$week][$session] ?? null;
@@ -312,6 +670,7 @@ class PlanExerciseGrid extends Component
     public function updatedValueDisplayMode(): void
     {
         unset(
+            $this->recordMenuOptions,
             $this->actualCellValues,
             $this->actualSessionValues,
             $this->editableActualSessionsByWeek,
@@ -425,7 +784,13 @@ class PlanExerciseGrid extends Component
                 return $base->overrides;
             }
 
-            return EffectiveExerciseConfig::mergeGridOverrides($base->overrides, $planOverrides->gridOverrides);
+            return EffectiveExerciseConfig::mergeGridOverrides(
+                $base->overrides,
+                EffectiveExerciseConfig::withoutIgnoredPlanSessions(
+                    $planOverrides->gridOverrides,
+                    $this->getCurrentOverrides()->ignoredPlanGridOverrideSessions,
+                ),
+            );
         }
 
         return $base->overrides;
@@ -676,8 +1041,11 @@ class PlanExerciseGrid extends Component
             $grid->groups = $grouping['groups'];
             $this->applySessionStatusesToGroups($grid->groups);
             $forcedExpandedIndexes = $this->forcedExpandedGroupIndexes($grid, $grid->groups);
+            $recordEditingMode = $this->showsRecordEditingMode();
+
             foreach ($grid->groups as $group) {
-                $group->forceExpanded = in_array($group->index, $forcedExpandedIndexes, true);
+                $group->forceExpanded = $recordEditingMode
+                    || in_array($group->index, $forcedExpandedIndexes, true);
                 $group->collapsible = $usesGroupedSessions && $group->sessionCount > 1 && ! $group->forceExpanded;
                 $group->expanded = in_array($group->index, $expandedWeekLookup, true) || $group->forceExpanded;
             }
@@ -975,6 +1343,16 @@ class PlanExerciseGrid extends Component
                         'sessionNumber' => $blockSessionNumber,
                         'sessionDateLabel' => $this->sessionDateLabels()[$weekIndex][$sessionIndex] ?? null,
                         'locked' => $this->isSessionLocked($weekIndex, $sessionIndex),
+                        'recordable' => $this->canManageSessionRecords()
+                            && $this->canRecordWeekSession($weekIndex, $sessionIndex),
+                        'status' => $slotExercise?->status?->value ?? 'pending',
+                        'statusLabel' => $slotExercise?->status?->label() ?? __('Pending'),
+                        'statusColor' => match ($slotExercise?->status?->value) {
+                            'completed' => 'green',
+                            'partially_completed' => 'amber',
+                            'skipped' => 'sky',
+                            default => 'zinc',
+                        },
                         'rows' => $rows,
                     ];
                     $blockSessionNumber++;
@@ -1009,7 +1387,14 @@ class PlanExerciseGrid extends Component
     #[Computed]
     public function showsPlannedActualSetColumns(): bool
     {
-        return $this->showsActualValueTabs && $this->showPlannedActualInline;
+        return $this->showsActualValueTabs
+            && ($this->valueDisplayMode === 'actual' || $this->showPlannedActualInline);
+    }
+
+    protected function showsRecordEditingMode(): bool
+    {
+        return $this->showsActualValueTabs
+            && ($this->valueDisplayMode === 'actual' || $this->showPlannedActualInline);
     }
 
     public function togglePlannedActualInline(): void
@@ -3594,6 +3979,26 @@ class PlanExerciseGrid extends Component
     {
         $overrides = $this->getCurrentOverrides();
         $overrides->gridOverrides = $gridOverrides;
+        $this->saveOverrides($overrides);
+        $this->bumpGridRenderVersion();
+        unset($this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions, $this->resetMenuOptions);
+    }
+
+    protected function persistResetGridOverrides(array $gridOverrides, array $sessions): void
+    {
+        $overrides = $this->getCurrentOverrides();
+        $overrides->gridOverrides = $gridOverrides;
+
+        if ($this->userId !== null) {
+            $keys = collect($sessions)
+                ->map(fn (array $session): string => ((int) $session['week']).':'.((int) $session['session']))
+                ->all();
+            $overrides->ignoredPlanGridOverrideSessions = array_values(array_unique([
+                ...$overrides->ignoredPlanGridOverrideSessions,
+                ...$keys,
+            ]));
+        }
+
         $this->saveOverrides($overrides);
         $this->bumpGridRenderVersion();
         unset($this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions, $this->resetMenuOptions);

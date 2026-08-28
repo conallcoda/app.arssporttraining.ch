@@ -3,6 +3,7 @@
 use App\Livewire\Athlete\DaySchedule;
 use App\Livewire\Training\View\PlanExerciseGrid;
 use App\Livewire\Training\View\ProgramEditor;
+use App\Livewire\Training\View\ProgramRecordEditor;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
@@ -36,6 +37,34 @@ it('shows the athlete preview button in the settings panel for a scheduled athle
         'userId' => $athlete->id,
         'showActualValueTabs' => true,
     ])->assertSee('Preview');
+});
+
+it('remembers the selected plan and actual display mode across program editors', function () {
+    $coach = User::factory()->coach()->create();
+    $athlete = User::factory()->athlete()->create();
+    $firstProgram = ExerciseProgram::factory()->create();
+    $secondProgram = ExerciseProgram::factory()->create();
+
+    $first = Livewire::actingAs($coach)->test(ProgramEditor::class, [
+        'exerciseProgram' => $firstProgram,
+        'planId' => $firstProgram->id,
+        'userId' => $athlete->id,
+        'showActualValueTabs' => true,
+    ]);
+
+    $first
+        ->assertSet('valueDisplayMode', 'planned')
+        ->set('valueDisplayMode', 'actual')
+        ->assertSet('valueDisplayMode', 'actual');
+
+    expect(session(ProgramEditor::VALUE_DISPLAY_MODE_SESSION_KEY))->toBe('actual');
+
+    Livewire::actingAs($coach)->test(ProgramEditor::class, [
+        'exerciseProgram' => $secondProgram,
+        'planId' => $secondProgram->id,
+        'userId' => $athlete->id,
+        'showActualValueTabs' => true,
+    ])->assertSet('valueDisplayMode', 'actual');
 });
 
 it('does not show the athlete preview button without a selected athlete and scheduled program', function () {
@@ -223,6 +252,67 @@ it('opens an exercise session preview from the plan grid using the real schedule
             section: 'main',
             exerciseId: $exercise->id,
             exerciseSort: 2,
+        );
+});
+
+it('opens the existing athlete editor without the full preview for any coach', function () {
+    config()->set('athlete.dashboard_today_override', '03.04.2030');
+
+    $groupOwner = User::factory()->coach()->create();
+    $coach = User::factory()->coach()->create();
+    $athlete = User::factory()->athlete()->create();
+    $program = ExerciseProgram::factory()->create();
+    $exercise = Exercise::factory()->create([
+        'name' => 'Front Squat',
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 8, 'applyPer' => 'set'],
+        ],
+    ]);
+    $programExercise = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+    $group = UserGroup::query()->create([
+        'name' => 'Recording Group',
+        'owner_id' => $groupOwner->id,
+    ]);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => '2030-04-03 09:00:00',
+    ]);
+
+    $component = Livewire::actingAs($coach)->test(ProgramRecordEditor::class, [
+        'exerciseProgram' => $program,
+        'scheduledTrainingProgramId' => $trainingProgram->id,
+        'userId' => $athlete->id,
+    ])
+        ->call('openAtSession', (string) $slot->id, 'main', $exercise->id, 0)
+        ->assertSet('open', true)
+        ->assertSet('sessionKey', (string) $slot->id)
+        ->assertSet('section', 'main')
+        ->assertSet('exerciseId', $exercise->id)
+        ->assertSee('Edit')
+        ->assertSee('Front Squat')
+        ->assertSee('Save');
+
+    $component
+        ->call('closeEditor', true, $trainingProgram->id, $programExercise->id)
+        ->assertSet('open', true)
+        ->call('flyoutClosed')
+        ->assertSet('open', false)
+        ->assertDispatched(
+            'training-session-record-updated',
+            trainingProgramId: $trainingProgram->id,
+            programExerciseId: $programExercise->id,
         );
 });
 

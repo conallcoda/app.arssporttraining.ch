@@ -15,6 +15,7 @@
     'sessionLabels' => false,
     'copyMenuOptions' => [],
     'previewMenuOptions' => [],
+    'recordMenuOptions' => [],
     'resetMenuOptions' => [],
     'showPreview' => false,
     'showActualValues' => false,
@@ -50,6 +51,9 @@
         $hasPreviewActions = $showPreview && collect($previewMenuOptions)->contains(
             fn ($options): bool => ! empty($options ?? [])
         );
+        $hasRecordActions = collect($recordMenuOptions)->contains(
+            fn ($options): bool => ! empty($options ?? [])
+        );
         $canResetBucket = fn (string $key): bool => (bool) ($resetMenuOptions[$key] ?? false);
         $hasResetActions = collect($resetMenuOptions)->contains(fn (mixed $canReset): bool => (bool) $canReset);
         $hasGroupToggleActions = collect($preparedGroups)->contains(
@@ -57,7 +61,7 @@
         );
         $showCopyColumn = ! $splitActualColumns
             && (
-                ((bool) ($grid->showCopyMenu ?? false) && ($hasCopyActions || $hasPreviewActions || $hasResetActions || $hasGroupToggleActions))
+                ((bool) ($grid->showCopyMenu ?? false) && ($hasCopyActions || $hasPreviewActions || $hasRecordActions || $hasResetActions || $hasGroupToggleActions))
                 || $showPlannedActualToggle
             );
         $baseRows = $splitActualColumns
@@ -426,6 +430,7 @@
                                                 'bucketKey' => $collapsedCopyKey,
                                                 'copyOptions' => $collapsedCopyOptions,
                                                 'previewSessions' => $previewMenuOptions[$collapsedCopyKey] ?? [],
+                                                'recordSessions' => $recordMenuOptions[$collapsedCopyKey] ?? [],
                                                 'canReset' => $canResetBucket($collapsedCopyKey),
                                                 'showPreview' => $showPreview,
                                                 'canToggleGroup' => $canToggleGroup,
@@ -657,6 +662,7 @@
                                                         'bucketKey' => $collapsedCopyKey,
                                                         'copyOptions' => $collapsedCopyOptions,
                                                         'previewSessions' => $previewMenuOptions[$collapsedCopyKey] ?? [],
+                                                        'recordSessions' => $recordMenuOptions[$collapsedCopyKey] ?? [],
                                                         'canReset' => $canResetBucket($collapsedCopyKey),
                                                         'showPreview' => $showPreview,
                                                         'canToggleGroup' => $canToggleGroup,
@@ -811,6 +817,7 @@
                                                 'bucketKey' => $sessionCopyKey,
                                                 'copyOptions' => $sessionCopyOptions,
                                                 'previewSessions' => $previewMenuOptions[$sessionCopyKey] ?? [],
+                                                'recordSessions' => $recordMenuOptions[$sessionCopyKey] ?? [],
                                                 'canReset' => $canResetBucket($sessionCopyKey),
                                                 'showPreview' => $showPreview,
                                                 'canToggleGroup' => $canToggleGroup,
@@ -1107,6 +1114,7 @@
                                                         'bucketKey' => $sessionCopyKey,
                                                         'copyOptions' => $sessionCopyOptions,
                                                         'previewSessions' => $previewMenuOptions[$sessionCopyKey] ?? [],
+                                                        'recordSessions' => $recordMenuOptions[$sessionCopyKey] ?? [],
                                                         'canReset' => $canResetBucket($sessionCopyKey),
                                                         'showPreview' => $showPreview,
                                                         'canToggleGroup' => $canToggleGroup,

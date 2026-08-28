@@ -27,6 +27,9 @@
                             {{ $setLabel }} {{ $setIndex + 1 }}
                         </th>
                     @endfor
+                    <th rowspan="2" class="border border-zinc-300 dark:border-zinc-600 px-2 py-2 w-12">
+                        <flux:icon.pencil class="mx-auto size-4" />
+                    </th>
                 </tr>
                 <tr class="bg-zinc-100 dark:bg-zinc-800">
                     <th class="border border-zinc-300 dark:border-zinc-600 px-2 py-1"></th>
@@ -52,6 +55,9 @@
                                     @if ($showSessionDates && filled($session['sessionDateLabel'] ?? null))
                                         <div class="mt-1 text-[10px] font-normal text-zinc-500 dark:text-zinc-400">{{ $session['sessionDateLabel'] }}</div>
                                     @endif
+                                    <flux:badge :color="$session['statusColor'] ?? 'zinc'" size="sm" class="mt-1">
+                                        {{ $session['statusLabel'] ?? __('Pending') }}
+                                    </flux:badge>
                                 </td>
                             @endif
                             <td class="border border-zinc-300 dark:border-zinc-600 px-3 py-2 font-medium whitespace-nowrap {{ $row['color'] }}">
@@ -70,6 +76,23 @@
                                     {{ $cell['actual'] }}
                                 </td>
                             @endforeach
+                            @if ($rowIndex === 0)
+                                <td class="border border-zinc-300 dark:border-zinc-600 px-1 py-1 text-center"
+                                    rowspan="{{ count($session['rows'] ?? []) }}">
+                                    @if ($session['recordable'] ?? false)
+                                        <flux:dropdown position="bottom" align="end">
+                                            <flux:button variant="ghost" size="xs" icon="ellipsis" class="!p-1" />
+                                            <flux:menu>
+                                                <flux:menu.submenu :heading="__('Edit')" icon="pencil">
+                                                    @include('components.training.partials.record-menu-actions', [
+                                                        'recordSession' => $session,
+                                                    ])
+                                                </flux:menu.submenu>
+                                            </flux:menu>
+                                        </flux:dropdown>
+                                    @endif
+                                </td>
+                            @endif
                         </tr>
                     @endforeach
                 @endforeach

@@ -21,6 +21,7 @@ use App\Models\Users\User;
 use App\Models\Users\UserGroup;
 use App\Support\Athlete\ProgramDetailsExerciseViewBuilder;
 use App\Support\Training\ScheduledSessionSnapshotBuilder;
+use App\Training\TrainingSessionProgressService;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Schema\Blueprint;
@@ -444,6 +445,213 @@ it('shows active section instructions above the first exercise', function () {
         ->set('activeSection', 'main')
         ->assertSee('Main section instructions.')
         ->assertDontSee('Warm-up section instructions.');
+});
+
+it('lets any coach record through the athlete flow while preserving coach audit attribution', function () {
+    config()->set('athlete.dashboard_today_override', '03.04.2030');
+
+    $groupOwner = User::factory()->coach()->create();
+    $coach = User::factory()->coach()->create();
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Delegated Recording', 'owner_id' => $groupOwner->id]);
+    $program = ExerciseProgram::factory()->create();
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => Exercise::factory()->create([
+            'config' => [
+                'settings' => ['reps'],
+                'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+                'reps' => ['mode' => 'manual', 'default' => 8, 'applyPer' => 'set'],
+            ],
+        ])->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => '2030-04-03 09:00:00',
+    ])->fresh('exercises.sets.values');
+    $slotExercise = $slot->exercises->first();
+
+    Livewire::actingAs($coach)->test(ProgramDetails::class, [
+        'date' => '2030-04-03',
+        'trainingProgram' => $trainingProgram,
+        'previewMode' => true,
+        'recordMode' => true,
+        'previewUserId' => $athlete->id,
+        'previewSlotId' => $slot->id,
+    ])
+        ->assertSet('canRecordSession', true)
+        ->call('markExerciseCompleted', $slotExercise->id);
+
+    $batch = TrainingRevisionBatch::query()->where('action', 'mark_exercise_completed')->latest('id')->first();
+
+    expect($slotExercise->refresh()->status)->toBe(TrainingProgramSlotExerciseStatusEnum::Completed)
+        ->and($batch?->changed_by)->toBe($coach->id)
+        ->and($batch?->source)->toBe('coach');
+});
+
+it('opens the delegated compact editor with current values and audits admin changes', function () {
+    config()->set('athlete.dashboard_today_override', '03.04.2030');
+    config()->set('athlete.allow_athlete_edits', true);
+
+    $groupOwner = User::factory()->coach()->create();
+    $admin = User::factory()->admin()->create();
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Compact Editing', 'owner_id' => $groupOwner->id]);
+    $program = ExerciseProgram::factory()->create();
+    $exercise = Exercise::factory()->create([
+        'name' => 'Front Squat',
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 8, 'applyPer' => 'set'],
+        ],
+    ]);
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => '2030-04-03 09:00:00',
+    ])->fresh('exercises.sets.values');
+    $slotExercise = $slot->exercises->first();
+    $slotSet = $slotExercise->sets->first();
+    $value = $slotSet->values->firstWhere('setting_key', 'reps');
+    $value->update([
+        'actual_value_type' => 'string',
+        'actual_string_value' => '6',
+        'actual_recorded_by' => $athlete->id,
+        'actual_recorded_at' => now(),
+        'actual_source' => 'athlete',
+        'actual_is_explicit' => true,
+    ]);
+
+    $snapshotBuilder = Mockery::mock(ScheduledSessionSnapshotBuilder::class);
+    $snapshotBuilder->shouldNotReceive('build');
+    app()->instance(ScheduledSessionSnapshotBuilder::class, $snapshotBuilder);
+
+    Livewire::actingAs($admin)->test(ProgramDetails::class, [
+        'date' => '2030-04-03',
+        'trainingProgram' => $trainingProgram,
+        'previewMode' => true,
+        'recordMode' => true,
+        'editorOnly' => true,
+        'previewUserId' => $athlete->id,
+        'previewSlotId' => $slot->id,
+        'initialSection' => 'main',
+        'initialExerciseId' => $exercise->id,
+        'initialExerciseSort' => 0,
+    ])
+        ->assertSet('editingExerciseId', $slotExercise->id)
+        ->assertSet("editValues.{$slotSet->id}.reps", '6')
+        ->assertSee('Front Squat')
+        ->assertSee('Save')
+        ->assertDontSee('Mark Done')
+        ->set("editValues.{$slotSet->id}.reps", '7')
+        ->call('saveExerciseEdits')
+        ->assertDispatched(
+            'delegated-exercise-editor-closed',
+            saved: true,
+            trainingProgramId: $trainingProgram->id,
+            programExerciseId: $slotExercise->exercise_program_exercise_id,
+        )
+        ->assertNotDispatched('training-session-record-updated')
+        ->assertSet('editingExerciseId', $slotExercise->id);
+
+    $revision = TrainingActualValueRevision::query()
+        ->where('training_program_slot_set_value_id', $value->id)
+        ->latest('id')
+        ->firstOrFail();
+    $batch = TrainingRevisionBatch::query()->findOrFail($revision->batch_id);
+
+    expect($value->refresh()->actual_string_value)->toBe('7')
+        ->and($value->actual_recorded_by)->toBe($admin->id)
+        ->and($value->actual_source)->toBe('admin')
+        ->and($slotSet->refresh()->status)->toBe(TrainingProgramSlotSetStatusEnum::CompletedWithModification)
+        ->and($slotExercise->refresh()->status)->toBe(TrainingProgramSlotExerciseStatusEnum::Completed)
+        ->and($batch->action)->toBe('record_actuals')
+        ->and($batch->changed_by)->toBe($admin->id)
+        ->and($batch->source)->toBe('admin')
+        ->and($revision->recorded_by)->toBe($admin->id)
+        ->and($revision->source)->toBe('admin')
+        ->and($revision->before_value_type)->toBe('string')
+        ->and($revision->before_string_value)->toBe('6')
+        ->and($revision->after_value_type)->toBe('string')
+        ->and($revision->after_string_value)->toBe('7');
+
+    app(TrainingSessionProgressService::class)->markExerciseSkipped($slotExercise->fresh(['slot', 'sets.values']));
+
+    Livewire::actingAs($admin)->test(ProgramDetails::class, [
+        'date' => '2030-04-03',
+        'trainingProgram' => $trainingProgram,
+        'previewMode' => true,
+        'recordMode' => true,
+        'editorOnly' => true,
+        'previewUserId' => $athlete->id,
+        'previewSlotId' => $slot->id,
+        'initialSection' => 'main',
+        'initialExerciseId' => $exercise->id,
+        'initialExerciseSort' => 0,
+    ])
+        ->assertSet("editSkippedSets.{$slotSet->id}", true)
+        ->call('markEditSetPending', $slotSet->id)
+        ->set("editValues.{$slotSet->id}.reps", '9')
+        ->call('saveExerciseEdits')
+        ->assertDispatched('delegated-exercise-editor-closed', saved: true);
+
+    expect($value->refresh()->actual_string_value)->toBe('9')
+        ->and($slotSet->refresh()->status)->toBe(TrainingProgramSlotSetStatusEnum::CompletedWithModification)
+        ->and($slotExercise->refresh()->status)->toBe(TrainingProgramSlotExerciseStatusEnum::Completed);
+});
+
+it('does not let an athlete forge delegated athlete recording mode', function () {
+    config()->set('athlete.dashboard_today_override', '03.04.2030');
+
+    $owner = User::factory()->coach()->create();
+    $otherAthlete = User::factory()->athlete()->create();
+    $athlete = User::factory()->athlete()->create();
+    $group = UserGroup::create(['name' => 'Protected Recording', 'owner_id' => $owner->id]);
+    $program = ExerciseProgram::factory()->create();
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => Exercise::factory()->create()->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+    $slot = TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $athlete->id,
+        'datetime' => '2030-04-03 09:00:00',
+    ])->fresh('exercises');
+
+    Livewire::actingAs($otherAthlete)->test(ProgramDetails::class, [
+        'date' => '2030-04-03',
+        'trainingProgram' => $trainingProgram,
+        'previewMode' => true,
+        'recordMode' => true,
+        'previewUserId' => $athlete->id,
+        'previewSlotId' => $slot->id,
+    ])
+        ->call('markExerciseCompleted', $slot->exercises->first()->id)
+        ->assertForbidden();
 });
 
 it('sorts athlete program exercises by group before sort order within a section', function () {

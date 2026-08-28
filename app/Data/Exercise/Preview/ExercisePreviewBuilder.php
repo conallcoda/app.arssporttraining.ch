@@ -181,10 +181,18 @@ class ExercisePreviewBuilder
                 for ($session = 0; $session < ($sessionCounts[$week] ?? 1); $session++) {
                     $sessionShowsHistoricalOverride = ($lockedWeekMap[$week] ?? false) && self::hasHistoricalSessionOverride($historicalOverrides, 'sets', $week, $session);
                     $sessionFallbackValue = max(0, (int) $state->getResolvedSessionValue('sets', $week, $session, $setsPerWeek[$week] ?? 0));
-                    $setsSessionCells[$week][$session][0] = $sessionShowsHistoricalOverride
+                    $historicalValue = $sessionShowsHistoricalOverride
                         ? self::getHistoricalSessionValue($historicalOverrides, 'sets', $week, $session, $sessionFallbackValue)
+                        : null;
+                    $setsSessionCells[$week][$session][0] = $sessionShowsHistoricalOverride
+                        ? $historicalValue
                         : ((($lockedWeekMap[$week] ?? false) && ($lockedSessionsByWeek[$week][$session] ?? false)) ? $sessionFallbackValue : '-');
-                    $setsSessionOverrideMap[$week][$session][0] = $sessionShowsHistoricalOverride;
+                    $setsSessionOverrideMap[$week][$session][0] = $sessionShowsHistoricalOverride
+                        && self::historicalValueIsHighlighted(
+                            $historicalValue,
+                            $sessionFallbackValue,
+                            self::plannedSetCountIsHighlighted($displayProvenanceValues, $week, $session),
+                        );
                 }
 
                 $setsCells[$week] = $setsSessionCells[$week][0][0] ?? '-';
@@ -267,10 +275,18 @@ class ExercisePreviewBuilder
                     $showsHistoricalOverride = ($lockedWeekMap[$week] ?? false) && self::hasHistoricalCellOverride($historicalOverrides, $setting, $week, $set);
                     $fallbackValue = $state->getResolvedCellValue($setting, $week, $set)
                         ?? ($defaultGrid[$week][$set] ?? '-');
-                    $cells[$week][$set] = $showsHistoricalOverride
+                    $historicalValue = $showsHistoricalOverride
                         ? (self::getHistoricalCellValue($historicalOverrides, $setting, $week, $set) ?? $fallbackValue)
+                        : null;
+                    $cells[$week][$set] = $showsHistoricalOverride
+                        ? $historicalValue
                         : ((($lockedWeekMap[$week] ?? false) && $preserveLockedValuesForUnavailable) ? $fallbackValue : '-');
-                    $overrideMap[$week][$set] = $showsHistoricalOverride;
+                    $overrideMap[$week][$set] = $showsHistoricalOverride
+                        && self::historicalValueIsHighlighted(
+                            $historicalValue,
+                            $fallbackValue,
+                            self::plannedCellIsHighlighted($displayProvenanceValues, $setting, $week, 0, $set),
+                        );
 
                     continue;
                 }
@@ -295,10 +311,18 @@ class ExercisePreviewBuilder
                         $sessionShowsHistoricalOverride = ($lockedWeekMap[$week] ?? false) && self::hasHistoricalCellOverride($historicalOverrides, $setting, $week, $set, $session);
                         $sessionFallbackValue = $state->getResolvedCellValue($setting, $week, $set, $session)
                             ?? ($defaultGrid[$week][$set] ?? '-');
-                        $sessionCells[$week][$session][$set] = $sessionShowsHistoricalOverride
+                        $historicalValue = $sessionShowsHistoricalOverride
                             ? (self::getHistoricalCellValue($historicalOverrides, $setting, $week, $set, $session) ?? $sessionFallbackValue)
+                            : null;
+                        $sessionCells[$week][$session][$set] = $sessionShowsHistoricalOverride
+                            ? $historicalValue
                             : (((($lockedWeekMap[$week] ?? false) && ($lockedSessionsByWeek[$week][$session] ?? false)) && $preserveLockedValuesForUnavailable) ? $sessionFallbackValue : '-');
-                        $sessionOverrideMap[$week][$session][$set] = $sessionShowsHistoricalOverride;
+                        $sessionOverrideMap[$week][$session][$set] = $sessionShowsHistoricalOverride
+                            && self::historicalValueIsHighlighted(
+                                $historicalValue,
+                                $sessionFallbackValue,
+                                self::plannedCellIsHighlighted($displayProvenanceValues, $setting, $week, $session, $set),
+                            );
 
                         continue;
                     }
@@ -359,10 +383,18 @@ class ExercisePreviewBuilder
                     if (! ($applicableWeeks[$week] ?? true)) {
                         $showsHistoricalOverride = ($lockedWeekMap[$week] ?? false) && self::hasHistoricalCellOverride($historicalOverrides, 'weight', $week, $set);
                         $fallbackValue = $state->getResolvedCellValue('weight', $week, $set) ?? ($state->getCellValue('weight', $week, $set) ?? '-');
-                        $weightCells[$week][$set] = $showsHistoricalOverride
+                        $historicalValue = $showsHistoricalOverride
                             ? (self::getHistoricalCellValue($historicalOverrides, 'weight', $week, $set) ?? $fallbackValue)
+                            : null;
+                        $weightCells[$week][$set] = $showsHistoricalOverride
+                            ? $historicalValue
                             : ((($lockedWeekMap[$week] ?? false) && $preserveLockedValuesForUnavailable) ? $fallbackValue : '-');
-                        $weightOverrides[$week][$set] = $showsHistoricalOverride;
+                        $weightOverrides[$week][$set] = $showsHistoricalOverride
+                            && self::historicalValueIsHighlighted(
+                                $historicalValue,
+                                $fallbackValue,
+                                self::plannedCellIsHighlighted($displayProvenanceValues, 'weight', $week, 0, $set),
+                            );
 
                         continue;
                     }
@@ -387,10 +419,18 @@ class ExercisePreviewBuilder
                             $sessionShowsHistoricalOverride = ($lockedWeekMap[$week] ?? false) && self::hasHistoricalCellOverride($historicalOverrides, 'weight', $week, $set, $session);
                             $sessionFallbackValue = $state->getResolvedCellValue('weight', $week, $set, $session)
                                 ?? ($state->getCellValue('weight', $week, $set) ?? '-');
-                            $weightSessionCells[$week][$session][$set] = $sessionShowsHistoricalOverride
+                            $historicalValue = $sessionShowsHistoricalOverride
                                 ? (self::getHistoricalCellValue($historicalOverrides, 'weight', $week, $set, $session) ?? $sessionFallbackValue)
+                                : null;
+                            $weightSessionCells[$week][$session][$set] = $sessionShowsHistoricalOverride
+                                ? $historicalValue
                                 : (((($lockedWeekMap[$week] ?? false) && ($lockedSessionsByWeek[$week][$session] ?? false)) && $preserveLockedValuesForUnavailable) ? $sessionFallbackValue : '-');
-                            $weightSessionOverrides[$week][$session][$set] = $sessionShowsHistoricalOverride;
+                            $weightSessionOverrides[$week][$session][$set] = $sessionShowsHistoricalOverride
+                                && self::historicalValueIsHighlighted(
+                                    $historicalValue,
+                                    $sessionFallbackValue,
+                                    self::plannedCellIsHighlighted($displayProvenanceValues, 'weight', $week, $session, $set),
+                                );
 
                             continue;
                         }
@@ -479,10 +519,18 @@ class ExercisePreviewBuilder
                 if (! ($applicableWeeks[$week] ?? true)) {
                     $showsHistoricalOverride = ($lockedWeekMap[$week] ?? false) && self::hasHistoricalCellOverride($historicalOverrides, 'weight', $week, $set);
                     $fallbackValue = $state->getResolvedCellValue('weight', $week, $set) ?? $cells[$week][$set];
-                    $cells[$week][$set] = $showsHistoricalOverride
+                    $historicalValue = $showsHistoricalOverride
                         ? (self::getHistoricalCellValue($historicalOverrides, 'weight', $week, $set) ?? $fallbackValue)
+                        : null;
+                    $cells[$week][$set] = $showsHistoricalOverride
+                        ? $historicalValue
                         : ((($lockedWeekMap[$week] ?? false) && $preserveLockedValuesForUnavailable) ? $fallbackValue : '-');
-                    $overrideMap[$week][$set] = $showsHistoricalOverride;
+                    $overrideMap[$week][$set] = $showsHistoricalOverride
+                        && self::historicalValueIsHighlighted(
+                            $historicalValue,
+                            $fallbackValue,
+                            self::plannedCellIsHighlighted($displayProvenanceValues, 'weight', $week, 0, $set),
+                        );
 
                     continue;
                 }
@@ -508,10 +556,18 @@ class ExercisePreviewBuilder
                     if (! ($applicableSessions[$week][$session] ?? true)) {
                         $sessionShowsHistoricalOverride = ($lockedWeekMap[$week] ?? false) && self::hasHistoricalCellOverride($historicalOverrides, 'weight', $week, $set, $session);
                         $sessionFallbackValue = $state->getResolvedCellValue('weight', $week, $set, $session) ?? $cells[$week][$set];
-                        $sessionCells[$week][$session][$set] = $sessionShowsHistoricalOverride
+                        $historicalValue = $sessionShowsHistoricalOverride
                             ? (self::getHistoricalCellValue($historicalOverrides, 'weight', $week, $set, $session) ?? $sessionFallbackValue)
+                            : null;
+                        $sessionCells[$week][$session][$set] = $sessionShowsHistoricalOverride
+                            ? $historicalValue
                             : (((($lockedWeekMap[$week] ?? false) && ($lockedSessionsByWeek[$week][$session] ?? false)) && $preserveLockedValuesForUnavailable) ? $sessionFallbackValue : '-');
-                        $sessionOverrideMap[$week][$session][$set] = $sessionShowsHistoricalOverride;
+                        $sessionOverrideMap[$week][$session][$set] = $sessionShowsHistoricalOverride
+                            && self::historicalValueIsHighlighted(
+                                $historicalValue,
+                                $sessionFallbackValue,
+                                self::plannedCellIsHighlighted($displayProvenanceValues, 'weight', $week, $session, $set),
+                            );
 
                         continue;
                     }
@@ -559,10 +615,18 @@ class ExercisePreviewBuilder
                 if (! ($applicableSessions[$week][$session] ?? true)) {
                     $sessionShowsHistoricalOverride = ($lockedWeekMap[$week] ?? false) && self::hasHistoricalSessionOverride($historicalOverrides, $setting, $week, $session);
                     $sessionFallbackValue = $state->getResolvedSessionValue($setting, $week, $session, $default);
-                    $sessionCells[$week][$session][0] = $sessionShowsHistoricalOverride
+                    $historicalValue = $sessionShowsHistoricalOverride
                         ? self::getHistoricalSessionValue($historicalOverrides, $setting, $week, $session, $sessionFallbackValue)
+                        : null;
+                    $sessionCells[$week][$session][0] = $sessionShowsHistoricalOverride
+                        ? $historicalValue
                         : (((($lockedWeekMap[$week] ?? false) && ($lockedSessionsByWeek[$week][$session] ?? false)) && $preserveLockedValuesForUnavailable) ? $sessionFallbackValue : '-');
-                    $sessionOverrideMap[$week][$session][0] = $sessionShowsHistoricalOverride;
+                    $sessionOverrideMap[$week][$session][0] = $sessionShowsHistoricalOverride
+                        && self::historicalValueIsHighlighted(
+                            $historicalValue,
+                            $sessionFallbackValue,
+                            self::plannedFieldIsHighlighted($displayProvenanceValues, $setting, $week, $session),
+                        );
 
                     continue;
                 }
@@ -762,6 +826,20 @@ class ExercisePreviewBuilder
         }
 
         return $default;
+    }
+
+    private static function historicalValueIsHighlighted(mixed $historicalValue, mixed $fallbackValue, bool $currentlyHighlighted): bool
+    {
+        if ($currentlyHighlighted) {
+            return true;
+        }
+
+        if (is_numeric($historicalValue) && is_numeric($fallbackValue)) {
+            return (float) $historicalValue !== (float) $fallbackValue;
+        }
+
+        return $historicalValue !== $fallbackValue
+            && (string) $historicalValue !== (string) $fallbackValue;
     }
 
     private static function hasSessionOverrideForWeek(array $plannedSessionValues, int $week, int $sessionCount, string $setting = 'sets'): bool

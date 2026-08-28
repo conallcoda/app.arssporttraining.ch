@@ -5,6 +5,7 @@
                 :key="'athlete-preview-details-' . $previewTrainingProgramId . '-' . $this->selectedPreviewSlot->id . '-' . ($initialPreviewExerciseId ?? 'none')"
                 :date="$this->selectedPreviewSlot->datetime->format('Y-m-d')"
                 :preview-mode="true"
+                :record-mode="$recordMode"
                 :preview-user-id="$previewUserId"
                 :preview-slot-id="$this->selectedPreviewSlot->id"
                 :training-program="$this->previewTrainingProgram"

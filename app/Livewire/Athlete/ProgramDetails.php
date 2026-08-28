@@ -6,11 +6,13 @@ use App\Data\Exercise\DropSet;
 use App\Data\Exercise\ExerciseSetting;
 use App\Data\Exercise\Settings\AbstractSetting;
 use App\Data\Exercise\Settings\RepsSetting;
+use App\Livewire\Training\View\PlanExerciseGrid;
 use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingProgramSlot;
 use App\Models\Training\TrainingProgramSlotExercise;
 use App\Models\Training\TrainingProgramSlotExerciseStatusEnum;
 use App\Models\Training\TrainingProgramSlotSetStatusEnum;
+use App\Models\Users\UserTypeEnum;
 use App\Support\Athlete\ProgramDetailsExerciseViewBuilder;
 use App\Support\AthleteDashboardDate;
 use App\Support\Training\EffectiveSlotExerciseConfigResolver;
@@ -81,6 +83,10 @@ class ProgramDetails extends Component
 
     public bool $previewMode = false;
 
+    public bool $recordMode = false;
+
+    public bool $editorOnly = false;
+
     public ?int $previewUserId = null;
 
     public ?int $previewSlotId = null;
@@ -90,6 +96,8 @@ class ProgramDetails extends Component
     public ?int $initialExerciseSort = null;
 
     protected array $effectiveExerciseConfigs = [];
+
+    protected ?TrainingProgramSlotExercise $loadedEditorExercise = null;
 
     public function mount(
         string $date,
@@ -125,6 +133,28 @@ class ProgramDetails extends Component
             $this->activeSection = $initialSection;
         } else {
             $this->activeSection = $this->resolveInitialSection($trainingProgram);
+        }
+
+        if ($this->editorOnly) {
+            abort_unless($this->canRecordOnBehalf(), 403);
+            abort_if(! $this->athleteEditsEnabled, 404);
+
+            $exercise = TrainingProgramSlotExercise::query()
+                ->with(['slot', 'exercise', 'settingSnapshot', 'sets.values'])
+                ->where('training_program_slot_id', $this->previewSlotId)
+                ->where('exercise_id', $this->initialExerciseId)
+                ->where('type', $this->activeSection)
+                ->when(
+                    $this->initialExerciseSort !== null,
+                    fn ($query) => $query->where('sort', $this->initialExerciseSort),
+                )
+                ->orderBy('sort')
+                ->orderBy('id')
+                ->first();
+
+            abort_unless($exercise instanceof TrainingProgramSlotExercise, 404);
+            $this->loadedEditorExercise = $exercise;
+            $this->prepareExerciseEditor($exercise);
         }
     }
 
@@ -364,7 +394,7 @@ class ProgramDetails extends Component
     #[Computed]
     public function athleteEditsEnabled(): bool
     {
-        if ($this->previewMode) {
+        if ($this->previewMode && ! $this->canRecordOnBehalf()) {
             return false;
         }
 
@@ -374,7 +404,7 @@ class ProgramDetails extends Component
     #[Computed]
     public function canRecordSession(): bool
     {
-        if ($this->previewMode) {
+        if ($this->previewMode && ! $this->canRecordOnBehalf()) {
             return false;
         }
 
@@ -386,6 +416,21 @@ class ProgramDetails extends Component
     {
         if ($this->editingExerciseId === null) {
             return null;
+        }
+
+        if ($this->loadedEditorExercise?->id === $this->editingExerciseId) {
+            return $this->loadedEditorExercise;
+        }
+
+        if ($this->editorOnly) {
+            return TrainingProgramSlotExercise::query()
+                ->with(['slot', 'exercise', 'settingSnapshot', 'sets.values'])
+                ->whereKey($this->editingExerciseId)
+                ->where('training_program_slot_id', $this->previewSlotId)
+                ->whereHas('slot', fn ($query) => $query
+                    ->where('training_program_id', $this->trainingProgramId)
+                    ->where('user_id', $this->sessionUserId()))
+                ->first();
         }
 
         $exercise = $this->currentSlot->exercises->firstWhere('id', $this->editingExerciseId);
@@ -508,17 +553,47 @@ class ProgramDetails extends Component
 
         $this->editValues = $this->castEmptyStringsToNull($this->editValues);
 
-        app(AthleteExerciseValueService::class)->saveExerciseValues($exercise, $this->filterEditableSetValues($this->editValues));
+        app(AthleteExerciseValueService::class)->saveExerciseValues(
+            $exercise,
+            $this->filterEditableSetValues($this->editValues),
+            refreshState: ! $this->editorOnly,
+        );
         $this->pendingSkippedSets[$exercise->id] = $this->normalizeSkippedDraft($this->editSkippedSets);
 
-        Flux::modal('athlete-exercise-editor')->close();
+        if ($this->editorOnly) {
+            $exercise = $exercise->fresh(['slot', 'sets.values']) ?? $exercise;
+            $this->persistPendingSkippedSets($exercise);
+            app(TrainingSessionProgressService::class)->markExerciseCompleted(
+                $exercise->fresh(['slot', 'sets.values']) ?? $exercise,
+            );
+            unset($this->pendingSkippedSets[$exercise->id]);
+        }
 
+        if ($this->editorOnly) {
+            $this->dispatch(
+                'delegated-exercise-editor-closed',
+                saved: true,
+                trainingProgramId: $this->trainingProgramId,
+                programExerciseId: (int) $exercise->exercise_program_exercise_id,
+            );
+
+            return;
+        }
+
+        $this->notifyTrainingRecordUpdated($exercise);
+        Flux::modal('athlete-exercise-editor')->close();
         $this->resetEditorState();
         unset($this->programExercises);
     }
 
     public function cancelExerciseEditor(): void
     {
+        if ($this->editorOnly) {
+            $this->dispatch('delegated-exercise-editor-closed', saved: false);
+
+            return;
+        }
+
         $this->resetEditorState();
         Flux::modal('athlete-exercise-editor')->close();
     }
@@ -543,7 +618,7 @@ class ProgramDetails extends Component
 
     public function markExerciseCompleted(int $slotExerciseId): void
     {
-        abort_if($this->previewMode, 403);
+        abort_if($this->previewMode && ! $this->canRecordOnBehalf(), 403);
         abort_if(! $this->canRecordSession, 403);
 
         $exercise = $this->currentSlot->exercises->firstWhere('id', $slotExerciseId);
@@ -577,7 +652,7 @@ class ProgramDetails extends Component
 
     public function markActiveSectionCompleted(): void
     {
-        abort_if($this->previewMode, 403);
+        abort_if($this->previewMode && ! $this->canRecordOnBehalf(), 403);
         abort_if(! $this->canRecordSession, 403);
 
         $exercises = $this->activeSectionSlotExercises();
@@ -652,7 +727,7 @@ class ProgramDetails extends Component
 
     public function markActiveSectionSkipped(): void
     {
-        abort_if($this->previewMode, 403);
+        abort_if($this->previewMode && ! $this->canRecordOnBehalf(), 403);
         abort_if(! $this->canRecordSession, 403);
 
         $exercises = $this->activeSectionSlotExercises();
@@ -679,7 +754,7 @@ class ProgramDetails extends Component
 
     public function markActiveSectionPending(): void
     {
-        abort_if($this->previewMode, 403);
+        abort_if($this->previewMode && ! $this->canRecordOnBehalf(), 403);
         abort_if(! $this->canRecordSession, 403);
 
         $exercises = $this->activeSectionSlotExercises()
@@ -704,7 +779,7 @@ class ProgramDetails extends Component
 
     public function markExerciseSkipped(int $slotExerciseId): void
     {
-        abort_if($this->previewMode, 403);
+        abort_if($this->previewMode && ! $this->canRecordOnBehalf(), 403);
         abort_if(! $this->canRecordSession, 403);
 
         $exercise = $this->currentSlot->exercises->firstWhere('id', $slotExerciseId);
@@ -999,19 +1074,31 @@ class ProgramDetails extends Component
         $this->editValues = [];
         $this->editSkippedSets = [];
         $this->effectiveExerciseConfigs = [];
+        $this->loadedEditorExercise = null;
 
         unset($this->editingExercise, $this->editSetTabs, $this->editSetPanels);
     }
 
     protected function refreshSessionState(): void
     {
+        $this->notifyTrainingRecordUpdated();
         $this->effectiveExerciseConfigs = [];
 
         unset($this->currentSlot, $this->programExercises, $this->progressSegments, $this->sectionTabs, $this->showsSectionTabs, $this->editingExercise, $this->editSetTabs, $this->editSetPanels);
     }
 
+    protected function notifyTrainingRecordUpdated(?TrainingProgramSlotExercise $exercise = null): void
+    {
+        $this->dispatch(
+            'training-session-record-updated',
+            trainingProgramId: $this->trainingProgramId,
+            programExerciseId: (int) ($exercise?->exercise_program_exercise_id ?? 0),
+        )->to(PlanExerciseGrid::class);
+    }
+
     protected function prepareExerciseEditor(TrainingProgramSlotExercise $exercise): void
     {
+        $this->loadedEditorExercise = $exercise;
         $this->editingExerciseId = $exercise->id;
         $this->editingExerciseName = (string) ($exercise->exercise?->name ?? __('Exercise'));
         $this->editValues = $this->buildEditValues($exercise);
@@ -1166,8 +1253,31 @@ class ProgramDetails extends Component
             : (int) auth()->id();
     }
 
+    protected function canRecordOnBehalf(): bool
+    {
+        if (! $this->previewMode || ! $this->recordMode || $this->previewUserId === null) {
+            return false;
+        }
+
+        $user = auth()->user();
+
+        if (! in_array($user?->type, [UserTypeEnum::Coach, UserTypeEnum::Admin], true)) {
+            return false;
+        }
+
+        return TrainingProgramSlot::query()
+            ->whereKey($this->previewSlotId)
+            ->where('training_program_id', $this->trainingProgramId)
+            ->where('user_id', $this->previewUserId)
+            ->exists();
+    }
+
     public function render(): View
     {
+        if ($this->editorOnly) {
+            return view('livewire.athlete.program-details');
+        }
+
         // Resolve the available materialized sections before filtering exercises.
         // The source program can contain a section whose exercises are disabled
         // for this athlete, so the slot remains the source of truth here.

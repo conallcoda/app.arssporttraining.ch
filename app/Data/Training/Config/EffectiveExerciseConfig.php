@@ -16,11 +16,17 @@ class EffectiveExerciseConfig
     ): array {
         $config = $base->toArray();
 
-        $config = self::applyOverrideLayer(
-            $config,
-            $planOverrides,
-            includeGridOverrides: $userOverrides?->inheritPlanGridOverrides !== false,
-        );
+        $config = self::applyOverrideLayer($config, $planOverrides, includeGridOverrides: false);
+
+        if ($userOverrides?->inheritPlanGridOverrides !== false) {
+            $config['overrides'] = self::mergeGridOverrides(
+                $config['overrides'] ?? ['sessions' => [], 'cells' => []],
+                self::withoutIgnoredPlanSessions(
+                    $planOverrides->gridOverrides,
+                    $userOverrides?->ignoredPlanGridOverrideSessions ?? [],
+                ),
+            );
+        }
 
         if ($userOverrides !== null) {
             $config = self::applyOverrideLayer($config, $userOverrides);
@@ -42,7 +48,10 @@ class EffectiveExerciseConfig
         $layers = [$base->overrides];
 
         if ($userOverrides?->inheritPlanGridOverrides !== false) {
-            $layers[] = $planOverrides?->gridOverrides;
+            $layers[] = self::withoutIgnoredPlanSessions(
+                $planOverrides?->gridOverrides ?? ['sessions' => [], 'cells' => []],
+                $userOverrides?->ignoredPlanGridOverrideSessions ?? [],
+            );
         }
 
         $layers[] = $userOverrides?->gridOverrides;
@@ -145,6 +154,22 @@ class EffectiveExerciseConfig
         return [
             'sessions' => array_values($mergedSessions),
             'cells' => array_values($mergedCells),
+        ];
+    }
+
+    /** @param list<string> $ignoredSessions */
+    public static function withoutIgnoredPlanSessions(array $gridOverrides, array $ignoredSessions): array
+    {
+        if ($ignoredSessions === []) {
+            return $gridOverrides;
+        }
+
+        $ignored = array_fill_keys($ignoredSessions, true);
+        $keep = static fn (array $row): bool => ! isset($ignored[((int) ($row['week'] ?? -1)).':'.((int) ($row['session'] ?? -1))]);
+
+        return [
+            'sessions' => array_values(array_filter($gridOverrides['sessions'] ?? [], $keep)),
+            'cells' => array_values(array_filter($gridOverrides['cells'] ?? [], $keep)),
         ];
     }
 

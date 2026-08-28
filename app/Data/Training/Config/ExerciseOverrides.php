@@ -44,6 +44,8 @@ class ExerciseOverrides extends AbstractData
         /** @var array{sessions: array, cells: array}|null */
         public ?array $baselineGridOverrides = null,
         public ?bool $inheritPlanGridOverrides = null,
+        /** @var list<string> */
+        public array $ignoredPlanGridOverrideSessions = [],
         public ?bool $disabled = null,
     ) {
         $this->gridOverrides = GridOverrideNormalizer::normalize($this->gridOverrides);
@@ -51,6 +53,10 @@ class ExerciseOverrides extends AbstractData
         $this->baselineGridOverrides = $this->baselineGridOverrides === null
             ? null
             : GridOverrideNormalizer::normalize($this->baselineGridOverrides);
+        $this->ignoredPlanGridOverrideSessions = array_values(array_unique(array_filter(
+            $this->ignoredPlanGridOverrideSessions,
+            fn (mixed $key): bool => is_string($key) && preg_match('/^\d+:\d+$/', $key) === 1,
+        )));
     }
 
     public static function from(mixed ...$payloads): static
@@ -73,6 +79,13 @@ class ExerciseOverrides extends AbstractData
                         : null;
                 }
 
+                if (array_key_exists('ignoredPlanGridOverrideSessions', $payload)) {
+                    $instance->ignoredPlanGridOverrideSessions = array_values(array_unique(array_filter(
+                        (array) $payload['ignoredPlanGridOverrideSessions'],
+                        fn (mixed $key): bool => is_string($key) && preg_match('/^\d+:\d+$/', $key) === 1,
+                    )));
+                }
+
                 continue;
             }
 
@@ -80,6 +93,7 @@ class ExerciseOverrides extends AbstractData
                 $instance->videoUrl = $payload->videoUrl;
                 $instance->instructions = $payload->instructions;
                 $instance->inheritPlanGridOverrides = $payload->inheritPlanGridOverrides;
+                $instance->ignoredPlanGridOverrideSessions = $payload->ignoredPlanGridOverrideSessions;
             }
         }
 
@@ -92,6 +106,7 @@ class ExerciseOverrides extends AbstractData
             'videoUrl' => $this->videoUrl,
             'instructions' => $this->instructions,
             'inheritPlanGridOverrides' => $this->inheritPlanGridOverrides,
+            'ignoredPlanGridOverrideSessions' => $this->ignoredPlanGridOverrideSessions,
         ]);
     }
 

@@ -8,6 +8,7 @@
     'collapseWeeks' => true,
     'copyMenuOptions' => [],
     'previewMenuOptions' => [],
+    'recordMenuOptions' => [],
     'resetMenuOptions' => [],
     'showPreview' => false,
     'showPlannedActualSetColumns' => false,
@@ -27,6 +28,7 @@
     :collapseWeeks="$collapseWeeks"
     :copyMenuOptions="$copyMenuOptions"
     :previewMenuOptions="$previewMenuOptions"
+    :recordMenuOptions="$recordMenuOptions"
     :resetMenuOptions="$resetMenuOptions"
     :showPreview="$showPreview"
     :showPlannedActualSetColumns="$showPlannedActualSetColumns"

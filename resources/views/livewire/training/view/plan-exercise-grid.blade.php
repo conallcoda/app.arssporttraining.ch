@@ -136,10 +136,7 @@
                     </flux:dropdown>
                 </div>
 
-                @if ($valueDisplayMode === 'actual')
-                    <x-training.plan-actual-grid :table="$this->planActualGridTable" />
-                @else
-                    <div x-on:grid-setting-click="$wire.openSettingsForm($event.detail.field)">
+                <div x-on:grid-setting-click="$wire.openSettingsForm($event.detail.field)">
                         <x-training.plan-grid
                             :grid="$this->displayGrid"
                             :name="$exerciseName"
@@ -148,17 +145,25 @@
                             :collapseWeeks="false"
                             :copyMenuOptions="$this->copyMenuOptions"
                             :previewMenuOptions="$this->previewMenuOptions"
+                            :recordMenuOptions="$this->recordMenuOptions"
                             :resetMenuOptions="$this->resetMenuOptions"
                             :showPreview="$this->userId !== null"
                             :showPlannedActualSetColumns="$this->showsPlannedActualSetColumns"
-                            :showPlannedActualToggle="$this->showsActualValueTabs"
+                            :showPlannedActualToggle="$this->showsActualValueTabs && $valueDisplayMode !== 'actual'"
                             :plannedActualToggleActive="$this->showsPlannedActualSetColumns"
                             plannedActualToggleAction="togglePlannedActualInline"
                             :actualCellValues="$this->showsPlannedActualSetColumns ? $this->actualCellValues : []"
                         />
-                    </div>
-                @endif
+                </div>
             </div>
         @endif
     </x-cms::section>
+
+    <x-cms::confirm-modal
+        :name="$this->recordConfirmationModalName()"
+        :heading="$this->pendingRecordActionLabel()"
+        :description="__('This exercise already has recorded values. Continuing will remove them.')"
+        :confirmLabel="$this->pendingRecordActionLabel()"
+        action="confirmRecordAction"
+    />
 </div>

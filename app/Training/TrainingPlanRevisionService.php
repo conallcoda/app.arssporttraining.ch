@@ -30,6 +30,7 @@ class TrainingPlanRevisionService
         'watts',
         'sessionGrouping',
         'disabled',
+        'ignoredPlanGridOverrideSessions',
     ];
 
     /**

@@ -21,9 +21,13 @@ class AthleteExerciseValueService
         private readonly EffectiveSlotExerciseConfigResolver $configResolver,
     ) {}
 
-    public function saveExerciseValues(TrainingProgramSlotExercise $exercise, array $submittedValues, bool $onlyProvided = false): bool
-    {
-        return DB::transaction(function () use ($exercise, $submittedValues, $onlyProvided): bool {
+    public function saveExerciseValues(
+        TrainingProgramSlotExercise $exercise,
+        array $submittedValues,
+        bool $onlyProvided = false,
+        bool $refreshState = true,
+    ): bool {
+        return DB::transaction(function () use ($exercise, $submittedValues, $onlyProvided, $refreshState): bool {
             $exercise = TrainingProgramSlotExercise::query()
                 ->with(['slot', 'exercise', 'settingSnapshot', 'sets.values'])
                 ->lockForUpdate()
@@ -77,7 +81,9 @@ class AthleteExerciseValueService
 
             }
 
-            $this->statusService->refreshExerciseState($exercise);
+            if ($refreshState) {
+                $this->statusService->refreshExerciseState($exercise);
+            }
 
             return $hasChanges;
         });

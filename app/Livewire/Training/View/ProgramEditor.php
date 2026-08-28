@@ -32,6 +32,8 @@ use Livewire\Component;
 
 class ProgramEditor extends Component
 {
+    public const VALUE_DISPLAY_MODE_SESSION_KEY = 'training.program_editor.value_display_mode';
+
     use InteractsWithExerciseSelectorPrograms;
     use InteractsWithFormData {
         InteractsWithFormData::updated as traitUpdated;
@@ -263,7 +265,12 @@ class ProgramEditor extends Component
             $this->sessionLabels = $sessionLabels;
             $this->gridLayout = $gridLayout;
             $this->showActualValueTabs = $showActualValueTabs;
-            $this->valueDisplayMode = 'planned';
+            $storedValueDisplayMode = session()->get(self::VALUE_DISPLAY_MODE_SESSION_KEY, 'planned');
+            $this->valueDisplayMode = $showActualValueTabs
+                && $userId !== null
+                && in_array($storedValueDisplayMode, ['planned', 'actual'], true)
+                    ? $storedValueDisplayMode
+                    : 'planned';
             $this->gridRenderVersion = 0;
             $this->planBlockGoalLabel = $planBlockGoalLabel;
             $this->plan1rmLabel = $plan1rmLabel;
@@ -280,6 +287,12 @@ class ProgramEditor extends Component
 
     public function updatedValueDisplayMode(): void
     {
+        abort_unless(in_array($this->valueDisplayMode, ['planned', 'actual'], true), 422);
+
+        if ($this->showActualValueTabs && $this->userId !== null) {
+            session()->put(self::VALUE_DISPLAY_MODE_SESSION_KEY, $this->valueDisplayMode);
+        }
+
         $this->gridRenderVersion++;
     }
 

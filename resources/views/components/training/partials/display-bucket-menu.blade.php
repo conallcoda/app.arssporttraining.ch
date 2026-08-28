@@ -1,6 +1,7 @@
 @php
     $copyOptions = $copyOptions ?? ['from' => [], 'to' => []];
     $previewSessions = $previewSessions ?? [];
+    $recordSessions = $recordSessions ?? [];
     $canReset = (bool) ($canReset ?? false);
     $canToggleGroup = (bool) ($canToggleGroup ?? false);
     $groupExpanded = (bool) ($groupExpanded ?? false);
@@ -11,7 +12,8 @@
     $hasCopyFrom = ! empty($copyOptions['from'] ?? []);
     $hasCopyTo = ! empty($copyOptions['to'] ?? []);
     $hasPreview = $showPreview && ! empty($previewSessions);
-    $hasBucketActions = $hasCopyFrom || $hasCopyTo || $hasPreview || $canReset;
+    $hasRecord = ! empty($recordSessions);
+    $hasBucketActions = $hasCopyFrom || $hasCopyTo || $hasPreview || $hasRecord || $canReset;
     $hasMenuActions = $canToggleGroup || $hasBucketActions;
 @endphp
 
@@ -59,6 +61,12 @@
             @if ($hasPreview)
                 @include('components.training.partials.preview-menu-item', [
                     'previewSessions' => $previewSessions,
+                ])
+            @endif
+
+            @if ($hasRecord)
+                @include('components.training.partials.record-menu-item', [
+                    'recordSessions' => $recordSessions,
                 ])
             @endif
 

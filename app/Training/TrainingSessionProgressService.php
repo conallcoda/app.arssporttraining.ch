@@ -21,9 +21,12 @@ class TrainingSessionProgressService
         private readonly CarryOverAthleteValuesService $carryOverAthleteValues,
     ) {}
 
-    public function markExerciseCompleted(TrainingProgramSlotExercise $exercise, bool $completeSkippedSets = false): void
-    {
-        DB::transaction(function () use ($exercise, $completeSkippedSets): void {
+    public function markExerciseCompleted(
+        TrainingProgramSlotExercise $exercise,
+        bool $completeSkippedSets = false,
+        bool $clearActualValues = false,
+    ): void {
+        DB::transaction(function () use ($exercise, $completeSkippedSets, $clearActualValues): void {
             $exercise = TrainingProgramSlotExercise::query()
                 ->with(['slot', 'sets.values'])
                 ->lockForUpdate()
@@ -36,6 +39,10 @@ class TrainingSessionProgressService
             )->all();
 
             $now = now();
+
+            if ($clearActualValues) {
+                $this->clearExerciseActualValues($exercise);
+            }
 
             foreach ($exercise->sets as $set) {
                 if ($set->skipped_at !== null && ! $completeSkippedSets) {
@@ -74,9 +81,9 @@ class TrainingSessionProgressService
         });
     }
 
-    public function markExerciseSkipped(TrainingProgramSlotExercise $exercise): void
+    public function markExerciseSkipped(TrainingProgramSlotExercise $exercise, bool $clearActualValues = false): void
     {
-        DB::transaction(function () use ($exercise): void {
+        DB::transaction(function () use ($exercise, $clearActualValues): void {
             $exercise = TrainingProgramSlotExercise::query()
                 ->with(['slot', 'sets.values'])
                 ->lockForUpdate()
@@ -89,6 +96,10 @@ class TrainingSessionProgressService
             )->all();
 
             $now = now();
+
+            if ($clearActualValues) {
+                $this->clearExerciseActualValues($exercise);
+            }
 
             $exercise->sets()->update([
                 'completed_at' => null,
@@ -106,9 +117,9 @@ class TrainingSessionProgressService
         });
     }
 
-    public function markExercisePending(TrainingProgramSlotExercise $exercise): void
+    public function markExercisePending(TrainingProgramSlotExercise $exercise, bool $clearActualValues = false): void
     {
-        DB::transaction(function () use ($exercise): void {
+        DB::transaction(function () use ($exercise, $clearActualValues): void {
             $exercise = TrainingProgramSlotExercise::query()
                 ->with(['slot', 'sets.values'])
                 ->lockForUpdate()
@@ -119,6 +130,10 @@ class TrainingSessionProgressService
             $beforeSets = $exercise->sets->mapWithKeys(
                 fn (TrainingProgramSlotSet $set): array => [$set->id => $this->stateSnapshot($set)]
             )->all();
+
+            if ($clearActualValues) {
+                $this->clearExerciseActualValues($exercise);
+            }
 
             $exercise->sets()->update([
                 'completed_at' => null,
@@ -208,6 +223,17 @@ class TrainingSessionProgressService
             }
 
             $valueRow->forceFill($this->plannedActualAttributes($valueRow, $recordedAt))->save();
+        }
+    }
+
+    private function clearExerciseActualValues(TrainingProgramSlotExercise $exercise): void
+    {
+        foreach ($exercise->sets as $set) {
+            foreach ($set->values as $valueRow) {
+                $valueRow->forceFill($this->valueCodec->clearActualValue() + [
+                    'is_modified' => false,
+                ])->save();
+            }
         }
     }
 
@@ -328,6 +354,11 @@ class TrainingSessionProgressService
                     ->map(fn (TrainingProgramSlotSetValue $value): array => [
                         'id' => (int) $value->id,
                         'setting_key' => $value->setting_key,
+                        'planned_value_type' => $value->planned_value_type,
+                        'planned_int_value' => $value->planned_int_value,
+                        'planned_decimal_value' => $value->planned_decimal_value,
+                        'planned_string_value' => $value->planned_string_value,
+                        'planned_json_value' => $value->planned_json_value,
                         'actual_value_type' => $value->actual_value_type,
                         'actual_int_value' => $value->actual_int_value,
                         'actual_decimal_value' => $value->actual_decimal_value,
@@ -337,6 +368,7 @@ class TrainingSessionProgressService
                         'actual_recorded_by' => $value->actual_recorded_by,
                         'actual_recorded_at' => $value->actual_recorded_at?->toIso8601String(),
                         'actual_source' => $value->actual_source,
+                        'unit' => $value->unit,
                         'is_modified' => (bool) $value->is_modified,
                     ])
                     ->values()

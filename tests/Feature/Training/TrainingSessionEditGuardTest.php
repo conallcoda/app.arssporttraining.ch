@@ -171,10 +171,34 @@ it('locks future plan editing when child rows show recorded state despite a pend
         'has_any_modification' => false,
     ]);
 
-    $lookup = app(TrainingSessionEditGuard::class)->planEditLockedDateTimeLookup(
+    $pendingExercise = TrainingProgramSlotExercise::create([
+        'training_program_slot_id' => $slot->id,
+        'exercise_id' => Exercise::factory()->create()->id,
+        'sort' => 1,
+        'type' => 'main',
+        'status' => TrainingProgramSlotExerciseStatusEnum::Pending,
+        'set_count' => 1,
+        'completed_set_count' => 0,
+        'modified_set_count' => 0,
+        'skipped_set_count' => 0,
+        'pending_set_count' => 1,
+        'has_any_modification' => false,
+    ]);
+
+    TrainingProgramSlotSet::create([
+        'training_program_slot_exercise_id' => $pendingExercise->id,
+        'set_number' => 1,
+        'status' => TrainingProgramSlotSetStatusEnum::Pending,
+        'has_any_modification' => false,
+    ]);
+
+    $guard = app(TrainingSessionEditGuard::class);
+    $lookup = $guard->planEditLockedDateTimeLookup(
         TrainingProgramSlot::query()->whereKey($slot->id),
     );
 
     expect($lookup)->toHaveKey('2030-04-14 09:00:00')
-        ->and(app(TrainingSessionEditGuard::class)->countImmutableSlotsForTrainingProgram($trainingProgram->id))->toBe(1);
+        ->and($guard->countImmutableSlotsForTrainingProgram($trainingProgram->id))->toBe(1)
+        ->and($guard->aggregateColumnsIndicateRecordedExerciseOutcome($slotExercise->fresh('sets.values')))->toBeTrue()
+        ->and($guard->aggregateColumnsIndicateRecordedExerciseOutcome($pendingExercise->fresh('sets.values')))->toBeFalse();
 });

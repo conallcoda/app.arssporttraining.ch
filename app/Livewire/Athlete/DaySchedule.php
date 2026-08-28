@@ -32,6 +32,8 @@ class DaySchedule extends Component
 
     public bool $previewMode = false;
 
+    public bool $recordMode = false;
+
     public ?int $previewTrainingProgramId = null;
 
     public ?int $previewUserId = null;

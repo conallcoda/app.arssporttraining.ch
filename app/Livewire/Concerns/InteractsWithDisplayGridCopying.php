@@ -34,7 +34,7 @@ trait InteractsWithDisplayGridCopying
                 ->values()
                 ->all();
 
-            if ($sessionOnly || $groupExpanded) {
+            if ($sessionOnly || $groupExpanded || count($groupSessions) === 1) {
                 foreach ($groupSessions as $session) {
                     $key = 'session:'.$session['week'].':'.$session['session'];
                     $buckets[$key] = [
@@ -180,6 +180,15 @@ trait InteractsWithDisplayGridCopying
         $this->persistGridOverridesFromCopy($gridOverrides);
     }
 
+    /**
+     * @param array{sessions: array, cells: array} $gridOverrides
+     * @param array<int, array{week: int, session: int}> $sessions
+     */
+    protected function persistResetGridOverrides(array $gridOverrides, array $sessions): void
+    {
+        $this->persistGridOverridesFromCopy($gridOverrides);
+    }
+
     public function copyDisplayBucketToAll(string $sourceKey): void
     {
         $buckets = $this->copyBuckets;
@@ -248,7 +257,7 @@ trait InteractsWithDisplayGridCopying
                 ->all();
         }
 
-        $this->persistGridOverridesFromCopy($gridOverrides);
+        $this->persistResetGridOverrides($gridOverrides, $bucket['sessions']);
     }
 
     protected function displayGridUsesSessionOnlyCopy(): bool

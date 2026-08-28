@@ -9,6 +9,7 @@ use App\Data\Exercise\Preview\SessionGroupingMode;
 use App\Data\Exercise\Preview\StrategyOrchestrator;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Training\Config\ExerciseOverrides;
+use App\Data\Training\Config\EffectiveExerciseConfig;
 use App\Data\Training\Planned\ResolvedPlannedExercise;
 use App\Data\Training\Planned\ResolvedPlannedProvenance;
 use App\Data\Training\Planned\ResolvedPlannedSession;
@@ -336,7 +337,10 @@ class ResolvedPlannedSessionBuilder
         $userGridOverrides = $userOverrides?->gridOverrides ?? ['sessions' => [], 'cells' => []];
         $defaultGridOverrides = $userOverrides?->inheritPlanGridOverrides === false
             ? ['sessions' => [], 'cells' => []]
-            : ($defaultOverrides?->gridOverrides ?? ['sessions' => [], 'cells' => []]);
+            : EffectiveExerciseConfig::withoutIgnoredPlanSessions(
+                $defaultOverrides?->gridOverrides ?? ['sessions' => [], 'cells' => []],
+                $userOverrides?->ignoredPlanGridOverrideSessions ?? [],
+            );
         $exerciseGridOverrides = $baseConfig['overrides'] ?? $effectiveGridOverrides;
 
         if ($setIndex !== null) {
