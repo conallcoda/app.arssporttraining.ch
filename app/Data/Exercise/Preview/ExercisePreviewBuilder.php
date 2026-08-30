@@ -57,6 +57,7 @@ class ExercisePreviewBuilder
         ?ExerciseOverrides $defaultOverrides = null,
         ?ExerciseOverrides $userOverrides = null,
         bool $preserveLockedValuesForUnavailable = true,
+        bool $useSlotIndexForGroupedSessions = false,
     ): PreviewGrid {
         $span = PlanGridProfiler::start('ExercisePreviewBuilder.build', [
             'weeks' => $weeks,
@@ -101,7 +102,9 @@ class ExercisePreviewBuilder
                 $groupingMode,
             );
             $usesChronologicalSessions = SessionGroupingMode::normalizeMode($groupingMode)
-                === SessionGroupingMode::None->value;
+                === SessionGroupingMode::None->value
+                || ($useSlotIndexForGroupedSessions
+                    && SessionGroupingMode::normalizeMode($groupingMode) === SessionGroupingMode::Groups->value);
             $plannedSessionValues = self::buildPlannedSessionValueMaps(
                 data: $data,
                 overrideLayer: $overrides?->toArray() ?? ['sessions' => [], 'cells' => []],
@@ -113,6 +116,7 @@ class ExercisePreviewBuilder
                 baseConfig: $baseConfig,
                 defaultOverrides: $defaultOverrides,
                 userOverrides: $userOverrides,
+                useSlotIndexForGroupedSessions: $useSlotIndexForGroupedSessions,
             );
             $displayProvenanceValues = $highlightOverrides !== null && ! $highlightOverrides->isEmpty()
                 ? self::buildPlannedSessionValueMaps(
@@ -126,6 +130,7 @@ class ExercisePreviewBuilder
                     baseConfig: $baseConfig,
                     defaultOverrides: $defaultOverrides,
                     userOverrides: $userOverrides,
+                    useSlotIndexForGroupedSessions: $useSlotIndexForGroupedSessions,
                 )
                 : $plannedSessionValues;
 
@@ -1044,6 +1049,7 @@ class ExercisePreviewBuilder
         array $baseConfig = [],
         ?ExerciseOverrides $defaultOverrides = null,
         ?ExerciseOverrides $userOverrides = null,
+        bool $useSlotIndexForGroupedSessions = false,
     ): array {
         $span = PlanGridProfiler::start('ExercisePreviewBuilder.buildPlannedSessionValueMaps', [
             'weeks' => $weeks,
@@ -1090,6 +1096,7 @@ class ExercisePreviewBuilder
                             maxHR: $maxHR,
                             iatPercent: $iatPercent,
                             slotIndex: $slotIndex,
+                            useSlotIndexForGroupedSessions: $useSlotIndexForGroupedSessions,
                         ),
                     );
                     $slotIndex++;

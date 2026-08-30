@@ -737,6 +737,27 @@ class PlanExerciseGrid extends Component
 
     protected function getCurrentOverrides(): ExerciseOverrides
     {
+        $stored = $this->getStoredCurrentOverrides();
+
+        if (! $this->usesFixedSessionGroupCoordinates()) {
+            return $stored;
+        }
+
+        $visible = ExerciseOverrides::from($stored->toArray());
+        $visible->gridOverrides = $this->remapGridOverrideCoordinates(
+            $visible->gridOverrides,
+            $this->fixedSessionCoordinateMaps()['canonicalToVisible'],
+        );
+        $visible->ignoredPlanGridOverrideSessions = $this->remapIgnoredSessionCoordinates(
+            $visible->ignoredPlanGridOverrideSessions,
+            $this->fixedSessionCoordinateMaps()['canonicalToVisible'],
+        );
+
+        return $visible;
+    }
+
+    protected function getStoredCurrentOverrides(): ExerciseOverrides
+    {
         return $this->getPlanConfig()->exerciseOverrides($this->programExerciseId, $this->userId);
     }
 
@@ -780,7 +801,7 @@ class PlanExerciseGrid extends Component
         if ($this->userId !== null) {
             $planOverrides = $this->resolvedExerciseOverrides->defaultOverrides;
 
-            if ($this->getCurrentOverrides()->inheritPlanGridOverrides === false) {
+            if ($this->getStoredCurrentOverrides()->inheritPlanGridOverrides === false) {
                 return $base->overrides;
             }
 
@@ -788,7 +809,7 @@ class PlanExerciseGrid extends Component
                 $base->overrides,
                 EffectiveExerciseConfig::withoutIgnoredPlanSessions(
                     $planOverrides->gridOverrides,
-                    $this->getCurrentOverrides()->ignoredPlanGridOverrideSessions,
+                    $this->getStoredCurrentOverrides()->ignoredPlanGridOverrideSessions,
                 ),
             );
         }
@@ -1002,6 +1023,7 @@ class PlanExerciseGrid extends Component
                 $this->resolvedExerciseOverrides->defaultOverrides,
                 $this->resolvedExerciseOverrides->userOverrides,
                 ! $this->isUnavailableForMissingMetrics,
+                $this->usesFixedSessionGroupCoordinates(),
             );
 
             return $this->clearLockedWeekHighlights($grid);
@@ -2588,6 +2610,7 @@ class PlanExerciseGrid extends Component
                 $this->resolvedExerciseOverrides->defaultOverrides,
                 $userOverrides,
                 ! $this->isUnavailableForMissingMetrics,
+                $this->usesFixedSessionGroupCoordinates(),
             );
 
             return $grid;
@@ -2958,6 +2981,17 @@ class PlanExerciseGrid extends Component
                 $overrides->gridOverrides,
                 $this->resolvedWeekSessionCounts(),
             );
+
+            if ($this->usesFixedSessionGroupCoordinates()) {
+                $overrides->gridOverrides = $this->remapGridOverrideCoordinates(
+                    $overrides->gridOverrides,
+                    $this->fixedSessionCoordinateMaps()['visibleToCanonical'],
+                );
+                $overrides->ignoredPlanGridOverrideSessions = $this->remapIgnoredSessionCoordinates(
+                    $overrides->ignoredPlanGridOverrideSessions,
+                    $this->fixedSessionCoordinateMaps()['visibleToCanonical'],
+                );
+            }
 
             $exerciseProgram = PlanGridProfiler::measure('PlanExerciseGrid.saveOverrides.loadExerciseProgram', $this->profileContext(), function (): ExerciseProgram {
                 return ExerciseProgram::query()->findOrFail($this->planId);
@@ -3475,6 +3509,96 @@ class PlanExerciseGrid extends Component
         }
 
         return $counts;
+    }
+
+    protected function usesFixedSessionGroupCoordinates(): bool
+    {
+        if ($this->scheduledTrainingProgramId === null) {
+            return false;
+        }
+
+        return SessionGroupingMode::normalizeMode(
+            (string) ($this->getEffectiveConfig()['preview']['groupingMode'] ?? SessionGroupingMode::defaultMode()),
+        ) === SessionGroupingMode::Groups->value;
+    }
+
+    /**
+     * @return array{
+     *     canonicalToVisible: array<string, array{week:int, session:int}>,
+     *     visibleToCanonical: array<string, array{week:int, session:int}>
+     * }
+     */
+    protected function fixedSessionCoordinateMaps(): array
+    {
+        $preview = $this->getEffectiveConfig()['preview'] ?? [];
+        $groupSize = SessionGroupingMode::normalizeGroupSize(
+            isset($preview['groupSize']) ? (int) $preview['groupSize'] : null,
+            SessionGroupingMode::Groups->value,
+        );
+        $strategyMap = SessionGroupBuilder::buildStrategyMap(
+            weekCount: $this->weeks,
+            sessionCounts: $this->resolvedWeekSessionCounts(),
+            groupingMode: SessionGroupingMode::Groups->value,
+            groupSize: $groupSize,
+        );
+        $canonicalToVisible = [];
+        $visibleToCanonical = [];
+
+        foreach ($strategyMap['orderedSessions'] as $visible) {
+            $canonical = [
+                'week' => (int) $visible['group'],
+                'session' => ((int) $visible['sessionNumber'] - 1) % $groupSize,
+            ];
+            $visibleCoordinate = [
+                'week' => (int) $visible['week'],
+                'session' => (int) $visible['session'],
+            ];
+            $canonicalToVisible[$canonical['week'].':'.$canonical['session']] = $visibleCoordinate;
+            $visibleToCanonical[$visibleCoordinate['week'].':'.$visibleCoordinate['session']] = $canonical;
+        }
+
+        return compact('canonicalToVisible', 'visibleToCanonical');
+    }
+
+    /** @param array<string, array{week:int, session:int}> $coordinateMap */
+    protected function remapGridOverrideCoordinates(array $gridOverrides, array $coordinateMap): array
+    {
+        $remapped = ['sessions' => [], 'cells' => []];
+
+        foreach (['sessions', 'cells'] as $target) {
+            foreach ($gridOverrides[$target] ?? [] as $entry) {
+                $coordinate = $coordinateMap[((int) ($entry['week'] ?? 0)).':'.((int) ($entry['session'] ?? 0))] ?? null;
+
+                if ($coordinate !== null) {
+                    $entry['week'] = $coordinate['week'];
+                    $entry['session'] = $coordinate['session'];
+                }
+
+                $layer = ['sessions' => [], 'cells' => []];
+                $layer[$target][] = $entry;
+                $remapped = EffectiveExerciseConfig::mergeGridOverrides($remapped, $layer);
+            }
+        }
+
+        return $remapped;
+    }
+
+    /**
+     * @param  list<string>  $ignoredSessions
+     * @param  array<string, array{week:int, session:int}>  $coordinateMap
+     * @return list<string>
+     */
+    protected function remapIgnoredSessionCoordinates(array $ignoredSessions, array $coordinateMap): array
+    {
+        return collect($ignoredSessions)
+            ->map(function (string $key) use ($coordinateMap): string {
+                $coordinate = $coordinateMap[$key] ?? null;
+
+                return $coordinate === null ? $key : $coordinate['week'].':'.$coordinate['session'];
+            })
+            ->unique()
+            ->values()
+            ->all();
     }
 
     protected function weekHasSessionDivergence(PreviewGrid $grid, int $week): bool

@@ -1,18 +1,99 @@
 <?php
 
+use App\Data\Exercise\Preview\SessionGroupingConfig;
 use App\Data\Training\Config\ExerciseOverrides;
 use App\Livewire\Training\View\PlanExerciseGrid;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
 use App\Models\Exercise\ExerciseProgramExercise;
 use App\Models\Training\TrainingPlanValueRevision;
+use App\Models\Training\TrainingProgram;
 use App\Models\Training\TrainingRevisionBatch;
 use App\Models\Users\User;
+use App\Models\Users\UserGroup;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
+
+it('renders and saves scheduled fixed groups through canonical session coordinates', function () {
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 10, 'applyPer' => 'set'],
+            'preview' => [
+                'weeks' => 5,
+                'sessionsPerWeek' => 2,
+                'groupingMode' => 'groups',
+                'groupSize' => 2,
+            ],
+        ],
+    ]);
+    $program = ExerciseProgram::factory()->create();
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+    $config = $program->config;
+    $overrides = $config->defaultExerciseOverrides($pivot->id);
+    $overrides->gridOverrides = [
+        'sessions' => [],
+        'cells' => collect([
+            [2, 0, 8],
+            [2, 1, 8],
+            [3, 0, 8],
+            [3, 1, 8],
+            [4, 0, 6],
+            [4, 1, 6],
+        ])->map(fn (array $coordinate): array => [
+            'week' => $coordinate[0],
+            'session' => $coordinate[1],
+            'set' => 0,
+            'data' => ['reps' => $coordinate[2]],
+        ])->all(),
+    ];
+    $overrides->baselineGridOverrides = $overrides->gridOverrides;
+    $config->setDefaultExerciseOverrides($pivot->id, $overrides);
+    $program->config = $config;
+    $program->save();
+    $group = UserGroup::create(['name' => 'Scheduled fixed groups']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+    $weekSessionDates = collect(range(1, 10))
+        ->map(fn (int $day): array => [sprintf('2026-09-%02d', $day)])
+        ->all();
+
+    $component = Livewire::test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'scheduledTrainingProgramId' => $trainingProgram->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'weeks' => 10,
+        'sessionsPerWeek' => 1,
+        'weekSessions' => array_fill(0, 10, 1),
+        'weekSessionDates' => $weekSessionDates,
+        'lockedSessionsByWeek' => array_fill(0, 10, [false]),
+    ]);
+
+    $repsRow = collect($component->instance()->displayGrid()->rows)->firstWhere('field', 'reps');
+
+    expect(collect(range(0, 9))->map(fn (int $slot): mixed => $repsRow->getCellValue($slot, 0, 0))->all())
+        ->toBe([10, 10, 10, 10, 8, 8, 8, 8, 6, 6]);
+
+    $component->call('updateCellOverride', 4, 0, 'reps', 9, 0, false);
+
+    $savedCells = collect($program->fresh()->config->defaultExerciseOverrides($pivot->id)->gridOverrides['cells']);
+
+    expect($savedCells->firstWhere(fn (array $cell): bool => $cell['week'] === 2 && $cell['session'] === 0)['data']['reps'] ?? null)
+        ->toBe(9);
+});
 
 it('saves future session overrides in a week that also has locked sessions', function () {
     $exercise = Exercise::factory()->create([
@@ -819,7 +900,7 @@ it('uses a persisted exercise-level grouping override instead of coach defaults'
 
     $config = $program->config;
     $overrides = $config->defaultExerciseOverrides($pivot->id);
-    $overrides->sessionGrouping = \App\Data\Exercise\Preview\SessionGroupingConfig::from([
+    $overrides->sessionGrouping = SessionGroupingConfig::from([
         'mode' => 'week',
         'groupSize' => 1,
         'copyValuesAutomatically' => false,

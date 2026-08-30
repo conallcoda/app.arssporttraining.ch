@@ -119,6 +119,51 @@ it('resolves grouped progression from the persisted athlete slot index', functio
         ->and($session->exercises[0]->sets[0]->values[0]->value)->toBe(8);
 });
 
+it('resolves grouped manual overrides by group and session from the chronological slot index', function () {
+    $builder = app(ResolvedPlannedSessionBuilder::class);
+    $exerciseConfig = [
+        'exerciseId' => 12,
+        'sort' => 0,
+        'group' => null,
+        'type' => 'main',
+        'effectiveConfig' => [
+            'settings' => ['reps'],
+            'preview' => ['groupingMode' => 'groups', 'groupSize' => 2],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 10, 'applyPer' => 'per_set'],
+        ],
+        'overrideLayer' => [
+            'sessions' => [],
+            'cells' => [
+                ['week' => 2, 'session' => 0, 'set' => 0, 'data' => ['reps' => 8]],
+                ['week' => 2, 'session' => 1, 'set' => 0, 'data' => ['reps' => 8]],
+                ['week' => 3, 'session' => 0, 'set' => 0, 'data' => ['reps' => 8]],
+                ['week' => 3, 'session' => 1, 'set' => 0, 'data' => ['reps' => 8]],
+                ['week' => 4, 'session' => 0, 'set' => 0, 'data' => ['reps' => 6]],
+                ['week' => 4, 'session' => 1, 'set' => 0, 'data' => ['reps' => 6]],
+            ],
+        ],
+    ];
+
+    $reps = collect(range(0, 9))->map(function (int $slotIndex) use ($builder, $exerciseConfig): int {
+        $session = $builder->build(
+            weekIndex: intdiv($slotIndex, 2),
+            sessionIndex: $slotIndex % 2,
+            scheduledDate: '2026-08-31',
+            exerciseConfigs: [$exerciseConfig],
+            weeks: 5,
+            sessionCounts: [2, 2, 2, 2, 2],
+            slotIndex: $slotIndex,
+            useSlotIndexForGroupedSessions: true,
+            plannedWeekCount: 5,
+        );
+
+        return (int) $session->exercises[0]->sets[0]->values[0]->value;
+    })->all();
+
+    expect($reps)->toBe([10, 10, 10, 10, 8, 8, 8, 8, 6, 6]);
+});
+
 it('uses the authored grouped session total before every slot is scheduled', function () {
     $builder = app(ResolvedPlannedSessionBuilder::class);
     $exerciseConfigs = [[

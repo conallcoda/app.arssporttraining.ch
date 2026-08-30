@@ -1,5 +1,6 @@
 <?php
 
+use App\Data\Exercise\Preview\SessionGroupingConfig;
 use App\Data\Exercise\Settings\WeightSetting;
 use App\Models\Exercise\Exercise;
 use App\Models\Exercise\ExerciseProgram;
@@ -73,9 +74,9 @@ it('carries athlete-entered weights and reps to future planned values without wr
 
     $gridOverrides = carryOverGridOverrides($trainingProgram, $pivot->id, $athlete->id);
 
-    expect(carryOverOverrideCellData($gridOverrides, 1, 0, 0))->toBe(['reps' => '6', 'weight' => 42.5])
-        ->and(carryOverOverrideCellData($gridOverrides, 1, 0, 1))->toBe(['reps' => '7', 'weight' => 45])
-        ->and(carryOverOverrideCellData($gridOverrides, 1, 0, 2))->toBe(['reps' => '8', 'weight' => 47.5]);
+    expect(carryOverOverrideCellData($gridOverrides, 0, 1, 0))->toBe(['reps' => '6', 'weight' => 42.5])
+        ->and(carryOverOverrideCellData($gridOverrides, 0, 1, 1))->toBe(['reps' => '7', 'weight' => 45])
+        ->and(carryOverOverrideCellData($gridOverrides, 0, 1, 2))->toBe(['reps' => '8', 'weight' => 47.5]);
 
     carryOverClearGridOverrides($trainingProgram, $pivot->id, $athlete->id);
 
@@ -83,9 +84,9 @@ it('carries athlete-entered weights and reps to future planned values without wr
 
     $gridOverrides = carryOverGridOverrides($trainingProgram, $pivot->id, $athlete->id);
 
-    expect(carryOverOverrideCellData($gridOverrides, 1, 0, 0))->toBe(['reps' => '6', 'weight' => 42.5])
-        ->and(carryOverOverrideCellData($gridOverrides, 1, 0, 1))->toBe(['reps' => '7', 'weight' => 45])
-        ->and(carryOverOverrideCellData($gridOverrides, 1, 0, 2))->toBe(['reps' => '8', 'weight' => 47.5]);
+    expect(carryOverOverrideCellData($gridOverrides, 0, 1, 0))->toBe(['reps' => '6', 'weight' => 42.5])
+        ->and(carryOverOverrideCellData($gridOverrides, 0, 1, 1))->toBe(['reps' => '7', 'weight' => 45])
+        ->and(carryOverOverrideCellData($gridOverrides, 0, 1, 2))->toBe(['reps' => '8', 'weight' => 47.5]);
 });
 
 it('does not carry athlete values until the source session is completed', function () {
@@ -192,7 +193,7 @@ it('does not let a retrospectively completed older session override a newer comp
     expect(carryOverPlannedValues($futureExercise, 'weight'))->toBe([20.0]);
 });
 
-it('stores carry-over overrides at chronological coordinates for ungrouped and fixed-group sessions', function (string $groupingMode) {
+it('stores carry-over overrides at canonical coordinates for ungrouped and fixed-group sessions', function (string $groupingMode) {
     [$athlete, $pivot, $trainingProgram] = carryOverProgram([
         'settings' => ['reps', 'weight'],
         'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
@@ -231,10 +232,14 @@ it('stores carry-over overrides at chronological coordinates for ungrouped and f
 
     $gridOverrides = carryOverGridOverrides($trainingProgram, $pivot->id, $athlete->id);
 
-    expect(carryOverOverrideCellData($gridOverrides, 0, 1, 0))->toBe([])
-        ->and(carryOverOverrideCellData($gridOverrides, 1, 0, 0))->toBe(['reps' => '7', 'weight' => 50])
-        ->and(carryOverOverrideCellData($gridOverrides, 2, 0, 0))->toBe(['reps' => '7', 'weight' => 50])
-        ->and(carryOverOverrideCellData($gridOverrides, 3, 0, 0))->toBe(['reps' => '7', 'weight' => 50]);
+    $expectedPositions = $groupingMode === 'groups'
+        ? [[0, 1], [1, 0], [1, 1]]
+        : [[1, 0], [2, 0], [3, 0]];
+
+    foreach ($expectedPositions as [$week, $session]) {
+        expect(carryOverOverrideCellData($gridOverrides, $week, $session, 0))
+            ->toBe(['reps' => '7', 'weight' => 50]);
+    }
 })->with(['none', 'groups']);
 
 it('carries explicit athlete values even when they equal the source plan', function () {
@@ -302,8 +307,8 @@ it('carries explicit athlete values even when they equal the source plan', funct
 
     $gridOverrides = carryOverGridOverrides($trainingProgram, $pivot->id, $athlete->id);
 
-    expect(carryOverOverrideCellData($gridOverrides, 1, 0, 0))->toBe(['reps' => '5', 'weight' => 50])
-        ->and(carryOverOverrideSessionData($gridOverrides, 1, 0))->toBe(['rest' => 90, 'tempo' => '2010']);
+    expect(carryOverOverrideCellData($gridOverrides, 0, 1, 0))->toBe(['reps' => '5', 'weight' => 50])
+        ->and(carryOverOverrideSessionData($gridOverrides, 0, 1))->toBe(['rest' => 90, 'tempo' => '2010']);
 });
 
 it('persists carry-over values for a scheduled future slot before it is compiled', function () {
@@ -384,10 +389,10 @@ it('preserves source set positions when only a later set differs from the plan',
 
     $gridOverrides = carryOverGridOverrides($trainingProgram, $pivot->id, $athlete->id);
 
-    expect(carryOverOverrideCellData($gridOverrides, 1, 0, 0))->toBe(['reps' => '10', 'weight' => 14])
-        ->and(carryOverOverrideCellData($gridOverrides, 1, 0, 1))->toBe(['reps' => '10', 'weight' => 14])
-        ->and(carryOverOverrideCellData($gridOverrides, 1, 0, 2))->toBe(['reps' => '8', 'weight' => 14])
-        ->and(carryOverOverrideCellData($gridOverrides, 1, 0, 3))->toBe(['reps' => '0', 'weight' => 0]);
+    expect(carryOverOverrideCellData($gridOverrides, 0, 1, 0))->toBe(['reps' => '10', 'weight' => 14])
+        ->and(carryOverOverrideCellData($gridOverrides, 0, 1, 1))->toBe(['reps' => '10', 'weight' => 14])
+        ->and(carryOverOverrideCellData($gridOverrides, 0, 1, 2))->toBe(['reps' => '8', 'weight' => 14])
+        ->and(carryOverOverrideCellData($gridOverrides, 0, 1, 3))->toBe(['reps' => '0', 'weight' => 0]);
 });
 
 it('repeats the last source value for extra future sets and treats missing carry-over config as enabled', function () {
@@ -546,9 +551,9 @@ it('does not carry into past unrecorded sessions after a retrospective completio
 
     expect(carryOverPlannedValues($pastUnrecordedExercise, 'weight'))->toBe([7.5])
         ->and(carryOverPlannedValues($openFutureExercise, 'weight'))->toBe([10.0])
-        ->and(carryOverOverrideCellData($overrides->historicalGridOverrides, 1, 0, 0))->toBe([])
-        ->and(carryOverOverrideCellData($overrides->gridOverrides, 1, 0, 0))->toBe([])
-        ->and(carryOverOverrideCellData($overrides->gridOverrides, 2, 0, 0))->toBe(['reps' => '14', 'weight' => 10]);
+        ->and(carryOverOverrideCellData($overrides->historicalGridOverrides, 0, 1, 0))->toBe([])
+        ->and(carryOverOverrideCellData($overrides->gridOverrides, 0, 1, 0))->toBe([])
+        ->and(carryOverOverrideCellData($overrides->gridOverrides, 1, 0, 0))->toBe(['reps' => '14', 'weight' => 10]);
 
     CarbonImmutable::setTestNow();
 });
@@ -632,6 +637,20 @@ function carryOverProgram(array $exerciseConfig): array
 
     $trainingProgram = TrainingProgram::importProgram($program, $group->id);
     $pivot = $trainingProgram->program->fresh(['exercises'])->exercises->first()->pivot;
+
+    if (isset($exerciseConfig['preview']['groupingMode'])) {
+        $scheduledProgram = $trainingProgram->program->fresh();
+        $config = $scheduledProgram->config;
+        $overrides = $config->defaultExerciseOverrides($pivot->id);
+        $overrides->sessionGrouping = SessionGroupingConfig::from([
+            'mode' => $exerciseConfig['preview']['groupingMode'],
+            'groupSize' => $exerciseConfig['preview']['groupSize'] ?? null,
+            'copyValuesAutomatically' => $exerciseConfig['preview']['copyValuesAutomatically'] ?? false,
+        ]);
+        $config->setDefaultExerciseOverrides($pivot->id, $overrides);
+        $scheduledProgram->config = $config;
+        $scheduledProgram->save();
+    }
 
     return [$athlete, $pivot, $trainingProgram];
 }

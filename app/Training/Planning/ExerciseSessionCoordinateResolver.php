@@ -23,17 +23,27 @@ class ExerciseSessionCoordinateResolver
             && $groupingMode === SessionGroupingMode::Groups->value;
         $usesChronologicalSessions = $groupingMode === SessionGroupingMode::None->value
             || $usesGroupedSlotIndex;
+        $groupSize = SessionGroupingMode::normalizeGroupSize(
+            isset($effectiveConfig['preview']['groupSize'])
+                ? (int) $effectiveConfig['preview']['groupSize']
+                : null,
+            $groupingMode,
+        );
 
         return [
             'week' => match (true) {
-                $usesGroupedSlotIndex => $slotIndex,
+                $usesGroupedSlotIndex => intdiv($slotIndex, $groupSize),
                 $groupingMode === SessionGroupingMode::None->value => $this->resolveUngroupedSessionIndex(
                     $effectiveConfig,
                     $slotIndex,
                 ),
                 default => $calendarWeekIndex,
             },
-            'session' => $usesChronologicalSessions ? 0 : $calendarSessionIndex,
+            'session' => match (true) {
+                $usesGroupedSlotIndex => $slotIndex % $groupSize,
+                $usesChronologicalSessions => 0,
+                default => $calendarSessionIndex,
+            },
             'usesChronologicalSessions' => $usesChronologicalSessions,
             'usesGroupedSlotIndex' => $usesGroupedSlotIndex,
         ];

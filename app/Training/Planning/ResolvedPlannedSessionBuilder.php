@@ -8,8 +8,8 @@ use App\Data\Exercise\Preview\GridState;
 use App\Data\Exercise\Preview\SessionGroupingMode;
 use App\Data\Exercise\Preview\StrategyOrchestrator;
 use App\Data\Exercise\Settings\WeightProgressionSetting;
-use App\Data\Training\Config\ExerciseOverrides;
 use App\Data\Training\Config\EffectiveExerciseConfig;
+use App\Data\Training\Config\ExerciseOverrides;
 use App\Data\Training\Planned\ResolvedPlannedExercise;
 use App\Data\Training\Planned\ResolvedPlannedProvenance;
 use App\Data\Training\Planned\ResolvedPlannedSession;
@@ -95,12 +95,20 @@ class ResolvedPlannedSessionBuilder
                         $effectiveConfig,
                         $plannedWeekCount,
                     );
-                    $resolvedWeeks = $position['usesGroupedSlotIndex']
-                        ? max($plannedSessionCount, array_sum($sessionCounts), $resolvedWeekIndex + 1)
-                        : max($weeks, $resolvedWeekIndex + 1);
-                    $resolvedSessionCounts = $usesChronologicalSessions
-                        ? array_fill(0, $resolvedWeeks, 1)
-                        : $sessionCounts;
+
+                    if ($position['usesGroupedSlotIndex']) {
+                        [$resolvedWeeks, $resolvedSessionCounts] = $this->groupedSessionShape(
+                            $effectiveConfig,
+                            $plannedSessionCount,
+                            $sessionCounts,
+                            $slotIndex,
+                        );
+                    } else {
+                        $resolvedWeeks = max($weeks, $resolvedWeekIndex + 1);
+                        $resolvedSessionCounts = $usesChronologicalSessions
+                            ? array_fill(0, $resolvedWeeks, 1)
+                            : $sessionCounts;
+                    }
 
                     return $this->buildExercise(
                         exerciseId: $exercise['exerciseId'] ?? null,
@@ -146,6 +154,33 @@ class ResolvedPlannedSessionBuilder
         $weeks = max(1, $plannedWeekCount ?? (int) ($preview['weeks'] ?? 1));
 
         return $weeks * SessionGroupingMode::resolvePreviewSessionCount($preview, 1);
+    }
+
+    /**
+     * @param  array<int, int>  $calendarSessionCounts
+     * @return array{0: int, 1: array<int, int>}
+     */
+    private function groupedSessionShape(
+        array $effectiveConfig,
+        int $plannedSessionCount,
+        array $calendarSessionCounts,
+        int $slotIndex,
+    ): array {
+        $preview = $effectiveConfig['preview'] ?? [];
+        $groupSize = SessionGroupingMode::normalizeGroupSize(
+            isset($preview['groupSize']) ? (int) $preview['groupSize'] : null,
+            SessionGroupingMode::Groups->value,
+        );
+        $sessionCount = max($plannedSessionCount, array_sum($calendarSessionCounts), $slotIndex + 1);
+        $groupCount = max(1, (int) ceil($sessionCount / $groupSize));
+        $sessionCounts = array_fill(0, $groupCount, $groupSize);
+        $finalGroupSize = $sessionCount % $groupSize;
+
+        if ($finalGroupSize > 0) {
+            $sessionCounts[$groupCount - 1] = $finalGroupSize;
+        }
+
+        return [$groupCount, $sessionCounts];
     }
 
     /**
