@@ -4105,7 +4105,7 @@ class PlanExerciseGrid extends Component
         $overrides->gridOverrides = $gridOverrides;
         $this->saveOverrides($overrides);
         $this->bumpGridRenderVersion();
-        unset($this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions, $this->resetMenuOptions);
+        unset($this->configFingerprint, $this->previewGrid, $this->displayGrid, $this->planGridTable, $this->effectiveExpandedWeeks, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions, $this->resetMenuOptions);
     }
 
     protected function persistResetGridOverrides(array $gridOverrides, array $sessions): void
@@ -4125,7 +4125,7 @@ class PlanExerciseGrid extends Component
 
         $this->saveOverrides($overrides);
         $this->bumpGridRenderVersion();
-        unset($this->configFingerprint, $this->previewGrid, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions, $this->resetMenuOptions);
+        unset($this->configFingerprint, $this->previewGrid, $this->displayGrid, $this->planGridTable, $this->effectiveExpandedWeeks, $this->resolvedExerciseOverrides, $this->copyBuckets, $this->copyMenuOptions, $this->resetMenuOptions);
     }
 
     protected function bumpGridRenderVersion(): void

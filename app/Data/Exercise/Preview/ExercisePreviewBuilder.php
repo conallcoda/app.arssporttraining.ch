@@ -118,6 +118,14 @@ class ExercisePreviewBuilder
                 userOverrides: $userOverrides,
                 useSlotIndexForGroupedSessions: $useSlotIndexForGroupedSessions,
             );
+
+            foreach ($plannedSessionValues['setCounts'] ?? [] as $week => $sessionSetCounts) {
+                $setsPerWeek[$week] = max(
+                    (int) ($setsPerWeek[$week] ?? 0),
+                    (int) collect($sessionSetCounts)->max(),
+                );
+            }
+
             $displayProvenanceValues = $highlightOverrides !== null && ! $highlightOverrides->isEmpty()
                 ? self::buildPlannedSessionValueMaps(
                     data: $data,

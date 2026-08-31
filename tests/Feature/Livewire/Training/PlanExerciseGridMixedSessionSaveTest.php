@@ -95,6 +95,80 @@ it('renders and saves scheduled fixed groups through canonical session coordinat
         ->toBe(9);
 });
 
+it('renders every copied set when copying an expanded scheduled session to all fixed groups', function () {
+    $exercise = Exercise::factory()->create([
+        'config' => [
+            'settings' => ['reps'],
+            'sets' => ['default' => 10, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 12, 'applyPer' => 'per_set'],
+            'preview' => [
+                'weeks' => 5,
+                'sessionsPerWeek' => 1,
+                'groupingMode' => 'groups',
+                'groupSize' => 2,
+            ],
+        ],
+    ]);
+    $program = ExerciseProgram::factory()->create();
+    $pivot = ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+        'type' => 'main',
+    ]);
+    $group = UserGroup::create(['name' => 'Copy expanded sets']);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $component = Livewire::test(PlanExerciseGrid::class, [
+        'planId' => $program->id,
+        'scheduledTrainingProgramId' => $trainingProgram->id,
+        'programExerciseId' => $pivot->id,
+        'exerciseId' => $exercise->id,
+        'userId' => null,
+        'weeks' => 5,
+        'sessionsPerWeek' => 1,
+        'weekSessions' => array_fill(0, 5, 1),
+        'weekSessionDates' => collect(range(1, 5))
+            ->map(fn (int $day): array => [sprintf('2026-09-%02d', $day)])
+            ->all(),
+        'lockedSessionsByWeek' => array_fill(0, 5, [false]),
+    ]);
+
+    $component
+        ->call('updateSessionOverride', 0, 0, 'sets', 30, false)
+        ->call('updateSessionOverride', 1, 0, 'sets', 30, false)
+        ->call('updateCellOverride', 0, 29, 'reps', 19, 0, false)
+        ->call('updateCellOverride', 1, 29, 'reps', 19, 0, false);
+
+    expect(array_keys($component->get('copyBuckets')))->toBe([
+        'group:0',
+        'group:1',
+        'session:4:0',
+    ]);
+
+    $component->call('copyDisplayBucketToAll', 'group:0');
+
+    $table = $component->get('planGridTable');
+    $sessions = collect($table['groups'])
+        ->flatMap(fn (array $group): array => $group['sessions'])
+        ->values();
+
+    expect($sessions)->toHaveCount(5);
+
+    foreach ([0, 2, 3, 4] as $sessionIndex) {
+        $session = $sessions[$sessionIndex];
+        $sets = collect($session['sessionRows'])->firstWhere('field', 'sets')['value'] ?? null;
+        $reps = collect($session['setRows'])->firstWhere('field', 'reps')['cells'] ?? [];
+
+        expect($sets)->toBe(30)
+            ->and($reps)->toHaveCount(30)
+            ->and($reps[29] ?? null)->toBe(19);
+    }
+});
+
 it('saves future session overrides in a week that also has locked sessions', function () {
     $exercise = Exercise::factory()->create([
         'config' => [
