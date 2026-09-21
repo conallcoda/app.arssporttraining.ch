@@ -21,6 +21,7 @@ final readonly class PlanningContextData
         public int $slotIndex = 0,
         public bool $useSlotIndexForGroupedSessions = false,
         public ?int $plannedWeekCount = null,
+        public ?int $plannedSessionCount = null,
     ) {}
 
     public function resolvedWeekCount(): int

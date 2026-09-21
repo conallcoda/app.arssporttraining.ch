@@ -3,6 +3,7 @@
 namespace App\Training;
 
 use App\Data\Training\Compiled\CompiledTrainingExercise;
+use App\Data\Training\Compiled\CompiledTrainingSession;
 use App\Data\Training\Compiled\CompiledTrainingSet;
 use App\Data\Training\Compiled\CompiledTrainingSetValue;
 use App\Models\Training\ExerciseSettingSnapshot;
@@ -27,8 +28,7 @@ class TrainingSessionMaterializer
         bool $force = false,
         bool $ignoreCompiledVersion = false,
         bool $allowImmutableRewrite = false,
-    ): void
-    {
+    ): void {
         DB::transaction(function () use ($slot, $force, $ignoreCompiledVersion, $allowImmutableRewrite): void {
             $lockedSlot = TrainingProgramSlot::query()
                 ->lockForUpdate()
@@ -87,6 +87,89 @@ class TrainingSessionMaterializer
         }, 5);
     }
 
+    /**
+     * Recompile selected exercise rows without touching other exercises in the slot.
+     *
+     * @param  list<int>  $programExerciseIds
+     * @return array{recompiled: int, preserved: int, missing: int}
+     */
+    public function materializeExercises(
+        TrainingProgramSlot $slot,
+        array $programExerciseIds,
+    ): array {
+        $programExerciseIds = collect($programExerciseIds)
+            ->map(fn (mixed $id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($programExerciseIds === []) {
+            return ['recompiled' => 0, 'preserved' => 0, 'missing' => 0];
+        }
+
+        return DB::transaction(function () use ($slot, $programExerciseIds): array {
+            $lockedSlot = TrainingProgramSlot::query()
+                ->lockForUpdate()
+                ->findOrFail($slot->id);
+
+            $this->preserveCompilationRelations($slot, $lockedSlot);
+
+            $compiledByProgramExercise = collect($this->compiler->compile($lockedSlot)->exercises)
+                ->keyBy(fn (CompiledTrainingExercise $exercise): int => $exercise->programExerciseId);
+            $existing = $lockedSlot->exercises()
+                ->whereIn('exercise_program_exercise_id', $programExerciseIds)
+                ->with('sets.values')
+                ->get()
+                ->keyBy('exercise_program_exercise_id');
+            $result = ['recompiled' => 0, 'preserved' => 0, 'missing' => 0];
+
+            foreach ($programExerciseIds as $programExerciseId) {
+                $exerciseModel = $existing->get($programExerciseId);
+                $compiledExercise = $compiledByProgramExercise->get($programExerciseId);
+
+                if (! $exerciseModel instanceof TrainingProgramSlotExercise
+                    || ! $compiledExercise instanceof CompiledTrainingExercise) {
+                    $result['missing']++;
+
+                    continue;
+                }
+
+                if ($this->editGuard->aggregateColumnsIndicateRecordedExerciseOutcome($exerciseModel)) {
+                    $result['preserved']++;
+
+                    continue;
+                }
+
+                $exerciseModel->delete();
+                $newExercise = $this->createExercise($lockedSlot, $compiledExercise);
+                $valueRows = [];
+                $timestamp = now();
+
+                foreach ($compiledExercise->sets as $set) {
+                    $setModel = $this->createSet($newExercise, $set);
+
+                    foreach ($set->values as $value) {
+                        $valueRows[] = [
+                            'training_program_slot_set_id' => $setModel->id,
+                            ...$this->encodeValueForInsert($value),
+                            'created_at' => $timestamp,
+                            'updated_at' => $timestamp,
+                        ];
+                    }
+                }
+
+                foreach (array_chunk($valueRows, 500) as $chunk) {
+                    DB::table('training_program_slot_set_values')->insert($chunk);
+                }
+
+                $result['recompiled']++;
+            }
+
+            return $result;
+        }, 5);
+    }
+
     private function preserveCompilationRelations(TrainingProgramSlot $originalSlot, TrainingProgramSlot $lockedSlot): void
     {
         if ($originalSlot->relationLoaded('trainingProgram')) {
@@ -107,7 +190,7 @@ class TrainingSessionMaterializer
         return ! $force;
     }
 
-    private function isNoOpRebuild(TrainingProgramSlot $slot, \App\Data\Training\Compiled\CompiledTrainingSession $compiled): bool
+    private function isNoOpRebuild(TrainingProgramSlot $slot, CompiledTrainingSession $compiled): bool
     {
         if ($slot->compiled_at === null) {
             return false;

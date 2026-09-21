@@ -52,10 +52,14 @@ class TrainingSessionCompiler
      */
     private array $overlappingCategoryBlockCache = [];
 
+    /** @var array<string, int> */
+    private array $plannedSessionCountCache = [];
+
     public function __construct(
         private readonly CalendarBlockService $calendarBlockService,
         private readonly PlanCompiler $planCompiler,
         private readonly ProgramExerciseOrder $programExerciseOrder,
+        private readonly TrainingPlanSessionCountResolver $planSessionCountResolver,
     ) {}
 
     public function compile(TrainingProgramSlot $slot): CompiledTrainingSession
@@ -67,6 +71,7 @@ class TrainingSessionCompiler
         $scheduledDate = ($slot->scheduled_date ?? $slot->datetime)->format('Y-m-d');
         $metricContext = $this->resolveMetricContext($slot, $scheduledDate);
         $sessionContext = $this->resolveSessionContext($slot, $scheduledDate);
+        $block = $this->resolveOverlappingCategoryBlock($slot, $scheduledDate);
         $oneRepMaxMetric = $this->latestMetric($slot->user_id, MetricEnum::OneRepMax, $metricContext['cutoffDate']);
         $heartRateMetric = $this->latestMetric($slot->user_id, MetricEnum::HeartRate, $scheduledDate);
         $weightProgression = $this->resolveWeightProgressionData($oneRepMaxMetric, $metricContext['targetGoal']);
@@ -107,6 +112,7 @@ class TrainingSessionCompiler
             slotIndex: (int) $sessionContext['slotIndex'],
             useSlotIndexForGroupedSessions: true,
             plannedWeekCount: max(1, (int) $programConfig->weeks),
+            plannedSessionCount: $this->resolvePlannedSessionCount($slot, $block),
         );
         $plannedSession = $this->planCompiler->compile($authoringProgram, $planningContext);
         $compiledExercises = array_map(
@@ -140,6 +146,16 @@ class TrainingSessionCompiler
         $scheduledDate = ($slot->scheduled_date ?? $slot->datetime)->format('Y-m-d');
 
         return $this->resolveOverlappingCategoryBlock($slot, $scheduledDate);
+    }
+
+    private function resolvePlannedSessionCount(
+        TrainingProgramSlot $slot,
+        ?TrainingProgramBlock $block,
+    ): int {
+        $cacheKey = $slot->training_program_id.':'.($block?->id ?? 'ungrouped');
+
+        return $this->plannedSessionCountCache[$cacheKey]
+            ??= $this->planSessionCountResolver->resolveForSlot($slot, $block);
     }
 
     private function resolveSessionContext(TrainingProgramSlot $slot, string $scheduledDate): array

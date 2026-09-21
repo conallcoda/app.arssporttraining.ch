@@ -2,6 +2,7 @@
 
 use App\Data\Exercise\Preview\ExercisePreviewBuilder;
 use App\Data\Exercise\Preview\GridOverrides;
+use App\Data\Exercise\Settings\WeightProgressionSetting;
 use App\Data\Training\Config\ExerciseOverrides;
 use Tests\TestCase;
 
@@ -128,4 +129,52 @@ it('displays fixed session groups from canonical chronological slot coordinates'
             expect($repsRow->getCellValue($slot, $set, 0))->toBe($expected, "slot {$slot}, set {$set}");
         }
     }
+});
+
+it('uses the logical session total for grouped automatic one rep max preview values', function () {
+    $grid = ExercisePreviewBuilder::build(
+        data: [
+            'settings' => ['reps', 'weight', 'tempo', 'rest'],
+            'sets' => ['type' => 'normal', 'deload' => 'odd', 'deloadBy' => 1, 'label' => 'Set', 'default' => 4],
+            'reps' => [
+                'mode' => 'automatic',
+                'default' => 10,
+                'stepDownInterval' => 2,
+                'decrement' => 2,
+                'minimum' => 1,
+                'applyPer' => 'per_set',
+            ],
+            'weight' => [
+                'mode' => 'automatic',
+                'oneRepMaxModifier' => 100,
+                'default' => 5,
+                'applyPer' => 'per_set',
+            ],
+            'tempo' => ['default' => '3010', 'applyPer' => 'week'],
+            'rest' => ['default' => 60, 'applyPer' => 'week'],
+            'preview' => [
+                'weeks' => 5,
+                'sessionsPerWeek' => 1,
+                'groupingMode' => 'groups',
+                'groupSize' => 2,
+            ],
+        ],
+        measuredData: new WeightProgressionSetting(
+            measuredReps: 1,
+            measuredWeight: 25,
+            targetGoal: 30,
+        ),
+        weeks: 5,
+        sessionsPerWeek: 1,
+        explicitWeekSessionCounts: array_fill(0, 5, 1),
+        useSlotIndexForGroupedSessions: true,
+    );
+
+    $repsRow = collect($grid->rows)->firstWhere('field', 'reps');
+    $weightRow = collect($grid->rows)->firstWhere('field', 'weight');
+    $oneRepMaxRow = collect($grid->rows)->firstWhere('field', 'oneRepMax');
+
+    expect($repsRow?->getCellValue(4, 2, 0))->toBe(6)
+        ->and((float) $weightRow?->getCellValue(4, 2, 0))->toBe(28.0)
+        ->and((float) $oneRepMaxRow?->getCellValue(4, 2, 0))->toBe(32.5);
 });

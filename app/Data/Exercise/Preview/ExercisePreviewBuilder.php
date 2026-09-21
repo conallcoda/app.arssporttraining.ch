@@ -1105,6 +1105,7 @@ class ExercisePreviewBuilder
                             iatPercent: $iatPercent,
                             slotIndex: $slotIndex,
                             useSlotIndexForGroupedSessions: $useSlotIndexForGroupedSessions,
+                            plannedSessionCount: array_sum($sessionCounts),
                         ),
                     );
                     $slotIndex++;

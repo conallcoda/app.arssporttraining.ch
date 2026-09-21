@@ -550,7 +550,11 @@ it('keeps sibling weights stable when later planned sessions are scheduled', fun
         'end' => '2026-06-08',
         'note' => 'Strength Block',
         'active' => true,
-        'config' => ['goal' => 5, 'autoRecord1rm' => false],
+        'config' => [
+            'goal' => 5,
+            'autoRecord1rm' => false,
+            'plannedSessionCounts' => [$trainingProgram->id => 10],
+        ],
     ]);
 
     $metric = MetricSubmission::query()->create([

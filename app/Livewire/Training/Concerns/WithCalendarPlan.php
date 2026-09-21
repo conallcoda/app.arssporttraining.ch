@@ -22,6 +22,7 @@ use App\Support\Training\SlotStatusPresenter;
 use App\Training\CalendarBlockService;
 use App\Training\EffectiveOneRepMaxSubmissionResolver;
 use App\Training\ProjectedOneRepMaxService;
+use App\Training\TrainingPlanSessionCountResolver;
 use App\Training\TrainingSessionEditGuard;
 use Carbon\Carbon;
 use Flux\Flux;
@@ -124,23 +125,38 @@ trait WithCalendarPlan
 
     protected function effectivePlanSessionCount(TrainingProgram $program, ?int $scheduledSessionCount = null): int
     {
-        return max(
-            1,
-            $this->configuredPlanSessionCount($program),
+        $query = TrainingProgramSlot::query()
+            ->where('training_program_id', $program->id)
+            ->whereNull('cancelled_at');
+        $block = null;
+
+        if ($this->planBlock === 'ungrouped') {
+            $this->applyUngroupedFilter($query);
+        } else {
+            $block = TrainingProgramBlock::find((int) $this->planBlock);
+            if ($block) {
+                $query->whereBetween('datetime', [
+                    $block->start->copy()->startOfDay(),
+                    ($block->end ?? $block->start)->copy()->endOfDay(),
+                ]);
+            }
+        }
+
+        return app(TrainingPlanSessionCountResolver::class)->resolve(
+            $program,
+            $block,
+            $query,
             $scheduledSessionCount ?? 0,
-            $this->scopedScheduledSessionCount($program),
         );
     }
 
     protected function configuredPlanSessionCount(TrainingProgram $program): int
     {
-        if ($this->planBlock === 'ungrouped') {
-            return (int) ($program->planned_session_count ?? 0);
-        }
+        $block = $this->planBlock === 'ungrouped'
+            ? null
+            : TrainingProgramBlock::find((int) $this->planBlock);
 
-        $block = TrainingProgramBlock::find((int) $this->planBlock);
-
-        return (int) ($block?->config?->plannedSessionCounts[$program->id] ?? 0);
+        return app(TrainingPlanSessionCountResolver::class)->configuredCount($program, $block);
     }
 
     protected function saveConfiguredPlanSessionCount(TrainingProgram $program, int $count): void
@@ -165,7 +181,8 @@ trait WithCalendarPlan
     protected function scopedScheduledSessionCount(TrainingProgram $program): int
     {
         $query = TrainingProgramSlot::query()
-            ->where('training_program_id', $program->id);
+            ->where('training_program_id', $program->id)
+            ->whereNull('cancelled_at');
 
         if ($this->planBlock === 'ungrouped') {
             $this->applyUngroupedFilter($query);
@@ -179,11 +196,7 @@ trait WithCalendarPlan
             }
         }
 
-        return (int) ((clone $query)
-            ->selectRaw('user_id, COUNT(*) as session_count')
-            ->groupBy('user_id')
-            ->pluck('session_count')
-            ->max() ?? 0);
+        return app(TrainingPlanSessionCountResolver::class)->highestAthleteScheduledCount($query);
     }
 
     #[On('navigate-to-plan')]

@@ -441,6 +441,89 @@ it('compiles automatic progression using the full active block session shape', f
         ->and($thirdWeights)->toBe([44.0, 46.5, 49.0, 51.5]);
 });
 
+it('uses the highest athlete session total for grouped automatic one rep max progression', function () {
+    $primaryAthlete = User::factory()->athlete()->create();
+    $secondAthlete = User::factory()->athlete()->create();
+    $coach = User::factory()->coach()->create();
+    $group = UserGroup::create(['name' => 'Five-session strength group']);
+    $category = Tag::factory()->withScope('training_category')->create(['name' => 'Strength']);
+    $program = ExerciseProgram::factory()->create([
+        'name' => 'Five-session strength',
+        'exercise_category_id' => $category->id,
+        'config' => ['weeks' => 5],
+    ]);
+    $trainingProgram = TrainingProgram::factory()->create([
+        'group_id' => $group->id,
+        'exercise_program_id' => $program->id,
+    ]);
+
+    $exercise = Exercise::factory()->create([
+        'name' => 'Back Squat',
+        'config' => [
+            'settings' => ['reps', 'weight'],
+            'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+            'reps' => ['mode' => 'manual', 'default' => 6, 'applyPer' => 'session'],
+            'weight' => [
+                'mode' => 'automatic',
+                'oneRepMaxModifier' => 100,
+                'default' => 5,
+                'applyPer' => 'session',
+            ],
+            'preview' => ['groupingMode' => 'groups', 'groupSize' => 2],
+        ],
+    ]);
+
+    ExerciseProgramExercise::create([
+        'exercise_program_id' => $program->id,
+        'exercise_id' => $exercise->id,
+        'sort' => 0,
+    ]);
+
+    TrainingProgramBlock::create([
+        'group_id' => $group->id,
+        'user_id' => null,
+        'category_id' => $category->id,
+        'type' => TrainingProgramBlockTypeEnum::Category,
+        'start' => '2026-08-01',
+        'end' => '2026-08-31',
+        'note' => 'Five sessions',
+        'active' => true,
+        'config' => ['goal' => 30, 'autoRecord1rm' => false],
+    ]);
+
+    $metric = MetricSubmission::query()->create([
+        'user_id' => $primaryAthlete->id,
+        'metric' => MetricEnum::OneRepMax,
+        'recorded_by' => $coach->id,
+        'recorded_at' => '2026-08-01',
+        'owner_type' => null,
+        'owner_id' => null,
+    ]);
+    $metric->values()->createMany([
+        ['field' => 'measuredReps', 'value' => '1'],
+        ['field' => 'measuredWeight', 'value' => '25'],
+        ['field' => 'estimated1RM', 'value' => '25'],
+    ]);
+
+    $primarySlots = collect(range(0, 4))->map(fn (int $day) => TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $primaryAthlete->id,
+        'datetime' => Carbon::parse('2026-08-03 09:00:00')->addDays($day * 3),
+    ]));
+
+    collect(range(0, 2))->each(fn (int $day) => TrainingProgramSlot::factory()->create([
+        'training_program_id' => $trainingProgram->id,
+        'user_id' => $secondAthlete->id,
+        'datetime' => Carbon::parse('2026-08-04 09:00:00')->addDays($day * 3),
+    ]));
+
+    $compiled = app(TrainingSessionCompiler::class)->compile($primarySlots->last()->fresh());
+    $values = collect($compiled->exercises[0]->sets[0]->values)->keyBy('settingKey');
+
+    expect($values['reps']->plannedValue)->toBe(6)
+        ->and((float) $values['weight']->plannedValue)->toBe(28.0);
+});
+
 it('uses the active block baseline metric when compiling automatic weights', function () {
     $athlete = User::factory()->athlete()->create();
     $coach = User::factory()->coach()->create();
@@ -481,7 +564,11 @@ it('uses the active block baseline metric when compiling automatic weights', fun
         'end' => '2026-05-31',
         'note' => 'Strength Block',
         'active' => true,
-        'config' => ['goal' => 5, 'autoRecord1rm' => false],
+        'config' => [
+            'goal' => 5,
+            'autoRecord1rm' => false,
+            'plannedSessionCounts' => [$trainingProgram->id => 10],
+        ],
     ]);
 
     $baselineMetric = MetricSubmission::query()->create([
@@ -524,7 +611,7 @@ it('uses the active block baseline metric when compiling automatic weights', fun
     expect((float) $weightValue?->planned_decimal_value)->toBe(64.0);
 });
 
-it('materializes grouped 1rm weights from the authored total before all slots are scheduled', function () {
+it('materializes grouped 1rm weights from the configured total before all slots are scheduled', function () {
     Carbon::setTestNow('2026-08-20 12:00:00');
 
     $athlete = User::factory()->athlete()->create();
@@ -573,7 +660,11 @@ it('materializes grouped 1rm weights from the authored total before all slots ar
         'end' => '2026-11-15',
         'note' => 'Strength Block',
         'active' => true,
-        'config' => ['goal' => 3, 'autoRecord1rm' => false],
+        'config' => [
+            'goal' => 3,
+            'autoRecord1rm' => false,
+            'plannedSessionCounts' => [$trainingProgram->id => 8],
+        ],
     ]);
 
     $metric = MetricSubmission::query()->create([
@@ -715,7 +806,7 @@ it('reuses cached slot timelines and metric lookups across repeated compiles in 
         ->filter(fn (string $sql) => str_contains($sql, 'user_metric_submissions'))
         ->count();
 
-    expect($slotTimelineQueries)->toBe(1)
+    expect($slotTimelineQueries)->toBe(2)
         ->and($metricQueries)->toBe(2);
 });
 

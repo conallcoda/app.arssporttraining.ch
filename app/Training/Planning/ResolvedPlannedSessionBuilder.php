@@ -68,6 +68,7 @@ class ResolvedPlannedSessionBuilder
         int $slotIndex = 0,
         bool $useSlotIndexForGroupedSessions = false,
         ?int $plannedWeekCount = null,
+        ?int $plannedSessionCount = null,
     ): ResolvedPlannedSession {
         $span = PlanGridProfiler::start('ResolvedPlannedSessionBuilder.build', [
             'week' => $weekIndex,
@@ -79,7 +80,7 @@ class ResolvedPlannedSessionBuilder
 
         try {
             $exercises = array_values(array_filter(array_map(
-                function (array $exercise) use ($weekIndex, $sessionIndex, $slotIndex, $weeks, $sessionCounts, $useSlotIndexForGroupedSessions, $plannedWeekCount): ?ResolvedPlannedExercise {
+                function (array $exercise) use ($weekIndex, $sessionIndex, $slotIndex, $weeks, $sessionCounts, $useSlotIndexForGroupedSessions, $plannedWeekCount, $plannedSessionCount): ?ResolvedPlannedExercise {
                     $effectiveConfig = $exercise['effectiveConfig'] ?? [];
                     $position = $this->coordinateResolver->resolve(
                         effectiveConfig: $effectiveConfig,
@@ -94,6 +95,7 @@ class ResolvedPlannedSessionBuilder
                     $plannedSessionCount = $this->plannedSessionCount(
                         $effectiveConfig,
                         $plannedWeekCount,
+                        $plannedSessionCount,
                     );
 
                     if ($position['usesGroupedSlotIndex']) {
@@ -148,8 +150,15 @@ class ResolvedPlannedSessionBuilder
         }
     }
 
-    private function plannedSessionCount(array $effectiveConfig, ?int $plannedWeekCount): int
-    {
+    private function plannedSessionCount(
+        array $effectiveConfig,
+        ?int $plannedWeekCount,
+        ?int $explicitPlannedSessionCount,
+    ): int {
+        if ($explicitPlannedSessionCount !== null) {
+            return max(1, $explicitPlannedSessionCount);
+        }
+
         $preview = $effectiveConfig['preview'] ?? [];
         $weeks = max(1, $plannedWeekCount ?? (int) ($preview['weeks'] ?? 1));
 
