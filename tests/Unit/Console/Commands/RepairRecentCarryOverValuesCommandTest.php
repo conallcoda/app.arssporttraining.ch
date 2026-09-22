@@ -4,6 +4,9 @@ use App\Console\Commands\RepairRecentCarryOverValuesCommand;
 
 it('includes the exact category and block in carry-over report links', function () {
     $command = app(RepairRecentCarryOverValuesCommand::class);
+
+    expect($command->getDefinition()->hasOption('updated-by'))->toBeFalse();
+
     $method = new ReflectionMethod($command, 'calendarUrl');
     $url = $method->invoke($command, [
         'group_id' => 14,

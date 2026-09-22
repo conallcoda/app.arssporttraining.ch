@@ -67,7 +67,6 @@ class CarryOverAthleteValuesService
                 ->where('user_id', $source->slot->user_id)
                 ->whereNull('cancelled_at')
                 ->where('datetime', '>', $source->slot->datetime)
-                ->where('datetime', '>', now())
                 ->when($block !== null, fn ($query) => $query->whereBetween('datetime', [
                     $block->start->copy()->startOfDay(),
                     ($block->end ?? $block->start)->copy()->endOfDay(),
@@ -125,10 +124,13 @@ class CarryOverAthleteValuesService
         }
 
         $effectiveConfig = $this->currentEffectiveConfig($source);
+        $settings = data_get($effectiveConfig, 'settings', []);
 
         return $source->status === TrainingProgramSlotExerciseStatusEnum::Completed
             && $source->slot->status === TrainingProgramSlotStatusEnum::Completed
-            && data_get($effectiveConfig, 'weight.mode', 'manual') === 'manual'
+            && is_array($settings)
+            && in_array('weight', $settings, true)
+            && data_get($effectiveConfig, 'weight.mode') === 'manual'
             && data_get($effectiveConfig, 'weight.carryOverAthleteValues', true) !== false;
     }
 
@@ -501,7 +503,8 @@ class CarryOverAthleteValuesService
         return is_string($settingClass)
             && is_subclass_of($settingClass, AbstractSetting::class)
             && $valueRow->actual_value_type !== null
-            && (bool) $valueRow->actual_is_explicit;
+            && (bool) $valueRow->actual_is_explicit
+            && $valueRow->actual_source === 'athlete';
     }
 
     /**

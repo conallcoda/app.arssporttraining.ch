@@ -89,6 +89,31 @@ it('carries athlete-entered weights and reps to future planned values without wr
         ->and(carryOverOverrideCellData($gridOverrides, 0, 1, 2))->toBe(['reps' => '8', 'weight' => 47.5]);
 });
 
+it('does not carry values for an exercise without an enabled weight setting', function () {
+    [$athlete, $pivot, $trainingProgram] = carryOverProgram([
+        'settings' => ['reps'],
+        'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+        'reps' => ['mode' => 'manual', 'default' => 10, 'applyPer' => 'set'],
+    ]);
+
+    $sourceSlot = carryOverSlot($trainingProgram, $athlete, '2030-04-01 09:00:00');
+    $futureSlot = carryOverSlot($trainingProgram, $athlete, '2030-04-08 09:00:00');
+    $sourceExercise = carryOverSlotExercise($sourceSlot, $pivot->id);
+    $futureExercise = carryOverSlotExercise($futureSlot, $pivot->id);
+
+    $this->actingAs($athlete);
+
+    carryOverSaveAndComplete($sourceExercise, [
+        $sourceExercise->sets->first()->id => ['reps' => 12],
+    ], onlyProvided: true);
+
+    expect(carryOverPlannedValues($futureExercise, 'reps'))->toBe(['10'])
+        ->and(carryOverGridOverrides($trainingProgram, $pivot->id, $athlete->id))->toBe([
+            'sessions' => [],
+            'cells' => [],
+        ]);
+});
+
 it('does not carry athlete values until the source session is completed', function () {
     [$athlete, $pivot, $trainingProgram] = carryOverProgram([
         'settings' => ['reps', 'weight'],
@@ -112,6 +137,29 @@ it('does not carry athlete values until the source session is completed', functi
 
     expect(carryOverPlannedValues($futureExercise, 'weight'))->toBe([50.0]);
 });
+
+it('does not carry explicit actuals whose latest entry was made by staff', function (string $staffType) {
+    [$athlete, $pivot, $trainingProgram] = carryOverProgram([
+        'settings' => ['reps', 'weight'],
+        'sets' => ['default' => 1, 'label' => 'Set', 'deload' => 'none'],
+        'reps' => ['mode' => 'manual', 'default' => 5, 'applyPer' => 'set'],
+        'weight' => ['mode' => 'manual', 'default' => 40, 'applyPer' => 'set'],
+    ]);
+    $sourceSlot = carryOverSlot($trainingProgram, $athlete, '2030-04-01 09:00:00');
+    $futureSlot = carryOverSlot($trainingProgram, $athlete, '2030-04-08 09:00:00');
+    $sourceExercise = carryOverSlotExercise($sourceSlot, $pivot->id);
+    $futureExercise = carryOverSlotExercise($futureSlot, $pivot->id);
+    $staff = $staffType === 'admin'
+        ? User::factory()->admin()->create()
+        : User::factory()->coach()->create();
+
+    $this->actingAs($staff);
+    carryOverSaveAndComplete($sourceExercise, [
+        $sourceExercise->sets->first()->id => ['weight' => 50],
+    ], onlyProvided: true);
+
+    expect(carryOverPlannedValues($futureExercise, 'weight'))->toBe([40.0]);
+})->with(['coach', 'admin']);
 
 it('preserves a target cell explicitly planned by a coach after the athlete actual', function () {
     CarbonImmutable::setTestNow('2030-04-01 10:00:00');
@@ -523,7 +571,7 @@ it('skips already recorded future sessions while updating later unrecorded sessi
         ->and(carryOverPlannedValues($openFutureExercise, 'reps'))->toBe(['14']);
 });
 
-it('does not carry into past unrecorded sessions after a retrospective completion', function () {
+it('carries into later pending unrecorded sessions after a retrospective completion', function () {
     CarbonImmutable::setTestNow('2030-06-19 12:00:00');
 
     [$athlete, $pivot, $trainingProgram] = carryOverProgram([
@@ -549,10 +597,12 @@ it('does not carry into past unrecorded sessions after a retrospective completio
 
     $overrides = carryOverOverrides($trainingProgram, $pivot->id, $athlete->id);
 
-    expect(carryOverPlannedValues($pastUnrecordedExercise, 'weight'))->toBe([7.5])
+    expect(carryOverPlannedValues($pastUnrecordedExercise, 'weight'))->toBe([10.0])
+        ->and(carryOverPlannedValues($pastUnrecordedExercise, 'reps'))->toBe(['14'])
         ->and(carryOverPlannedValues($openFutureExercise, 'weight'))->toBe([10.0])
+        ->and(carryOverPlannedValues($openFutureExercise, 'reps'))->toBe(['14'])
         ->and(carryOverOverrideCellData($overrides->historicalGridOverrides, 0, 1, 0))->toBe([])
-        ->and(carryOverOverrideCellData($overrides->gridOverrides, 0, 1, 0))->toBe([])
+        ->and(carryOverOverrideCellData($overrides->gridOverrides, 0, 1, 0))->toBe(['reps' => '14', 'weight' => 10])
         ->and(carryOverOverrideCellData($overrides->gridOverrides, 1, 0, 0))->toBe(['reps' => '14', 'weight' => 10]);
 
     CarbonImmutable::setTestNow();

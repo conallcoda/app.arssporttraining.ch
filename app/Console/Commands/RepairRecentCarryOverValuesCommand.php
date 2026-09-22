@@ -12,10 +12,10 @@ use App\Training\TrainingValueSnapshotCodec;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use InvalidArgumentException;
+use Laravel\Telescope\Telescope;
 use Throwable;
 
 class RepairRecentCarryOverValuesCommand extends Command
@@ -25,19 +25,17 @@ class RepairRecentCarryOverValuesCommand extends Command
     protected $signature = 'training:repair-recent-carry-over
         {--since= : Inclusive athlete-actual timestamp, for example 2026-08-12}
         {--until= : Inclusive athlete-actual timestamp, defaults to now}
-        {--updated-by= : Required user id used for the repair audit}
-        {--apply : Commit the reported future planned-value changes}
+        {--apply : Commit the reported subsequent planned-value changes}
         {--report= : CSV report path; defaults below storage/app/reports}';
 
-    protected $description = 'Audit or repair future carry-over projections from recently completed sessions using the production carry-over rules';
+    protected $description = 'Audit or repair subsequent carry-over projections from recently completed sessions using the production carry-over rules';
 
-    public function handle(
-        CarryOverAthleteValuesService $carryOver,
-        TrainingValueSnapshotCodec $codec,
-        TrainingSessionCompiler $sessionCompiler,
-    ): int {
+    public function handle(TrainingValueSnapshotCodec $codec): int
+    {
+        Telescope::stopRecording();
+
         try {
-            [$since, $until, $updatedBy] = $this->validatedOptions();
+            [$since, $until] = $this->validatedOptions();
         } catch (InvalidArgumentException $exception) {
             $this->error($exception->getMessage());
 
@@ -59,22 +57,39 @@ class RepairRecentCarryOverValuesCommand extends Command
             return self::SUCCESS;
         }
 
-        Auth::loginUsingId($updatedBy);
-        $programIds = $sources->pluck('slot.training_program_id')->filter()->unique()->values()->all();
-        $before = $this->plannedSnapshot($programIds, $codec, $sessionCompiler);
         $changedSources = 0;
+        $changes = [];
+        $sourcesByProgram = $sources->groupBy(
+            fn (TrainingProgramSlotExercise $source): int => (int) $source->slot?->training_program_id,
+        );
 
+        DB::disableQueryLog();
         DB::beginTransaction();
 
         try {
-            foreach ($sources as $source) {
-                if ($carryOver->carryFrom($source)) {
-                    $changedSources++;
+            foreach ($sourcesByProgram as $programId => $programSources) {
+                $carryOver = app(CarryOverAthleteValuesService::class);
+                $sessionCompiler = app(TrainingSessionCompiler::class);
+                $before = $this->plannedSnapshot([(int) $programId], $codec, $sessionCompiler);
+
+                foreach ($programSources as $source) {
+                    if ($carryOver->carryFrom($source)) {
+                        $changedSources++;
+                    }
                 }
+
+                $after = $this->plannedSnapshot([(int) $programId], $codec, $sessionCompiler);
+                $programChanges = $this->diff($before, $after);
+
+                foreach ($programChanges as $change) {
+                    $changes[] = $change;
+                }
+
+                unset($before, $after, $programChanges, $carryOver, $sessionCompiler);
+                gc_collect_cycles();
             }
 
-            $after = $this->plannedSnapshot($programIds, $codec, $sessionCompiler);
-            $changes = $this->diff($before, $after);
+            $this->sortChanges($changes);
             $reportPath = $this->writeReport($changes, $since, $until, $apply);
 
             if ($apply) {
@@ -85,30 +100,26 @@ class RepairRecentCarryOverValuesCommand extends Command
 
             $this->renderSummary($changes, $changedSources, $apply, $reportPath);
         } catch (Throwable $exception) {
-            DB::rollBack();
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
+
             $this->error('No changes committed: '.$exception->getMessage());
 
             return self::FAILURE;
-        } finally {
-            Auth::logout();
         }
 
         return self::SUCCESS;
     }
 
-    /** @return array{0: Carbon, 1: Carbon, 2: int} */
+    /** @return array{0: Carbon, 1: Carbon} */
     private function validatedOptions(): array
     {
         $sinceValue = trim((string) $this->option('since'));
         $untilValue = trim((string) $this->option('until'));
-        $updatedBy = filter_var($this->option('updated-by'), FILTER_VALIDATE_INT);
 
         if ($sinceValue === '') {
             throw new InvalidArgumentException('Refusing to scan without --since.');
-        }
-
-        if ($updatedBy === false || $updatedBy <= 0) {
-            throw new InvalidArgumentException('Refusing to run without a valid --updated-by user id.');
         }
 
         $since = Carbon::parse($sinceValue)->startOfDay();
@@ -118,7 +129,7 @@ class RepairRecentCarryOverValuesCommand extends Command
             throw new InvalidArgumentException('--since must not be later than --until.');
         }
 
-        return [$since, $until, (int) $updatedBy];
+        return [$since, $until];
     }
 
     /** @return Collection<int, TrainingProgramSlotExercise> */
@@ -134,6 +145,7 @@ class RepairRecentCarryOverValuesCommand extends Command
                 ->whereIn('setting_key', self::CARRIED_FIELDS)
                 ->where('actual_is_explicit', true)
                 ->whereNotNull('actual_value_type')
+                ->where('actual_source', 'athlete')
                 ->whereBetween('actual_recorded_at', [$since, $until]))
             ->with(['slot', 'exercise'])
             ->get()
@@ -217,13 +229,17 @@ class RepairRecentCarryOverValuesCommand extends Command
             $changes[] = $row;
         }
 
+        return $changes;
+    }
+
+    /** @param list<array<string, mixed>> $changes */
+    private function sortChanges(array &$changes): void
+    {
         usort($changes, fn (array $a, array $b): int => [
             $a['training_program_id'], $a['user_id'], $a['plan_block_id'], $a['date'], $a['program_exercise_id'], $a['set'], $a['field'],
         ] <=> [
             $b['training_program_id'], $b['user_id'], $b['plan_block_id'], $b['date'], $b['program_exercise_id'], $b['set'], $b['field'],
         ]);
-
-        return $changes;
     }
 
     private function valuesEquivalent(mixed $before, mixed $after): bool
@@ -296,7 +312,7 @@ class RepairRecentCarryOverValuesCommand extends Command
             $changedSources,
         ));
         $this->line('CSV report: '.$reportPath);
-        $this->line('Athlete actuals, completion state, automatic/1RM exercises, and later coach-entered target cells were not changed.');
+        $this->line('Athlete actuals, completion state, weightless or automatic/1RM exercises, and later coach-entered target cells were not changed.');
     }
 
     /** @param array<string, mixed> $row */
