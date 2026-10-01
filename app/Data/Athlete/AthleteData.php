@@ -38,10 +38,10 @@ class AthleteData extends AbstractData implements HasForms
         public ?string $ownerName = null,
         public ?string $ownerColor = null,
         public ?Carbon $updatedAt = null,
-        public string $personName = '',
+        public ?string $personName = '',
         public array $metrics = [],
-        public string $setupStatus = '',
-        public string $setupStatusLabel = '',
+        public ?string $setupStatus = '',
+        public ?string $setupStatusLabel = '',
         public string $setupStatusColor = 'zinc',
     ) {}
 
