@@ -294,32 +294,9 @@ function status(string $project): void
     }
 }
 
-/** Only this application's installed dependencies belong to its release. */
-function deploymentPackages(string $project): array
+function assertPackageRepositories(): void
 {
-    $locked = lockedCodaPackages($project);
-
-    return array_filter(packages(), fn (array $package): bool => isset($locked[$package['composer_name']]));
-}
-
-/** A workspace link is valid for development, but cannot be shipped in the application lock. */
-function assertPortablePackageSources(string $project): void
-{
-    $lockFile = $project.'/composer.lock';
-    if (! is_file($lockFile)) {
-        throw new RuntimeException('Deployment requires composer.lock. Install and lock dependencies first.');
-    }
-    $lock = json_decode((string) file_get_contents($lockFile), true, flags: JSON_THROW_ON_ERROR);
-    foreach ([...($lock['packages'] ?? []), ...($lock['packages-dev'] ?? [])] as $package) {
-        if (str_starts_with($package['name'] ?? '', 'coda/') && ($package['dist']['type'] ?? null) === 'path') {
-            throw new RuntimeException($package['name'].' is locked from a local path. Publish its repository, configure a VCS source and refresh composer.lock before deployment.');
-        }
-    }
-}
-
-function assertPackageRepositories(array $deploymentPackages): void
-{
-    foreach ($deploymentPackages as $package) {
+    foreach (packages() as $package) {
         if (! is_dir($package['path'].'/.git')) {
             throw new RuntimeException("{$package['composer_name']} is not a Git repository");
         }
@@ -332,10 +309,10 @@ function assertPackageRepositories(array $deploymentPackages): void
 }
 
 /** @return list<array{name: string, path: string, composer_name: string}> */
-function dirtyPackages(array $deploymentPackages): array
+function dirtyPackages(): array
 {
     return array_values(array_filter(
-        $deploymentPackages,
+        packages(),
         fn (array $package): bool => git($package['path'], ['status', '--porcelain'], true) !== '',
     ));
 }
@@ -344,13 +321,13 @@ function dirtyPackages(array $deploymentPackages): array
  * @param  list<array{name: string, path: string, composer_name: string}>  $dirty
  * @return list<array{name: string, path: string, composer_name: string}>
  */
-function packagesRequiringLockRefresh(string $project, array $dirty, array $deploymentPackages): array
+function packagesRequiringLockRefresh(string $project, array $dirty): array
 {
     $dirtyNames = array_fill_keys(array_column($dirty, 'composer_name'), true);
     $lockedReferences = lockedCodaReferences($project);
 
     return array_values(array_filter(
-        $deploymentPackages,
+        packages(),
         function (array $package) use ($dirtyNames, $lockedReferences): bool {
             $name = $package['composer_name'];
             if (! array_key_exists($name, $lockedReferences)) {
@@ -396,11 +373,9 @@ function deploy(string $project, array $arguments): void
         fail('Deploy requires a commit message, for example: composer deploy "Describe the release".');
     }
 
-    $deploymentPackages = deploymentPackages($project);
-    assertPortablePackageSources($project);
-    assertPackageRepositories($deploymentPackages);
-    $dirty = dirtyPackages($deploymentPackages);
-    $lockRefreshes = packagesRequiringLockRefresh($project, $dirty, $deploymentPackages);
+    assertPackageRepositories();
+    $dirty = dirtyPackages();
+    $lockRefreshes = packagesRequiringLockRefresh($project, $dirty);
     $appGitRoot = gitRoot($project);
     $appBranch = git($appGitRoot, ['branch', '--show-current'], true);
     git($appGitRoot, ['remote', 'get-url', 'origin'], true);

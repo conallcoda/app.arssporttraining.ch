@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "992f0b3cf333d456c979f9b7fc966a05",
+    "content-hash": "eb4a7cca59c7a566e9b0a172db09ec0b",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -277,12 +277,12 @@
             "source": {
                 "type": "git",
                 "url": "git@github.com:conallcoda/coda-cms.git",
-                "reference": "9c229914e3ee7e80f81d394e02b7afde409b78ba"
+                "reference": "2358276a0f53c9b9b48cbefce6316ea602e07e26"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/conallcoda/coda-cms/zipball/9c229914e3ee7e80f81d394e02b7afde409b78ba",
-                "reference": "9c229914e3ee7e80f81d394e02b7afde409b78ba",
+                "url": "https://api.github.com/repos/conallcoda/coda-cms/zipball/2358276a0f53c9b9b48cbefce6316ea602e07e26",
+                "reference": "2358276a0f53c9b9b48cbefce6316ea602e07e26",
                 "shasum": ""
             },
             "require": {
@@ -292,7 +292,7 @@
                 "livewire/flux": "^2.0",
                 "livewire/flux-pro": "^2.0",
                 "livewire/livewire": "^3.0 || ^4.0",
-                "php": "^8.4",
+                "php": "^8.2",
                 "spatie/laravel-data": "^4.0",
                 "spatie/laravel-medialibrary": "^11.0",
                 "spatie/laravel-query-builder": "^6.0",
@@ -324,7 +324,7 @@
                 }
             },
             "description": "Generic CMS framework for Laravel Livewire applications",
-            "time": "2026-10-03T19:00:01+00:00"
+            "time": "2026-08-16T13:24:44+00:00"
         },
         {
             "name": "coda/expression-kit",
@@ -361,12 +361,12 @@
             "source": {
                 "type": "git",
                 "url": "git@github.com:conallcoda/coda-form-kit.git",
-                "reference": "27e31b7cc5ac7c5d39c858ddc52bf702b002770e"
+                "reference": "57197c67c5af3f780720e54e592b9057bcf2b893"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/conallcoda/coda-form-kit/zipball/27e31b7cc5ac7c5d39c858ddc52bf702b002770e",
-                "reference": "27e31b7cc5ac7c5d39c858ddc52bf702b002770e",
+                "url": "https://api.github.com/repos/conallcoda/coda-form-kit/zipball/57197c67c5af3f780720e54e592b9057bcf2b893",
+                "reference": "57197c67c5af3f780720e54e592b9057bcf2b893",
                 "shasum": ""
             },
             "require": {
@@ -397,7 +397,7 @@
                 }
             },
             "description": "Framework-agnostic form field definitions with FluxUI rendering",
-            "time": "2026-10-03T19:00:04+00:00"
+            "time": "2026-08-16T13:24:47+00:00"
         },
         {
             "name": "coda/schema-kit",
@@ -405,12 +405,12 @@
             "source": {
                 "type": "git",
                 "url": "git@github.com:conallcoda/coda-schema-kit.git",
-                "reference": "1096b0c732c61797a5d9a98747dc4d4edbed5a88"
+                "reference": "5dfc2630863b34edc223004ce4b7dd62324de51a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/conallcoda/coda-schema-kit/zipball/1096b0c732c61797a5d9a98747dc4d4edbed5a88",
-                "reference": "1096b0c732c61797a5d9a98747dc4d4edbed5a88",
+                "url": "https://api.github.com/repos/conallcoda/coda-schema-kit/zipball/5dfc2630863b34edc223004ce4b7dd62324de51a",
+                "reference": "5dfc2630863b34edc223004ce4b7dd62324de51a",
                 "shasum": ""
             },
             "require": {
@@ -439,7 +439,7 @@
                 }
             },
             "description": "Shared schema definitions for entities, facets, views, and identity metadata",
-            "time": "2026-10-03T19:00:06+00:00"
+            "time": "2026-08-16T13:24:49+00:00"
         },
         {
             "name": "codeat3/blade-fluentui-system-icons",
@@ -1676,16 +1676,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v12.69.3",
+            "version": "v12.65.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "58ea544a2a80dc03c168e13a5dc9a1d176a88717"
+                "reference": "99a8fb3153f962a323377d6742be08da86bcccb8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/58ea544a2a80dc03c168e13a5dc9a1d176a88717",
-                "reference": "58ea544a2a80dc03c168e13a5dc9a1d176a88717",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/99a8fb3153f962a323377d6742be08da86bcccb8",
+                "reference": "99a8fb3153f962a323377d6742be08da86bcccb8",
                 "shasum": ""
             },
             "require": {
@@ -1894,7 +1894,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2026-09-29T12:53:25+00:00"
+            "time": "2026-08-05T15:33:16+00:00"
         },
         {
             "name": "laravel/prompts",
@@ -2209,16 +2209,16 @@
         },
         {
             "name": "league/commonmark",
-            "version": "2.10.3",
+            "version": "2.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/commonmark.git",
-                "reference": "6efbd9c472b91db0a3350fcd601c8332c2382e1f"
+                "reference": "5703d83ba3da3b2e356a5fedc848ed6d8ffb6529"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/commonmark/zipball/6efbd9c472b91db0a3350fcd601c8332c2382e1f",
-                "reference": "6efbd9c472b91db0a3350fcd601c8332c2382e1f",
+                "url": "https://api.github.com/repos/thephpleague/commonmark/zipball/5703d83ba3da3b2e356a5fedc848ed6d8ffb6529",
+                "reference": "5703d83ba3da3b2e356a5fedc848ed6d8ffb6529",
                 "shasum": ""
             },
             "require": {
@@ -2255,7 +2255,7 @@
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-main": "2.11-dev"
+                    "dev-main": "2.10-dev"
                 }
             },
             "autoload": {
@@ -2312,7 +2312,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-09-21T13:07:34+00:00"
+            "time": "2026-08-03T13:42:31+00:00"
         },
         {
             "name": "league/config",
@@ -2398,16 +2398,16 @@
         },
         {
             "name": "league/flysystem",
-            "version": "3.36.0",
+            "version": "3.35.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/flysystem.git",
-                "reference": "f7fb152932f30072d573510cbd4dd657d6475b25"
+                "reference": "b277b5dc3d56650b68904117124e79c851e12376"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/flysystem/zipball/f7fb152932f30072d573510cbd4dd657d6475b25",
-                "reference": "f7fb152932f30072d573510cbd4dd657d6475b25",
+                "url": "https://api.github.com/repos/thephpleague/flysystem/zipball/b277b5dc3d56650b68904117124e79c851e12376",
+                "reference": "b277b5dc3d56650b68904117124e79c851e12376",
                 "shasum": ""
             },
             "require": {
@@ -2475,9 +2475,9 @@
             ],
             "support": {
                 "issues": "https://github.com/thephpleague/flysystem/issues",
-                "source": "https://github.com/thephpleague/flysystem/tree/3.36.0"
+                "source": "https://github.com/thephpleague/flysystem/tree/3.35.2"
             },
-            "time": "2026-09-02T08:00:27+00:00"
+            "time": "2026-07-06T14:42:07+00:00"
         },
         {
             "name": "league/flysystem-local",
@@ -12585,7 +12585,7 @@
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
-        "php": "^8.4"
+        "php": "^8.2"
     },
     "platform-dev": {},
     "plugin-api-version": "2.9.0"
