@@ -9,7 +9,7 @@
     ],
     "license": "MIT",
     "require": {
-        "php": "^8.2",
+        "php": "^8.4",
         "coda/cms": "dev-main",
         "coda/form-kit": "dev-main",
         "codeat3/blade-fluentui-system-icons": "^1.35",
