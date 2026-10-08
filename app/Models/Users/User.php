@@ -23,6 +23,16 @@ class User extends CmsUser
                 $user->account_setup_uuid = (string) Str::uuid();
             }
         });
+
+        static::softDeleted(function (self $user): void {
+            if (blank($user->email) || Str::isUuid(Str::afterLast($user->email, '-deleted-'))) {
+                return;
+            }
+
+            $user->forceFill([
+                'email' => mb_substr($user->email, 0, 210).'-deleted-'.Str::uuid(),
+            ])->saveQuietly();
+        });
     }
 
     protected static function newFactory(): UserFactory
